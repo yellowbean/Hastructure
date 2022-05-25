@@ -80,7 +80,6 @@ runPool :: Asset a => [a] -> [CF.CashFlowFrame]
 runPool as = map calcCashflow as
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
--- aggPool :: [CF.CashFlowFrame] -> [T.Day] -> CF.CashFlowFrame
 aggPool asflows =
   foldr CF.combine first_flow tail_flows
   where

@@ -18,7 +18,7 @@ import Lib
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
-import           Data.Aeson       hiding (json)
+import       Data.Aeson       hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -35,6 +35,7 @@ data TestDeal = TestDeal {
   ,bonds :: Map.Map String L.Bond
   ,pool ::  (P.Pool P.Mortgage)
   ,waterfall :: W.DistributionSeq
+  ,collects :: [W.CollectionRule]
 } deriving (Show)
 
 
@@ -79,12 +80,12 @@ td = TestDeal {
                                          360
                                          ]}
  ,waterfall = [
-   W.Collect W.CollectedInterest "General"
-   ,W.Collect W.CollectedPrincipal "General"
-   ,W.PayFee "General" ["Service-Fee"]
+   W.PayFee "General" ["Service-Fee"]
    ,W.PayInt "General" ["A"]
    ,W.PayPrin "General" ["A"]
    ]
+ ,collects = [W.Collect W.CollectedInterest "General"
+             ,W.Collect W.CollectedPrincipal "General"]
 }
 
 performAction :: T.Day -> TestDeal -> W.Action -> TestDeal
@@ -98,8 +99,6 @@ performAction d t (W.Transfer an1 an2) =
                     Nothing -> 0
     accMapAfterDraw = Map.adjust (A.draw transferAmt d "") an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d "") an2 accMapAfterDraw
-
-performAction d t (W.Collect poolSource an) = t
 
 performAction d t (W.PayFee an fns) =
   t {accounts = accMapAfterPay, fees = feeMapUpdated}
@@ -123,35 +122,38 @@ performAction d t (W.PayFee an fns) =
                        an
                        accMap
 
-
-
 performAction d t (W.PayInt an bnds) = t
 performAction d t (W.PayPrin an bnds) = t
 
+data Forecast = PoolFlow CF.CashFlowFrame
 
-run :: TestDeal -> Int -> TestDeal
-run t currentPeriod =
+run :: [Forecast] -> TestDeal -> Int -> TestDeal
+run fcst t currentPeriod =
   if (currentPeriod < poolCfSize)
     then
       let
          runDate = (T.fromGregorian 2022 1 1)
+         accs = depositPoolInflow (collects t) runDate poolCf (accounts t)
+         tWithNewCollection = t {accounts=accs}
       in
       run
-        (foldl (performAction runDate) t (waterfall t))
+        fcst
+        (foldl (performAction runDate) tWithNewCollection (waterfall t))
         (currentPeriod + 1)
     else
       t
   where
     poolCf = rPool $ pool t
-    poolCfSize = CF.sizeCashFlowFrame poolCf
+    poolCollectionCf = CF.aggTsByDates $ CF.getTsCashFlowFrame poolCf
+    poolCfSize =  CF.sizeCashFlowFrame poolCf
 
 
 rPool :: (P.Pool P.Mortgage) -> CF.CashFlowFrame
 rPool the_pool  =
   P.aggPool $ P.runPool (P.assets the_pool)
 
-calcPoolBalance :: TestDeal -> Float
-calcPoolBalance TestDeal{pool=p} = 100
+getPoolBalance :: TestDeal -> Float
+getPoolBalance TestDeal{pool=p} = 100
   --foldl (getCurrentBal + ) 0 p.assets
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
@@ -161,4 +163,20 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee base r)  fs fd fa (Just flpd))
   = f{ F.feeDue = fd + baseBal * r * (periodToYear flpd calcDay ACT_360)}
   where
     baseBal =  case base of
-      F.CurrentPoolBalance -> calcPoolBalance t
+      F.CurrentPoolBalance -> getPoolBalance t
+
+depositPoolInflow :: [W.CollectionRule] -> T.Day -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
+depositPoolInflow rules d cf amap =
+  foldl fn amap rules 
+  where
+      currentPoolInflow = CF.getSingleTsCashFlowFrame cf d
+      fn _acc _r@(W.Collect _ _accName) =
+          Map.adjust (A.deposit collectedCash d "") _accName _acc
+          where 
+              collectedCash = collectCash _r currentPoolInflow
+      
+      collectCash r ts =
+        case r of
+          (W.Collect W.CollectedInterest _)   -> CF.mflowInterest ts
+          (W.Collect W.CollectedPrincipal _)  -> CF.mflowPrincipal ts
+          (W.Collect W.CollectedRecoveries _) -> CF.mflowRecovery ts

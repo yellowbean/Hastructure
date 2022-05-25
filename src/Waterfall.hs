@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Waterfall
-  (PoolSource(..),Action(..),DistributionSeq(..))
+  (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..))
   where
 
 
@@ -27,7 +27,6 @@ data PoolSource = CollectedInterest
              deriving (Show)
 
 data Action = Transfer AccountName AccountName
-             | Collect PoolSource AccountName
              | PayFee AccountName [FeeName]
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
@@ -35,6 +34,12 @@ data Action = Transfer AccountName AccountName
 
 type DistributionSeq = [Action]
 
+data CollectionRule = Collect PoolSource AccountName
+             deriving (Show)
+
+
+
 -- $(deriveJSON defaultOptions ''DistSeq)
 $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''Action)
+$(deriveJSON defaultOptions ''CollectionRule)

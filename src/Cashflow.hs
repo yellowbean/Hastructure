@@ -1,6 +1,8 @@
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mkCashFlowFrame,mkColDay,mkColNum,mkColBal,combine
-                ,sizeCashFlowFrame) where
+                ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
+                ,mflowInterest,mflowPrincipal,mflowRecovery
+                ,getSingleTsCashFlowFrame) where
 
 import Data.Time (Day)
 import Lib (Dates)
@@ -32,8 +34,6 @@ data TsRow = CashFlow Date Amount
               deriving (Show)
 
 
-
-
 instance Ord TsRow where
   compare (CashFlow d1 _) (CashFlow d2 _) = compare d1 d2
   compare (BondFlow d1 _ _ _) (BondFlow d2 _ _ _) = compare d1 d2
@@ -58,6 +58,12 @@ mkCashFlowFrame xss = CashFlowFrame $ map mkRow xss
 
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame ts) = length ts
+
+getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
+getTsCashFlowFrame (CashFlowFrame ts) = ts
+
+getSingleTsCashFlowFrame :: CashFlowFrame -> T.Day -> TsRow
+getSingleTsCashFlowFrame (CashFlowFrame trs) d = head $ filter (\x -> (tsDate x) == d) trs
 
 mkColDay :: [T.Day] -> [ColType]
 mkColDay ds = [ (ColDate _d) | _d <- ds ]
@@ -125,5 +131,13 @@ aggTsByDates trs ds =
     reduceFn accum _ _ = reverse accum
 
 
+mflowPrincipal :: TsRow -> Float
+mflowPrincipal (MortgageFlow _ _ x _ _ _) = x
+mflowInterest :: TsRow -> Float
+mflowInterest (MortgageFlow _ _ _ x _ _) = x
+mflowPrepayment :: TsRow -> Float
+mflowPrepayment (MortgageFlow _ _ _ _ x _) = x
+mflowRecovery :: TsRow -> Float
+mflowRecovery (MortgageFlow _ _ _ _ _ x) = x
 
 
