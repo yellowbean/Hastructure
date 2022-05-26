@@ -66,6 +66,10 @@ td = TestDeal {
                                                 ,L.originLockoutEnd=Nothing}
                              ,L.bndInterestInfo= L.Fix 0.08
                              ,L.bndBalance=3000
+                             ,L.bndDuePrin=0.0
+                             ,L.bndDueInt=0.0
+                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndStmt=Nothing})
                           ])
   ,pool = P.Pool {P.assets=[P.Mortgage
@@ -117,13 +121,46 @@ performAction d t (W.PayFee an fns) =
     feesPaid = map (\(f,amt) -> (F.payFee d amt f)) feesAmountToBePaid
 
     feeMapUpdated = Map.fromList $ zip fns feesPaid
-    accMapAfterPay = Map.adjust
-                       (A.draw actualPaidOut d "Pay Fee")
-                       an
-                       accMap
+    accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Fee") an accMap
 
-performAction d t (W.PayInt an bnds) = t
+performAction d t (W.PayInt an bnds) =
+  t {accounts = accMapAfterPay, bonds = bndMapUpdated}
+  where
+    bndMap = (bonds t)
+    accMap = (accounts t)
+    acc = accMap Map.! an
+
+    bndsToPay = map (\x -> bndMap Map.! x ) bnds
+    bndsWithDue = map (\x -> calcDueInt t d x) bndsToPay
+    bndsDueAmts = map (\x -> (L.bndDueInt x) ) bndsWithDue
+
+    availBal = A.accBalance acc
+    actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
+    bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal
+    bndsPaid = map (\(l,amt) -> (L.payInt d amt l)) bndsAmountToBePaid
+
+    bndMapUpdated = Map.fromList $ zip bnds bndsPaid
+    accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Int") an accMap
+
 performAction d t (W.PayPrin an bnds) = t
+  t {accounts = accMapAfterPay, bonds = bndMapUpdated}
+  where
+    bndMap = (bonds t)
+    accMap = (accounts t)
+    acc = accMap Map.! an
+
+    bndsToPay = map (\x -> bndMap Map.! x ) bnds
+    bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay
+    bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
+
+    availBal = A.accBalance acc
+    actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
+    bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal
+    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid
+
+    bndMapUpdated = Map.fromList $ zip bnds bndsPaid
+    accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Prin") an accMap
+
 
 data Forecast = PoolFlow CF.CashFlowFrame
 
@@ -164,6 +201,21 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee base r)  fs fd fa (Just flpd))
   where
     baseBal =  case base of
       F.CurrentPoolBalance -> getPoolBalance t
+
+calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
+calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal _ _ (Just lstIntPay) (Just lstPrinPay) _) =
+  b {L.bndDueInt = (dueInt+int_arrears) }
+  where
+    int_arrears = 0
+    dueInt = calcInt bond_bal lstIntPay calc_date 0.08 ACT_365
+
+
+calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
+calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal prin_arr int_arrears (Just lstIntPay) (Just lstPrinPay) _) =
+  b {L.bndDuePrin = duePrin}
+  where
+    duePrin = bond_bal
+
 
 depositPoolInflow :: [W.CollectionRule] -> T.Day -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolInflow rules d cf amap =
