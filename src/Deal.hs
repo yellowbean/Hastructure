@@ -142,7 +142,7 @@ performAction d t (W.PayInt an bnds) =
     bndMapUpdated = Map.fromList $ zip bnds bndsPaid
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Int") an accMap
 
-performAction d t (W.PayPrin an bnds) = t
+performAction d t (W.PayPrin an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
     bndMap = (bonds t)
@@ -193,6 +193,7 @@ getPoolBalance :: TestDeal -> Float
 getPoolBalance TestDeal{pool=p} = 100
   --foldl (getCurrentBal + ) 0 p.assets
 
+
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd fa (Just flpd))
   = f{ F.feeDue = amt}
@@ -201,6 +202,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee base r)  fs fd fa (Just flpd))
   where
     baseBal =  case base of
       F.CurrentPoolBalance -> getPoolBalance t
+
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal _ _ (Just lstIntPay) (Just lstPrinPay) _) =

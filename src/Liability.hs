@@ -4,7 +4,7 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
-  ,InterestInfo(..), Statement(..),payInt)
+  ,InterestInfo(..), Statement(..),payInt,payPrin)
   where
 
 import Language.Haskell.TH
@@ -91,24 +91,23 @@ appendStmt stmt@(Statement ds bals int_paids prin_paids int_arrears memos) d bal
               (memos ++ [memo])
 
 payInt :: T.Day -> Float -> Bond -> Bond
-payInt d amt b =
-  b
---getStmt :: Bond -> Statement
---getStmt b = (fromJust (bndStmt b))
---
---getBal :: Bond -> Balance
---getBal b =(bndBalance b)
---
---payPrin :: Bond -> T.Day -> Float -> Bond
---payPrin b pay_date amount =
---  b { bndBalance=new_bal, bndStmt=new_stmt}
---  where
---    new_bal = getBal b
---    new_stmt = appendStmt (getStmt b) pay_date new_bal  0 amount 0 "PRIN PAY"
---
+payInt d amt bnd@(Bond bn Passthrough oi
+                                    iinfo bal duePrin dueInt lpayInt lpayPrin (Just stmt)) =
+  Bond bn Passthrough oi iinfo new_bal duePrin new_due (Just d) lpayPrin (Just new_stmt)
+  where
+    new_bal = bal - amt
+    new_due = dueInt - amt
+    new_stmt = appendStmt stmt d bal amt 0 new_due  "INT PAY"
+
+
 payPrin :: T.Day -> Float -> Bond -> Bond
-payPrin d amt bnd = bnd
---  new_stmt = appendStmt (getStmt b) pay_date bal amount 0 0 "PRIN INT"
+payPrin d amt bnd@(Bond bn Passthrough oi
+                   iinfo bal duePrin dueInt lpayInt lpayPrin (Just stmt)) =
+  Bond bn Passthrough oi iinfo new_bal new_due dueInt lpayInt (Just d) (Just new_stmt)
+  where
+    new_bal = bal - amt
+    new_due = duePrin - amt
+    new_stmt = appendStmt stmt d new_bal 0 amt 0 "PRIN PAY"
 
 
 $(deriveJSON defaultOptions ''InterestInfo)
