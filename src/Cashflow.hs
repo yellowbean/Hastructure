@@ -1,8 +1,9 @@
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mkCashFlowFrame,mkColDay,mkColNum,mkColBal,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
-                ,mflowInterest,mflowPrincipal,mflowRecovery
-                ,getSingleTsCashFlowFrame) where
+                ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
+                ,getSingleTsCashFlowFrame
+                ,TsRow(..) ) where
 
 import Data.Time (Day)
 import Lib (Dates)
@@ -27,6 +28,7 @@ type Prepayments = [Prepayment]
 type Recoveries = [Recovery]
 
 data ColType = ColNum Float | ColDate Date | ColBal Float
+    deriving (Show)
 
 data TsRow = CashFlow Date Amount
               |BondFlow Date Balance Principal Interest
@@ -74,17 +76,10 @@ mkColNum ds = [ (ColNum _d) | _d <- ds ]
 mkColBal :: [Float] -> [ColType]
 mkColBal ds = [ (ColBal _d) | _d <- ds ]
 
---cmpTsRow :: TsRow -> TsRow -> Ordering
---cmpTsRow  ((ColDate t1):xs)  ((ColDate t2):ys)
---    = if t1 > t2
---         then GT
---      else if t1==t2
---         then EQ
---      else LT
 addTs :: TsRow -> TsRow -> TsRow
-addTs (CashFlow d1 a1 ) (CashFlow d2 a2 ) = (CashFlow d1 (a1 + a2))
-addTs (BondFlow d1 b1 p1 i1 ) (BondFlow d2 b2 p2 i2 ) = (BondFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) )
-addTs (MortgageFlow d1 b1 p1 i1 prep1 rec1 ) (MortgageFlow d2 b2 p2 i2 prep2 rec2 )
+addTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))
+addTs (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = (BondFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) )
+addTs (MortgageFlow d1 b1 p1 i1 prep1 rec1 ) (MortgageFlow _ b2 p2 i2 prep2 rec2 )
   = (MortgageFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (rec1 + rec2))
 
 sumTs :: [TsRow] -> T.Day -> TsRow
@@ -114,16 +109,16 @@ combine (CashFlowFrame rs1) (CashFlowFrame rs2) =
           sorted_cff = L.sort cff
 
 tsDateLT :: T.Day -> TsRow  -> Bool
-tsDateLT td (CashFlow d a) = d < td
-tsDateLT td (BondFlow d b p i) =  d < td
-tsDateLT td (MortgageFlow d b p i prep rec) = d < td
+tsDateLT td (CashFlow d _) = d < td
+tsDateLT td (BondFlow d _ _ _) =  d < td
+tsDateLT td (MortgageFlow d _ _ _ _ _) = d < td
 
 
 aggTsByDates :: [TsRow] -> [T.Day] -> [TsRow]
 aggTsByDates trs ds =
   map (\(x,y) -> sumTs x y) (zip (reduceFn [] ds trs) ds)
   where
-    reduceFn accum (cutoffDay:cutoffDays) [] =  reverse accum
+    reduceFn accum _ [] =  reverse accum
     reduceFn accum (cutoffDay:cutoffDays) _trs =
       reduceFn (newAcc:accum) cutoffDays rest
         where
@@ -133,11 +128,15 @@ aggTsByDates trs ds =
 
 mflowPrincipal :: TsRow -> Float
 mflowPrincipal (MortgageFlow _ _ x _ _ _) = x
+mflowPrincipal _  = -1.0
 mflowInterest :: TsRow -> Float
 mflowInterest (MortgageFlow _ _ _ x _ _) = x
+mflowInterest _  = -1.0
 mflowPrepayment :: TsRow -> Float
 mflowPrepayment (MortgageFlow _ _ _ _ x _) = x
+mflowPrepayment _  = -1.0
 mflowRecovery :: TsRow -> Float
 mflowRecovery (MortgageFlow _ _ _ _ _ x) = x
+mflowRecovery _  = -1.0
 
 

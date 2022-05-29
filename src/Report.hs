@@ -1,11 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell #-}
 
-module Report
-  Deal(TestDeal)
-  where
+module Report where
 
-"Module to generate reports"
+import Language.Haskell.TH
+import Data.Aeson.TH
+
+import qualified Liability as L
+import qualified Expense as F
+import qualified Asset as P
+import qualified Cashflow as CF
+import qualified Deal as D
 
 -- data r =
 -- getReports :: TestDeal ->
+data ProjectFlow = ProjectFlow {
+   projDealName :: String
+}
 
+
+$(deriveJSON defaultOptions ''ProjectFlow)

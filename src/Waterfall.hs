@@ -24,6 +24,7 @@ type AccountName = String
 data PoolSource = CollectedInterest
                 | CollectedPrincipal
                 | CollectedRecoveries
+                | CollectedPrepayment
              deriving (Show)
 
 data Action = Transfer AccountName AccountName

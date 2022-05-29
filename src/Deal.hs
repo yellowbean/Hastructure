@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Deal (TestDeal) where
+module Deal (TestDeal,run) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -18,7 +18,8 @@ import Lib
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
-import       Data.Aeson       hiding (json)
+import Debug.Trace
+import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -30,6 +31,7 @@ class SPV a where
 data TestDeal = TestDeal {
   name :: String
   ,dates :: Map.Map String T.Day
+  ,period :: Period
   ,accounts :: Map.Map String A.Account
   ,fees :: Map.Map String F.Fee
   ,bonds :: Map.Map String L.Bond
@@ -45,6 +47,7 @@ td = TestDeal {
   name = "test deal1"
   ,dates = (Map.fromList [("closing-date",(T.fromGregorian 2022 1 1))
                          ,("cutoff-date",(T.fromGregorian 2022 1 1))])
+  ,period = Monthly
   ,accounts = (Map.fromList [("General", (A.Account {
    A.accName="General" ,A.accBalance=0.0 ,A.accType=A.Virtual ,A.accStmt=Nothing
   }))])
@@ -109,7 +112,7 @@ performAction d t (W.PayFee an fns) =
   where
     feeMap = (fees t)
     accMap = (accounts t)
-    acc = accMap Map.! an
+    acc = (trace ("pay fee acc map"++show(accMap)) accMap) Map.! (trace ("payfee using acc"++show(an)) an )
 
     feesToPay = map (\x -> feeMap Map.! x ) fns
     feesWithDue = map (\x -> calcDueFee t d x) feesToPay
@@ -120,17 +123,18 @@ performAction d t (W.PayFee an fns) =
     feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
     feesPaid = map (\(f,amt) -> (F.payFee d amt f)) feesAmountToBePaid
 
-    feeMapUpdated = Map.fromList $ zip fns feesPaid
+    feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Fee") an accMap
 
 performAction d t (W.PayInt an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
-    bndMap = (bonds t)
+    bndMap = trace ("bond maps =>"++ show(bonds t)) (bonds t)
     accMap = (accounts t)
-    acc = accMap Map.! an
+    acc = (trace ("pay int acc map"++show(accMap)) accMap) Map.! (trace ("pay Int using acc"++show(an)) an )
 
-    bndsToPay = map (\x -> bndMap Map.! x ) bnds
+    bndsToPay = map (\x -> bndMap Map.! (trace ("Looking up"++show(x)) x )) (trace ("bond map"++show(bndMap)) bnds)
+
     bndsWithDue = map (\x -> calcDueInt t d x) bndsToPay
     bndsDueAmts = map (\x -> (L.bndDueInt x) ) bndsWithDue
 
@@ -139,7 +143,7 @@ performAction d t (W.PayInt an bnds) =
     bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal
     bndsPaid = map (\(l,amt) -> (L.payInt d amt l)) bndsAmountToBePaid
 
-    bndMapUpdated = Map.fromList $ zip bnds bndsPaid
+    bndMapUpdated =   Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Int") an accMap
 
 performAction d t (W.PayPrin an bnds) =
@@ -147,7 +151,7 @@ performAction d t (W.PayPrin an bnds) =
   where
     bndMap = (bonds t)
     accMap = (accounts t)
-    acc = accMap Map.! an
+    acc = accMap Map.! (trace ("pay PRIN using acc"++show(an)) an )
 
     bndsToPay = map (\x -> bndMap Map.! x ) bnds
     bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay
@@ -158,31 +162,33 @@ performAction d t (W.PayPrin an bnds) =
     bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal
     bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid
 
-    bndMapUpdated = Map.fromList $ zip bnds bndsPaid
+    bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Prin") an accMap
 
 
-data Forecast = PoolFlow CF.CashFlowFrame
+-- data Forecast = PoolFlow CF.CashFlowFrame
 
-run :: [Forecast] -> TestDeal -> Int -> TestDeal
-run fcst t currentPeriod =
+run :: TestDeal -> Int -> TestDeal
+run t currentPeriod =
   if (currentPeriod < poolCfSize)
     then
       let
-         runDate = (T.fromGregorian 2022 1 1)
-         accs = depositPoolInflow (collects t) runDate poolCf (accounts t)
-         tWithNewCollection = t {accounts=accs}
+         runDate = afterNPeriod startDate (toInteger currentPeriod) (period t)
+         accs = trace ("new accs" ++ show (depositPoolInflow (collects t) (trace "deposit date" runDate) poolCf (accounts t))) (depositPoolInflow (collects t) (trace "deposit date" runDate) poolCf (accounts t))
+         tWithNewCollection = (trace ("deal deposited"++(show t)) (t {accounts=accs}))
+
       in
       run
-        fcst
+        --fcst
         (foldl (performAction runDate) tWithNewCollection (waterfall t))
-        (currentPeriod + 1)
+        (trace (show "currentPeriod:" ++ show (currentPeriod+1)) (currentPeriod + 1))
     else
       t
   where
     poolCf = rPool $ pool t
     poolCollectionCf = CF.aggTsByDates $ CF.getTsCashFlowFrame poolCf
     poolCfSize =  CF.sizeCashFlowFrame poolCf
+    startDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
 
 
 rPool :: (P.Pool P.Mortgage) -> CF.CashFlowFrame
@@ -193,27 +199,39 @@ getPoolBalance :: TestDeal -> Float
 getPoolBalance TestDeal{pool=p} = 100
   --foldl (getCurrentBal + ) 0 p.assets
 
+getBondBalance :: TestDeal -> Float
+getBondBalance TestDeal{pool=p} = 100
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
-calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd fa (Just flpd))
+calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd fa _)
   = f{ F.feeDue = amt}
-calcDueFee t calcDay f@(F.Fee fn (F.PctFee base r)  fs fd fa (Just flpd))
-  = f{ F.feeDue = fd + baseBal * r * (periodToYear flpd calcDay ACT_360)}
-  where
-    baseBal =  case base of
-      F.CurrentPoolBalance -> getPoolBalance t
+calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee base r) fs fd fa maybeFlpd)
+  = case maybeFlpd of
+      (Just flpd ) ->
+        f{ F.feeDue = fd + baseBal * r * (periodToYear flpd calcDay ACT_360)}
+      Nothing ->
+        f{ F.feeDue = fd + baseBal * r * (periodToYear tClosingDate calcDay ACT_360)}
+    where
+      baseBal =  case base of
+        F.CurrentPoolBalance -> getPoolBalance t
+        F.CurrentBondBalance -> getBondBalance t
+        _ -> 0.0
+      tClosingDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
 
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal _ _ (Just lstIntPay) (Just lstPrinPay) _) =
+calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal _ _ lstIntPay _ _) =
   b {L.bndDueInt = (dueInt+int_arrears) }
   where
     int_arrears = 0
-    dueInt = calcInt bond_bal lstIntPay calc_date 0.08 ACT_365
+    lastIntPayDay = case lstIntPay of
+                      Just pd -> pd
+                      Nothing -> Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
+    dueInt = calcInt bond_bal lastIntPayDay calc_date 0.08 ACT_365
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal prin_arr int_arrears (Just lstIntPay) (Just lstPrinPay) _) =
+calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal prin_arr int_arrears _ _ _) =
   b {L.bndDuePrin = duePrin}
   where
     duePrin = bond_bal
@@ -221,16 +239,16 @@ calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal prin_arr int_arrears (Jus
 
 depositPoolInflow :: [W.CollectionRule] -> T.Day -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolInflow rules d cf amap =
-  foldl fn amap rules 
+  foldl fn amap rules
   where
-      currentPoolInflow = CF.getSingleTsCashFlowFrame cf d
+      currentPoolInflow = CF.getSingleTsCashFlowFrame (trace ("cf to find->"++ show(cf)) cf) (trace ("D->"++show(d)) d)
       fn _acc _r@(W.Collect _ _accName) =
           Map.adjust (A.deposit collectedCash d "") _accName _acc
           where 
-              collectedCash = collectCash _r currentPoolInflow
-      
+              collectedCash = collectCash _r (trace ("inflow=>" ++ show(currentPoolInflow)) currentPoolInflow)
       collectCash r ts =
-        case r of
-          (W.Collect W.CollectedInterest _)   -> CF.mflowInterest ts
+        case (trace ("running collect rule =>" ++ show(r)) r) of
+          (W.Collect W.CollectedInterest _)   -> CF.mflowInterest (trace ("ts to be collected=> " ++ show(ts)) ts)
           (W.Collect W.CollectedPrincipal _)  -> CF.mflowPrincipal ts
           (W.Collect W.CollectedRecoveries _) -> CF.mflowRecovery ts
+          (W.Collect W.CollectedPrepayment _) -> CF.mflowPrepayment ts

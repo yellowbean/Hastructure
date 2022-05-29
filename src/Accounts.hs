@@ -41,8 +41,7 @@ depositInt acc@(Account
                 bal
                 _
                 (BankAccount r _)
-                -- (Just (BankStatement ds bals amts memos)))
-                (Just stmt))
+                stmt)
                 sd
                 ed =
   acc {accBalance = newBal,accStmt = (Just newStmt)}
@@ -52,10 +51,10 @@ depositInt acc@(Account
     newStmt = appendStmt stmt ed accured_int newBal "Deposit Int"
 
 transfer :: Account -> Float -> T.Day -> Account -> (Account, Account)
-transfer source_acc@(Account s_bal _ _ (Just s_stmt))
+transfer source_acc@(Account s_bal _ _ s_stmt)
          amount
          d
-         target_acc@(Account t_bal _ _ (Just t_stmt))
+         target_acc@(Account t_bal _ _ t_stmt)
   = (source_acc {accBalance = new_s_bal, accStmt = (Just source_newStmt)}
     ,target_acc {accBalance = new_t_bal, accStmt = (Just target_newStmt)})
   where
@@ -65,24 +64,25 @@ transfer source_acc@(Account s_bal _ _ (Just s_stmt))
     target_newStmt = appendStmt t_stmt d amount new_t_bal "Transfer in"
 
 deposit :: Float -> T.Day -> String -> Account -> Account
-deposit amount d source acc@(Account bal _ _ (Just stmt))  =
+deposit amount d source acc@(Account bal _ _ maybeStmt)  =
     acc {accBalance = newBal, accStmt = Just newStmt}
   where
     newBal = bal + amount
-    newStmt = appendStmt stmt d amount newBal source
+    newStmt = appendStmt maybeStmt d amount newBal source
 
 draw :: Float -> T.Day -> String -> Account -> Account
 draw amount d source acc = deposit (- amount) d source acc
 
-appendStmt :: Statement -> T.Day -> Float -> Float -> String -> Statement
-appendStmt stmt@(Statement ds bals amts memos) d amount bal memo
+appendStmt :: Maybe Statement -> T.Day -> Float -> Float -> String -> Statement
+appendStmt (Just stmt@(Statement ds bals amts memos)) d amount bal memo
   = Statement (ds ++ [d])
               (bals ++ [bal])
               (amts ++ [amount])
               (memos ++ [memo])
 
+appendStmt Nothing d amount bal memo
+  = Statement [d] [bal] [amount] [memo]
+
+
 getAvailBal :: Account -> Float
 getAvailBal a = (accBalance a)
-
-
-

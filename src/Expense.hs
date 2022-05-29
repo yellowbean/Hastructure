@@ -20,6 +20,8 @@ import qualified Data.ByteString.Lazy.Char8 as L
 data FeeBase = PoolInt
               | CurrentBondBalance
               | CurrentPoolBalance
+              | OriginalBondBalance
+              | OriginalPoolBalance
               deriving (Show)
 
 

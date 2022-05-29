@@ -6,14 +6,15 @@ module Lib
     ,genDates,StartDate,EndDate,LastIntPayDate
     ,Spread,Index
     ,paySeqLiabilities,prorataFactors,periodToYear
+    ,afterNPeriod
     ) where
 
 import qualified Data.Time as T
-import qualified Data.Set as S
 
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import Debug.Trace
 
 type Rate = Float
 type Spread = Float
@@ -89,3 +90,13 @@ paySeqLiabilities startAmt liabilities =
                             (amt-target, 0):accum
                          else
                             (0, target-amt):accum
+
+afterNPeriod :: T.Day -> Integer -> Period -> T.Day
+afterNPeriod d i p =
+  T.addGregorianMonthsClip ( months * i)  d
+  where
+    months = case p of
+      Monthly -> 1
+      Quarter -> 3
+      SemiAnnually -> 6
+      Annually -> 12

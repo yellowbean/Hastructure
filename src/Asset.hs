@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
-       ,aggPool,runPool
+       ,aggPool,runPool,calcCashflow
 ) where
 
 import Control.Lens
@@ -43,14 +43,15 @@ data Mortgage = Mortgage OriginalInfo Float Float Int
 
 instance Asset Mortgage  where
   calcCashflow (Mortgage x _bal _rate _term) =
-      CF.mkCashFlowFrame raw_flow
+      CF.CashFlowFrame $ zipWith6
+                            CF.MortgageFlow
+                              cf_dates
+                              b_flow
+                              prin_flow
+                              int_flow
+                              (replicate l 0.0)
+                              (replicate l 0.0)
     where
-      raw_flow = [ (CF.mkColDay cf_dates)
-                   ,(CF.mkColBal b_flow)
-                   ,(CF.mkColNum prin_flow)
-                   ,(CF.mkColNum int_flow)
-                   ,(CF.mkColNum (replicate l 0.0))
-                   ,(CF.mkColNum (replicate l 0.0)) ]
       d = (startDate x)
       pmt = calcPmt (originBalance x) (originRate x) (originTerm x)
       cf_dates = (genDates d (period x) (originTerm x))

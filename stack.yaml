@@ -53,6 +53,8 @@ extra-deps:
    - primitive-extras-0.9
    - primitive-unlifted-0.1.3.0
    - json-schema-0.7.4.2@sha256:6f1c54247006f9d55a9d656a9e83af4b06cf6b49cebdfa79aec092f21181955f,2347
+   - containers-0.6.5.1 
+   - wai-3.2.3
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

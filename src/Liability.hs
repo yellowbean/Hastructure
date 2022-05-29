@@ -81,18 +81,20 @@ calcBond bnd@(Bond bn Passthrough (OriginalInfo _ od or _) iinfo bal duePrin due
       where
         new_int = calcInt bal od calc_date or ACT_365
 
-appendStmt :: Statement -> T.Day -> Balance -> Float -> Float -> Float -> String -> Statement
-appendStmt stmt@(Statement ds bals int_paids prin_paids int_arrears memos) d bal _int _prin _int_arrears memo
+appendStmt :: Maybe Statement -> T.Day -> Balance -> Float -> Float -> Float -> String -> Statement
+appendStmt (Just stmt@(Statement ds bals int_paids prin_paids int_arrears memos)) d bal _int _prin _int_arrears memo
   = Statement (ds ++ [d])
               (bals ++ [bal])
               (int_paids ++ [_int])
               (prin_paids ++ [_prin])
               (int_arrears ++ [_int_arrears])
               (memos ++ [memo])
+appendStmt Nothing d bal _i _p _a memo
+  = Statement [d] [bal] [_i] [_p] [_a] [memo]
 
 payInt :: T.Day -> Float -> Bond -> Bond
 payInt d amt bnd@(Bond bn Passthrough oi
-                                    iinfo bal duePrin dueInt lpayInt lpayPrin (Just stmt)) =
+                                    iinfo bal duePrin dueInt lpayInt lpayPrin stmt) =
   Bond bn Passthrough oi iinfo new_bal duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
     new_bal = bal - amt
@@ -102,7 +104,7 @@ payInt d amt bnd@(Bond bn Passthrough oi
 
 payPrin :: T.Day -> Float -> Bond -> Bond
 payPrin d amt bnd@(Bond bn Passthrough oi
-                   iinfo bal duePrin dueInt lpayInt lpayPrin (Just stmt)) =
+                   iinfo bal duePrin dueInt lpayInt lpayPrin stmt) =
   Bond bn Passthrough oi iinfo new_bal new_due dueInt lpayInt (Just d) (Just new_stmt)
   where
     new_bal = bal - amt
