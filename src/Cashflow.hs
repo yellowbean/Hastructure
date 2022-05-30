@@ -8,6 +8,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
 import Data.Time (Day)
 import Lib (Dates)
 -- import Data.Dates (Date)
+import Debug.Trace
 -- import Data.Currency (Alpha)
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -116,10 +117,12 @@ tsDateLT td (MortgageFlow d _ _ _ _ _) = d < td
 
 aggTsByDates :: [TsRow] -> [T.Day] -> [TsRow]
 aggTsByDates trs ds =
-  map (\(x,y) -> sumTs x y) (zip (reduceFn [] ds trs) ds)
+  map (\(x,y) -> sumTs x y) 
+      (zip (reduceFn [] ds trs) (trace ("ds size"++show(length(ds))) ds))
   where
     reduceFn accum _ [] =  reverse accum
-    reduceFn accum (cutoffDay:cutoffDays) _trs =
+    reduceFn ([]:accum) (cfd:cfds) _trs =  reduceFn accum  cfds _trs
+    reduceFn accum (cutoffDay:cutoffDays) _trs = 
       reduceFn (newAcc:accum) cutoffDays rest
         where
           (newAcc,rest) = L.partition (tsDateLT cutoffDay) _trs

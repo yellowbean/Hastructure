@@ -18,6 +18,7 @@ import Lib
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
+import Data.List
 import Debug.Trace
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
@@ -28,10 +29,15 @@ class SPV a where
   projBondCashflow :: a -> ()
   projAssetCashflow :: a -> ()
 
+class Statmet s where 
+  consolidate :: s -> s  
+
+
 data TestDeal = TestDeal {
   name :: String
   ,dates :: Map.Map String T.Day
-  ,period :: Period
+  ,payPeriod :: Period
+  ,collectPeriod :: Period
   ,accounts :: Map.Map String A.Account
   ,fees :: Map.Map String F.Fee
   ,bonds :: Map.Map String L.Bond
@@ -46,8 +52,11 @@ $(deriveJSON defaultOptions ''TestDeal)
 td = TestDeal {
   name = "test deal1"
   ,dates = (Map.fromList [("closing-date",(T.fromGregorian 2022 1 1))
-                         ,("cutoff-date",(T.fromGregorian 2022 1 1))])
-  ,period = Monthly
+                         ,("cutoff-date",(T.fromGregorian 2022 1 1))
+                         ,("first-pay-date",(T.fromGregorian 2022 2 25))
+                         ])
+  ,payPeriod = Monthly
+  ,collectPeriod = Monthly
   ,accounts = (Map.fromList [("General", (A.Account {
    A.accName="General" ,A.accBalance=0.0 ,A.accType=A.Virtual ,A.accStmt=Nothing
   }))])
@@ -57,7 +66,8 @@ td = TestDeal {
                                 ,F.feeStart = (T.fromGregorian 2022 1 1)
                                 ,F.feeDue = 0
                                 ,F.feeArrears = 0
-                                ,F.feeLastPaidDay = Nothing})])
+                                ,F.feeLastPaidDay = Nothing
+                                ,F.feeStmt = Nothing})])
   ,bonds = (Map.fromList [("A"
                           ,L.Bond{
                               L.bndName="A"
@@ -167,28 +177,41 @@ performAction d t (W.PayPrin an bnds) =
 
 
 -- data Forecast = PoolFlow CF.CashFlowFrame
-
+-- TODO fix pool collection period , looks like it is flows steps of bonds
 run :: TestDeal -> Int -> TestDeal
 run t currentPeriod =
-  if (currentPeriod < poolCfSize)
+  if ((trace ("current p"++show(currentPeriod)) currentPeriod) < (trace ("Pool size"++show(poolCfSize)) poolCfSize))
     then
       let
-         runDate = afterNPeriod startDate (toInteger currentPeriod) (period t)
-         accs = trace ("new accs" ++ show (depositPoolInflow (collects t) (trace "deposit date" runDate) poolCf (accounts t))) (depositPoolInflow (collects t) (trace "deposit date" runDate) poolCf (accounts t))
-         tWithNewCollection = (trace ("deal deposited"++(show t)) (t {accounts=accs}))
-
+         runDate =  pCollectionDates!!currentPeriod
+         accs = depositPoolInflow (collects t) runDate pCollectionCf (accounts t)
+         tWithNewCollection = t {accounts=accs}
       in
       run
-        --fcst
-        (foldl (performAction runDate) tWithNewCollection (waterfall t))
-        (trace (show "currentPeriod:" ++ show (currentPeriod+1)) (currentPeriod + 1))
+        (if ((fromIntegral firstPayIndex) <= currentPeriod) then 
+            (foldl (performAction (bPayDates!!(currentPeriod - 1)))
+                   tWithNewCollection 
+                   (waterfall t))
+            --tWithNewCollection
+        else 
+            tWithNewCollection)
+        (currentPeriod + 1)
     else
-      t
+      (trace "DONE" t)
   where
-    poolCf = rPool $ pool t
-    poolCollectionCf = CF.aggTsByDates $ CF.getTsCashFlowFrame poolCf
-    poolCfSize =  CF.sizeCashFlowFrame poolCf
     startDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
+    firstPayDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "first-pay-date" (dates t)
+    poolCf = rPool $ pool t
+    pCollectionInt = (collectPeriod t)
+    bPayInt = (payPeriod t)
+    pCollectionDates = map (\x -> afterNPeriod startDate x pCollectionInt) [1..100]
+    firstPayIndex = length $ takeWhile (\x -> x < firstPayDate ) pCollectionDates
+    bPayDates = (replicate (firstPayIndex - 1) (T.fromGregorian 1970 1 1)) ++ map (\x -> afterNPeriod firstPayDate x bPayInt) [0..100]
+
+    pCollectionCf = CF.CashFlowFrame $ CF.aggTsByDates 
+                   ( CF.getTsCashFlowFrame poolCf) 
+                   (trace ("coll dates"++show(pCollectionDates)) pCollectionDates)
+    poolCfSize =  CF.sizeCashFlowFrame pCollectionCf
 
 
 rPool :: (P.Pool P.Mortgage) -> CF.CashFlowFrame
@@ -203,9 +226,9 @@ getBondBalance :: TestDeal -> Float
 getBondBalance TestDeal{pool=p} = 100
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
-calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd fa _)
+calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd fa _ _)
   = f{ F.feeDue = amt}
-calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee base r) fs fd fa maybeFlpd)
+calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee base r) fs fd fa maybeFlpd _)
   = case maybeFlpd of
       (Just flpd ) ->
         f{ F.feeDue = fd + baseBal * r * (periodToYear flpd calcDay ACT_360)}

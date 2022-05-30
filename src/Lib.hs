@@ -86,7 +86,8 @@ prorataFactors bals amt =
 paySeqLiabilities :: Float -> [Float] -> [(Float,Float)]
 paySeqLiabilities startAmt liabilities =
   tail $ reverse $ foldl pay [(startAmt, 0)] liabilities
-  where pay accum@((amt, _):xs) target = if amt >= target then
+  where pay accum@((amt, _):xs) target = 
+                         if amt >= target then
                             (amt-target, 0):accum
                          else
                             (0, target-amt):accum

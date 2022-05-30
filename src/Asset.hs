@@ -17,6 +17,10 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 
+
+
+
+
 class Asset a where
   calcCashflow :: a -> CF.CashFlowFrame
   getCurrentBal :: a -> Float
@@ -24,8 +28,6 @@ class Asset a where
 
 data Pool a = Pool {assets :: [a]}
                     deriving (Show)
-
-
 
 calcPmt :: Float -> Float -> Int -> Float
 calcPmt bal periodRate periods = 
