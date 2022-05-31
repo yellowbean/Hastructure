@@ -61,6 +61,7 @@ data Bond = Bond {
   ,bndOriginInfo :: OriginalInfo
   ,bndInterestInfo :: InterestInfo
   ,bndBalance :: Balance
+  ,bndRate :: Float
   ,bndDuePrin :: Float
   ,bndDueInt :: Float
   ,bndLastIntPay :: Maybe T.Day
@@ -69,7 +70,7 @@ data Bond = Bond {
 } deriving (Show)
 
 calcBond :: Bond -> T.Day -> (Float, Float) -- due principal, due interest
-calcBond bnd@(Bond bn Passthrough (OriginalInfo _ od or _) iinfo bal duePrin dueInt _ _ (Just stmt)) calc_date =
+calcBond bnd@(Bond bn Passthrough (OriginalInfo _ od or _) iinfo bal _ duePrin dueInt _ _ (Just stmt)) calc_date =
   case (lastIntPay stmt) of
     Just (d,bond_bal,arrears) ->
       (bal, new_int+new_arrears)
@@ -94,8 +95,8 @@ appendStmt Nothing d bal _i _p _a memo
 
 payInt :: T.Day -> Float -> Bond -> Bond
 payInt d amt bnd@(Bond bn Passthrough oi
-                                    iinfo bal duePrin dueInt lpayInt lpayPrin stmt) =
-  Bond bn Passthrough oi iinfo new_bal duePrin new_due (Just d) lpayPrin (Just new_stmt)
+                                    iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
+  Bond bn Passthrough oi iinfo new_bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
     new_bal = bal - amt
     new_due = dueInt - amt
@@ -104,8 +105,8 @@ payInt d amt bnd@(Bond bn Passthrough oi
 
 payPrin :: T.Day -> Float -> Bond -> Bond
 payPrin d amt bnd@(Bond bn Passthrough oi
-                   iinfo bal duePrin dueInt lpayInt lpayPrin stmt) =
-  Bond bn Passthrough oi iinfo new_bal new_due dueInt lpayInt (Just d) (Just new_stmt)
+                   iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
+  Bond bn Passthrough oi iinfo new_bal r new_due dueInt lpayInt (Just d) (Just new_stmt)
   where
     new_bal = bal - amt
     new_due = duePrin - amt

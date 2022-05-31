@@ -6,7 +6,7 @@ module Lib
     ,genDates,StartDate,EndDate,LastIntPayDate
     ,Spread,Index
     ,paySeqLiabilities,prorataFactors,periodToYear
-    ,afterNPeriod
+    ,afterNPeriod,DealStats(..)
     ) where
 
 import qualified Data.Time as T
@@ -32,6 +32,14 @@ data Period = Daily
               | Annually
               deriving (Show)
 
+data DealStats = PoolInt
+              | CurrentBondBalance
+              | CurrentPoolBalance
+              | OriginalBondBalance
+              | OriginalPoolBalance
+              deriving (Show)
+
+$(deriveJSON defaultOptions ''DealStats)
 $(deriveJSON defaultOptions ''Period)
 
 data Index = LPR5Y

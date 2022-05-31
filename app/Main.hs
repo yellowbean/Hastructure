@@ -41,3 +41,16 @@ app = do
     setHeader "Access-Control-Allow-Methods" "*"
     text "good"
 
+  post "run_deal2" $ do
+    theDeal <- jsonBody'  :: ApiAction D.TestDeal
+    setHeader "Access-Control-Allow-Origin" "http://localhost:8280"
+    setHeader "Access-Control-Allow-Headers" "Content-Type"
+    setHeader "Access-Control-Allow-Methods" "*"
+    text $  pack $ unpack  $ encode (D.run2 theDeal Nothing Nothing)
+
+  hookRoute OPTIONS "run_deal2" $ do
+    setHeader "Access-Control-Allow-Origin" "*"
+    setHeader "Access-Control-Allow-Headers" "*"
+    setHeader "Access-Control-Allow-Methods" "*"
+    text "good"
+

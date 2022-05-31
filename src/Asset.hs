@@ -18,9 +18,6 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 
 
-
-
-
 class Asset a where
   calcCashflow :: a -> CF.CashFlowFrame
   getCurrentBal :: a -> Float

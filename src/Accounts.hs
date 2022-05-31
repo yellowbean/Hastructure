@@ -1,20 +1,26 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Accounts (Account(..),AccountType(..),draw,deposit)
+module Accounts (Account(..),ReserveAmount(..),draw,deposit)
     where
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Balance,Dates,StartDate,EndDate,LastIntPayDate
-           ,DayCount(ACT_365),calcInt)
+           ,DayCount(ACT_365),calcInt
+           ,DealStats)
 
 import           Data.Aeson       hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 
-data AccountType = Virtual
-                 | BankAccount Rate Period
-                 deriving (Show)
+data InterestInfo = BankAccount Rate Period
+                   deriving (Show)
+
+data ReserveAmount = PctReserve  DealStats Rate
+                   | FixReserve  Float
+                   | Max ReserveAmount ReserveAmount
+                   deriving (Show)
+
 
 data Statement = Statement {
     stmtDate     ::Dates
@@ -23,24 +29,25 @@ data Statement = Statement {
     ,stmtMemo    ::[String]
 } deriving (Show)
 
-
 data Account = Account {
     accBalance :: Float
     ,accName :: String
-    ,accType :: AccountType
+    ,accInterest :: Maybe InterestInfo
+    ,accType :: Maybe ReserveAmount
     ,accStmt :: Maybe Statement
 } deriving (Show)
 
-$(deriveJSON defaultOptions ''AccountType)
+$(deriveJSON defaultOptions ''InterestInfo)
+$(deriveJSON defaultOptions ''ReserveAmount)
 $(deriveJSON defaultOptions ''Account)
 $(deriveJSON defaultOptions ''Statement)
-
 
 depositInt :: Account -> StartDate -> EndDate -> Account
 depositInt acc@(Account
                 bal
                 _
-                (BankAccount r _)
+                (Just (BankAccount r _) )
+                _
                 stmt)
                 sd
                 ed =
@@ -51,10 +58,10 @@ depositInt acc@(Account
     newStmt = appendStmt stmt ed accured_int newBal "Deposit Int"
 
 transfer :: Account -> Float -> T.Day -> Account -> (Account, Account)
-transfer source_acc@(Account s_bal _ _ s_stmt)
+transfer source_acc@(Account s_bal _ _ _ s_stmt)
          amount
          d
-         target_acc@(Account t_bal _ _ t_stmt)
+         target_acc@(Account t_bal _ _ _ t_stmt)
   = (source_acc {accBalance = new_s_bal, accStmt = (Just source_newStmt)}
     ,target_acc {accBalance = new_t_bal, accStmt = (Just target_newStmt)})
   where
@@ -64,7 +71,7 @@ transfer source_acc@(Account s_bal _ _ s_stmt)
     target_newStmt = appendStmt t_stmt d amount new_t_bal "Transfer in"
 
 deposit :: Float -> T.Day -> String -> Account -> Account
-deposit amount d source acc@(Account bal _ _ maybeStmt)  =
+deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
     acc {accBalance = newBal, accStmt = Just newStmt}
   where
     newBal = bal + amount
@@ -82,7 +89,6 @@ appendStmt (Just stmt@(Statement ds bals amts memos)) d amount bal memo
 
 appendStmt Nothing d amount bal memo
   = Statement [d] [bal] [amount] [memo]
-
 
 getAvailBal :: Account -> Float
 getAvailBal a = (accBalance a)

@@ -2,10 +2,10 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Expense (Fee(..),FeeType(..),FeeBase(..),payFee)
+module Expense (Fee(..),FeeType(..),payFee)
   where
 
-import Lib(DayCount,Period,paySeqLiabilities,Dates)
+import Lib(DayCount,Period,paySeqLiabilities,Dates,DealStats)
 import Data.Traversable
 import Language.Haskell.TH
 
@@ -17,16 +17,10 @@ import Data.Aeson.Types
 import Control.Monad (mzero)
 import qualified Data.ByteString.Lazy.Char8 as L
 
-data FeeBase = PoolInt
-              | CurrentBondBalance
-              | CurrentPoolBalance
-              | OriginalBondBalance
-              | OriginalPoolBalance
-              deriving (Show)
 
 
-data FeeType = AnnualRateFee FeeBase Float
-              |PctFee FeeBase Float
+data FeeType = AnnualRateFee DealStats Float
+              |PctFee DealStats Float
               |FixFee Float
               |RecurFee Period Float
               deriving (Show)
@@ -75,6 +69,5 @@ payFee d amt f@(Fee fn ft fs fd fa flpd fstmt) =
 
 
 $(deriveJSON defaultOptions ''Statement)
-$(deriveJSON defaultOptions ''FeeBase)
 $(deriveJSON defaultOptions ''FeeType)
 $(deriveJSON defaultOptions ''Fee)

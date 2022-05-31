@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Deal (TestDeal,run) where
+module Deal (TestDeal,run,run2,getInits) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -33,6 +33,8 @@ class Statmet s where
   consolidate :: s -> s  
 
 
+
+
 data TestDeal = TestDeal {
   name :: String
   ,dates :: Map.Map String T.Day
@@ -58,7 +60,7 @@ td = TestDeal {
   ,payPeriod = Monthly
   ,collectPeriod = Monthly
   ,accounts = (Map.fromList [("General", (A.Account {
-   A.accName="General" ,A.accBalance=0.0 ,A.accType=A.Virtual ,A.accStmt=Nothing
+   A.accName="General" ,A.accBalance=0.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
   }))])
   ,fees = (Map.fromList [("Service-Fee"
                          ,F.Fee{F.feeName="service-fee"
@@ -79,6 +81,7 @@ td = TestDeal {
                                                 ,L.originLockoutEnd=Nothing}
                              ,L.bndInterestInfo= L.Fix 0.08
                              ,L.bndBalance=3000
+                             ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0
                              ,L.bndDueInt=0.0
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
@@ -213,6 +216,67 @@ run t currentPeriod =
                    (trace ("coll dates"++show(pCollectionDates)) pCollectionDates)
     poolCfSize =  CF.sizeCashFlowFrame pCollectionCf
 
+data ActionOnDate = CollectPoolIncome T.Day
+                   |RunWaterfall T.Day
+                   deriving (Show)
+
+instance Ord ActionOnDate where
+  compare (CollectPoolIncome d1) (CollectPoolIncome d2) = compare d1 d2
+  compare (RunWaterfall d1) (RunWaterfall d2) = compare d1 d2
+  compare (CollectPoolIncome d1) (RunWaterfall d2) = compare d1 d2
+  compare (RunWaterfall d1) (CollectPoolIncome d2) = compare d1 d2
+
+instance Eq ActionOnDate where
+  (CollectPoolIncome d1) == (CollectPoolIncome d2) = d1 == d2
+  (RunWaterfall d1) == (RunWaterfall d2) = d1 == d2
+  (CollectPoolIncome d1) == (RunWaterfall d2) = d1 == d2
+  (RunWaterfall d1) == (CollectPoolIncome d2) = d1 == d2
+
+
+run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate] -> TestDeal
+run2 t poolFlow (Just (ad:ads)) =
+  case poolFlow of
+    Nothing -> t
+    Just _poolFlow ->
+      case ad of
+        CollectPoolIncome d ->
+          run2
+            (t {accounts=accs})
+            (CF.removeTsCashFlowFrameByDate _poolFlow d)
+            (Just ads)
+          where
+            accs = depositPoolInflow (collects t) d _poolFlow (accounts t)
+        RunWaterfall d ->
+          run2
+            (foldl (performAction d) t (waterfall t))
+            poolFlow
+            (Just ads)
+
+run2 t Nothing Nothing =
+    run2 t (Just pcf) (Just ads)
+  where
+    (ads,pcf) = getInits t
+
+getInits :: TestDeal -> ([ActionOnDate], CF.CashFlowFrame)
+getInits t =
+  ( sort $ bPayDates ++ pCollectionDatesA
+    ,pCollectionCf )
+  where
+    startDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
+    firstPayDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "first-pay-date" (dates t)
+
+    pCollectionInt = (collectPeriod t)
+    bPayInt = (payPeriod t)
+
+    projNum = 512
+    bPayDates = map (\x -> RunWaterfall (afterNPeriod firstPayDate x bPayInt)) [0..projNum]
+    pCollectionDates = map (\x -> (afterNPeriod startDate x pCollectionInt)) [0..projNum]
+    pCollectionDatesA = map (\x -> CollectPoolIncome x) pCollectionDates
+
+    poolCf = rPool $ pool t
+    pCollectionCf = CF.CashFlowFrame $ CF.aggTsByDates (CF.getTsCashFlowFrame poolCf) pCollectionDates
+
+
 
 rPool :: (P.Pool P.Mortgage) -> CF.CashFlowFrame
 rPool the_pool  =
@@ -236,25 +300,25 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee base r) fs fd fa maybeFlpd _)
         f{ F.feeDue = fd + baseBal * r * (periodToYear tClosingDate calcDay ACT_360)}
     where
       baseBal =  case base of
-        F.CurrentPoolBalance -> getPoolBalance t
-        F.CurrentBondBalance -> getBondBalance t
+        CurrentPoolBalance -> getPoolBalance t
+        CurrentBondBalance -> getBondBalance t
         _ -> 0.0
       tClosingDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
 
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal _ _ lstIntPay _ _) =
+calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal bond_rate _ _ lstIntPay _ _) =
   b {L.bndDueInt = (dueInt+int_arrears) }
   where
     int_arrears = 0
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
                       Nothing -> Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
-    dueInt = calcInt bond_bal lastIntPayDay calc_date 0.08 ACT_365
+    dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate ACT_365
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal prin_arr int_arrears _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal _ prin_arr int_arrears _ _ _) =
   b {L.bndDuePrin = duePrin}
   where
     duePrin = bond_bal

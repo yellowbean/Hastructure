@@ -2,7 +2,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mkCashFlowFrame,mkColDay,mkColNum,mkColBal,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
-                ,getSingleTsCashFlowFrame
+                ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
                 ,TsRow(..) ) where
 
 import Data.Time (Day)
@@ -65,8 +65,20 @@ sizeCashFlowFrame (CashFlowFrame ts) = length ts
 getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
 getTsCashFlowFrame (CashFlowFrame ts) = ts
 
+removeTsCashFlowFrameByDate :: CashFlowFrame -> T.Day -> (Maybe CashFlowFrame)
+removeTsCashFlowFrameByDate (CashFlowFrame trs) d =
+  let
+    r = filter (\x -> (tsDate x) /= d) trs
+  in
+    if (length r)==0 then
+      Nothing
+    else
+      Just (CashFlowFrame r)
+
+
 getSingleTsCashFlowFrame :: CashFlowFrame -> T.Day -> TsRow
-getSingleTsCashFlowFrame (CashFlowFrame trs) d = head $ filter (\x -> (tsDate x) == d) trs
+getSingleTsCashFlowFrame (CashFlowFrame trs) d
+  = head $ filter (\x -> (tsDate x) == d) trs
 
 mkColDay :: [T.Day] -> [ColType]
 mkColDay ds = [ (ColDate _d) | _d <- ds ]
