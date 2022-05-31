@@ -4,15 +4,18 @@ a structured finance cashflow engine written in Haskell
 ### Features
 * built-in REST API services
 * Asset class coverage
-  * Mortgage  (/)
+  * Mortgage  :heavy_check_mark:
   * Student Loan
-  * Auto Mortgage
+  * Auto Loan
   * Rentals
 * Accounts
   * Liquidation Facility
   * Reserve Account
+  * Bank Account (with interest) :heavy_check_mark:
+  * Virtual Account ( Just a thing hold money ) :heavy_check_mark:
 * Bonds
-  * Passthrough
+  * Float Index rate
+  * Passthrough :heavy_check_mark:
   * Sinking fund
   * Term bond
 
