@@ -8,7 +8,7 @@ a structured finance cashflow engine written in Haskell
   * Student Loan
   * Auto Loan
   * Rentals
-* Assumptions
+* Pool Assumptions
   * Mortgage (Prepay Default Recovery) :construction_worker:
 * Accounts
   * Liquidation Facility
@@ -20,7 +20,9 @@ a structured finance cashflow engine written in Haskell
   * Passthrough :heavy_check_mark:
   * Sinking fund
   * Term bond
-
+* Fees
+  * Pool / Bond balanced based fees  :heavy_check_mark:
+  * Fix Amount Fees  :heavy_check_mark:
 ### Why yet another cashflow engine
 
 I've tried with `clojure` and `python` to write cashflow engine for structured finance 
