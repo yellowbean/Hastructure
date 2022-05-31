@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
-       ,aggPool,runPool,calcCashflow
+       ,aggPool,runPool,calcCashflow,getCurrentBal,getOriginBal
 ) where
 
 import Control.Lens
@@ -21,6 +21,7 @@ import Data.Aeson.Types
 class Asset a where
   calcCashflow :: a -> CF.CashFlowFrame
   getCurrentBal :: a -> Float
+  getOriginBal :: a -> Float
   -- projCashflow :: a ->  -> CF.CashFLow
 
 data Pool a = Pool {assets :: [a]}
@@ -58,6 +59,7 @@ instance Asset Mortgage  where
       (b_flow,prin_flow,int_flow) = calc_p_i_flow _bal pmt cf_dates _rate
 
   getCurrentBal (Mortgage x _bal _ _) = _bal
+  getOriginBal (Mortgage (OriginalInfo _bal _ _ _ _ ) _ _ _) = _bal
 
 _calc_p_i_flow :: Float -> [Balance] -> [Float] -> [Float] -> [Rate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow pmt bals ps is rs =

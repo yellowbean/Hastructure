@@ -282,27 +282,30 @@ rPool :: (P.Pool P.Mortgage) -> CF.CashFlowFrame
 rPool the_pool  =
   P.aggPool $ P.runPool (P.assets the_pool)
 
-getPoolBalance :: TestDeal -> Float
-getPoolBalance TestDeal{pool=p} = 100
-  --foldl (getCurrentBal + ) 0 p.assets
+queryDeal :: TestDeal -> DealStats ->  Float
+queryDeal t s =
+  case s of
+    CurrentBondBalance ->
+       Map.foldr (\x acc -> ((L.bndBalance x) + acc)) 0.0 (bonds t)
+    OriginalBondBalance ->
+       Map.foldr (\x acc -> (L.originBalance (L.bndOriginInfo x)) + acc) 0.0 (bonds t)
+    CurrentPoolBalance ->
+       foldl (\acc x -> (acc + (P.getCurrentBal x))) 0 (P.assets (pool t))
+    OriginalPoolBalance ->
+       foldl (\acc x -> (acc + (P.getOriginBal x))) 0 (P.assets (pool t))
 
-getBondBalance :: TestDeal -> Float
-getBondBalance TestDeal{pool=p} = 100
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd fa _ _)
   = f{ F.feeDue = amt}
-calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee base r) fs fd fa maybeFlpd _)
+calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd fa maybeFlpd _)
   = case maybeFlpd of
       (Just flpd ) ->
         f{ F.feeDue = fd + baseBal * r * (periodToYear flpd calcDay ACT_360)}
       Nothing ->
         f{ F.feeDue = fd + baseBal * r * (periodToYear tClosingDate calcDay ACT_360)}
     where
-      baseBal =  case base of
-        CurrentPoolBalance -> getPoolBalance t
-        CurrentBondBalance -> getBondBalance t
-        _ -> 0.0
+      baseBal = queryDeal t feeBase
       tClosingDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
 
 
