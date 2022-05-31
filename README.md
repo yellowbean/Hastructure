@@ -2,20 +2,27 @@
 a structured finance cashflow engine written in Haskell
 
 ### Features
-* built-in REST API services
+* built-in REST API services :heavy_check_mark:
 * Asset class coverage
-  * Mortgage  (/)
+  * Mortgage  :heavy_check_mark:
   * Student Loan
-  * Auto Mortgage
+  * Auto Loan
   * Rentals
+* Pool Assumptions
+  * Mortgage (Prepay Default Recovery) :construction_worker:
 * Accounts
   * Liquidation Facility
   * Reserve Account
+  * Bank Account (with interest) :heavy_check_mark:
+  * Virtual Account ( Just a thing hold money ) :heavy_check_mark:
 * Bonds
-  * Passthrough
+  * Float Index rate
+  * Passthrough :heavy_check_mark:
   * Sinking fund
   * Term bond
-
+* Fees
+  * Pool / Bond balanced based fees  :heavy_check_mark:
+  * Fix Amount Fees  :heavy_check_mark:
 ### Why yet another cashflow engine
 
 I've tried with `clojure` and `python` to write cashflow engine for structured finance 
