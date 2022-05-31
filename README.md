@@ -2,12 +2,14 @@
 a structured finance cashflow engine written in Haskell
 
 ### Features
-* built-in REST API services
+* built-in REST API services :heavy_check_mark:
 * Asset class coverage
   * Mortgage  :heavy_check_mark:
   * Student Loan
   * Auto Loan
   * Rentals
+* Assumptions
+  * Mortgage (Prepay Default Recovery) :construction_worker:
 * Accounts
   * Liquidation Facility
   * Reserve Account
