@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
-       ,aggPool,runPool,calcCashflow,getCurrentBal,getOriginBal
+       ,aggPool,runPool,calcCashflow,getCurrentBal,getOriginBal,Asset
 ) where
 
 import Control.Lens

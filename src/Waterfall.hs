@@ -31,6 +31,8 @@ data Action = Transfer AccountName AccountName
              | PayFee AccountName [FeeName]
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
+             | ReserveTransferSource AccountName AccountName -- stop till source acc met target balance
+             | ReserveTransferTarget AccountName AccountName -- stop till target acc met target balance
              deriving (Show)
 
 type DistributionSeq = [Action]

@@ -120,12 +120,39 @@ performAction d t (W.Transfer an1 an2) =
     accMapAfterDraw = Map.adjust (A.draw transferAmt d "") an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d "") an2 accMapAfterDraw
 
+performAction d t (W.ReserveTransferSource sa ta) =
+    t {accounts = accMapAfterTransfer }
+  where
+    accMap = (accounts t)
+    sourceAcc = accMap Map.! sa
+    targetAcc = accMap Map.! ta
+    sourceBal = calcTargetAmount t sourceAcc
+    transferAmt = max ((A.accBalance sourceAcc) - sourceBal ) 0
+    accMapAfterTransfer
+      = case transferAmt of
+          0 -> accMap
+          amt ->  Map.adjust (A.draw amt d "withdraw") sa  $ Map.adjust (A.deposit amt d "transfer") ta $ accMap
+
+performAction d t (W.ReserveTransferTarget sa ta) =
+     t {accounts = accMapAfterTransfer }
+   where
+     accMap = (accounts t)
+     sourceAcc = accMap Map.! sa
+     targetAcc = accMap Map.! ta
+     targetBal = calcTargetAmount t targetAcc
+     transferAmtTarget = max (targetBal - (A.accBalance targetAcc)) 0
+     actualTransferAmt = min transferAmtTarget (A.accBalance sourceAcc)
+     accMapAfterTransfer
+       = case actualTransferAmt of
+           0 -> accMap
+           amt ->  Map.adjust (A.draw amt d "withdraw") sa  $ Map.adjust (A.deposit amt d "transfer") ta $ accMap
+
 performAction d t (W.PayFee an fns) =
   t {accounts = accMapAfterPay, fees = feeMapUpdated}
   where
     feeMap = (fees t)
     accMap = (accounts t)
-    acc = (trace ("pay fee acc map"++show(accMap)) accMap) Map.! (trace ("payfee using acc"++show(an)) an )
+    acc = accMap Map.! an
 
     feesToPay = map (\x -> feeMap Map.! x ) fns
     feesWithDue = map (\x -> calcDueFee t d x) feesToPay
@@ -326,6 +353,14 @@ calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal _ prin_arr int_arrears _ 
   where
     duePrin = bond_bal
 
+calcTargetAmount :: TestDeal -> A.Account -> Float
+calcTargetAmount t (A.Account b n i (Just r) _ ) =
+   eval r
+   where
+     eval ra = case ra of
+       A.PctReserve ds _rate -> (queryDeal t ds) * _rate
+       A.FixReserve amt -> amt
+       A.Max ra1 ra2 -> max (eval ra1) (eval ra2)
 
 depositPoolInflow :: [W.CollectionRule] -> T.Day -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolInflow rules d cf amap =
