@@ -3,7 +3,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
-                ,TsRow(..) ) where
+                ,TsRow(..),Balances) where
 
 import Data.Time (Day)
 import Lib (Dates)
@@ -23,6 +23,7 @@ type Recovery = Float
 type Date = T.Day
 
 type Amounts = [Float]
+type Balances = [Balance]
 type Principals = [Principal]
 type Interests = [Interest]
 type Prepayments = [Prepayment]
@@ -129,8 +130,7 @@ tsDateLT td (MortgageFlow d _ _ _ _ _) = d < td
 
 aggTsByDates :: [TsRow] -> [T.Day] -> [TsRow]
 aggTsByDates trs ds =
-  map (\(x,y) -> sumTs x y) 
-      (zip (reduceFn [] ds trs) (trace ("ds size"++show(length(ds))) ds))
+  map (\(x,y) -> sumTs x y) (zip (reduceFn [] ds trs) ds)
   where
     reduceFn accum _ [] =  reverse accum
     reduceFn ([]:accum) (cfd:cfds) _trs =  reduceFn accum  cfds _trs

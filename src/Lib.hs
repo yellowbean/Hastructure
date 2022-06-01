@@ -6,15 +6,13 @@ module Lib
     ,genDates,StartDate,EndDate,LastIntPayDate
     ,Spread,Index
     ,paySeqLiabilities,prorataFactors,periodToYear
-    ,afterNPeriod,DealStats(..)
+    ,afterNPeriod,DealStats(..),Ts(..)
     ) where
 
 import qualified Data.Time as T
-
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Debug.Trace
 
 type Rate = Float
 type Spread = Float
@@ -82,7 +80,6 @@ genDates start_day p n =
        Annually -> 12
        _ -> 0
 
-
 prorataFactors :: [Float] -> Float -> [Float]
 prorataFactors bals amt =
   map (\y -> y * amtToPay) factors
@@ -109,3 +106,18 @@ afterNPeriod d i p =
       Quarter -> 3
       SemiAnnually -> 6
       Annually -> 12
+
+convertAnnualized :: T.Day -> T.Day -> Float -> Float
+convertAnnualized sd ed aRate =
+  let
+    days = T.diffGregorianDurationClip sd ed
+    -- year = days / 365
+  in
+    0.0
+
+
+data TsPoint a = TsPoint (T.Day, a)
+
+data Ts = RateCurve [(TsPoint Float)]
+         |BoolCurve [(TsPoint Bool)]
+         |AmountCurve [(TsPoint Float)]

@@ -53,4 +53,3 @@ app = do
     setHeader "Access-Control-Allow-Headers" "*"
     setHeader "Access-Control-Allow-Methods" "*"
     text "good"
-

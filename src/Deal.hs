@@ -29,10 +29,8 @@ class SPV a where
   projBondCashflow :: a -> ()
   projAssetCashflow :: a -> ()
 
-class Statmet s where 
+class Statement s where
   consolidate :: s -> s  
-
-
 
 
 data TestDeal = TestDeal {
@@ -47,7 +45,6 @@ data TestDeal = TestDeal {
   ,waterfall :: W.DistributionSeq
   ,collects :: [W.CollectionRule]
 } deriving (Show)
-
 
 $(deriveJSON defaultOptions ''TestDeal)
 
@@ -231,7 +228,7 @@ run t currentPeriod =
   where
     startDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
     firstPayDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "first-pay-date" (dates t)
-    poolCf = rPool $ pool t
+    poolCf = P.aggPool $ P.runPool (P.assets (pool t)) Nothing
     pCollectionInt = (collectPeriod t)
     bPayInt = (payPeriod t)
     pCollectionDates = map (\x -> afterNPeriod startDate x pCollectionInt) [1..100]
@@ -284,6 +281,9 @@ run2 t Nothing Nothing =
   where
     (ads,pcf) = getInits t
 
+
+
+
 getInits :: TestDeal -> ([ActionOnDate], CF.CashFlowFrame)
 getInits t =
   ( sort $ bPayDates ++ pCollectionDatesA
@@ -300,14 +300,11 @@ getInits t =
     pCollectionDates = map (\x -> (afterNPeriod startDate x pCollectionInt)) [0..projNum]
     pCollectionDatesA = map (\x -> CollectPoolIncome x) pCollectionDates
 
-    poolCf = rPool $ pool t
+    poolCf = P.aggPool $ P.runPool ( P.assets (pool t) ) Nothing
     pCollectionCf = CF.CashFlowFrame $ CF.aggTsByDates (CF.getTsCashFlowFrame poolCf) pCollectionDates
 
 
 
-rPool :: (P.Pool P.Mortgage) -> CF.CashFlowFrame
-rPool the_pool  =
-  P.aggPool $ P.runPool (P.assets the_pool)
 
 queryDeal :: TestDeal -> DealStats ->  Float
 queryDeal t s =
@@ -317,9 +314,9 @@ queryDeal t s =
     OriginalBondBalance ->
        Map.foldr (\x acc -> (L.originBalance (L.bndOriginInfo x)) + acc) 0.0 (bonds t)
     CurrentPoolBalance ->
-       foldl (\acc x -> (acc + (P.getCurrentBal x))) 0 (P.assets (pool t))
+       foldl (\acc x -> (acc + (P.getCurrentBal x))) 0.0 (P.assets (pool t))
     OriginalPoolBalance ->
-       foldl (\acc x -> (acc + (P.getOriginBal x))) 0 (P.assets (pool t))
+       foldl (\acc x -> (acc + (P.getOriginBal x))) 0.0 (P.assets (pool t))
 
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
