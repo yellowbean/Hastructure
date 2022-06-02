@@ -19,7 +19,8 @@ type Principal = Float
 type Balance = Float
 type Amount = Float
 type Prepayment = Float
-type Recovery = Float
+type Recovery = Float 
+type Rate = Float
 type Date = T.Day
 
 type Amounts = [Float]
@@ -28,6 +29,7 @@ type Principals = [Principal]
 type Interests = [Interest]
 type Prepayments = [Prepayment]
 type Recoveries = [Recovery]
+type Rates = [Rate]
 
 data ColType = ColNum Float | ColDate Date | ColBal Float
     deriving (Show)
@@ -147,11 +149,15 @@ mflowPrincipal _  = -1.0
 mflowInterest :: TsRow -> Float
 mflowInterest (MortgageFlow _ _ _ x _ _) = x
 mflowInterest _  = -1.0
-mflowPrepayment :: TsRow -> Float
+mflowPrepayment :: TsRow -> Float/
 mflowPrepayment (MortgageFlow _ _ _ _ x _) = x
 mflowPrepayment _  = -1.0
 mflowRecovery :: TsRow -> Float
 mflowRecovery (MortgageFlow _ _ _ _ _ x) = x
 mflowRecovery _  = -1.0
+
+--_calc_p_i_flow2 :: Balance -> Balances -> Principals -> Interests -> Rates -> (Balances,Principals,Interests)
+--_calc_p_i_flow2 startBal acc_bals acc_prins acc_ints rs 
+--_calc_p_i_flow2 startBal acc_bals acc_prins acc_ints rs =
 
 

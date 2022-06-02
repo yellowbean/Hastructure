@@ -25,7 +25,7 @@ type LastIntPayDate = T.Day
 data Period = Daily 
               | Weekly 
               | Monthly 
-              | Quarter 
+              | Quarterly 
               | SemiAnnually 
               | Annually
               deriving (Show)
@@ -58,6 +58,17 @@ periodToYear start_date end_date day_count =
   where
     days = fromIntegral (T.diffDays end_date start_date)
 
+annualRateToPeriodRate :: Period -> Float -> Float
+annualRateToPeriodRate p annualRate =
+    1 - (1 - annualRate ) ** n
+  where 
+    n = case p of 
+      Monthly -> 1/12
+      Quarterly -> 1/4 
+      SemiAnnually -> 1/2
+      Annually -> 1.0
+
+
 calcIntRate :: T.Day -> T.Day -> Rate -> DayCount -> Float
 calcIntRate start_date end_date int_rate day_count =
    int_rate * (periodToYear start_date end_date day_count)
@@ -75,7 +86,7 @@ genDates start_day p n =
    where
      mul = case p of
        Monthly -> 1
-       Quarter -> 3
+       Quarterly -> 3
        SemiAnnually -> 6
        Annually -> 12
        _ -> 0
@@ -103,17 +114,9 @@ afterNPeriod d i p =
   where
     months = case p of
       Monthly -> 1
-      Quarter -> 3
+      Quarterly -> 3
       SemiAnnually -> 6
       Annually -> 12
-
-convertAnnualized :: T.Day -> T.Day -> Float -> Float
-convertAnnualized sd ed aRate =
-  let
-    days = T.diffGregorianDurationClip sd ed
-    -- year = days / 365
-  in
-    0.0
 
 
 data TsPoint a = TsPoint (T.Day, a)

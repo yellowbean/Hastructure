@@ -22,18 +22,25 @@ type PrepaymentRate = Float
 type DefaultRate = Float
 type RecoveryRate = Float
 
-data Assumption =  MortgageByAge ([Int],[Float])
-                 | MortgageByRate ([Float],[Float])
-                 | PrepaymentConstant Float
-                 | DefaultConstant Float
-                 | RecoveryConstant Float
+data AssumptionBuilder =  MortgageByAge ([Int],[Float])
+                | MortgageByRate ([Float],[Float])
+                | PrepaymentConstant Float
+                | DefaultConstant Float
+                | RecoveryConstant Float
+                | LinearTo Int Float
+                | DefaultLag Int
 
+data AssumptionEffect = PrepaymentCurve [(Int,Float)]
+                      | DefaultCurve [(Int,Float)]
+  deriving (Show)
 
 class Asset a where
   calcCashflow :: a -> CF.CashFlowFrame
   getCurrentBal :: a -> Float
   getOriginBal :: a -> Float
-  projCashflow :: a -> [Assumption] -> CF.CashFlowFrame
+  getPaymentDates :: a -> [T.Day]
+  projCashflow :: a -> [AssumptionBuilder] -> CF.CashFlowFrame
+
 
 data Pool a = Pool {assets :: [a]}
                     deriving (Show)
@@ -53,7 +60,7 @@ data Mortgage = Mortgage OriginalInfo Balance Rate Int
                 deriving (Show)
 
 instance Asset Mortgage  where
-  calcCashflow (Mortgage (OriginalInfo ob or ot p sd )  _bal _rate _term) =
+  calcCashflow m@(Mortgage (OriginalInfo ob or ot p sd )  _bal _rate _term) =
       CF.CashFlowFrame $ zipWith6
                             CF.MortgageFlow
                               cf_dates
@@ -64,14 +71,53 @@ instance Asset Mortgage  where
                               (replicate l 0.0)
     where
       pmt = calcPmt ob or ot
-      cf_dates = genDates sd p ot
+      cf_dates = getPaymentDates m
       l = length cf_dates
       (b_flow,prin_flow,int_flow) = calc_p_i_flow _bal pmt cf_dates _rate
 
   getCurrentBal (Mortgage x _bal _ _) = _bal
-  getOriginBal (Mortgage (OriginalInfo _bal _ _ _ _  ) _ _ _) = _bal
+  getOriginBal (Mortgage (OriginalInfo _bal _ _ _ _  ) _ _ _ ) = _bal
+  getPaymentDates (Mortgage (OriginalInfo _ _ ot p sd) _ _ _ ) = genDates sd p ot
+  projCashflow m@(Mortgage (OriginalInfo ob or ot p sd) _ _ _ ) assumps = 
+    CF.CashFlowFrame $ _projCashflow [] ob sd cf_dates 1.0 def_rates ppy_rates
+    where
+      cf_dates = getPaymentDates m
+      cf_dates_length = length cf_dates
+      (def_rates,ppy_rates) = buildAssumpCurves assumps 
+                               (replicate cf_dates_length 0.0) 
+                               (replicate cf_dates_length 0.0) 
+      initPmt = calcPmt ob or ot 
 
-  projCashflow m assumps = calcCashflow m
+      _projCashflow trs _bal _last_date (_pdate:_pdates) pmt_factor 
+         (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) = 
+         _projCashflow (trs++[tr]) _new_bal _pdate _pdates _new_pmt_factor _def_rates _ppy_rates
+         where
+            _pmt = pmt_factor * initPmt
+            _new_int = calcIntRate _last_date _pdate  or ACT_360  
+            _new_prin = _pmt - _new_int
+            _new_prepay = _bal * _ppy_rate
+            _new_default = ( _bal - _new_prepay ) * _def_rate
+            _new_bal = _bal - _new_prin - _new_prepay - _new_default
+            _new_pmt_factor = pmt_factor * (1 - _ppy_rate) * (1 - _def_rate)
+            _new_rec = 0.0
+            tr = CF.MortgageFlow _pdate _new_bal _new_prin _new_int _new_prepay _new_rec
+      
+      _projCashflow trs _bal _last_date [] pmt_factor _ _ = trs
+      
+        
+      buildAssumpCurves (assump:assumps) _def_rates _ppy_rates = 
+         case assump of 
+             DefaultConstant r -> buildAssumpCurves assumps (replicate cf_dates_length r) _ppy_rates
+             PrepaymentConstant r -> buildAssumpCurves assumps _def_rates (replicate cf_dates_length r)
+             _ -> buildAssumpCurves assumps _def_rates _ppy_rates
+      buildAssumpCurves [] _def_rates _ppy_rates = (_def_rates,_ppy_rates)
+
+
+tm = Mortgage (OriginalInfo 10000 0.08 240 Monthly (T.fromGregorian 2022 1 1))
+     10000 0.08 240
+
+tmcf = calcCashflow tm 
+tmcf2 = projCashflow tm [DefaultConstant 0.015]
 
 _calc_p_i_flow :: Float -> [Balance] -> [Float] -> [Float] -> [Rate] -> (CF.Balances,CF.Principals,CF.Interests)
 _calc_p_i_flow pmt bals ps is [] = (bals,ps,is)
@@ -91,10 +137,10 @@ calc_p_i_flow bal pmt dates r =
       size = length dates
       period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r ACT_360 | d <- [0..size-2]]
 
-applyAssumption :: Asset a => a -> [Assumption] -> [Ts]
-applyAssumption a assumps = []
+-- applyAssumption :: Asset a => a -> [Assumption] -> [Ts]
+-- applyAssumption a assumps = []
 
-runPool :: Asset a => [a] -> (Maybe [Assumption])-> [CF.CashFlowFrame]
+runPool :: Asset a => [a] -> (Maybe [AssumptionBuilder])-> [CF.CashFlowFrame]
 runPool as Nothing = map calcCashflow as
 runPool assets (Just [assumps])  = map calcCashflow assets
 
