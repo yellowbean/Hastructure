@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,calcCashflow,getCurrentBal,getOriginBal,runPool
+       ,AssumptionBuilder(..)
 ) where
 
 import Control.Lens
@@ -26,9 +27,9 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Float
                 | DefaultConstant Float
-                | RecoveryConstant Float
+                | Recovery (Rate,Int)
                 | LinearTo Int Float
-                | DefaultLag Int
+                deriving (Show)
 
 data AssumptionEffect = PrepaymentCurve [(Int,Float)]
                       | DefaultCurve [(Int,Float)]
@@ -109,12 +110,13 @@ instance Asset Mortgage  where
          case assump of 
              DefaultConstant r -> buildAssumpCurves assumps (replicate cf_dates_length r) _ppy_rates
              PrepaymentConstant r -> buildAssumpCurves assumps _def_rates (replicate cf_dates_length r)
+             -- Recovery (recoveryRate,recoveryLag) -> 
              _ -> buildAssumpCurves assumps _def_rates _ppy_rates
       buildAssumpCurves [] _def_rates _ppy_rates = (_def_rates,_ppy_rates)
 
 
-tm = Mortgage (OriginalInfo 10000 0.08 240 Monthly (T.fromGregorian 2022 1 1))
-     10000 0.08 240
+tm = Mortgage (OriginalInfo 10000 0.08 5 Monthly (T.fromGregorian 2022 1 1))
+     10000 0.08 5
 
 tmcf = calcCashflow tm 
 tmcf2 = projCashflow tm [DefaultConstant 0.015]
@@ -142,7 +144,8 @@ calc_p_i_flow bal pmt dates r =
 
 runPool :: Asset a => [a] -> (Maybe [AssumptionBuilder])-> [CF.CashFlowFrame]
 runPool as Nothing = map calcCashflow as
-runPool assets (Just [assumps])  = map calcCashflow assets
+runPool assets (Just assumps) 
+  = map (\x -> (projCashflow x assumps)) assets
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool asflows = foldr1 CF.combine asflows
@@ -151,3 +154,4 @@ aggPool asflows = foldr1 CF.combine asflows
 $(deriveJSON defaultOptions ''Mortgage)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''Pool)
+$(deriveJSON defaultOptions ''AssumptionBuilder)

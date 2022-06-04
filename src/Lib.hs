@@ -7,6 +7,7 @@ module Lib
     ,Spread,Index
     ,paySeqLiabilities,prorataFactors,periodToYear
     ,afterNPeriod,DealStats(..),Ts(..)
+    ,Txn(..),combineTxn
     ) where
 
 import qualified Data.Time as T
@@ -118,6 +119,20 @@ afterNPeriod d i p =
       SemiAnnually -> 6
       Annually -> 12
 
+data Txn = BondTxn T.Day Balance Float Float String 
+        deriving (Show)
+
+instance Ord Txn where 
+  compare (BondTxn d1 _ _ _ _ ) (BondTxn d2 _ _ _ _ )
+    = compare d1 d2
+
+instance Eq Txn where 
+  (BondTxn d1 _ _ _ _ ) == (BondTxn d2 _ _ _ _ )
+    = d1 == d2
+
+combineTxn :: Txn -> Txn -> Txn
+combineTxn (BondTxn d1 b1 i1 p1 m1) (BondTxn d2 b2 i2 p2 m2)
+    = (BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) "")
 
 data TsPoint a = TsPoint (T.Day, a)
 

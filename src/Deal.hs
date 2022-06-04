@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Deal (TestDeal,run,run2,getInits) where
+module Deal (TestDeal,run,run2,getInits,runDeal) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -19,7 +19,6 @@ import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
 import Data.List
-import Debug.Trace
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -28,9 +27,6 @@ import Data.Aeson.Types
 class SPV a where
   projBondCashflow :: a -> ()
   projAssetCashflow :: a -> ()
-
-class Statement s where
-  consolidate :: s -> s  
 
 
 data TestDeal = TestDeal {
@@ -89,12 +85,12 @@ td = TestDeal {
                                          P.OriginalInfo{
                                            P.originBalance=4000
                                            ,P.originRate=0.085
-                                           ,P.originTerm=360
+                                           ,P.originTerm=60
                                            ,P.period=Monthly
                                            ,P.startDate=(T.fromGregorian 2022 1 1)}
                                          4000
                                          0.085
-                                         360
+                                         60
                                          ]}
  ,waterfall = [
    W.PayFee "General" ["Service-Fee"]
@@ -166,11 +162,11 @@ performAction d t (W.PayFee an fns) =
 performAction d t (W.PayInt an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
-    bndMap = trace ("bond maps =>"++ show(bonds t)) (bonds t)
+    bndMap = (bonds t)
     accMap = (accounts t)
-    acc = (trace ("pay int acc map"++show(accMap)) accMap) Map.! (trace ("pay Int using acc"++show(an)) an )
+    acc = accMap Map.! an 
 
-    bndsToPay = map (\x -> bndMap Map.! (trace ("Looking up"++show(x)) x )) (trace ("bond map"++show(bndMap)) bnds)
+    bndsToPay = map (\x -> bndMap Map.! x ) bnds
 
     bndsWithDue = map (\x -> calcDueInt t d x) bndsToPay
     bndsDueAmts = map (\x -> (L.bndDueInt x) ) bndsWithDue
@@ -188,7 +184,7 @@ performAction d t (W.PayPrin an bnds) =
   where
     bndMap = (bonds t)
     accMap = (accounts t)
-    acc = accMap Map.! (trace ("pay PRIN using acc"++show(an)) an )
+    acc = accMap Map.! an 
 
     bndsToPay = map (\x -> bndMap Map.! x ) bnds
     bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay
@@ -207,7 +203,7 @@ performAction d t (W.PayPrin an bnds) =
 -- TODO fix pool collection period , looks like it is flows steps of bonds
 run :: TestDeal -> Int -> TestDeal
 run t currentPeriod =
-  if ((trace ("current p"++show(currentPeriod)) currentPeriod) < (trace ("Pool size"++show(poolCfSize)) poolCfSize))
+  if ( currentPeriod <  poolCfSize)
     then
       let
          runDate =  pCollectionDates!!currentPeriod
@@ -224,7 +220,7 @@ run t currentPeriod =
             tWithNewCollection)
         (currentPeriod + 1)
     else
-      (trace "DONE" t)
+       t
   where
     startDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
     firstPayDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "first-pay-date" (dates t)
@@ -237,7 +233,7 @@ run t currentPeriod =
 
     pCollectionCf = CF.CashFlowFrame $ CF.aggTsByDates 
                    ( CF.getTsCashFlowFrame poolCf) 
-                   (trace ("coll dates"++show(pCollectionDates)) pCollectionDates)
+                   pCollectionDates
     poolCfSize =  CF.sizeCashFlowFrame pCollectionCf
 
 data ActionOnDate = CollectPoolIncome T.Day
@@ -258,10 +254,7 @@ instance Eq ActionOnDate where
 
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate] -> TestDeal
-run2 t poolFlow (Just (ad:ads)) =
-  case poolFlow of
-    Nothing -> t
-    Just _poolFlow ->
+run2 t (Just _poolFlow) (Just (ad:ads)) =
       case ad of
         CollectPoolIncome d ->
           run2
@@ -273,19 +266,27 @@ run2 t poolFlow (Just (ad:ads)) =
         RunWaterfall d ->
           run2
             (foldl (performAction d) t (waterfall t))
-            poolFlow
+            (Just _poolFlow)
             (Just ads)
 
 run2 t Nothing Nothing =
     run2 t (Just pcf) (Just ads)
   where
-    (ads,pcf) = getInits t
+    (ads,pcf) = getInits t Nothing
+
+run2 t Nothing _ = t
+
+runDeal :: TestDeal -> Maybe [P.AssumptionBuilder] -> TestDeal
+runDeal t assumps = 
+  run2 t (Just pcf) (Just ads)
+  where  
+    (ads,pcf) = getInits t assumps
 
 
 
 
-getInits :: TestDeal -> ([ActionOnDate], CF.CashFlowFrame)
-getInits t =
+getInits :: TestDeal -> Maybe [P.AssumptionBuilder] -> ([ActionOnDate], CF.CashFlowFrame)
+getInits t assumps =
   ( sort $ bPayDates ++ pCollectionDatesA
     ,pCollectionCf )
   where
@@ -300,7 +301,7 @@ getInits t =
     pCollectionDates = map (\x -> (afterNPeriod startDate x pCollectionInt)) [0..projNum]
     pCollectionDatesA = map (\x -> CollectPoolIncome x) pCollectionDates
 
-    poolCf = P.aggPool $ P.runPool ( P.assets (pool t) ) Nothing
+    poolCf = P.aggPool $ P.runPool ( P.assets (pool t) ) assumps
     pCollectionCf = CF.CashFlowFrame $ CF.aggTsByDates (CF.getTsCashFlowFrame poolCf) pCollectionDates
 
 
@@ -363,14 +364,15 @@ depositPoolInflow :: [W.CollectionRule] -> T.Day -> CF.CashFlowFrame -> Map.Map 
 depositPoolInflow rules d cf amap =
   foldl fn amap rules
   where
-      currentPoolInflow = CF.getSingleTsCashFlowFrame (trace ("cf to find->"++ show(cf)) cf) (trace ("D->"++show(d)) d)
+      currentPoolInflow = CF.getSingleTsCashFlowFrame cf d
       fn _acc _r@(W.Collect _ _accName) =
           Map.adjust (A.deposit collectedCash d "") _accName _acc
           where 
-              collectedCash = collectCash _r (trace ("inflow=>" ++ show(currentPoolInflow)) currentPoolInflow)
+              collectedCash = collectCash _r currentPoolInflow
       collectCash r ts =
-        case (trace ("running collect rule =>" ++ show(r)) r) of
-          (W.Collect W.CollectedInterest _)   -> CF.mflowInterest (trace ("ts to be collected=> " ++ show(ts)) ts)
+        case  r of
+          (W.Collect W.CollectedInterest _)   -> CF.mflowInterest ts
           (W.Collect W.CollectedPrincipal _)  -> CF.mflowPrincipal ts
           (W.Collect W.CollectedRecoveries _) -> CF.mflowRecovery ts
           (W.Collect W.CollectedPrepayment _) -> CF.mflowPrepayment ts
+

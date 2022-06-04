@@ -8,7 +8,6 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
 import Data.Time (Day)
 import Lib (Dates)
 -- import Data.Dates (Date)
-import Debug.Trace
 -- import Data.Currency (Alpha)
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -149,7 +148,7 @@ mflowPrincipal _  = -1.0
 mflowInterest :: TsRow -> Float
 mflowInterest (MortgageFlow _ _ _ x _ _) = x
 mflowInterest _  = -1.0
-mflowPrepayment :: TsRow -> Float/
+mflowPrepayment :: TsRow -> Float
 mflowPrepayment (MortgageFlow _ _ _ _ x _) = x
 mflowPrepayment _  = -1.0
 mflowRecovery :: TsRow -> Float
