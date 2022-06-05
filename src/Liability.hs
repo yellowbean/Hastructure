@@ -4,7 +4,7 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
-  ,InterestInfo(..), Statement(..),payInt,payPrin
+  ,InterestInfo(..), Statement(..),payInt,payPrin,consolTxn,consolStmt
   )
   where
 
@@ -81,7 +81,7 @@ data Bond = Bond {
 
 appendStmt :: Maybe Statement -> T.Day -> Balance -> Float -> Float -> String -> Statement
 appendStmt (Just stmt@(Statement txns)) d bal _int _prin memo
-  = Statement (_txn:txns)
+  = Statement (txns++[_txn])
      where
          _txn = BondTxn d bal _int _prin memo
 
@@ -94,7 +94,13 @@ consolTxn (txn:txns) txn0
      (combineTxn txn txn0):txns
     else
      txn0:txn:txns 
-   
+consolTxn [] txn = [txn]
+
+consolStmt :: Bond -> Bond
+consolStmt b@Bond{bndStmt = Just (Statement (txn:txns))}
+  =  b {bndStmt = Just (Statement (reverse (foldl consolTxn [txn] txns)  ))}
+
+consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
 payInt :: T.Day -> Float -> Bond -> Bond
 payInt d amt bnd@(Bond bn Passthrough oi

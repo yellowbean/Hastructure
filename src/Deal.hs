@@ -18,6 +18,7 @@ import Lib
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
+import qualified Control.Lens as LS
 import Data.List
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
@@ -274,7 +275,7 @@ run2 t Nothing Nothing =
   where
     (ads,pcf) = getInits t Nothing
 
-run2 t Nothing _ = t
+run2 t Nothing _ = (updateDeal t)
 
 runDeal :: TestDeal -> Maybe [P.AssumptionBuilder] -> TestDeal
 runDeal t assumps = 
@@ -282,6 +283,9 @@ runDeal t assumps =
   where  
     (ads,pcf) = getInits t assumps
 
+updateDeal :: TestDeal -> TestDeal 
+updateDeal t = 
+    t {bonds = Map.map L.consolStmt (bonds t)}
 
 
 
