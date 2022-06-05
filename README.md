@@ -1,5 +1,10 @@
 # Hastructure
 a structured finance cashflow engine written in Haskell
+### Road Map
+
+* Mortgage Default/Prepay/Recovery Assumption :construction_worker:
+* Float Interest Rate Support (Bond and Assets)
+* Sinking Fund/PAC Bond
 
 ### Features
 * built-in REST API services :heavy_check_mark:
@@ -9,12 +14,11 @@ a structured finance cashflow engine written in Haskell
   * Auto Loan
   * Rentals
 * Pool Assumptions
-  * Mortgage (Prepay Default Recovery) :construction_worker:
+  * Mortgage (Prepay Default Recovery) 
 * Accounts
   * Liquidity Facility
   * Reserve Account  :heavy_check_mark:
   * Bank Account (with interest) :heavy_check_mark:
-  * Virtual Account ( Just an account hold money ) :heavy_check_mark:
 * Bonds
   * Float Index rate
   * Passthrough :heavy_check_mark:
@@ -24,7 +28,7 @@ a structured finance cashflow engine written in Haskell
   * Pool / Bond balanced based fees  :heavy_check_mark:
   * Fix Amount Fees  :heavy_check_mark:
 
-### Why yet another cashflow engine
+#### Why yet another cashflow engine
 
 I've tried with `clojure` and `python` to write cashflow engine for structured finance 
 while it is quite challenging : cashflow in structured finance involves hundreds of data types(either pool asset type and liability type), it also involves with differnt fee types and account types.

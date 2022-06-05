@@ -5,7 +5,8 @@
 module Expense (Fee(..),FeeType(..),payFee)
   where
 
-import Lib(DayCount,Period,paySeqLiabilities,Dates,DealStats)
+import Lib(DayCount,Period,paySeqLiabilities,Dates,DealStats
+           ,appendStmt,Statement,Txn(..))
 import Data.Traversable
 import Language.Haskell.TH
 
@@ -26,25 +27,25 @@ data FeeType = AnnualRateFee DealStats Float
               deriving (Show)
 
 
-data Statement = Statement {
-   stmtDate ::Dates 
-    ,stmtDue ::[Float]
-    ,stmtPaid ::[Float]
-    ,stmtArrears ::[Float]
-    ,stmtMemo ::[String]
-  } deriving (Show)
+--data Statement = Statement {
+--   stmtDate ::Dates
+--    ,stmtDue ::[Float]
+--    ,stmtPaid ::[Float]
+--    ,stmtArrears ::[Float]
+--    ,stmtMemo ::[String]
+--  } deriving (Show)
 
-appendStmt :: Maybe Statement -> T.Day -> Float -> Float -> Float -> String -> Statement
-appendStmt Nothing d due paid arrear memo 
-  = Statement [d] [due] [paid] [arrear] [memo]
-appendStmt 
-  (Just (Statement ds dues paids arrears memos))
-  d due paid arrear memo
-    = Statement (ds ++ [d])
-                (dues ++ [due])
-                (paids ++ [paid])
-                (arrears ++ [arrear])
-                (memos ++ [memo])
+--appendStmt :: Maybe Statement -> T.Day -> Float -> Float -> Float -> String -> Statement
+--appendStmt Nothing d due paid arrear memo
+--  = Statement [d] [due] [paid] [arrear] [memo]
+--appendStmt
+--  (Just (Statement ds dues paids arrears memos))
+--  d due paid arrear memo
+--    = Statement (ds ++ [d])
+--                (dues ++ [due])
+--                (paids ++ [paid])
+--                (arrears ++ [arrear])
+--                (memos ++ [memo])
 --calcFee :: FeeType -> T.Day ->
 data Fee = Fee {
   feeName :: String
@@ -65,9 +66,7 @@ payFee d amt f@(Fee fn ft fs fd fa flpd fstmt) =
    where
     [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd]
     paid = fa + fd - arrearRemain - dueRemain
-    newStmt = appendStmt fstmt d dueRemain paid arrearRemain ""
+    newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain "")
 
-
-$(deriveJSON defaultOptions ''Statement)
 $(deriveJSON defaultOptions ''FeeType)
 $(deriveJSON defaultOptions ''Fee)

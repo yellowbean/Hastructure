@@ -4,7 +4,8 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
-  ,InterestInfo(..), Statement(..),payInt,payPrin,consolTxn,consolStmt
+  ,InterestInfo(..),payInt,payPrin,consolTxn,consolStmt
+
   )
   where
 
@@ -15,7 +16,7 @@ import           Data.Aeson.TH
 
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index,Dates,calcInt,DayCount(..)
-           ,Txn(..),combineTxn)
+           ,Txn(..),combineTxn,Statement(..),appendStmt)
 import Data.List (findIndex,zip6)
 
 data InterestInfo = Float Index Spread
@@ -45,8 +46,6 @@ data SinkFundSchedule = SinkFundSchedule {
 --} deriving (Show)
 
 
-data Statement = Statement [Txn]
-        deriving (Show)
 
 data BondType = Passthrough
                 | SinkFund SinkFundSchedule
@@ -79,15 +78,6 @@ data Bond = Bond {
 --      where
 --        new_int = calcInt bal od calc_date or ACT_365
 
-appendStmt :: Maybe Statement -> T.Day -> Balance -> Float -> Float -> String -> Statement
-appendStmt (Just stmt@(Statement txns)) d bal _int _prin memo
-  = Statement (txns++[_txn])
-     where
-         _txn = BondTxn d bal _int _prin memo
-
-appendStmt Nothing d bal _i _p memo
-  = Statement $ [BondTxn d bal _i _p memo]
-
 consolTxn :: [Txn] -> Txn -> [Txn]
 consolTxn (txn:txns) txn0
   = if txn==txn0 then 
@@ -109,7 +99,7 @@ payInt d amt bnd@(Bond bn Passthrough oi
   where
     new_bal = bal - amt
     new_due = dueInt - amt
-    new_stmt = appendStmt stmt d bal amt 0 "INT PAY"
+    new_stmt = appendStmt stmt (BondTxn d bal amt 0 "INT PAY")
 
 
 payPrin :: T.Day -> Float -> Bond -> Bond
@@ -119,14 +109,12 @@ payPrin d amt bnd@(Bond bn Passthrough oi
   where
     new_bal = bal - amt
     new_due = duePrin - amt
-    new_stmt = appendStmt stmt d new_bal 0 amt "PRIN PAY"
+    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt "PRIN PAY")
 
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''SinkFundSchedule)
-$(deriveJSON defaultOptions ''Statement)
-$(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
 $(deriveJSON defaultOptions ''Index)
