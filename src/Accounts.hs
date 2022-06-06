@@ -6,7 +6,7 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit)
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Balance,Dates,StartDate,EndDate,LastIntPayDate
            ,DayCount(ACT_365),calcInt
-           ,DealStats,Statement(..),appendStmt,Txn(..))
+           ,DealStats,Statement(..),appendStmt,Txn(..),Balance)
 
 import           Data.Aeson       hiding (json)
 import Language.Haskell.TH
@@ -17,7 +17,7 @@ data InterestInfo = BankAccount Rate Period
                    deriving (Show)
 
 data ReserveAmount = PctReserve  DealStats Rate
-                   | FixReserve  Float
+                   | FixReserve  Balance
                    | Max ReserveAmount ReserveAmount
                    deriving (Show)
 

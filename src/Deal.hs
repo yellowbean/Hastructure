@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Deal (TestDeal,run,run2,getInits,runDeal) where
+module Deal (TestDeal,run,run2,getInits,runDeal,ExpectReturn(..)) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -11,6 +11,7 @@ import qualified Expense as F
 import qualified Liability as L
 import qualified Waterfall as W
 import qualified Cashflow as CF
+import qualified Assumptions as AP
 import Lib
 -- import Pool
 -- import qualified Data.HashMap.Strict as M
@@ -85,7 +86,7 @@ td = TestDeal {
   ,pool = P.Pool {P.assets=[P.Mortgage
                                          P.OriginalInfo{
                                            P.originBalance=4000
-                                           ,P.originRate=0.085
+                                           ,P.originRate=P.Fix 0.085
                                            ,P.originTerm=60
                                            ,P.period=Monthly
                                            ,P.startDate=(T.fromGregorian 2022 1 1)}
@@ -277,10 +278,17 @@ run2 t Nothing Nothing =
 
 run2 t Nothing _ = (updateDeal t)
 
-runDeal :: TestDeal -> Maybe [P.AssumptionBuilder] -> TestDeal
-runDeal t assumps = 
-  run2 t (Just pcf) (Just ads)
-  where  
+data ExpectReturn = DealOnly
+                  | DealPoolFlow
+                  deriving (Show)
+
+runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] -> (TestDeal,Maybe CF.CashFlowFrame)
+runDeal t er assumps =
+  case er of
+    DealOnly ->  (finalDeal,Nothing)
+    DealPoolFlow -> (finalDeal, Just pcf)
+  where
+    finalDeal = run2 t (Just pcf) (Just ads)
     (ads,pcf) = getInits t assumps
 
 updateDeal :: TestDeal -> TestDeal 
@@ -289,7 +297,7 @@ updateDeal t =
 
 
 
-getInits :: TestDeal -> Maybe [P.AssumptionBuilder] -> ([ActionOnDate], CF.CashFlowFrame)
+getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] -> ([ActionOnDate], CF.CashFlowFrame)
 getInits t assumps =
   ( sort $ bPayDates ++ pCollectionDatesA
     ,pCollectionCf )
@@ -380,3 +388,4 @@ depositPoolInflow rules d cf amap =
           (W.Collect W.CollectedRecoveries _) -> CF.mflowRecovery ts
           (W.Collect W.CollectedPrepayment _) -> CF.mflowPrepayment ts
 
+$(deriveJSON defaultOptions ''ExpectReturn)

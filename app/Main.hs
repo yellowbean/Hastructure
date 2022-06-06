@@ -13,6 +13,7 @@ import           Data.Text        (Text, pack)
 import           GHC.Generics
 import qualified Deal as D 
 import qualified Asset as P
+import qualified Assumptions as AP
 import Data.ByteString.Lazy.Char8 (unpack)
 
 import Data.Aeson hiding (json)
@@ -23,7 +24,7 @@ import Data.Aeson.Types
 
 data RunDealReq = RunDealReq {
   deal :: D.TestDeal
-  ,assump :: Maybe [P.AssumptionBuilder]
+  ,assump :: Maybe [AP.AssumptionBuilder]
 }
 $(deriveJSON defaultOptions ''RunDealReq)
 
@@ -59,7 +60,7 @@ app = do
     setHeader "Access-Control-Allow-Origin" "http://localhost:8280"
     setHeader "Access-Control-Allow-Headers" "Content-Type"
     setHeader "Access-Control-Allow-Methods" "*"
-    text $  pack $ unpack  $ encode (D.runDeal (deal theRunReq) (assump theRunReq))
+    text $  pack $ unpack  $ encode (D.runDeal (deal theRunReq) D.DealOnly (assump theRunReq))
 
   hookRoute OPTIONS "run_deal2" $ do
     setHeader "Access-Control-Allow-Origin" "*"

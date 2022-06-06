@@ -5,7 +5,7 @@
 module Lib
     (Rate,Dates,Period(..),calcInt,calcIntRate,Balance,DayCount(..)
     ,genDates,StartDate,EndDate,LastIntPayDate
-    ,Spread,Index
+    ,Spread,Index(..)
     ,paySeqLiabilities,prorataFactors,periodToYear
     ,afterNPeriod,DealStats(..),Ts(..)
     ,Txn(..),combineTxn,Statement(..)
@@ -48,7 +48,12 @@ $(deriveJSON defaultOptions ''Period)
 
 data Index = LPR5Y
             | LIBOR1M
+            | LIBOR3M
+            | LIBOR6M
             | LIBOR1Y
+            | SOFR1M
+            | SOFR3M
+            | SOFR1Y
             deriving (Show)
 -- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
 
@@ -157,4 +162,5 @@ data Ts = RateCurve [(TsPoint Float)]
          |AmountCurve [(TsPoint Float)]
 
 $(deriveJSON defaultOptions ''Txn)
+$(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Statement)

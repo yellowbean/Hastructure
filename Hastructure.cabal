@@ -27,6 +27,7 @@ library
   exposed-modules:
       Accounts
       Asset
+      Assumptions
       Cashflow
       Deal
       Equity

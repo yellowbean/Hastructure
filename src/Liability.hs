@@ -13,7 +13,6 @@ import Language.Haskell.TH
 import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
 
-
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index,Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt)
@@ -117,6 +116,5 @@ $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''SinkFundSchedule)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
-$(deriveJSON defaultOptions ''Index)
 
 

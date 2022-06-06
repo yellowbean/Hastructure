@@ -1,3 +1,6 @@
+{-# LANGUAGE TemplateHaskell       #-}
+
+
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mkCashFlowFrame,mkColDay,mkColNum,mkColBal,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
@@ -12,6 +15,12 @@ import Lib (Dates)
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.List as L
+
+import Data.Aeson hiding (json)
+import Language.Haskell.TH
+import Data.Aeson.TH
+import Data.Aeson.Types
+
 
 type Interest = Float
 type Principal = Float
@@ -160,3 +169,5 @@ mflowRecovery _  = -1.0
 --_calc_p_i_flow2 startBal acc_bals acc_prins acc_ints rs =
 
 
+$(deriveJSON defaultOptions ''TsRow)
+$(deriveJSON defaultOptions ''CashFlowFrame)
