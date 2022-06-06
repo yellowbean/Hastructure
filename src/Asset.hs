@@ -91,19 +91,19 @@ instance Asset Mortgage  where
       orate = getOriginRate m
       initPmt = calcPmt ob orate ot
 
-      _projCashflow trs _bal _last_date (_pdate:_pdates) pmt_factor 
-         (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) = 
-         _projCashflow (trs++[tr]) _new_bal _pdate _pdates _new_pmt_factor _def_rates _ppy_rates
-         where
-            _pmt = pmt_factor * initPmt
-            _new_int = calcIntRate _last_date _pdate orate ACT_360
-            _new_prin = _pmt - _new_int
-            _new_prepay = _bal * _ppy_rate
-            _new_default = ( _bal - _new_prepay ) * _def_rate
-            _new_bal = _bal - _new_prin - _new_prepay - _new_default
-            _new_pmt_factor = pmt_factor * (1 - _ppy_rate) * (1 - _def_rate)
-            _new_rec = 0.0
-            tr = CF.MortgageFlow _pdate _new_bal _new_prin _new_int _new_prepay _new_rec
+      _projCashflow trs _bal _last_date (_pdate:_pdates) pmt_factor (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) 
+           | _bal > 0.01 = _projCashflow (trs++[tr]) _new_bal _pdate _pdates _new_pmt_factor _def_rates _ppy_rates
+           | otherwise = trs      
+              where
+                 _pmt = pmt_factor * initPmt
+                 _new_int = _bal * (calcIntRate _last_date _pdate orate ACT_360)
+                 _new_prin = _pmt - _new_int
+                 _new_prepay = _bal * _ppy_rate
+                 _new_default = ( _bal - _new_prepay ) * _def_rate
+                 _new_bal = _bal - _new_prin - _new_prepay - _new_default
+                 _new_pmt_factor = pmt_factor * (1 - _ppy_rate) * (1 - _def_rate)
+                 _new_rec = 0.0
+                 tr = CF.MortgageFlow _pdate _new_bal _new_prin _new_int _new_prepay _new_rec
       
       _projCashflow trs _bal _last_date [] pmt_factor _ _ = trs
       
