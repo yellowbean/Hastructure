@@ -60,7 +60,7 @@ app = do
     setHeader "Access-Control-Allow-Origin" "http://localhost:8280"
     setHeader "Access-Control-Allow-Headers" "Content-Type"
     setHeader "Access-Control-Allow-Methods" "*"
-    text $  pack $ unpack  $ encode (D.runDeal (deal theRunReq) D.DealOnly (assump theRunReq))
+    text $  pack $ unpack  $ encode (D.runDeal (deal theRunReq) D.DealPoolFlow (assump theRunReq))
 
   hookRoute OPTIONS "run_deal2" $ do
     setHeader "Access-Control-Allow-Origin" "*"
