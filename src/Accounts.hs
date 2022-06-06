@@ -66,15 +66,15 @@ transfer source_acc@(Account s_bal _ _ _ s_stmt)
   where
     new_s_bal = s_bal - amount
     new_t_bal = t_bal + amount
-    source_newStmt = appendStmt s_stmt (AccTxn d (- amount) new_s_bal "Transfer out")
-    target_newStmt = appendStmt t_stmt (AccTxn d amount new_t_bal "Transfer in")
+    source_newStmt = appendStmt s_stmt (AccTxn d new_s_bal (- amount) "Transfer out")
+    target_newStmt = appendStmt t_stmt (AccTxn d new_t_bal amount "Transfer in")
 
 deposit :: Float -> T.Day -> String -> Account -> Account
 deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
     acc {accBalance = newBal, accStmt = Just newStmt}
   where
     newBal = bal + amount
-    newStmt = appendStmt maybeStmt (AccTxn d amount newBal source)
+    newStmt = appendStmt maybeStmt (AccTxn d newBal amount source)
 
 draw :: Float -> T.Day -> String -> Account -> Account
 draw amount d source acc = deposit (- amount) d source acc
