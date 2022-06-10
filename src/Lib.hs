@@ -9,7 +9,7 @@ module Lib
     ,paySeqLiabilities,prorataFactors,periodToYear
     ,afterNPeriod,DealStats(..),Ts(..)
     ,Txn(..),combineTxn,Statement(..)
-    ,appendStmt
+    ,appendStmt,periodRateFromAnnualRate
     ) where
 
 import qualified Data.Time as T
@@ -78,6 +78,15 @@ annualRateToPeriodRate p annualRate =
       Quarterly -> 1/4 
       SemiAnnually -> 1/2
       Annually -> 1.0
+
+periodRateFromAnnualRate :: Period -> Float -> Float
+periodRateFromAnnualRate p annual_rate 
+  = annual_rate / _n 
+    where _n = case p of
+                 Monthly -> 12
+                 Quarterly -> 4
+                 SemiAnnually -> 2
+                 Annually -> 1
 
 
 calcIntRate :: T.Day -> T.Day -> Rate -> DayCount -> Float

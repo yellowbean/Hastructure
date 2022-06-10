@@ -112,8 +112,8 @@ performAction d t (W.Transfer an1 an2) =
     transferAmt = case sourceAcc of
                     Just acc -> (A.accBalance acc)
                     Nothing -> 0
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d "") an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d "") an2 accMapAfterDraw
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d ("Transfer To:"++an2)) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("Transfer From:"++an1)) an2 accMapAfterDraw
 
 performAction d t (W.ReserveTransferSource sa ta) =
     t {accounts = accMapAfterTransfer }
@@ -364,7 +364,7 @@ calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal _ prin_arr int_arrears _ 
     duePrin = bond_bal
 
 calcTargetAmount :: TestDeal -> A.Account -> Float
-calcTargetAmount t (A.Account b n i (Just r) _ ) =
+calcTargetAmount t (A.Account _ n i (Just r) _ ) =
    eval r
    where
      eval ra = case ra of
@@ -378,7 +378,7 @@ depositPoolInflow rules d cf amap =
   where
       currentPoolInflow = CF.getSingleTsCashFlowFrame cf d
       fn _acc _r@(W.Collect _ _accName) =
-          Map.adjust (A.deposit collectedCash d "") _accName _acc
+          Map.adjust (A.deposit collectedCash d "Deposit CF from Pool") _accName _acc
           where 
               collectedCash = collectCash _r currentPoolInflow
       collectCash r ts =

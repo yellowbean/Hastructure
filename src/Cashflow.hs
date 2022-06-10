@@ -28,6 +28,7 @@ type Balance = Float
 type Amount = Float
 type Prepayment = Float
 type Recovery = Float 
+type Default = Float 
 type Rate = Float
 type Date = T.Day
 
@@ -44,19 +45,19 @@ data ColType = ColNum Float | ColDate Date | ColBal Float
 
 data TsRow = CashFlow Date Amount
               |BondFlow Date Balance Principal Interest
-              |MortgageFlow Date Balance Principal Interest Prepayment Recovery
+              |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery
               deriving (Show)
 
 
 instance Ord TsRow where
   compare (CashFlow d1 _) (CashFlow d2 _) = compare d1 d2
   compare (BondFlow d1 _ _ _) (BondFlow d2 _ _ _) = compare d1 d2
-  compare (MortgageFlow d1 _ _ _ _ _) (MortgageFlow d2 _ _ _ _ _) = compare d1 d2
+  compare (MortgageFlow d1 _ _ _ _ _ _) (MortgageFlow d2 _ _ _ _ _ _) = compare d1 d2
 
 instance Eq TsRow where
   (CashFlow d1 _) == (CashFlow d2 _) = d1 == d2
   (BondFlow d1 _ _ _) == (BondFlow d2 _ _ _) = d1 == d2
-  (MortgageFlow d1 _ _ _ _ _) == (MortgageFlow d2 _ _ _ _ _) = d1 == d2
+  (MortgageFlow d1 _ _ _ _ _ _) == (MortgageFlow d2 _ _ _ _ _ _) = d1 == d2
 
 data CashFlowFrame = CashFlowFrame [TsRow]
               deriving (Show)
@@ -64,8 +65,8 @@ data CashFlowFrame = CashFlowFrame [TsRow]
                 -- |MortgageFrame [MortgageFlow]
 
 mkRow :: [ColType] -> TsRow
-mkRow ((ColDate d):(ColBal b):(ColNum prin):(ColNum i):(ColNum pre):(ColNum rec):[])
-  = MortgageFlow d b prin i pre rec
+mkRow ((ColDate d):(ColBal b):(ColNum prin):(ColNum i):(ColNum pre):(ColBal def_b):(ColNum rec):[])
+  = MortgageFlow d b prin i pre def_b rec
 
 mkCashFlowFrame :: [[ColType]] -> CashFlowFrame
 mkCashFlowFrame xss = CashFlowFrame $ map mkRow xss
@@ -103,8 +104,8 @@ mkColBal ds = [ (ColBal _d) | _d <- ds ]
 addTs :: TsRow -> TsRow -> TsRow
 addTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))
 addTs (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = (BondFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) )
-addTs (MortgageFlow d1 b1 p1 i1 prep1 rec1 ) (MortgageFlow _ b2 p2 i2 prep2 rec2 )
-  = (MortgageFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (rec1 + rec2))
+addTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 ) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 )
+  = (MortgageFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2))
 
 sumTs :: [TsRow] -> T.Day -> TsRow
 sumTs trs d = tsSetDate (foldr1 addTs trs) d
@@ -112,12 +113,12 @@ sumTs trs d = tsSetDate (foldr1 addTs trs) d
 tsDate :: TsRow -> T.Day
 tsDate (CashFlow x _) = x
 tsDate (BondFlow x  _ _ _) = x
-tsDate (MortgageFlow x _ _ _ _ _) = x
+tsDate (MortgageFlow x _ _ _ _ _ _) = x
 
 tsSetDate :: TsRow -> T.Day ->TsRow
 tsSetDate (CashFlow _ a) x  = (CashFlow x a)
 tsSetDate (BondFlow _ a b c) x = (BondFlow x a b c)
-tsSetDate (MortgageFlow _ a b c d e) x = (MortgageFlow x a b c d e)
+tsSetDate (MortgageFlow _ a b c d e f ) x = (MortgageFlow x a b c d e f)
 
 reduceTs :: [TsRow] -> TsRow -> [TsRow]
 reduceTs [] _tr = [_tr]
@@ -135,7 +136,7 @@ combine (CashFlowFrame rs1) (CashFlowFrame rs2) =
 tsDateLT :: T.Day -> TsRow  -> Bool
 tsDateLT td (CashFlow d _) = d < td
 tsDateLT td (BondFlow d _ _ _) =  d < td
-tsDateLT td (MortgageFlow d _ _ _ _ _) = d < td
+tsDateLT td (MortgageFlow d _ _ _ _ _ _) = d < td
 
 
 aggTsByDates :: [TsRow] -> [T.Day] -> [TsRow]
@@ -152,17 +153,21 @@ aggTsByDates trs ds =
 
 
 mflowPrincipal :: TsRow -> Float
-mflowPrincipal (MortgageFlow _ _ x _ _ _) = x
+mflowPrincipal (MortgageFlow _ _ x _ _ _ _) = x
 mflowPrincipal _  = -1.0
 mflowInterest :: TsRow -> Float
-mflowInterest (MortgageFlow _ _ _ x _ _) = x
+mflowInterest (MortgageFlow _ _ _ x _ _ _) = x
 mflowInterest _  = -1.0
 mflowPrepayment :: TsRow -> Float
-mflowPrepayment (MortgageFlow _ _ _ _ x _) = x
+mflowPrepayment (MortgageFlow _ _ _ _ x _ _) = x
 mflowPrepayment _  = -1.0
+mflowDefault :: TsRow -> Float
+mflowDefault (MortgageFlow _ _ _ _ _ x _) = x
+mflowDefault _  = -1.0
 mflowRecovery :: TsRow -> Float
-mflowRecovery (MortgageFlow _ _ _ _ _ x) = x
+mflowRecovery (MortgageFlow _ _ _ _ _ _ x) = x
 mflowRecovery _  = -1.0
+
 
 --_calc_p_i_flow2 :: Balance -> Balances -> Principals -> Interests -> Rates -> (Balances,Principals,Interests)
 --_calc_p_i_flow2 startBal acc_bals acc_prins acc_ints rs 
