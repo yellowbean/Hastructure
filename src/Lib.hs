@@ -80,13 +80,10 @@ annualRateToPeriodRate p annualRate =
       Annually -> 1.0
 
 periodRateFromAnnualRate :: Period -> Float -> Float
-periodRateFromAnnualRate p annual_rate 
-  = annual_rate / _n 
-    where _n = case p of
-                 Monthly -> 12
-                 Quarterly -> 4
-                 SemiAnnually -> 2
-                 Annually -> 1
+periodRateFromAnnualRate Annually annual_rate  = annual_rate
+periodRateFromAnnualRate Monthly annual_rate  = annual_rate / 12
+periodRateFromAnnualRate Quarterly annual_rate  = annual_rate / 4
+periodRateFromAnnualRate SemiAnnually annual_rate  = annual_rate / 2
 
 
 calcIntRate :: T.Day -> T.Day -> Rate -> DayCount -> Float

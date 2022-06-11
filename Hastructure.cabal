@@ -7,10 +7,10 @@ cabal-version: 1.12
 name:           Hastructure
 version:        0.1.0.0
 description:    Please see the README on GitHub at <https://github.com/githubuser/Hastructure#readme>
-homepage:       https://github.com/githubuser/Hastructure#readme
-bug-reports:    https://github.com/githubuser/Hastructure/issues
+homepage:       https://github.com/yellowbean/Hastructure#readme
+bug-reports:    https://github.com/yellowbean/Hastructure/issues
 author:         Xiaoyu
-maintainer:     example@example.com
+maintainer:     always.zhang@gmail.com
 copyright:      2022 Xiaoyu, Zhang
 license:        BSD3
 license-file:   LICENSE
@@ -21,7 +21,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/Hastructure
+  location: https://github.com/yellowbean/Hastructure
 
 library
   exposed-modules:

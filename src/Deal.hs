@@ -276,7 +276,7 @@ run2 t Nothing Nothing =
   where
     (ads,pcf) = getInits t Nothing
 
-run2 t Nothing _ = (updateDeal t)
+run2 t Nothing _ = (prepareDeal t)
 
 data ExpectReturn = DealOnly
                   | DealPoolFlow
@@ -285,17 +285,14 @@ data ExpectReturn = DealOnly
 runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] -> (TestDeal,Maybe CF.CashFlowFrame)
 runDeal t er assumps =
   case er of
-    DealOnly ->  (finalDeal,Nothing)
+    DealOnly ->  (finalDeal, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf)
   where
     finalDeal = run2 t (Just pcf) (Just ads)
     (ads,pcf) = getInits t assumps
 
-updateDeal :: TestDeal -> TestDeal 
-updateDeal t = 
-    t {bonds = Map.map L.consolStmt (bonds t)}
-
-
+prepareDeal :: TestDeal -> TestDeal 
+prepareDeal t = t {bonds = Map.map L.consolStmt (bonds t)}
 
 getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] -> ([ActionOnDate], CF.CashFlowFrame)
 getInits t assumps =
