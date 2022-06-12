@@ -11,4 +11,4 @@ jobs:
           ghc-version: 'latest'
           enable-stack: true
           stack-version: 'latest'
-      - run: runhaskell app/Main.hs
+      - run: stack build
