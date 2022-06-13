@@ -2,8 +2,7 @@
 a structured finance cashflow engine written in Haskell
 ### Road Map
 
-* Mortgage Default/Prepay/Recovery Assumption :construction_worker:
-* Float Interest Rate Support (Bond and Assets)
+* Float Interest Rate Support (Bond and Assets) :construction_worker:
 * Sinking Fund/PAC Bond
 
 ### Features
@@ -14,7 +13,7 @@ a structured finance cashflow engine written in Haskell
   * Auto Loan
   * Rentals
 * Pool Assumptions
-  * Mortgage (Prepay Default Recovery) 
+  * Mortgage (Prepay Default Recovery) :heavy_check_mark:
 * Accounts
   * Liquidity Facility
   * Reserve Account  :heavy_check_mark:
@@ -30,20 +29,38 @@ a structured finance cashflow engine written in Haskell
 
 #### Why yet another cashflow engine
 
-I've tried with `clojure` and `python` to write cashflow engine for structured finance 
-while it is quite challenging : cashflow in structured finance involves hundreds of data types(either pool asset type and liability type), it also involves with differnt fee types and account types.
+I've tried with `clojure` and `python` to develop cashflow engine for structured finance 
+while it is quite challenging: 
+
+cashflow in structured finance involves hundreds of data types(either asset types in the pool or tranches type), it also involves with differnt fee types and account types.
 all of these combination types will boost the complexity of computation and poses a huge burden on brain.
 
-`clojure` prevails in nested data structure using `specter` which is a killer in dealing with `deal/transaction` 
+I tried with `clojucture/clojure` which prevails in nested data structure using `specter`, it is a killer in dealing with `deal/transaction` 
 as it has nested components like `pool` `assets` `bond/liabilities` `fees` etc. But I failed to continue expanding as the code
-base as it is heavily relying on `core.match`/pattern match, unfortunately that package seems slowing and no-one is fixing backlog issues.
+base as it is heavily relying on `core.match`/pattern match, unfortunately that package seems slowing and no-one is fixing backlog issues. 
 
-`python` has introduced the pattern matching in 3.10 to solve that and having a great community support like `numpy/pandas` library.
-While it failed in maintenance cost : it is hard to refactor and scale up the code base in line with the complexity world of structured finance.
-A minor changes in code may secretly introduce bugs if there isn't any rigorous testing framework in place.
+`PyABS/python` has introduced the pattern matching in 3.10 to solve that and having a great community support like `numpy/pandas` library. While it failed in maintenance cost : it is hard to refactor and scale up the code base in line with the complexity world of structured finance. A minor changes in code may secretly introduce bugs if there isn't any rigorous testing framework in place. 
+
+Both two language created a lot of headache with dynamic programming language: every time a new feature introduced, there were some landmines created implicitily and will explode in runtime some day.
 
 After months of hunting(actually years) => `haskell` is quite nice fit IMHO.
+* Modelling capability => Most important
+  For example, `Account` may or may not bear interest. In Python
+    {"name":"Acc1", "Interest":{"rate":0.1}}  // account with interest rate 
+    {"name":"Acc1", "Interest":None}   // account without interest rate 1
+    {"name":"Acc1", } // account without interest rate 2
+  Then, the code will create branching to deal both cases:
+    if "Interest" in acc :
+        int_rate = acc["Interest"]
+    else:
+        pass ...
+  this `if/else` or branching will grow rapidly when more characteristics came in, like `reserve taget balance` etc. In `haskell` it handles it nicely:
+    data Account = String (Maybe InterestRate)
+
+    calcAcc (Account name Nothing) = ..
+    calcAcc (Account name (InterestRate rate)) = ..
+
 * `type /compiler` check ease the brain work and let me focus the business logic instead of breaches caused by refactoring
-* built-in support for pattern matching
-* high performance 
+* Built-in support for pattern matching
+* High performance 
 

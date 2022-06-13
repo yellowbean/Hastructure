@@ -169,8 +169,7 @@ performAction d t (W.PayInt an bnds) =
     acc = accMap Map.! an 
 
     bndsToPay = map (\x -> bndMap Map.! x ) bnds
-
-    bndsWithDue = map (\x -> calcDueInt t d x) bndsToPay
+    bndsWithDue = filter (\x -> ((L.bndDueInt x) > 0)) $ map (\x -> calcDueInt t d x) bndsToPay
     bndsDueAmts = map (\x -> (L.bndDueInt x) ) bndsWithDue
 
     availBal = A.accBalance acc
@@ -188,7 +187,7 @@ performAction d t (W.PayPrin an bnds) =
     accMap = (accounts t)
     acc = accMap Map.! an 
 
-    bndsToPay = map (\x -> bndMap Map.! x ) bnds
+    bndsToPay = filter (\x -> ((L.bndBalance x) > 0)) $ map (\x -> bndMap Map.! x ) bnds
     bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay
     bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
 

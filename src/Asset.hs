@@ -11,7 +11,6 @@ import Lib (Period(..), Balance,calcInt,Dates,DayCount(..),calcIntRate,genDates
            ,Balance,Rate,Ts(..),Spread,Index(..),periodRateFromAnnualRate)
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
-
 import qualified Data.Map as Map
 import Data.List
 import Data.Aeson hiding (json)
@@ -47,7 +46,8 @@ replace xs i e = case splitAt i xs of
 
 type Floor = Float
 data RateType = Fix Rate
-              | Floater Index Spread Rate Period (Maybe Floor) -- index, spread, initial-rate reset interval
+              | Floater Index Spread Rate Period (Maybe Floor) 
+              -- index, spread, initial-rate reset interval,floor
               deriving (Show)
 
 data OriginalInfo = OriginalInfo {
