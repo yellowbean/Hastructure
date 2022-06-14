@@ -12,6 +12,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import qualified Data.Time as T
 
 
 
@@ -21,7 +22,9 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | DefaultConstant Float
                 | Recovery (Rate,Int)
                 | LinearTo Int Float
-                | InterestRateConstant (Index,Float)
+                | InterestRateConstant Index Float
+                | InterestRateCurve Index [(T.Day,Float)]
+                | PrepaymentByAging [(Int,Float)]
                 deriving (Show)
 
 

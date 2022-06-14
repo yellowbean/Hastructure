@@ -10,9 +10,12 @@ module Lib
     ,afterNPeriod,DealStats(..),Ts(..)
     ,Txn(..),combineTxn,Statement(..)
     ,appendStmt,periodRateFromAnnualRate
+    ,Floor,Cap,TsPoint(..),RateAssumption(..)
+    ,getRateByDate
     ) where
 
 import qualified Data.Time as T
+import Data.List
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -27,6 +30,8 @@ type Dates = [T.Day]
 type StartDate = T.Day
 type EndDate = T.Day
 type LastIntPayDate = T.Day
+type Floor = Float
+type Cap = Float
 
 data Period = Daily 
               | Weekly 
@@ -53,8 +58,9 @@ data Index = LPR5Y
             | LIBOR1Y
             | SOFR1M
             | SOFR3M
+            | SOFR6M
             | SOFR1Y
-            deriving (Show)
+            deriving (Show,Eq)
 -- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
 
 data DayCount = ACT_360
@@ -135,7 +141,7 @@ afterNPeriod d i p =
       SemiAnnually -> 6
       Annually -> 12
 
-data Txn = BondTxn T.Day Balance Float Float Comment
+data Txn = BondTxn T.Day Balance Float Float Float Comment
           | AccTxn T.Day Balance Amount Comment
           | ExpTxn T.Day Balance Amount Balance String
         deriving (Show)
@@ -145,27 +151,56 @@ appendStmt (Just stmt@(Statement txns)) txn = Statement (txns++[txn])
 appendStmt Nothing txn = Statement [txn]
 
 combineTxn :: Txn -> Txn -> Txn
-combineTxn (BondTxn d1 b1 i1 p1 m1) (BondTxn d2 b2 i2 p2 m2)
-    = (BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) "")
+combineTxn (BondTxn d1 b1 i1 p1 r1 m1) (BondTxn d2 b2 i2 p2 r2 m2)
+    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) 0.0 ""
+
+jointTxn :: [Txn] -> [Txn] -> [Txn]
+jointTxn txnsA txnsB
+  = txnsA
+
 
 data Statement = Statement [Txn]
         deriving (Show)
 
+--joinStatement :: (String,Statement) -> (String,Statement) -> [(String,[Txn])]
+--jointStatement (stmtsA,(Statement txnsA)) (stmtsB,(Statement txnsB)) =
 
 instance Ord Txn where
-  compare (BondTxn d1 _ _ _ _ ) (BondTxn d2 _ _ _ _ )
+  compare (BondTxn d1 _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ )
     = compare d1 d2
 
 instance Eq Txn where 
-  (BondTxn d1 _ _ _ _ ) == (BondTxn d2 _ _ _ _ )
+  (BondTxn d1 _ _ _ _ _) == (BondTxn d2 _ _ _ _ _)
     = d1 == d2
 
 
-data TsPoint a = TsPoint (T.Day, a)
+data TsPoint a = TsPoint T.Day a
+                deriving (Show)
 
-data Ts = RateCurve [(TsPoint Float)]
+data Ts = FloatCurve [(TsPoint Float)]
          |BoolCurve [(TsPoint Bool)]
          |AmountCurve [(TsPoint Float)]
+         deriving (Show)
+
+data RateAssumption = RateCurve Index Ts
+                    | RateFlat Index Float
+                      
+
+
+getRateByDate :: Ts -> T.Day -> Float
+getRateByDate (FloatCurve dps) d 
+  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+      Just (TsPoint _d v) -> v
+      Nothing -> 0
+
+getRateByDates :: Ts -> [T.Day] -> [Float]
+getRateByDates rc ds = map (getRateByDate rc) ds
+
+
+rc = FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)
+               ,(TsPoint (T.fromGregorian 2022 2 1) 0.02)
+               ,(TsPoint (T.fromGregorian 2022 3 1) 0.03)
+               ]
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Index)

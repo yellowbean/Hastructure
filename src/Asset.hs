@@ -21,6 +21,7 @@ import Data.Aeson.Types
 type PrepaymentRate = Float
 type DefaultRate = Float
 type RecoveryRate = Float
+type Floor = Float
 
 
 class Asset a where
@@ -44,7 +45,6 @@ replace xs i e = case splitAt i xs of
    (before, _:after) -> before ++ e: after
    _ -> xs
 
-type Floor = Float
 data RateType = Fix Rate
               | Floater Index Spread Rate Period (Maybe Floor) 
               -- index, spread, initial-rate reset interval,floor
@@ -140,7 +140,7 @@ tmcf2 = projCashflow tm [A.DefaultConstant 0.015]
 
 tmF = Mortgage (OriginalInfo 10000 (Floater LIBOR1M 0.02 0.075 Monthly Nothing) 5 Monthly (T.fromGregorian 2022 1 1))
      10000 0.08 5
-tmFf = projCashflow tm [A.InterestRateConstant (LIBOR1M,0.07)]
+tmFf = projCashflow tm [A.InterestRateConstant LIBOR1M 0.07]
 
 _calc_p_i_flow :: Float -> [Balance] -> [Float] -> [Float] -> [Rate] -> (CF.Balances,CF.Principals,CF.Interests)
 _calc_p_i_flow pmt bals ps is [] = (bals,ps,is)

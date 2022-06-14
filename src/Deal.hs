@@ -21,6 +21,7 @@ import qualified Data.Time as T
 import qualified Data.Set as S
 import qualified Control.Lens as LS
 import Data.List
+import Data.Maybe
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -82,7 +83,23 @@ td = TestDeal {
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndStmt=Nothing})
-                          ])
+                         ,("B"
+                          ,L.Bond{
+                              L.bndName="B"
+                             ,L.bndType=L.Passthrough
+                             ,L.bndOriginInfo= L.OriginalInfo{
+                                                L.originBalance=3000
+                                                ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                ,L.originRate= 0.08
+                                                ,L.originLockoutEnd=Nothing}
+                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 0.085 Quarterly Nothing Nothing
+                             ,L.bndBalance=3000
+                             ,L.bndRate=0.08
+                             ,L.bndDuePrin=0.0
+                             ,L.bndDueInt=0.0
+                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndStmt=Nothing})])
   ,pool = P.Pool {P.assets=[P.Mortgage
                                          P.OriginalInfo{
                                            P.originBalance=4000
@@ -102,6 +119,11 @@ td = TestDeal {
  ,collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
 }
+
+--runDeal 
+--    td 
+--    DealStatus 
+--    (Just ([AP.InterestRateCurve LIBOR6M [(T.fromGregorian 2020 1 1,0.03)]]))
 
 performAction :: T.Day -> TestDeal -> W.Action -> TestDeal
 performAction d t (W.Transfer an1 an2) =
@@ -254,49 +276,97 @@ instance Eq ActionOnDate where
   (RunWaterfall d1) == (CollectPoolIncome d2) = d1 == d2
 
 
-run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate] -> TestDeal
-run2 t (Just _poolFlow) (Just (ad:ads)) =
+setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
+setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _) 
+  = b { L.bndRate = (applyFloatRate ii d ras) }
+
+applyFloatRate :: L.InterestInfo -> T.Day -> [RateAssumption] -> Float 
+applyFloatRate (L.Floater idx spd rt p f c) d ras
+  = idx_rate + spd
+    where 
+      idx_rate = case ra of 
+        Just (RateCurve _idx _ts) -> getRateByDate _ts d 
+        Nothing -> -0.5 
+      ra = find (\(RateCurve _idx _ts) -> (_idx==idx)) ras 
+
+setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal 
+setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
+    where 
+        isFloat (L.Bond _ _ _ (L.Floater _ _ _ _ _ _) _ _ _ _ _ _ _ ) = True
+        isFloat (L.Bond _ _ _ (L.Fix _ ) _ _ _ _ _ _ _ ) = False
+        floatBonds = filter (\x -> isFloat x) $ Map.elems (bonds t)
+        floatBondNames = map (\x -> (L.bndName x)) floatBonds
+        updatedBonds = foldr (Map.adjust (setBondNewRate d ras)) (bonds t) floatBondNames
+
+setBndsNextIntRate t d Nothing = t 
+
+run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
+    -> Maybe [RateAssumption] -> TestDeal
+run2 t (Just _poolFlow) (Just (ad:ads)) rates =
       case ad of
         CollectPoolIncome d ->
           run2
             (t {accounts=accs})
             (CF.removeTsCashFlowFrameByDate _poolFlow d)
             (Just ads)
+            rates
           where
             accs = depositPoolInflow (collects t) d _poolFlow (accounts t)
         RunWaterfall d ->
           run2
-            (foldl (performAction d) t (waterfall t))
+            (setBndsNextIntRate 
+                (foldl (performAction d) t (waterfall t))
+                d 
+                rates)
             (Just _poolFlow)
             (Just ads)
+            rates
 
-run2 t Nothing Nothing =
-    run2 t (Just pcf) (Just ads)
+run2 t Nothing Nothing Nothing =
+    run2 t (Just pcf) (Just ads) Nothing
   where
-    (ads,pcf) = getInits t Nothing
+    (ads,pcf,rcurves) = getInits t Nothing 
 
-run2 t Nothing _ = (prepareDeal t)
+run2 t Nothing _ _ = (prepareDeal t)
 
-data ExpectReturn = DealOnly
+data ExpectReturn = DealStatus
                   | DealPoolFlow
                   deriving (Show)
 
-runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] -> (TestDeal,Maybe CF.CashFlowFrame)
+runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] 
+        -> (TestDeal,Maybe CF.CashFlowFrame)
 runDeal t er assumps =
   case er of
-    DealOnly ->  (finalDeal, Nothing)
+    DealStatus ->  (finalDeal, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf)
+
   where
-    finalDeal = run2 t (Just pcf) (Just ads)
-    (ads,pcf) = getInits t assumps
+    finalDeal = run2 t (Just pcf) (Just ads) (Just rcurves)
+    (ads,pcf,rcurves) = getInits t assumps
 
 prepareDeal :: TestDeal -> TestDeal 
 prepareDeal t = t {bonds = Map.map L.consolStmt (bonds t)}
 
-getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] -> ([ActionOnDate], CF.CashFlowFrame)
+
+buildRateCurves :: [RateAssumption]-> [AP.AssumptionBuilder] -> [RateAssumption] 
+buildRateCurves rs (assump:assumps) = 
+    case assump of 
+      AP.InterestRateConstant i f -> 
+        buildRateCurves ((RateFlat i f):rs) assumps
+      AP.InterestRateCurve i ds ->  -- Index [(T.Day, Float)]
+        buildRateCurves ((RateCurve i (dsToTs ds)):rs) assumps
+      _ -> buildRateCurves rs assumps    
+    where  
+        -- [(T.Day, Float)]     FloatCurve [TsPoint T.Day Float]
+        dsToTs ds = FloatCurve $ map (\(d,f) -> (TsPoint d f) ) ds
+buildRateCurves rs [] = rs
+
+
+getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] 
+         -> ([ActionOnDate], CF.CashFlowFrame, [RateAssumption])
 getInits t assumps =
   ( sort $ bPayDates ++ pCollectionDatesA
-    ,pCollectionCf )
+    ,pCollectionCf, rateCurves)
   where
     startDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
     firstPayDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "first-pay-date" (dates t)
@@ -312,7 +382,7 @@ getInits t assumps =
     poolCf = P.aggPool $ P.runPool ( P.assets (pool t) ) assumps
     pCollectionCf = CF.CashFlowFrame $ CF.aggTsByDates (CF.getTsCashFlowFrame poolCf) pCollectionDates
 
-
+    rateCurves = buildRateCurves [] (fromMaybe [] assumps) -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
 
 
 queryDeal :: TestDeal -> DealStats ->  Float

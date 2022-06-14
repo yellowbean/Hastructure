@@ -12,15 +12,16 @@ module Liability
 import Language.Haskell.TH
 import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
+import Lib (Period,Floor,Cap)
 
 import qualified Data.Time as T
-import Lib (Balance,Rate,Spread,Index,Dates,calcInt,DayCount(..)
-           ,Txn(..),combineTxn,Statement(..),appendStmt)
+import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
+           ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..))
 import Data.List (findIndex,zip6)
 
-data InterestInfo = Float Index Spread
+data InterestInfo = 
+          Floater Index Spread Rate Period (Maybe Floor) (Maybe Cap)
           | Fix Rate
-          | None
           deriving (Show)
 
 data OriginalInfo = OriginalInfo {
@@ -34,16 +35,6 @@ data SinkFundSchedule = SinkFundSchedule {
   sfBalance::Float
   ,sfDate::T.Day
 } deriving (Show)
-
---data Statement = Statement {
---    stmtDate     ::Dates
---    ,stmtEndBalance ::[Balance]
---    ,stmtIntPaid     ::[Float]
---    ,stmtPrinPaid     ::[Float]
---    ,stmtIntArrears     ::[Balance]
---    ,stmtMemo    ::[String]
---} deriving (Show)
-
 
 
 data BondType = Passthrough
@@ -98,7 +89,7 @@ payInt d amt bnd@(Bond bn Passthrough oi
   where
     new_bal = bal - amt
     new_due = dueInt - amt
-    new_stmt = appendStmt stmt (BondTxn d bal amt 0 "INT PAY")
+    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r "INT PAY")
 
 
 payPrin :: T.Day -> Float -> Bond -> Bond
@@ -108,7 +99,7 @@ payPrin d amt bnd@(Bond bn Passthrough oi
   where
     new_bal = bal - amt
     new_due = duePrin - amt
-    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt "PRIN PAY")
+    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt r "PRIN PAY")
 
 
 $(deriveJSON defaultOptions ''InterestInfo)
