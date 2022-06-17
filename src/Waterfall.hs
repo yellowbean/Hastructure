@@ -3,7 +3,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Waterfall
-  (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..))
+  (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
+  ,KeepReserve(..))
   where
 
 
@@ -27,12 +28,17 @@ data PoolSource = CollectedInterest
                 | CollectedPrepayment
              deriving (Show)
 
+data KeepReserve = TillSource 
+                 | TillTarget
+             deriving (Show)
+
 data Action = Transfer AccountName AccountName
              | PayFee AccountName [FeeName]
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
-             | ReserveTransferSource AccountName AccountName -- stop till source acc met target balance
-             | ReserveTransferTarget AccountName AccountName -- stop till target acc met target balance
+             | TransferReserve KeepReserve AccountName AccountName
+             -- | ReserveTransferSource AccountName AccountName -- stop till source acc met target balance
+             -- | ReserveTransferTarget AccountName AccountName -- stop till target acc met target balance
              deriving (Show)
 
 type DistributionSeq = [Action]
@@ -45,4 +51,5 @@ data CollectionRule = Collect PoolSource AccountName
 -- $(deriveJSON defaultOptions ''DistSeq)
 $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''Action)
+$(deriveJSON defaultOptions ''KeepReserve)
 $(deriveJSON defaultOptions ''CollectionRule)

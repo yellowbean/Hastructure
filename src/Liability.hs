@@ -99,7 +99,7 @@ payPrin d amt bnd@(Bond bn Passthrough oi
   where
     new_bal = bal - amt
     new_due = duePrin - amt
-    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt r "PRIN PAY")
+    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 "PRIN PAY")
 
 
 $(deriveJSON defaultOptions ''InterestInfo)

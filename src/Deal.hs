@@ -55,9 +55,12 @@ td = TestDeal {
                          ])
   ,payPeriod = Monthly
   ,collectPeriod = Monthly
-  ,accounts = (Map.fromList [("General", (A.Account {
-   A.accName="General" ,A.accBalance=0.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
-  }))])
+  ,accounts = (Map.fromList 
+  [("General", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
+  })),
+   ("Reserve", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
+  }))
+  ])
   ,fees = (Map.fromList [("Service-Fee"
                          ,F.Fee{F.feeName="service-fee"
                                 ,F.feeType = (F.FixFee 500)
@@ -113,6 +116,8 @@ td = TestDeal {
                                          ]}
  ,waterfall = [
    W.PayFee "General" ["Service-Fee"]
+   ,W.TransferReserve W.TillSource  "General" "General"
+   ,W.TransferReserve W.TillTarget  "General" "General"
    ,W.PayInt "General" ["A"]
    ,W.PayPrin "General" ["A"]
    ]
@@ -137,32 +142,32 @@ performAction d t (W.Transfer an1 an2) =
     accMapAfterDraw = Map.adjust (A.draw transferAmt d ("Transfer To:"++an2)) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("Transfer From:"++an1)) an2 accMapAfterDraw
 
-performAction d t (W.ReserveTransferSource sa ta) =
+performAction d t (W.TransferReserve meetAcc sa ta) =
     t {accounts = accMapAfterTransfer }
   where
     accMap = (accounts t)
     sourceAcc = accMap Map.! sa
     targetAcc = accMap Map.! ta
-    sourceBal = calcTargetAmount t sourceAcc
-    transferAmt = max ((A.accBalance sourceAcc) - sourceBal ) 0
+    sourceAccBal = (A.accBalance sourceAcc)
+    targetAccBal = (A.accBalance targetAcc) 
+    transferAmt = 
+        case meetAcc of 
+             W.TillSource -> 
+                 let 
+                     sourceTarBal = calcTargetAmount t sourceAcc
+                 in 
+                     max (sourceAccBal - sourceTarBal ) 0
+             W.TillTarget ->
+                 let 
+                   targetBal = calcTargetAmount t targetAcc
+                   transferAmtTarget = max (targetBal - targetAccBal) 0
+                 in 
+                     min transferAmtTarget sourceAccBal
+
     accMapAfterTransfer
       = case transferAmt of
           0 -> accMap
           amt ->  Map.adjust (A.draw amt d "withdraw") sa  $ Map.adjust (A.deposit amt d "transfer") ta $ accMap
-
-performAction d t (W.ReserveTransferTarget sa ta) =
-     t {accounts = accMapAfterTransfer }
-   where
-     accMap = (accounts t)
-     sourceAcc = accMap Map.! sa
-     targetAcc = accMap Map.! ta
-     targetBal = calcTargetAmount t targetAcc
-     transferAmtTarget = max (targetBal - (A.accBalance targetAcc)) 0
-     actualTransferAmt = min transferAmtTarget (A.accBalance sourceAcc)
-     accMapAfterTransfer
-       = case actualTransferAmt of
-           0 -> accMap
-           amt ->  Map.adjust (A.draw amt d "withdraw") sa  $ Map.adjust (A.deposit amt d "transfer") ta $ accMap
 
 performAction d t (W.PayFee an fns) =
   t {accounts = accMapAfterPay, fees = feeMapUpdated}

@@ -152,7 +152,7 @@ appendStmt Nothing txn = Statement [txn]
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 m1) (BondTxn d2 b2 i2 p2 r2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) 0.0 ""
+    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) ""
 
 jointTxn :: [Txn] -> [Txn] -> [Txn]
 jointTxn txnsA txnsB
