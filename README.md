@@ -25,4 +25,12 @@
   * Pool / Bond balanced based fees  :heavy_check_mark:
   * Fix Amount Fees  :heavy_check_mark:
 
+### Online Demo
+
+The demo only cover very limit features of this engine and subject to UI performance issue due to rapid prototype design of web component
+
+* [Here](https://deal-bench.xyz)
+
+
+### Others
 * [Why yet another cashflow engine](https://github.com/yellowbean/Hastructure/wiki/Why-Yet-Anohter-Cashflow-Engine)
