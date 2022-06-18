@@ -16,7 +16,7 @@ import Lib (Period,Floor,Cap)
 
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
-           ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..))
+           ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..))
 import Data.List (findIndex,zip6)
 
 data InterestInfo = 
@@ -28,17 +28,13 @@ data OriginalInfo = OriginalInfo {
   originBalance::Float
   ,originDate::T.Day
   ,originRate::Float
-  ,originLockoutEnd::(Maybe T.Day)
 } deriving (Show)
 
-data SinkFundSchedule = SinkFundSchedule {
-  sfBalance::Float
-  ,sfDate::T.Day
-} deriving (Show)
-
+type SinkFundSchedule = Ts
 
 data BondType = Passthrough
                 | SinkFund SinkFundSchedule
+                | Lockout T.Day
                 deriving (Show)
 
 data Bond = Bond {
@@ -104,7 +100,7 @@ payPrin d amt bnd@(Bond bn Passthrough oi
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
-$(deriveJSON defaultOptions ''SinkFundSchedule)
+-- $(deriveJSON defaultOptions ''SinkFundSchedule)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
 

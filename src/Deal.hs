@@ -76,8 +76,7 @@ td = TestDeal {
                              ,L.bndOriginInfo= L.OriginalInfo{
                                                 L.originBalance=3000
                                                 ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08
-                                                ,L.originLockoutEnd=Nothing}
+                                                ,L.originRate= 0.08}
                              ,L.bndInterestInfo= L.Fix 0.08
                              ,L.bndBalance=3000
                              ,L.bndRate=0.08
@@ -93,8 +92,7 @@ td = TestDeal {
                              ,L.bndOriginInfo= L.OriginalInfo{
                                                 L.originBalance=3000
                                                 ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08
-                                                ,L.originLockoutEnd=Nothing}
+                                                ,L.originRate= 0.08}
                              ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 0.085 Quarterly Nothing Nothing
                              ,L.bndBalance=3000
                              ,L.bndRate=0.08
@@ -102,7 +100,25 @@ td = TestDeal {
                              ,L.bndDueInt=0.0
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})])
+                             ,L.bndStmt=Nothing})
+                        ,("C"
+                          ,L.Bond{
+                              L.bndName="C"
+                             ,L.bndType=L.Lockout (T.fromGregorian 2022 6 1)
+                             ,L.bndOriginInfo= L.OriginalInfo{
+                                                L.originBalance=3000
+                                                ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                ,L.originRate= 0.08}
+                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 0.085 Quarterly Nothing Nothing
+                             ,L.bndBalance=3000
+                             ,L.bndRate=0.08
+                             ,L.bndDuePrin=0.0
+                             ,L.bndDueInt=0.0
+                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndStmt=Nothing})
+                         ]
+           )
   ,pool = P.Pool {P.assets=[P.Mortgage
                                          P.OriginalInfo{
                                            P.originBalance=4000
@@ -215,6 +231,7 @@ performAction d t (W.PayPrin an bnds) =
     acc = accMap Map.! an 
 
     bndsToPay = filter (\x -> ((L.bndBalance x) > 0)) $ map (\x -> bndMap Map.! x ) bnds
+    -- TODO  add filter lockout bonds here 
     bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay
     bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
 
@@ -290,7 +307,7 @@ applyFloatRate (L.Floater idx spd rt p f c) d ras
   = idx_rate + spd
     where 
       idx_rate = case ra of 
-        Just (RateCurve _idx _ts) -> getRateByDate _ts d 
+        Just (RateCurve _idx _ts) -> getValByDate _ts d 
         Nothing -> -0.5 
       ra = find (\(RateCurve _idx _ts) -> (_idx==idx)) ras 
 
@@ -429,10 +446,24 @@ calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal bond_rate _ _ lstIntPay _
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn bt bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.Passthrough) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
   b {L.bndDuePrin = duePrin}
   where
     duePrin = bond_bal
+
+calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+  if (cd > calc_date)  then 
+    b {L.bndDuePrin = 0}
+  else
+    b {L.bndDuePrin = duePrin}
+  where
+    duePrin = bond_bal
+
+calcDuePrin t calc_date b@(L.Bond bn (L.SinkFund schedule) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+  b {L.bndDuePrin = duePrin}
+  where
+    scheduleDue = getValByDate schedule calc_date
+    duePrin = max (bond_bal - scheduleDue) 0
 
 calcTargetAmount :: TestDeal -> A.Account -> Float
 calcTargetAmount t (A.Account _ n i (Just r) _ ) =

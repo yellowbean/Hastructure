@@ -11,7 +11,7 @@ module Lib
     ,Txn(..),combineTxn,Statement(..)
     ,appendStmt,periodRateFromAnnualRate
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
-    ,getRateByDate
+    ,getValByDate
     ) where
 
 import qualified Data.Time as T
@@ -187,14 +187,14 @@ data RateAssumption = RateCurve Index Ts
                       
 
 
-getRateByDate :: Ts -> T.Day -> Float
-getRateByDate (FloatCurve dps) d 
+getValByDate :: Ts -> T.Day -> Float
+getValByDate (FloatCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
       Nothing -> 0
 
-getRateByDates :: Ts -> [T.Day] -> [Float]
-getRateByDates rc ds = map (getRateByDate rc) ds
+getValByDates :: Ts -> [T.Day] -> [Float]
+getValByDates rc ds = map (getValByDate rc) ds
 
 
 rc = FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)
@@ -203,5 +203,7 @@ rc = FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)
                ]
 
 $(deriveJSON defaultOptions ''Txn)
+$(deriveJSON defaultOptions ''Ts)
+$(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Statement)
