@@ -19,7 +19,7 @@
 * Bonds
   * Float Index rate
   * Passthrough :heavy_check_mark:
-  * Sinking fund :heavy_check_mark:
+  * PAC Bond Support :heavy_check_mark:
   * Term bond
 * Fees
   * Pool / Bond balanced based fees  :heavy_check_mark:

@@ -11,7 +11,7 @@ module Lib
     ,Txn(..),combineTxn,Statement(..)
     ,appendStmt,periodRateFromAnnualRate
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
-    ,getValByDate
+    ,getValByDate,getValOnByDate
     ) where
 
 import qualified Data.Time as T
@@ -186,12 +186,22 @@ data RateAssumption = RateCurve Index Ts
                     | RateFlat Index Float
                       
 
+getValOnByDate :: Ts -> T.Day -> Float
+getValOnByDate (AmountCurve dps) d 
+  = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
+      Just (TsPoint _d v) -> v
+      Nothing -> 99999999
 
 getValByDate :: Ts -> T.Day -> Float
+getValByDate (AmountCurve dps) d 
+  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+      Just (TsPoint _d v) -> v
+      Nothing -> 99999999
+
 getValByDate (FloatCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
-      Nothing -> 0
+      Nothing -> 99999999
 
 getValByDates :: Ts -> [T.Day] -> [Float]
 getValByDates rc ds = map (getValByDate rc) ds

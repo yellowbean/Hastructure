@@ -27,6 +27,10 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 
+import Debug.Trace
+
+debug = flip trace
+
 class SPV a where
   projBondCashflow :: a -> ()
   projAssetCashflow :: a -> ()
@@ -88,7 +92,9 @@ td = TestDeal {
                          ,("B"
                           ,L.Bond{
                               L.bndName="B"
-                             ,L.bndType=L.Passthrough
+                             ,L.bndType=L.PAC (AmountCurve
+                                            [(TsPoint (T.fromGregorian 2022 3 1) 100.0)
+                                            ,(TsPoint (T.fromGregorian 2022 3 1) 100.0)])
                              ,L.bndOriginInfo= L.OriginalInfo{
                                                 L.originBalance=3000
                                                 ,L.originDate= (T.fromGregorian 2022 1 1)
@@ -232,13 +238,13 @@ performAction d t (W.PayPrin an bnds) =
 
     bndsToPay = filter (\x -> ((L.bndBalance x) > 0)) $ map (\x -> bndMap Map.! x ) bnds
     -- TODO  add filter lockout bonds here 
-    bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay
+    bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay  --`debug` ("bonds to pay->"++show(bndsToPay))
     bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
 
     availBal = A.accBalance acc
     actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
-    bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal
-    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid
+    bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal 
+    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid  `debug` ("BTO pay ->>>"++show(bndsAmountToBePaid))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Prin") an accMap
@@ -337,12 +343,12 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates =
         RunWaterfall d ->
           run2
             (setBndsNextIntRate 
-                (foldl (performAction d) t (waterfall t))
+                (foldl (performAction d) t (waterfall t)) 
                 d 
-                rates)
+                rates) 
             (Just _poolFlow)
             (Just ads)
-            rates
+            rates --`debug` ("Deal RunTime =>"++show(d)++"-> status:"++show((bonds t)))
 
 run2 t Nothing Nothing Nothing =
     run2 t (Just pcf) (Just ads) Nothing
@@ -360,7 +366,7 @@ runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder]
 runDeal t er assumps =
   case er of
     DealStatus ->  (finalDeal, Nothing)
-    DealPoolFlow -> (finalDeal, Just pcf)
+    DealPoolFlow -> (finalDeal, Just pcf) 
 
   where
     finalDeal = run2 t (Just pcf) (Just ads) (Just rcurves)
@@ -446,10 +452,10 @@ calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal bond_rate _ _ lstIntPay _
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn (L.Passthrough) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
-  b {L.bndDuePrin = duePrin}
+calcDuePrin t calc_date b@(L.Bond bn L.Passthrough bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+  b {L.bndDuePrin = duePrin} 
   where
-    duePrin = bond_bal
+    duePrin = bond_bal 
 
 calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
   if (cd > calc_date)  then 
@@ -457,13 +463,14 @@ calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr in
   else
     b {L.bndDuePrin = duePrin}
   where
-    duePrin = bond_bal
+    duePrin = bond_bal 
 
-calcDuePrin t calc_date b@(L.Bond bn (L.SinkFund schedule) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
-  b {L.bndDuePrin = duePrin}
+calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+  b {L.bndDuePrin = duePrin} `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
-    scheduleDue = getValByDate schedule calc_date
-    duePrin = max (bond_bal - scheduleDue) 0
+    scheduleDue = getValOnByDate schedule calc_date  
+    duePrin = max (bond_bal - scheduleDue) 0  
+                    `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
 
 calcTargetAmount :: TestDeal -> A.Account -> Float
 calcTargetAmount t (A.Account _ n i (Just r) _ ) =

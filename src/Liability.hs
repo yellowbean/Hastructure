@@ -16,7 +16,8 @@ import Lib (Period,Floor,Cap)
 
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
-           ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..))
+           ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
+           ,TsPoint(..))
 import Data.List (findIndex,zip6)
 
 data InterestInfo = 
@@ -31,11 +32,17 @@ data OriginalInfo = OriginalInfo {
 } deriving (Show)
 
 type SinkFundSchedule = Ts
+type PlannedAmorSchedule = Ts
+
 
 data BondType = Passthrough
                 | SinkFund SinkFundSchedule
+                | PAC PlannedAmorSchedule
                 | Lockout T.Day
                 deriving (Show)
+
+_pac = PAC $ AmountCurve [TsPoint (T.fromGregorian 2022 3 1) 100.0
+                        ,TsPoint (T.fromGregorian 2022 6 1) 100.0]
 
 data Bond = Bond {
   bndName :: String
@@ -79,19 +86,18 @@ consolStmt b@Bond{bndStmt = Just (Statement (txn:txns))}
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
 payInt :: T.Day -> Float -> Bond -> Bond
-payInt d amt bnd@(Bond bn Passthrough oi
+payInt d amt bnd@(Bond bn bt oi
                                     iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
-  Bond bn Passthrough oi iinfo new_bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
+  Bond bn bt oi iinfo bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
-    new_bal = bal - amt
     new_due = dueInt - amt
     new_stmt = appendStmt stmt (BondTxn d bal amt 0 r "INT PAY")
 
 
 payPrin :: T.Day -> Float -> Bond -> Bond
-payPrin d amt bnd@(Bond bn Passthrough oi
+payPrin d amt bnd@(Bond bn bt oi
                    iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
-  Bond bn Passthrough oi iinfo new_bal r new_due dueInt lpayInt (Just d) (Just new_stmt)
+  Bond bn bt oi iinfo new_bal r new_due dueInt lpayInt (Just d) (Just new_stmt)
   where
     new_bal = bal - amt
     new_due = duePrin - amt
