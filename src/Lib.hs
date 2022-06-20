@@ -116,11 +116,12 @@ genDates start_day p n =
 
 prorataFactors :: [Float] -> Float -> [Float]
 prorataFactors bals amt =
-  map (\y -> y * amtToPay) factors
+  case s of 
+    0.0 -> bals
+    _ -> map (\y -> y * amtToPay) (map (\x -> x / s) bals)
   where
     s = foldl (+) 0 bals
     amtToPay = min s amt
-    factors = map (\x -> x / s) bals
 
 paySeqLiabilities :: Float -> [Float] -> [(Float,Float)]
 paySeqLiabilities startAmt liabilities =

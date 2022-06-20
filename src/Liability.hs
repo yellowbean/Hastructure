@@ -86,8 +86,7 @@ consolStmt b@Bond{bndStmt = Just (Statement (txn:txns))}
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
 payInt :: T.Day -> Float -> Bond -> Bond
-payInt d amt bnd@(Bond bn bt oi
-                                    iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
+payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
   Bond bn bt oi iinfo bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
     new_due = dueInt - amt
@@ -95,8 +94,7 @@ payInt d amt bnd@(Bond bn bt oi
 
 
 payPrin :: T.Day -> Float -> Bond -> Bond
-payPrin d amt bnd@(Bond bn bt oi
-                   iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
+payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
   Bond bn bt oi iinfo new_bal r new_due dueInt lpayInt (Just d) (Just new_stmt)
   where
     new_bal = bal - amt

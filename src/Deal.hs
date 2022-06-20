@@ -243,8 +243,9 @@ performAction d t (W.PayPrin an bnds) =
 
     availBal = A.accBalance acc
     actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
-    bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal 
-    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid  `debug` ("BTO pay ->>>"++show(bndsAmountToBePaid))
+    bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)  
+            `debug` ("BndDueAmts"++show(bndsDueAmts)++"DueBonds>>"++show(bndsWithDue))
+    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid   `debug` ("BTO pay ->>>"++show(bndsAmountToBePaid))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Prin") an accMap
@@ -348,7 +349,7 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates =
                 rates) 
             (Just _poolFlow)
             (Just ads)
-            rates --`debug` ("Deal RunTime =>"++show(d)++"-> status:"++show((bonds t)))
+            rates -- `debug` ("Deal RunTime =>"++show(d)++"-> status:"++show((bonds t)))
 
 run2 t Nothing Nothing Nothing =
     run2 t (Just pcf) (Just ads) Nothing
@@ -469,8 +470,7 @@ calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi bond_bal _ prin_arr 
   b {L.bndDuePrin = duePrin} `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date  
-    duePrin = max (bond_bal - scheduleDue) 0  
-                    `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
+    duePrin = max (bond_bal - scheduleDue) 0  `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
 
 calcTargetAmount :: TestDeal -> A.Account -> Float
 calcTargetAmount t (A.Account _ n i (Just r) _ ) =
