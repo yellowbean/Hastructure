@@ -90,7 +90,7 @@ payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt
   Bond bn bt oi iinfo bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
     new_due = dueInt - amt
-    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r "INT PAY")
+    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt "INT PAY")
 
 
 payPrin :: T.Day -> Float -> Bond -> Bond
@@ -99,7 +99,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stm
   where
     new_bal = bal - amt
     new_due = duePrin - amt
-    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 "PRIN PAY")
+    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 amt "PRIN PAY")
 
 
 $(deriveJSON defaultOptions ''InterestInfo)
