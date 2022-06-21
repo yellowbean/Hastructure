@@ -1,8 +1,8 @@
 # Hastructure
-* A structured finance cashflow engine written in Haskell
-* A building block engine to model cashflows of structured product
-* In-house and white-label friendly
-
+* A structured finance cashflow engine written in Haskell  :dollar:
+* A building block engine to model cashflows of structured product :bricks:
+* In-house and white-label friendly :car:
+* Python wrapper on the way  :snake:
 ### Features
 * built-in REST API services :heavy_check_mark:
 * Asset class coverage
