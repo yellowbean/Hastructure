@@ -57,7 +57,8 @@ data OriginalInfo = OriginalInfo {
     ,period:: Period
     ,startDate :: Day} deriving (Show)
 
-data Mortgage = Mortgage OriginalInfo Balance Rate Int
+type RemainTerms = Int 
+data Mortgage = Mortgage OriginalInfo Balance Rate RemainTerms
                 deriving (Show)
 
 instance Asset Mortgage  where

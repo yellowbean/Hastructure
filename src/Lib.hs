@@ -12,10 +12,13 @@ module Lib
     ,appendStmt,periodRateFromAnnualRate
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,getValByDate,getValOnByDate
+    ,extractTxns,groupTxns,getTxns
+    ,getTxnDate,getTxnAmt
     ) where
 
 import qualified Data.Time as T
 import Data.List
+import qualified Data.Map as M
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -147,27 +150,56 @@ afterNPeriod d i p =
 
 data Txn = BondTxn T.Day Balance Interest Principal Rate Cash Comment
           | AccTxn T.Day Balance Amount Comment
-          | ExpTxn T.Day Balance Amount Balance String
+          | ExpTxn T.Day Balance Amount Balance Comment
+        deriving (Show)
+
+getTxnDate :: Txn -> T.Day 
+getTxnDate (BondTxn t _ _ _ _ _ _ ) = t
+getTxnDate (AccTxn t _ _ _ ) = t
+getTxnDate (ExpTxn t _ _ _ _ ) = t
+
+getTxnAmt :: Txn -> Float
+getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t
+getTxnAmt (AccTxn _ _ t _ ) = t
+getTxnAmt (ExpTxn _ _ t _ _ ) = t
+
+emptyTxn :: Txn -> T.Day -> Txn 
+emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 "" )
+emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 "" )
+emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 "" )
+
+
+getTxnByDate :: [Txn] -> T.Day -> Maybe Txn
+getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
+
+data Statement = Statement [Txn]
         deriving (Show)
 
 appendStmt :: Maybe Statement -> Txn -> Statement
 appendStmt (Just stmt@(Statement txns)) txn = Statement (txns++[txn])
 appendStmt Nothing txn = Statement [txn]
 
+
+extractTxns :: [Txn] -> [Statement] -> [Txn]
+extractTxns rs ((Statement _txns):stmts) = extractTxns (rs++_txns) stmts 
+extractTxns rs [] = rs
+
+getTxns :: Maybe Statement -> [Txn]
+getTxns Nothing = []
+getTxns (Just (Statement txn)) = txn
+
+groupTxns :: Maybe Statement -> M.Map T.Day [Txn]
+groupTxns (Just (Statement txns))
+  = M.fromAscListWith (++) $ [(getTxnDate txn,[txn]) | txn <- txns]
+-- groupTxns Nothing = mempty
+
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 m1) (BondTxn d2 b2 i2 p2 r2 c2 m2)
     = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) ""
 
-jointTxn :: [Txn] -> [Txn] -> [Txn]
-jointTxn txnsA txnsB
-  = txnsA
 
 
-data Statement = Statement [Txn]
-        deriving (Show)
 
---joinStatement :: (String,Statement) -> (String,Statement) -> [(String,[Txn])]
---jointStatement (stmtsA,(Statement txnsA)) (stmtsB,(Statement txnsB)) =
 
 instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ )
@@ -194,18 +226,18 @@ getValOnByDate :: Ts -> T.Day -> Float
 getValOnByDate (AmountCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
-      Nothing -> 99999999
+      Nothing -> 0
 
 getValByDate :: Ts -> T.Day -> Float
 getValByDate (AmountCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
-      Nothing -> 99999999
+      Nothing -> 0
 
 getValByDate (FloatCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
-      Nothing -> 99999999
+      Nothing -> 0
 
 getValByDates :: Ts -> [T.Day] -> [Float]
 getValByDates rc ds = map (getValByDate rc) ds

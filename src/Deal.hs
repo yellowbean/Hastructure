@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Deal (TestDeal,run,run2,getInits,runDeal,ExpectReturn(..)) where
+module Deal (TestDeal,run,run2,getInits,runDeal,ExpectReturn(..)
+            ,bonds,accounts,fees) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -12,6 +13,7 @@ import qualified Liability as L
 import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
+import qualified Call as C
 import Lib
 -- import Pool
 -- import qualified Data.HashMap.Strict as M
@@ -47,6 +49,7 @@ data TestDeal = TestDeal {
   ,pool ::  (P.Pool P.Mortgage)
   ,waterfall :: W.DistributionSeq
   ,collects :: [W.CollectionRule]
+  ,call :: Maybe [C.CallOption]
 } deriving (Show)
 
 $(deriveJSON defaultOptions ''TestDeal)
@@ -145,12 +148,9 @@ td = TestDeal {
    ]
  ,collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
+ ,call = Nothing
 }
 
---runDeal 
---    td 
---    DealStatus 
---    (Just ([AP.InterestRateCurve LIBOR6M [(T.fromGregorian 2020 1 1,0.03)]]))
 
 performAction :: T.Day -> TestDeal -> W.Action -> TestDeal
 performAction d t (W.Transfer an1 an2) =
@@ -360,14 +360,48 @@ run2 t Nothing _ _ = (prepareDeal t)
 
 data ExpectReturn = DealStatus
                   | DealPoolFlow
+                  | DealTxns
+                  | ExecutionSummary
                   deriving (Show)
 
+
+data TxnComponent = Account String
+                   | Expense String
+                   | Bond String
+                   | Pool String
+                   deriving (Show)
+
+instance Eq TxnComponent where 
+    (Account s1) == (Account s2) = s1 ==  s2
+    (Bond s1) == (Bond s2) = s1 ==  s2
+    (Expense s1) == (Expense s2) = s1 == s2
+
+instance Ord TxnComponent where 
+    compare (Account s1) (Account s2) = compare s1 s2
+    compare (Bond s1) (Bond s2) = compare s1 s2
+    compare (Expense s1) (Expense s2) = compare s1 s2
+-- type EntityTxnByDay = Map (Component T.Day) (Maybe [Txn])
+
+pairTxn :: (Map.Map TxnComponent (Maybe Statement)) -> [(TxnComponent, Txn)]
+pairTxn m = Map.foldrWithKey (\k v t ->  [ (k,txn) | txn <- (getTxns v)]++t) [] m 
+
+extractExecutionTxns:: TestDeal ->  [(TxnComponent, Txn)]
+extractExecutionTxns td  = 
+      (pairTxn bndStmts)++(pairTxn accStmts) ++(pairTxn feeStmts)
+  where 
+      bndStmts = Map.mapKeys (\x -> Bond x) $ Map.mapWithKey (\k v -> (L.bndStmt v)) (bonds td)
+      accStmts = Map.mapKeys (\x -> Account x) $ Map.mapWithKey (\k v -> (A.accStmt v)) (accounts td)
+      feeStmts = Map.mapKeys (\x -> Expense x) $ Map.mapWithKey (\k v -> (F.feeStmt v)) (fees td)
+
+
+
 runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] 
-        -> (TestDeal,Maybe CF.CashFlowFrame)
+        -> (TestDeal,Maybe CF.CashFlowFrame, Maybe [(TxnComponent, Txn)])
 runDeal t er assumps =
   case er of
-    DealStatus ->  (finalDeal, Nothing)
-    DealPoolFlow -> (finalDeal, Just pcf) 
+    DealStatus ->  (finalDeal, Nothing, Nothing)
+    DealPoolFlow -> (finalDeal, Just pcf, Nothing) 
+    DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns(finalDeal)))
 
   where
     finalDeal = run2 t (Just pcf) (Just ads) (Just rcurves)
@@ -442,7 +476,9 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd fa maybeFlpd 
 
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDueInt t calc_date b@(L.Bond bn bt  bo bi bond_bal bond_rate _ _ lstIntPay _ _) =
+calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
+  = b {L.bndDueInt = 0 } 
+calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ _ lstIntPay _ _) =
   b {L.bndDueInt = (dueInt+int_arrears) }
   where
     int_arrears = 0
@@ -467,10 +503,27 @@ calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr in
     duePrin = bond_bal 
 
 calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
-  b {L.bndDuePrin = duePrin} `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+  b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date  
-    duePrin = max (bond_bal - scheduleDue) 0  `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
+    duePrin = max (bond_bal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
+
+calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_arrears lstIntPay _ _) =
+  if (all (\x -> (isZbond x)) activeBnds) then
+      b {L.bndDuePrin = bond_bal} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+  else 
+      b {L.bndDuePrin = 0, L.bndBalance = new_bal, L.bndLastIntPay=Just calc_date} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+  where
+    isZbond (L.Bond _ bt _ _ _ _ _ _ _ _ _) 
+      = case bt of
+          L.Z -> True
+          _ -> False
+    activeBnds = filter (\x -> (L.bndBalance x) > 0) (Map.elems (bonds t))
+    new_bal = bond_bal + dueInt
+    lastIntPayDay = case lstIntPay of
+                      Just pd -> pd
+                      Nothing -> Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
+    dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate ACT_365
 
 calcTargetAmount :: TestDeal -> A.Account -> Float
 calcTargetAmount t (A.Account _ n i (Just r) _ ) =
@@ -498,3 +551,4 @@ depositPoolInflow rules d cf amap =
           (W.Collect W.CollectedPrepayment _) -> CF.mflowPrepayment ts
 
 $(deriveJSON defaultOptions ''ExpectReturn)
+$(deriveJSON defaultOptions ''TxnComponent)

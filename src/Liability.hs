@@ -12,12 +12,12 @@ module Liability
 import Language.Haskell.TH
 import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
-import Lib (Period,Floor,Cap)
+import Lib (Period,Floor,Cap,getValByDate)
 
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
-           ,TsPoint(..))
+           ,TsPoint(..),getTxnDate,getTxnAmt)
 import Data.List (findIndex,zip6)
 
 data InterestInfo = 
@@ -39,6 +39,7 @@ data BondType = Passthrough
                 | SinkFund SinkFundSchedule
                 | PAC PlannedAmorSchedule
                 | Lockout T.Day
+                | Z
                 deriving (Show)
 
 _pac = PAC $ AmountCurve [TsPoint (T.fromGregorian 2022 3 1) 100.0
@@ -57,19 +58,6 @@ data Bond = Bond {
   ,bndLastPrinPay :: Maybe T.Day
   ,bndStmt :: Maybe Statement
 } deriving (Show)
-
---calcBond :: Bond -> T.Day -> (Float, Float) -- due principal, due interest
---calcBond bnd@(Bond bn Passthrough (OriginalInfo _ od or _) iinfo bal _ duePrin dueInt _ _ (Just stmt)) calc_date =
---  case (lastIntPay stmt) of
---    Just (d,bond_bal,arrears) ->
---      (bal, new_int+new_arrears)
---      where
---        new_int = calcInt bond_bal d calc_date 0.08 ACT_365
---        new_arrears = calcInt arrears d calc_date 0.08 ACT_365
---    Nothing ->
---      (bal, new_int)
---      where
---        new_int = calcInt bal od calc_date or ACT_365
 
 consolTxn :: [Txn] -> Txn -> [Txn]
 consolTxn (txn:txns) txn0
@@ -92,7 +80,6 @@ payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt
     new_due = dueInt - amt
     new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt "INT PAY")
 
-
 payPrin :: T.Day -> Float -> Bond -> Bond
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
   Bond bn bt oi iinfo new_bal r new_due dueInt lpayInt (Just d) (Just new_stmt)
@@ -101,11 +88,25 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stm
     new_due = duePrin - amt
     new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 amt "PRIN PAY")
 
+data PriceResult = PriceResult Float -- valuation,wal,accu,duration
+
+pv :: Ts -> T.Day -> T.Day -> Float -> Float
+pv rc today d amt = 
+    amt / (1+discount_rate)^(div distance 365)
+    where
+        discount_rate = getValByDate rc d
+        distance = fromIntegral (T.diffDays d today)
+
+
+priceBond :: T.Day -> Ts -> Bond -> PriceResult
+priceBond d rc b = 
+  case (bndStmt b) of 
+    Nothing -> PriceResult 0 
+    (Just (Statement txns)) -> PriceResult $ sum $ map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns
+    
+    
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
--- $(deriveJSON defaultOptions ''SinkFundSchedule)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
-
-

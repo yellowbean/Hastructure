@@ -44,7 +44,9 @@ data ColType = ColNum Float | ColDate Date | ColBal Float
     deriving (Show)
 
 data TsRow = CashFlow Date Amount
-              |BondFlow Date Balance Principal Interest
+               |BondFlow Date Balance Principal Interest
+              -- |FeeFlow Date Balance Amount
+              -- |AccountFlow Date Balance Amount
               |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery
               deriving (Show)
 
