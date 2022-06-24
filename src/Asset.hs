@@ -161,9 +161,9 @@ calc_p_i_flow bal pmt dates r =
       size = length dates
       period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r ACT_360 | d <- [0..size-2]]
 
-runPool :: Asset a => [a] -> (Maybe [A.AssumptionBuilder])-> [CF.CashFlowFrame]
-runPool as Nothing = map calcCashflow as
-runPool assets (Just assumps) 
+runPool :: Asset a => [a] -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
+runPool as [] = map calcCashflow as
+runPool assets assumps
   = map (\x -> (projCashflow x assumps)) assets
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame

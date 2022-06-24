@@ -32,6 +32,7 @@ import Data.Aeson.Types
 import Debug.Trace
 
 debug = flip trace
+_startDate = (T.fromGregorian 1970 1 1)
 
 class SPV a where
   projBondCashflow :: a -> ()
@@ -244,8 +245,8 @@ performAction d t (W.PayPrin an bnds) =
     availBal = A.accBalance acc
     actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
     bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)  
-            `debug` ("BndDueAmts"++show(bndsDueAmts)++"DueBonds>>"++show(bndsWithDue))
-    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid   `debug` ("BTO pay ->>>"++show(bndsAmountToBePaid))
+            -- `debug` ("BndDueAmts"++show(bndsDueAmts)++"DueBonds>>"++show(bndsWithDue))
+    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid   -- `debug` ("BTO pay ->>>"++show(bndsAmountToBePaid))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Prin") an accMap
@@ -274,9 +275,9 @@ run t currentPeriod =
     else
        t
   where
-    startDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
-    firstPayDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "first-pay-date" (dates t)
-    poolCf = P.aggPool $ P.runPool (P.assets (pool t)) Nothing
+    startDate = Map.findWithDefault _startDate "closing-date" (dates t)
+    firstPayDate = Map.findWithDefault _startDate "first-pay-date" (dates t)
+    poolCf = P.aggPool $ P.runPool (P.assets (pool t)) []
     pCollectionInt = (collectPeriod t)
     bPayInt = (payPeriod t)
     pCollectionDates = map (\x -> afterNPeriod startDate x pCollectionInt) [1..100]
@@ -351,10 +352,13 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates =
             (Just ads)
             rates -- `debug` ("Deal RunTime =>"++show(d)++"-> status:"++show((bonds t)))
 
+run2 t (Just _poolFlow) (Just []) _     -- stop at a date
+  = (prepareDeal t)
+
 run2 t Nothing Nothing Nothing =
     run2 t (Just pcf) (Just ads) Nothing
   where
-    (ads,pcf,rcurves) = getInits t Nothing 
+    (ads,pcf,rcurves) = getInits t Nothing
 
 run2 t Nothing _ _ = (prepareDeal t)
 
@@ -404,7 +408,7 @@ runDeal t er assumps =
     DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns(finalDeal)))
 
   where
-    finalDeal = run2 t (Just pcf) (Just ads) (Just rcurves)
+    finalDeal = run2 t (Just pcf) (Just ads) (Just rcurves) `debug` (">>ADS "++show(ads))
     (ads,pcf,rcurves) = getInits t assumps
 
 prepareDeal :: TestDeal -> TestDeal 
@@ -425,27 +429,39 @@ buildRateCurves rs (assump:assumps) =
 buildRateCurves rs [] = rs
 
 
-getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] 
-         -> ([ActionOnDate], CF.CashFlowFrame, [RateAssumption])
-getInits t assumps =
-  ( sort $ bPayDates ++ pCollectionDatesA
-    ,pCollectionCf, rateCurves)
+getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] -> ([ActionOnDate], CF.CashFlowFrame, [RateAssumption])
+getInits t (Just assumps) =
+  ( actionDates
+    ,pCollectionCf
+    ,rateCurves)
   where
-    startDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
-    firstPayDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "first-pay-date" (dates t)
+    startDate = Map.findWithDefault _startDate "closing-date" (dates t)
+    firstPayDate = Map.findWithDefault _startDate "first-pay-date" (dates t)
 
     pCollectionInt = (collectPeriod t)
     bPayInt = (payPeriod t)
+
 
     projNum = 512
     bPayDates = map (\x -> RunWaterfall (afterNPeriod firstPayDate x bPayInt)) [0..projNum]
     pCollectionDates = map (\x -> (afterNPeriod startDate x pCollectionInt)) [0..projNum]
     pCollectionDatesA = map (\x -> CollectPoolIncome x) pCollectionDates
 
+    stopDate = find (\x -> case x of    
+                            (AP.StopRunBy d) -> True
+                            _ -> False) assumps `debug` (">>Assumps"++show(assumps))
+
+    _actionDates = sort $ bPayDates ++ pCollectionDatesA
+    actionDates = case stopDate of
+                    Just (AP.StopRunBy d) ->  filter (\x -> case x of
+                                                  RunWaterfall _d -> _d < d
+                                                  CollectPoolIncome _d -> _d < d ) _actionDates
+                    Nothing ->  _actionDates  `debug` (">>stop date"++show(stopDate))
+
     poolCf = P.aggPool $ P.runPool ( P.assets (pool t) ) assumps
     pCollectionCf = CF.CashFlowFrame $ CF.aggTsByDates (CF.getTsCashFlowFrame poolCf) pCollectionDates
 
-    rateCurves = buildRateCurves [] (fromMaybe [] assumps) -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
+    rateCurves = buildRateCurves [] assumps -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
 
 
 queryDeal :: TestDeal -> DealStats ->  Float

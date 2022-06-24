@@ -29,7 +29,8 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | InterestRateConstant Index Float
                 | InterestRateCurve Index [(T.Day,Float)]
                 | PrepaymentByAging [(Int,Float)]
-                | CallWhen 
+                | CallWhen
+                | StopRunBy T.Day
                 deriving (Show)
 
 
