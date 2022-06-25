@@ -21,6 +21,10 @@
   * Passthrough :heavy_check_mark:
   * PAC Bond Support :heavy_check_mark:
   * Term bond
+* Call
+  * Pool/Bond Balance :heavy_check_mark:
+  * Bond/Pool Factor :heavy_check_mark:
+  * Date/or after :heavy_check_mark:
 * Fees
   * Pool / Bond balanced based fees  :heavy_check_mark:
   * Fix Amount Fees  :heavy_check_mark:
