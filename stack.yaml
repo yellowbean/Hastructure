@@ -50,15 +50,12 @@ extra-deps:
    - stm-hamt-1.2.0.7@sha256:e8ecba11580ae2ea839cc3b7a25adcce40810aa472b544728790d28804c912ee,3972
    - Spock-0.14.0.0
    - focus-1.0.1.4
-   - primitive-unlifted-0.1.3.0
    - json-schema-0.7.4.2@sha256:6f1c54247006f9d55a9d656a9e83af4b06cf6b49cebdfa79aec092f21181955f,2347
-   - containers-0.6.5.1 
    - wai-3.2.3
    - aeson-1.4.7.1@sha256:6199a98b072e5a7748e81ab72476a0992cf23d925ebe4fefd5b917cbda9c2af8,7098
    - base-compat-batteries-0.10.5@sha256:773526cb63fd837a10884c48f62185284596e70c644465c55a1d828918165697,8577
    - generic-deriving-1.12.4@sha256:f2f9609b5caacb5ff049859e4cd9c459658eaafcbebc6d564442127e1139e09b,4146
    - primitive-extras-0.10.1.4@sha256:780726757a8ca5bad6d82e77180fb1ec5a1ba73073b7bd8ccf24cb60e11ab4fe,2959
-   - time-1.12.2
    - Cabal-3.6.3.0@sha256:ff97c442b0c679c1c9876acd15f73ac4f602b973c45bde42b43ec28265ee48f4,12459
    - directory-1.3.7.0@sha256:d44788eac41268d951679fdcc343adc8a65fcf5b016bdf6c1f996bf78dde798e,2940
    - process-1.6.14.0@sha256:b6ad76fd3f4bf133cdc2dc9176e23447f2a0a8e9316047d53154cd11f871446d,2845
@@ -66,6 +63,16 @@ extra-deps:
    - tasty-1.4.2.3  
    - tasty-hunit-0.10.0.3
    - tasty-hspec-1.2.0.1  
+   - Cabal-3.2.1.0@sha256:8743076ec022296f9771d962000c9ca3a0fe02e68c37b992c63e382a675f791d,27482
+   - base-compat-0.10.5@sha256:f1eb4ae543d698e7f1b11c5a95f6b286f492d08c34b359879274e60fcfd96c17,7150
+   - containers-0.5.11.0@sha256:1af9da3baaddc4f4aaea016b07d4c38ddbf702ce3f0df31120531950837996b8,17308
+   - dlist-0.8.0.8@sha256:90ca348bffdc62d7070bcf0e97c728f8d01b24fbc7ea08d2909157d0da76534c,2066
+   - primitive-unlifted-0.1.3.1@sha256:3b00ca2c605168dee97d92490a018891e10f73b81ff5e2eeae48ece309d20485,1427
+   - template-haskell-2.15.0.0@sha256:6e803fbff5069effa18a921c76b3fed4535542e0721b464f38012b2f9eb66562,1894
+   - th-abstraction-0.3.2.0@sha256:9b5b4e6e2bbff9b075ad7751ee98e2107090bd17b51d5442695b8990e4db6521,1851
+   - time-1.10@sha256:536801b30aa2ce66da07cb19847827662650907efb2af4c8bef0a6276445075f,5738
+
+
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
