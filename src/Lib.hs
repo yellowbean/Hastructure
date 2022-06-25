@@ -52,6 +52,8 @@ data DealStats = PoolInt
               | CurrentPoolBalance
               | OriginalBondBalance
               | OriginalPoolBalance
+              | BondFactor
+              | PoolFactor
               deriving (Show)
 
 $(deriveJSON defaultOptions ''DealStats)

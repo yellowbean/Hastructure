@@ -33,8 +33,12 @@ class Asset a where
   projCashflow :: a -> [A.AssumptionBuilder] -> CF.CashFlowFrame
 
 
-data Pool a = Pool {assets :: [a]}
+data Pool a = Pool {assets :: [a]
+                   ,futureCf :: Maybe CF.CashFlowFrame}
                     deriving (Show)
+
+--instance Functor Pool where 
+--    fmap f p@(Pool m) = Pool {assets= map f (assets p)}
 
 calcPmt :: Float -> Float -> Int -> Float
 calcPmt bal periodRate periods = 

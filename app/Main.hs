@@ -42,19 +42,6 @@ app = do
     setHeader "Access-Control-Allow-Headers" "Content-Type"
     text "{'version':'alpha-01'}"
 
-  post "run_deal" $ do
-    theDeal <- jsonBody'  :: ApiAction D.TestDeal
-    setHeader "Access-Control-Allow-Origin" "http://localhost:8280"
-    setHeader "Access-Control-Allow-Headers" "Content-Type"
-    setHeader "Access-Control-Allow-Methods" "*"
-    text $  pack $ unpack  $ encode (D.run theDeal 1)
-
-  hookRoute OPTIONS "run_deal" $ do
-    setHeader "Access-Control-Allow-Origin" "*"
-    setHeader "Access-Control-Allow-Headers" "*"
-    setHeader "Access-Control-Allow-Methods" "*"
-    text "good"
-
   post "run_deal2" $ do
     theRunReq <- jsonBody' :: ApiAction RunDealReq
     setHeader "Access-Control-Allow-Origin" "*"

@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Call(CallOption) where 
+module Call(CallOption(..)) where 
 
 import qualified Data.Time as T
 
@@ -16,8 +16,8 @@ data CallOption = PoolBalance Float
                 | BondFactor Float
                 | OnDate T.Day
                 | AfterDate T.Day
-                | And CallOption CallOption 
-                | Or CallOption CallOption 
+                | And [CallOption] 
+                | Or [CallOption] 
                 deriving (Show)
 
 $(deriveJSON defaultOptions ''CallOption)

@@ -6,6 +6,8 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
+                ,getEalierTsCashFlowFrame
+                ,mflowBalance
                 ,TsRow(..),Balances) where
 
 import Data.Time (Day)
@@ -94,6 +96,10 @@ getSingleTsCashFlowFrame :: CashFlowFrame -> T.Day -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame trs) d
   = head $ filter (\x -> (tsDate x) == d) trs
 
+getEalierTsCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe TsRow
+getEalierTsCashFlowFrame (CashFlowFrame trs) d 
+  = L.find (tsDateLT d) (reverse trs)
+
 mkColDay :: [T.Day] -> [ColType]
 mkColDay ds = [ (ColDate _d) | _d <- ds ]
 
@@ -169,6 +175,8 @@ mflowDefault _  = -1.0
 mflowRecovery :: TsRow -> Float
 mflowRecovery (MortgageFlow _ _ _ _ _ _ x) = x
 mflowRecovery _  = -1.0
+mflowBalance :: TsRow -> Float
+mflowBalance (MortgageFlow _ x _ _ _ _ _) = x
 
 
 --_calc_p_i_flow2 :: Balance -> Balances -> Principals -> Interests -> Rates -> (Balances,Principals,Interests)

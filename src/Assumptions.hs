@@ -16,9 +16,6 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import qualified Data.Time as T
 
-data CallWhen = Earliest
-              | When C.CallOption 
-              | Any [C.CallOption]
 
 data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | MortgageByRate ([Float],[Float])
@@ -29,7 +26,7 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | InterestRateConstant Index Float
                 | InterestRateCurve Index [(T.Day,Float)]
                 | PrepaymentByAging [(Int,Float)]
-                | CallWhen
+                | CallWhen [C.CallOption]
                 | StopRunBy T.Day
                 deriving (Show)
 
