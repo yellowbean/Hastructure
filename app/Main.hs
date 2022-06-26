@@ -40,7 +40,7 @@ app :: Api
 app = do
   get "info" $ do
     setHeader "Access-Control-Allow-Headers" "Content-Type"
-    text "{'version':'alpha-01'}"
+    text "{\"version\":\"0.0.1\"}"
 
   post "run_deal2" $ do
     theRunReq <- jsonBody' :: ApiAction RunDealReq

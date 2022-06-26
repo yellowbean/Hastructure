@@ -29,13 +29,14 @@ data Fee = Fee {
   ,feeType :: FeeType
   ,feeStart :: T.Day
   ,feeDue :: Float
+  ,feeDueDate :: Maybe T.Day
   ,feeArrears :: Float
   ,feeLastPaidDay :: Maybe T.Day
   ,feeStmt :: Maybe Statement
 } deriving (Show)
 
 payFee :: T.Day -> Float -> Fee -> Fee
-payFee d amt f@(Fee fn ft fs fd fa flpd fstmt) =
+payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
    f {feeLastPaidDay = Just d
      ,feeDue = dueRemain
      ,feeArrears = arrearRemain

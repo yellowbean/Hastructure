@@ -34,6 +34,8 @@ data KeepReserve = TillSource
 
 data Action = Transfer AccountName AccountName
              | PayFee AccountName [FeeName]
+             | PayFeeByDuePct AccountName [FeeName] Float
+             | PayFeeByDueAmt AccountName [FeeName] Float
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
              | TransferReserve KeepReserve AccountName AccountName

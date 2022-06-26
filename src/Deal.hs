@@ -75,6 +75,7 @@ td = TestDeal {
                                 ,F.feeType = (F.FixFee 500)
                                 ,F.feeStart = (T.fromGregorian 2022 1 1)
                                 ,F.feeDue = 0
+                                ,F.feeDueDate = Nothing
                                 ,F.feeArrears = 0
                                 ,F.feeLastPaidDay = Nothing
                                 ,F.feeStmt = Nothing})])
@@ -213,6 +214,27 @@ performAction d t (W.PayFee an fns) =
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Fee") an accMap
 
+performAction d t (W.PayFeeByDuePct an fns pct) =
+  t {accounts = accMapAfterPay, fees = feeMapUpdated}
+  where
+    feeMap = (fees t)
+    accMap = (accounts t)
+    acc = accMap Map.! an
+
+    feesToPay = map (\x -> feeMap Map.! x ) fns
+    feesWithDue = map (\x -> calcDueFee t d x) feesToPay
+    feeDueAmts = map (\x -> (F.feeDue x) * pct ) feesWithDue
+
+    availBal = A.accBalance acc
+    actualPaidOut = min availBal $ foldl (+) 0 feeDueAmts
+    feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
+    feesPaid = map (\(f,amt) -> (F.payFee d amt f)) feesAmountToBePaid
+
+    feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
+    accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Fee") an accMap
+
+
+
 performAction d t (W.PayInt an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
@@ -328,7 +350,7 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls=
 
         RunWaterfall d waterfallName->  
           if callFlag  then 
-              cleanUp (BalanceFactor 1.0 1.0) d "acc-prin" t `debug` ("Called !"++show(d))
+              prepareDeal $ cleanUp (BalanceFactor 1.0 1.0) d "acc-prin" t `debug` ("Called !"++show(d))
           else 
               run2
                 dAfterRateSet 
@@ -521,17 +543,26 @@ queryDeal t s =
 
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
-calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd fa _ _)
-  = f{ F.feeDue = amt}
-calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd fa maybeFlpd _)
-  = case maybeFlpd of
-      (Just flpd ) ->
-        f{ F.feeDue = fd + baseBal * r * (periodToYear flpd calcDay ACT_360)}
-      Nothing ->
-        f{ F.feeDue = fd + baseBal * r * (periodToYear tClosingDate calcDay ACT_360)}
-    where
-      baseBal = queryDeal t feeBase
-      tClosingDate = Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
+calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd (Just _fdDay) fa _ _)
+  | _fdDay /= calcDay = f{ F.feeDue = amt, F.feeDueDate = Just calcDay}
+  | otherwise = f
+  
+calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd Nothing fa _ _)
+  = f{ F.feeDue = amt, F.feeDueDate = Just calcDay}
+
+calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
+  = calcDueFee t calcDay f {F.feeDueDate = Just _startDate }
+
+calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay) fa lpd _)
+  | _fdDay == calcDay = f
+  | otherwise = f{ F.feeDue = fd + baseBal * r * (periodToYear feeStartDate calcDay ACT_360)
+                            , F.feeDueDate = Just calcDay }
+                 where
+                     feeStartDate = case lpd of
+                                        (Just _lpd) -> _lpd
+                                        Nothing -> tClosingDate 
+                     baseBal = queryDeal t feeBase
+                     tClosingDate = Map.findWithDefault _startDate "closing-date" (dates t)
 
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
