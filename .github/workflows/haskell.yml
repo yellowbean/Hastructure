@@ -19,7 +19,7 @@ jobs:
     - uses: haskell/actions/setup@v2
       with:
         ghc-version: 'latest'
-        cabal-version: '3.6.1.0'
+        cabal-version: 'latest'
 
     - name: Cache
       uses: actions/cache@v3
