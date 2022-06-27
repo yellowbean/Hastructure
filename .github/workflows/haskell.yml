@@ -16,9 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: actions/setup-haskell@v1
+    - uses: haskell/actions/setup@v2
       with:
-        ghc-version: '8.10.6'
+        ghc-version: 'latest'
         cabal-version: '3.6.1.0'
 
     - name: Cache
