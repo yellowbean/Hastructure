@@ -15,7 +15,6 @@ import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified Call as C
 import Lib
-import Control.Lens
 -- import Pool
 -- import qualified Data.HashMap.Strict as M
 
@@ -145,6 +144,7 @@ td = TestDeal {
                  ,P.futureCf=Nothing}
    ,waterfall = Map.fromList [("Base", [
    W.PayFee "General" ["Service-Fee"]
+   ,W.PayFeeBy (W.DuePct 0.5) "General" ["Service-Fee"]
    ,W.TransferReserve W.TillSource  "General" "General"
    ,W.TransferReserve W.TillTarget  "General" "General"
    ,W.PayInt "General" ["A"]
@@ -214,26 +214,32 @@ performAction d t (W.PayFee an fns) =
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Fee") an accMap
 
-performAction d t (W.PayFeeByDuePct an fns pct) =
+performAction d t (W.PayFeeBy limit an fns) =
   t {accounts = accMapAfterPay, fees = feeMapUpdated}
   where
     feeMap = (fees t)
+    -- accMap = filterWithKey (\(k,v) ->  (S.member k  (S.fromList ans))) (accounts t)
     accMap = (accounts t)
     acc = accMap Map.! an
 
     feesToPay = map (\x -> feeMap Map.! x ) fns
     feesWithDue = map (\x -> calcDueFee t d x) feesToPay
-    feeDueAmts = map (\x -> (F.feeDue x) * pct ) feesWithDue
+    feeDueAmts = case limit of
+                   (W.DuePct pct) -> map (\x -> (F.feeDue x) * pct ) feesWithDue
+                   (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesWithDue
 
     availBal = A.accBalance acc
+    -- availBal = foldl (+) 0 availBals
+
     actualPaidOut = min availBal $ foldl (+) 0 feeDueAmts
     feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
     feesPaid = map (\(f,amt) -> (F.payFee d amt f)) feesAmountToBePaid
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
+
+    -- accBalPaidResult = paySeqLiabilities feesAmountToBePaid availBal
+
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Fee") an accMap
-
-
 
 performAction d t (W.PayInt an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
@@ -344,7 +350,7 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls=
             (CF.removeTsCashFlowFrameByDate _poolFlow d)
             (Just ads)
             rates
-            clls  `debug` ("with call "++show(clls))
+            clls -- `debug` ("with call "++show(clls))
           where
             accs = depositPoolInflow (collects t) d _poolFlow (accounts t)
 
@@ -574,7 +580,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ _ lstIntPay _ 
     int_arrears = 0
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
-                      Nothing -> Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
+                      Nothing -> Map.findWithDefault _startDate "closing-date" (dates t)
     dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate ACT_365
 
 
@@ -612,7 +618,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
     new_bal = bond_bal + dueInt
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
-                      Nothing -> Map.findWithDefault (T.fromGregorian 1970 1 1) "closing-date" (dates t)
+                      Nothing -> Map.findWithDefault _startDate "closing-date" (dates t)
     dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate ACT_365
 
 calcTargetAmount :: TestDeal -> A.Account -> Float

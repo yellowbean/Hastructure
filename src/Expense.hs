@@ -14,8 +14,7 @@ import qualified Data.Time as T
 import qualified Data.Text
 import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
-import Data.Aeson.Types
-import Control.Monad (mzero)
+import           Data.Aeson.Types
 import qualified Data.ByteString.Lazy.Char8 as L
 
 data FeeType = AnnualRateFee DealStats Float

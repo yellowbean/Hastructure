@@ -8,7 +8,7 @@ import Lib (Period(Monthly),Rate,Balance,Dates,StartDate,EndDate,LastIntPayDate
            ,DayCount(ACT_365),calcInt
            ,DealStats,Statement(..),appendStmt,Txn(..),Balance)
 
-import           Data.Aeson       hiding (json)
+import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types

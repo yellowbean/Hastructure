@@ -4,9 +4,7 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
-  ,InterestInfo(..),payInt,payPrin,consolTxn,consolStmt
-
-  )
+  ,InterestInfo(..),payInt,payPrin,consolTxn,consolStmt )
   where
 
 import Language.Haskell.TH

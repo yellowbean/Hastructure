@@ -23,12 +23,10 @@ dependencies:
 - base
 - time
 - lens
-- Spock
 - aeson
 - text
 - bytestring
 - template-haskell
-- json-schema
 - containers
 
 library:
@@ -43,18 +41,20 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - Hastructure
+    - Hastructure  
     - time
-    - lens
-    - Spock
     - aeson
-    - text
+    - text 
     - containers
     - unordered-containers
     - containers
     - warp
-    - http-types
     - wai
+    - wai-cors
+    - yesod
+    - http-types
+    - tasty
+    - template-haskell
       #- timeseries
 
 tests:

@@ -35,19 +35,16 @@ library
       Expense
       Liability
       Lib
-      Report
       Waterfall
   other-modules:
       Paths_Hastructure
   hs-source-dirs:
       src
   build-depends:
-      Spock
-    , aeson
+      aeson
     , base
     , bytestring
     , containers
-    , json-schema
     , lens
     , template-haskell
     , text
@@ -63,20 +60,21 @@ executable Hastructure-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Hastructure
-    , Spock
     , aeson
     , base
     , bytestring
     , containers
     , http-types
-    , json-schema
     , lens
+    , tasty
     , template-haskell
     , text
     , time
     , unordered-containers
     , wai
+    , wai-cors
     , warp
+    , yesod
   default-language: Haskell2010
 
 test-suite Hastructure-test
@@ -89,12 +87,10 @@ test-suite Hastructure-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Hastructure
-    , Spock
     , aeson
     , base
     , bytestring
     , containers
-    , json-schema
     , lens
     , template-haskell
     , text
