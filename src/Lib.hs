@@ -14,6 +14,7 @@ module Lib
     ,getValByDate,getValOnByDate
     ,extractTxns,groupTxns,getTxns
     ,getTxnDate,getTxnAmt
+    ,paySeqLiabilitiesAmt
     ) where
 
 import qualified Data.Time as T
@@ -139,6 +140,12 @@ paySeqLiabilities startAmt liabilities =
                             (amt-target, 0):accum
                          else
                             (0, target-amt):accum
+
+paySeqLiabilitiesAmt :: Float -> [Float] -> [Float]
+paySeqLiabilitiesAmt startAmt funds =
+    map (\(a,b) -> (a-b)) $ zip funds remainBals
+  where 
+    remainBals = map snd $ paySeqLiabilities startAmt funds 
 
 afterNPeriod :: T.Day -> Integer -> Period -> T.Day
 afterNPeriod d i p =

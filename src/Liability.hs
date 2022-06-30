@@ -33,7 +33,7 @@ type SinkFundSchedule = Ts
 type PlannedAmorSchedule = Ts
 
 
-data BondType = Passthrough
+data BondType = Sequential
                 | SinkFund SinkFundSchedule
                 | PAC PlannedAmorSchedule
                 | Lockout T.Day

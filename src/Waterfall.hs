@@ -37,8 +37,8 @@ data Limit = DuePct Float
             deriving (Show)
 
 data Action = Transfer AccountName AccountName
-             | PayFee AccountName [FeeName]
-             | PayFeeBy Limit AccountName [FeeName]
+             | PayFee [AccountName] [FeeName]
+             | PayFeeBy Limit [AccountName] [FeeName]
              -- | PayFeeByDuePct AccountName [FeeName] Float
              -- | PayFeeByDueAmt AccountName [FeeName] Float
              | PayInt AccountName [BondName]

@@ -1,12 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Accounts (Account(..),ReserveAmount(..),draw,deposit)
+module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay)
     where
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Balance,Dates,StartDate,EndDate,LastIntPayDate
            ,DayCount(ACT_365),calcInt
-           ,DealStats,Statement(..),appendStmt,Txn(..),Balance)
+           ,DealStats,Statement(..),appendStmt,Txn(..),Balance
+           ,paySeqLiabilitiesAmt
+           )
 
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
@@ -82,3 +84,12 @@ draw amount d source acc = deposit (- amount) d source acc
 
 getAvailBal :: Account -> Float
 getAvailBal a = (accBalance a)
+
+supportPay :: [Account] -> T.Day -> Float -> (String, String) -> [Account]
+supportPay all_accs@(acc:accs) d amt (m1,m2) = 
+    (draw payOutAmt d m1 acc): (map (\(_acc,amt) -> draw amt d m2 _acc) supportPayByAcc)
+  where 
+      availBals = map getAvailBal all_accs
+      accNames = map accName all_accs
+      payOutAmt:payOutAmts = paySeqLiabilitiesAmt amt availBals
+      supportPayByAcc = filter (\(_acc,_amt_out) -> _amt_out > 0)   $ zip accs payOutAmts

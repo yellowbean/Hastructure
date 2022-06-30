@@ -6,7 +6,6 @@ module Deal (TestDeal,run2,getInits,runDeal,ExpectReturn(..)
 
 import qualified Accounts as A
 import qualified Asset as P
---import qualified Asset (Mortgage, Pool) as P
 import qualified Equity as E
 import qualified Expense as F
 import qualified Liability as L
@@ -15,8 +14,6 @@ import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified Call as C
 import Lib
--- import Pool
--- import qualified Data.HashMap.Strict as M
 
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -81,7 +78,7 @@ td = TestDeal {
   ,bonds = (Map.fromList [("A"
                           ,L.Bond{
                               L.bndName="A"
-                             ,L.bndType=L.Passthrough
+                             ,L.bndType=L.Sequential
                              ,L.bndOriginInfo= L.OriginalInfo{
                                                 L.originBalance=3000
                                                 ,L.originDate= (T.fromGregorian 2022 1 1)
@@ -143,8 +140,8 @@ td = TestDeal {
                                          ]
                  ,P.futureCf=Nothing}
    ,waterfall = Map.fromList [("Base", [
-   W.PayFee "General" ["Service-Fee"]
-   ,W.PayFeeBy (W.DuePct 0.5) "General" ["Service-Fee"]
+   W.PayFee ["General"] ["Service-Fee"]
+   ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
    ,W.TransferReserve W.TillSource  "General" "General"
    ,W.TransferReserve W.TillTarget  "General" "General"
    ,W.PayInt "General" ["A"]
@@ -195,32 +192,41 @@ performAction d t (W.TransferReserve meetAcc sa ta) =
           0 -> accMap
           amt ->  Map.adjust (A.draw amt d "withdraw") sa  $ Map.adjust (A.deposit amt d "transfer") ta $ accMap
 
-performAction d t (W.PayFee an fns) =
-  t {accounts = accMapAfterPay, fees = feeMapUpdated}
+performAction d t (W.PayFee ans fns) =
+  t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
     feeMap = (fees t)
-    accMap = (accounts t)
-    acc = accMap Map.! an
+    accSet = S.fromList ans
+    accMap = Map.filterWithKey (\k _ -> (S.member k accSet)) (accounts t)
 
     feesToPay = map (\x -> feeMap Map.! x ) fns
     feesWithDue = map (\x -> calcDueFee t d x) feesToPay
     feeDueAmts = map (\x -> (F.feeDue x) ) feesWithDue
 
-    availBal = A.accBalance acc
-    actualPaidOut = min availBal $ foldl (+) 0 feeDueAmts
+    accNList = Map.toList accMap
+    availBalLst = [ (n,(A.accBalance x)) | (n,x) <- accNList ]
+    availAccBals = map snd availBalLst
+    availAccNames = map fst availBalLst
+    accList = map (\x -> accMap Map.! x) ans
+
+    availBal = sum availAccBals
+
+    actualPaidOut = min availBal $ sum feeDueAmts
     feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
     feesPaid = map (\(f,amt) -> (F.payFee d amt f)) feesAmountToBePaid
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
-    accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Fee") an accMap
 
-performAction d t (W.PayFeeBy limit an fns) =
-  t {accounts = accMapAfterPay, fees = feeMapUpdated}
+    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee",("Support Pay To "++(head ans)))
+    accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
+
+
+performAction d t (W.PayFeeBy limit ans fns) =
+  t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
     feeMap = (fees t)
-    -- accMap = filterWithKey (\(k,v) ->  (S.member k  (S.fromList ans))) (accounts t)
-    accMap = (accounts t)
-    acc = accMap Map.! an
+    accSet = S.fromList ans
+    accMap = Map.filterWithKey (\k _ -> (S.member k accSet)) (accounts t)
 
     feesToPay = map (\x -> feeMap Map.! x ) fns
     feesWithDue = map (\x -> calcDueFee t d x) feesToPay
@@ -228,18 +234,22 @@ performAction d t (W.PayFeeBy limit an fns) =
                    (W.DuePct pct) -> map (\x -> (F.feeDue x) * pct ) feesWithDue
                    (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesWithDue
 
-    availBal = A.accBalance acc
-    -- availBal = foldl (+) 0 availBals
+    accNList = Map.toList accMap
+    availBalLst = [ (n,(A.accBalance x)) | (n,x) <- accNList]
+    availAccBals = map snd availBalLst
+    availAccNames = map fst availBalLst
+    accList = map (\x -> accMap Map.! x) ans
 
-    actualPaidOut = min availBal $ foldl (+) 0 feeDueAmts
+    availBal = sum availAccBals
+
+    actualPaidOut = min availBal $ sum feeDueAmts
     feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
     feesPaid = map (\(f,amt) -> (F.payFee d amt f)) feesAmountToBePaid
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
 
-    -- accBalPaidResult = paySeqLiabilities feesAmountToBePaid availBal
-
-    accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Fee") an accMap
+    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee",("Support Pay To "++(head ans)))
+    accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
 performAction d t (W.PayInt an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
@@ -585,7 +595,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ _ lstIntPay _ 
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn L.Passthrough bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi bond_bal _ prin_arr int_arrears _ _ _) =
   b {L.bndDuePrin = duePrin} 
   where
     duePrin = bond_bal 
