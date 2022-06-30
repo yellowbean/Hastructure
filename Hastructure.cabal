@@ -78,7 +78,7 @@ executable Hastructure-exe
 
 test-suite Hastructure-test
   type: exitcode-stdio-1.0
-  main-is: Spec.hs
+  main-is: AccountTest.hs
   other-modules:
       Paths_Hastructure
   hs-source-dirs:
@@ -92,6 +92,8 @@ test-suite Hastructure-test
     , containers
     , lens
     , tasty
+    , tasty-golden
+    , tasty-hunit
     , template-haskell
     , text
     , time

@@ -58,7 +58,7 @@ executables:
 
 tests:
   Hastructure-test:
-    main:                Spec.hs
+    main:                AccountTest.hs
     source-dirs:         test
     ghc-options:
     - -threaded
@@ -67,3 +67,5 @@ tests:
     dependencies:
     - Hastructure
     - tasty
+    - tasty-hunit
+    - tasty-golden
