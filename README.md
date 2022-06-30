@@ -1,3 +1,5 @@
+[![Actions Status](https://github.com/yellowbean/Hastructure/workflows/Haskell%20CI/badge.svg)](https://github.com/yellowbean/Hastructure/actions)
+
 # Hastructure
 * A structured finance cashflow engine written in Haskell  :dollar:
 * A building block engine to model cashflows of structured product :bricks:
