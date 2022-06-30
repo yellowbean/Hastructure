@@ -41,3 +41,6 @@ jobs:
       run: stack build
     - name: Run tests
       run: stack test
+
+    - name: Badge Action
+      uses: emibcn/badge-action@v1.2.4
