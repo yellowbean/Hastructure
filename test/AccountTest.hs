@@ -32,7 +32,7 @@ accTests = testGroup "Account Tests"
 stmtTests = testGroup "Statement Test"
   [testCase "Aggregate Txn" $
     assertEqual "Sum by regrex"
-      (L.queryStmtAmt stmt1 "Pay") 20
+      (L.queryStmtAmt (A.accStmt acc1) "Pay") 20
   ]
 
 
