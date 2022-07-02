@@ -4,7 +4,7 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
-  ,InterestInfo(..),payInt,payPrin,consolTxn,consolStmt )
+  ,InterestInfo(..),payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield)
   where
 
 import Language.Haskell.TH
@@ -17,6 +17,10 @@ import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
            ,TsPoint(..),getTxnDate,getTxnAmt)
 import Data.List (findIndex,zip6)
+
+import Debug.Trace
+debug = flip trace
+
 
 data InterestInfo = 
           Floater Index Spread Rate Period (Maybe Floor) (Maybe Cap)
@@ -37,6 +41,7 @@ data BondType = Sequential
                 | PAC PlannedAmorSchedule
                 | Lockout T.Day
                 | Z
+                | InterestByYield Float
                 deriving (Show)
 
 data Bond = Bond {
@@ -129,6 +134,32 @@ calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (Statement txns)))
      cashflows = [ TsPoint (getTxnDate txn) (getTxnAmt txn)  | txn <- txns ]
 
 calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ Nothing) = 0
+
+backoutDueIntByYield :: T.Day -> Bond -> Float -> Float
+backoutDueIntByYield d b@(Bond _ (InterestByYield y) (OriginalInfo obal odate _)
+                           _ currentBalance _ _ _ _ _ (Just (Statement txns)))
+                       initAmt
+  = if abs(diff_irr) < 0.000001 then
+        initAmt
+    else
+        backoutDueIntByYield d b nextAmount -- `debug` ("NextAmt=>"++show(nextAmount))
+    where
+     nextAmount = if diff_irr > 0 then
+                       initAmt * 1.03
+                    else
+                       initAmt * 0.97
+     diff_irr = y - _irr
+     _irr = _calcIRR obal y odate (AmountCurve (cashflows++[(TsPoint d initAmt)]))
+     cashflows = [ TsPoint (getTxnDate txn) (getTxnAmt txn)  | txn <- txns ]
+
+tb1 =   (Bond "A"
+      (InterestByYield 0.02)
+      (OriginalInfo 200 (T.fromGregorian 2018 1 1) 0.0)
+      (Fix 0.0)
+       150 0.0 0.0 0.0 Nothing Nothing
+       (Just (Statement [(BondTxn (T.fromGregorian 2019 1 1) 0 0 0 0 80 ""),(BondTxn (T.fromGregorian 2020 1 1) 0 0 0 0 20 "")]))
+       )
+
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

@@ -175,17 +175,17 @@ performAction d t (W.TransferBy an1 an2 formula) =
     sourceAcc = accMap Map.! an1
     targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
 
-    formulaAmount = 0
-      --case formula of
-      --  W.ABCD -> (queryDeal t (CumulativeDefaultBalance d)) + (0 + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1) ) - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2) ))
-      --  _ -> -1
+    formulaAmount =
+      case formula of
+        W.ABCD -> (queryDeal t (CumulativeDefaultBalance d))
+                  + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1) )
+                  - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2) )
+        _ -> -1
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc)
 
     accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++show(formula))) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++show(formula))) an2 accMapAfterDraw
-
-
 
 performAction d t (W.TransferReserve meetAcc sa ta tags) =
     t {accounts = accMapAfterTransfer }
@@ -578,10 +578,10 @@ queryDeal t s =
         (queryDeal t CurrentBondBalance) / (queryDeal t OriginalBondBalance)
     PoolFactor -> 
         (queryDeal t CurrentPoolBalance) / (queryDeal t OriginalPoolBalance)
-    --CumulativeDefaultBalance asOfDay ->
-    --    case (P.futureCf (pool t)) of
-    --      Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))
-    --      Nothing -> 0.0
+    CumulativeDefaultBalance asOfDay ->
+        case (P.futureCf (pool t)) of
+          Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))
+          Nothing -> 0.0
 
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
@@ -610,6 +610,12 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay)
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
   = b {L.bndDueInt = 0 } 
+
+calcDueInt t calc_date b@(L.Bond bn (L.InterestByYield y) bo bi bond_bal _ _ intDue lstIntPay _ mStmt)
+  = b {L.bndDueInt = newDue }
+  where
+  newDue = L.backoutDueIntByYield calc_date b bond_bal
+
 calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ _ lstIntPay _ _) =
   b {L.bndDueInt = (dueInt+int_arrears) }
   where
