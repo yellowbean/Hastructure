@@ -3,10 +3,9 @@
 
 module Assumptions (AssumptionBuilder(..))
 
-where
+ where
 
 import Call as C
-
 import Lib (Rate,Index)
 import qualified Data.Map as Map 
 import Data.List
@@ -29,7 +28,6 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | CallWhen [C.CallOption]
                 | StopRunBy T.Day
                 deriving (Show)
-
 
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)

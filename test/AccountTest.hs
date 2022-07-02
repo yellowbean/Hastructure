@@ -6,28 +6,36 @@ import Test.Tasty.HUnit
 import Data.List
 import Data.Ord
 
--- import qualified Accounts as A
--- import qualified Data.Date as T
+import qualified Accounts as A
+import qualified Lib as L
+import qualified Data.Time as T
 
 main = defaultMain tests
 
+td = T.fromGregorian  2020 1 1
+stmt1 = L.Statement [(L.AccTxn td 100 20 "Pay"),(L.AccTxn td 100 10 "")]
+acc1 = A.Account 100 "A1" Nothing Nothing (Just stmt1)
+acc2 = A.Account 150 "A2" Nothing Nothing Nothing
+
 tests :: TestTree
-tests = testGroup "Tests" [unitTests]
+tests = testGroup "Tests" [accTests,stmtTests]
 
-
-
-unitTests = testGroup "Unit tests"
- -- let
- --   acc1 = Account 100 "A1" Nothing Nothing Nothing
- --   td = T.fromGregorian 1970 1 1
- -- in
-  [ --testCase "draw account" $ A.getAvailBal (draw 60 td "" acc1 ) == 40
-      -- [1, 2, 3] `compare` [1,2] @?= GT
-
-  -- the following test does not hold
-   testCase "List comparison (same length)" $
-      [1, 2, 3] `compare` [1,2,2] @?= GT
+accTests = testGroup "Account Tests"
+  [testCase "Draw" $
+    assertEqual "draw:amount"
+      (A.getAvailBal (A.draw 60 td "" acc1 )) 40
+   ,testCase "Transfer" $
+    assertEqual "transfer:amount"
+      (A.getAvailBal (fst (A.transfer acc1 20 td acc2))) 80
   ]
+
+stmtTests = testGroup "Statement Test"
+  [testCase "Aggregate Txn" $
+    assertEqual "Sum by regrex"
+      (L.queryStmtAmt stmt1 "Pay") 20
+  ]
+
+
 
 -- properties :: TestTree
 -- properties = testGroup "Properties" [scProps, qcProps]

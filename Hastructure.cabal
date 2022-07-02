@@ -46,6 +46,7 @@ library
     , bytestring
     , containers
     , lens
+    , regex-tdfa
     , template-haskell
     , text
     , time
@@ -66,6 +67,7 @@ executable Hastructure-exe
     , containers
     , http-types
     , lens
+    , regex-tdfa
     , template-haskell
     , text
     , time
@@ -91,8 +93,10 @@ test-suite Hastructure-test
     , bytestring
     , containers
     , lens
+    , regex-tdfa
     , tasty
     , tasty-golden
+    , tasty-hspec
     , tasty-hunit
     , template-haskell
     , text

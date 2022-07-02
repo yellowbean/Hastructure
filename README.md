@@ -18,11 +18,16 @@
   * Liquidity Facility
   * Reserve Account  :heavy_check_mark:
   * Bank Account (with interest) :heavy_check_mark:
+  * Pay a single fee with a list of Accounts :heavy_check_mark:
 * Bonds
   * Float Index rate
   * Passthrough :heavy_check_mark:
   * PAC Bond Support :heavy_check_mark:
   * Term bond
+  * Bond Pricing
+    * IRR :heavy_check_mark:
+    * WAL
+    * Accural Int
 * Call
   * Pool/Bond Balance :heavy_check_mark:
   * Bond/Pool Factor :heavy_check_mark:

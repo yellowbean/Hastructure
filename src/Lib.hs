@@ -10,6 +10,7 @@ module Lib
     ,afterNPeriod,DealStats(..),Ts(..)
     ,Txn(..),combineTxn,Statement(..)
     ,appendStmt,periodRateFromAnnualRate
+    ,queryStmtAmt
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,getValByDate,getValOnByDate
     ,extractTxns,groupTxns,getTxns
@@ -24,6 +25,7 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Aeson hiding (json)
+import Text.Regex.TDFA
 
 type Rate = Float
 type Spread = Float
@@ -55,6 +57,7 @@ data DealStats = PoolInt
               | OriginalPoolBalance
               | BondFactor
               | PoolFactor
+              | CumulativeDefaultBalance T.Day
               deriving (Show)
 
 $(deriveJSON defaultOptions ''DealStats)
@@ -162,6 +165,11 @@ data Txn = BondTxn T.Day Balance Interest Principal Rate Cash Comment
           | ExpTxn T.Day Balance Amount Balance Comment
         deriving (Show)
 
+getTxnComment :: Txn -> String
+getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
+getTxnComment (AccTxn _ _ _ t ) = t
+getTxnComment (ExpTxn _ _ _ _ t ) = t
+
 getTxnDate :: Txn -> T.Day 
 getTxnDate (BondTxn t _ _ _ _ _ _ ) = t
 getTxnDate (AccTxn t _ _ _ ) = t
@@ -177,9 +185,17 @@ emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 "" )
 emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 "" )
 emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 "" )
 
-
 getTxnByDate :: [Txn] -> T.Day -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
+
+queryStmtAmt :: Maybe Statement -> String -> Float
+queryStmtAmt (Just (Statement txns)) q =
+  let
+    resultTxns = filter (\txn -> (getTxnComment txn) =~ q)  txns
+  in
+    foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns
+
+queryStmtAmt Nothing _ = 0
 
 data Statement = Statement [Txn]
         deriving (Show)
@@ -187,7 +203,6 @@ data Statement = Statement [Txn]
 appendStmt :: Maybe Statement -> Txn -> Statement
 appendStmt (Just stmt@(Statement txns)) txn = Statement (txns++[txn])
 appendStmt Nothing txn = Statement [txn]
-
 
 extractTxns :: [Txn] -> [Statement] -> [Txn]
 extractTxns rs ((Statement _txns):stmts) = extractTxns (rs++_txns) stmts 
@@ -206,10 +221,6 @@ combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 m1) (BondTxn d2 b2 i2 p2 r2 c2 m2)
     = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) ""
 
-
-
-
-
 instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ )
     = compare d1 d2
@@ -217,7 +228,6 @@ instance Ord Txn where
 instance Eq Txn where 
   (BondTxn d1 _ _ _ _ _ _ ) == (BondTxn d2 _ _ _ _ _ _ )
     = d1 == d2
-
 
 data TsPoint a = TsPoint T.Day a
                 deriving (Show)
@@ -229,7 +239,6 @@ data Ts = FloatCurve [(TsPoint Float)]
 
 data RateAssumption = RateCurve Index Ts
                     | RateFlat Index Float
-                      
 
 getValOnByDate :: Ts -> T.Day -> Float
 getValOnByDate (AmountCurve dps) d 
@@ -250,12 +259,6 @@ getValByDate (FloatCurve dps) d
 
 getValByDates :: Ts -> [T.Day] -> [Float]
 getValByDates rc ds = map (getValByDate rc) ds
-
-
-rc = FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)
-               ,(TsPoint (T.fromGregorian 2022 2 1) 0.02)
-               ,(TsPoint (T.fromGregorian 2022 3 1) 0.03)
-               ]
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Ts)

@@ -4,7 +4,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,KeepReserve(..),Limit(..))
+  ,KeepReserve(..),Limit(..),Formula(..))
   where
 
 
@@ -36,14 +36,20 @@ data Limit = DuePct Float
             | DueCapAmt Float
             deriving (Show)
 
-data Action = Transfer AccountName AccountName
+data Formula = ABCD
+            | OtherFormula
+            deriving (Show)
+
+data Action = Transfer AccountName AccountName (Maybe String)
+             | TransferBy AccountName AccountName Formula
              | PayFee [AccountName] [FeeName]
              | PayFeeBy Limit [AccountName] [FeeName]
              -- | PayFeeByDuePct AccountName [FeeName] Float
              -- | PayFeeByDueAmt AccountName [FeeName] Float
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
-             | TransferReserve KeepReserve AccountName AccountName
+             | PayTillYield AccountName BondName Float
+             | TransferReserve KeepReserve AccountName AccountName (Maybe String)
              -- | ReserveTransferSource AccountName AccountName -- stop till source acc met target balance
              -- | ReserveTransferTarget AccountName AccountName -- stop till target acc met target balance
              deriving (Show)
@@ -61,3 +67,4 @@ $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''KeepReserve)
 $(deriveJSON defaultOptions ''CollectionRule)
+$(deriveJSON defaultOptions ''Formula)

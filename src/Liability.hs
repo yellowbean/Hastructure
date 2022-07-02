@@ -32,16 +32,12 @@ data OriginalInfo = OriginalInfo {
 type SinkFundSchedule = Ts
 type PlannedAmorSchedule = Ts
 
-
 data BondType = Sequential
                 | SinkFund SinkFundSchedule
                 | PAC PlannedAmorSchedule
                 | Lockout T.Day
                 | Z
                 deriving (Show)
-
-_pac = PAC $ AmountCurve [TsPoint (T.fromGregorian 2022 3 1) 100.0
-                        ,TsPoint (T.fromGregorian 2022 6 1) 100.0]
 
 data Bond = Bond {
   bndName :: String
@@ -86,7 +82,14 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stm
     new_due = duePrin - amt
     new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 amt "PRIN PAY")
 
-data PriceResult = PriceResult Float -- valuation,wal,accu,duration
+
+type Valuation = Float
+type WAL = Float
+type Duration = Float
+type Yield = Float
+
+data PriceResult = PriceResult Valuation -- WAL Duration-- valuation,wal,accu,duration
+data YieldResult = Yield
 
 pv :: Ts -> T.Day -> T.Day -> Float -> Float
 pv rc today d amt = 
@@ -95,14 +98,37 @@ pv rc today d amt =
         discount_rate = getValByDate rc d
         distance = fromIntegral (T.diffDays d today)
 
-
 priceBond :: T.Day -> Ts -> Bond -> PriceResult
-priceBond d rc b = 
-  case (bndStmt b) of 
-    Nothing -> PriceResult 0 
-    (Just (Statement txns)) -> PriceResult $ sum $ map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns
-    
-    
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (Statement txns)))
+  = PriceResult $ sum $ map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns
+
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0
+
+type IRR = Float
+type InitBalance = Float
+
+_calcIRR :: InitBalance -> IRR -> T.Day -> Ts -> IRR
+_calcIRR amt initIrr today (AmountCurve cashflows)
+   = if abs(diff) < 0.005 then
+       initIrr
+     else
+       _calcIRR amt nextIrr today (AmountCurve cashflows)
+     where
+       discount (TsPoint _d _a) _r =  _a / ((1+_r)^(div (fromIntegral (T.diffDays _d today)) 365))
+       pv = foldr (\_ts acc -> (discount _ts initIrr) + acc) 0 cashflows
+       diff = pv - amt
+       nextIrr = if diff > 0 then
+                   initIrr * 1.05
+                 else
+                   initIrr * 0.95
+
+calcBondYield :: T.Day -> Float ->  Bond -> Float
+calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (Statement txns)))
+ =  _calcIRR cost 0.05 d (AmountCurve cashflows)
+   where
+     cashflows = [ TsPoint (getTxnDate txn) (getTxnAmt txn)  | txn <- txns ]
+
+calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

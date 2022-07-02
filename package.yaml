@@ -28,6 +28,7 @@ dependencies:
 - bytestring
 - template-haskell
 - containers
+- regex-tdfa
 
 library:
   source-dirs: src
@@ -68,4 +69,5 @@ tests:
     - Hastructure
     - tasty
     - tasty-hunit
+    - tasty-hspec
     - tasty-golden

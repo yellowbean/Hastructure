@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay)
+module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
+                ,getAvailBal,transfer)
     where
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Balance,Dates,StartDate,EndDate,LastIntPayDate
            ,DayCount(ACT_365),calcInt
            ,DealStats,Statement(..),appendStmt,Txn(..),Balance
-           ,paySeqLiabilitiesAmt
-           )
+           ,paySeqLiabilitiesAmt)
 
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
@@ -18,19 +18,11 @@ import Data.Aeson.Types
 data InterestInfo = BankAccount Rate Period
                    deriving (Show)
 
-data ReserveAmount = PctReserve  DealStats Rate
-                   | FixReserve  Balance
+data ReserveAmount = PctReserve DealStats Rate
+                   | FixReserve Balance
                    | Max ReserveAmount ReserveAmount
                    | Min ReserveAmount ReserveAmount
                    deriving (Show)
-
-
---data Statement = Statement {
---    stmtDate     ::Dates
---    ,stmtBalance ::[Balance]
---    ,stmtAmt     ::[Float]
---    ,stmtMemo    ::[String]
---} deriving (Show)
 
 data Account = Account {
     accBalance :: Float

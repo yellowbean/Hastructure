@@ -6,8 +6,9 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
-                ,getEalierTsCashFlowFrame
-                ,mflowBalance
+                ,getEarlierTsCashFlowFrame
+                ,mflowBalance,tsDefaultBal
+                ,getTxnAsOf
                 ,TsRow(..),Balances) where
 
 import Data.Time (Day)
@@ -52,7 +53,6 @@ data TsRow = CashFlow Date Amount
               |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery
               deriving (Show)
 
-
 instance Ord TsRow where
   compare (CashFlow d1 _) (CashFlow d2 _) = compare d1 d2
   compare (BondFlow d1 _ _ _) (BondFlow d2 _ _ _) = compare d1 d2
@@ -91,14 +91,17 @@ removeTsCashFlowFrameByDate (CashFlowFrame trs) d =
     else
       Just (CashFlowFrame r)
 
-
 getSingleTsCashFlowFrame :: CashFlowFrame -> T.Day -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame trs) d
   = head $ filter (\x -> (tsDate x) == d) trs
 
-getEalierTsCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe TsRow
-getEalierTsCashFlowFrame (CashFlowFrame trs) d 
+getEarlierTsCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe TsRow
+getEarlierTsCashFlowFrame (CashFlowFrame trs) d
   = L.find (tsDateLT d) (reverse trs)
+
+getTxnAsOf :: CashFlowFrame -> T.Day -> [TsRow]
+getTxnAsOf (CashFlowFrame txn) d
+   = filter (\x -> (tsDate x) <= d) txn
 
 mkColDay :: [T.Day] -> [ColType]
 mkColDay ds = [ (ColDate _d) | _d <- ds ]
@@ -122,6 +125,12 @@ tsDate :: TsRow -> T.Day
 tsDate (CashFlow x _) = x
 tsDate (BondFlow x  _ _ _) = x
 tsDate (MortgageFlow x _ _ _ _ _ _) = x
+
+tsDefaultBal :: TsRow -> Float
+tsDefaultBal (CashFlow _ _) = 0
+tsDefaultBal (BondFlow _ _ _ _) = 0
+tsDefaultBal (MortgageFlow _ _ _ _ _ x _) = x
+
 
 tsSetDate :: TsRow -> T.Day ->TsRow
 tsSetDate (CashFlow _ a) x  = (CashFlow x a)
@@ -177,11 +186,6 @@ mflowRecovery (MortgageFlow _ _ _ _ _ _ x) = x
 mflowRecovery _  = -1.0
 mflowBalance :: TsRow -> Float
 mflowBalance (MortgageFlow _ x _ _ _ _ _) = x
-
-
---_calc_p_i_flow2 :: Balance -> Balances -> Principals -> Interests -> Rates -> (Balances,Principals,Interests)
---_calc_p_i_flow2 startBal acc_bals acc_prins acc_ints rs 
---_calc_p_i_flow2 startBal acc_bals acc_prins acc_ints rs =
 
 
 $(deriveJSON defaultOptions ''TsRow)

@@ -142,8 +142,8 @@ td = TestDeal {
    ,waterfall = Map.fromList [("Base", [
    W.PayFee ["General"] ["Service-Fee"]
    ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
-   ,W.TransferReserve W.TillSource  "General" "General"
-   ,W.TransferReserve W.TillTarget  "General" "General"
+   ,W.TransferReserve W.TillSource  "General" "General" Nothing
+   ,W.TransferReserve W.TillTarget  "General" "General" Nothing
    ,W.PayInt "General" ["A"]
    ,W.PayPrin "General" ["A"]
    ])]
@@ -154,7 +154,7 @@ td = TestDeal {
 
 
 performAction :: T.Day -> TestDeal -> W.Action -> TestDeal
-performAction d t (W.Transfer an1 an2) =
+performAction d t (W.Transfer an1 an2 tags) =
   t {accounts = accMapAfterDeposit}
   where
     accMap = (accounts t)
@@ -162,10 +162,32 @@ performAction d t (W.Transfer an1 an2) =
     transferAmt = case sourceAcc of
                     Just acc -> (A.accBalance acc)
                     Nothing -> 0
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d ("Transfer To:"++an2)) an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("Transfer From:"++an1)) an2 accMapAfterDraw
+    _tags = case tags of
+              Just x -> x
+              Nothing -> ""
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++_tags)) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++_tags)) an2 accMapAfterDraw
 
-performAction d t (W.TransferReserve meetAcc sa ta) =
+performAction d t (W.TransferBy an1 an2 formula) =
+  t {accounts = accMapAfterDeposit}
+  where
+    accMap = (accounts t)
+    sourceAcc = accMap Map.! an1
+    targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
+
+    formulaAmount = 0
+      --case formula of
+      --  W.ABCD -> (queryDeal t (CumulativeDefaultBalance d)) + (0 + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1) ) - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2) ))
+      --  _ -> -1
+
+    transferAmt = min formulaAmount (A.accBalance sourceAcc)
+
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++show(formula))) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++show(formula))) an2 accMapAfterDraw
+
+
+
+performAction d t (W.TransferReserve meetAcc sa ta tags) =
     t {accounts = accMapAfterTransfer }
   where
     accMap = (accounts t)
@@ -217,7 +239,7 @@ performAction d t (W.PayFee ans fns) =
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
 
-    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee",("Support Pay To "++(head ans)))
+    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee",("SupportPay:"++(head ans)))
     accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
 
@@ -248,7 +270,7 @@ performAction d t (W.PayFeeBy limit ans fns) =
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
 
-    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee",("Support Pay To "++(head ans)))
+    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee",("SupportPay:"++(head ans)))
     accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
 performAction d t (W.PayInt an bnds) =
@@ -408,7 +430,7 @@ cleanUp lq d accName t =
                       Nothing -> 0     `debug` ("Zero in currenBal")
                       Just (_futureCf) -> 
                         let 
-                          currentPoolInflow =  CF.getEalierTsCashFlowFrame _futureCf d 
+                          currentPoolInflow =  CF.getEarlierTsCashFlowFrame _futureCf d
                         in
                           case currentPoolInflow of 
                             Nothing -> 0
@@ -556,6 +578,10 @@ queryDeal t s =
         (queryDeal t CurrentBondBalance) / (queryDeal t OriginalBondBalance)
     PoolFactor -> 
         (queryDeal t CurrentPoolBalance) / (queryDeal t OriginalPoolBalance)
+    --CumulativeDefaultBalance asOfDay ->
+    --    case (P.futureCf (pool t)) of
+    --      Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))
+    --      Nothing -> 0.0
 
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee

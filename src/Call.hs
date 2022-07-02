@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Call(CallOption(..)) where 
+module Call(CallOption(..))
+ where
 
 import qualified Data.Time as T
 
