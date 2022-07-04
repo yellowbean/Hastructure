@@ -59,7 +59,7 @@ executables:
 
 tests:
   Hastructure-test:
-    main:                AccountTest.hs
+    main:                MainTest.hs
     source-dirs:         test
     ghc-options:
     - -threaded

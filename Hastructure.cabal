@@ -80,7 +80,7 @@ executable Hastructure-exe
 
 test-suite Hastructure-test
   type: exitcode-stdio-1.0
-  main-is: AccountTest.hs
+  main-is: MainTest.hs
   other-modules:
       Paths_Hastructure
   hs-source-dirs:

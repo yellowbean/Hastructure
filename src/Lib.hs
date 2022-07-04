@@ -10,7 +10,7 @@ module Lib
     ,afterNPeriod,DealStats(..),Ts(..)
     ,Txn(..),combineTxn,Statement(..)
     ,appendStmt,periodRateFromAnnualRate
-    ,queryStmtAmt
+    ,queryStmtAmt,previousDate
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,getValByDate,getValOnByDate
     ,extractTxns,groupTxns,getTxns
@@ -118,6 +118,17 @@ addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
 genDates :: T.Day -> Period -> Int -> [T.Day]
 genDates start_day p n =
    [ T.addGregorianDurationClip (T.CalendarDiffDays (toInteger i*mul) 0) start_day | i <- [1..n]]
+   where
+     mul = case p of
+       Monthly -> 1
+       Quarterly -> 3
+       SemiAnnually -> 6
+       Annually -> 12
+       _ -> 0
+
+previousDate :: T.Day -> Period -> T.Day
+previousDate start_day p
+   = T.addGregorianDurationClip (T.CalendarDiffDays (toInteger (-1*mul)) 0) start_day
    where
      mul = case p of
        Monthly -> 1

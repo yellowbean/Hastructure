@@ -7,8 +7,8 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
                 ,getEarlierTsCashFlowFrame
-                ,mflowBalance,tsDefaultBal
-                ,getTxnAsOf
+                ,mflowBalance,tsDefaultBal,getAllAfterCashFlowFrame
+                ,getTxnAsOf,tsDateLT,tsDate
                 ,TsRow(..),Balances) where
 
 import Data.Time (Day)
@@ -99,9 +99,19 @@ getEarlierTsCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe TsRow
 getEarlierTsCashFlowFrame (CashFlowFrame trs) d
   = L.find (tsDateLT d) (reverse trs)
 
+getAllAfterCashFlowFrame ::CashFlowFrame -> T.Day -> CashFlowFrame
+getAllAfterCashFlowFrame cf@(CashFlowFrame trx) d
+  = CashFlowFrame (getTxnAfter cf d)
+
 getTxnAsOf :: CashFlowFrame -> T.Day -> [TsRow]
 getTxnAsOf (CashFlowFrame txn) d
    = filter (\x -> (tsDate x) <= d) txn
+
+getTxnAfter :: CashFlowFrame -> T.Day -> [TsRow]
+getTxnAfter (CashFlowFrame txn) d
+   = filter (\x -> (tsDate x) > d) txn
+
+
 
 mkColDay :: [T.Day] -> [ColType]
 mkColDay ds = [ (ColDate _d) | _d <- ds ]
