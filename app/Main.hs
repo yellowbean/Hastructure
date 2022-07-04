@@ -5,10 +5,6 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Main where
 
--- import           Web.Spock
--- import           Web.Spock.Config
-
-
 import           Data.Aeson       hiding (json)
 import           Data.Monoid      ((<>))
 import           Data.Text        (Text, pack)

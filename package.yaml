@@ -55,7 +55,8 @@ executables:
     - yesod
     - http-types
     - template-haskell
-      #- timeseries
+    # - jsonschema-gen
+    # - timeseries
 
 tests:
   Hastructure-test:

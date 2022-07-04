@@ -27,8 +27,8 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 
 import Debug.Trace
-
 debug = flip trace
+
 _startDate = (T.fromGregorian 1970 1 1)
 
 class SPV a where
@@ -136,9 +136,9 @@ td = TestDeal {
                                            ,P.startDate=(T.fromGregorian 2022 1 1)}
                                          4000
                                          0.085
-                                         60
-                                         ]
-                 ,P.futureCf=Nothing}
+                                         60]
+                 ,P.futureCf=Nothing
+                 ,P.asOfDate = T.fromGregorian 2022 1 1}
    ,waterfall = Map.fromList [("Base", [
    W.PayFee ["General"] ["Service-Fee"]
    ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
@@ -376,10 +376,10 @@ run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
     -> Maybe [RateAssumption] -> Maybe [C.CallOption]-> TestDeal
 
 run2 t (Just (CF.CashFlowFrame [])) _ _ _    -- stop at a date
-  = (prepareDeal t)  `debug` "Preparing"
+  = (prepareDeal t)  -- `debug` "Preparing"
 
 run2 t (Just _poolFlow) (Just []) _ _    -- stop at a date
-  = (prepareDeal t)  `debug` "Preparing"
+  = (prepareDeal t) -- `debug` "Preparing"
 
 run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
   = case ad of
@@ -391,7 +391,7 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
             rates
             clls  -- `debug` ("Passing ads to next period ->>>"++show(ads))
           where
-            accs = depositPoolInflow (collects t) d _poolFlow (accounts t) `debug` ("Deposit->"++show(d))
+            accs = depositPoolInflow (collects t) d _poolFlow (accounts t) -- `debug` ("Deposit->"++show(d))
 
         RunWaterfall d waterfallName->
           if callFlag  then 
@@ -404,13 +404,13 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
                 rates -- `debug` ("Deal RunTime =>"++show(d)++"-> status:"++show((bonds t)))
                 clls
           where
-              waterfallToExe = (waterfall t)Map.!waterfallName `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
+              waterfallToExe = (waterfall t)Map.!waterfallName -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
               dAfterWaterfall = (foldl (performAction d) t waterfallToExe)
               dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates
               callOpts = case clls of 
                            Just opts -> opts 
                            Nothing -> []
-              callFlag = testCalls t d callOpts   `debug` ("Run Waterfall->"++show(d))
+              callFlag = testCalls t d callOpts  -- `debug` ("Run Waterfall->"++show(d))
 
 run2 t Nothing Nothing Nothing Nothing =
     run2 t (Just pcf) (Just ads) Nothing Nothing
@@ -559,10 +559,10 @@ getInits t (Just assumps) =
                                                   CollectPoolIncome _d -> _d < d ) _actionDates
                     Nothing ->  _actionDates  -- `debug` (">>stop date"++show(stopDate))
 
-    poolCf = P.aggPool $ P.runPool (P.assets (pool t)) startDate assumps `debug` ("Assets"++show(pool t))
+    poolCf = P.aggPool $ P.runPool2 (pool t)  assumps -- `debug` ("Assets"++show(pool t))
     poolCfTs = filter (\txn -> (CF.tsDate txn) > startDate)  $ CF.getTsCashFlowFrame poolCf
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates `debug` ("poolCf"++show(length poolCfTs))
-    t_with_cf  = setFutureCF t pCollectionCfAfterCutoff  `debug` ("after cutoff"++show(length (CF.getTsCashFlowFrame pCollectionCfAfterCutoff)))
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates -- `debug` ("poolCf"++show(length poolCfTs))
+    t_with_cf  = setFutureCF t pCollectionCfAfterCutoff  -- `vb/add-on-change-evt` ("after cutoff"++show(length (CF.getTsCashFlowFrame pCollectionCfAfterCutoff)))
     rateCurves = buildRateCurves [] assumps -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions [] assumps -- `debug` ("Assump"++show(assumps))
 

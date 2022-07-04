@@ -19,6 +19,7 @@ module Lib
     ) where
 
 import qualified Data.Time as T
+import qualified Data.Time.Format as TF
 import Data.List
 import qualified Data.Map as M
 import Language.Haskell.TH
@@ -270,6 +271,10 @@ getValByDate (FloatCurve dps) d
 
 getValByDates :: Ts -> [T.Day] -> [Float]
 getValByDates rc ds = map (getValByDate rc) ds
+
+tdate :: String -> T.Day
+tdate s = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d" s
+
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Ts)
