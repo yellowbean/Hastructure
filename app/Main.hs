@@ -26,6 +26,9 @@ import Network.HTTP.Types
 import Network.Wai.Middleware.Cors
 -- import Network.Wai.Middleware.Cors
 
+import Debug.Trace
+debug = flip trace
+
 data RunDealReq = RunDealReq {
   deal :: D.TestDeal
   ,assump :: Maybe [AP.AssumptionBuilder]
@@ -49,7 +52,7 @@ instance Yesod App where
 postRunDealR :: Handler  Value -- D.TestDeal
 postRunDealR =  do
   runReq <- requireCheckJsonBody :: Handler RunDealReq
-  returnJson $ D.runDeal (deal runReq) D.DealPoolFlow (assump runReq)
+  returnJson $ D.runDeal (deal runReq) D.DealPoolFlow (assump runReq)  `debug` "Getting Request"
 
 optionsRunDealR :: Handler String -- D.TestDeal
 optionsRunDealR = do
@@ -67,31 +70,11 @@ getVersionR =  do
 
 main :: IO ()
 main =
-  -- warp 8081 App
   do
    app <- toWaiApp App
-   run 8081 $ defaultMiddlewaresNoLogging $ cors (const $ Just $ simpleCorsResourcePolicy { corsOrigins = Nothing , corsMethods = ["OPTIONS", "GET", "PUT", "POST"] , corsRequestHeaders = simpleHeaders }) $ app
-            -- $ simpleCors app
--- main = toWaiApp 8081 App
---  spockCfg <- defaultSpockCfg () PCNoDatabase ()
---  runSpock 8081 (spock spockCfg app)
-
---app :: Api
---app = do
---  get "info" $ do
---    setHeader "Access-Control-Allow-Headers" "Content-Type"
---    text "{\"version\":\"0.0.1\"}"
-
---  post "run_deal2" $ do
---    theRunReq <- jsonBody' :: ApiAction RunDealReq
---    setHeader "Access-Control-Allow-Origin" "*"
---    setHeader "Access-Control-Allow-Headers" "Content-Type"
---    setHeader "Access-Control-Allow-Methods" "*"
---    text $ pack $ unpack  $ encode (D.runDeal (deal theRunReq) D.DealPoolFlow (assump theRunReq))
-
---  hookRoute OPTIONS "run_deal2" $ do
---    setHeader "Access-Control-Allow-Origin" "*"
---    setHeader "Access-Control-Allow-Headers" "*"
---    setHeader "Access-Control-Allow-Methods" "*"
---    text "good"
---
+   run 8081 $ defaultMiddlewaresNoLogging
+            $ cors (const $ Just $ simpleCorsResourcePolicy
+                                    { corsOrigins = Nothing
+                                    , corsMethods = ["OPTIONS", "GET", "PUT", "POST"]
+                                    , corsRequestHeaders = simpleHeaders })
+            $ app

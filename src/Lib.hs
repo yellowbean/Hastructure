@@ -14,7 +14,7 @@ module Lib
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,getValByDate,getValOnByDate
     ,extractTxns,groupTxns,getTxns
-    ,getTxnDate,getTxnAmt
+    ,getTxnDate,getTxnAmt,toDate
     ,paySeqLiabilitiesAmt
     ) where
 
@@ -59,6 +59,11 @@ data DealStats = PoolInt
               | BondFactor
               | PoolFactor
               | CumulativeDefaultBalance T.Day
+              | FutureCurrentPoolBalance T.Day
+              | FutureCurrentBondBalance T.Day
+              | FutureCurrentBondFactor T.Day
+              | FutureCurrentPoolFactor T.Day
+              | FutureOriginalPoolBalance
               deriving (Show)
 
 $(deriveJSON defaultOptions ''DealStats)
@@ -272,8 +277,8 @@ getValByDate (FloatCurve dps) d
 getValByDates :: Ts -> [T.Day] -> [Float]
 getValByDates rc ds = map (getValByDate rc) ds
 
-tdate :: String -> T.Day
-tdate s = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d" s
+toDate :: String -> T.Day
+toDate s = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d" s
 
 
 $(deriveJSON defaultOptions ''Txn)

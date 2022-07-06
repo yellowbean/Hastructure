@@ -358,10 +358,10 @@ setBndsNextIntRate t d Nothing = t
 testCall :: TestDeal -> T.Day -> C.CallOption -> Bool 
 testCall t d opt = 
     case opt of 
-       C.PoolBalance x -> (queryDeal t CurrentPoolBalance) < x
+       C.PoolBalance x -> (queryDeal t (FutureCurrentPoolBalance d)) < x
        C.BondBalance x -> (queryDeal t CurrentBondBalance) < x
-       C.PoolFactor x -> (queryDeal t PoolFactor) < x
-       C.BondFactor x -> (queryDeal t BondFactor) < x
+       C.PoolFactor x ->  ((queryDeal t (FutureCurrentPoolBalance d)) / (queryDeal t FutureOriginalPoolBalance))  < x
+       C.BondFactor x ->  (queryDeal t BondFactor) < x
        C.OnDate x -> ( x == d )
        C.AfterDate x -> d > x
        C.And xs -> all (testCall t d) xs
@@ -369,19 +369,19 @@ testCall t d opt =
 
 testCalls :: TestDeal -> T.Day -> [C.CallOption] -> Bool
 testCalls t d [] = False
-testCalls t d opts = any (\x -> testCall t d x) opts
+testCalls t d opts = any (\x -> testCall t d x) opts  `debug` ("testing call options")
 
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
     -> Maybe [RateAssumption] -> Maybe [C.CallOption]-> TestDeal
 
-run2 t (Just (CF.CashFlowFrame [])) _ _ _    -- stop at a date
-  = (prepareDeal t)  -- `debug` "Preparing"
 
 run2 t (Just _poolFlow) (Just []) _ _    -- stop at a date
-  = (prepareDeal t) -- `debug` "Preparing"
+  = (prepareDeal t) `debug` ("In B")-- `debug` "Preparing"
 
 run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
+  | ((CF.sizeCashFlowFrame _poolFlow) == 0) || ((length ads) == 0) = (prepareDeal t) -- `debug` "In A"
+  | ((CF.sizeCashFlowFrame _poolFlow) > 0) && (length ads > 0) -- `debug` ("in C with ad"++show(ad)++"Rest of Ads"++show(length ads))
   = case ad of
         CollectPoolIncome d ->
           run2
@@ -389,38 +389,37 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
             (CF.removeTsCashFlowFrameByDate _poolFlow d)
             (Just ads)
             rates
-            clls  -- `debug` ("Passing ads to next period ->>>"++show(ads))
+            clls  --  `debug` ("running Pool ad to next period ->>>"++show(ad))
           where
-            accs = depositPoolInflow (collects t) d _poolFlow (accounts t) -- `debug` ("Deposit->"++show(d))
+            accs = depositPoolInflow (collects t) d _poolFlow (accounts t) --  `debug` ("Deposit->"++show(d))
 
         RunWaterfall d waterfallName->
-          if callFlag  then 
-              prepareDeal $ cleanUp (BalanceFactor 1.0 1.0) d "acc-prin" t -- `debug` ("Called !"++show(d))
-          else 
-              run2
-                dAfterRateSet 
+          if callFlag  then
+              prepareDeal $ cleanUp (BalanceFactor 1.0 1.0) d "acc-prin" t --  `debug` ("Called !"++show(d))
+          else
+              (run2
+                dAfterRateSet
                 (Just _poolFlow)
                 (Just ads)
-                rates -- `debug` ("Deal RunTime =>"++show(d)++"-> status:"++show((bonds t)))
-                clls
+                rates
+                clls) `debug` ("Deal waterfall action RunTime =>"++show(clls))
           where
               waterfallToExe = (waterfall t)Map.!waterfallName -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
               dAfterWaterfall = (foldl (performAction d) t waterfallToExe)
-              dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates
-              callOpts = case clls of 
-                           Just opts -> opts 
-                           Nothing -> []
-              callFlag = testCalls t d callOpts  -- `debug` ("Run Waterfall->"++show(d))
+              dAfterRateSet = dAfterWaterfall --setBndsNextIntRate dAfterWaterfall d rates `debug` ("After Rate Set")
+              callOpts = fromMaybe [] clls
+              callFlag = testCalls dAfterWaterfall d callOpts    `debug` ("Call Flag->"++show(callOpts))
 
-run2 t Nothing Nothing Nothing Nothing =
-    run2 t (Just pcf) (Just ads) Nothing Nothing
+
+run2 t Nothing Nothing Nothing Nothing
+  = run2 t (Just pcf) (Just ads) Nothing Nothing
   where
     (ads,pcf,rcurves,clls,_) = getInits t Nothing
 
-run2 t Nothing _ _ _ = (prepareDeal t)
+run2 t Nothing _ _ _ = (prepareDeal t) -- `debug` "End ????"
 
-data AssetLiquidationMethod = BalanceFactor Float Float -- performing & default 
-                       
+data AssetLiquidationMethod = BalanceFactor Float Float -- performing & default
+
 
 cleanUp :: AssetLiquidationMethod -> T.Day -> String -> TestDeal -> TestDeal
 cleanUp lq d accName t = 
@@ -488,7 +487,6 @@ runDeal t er assumps =
     DealStatus ->  (finalDeal, Nothing, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf, Nothing)
     DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns(finalDeal)))
-
   where
     finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) (Just clls) -- `debug` (">>ADS==>> "++show(ads))
     (ads,pcf,rcurves,clls,t2) = getInits t assumps
@@ -582,6 +580,23 @@ queryDeal t s =
         (queryDeal t CurrentBondBalance) / (queryDeal t OriginalBondBalance)
     PoolFactor -> 
         (queryDeal t CurrentPoolBalance) / (queryDeal t OriginalPoolBalance)
+
+    FutureOriginalPoolBalance ->
+      CF.mflowBalance $ head (CF.getTsCashFlowFrame _pool_cfs)
+     where
+      _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+
+    FutureCurrentPoolBalance asOfDay ->
+         case _poolSnapshot of
+            Just ts -> CF.mflowBalance ts
+            Nothing -> 0
+        where
+         _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+         _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay
+
+    FutureCurrentPoolFactor asOfDay ->
+        (queryDeal t (FutureCurrentPoolBalance asOfDay)) / (queryDeal t FutureOriginalPoolBalance)
+
     CumulativeDefaultBalance asOfDay ->
         case (P.futureCf (pool t)) of
           Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))

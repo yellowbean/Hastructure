@@ -14,9 +14,9 @@ import Debug.Trace
 debug = flip trace
 
 tm = P.Mortgage
-     (P.OriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (T.fromGregorian 2021 1 1))
+     (P.OriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101"))
      8000 0.08 19
-asOfDate = (T.fromGregorian 2021 6 5)
+asOfDate = L.toDate "20210605"
 -- tmcf = calcCashflow tm
 tmcf_00 = P.projCashflow tm asOfDate []
 tmcf_default = P.projCashflow tm asOfDate [A.DefaultConstant 0.015]
