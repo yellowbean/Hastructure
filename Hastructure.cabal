@@ -83,6 +83,7 @@ test-suite Hastructure-test
   main-is: MainTest.hs
   other-modules:
       UT.AssetTest
+      UT.CashflowTest
       Paths_Hastructure
   hs-source-dirs:
       test

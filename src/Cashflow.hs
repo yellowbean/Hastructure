@@ -13,8 +13,6 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
 
 import Data.Time (Day)
 import Lib (Dates)
--- import Data.Dates (Date)
--- import Data.Currency (Alpha)
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.List as L
@@ -24,6 +22,8 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 
+import Debug.Trace
+debug = flip trace
 
 type Interest = Float
 type Principal = Float
@@ -42,6 +42,7 @@ type Interests = [Interest]
 type Prepayments = [Prepayment]
 type Recoveries = [Recovery]
 type Rates = [Rate]
+
 
 data ColType = ColNum Float | ColDate Date | ColBal Float
     deriving (Show)
@@ -111,8 +112,6 @@ getTxnAfter :: CashFlowFrame -> T.Day -> [TsRow]
 getTxnAfter (CashFlowFrame txn) d
    = filter (\x -> (tsDate x) > d) txn
 
-
-
 mkColDay :: [T.Day] -> [ColType]
 mkColDay ds = [ (ColDate _d) | _d <- ds ]
 
@@ -128,8 +127,17 @@ addTs (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = (BondFlow d1 (b1 + b2) (p
 addTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 ) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 )
   = (MortgageFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2))
 
+addTsCF :: TsRow -> TsRow -> TsRow
+addTsCF (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))
+addTsCF (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = (BondFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) )
+addTsCF (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 ) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 )
+  = (MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2))
+
 sumTs :: [TsRow] -> T.Day -> TsRow
 sumTs trs d = tsSetDate (foldr1 addTs trs) d
+
+sumTsCF :: [TsRow] -> T.Day -> TsRow
+sumTsCF trs d = tsSetDate (foldr1 addTsCF trs) d
 
 tsDate :: TsRow -> T.Day
 tsDate (CashFlow x _) = x
@@ -165,18 +173,33 @@ tsDateLT td (CashFlow d _) = d < td
 tsDateLT td (BondFlow d _ _ _) =  d < td
 tsDateLT td (MortgageFlow d _ _ _ _ _ _) = d < td
 
+tsDateLET :: T.Day -> TsRow  -> Bool
+tsDateLET td (CashFlow d _) = d <= td
+tsDateLET td (BondFlow d _ _ _) =  d <= td
+tsDateLET td (MortgageFlow d _ _ _ _ _ _) = d <= td
+
+
+--splitTsRowByDates :: [TsRow] -> [T.Day] -> [TsRow] -> [TsRow]
+--splitTsRowByDates accum _ [] = accum
+--splitTsRowByDates accum ([]:day) ys = accum ++ (filter  (\x-> tsDate(x) <= day) ys)
+--splitTsRowByDates accum (day:days) ys
+--  = splitTsRowByDates (accum++ _xs ) days _ys
+--     where
+--       (_xs,_ys) = L.partition (tsDateLET day) ys
 
 aggTsByDates :: [TsRow] -> [T.Day] -> [TsRow]
 aggTsByDates trs ds =
-  map (\(x,y) -> sumTs x y) (zip (reduceFn [] ds trs) ds)
+  map (\(x,y) -> sumTsCF x y) (zip (reduceFn [] ds trs) ds)
   where
-    reduceFn accum _ [] =  reverse accum
-    reduceFn ([]:accum) (cfd:cfds) _trs =  reduceFn accum  cfds _trs
-    reduceFn accum (cutoffDay:cutoffDays) _trs = 
-      reduceFn (newAcc:accum) cutoffDays rest
-        where
-          (newAcc,rest) = L.partition (tsDateLT cutoffDay) _trs
-    reduceFn accum _ _ = reverse accum
+    reduceFn accum _ [] =  accum  -- `debug` ("Returning->"++show(accum))
+    reduceFn accum (cutoffDay:[]) _trs =
+      accum ++ [(filter (\x -> tsDate(x) <= cutoffDay) _trs)]
+    reduceFn accum (cutoffDay:cutoffDays) _trs =
+      case newAcc of
+        [] -> reduceFn accum cutoffDays _trs
+        newFlow -> reduceFn (accum++[newAcc]) cutoffDays rest --  `debug` ("Adding "++show(newAcc)++" cutoffDay "++show(cutoffDay))
+      where
+        (newAcc,rest) = L.partition (tsDateLET cutoffDay) _trs
 
 
 mflowPrincipal :: TsRow -> Float

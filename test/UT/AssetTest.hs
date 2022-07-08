@@ -17,24 +17,18 @@ tm = P.Mortgage
      (P.OriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101"))
      8000 0.08 19
 asOfDate = L.toDate "20210605"
--- tmcf = calcCashflow tm
 tmcf_00 = P.projCashflow tm asOfDate []
+trs = CF.getTsCashFlowFrame tmcf_00
 tmcf_default = P.projCashflow tm asOfDate [A.DefaultConstant 0.015]
-
---tmF = Mortgage
---       (OriginalInfo 10000
---          (Floater L.LIBOR1M 0.02 0.075 L.Monthly Nothing)
---          5
---          L.Monthly (T.fromGregorian 2022 1 1))
---       10000 0.08 5
--- tmFf = P.projCashflow tm [A.InterestRateConstant,(A.LIBOR1M 0.07)]
 
 
 mortgageTests = testGroup "Mortgage cashflow Tests"
   [
     testCase "Fix rate mortgage" $
-      --assertEqual "first start date"
      --  19 @=? (CF.sizeCashFlowFrame tmcf_00)
      assertEqual "total size of cf" 19 (CF.sizeCashFlowFrame tmcf_00) -- `debug` ("result"++show(tmcf_00))
+     ,
+     testCase "first Date" $
+     assertEqual "first date" (L.toDate "20210701")  (CF.tsDate (head trs)) -- `debug` ("result"++show(tmcf_00))
      --assertEqual "total size of cf" 19 19
   ]

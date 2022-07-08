@@ -110,22 +110,22 @@ instance Asset Mortgage  where
 
       _projCashflow 
            trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) (_rec_amt:_rec_amts)
-           | _bal > 0.01 = _projCashflow (trs++[tr]) _end_bal _pdate _pdates _def_rates _ppy_rates (replace _rec_amts recovery_lag _new_rec)
-           | otherwise = trs      
-         where
-            _remain_terms = 1 + (length _pdates)
-            _new_default = _bal * _def_rate
-            _new_bal_after_default = _bal - _new_default 
-            _new_prepay = _new_bal_after_default * _ppy_rate
-            _new_bal_after_ppy = _new_bal_after_default - _new_prepay
-            _new_int = _new_bal_after_ppy * calcIntRate _last_date _pdate cr ACT_360 -- `debug` ("Payment dates"++show(_pdate))
-            _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p cr) _remain_terms --  `debug` ("Remain Term"++show(_remain_terms))
-            _new_prin = _pmt - _new_int
-            _new_rec = _new_default * recovery_rate
-            _end_bal = _new_bal_after_ppy - _new_prin
-            tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default _rec_amt
+           | _bal > 0.01 = _projCashflow (trs++[tr]) _end_bal _pdate _pdates _def_rates _ppy_rates (replace _rec_amts recovery_lag _new_rec) -- `debug` ("Adding TR->>>"++show(tr))
+           | otherwise = trs
+           where
+              _remain_terms = 1 + (length _pdates)
+              _new_default = _bal * _def_rate
+              _new_bal_after_default = _bal - _new_default
+              _new_prepay = _new_bal_after_default * _ppy_rate
+              _new_bal_after_ppy = _new_bal_after_default - _new_prepay
+              _new_int = _new_bal_after_ppy * calcIntRate _last_date _pdate cr ACT_360 -- `debug` ("Payment dates"++show(_pdate))
+              _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p cr) _remain_terms --  `debug` ("Remain Term"++show(_remain_terms))
+              _new_prin = _pmt - _new_int
+              _new_rec = _new_default * recovery_rate
+              _end_bal = _new_bal_after_ppy - _new_prin
+              tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default _rec_amt
       
-      _projCashflow trs _bal _last_date [] _ _ _ = trs
+      _projCashflow trs _bal _last_date [] _ _ _ = trs  -- `debug` ("Ending trs=>"++show(trs))
 
       buildAssumpCurves (assump:assumps) _def_rates _ppy_rates _recovery_rate _recovery_lag = 
          case assump of 

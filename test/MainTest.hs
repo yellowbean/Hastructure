@@ -8,6 +8,7 @@ import Data.List
 import Data.Ord
 
 import qualified UT.AssetTest as AT
+import qualified UT.CashflowTest as CFT
 
 import qualified Accounts as A
 import qualified Lib as L
@@ -21,7 +22,9 @@ acc1 = A.Account 100 "A1" Nothing Nothing (Just stmt1)
 acc2 = A.Account 150 "A2" Nothing Nothing Nothing
 
 tests :: TestTree
-tests = testGroup "Tests" [accTests,stmtTests,AT.mortgageTests]
+tests = testGroup "Tests" [accTests,stmtTests
+                           ,AT.mortgageTests
+                           ,CFT.cfTests]
 
 accTests = testGroup "Account Tests"
   [testCase "Draw" $

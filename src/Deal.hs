@@ -369,7 +369,7 @@ testCall t d opt =
 
 testCalls :: TestDeal -> T.Day -> [C.CallOption] -> Bool
 testCalls t d [] = False
-testCalls t d opts = any (\x -> testCall t d x) opts  `debug` ("testing call options")
+testCalls t d opts = any (\x -> testCall t d x) opts -- `debug` ("testing call options")
 
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
@@ -377,7 +377,7 @@ run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
 
 
 run2 t (Just _poolFlow) (Just []) _ _    -- stop at a date
-  = (prepareDeal t) `debug` ("In B")-- `debug` "Preparing"
+  = (prepareDeal t) -- `debug` ("In B")-- `debug` "Preparing"
 
 run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
   | ((CF.sizeCashFlowFrame _poolFlow) == 0) || ((length ads) == 0) = (prepareDeal t) -- `debug` "In A"
@@ -402,13 +402,13 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
                 (Just _poolFlow)
                 (Just ads)
                 rates
-                clls) `debug` ("Deal waterfall action RunTime =>"++show(clls))
+                clls) -- `debug` ("Deal waterfall action RunTime =>"++show(clls))
           where
               waterfallToExe = (waterfall t)Map.!waterfallName -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
               dAfterWaterfall = (foldl (performAction d) t waterfallToExe)
               dAfterRateSet = dAfterWaterfall --setBndsNextIntRate dAfterWaterfall d rates `debug` ("After Rate Set")
               callOpts = fromMaybe [] clls
-              callFlag = testCalls dAfterWaterfall d callOpts    `debug` ("Call Flag->"++show(callOpts))
+              callFlag = testCalls dAfterWaterfall d callOpts   -- `debug` ("Call Flag->"++show(callOpts))
 
 
 run2 t Nothing Nothing Nothing Nothing
@@ -557,11 +557,11 @@ getInits t (Just assumps) =
                                                   CollectPoolIncome _d -> _d < d ) _actionDates
                     Nothing ->  _actionDates  -- `debug` (">>stop date"++show(stopDate))
 
-    poolCf = P.aggPool $ P.runPool2 (pool t)  assumps -- `debug` ("Assets"++show(pool t))
+    poolCf = P.aggPool $ P.runPool2 (pool t)  assumps  -- `debug` ("Assets Agged pool Cf->"++show(pool t))
     poolCfTs = filter (\txn -> (CF.tsDate txn) > startDate)  $ CF.getTsCashFlowFrame poolCf
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates -- `debug` ("poolCf"++show(length poolCfTs))
-    t_with_cf  = setFutureCF t pCollectionCfAfterCutoff  -- `vb/add-on-change-evt` ("after cutoff"++show(length (CF.getTsCashFlowFrame pCollectionCfAfterCutoff)))
-    rateCurves = buildRateCurves [] assumps -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates  `debug` ("poolCf Dates"++show(pCollectionDates)) `debug` ("pool cf ts"++show(poolCfTs))
+    t_with_cf  = setFutureCF t pCollectionCfAfterCutoff -- `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
+    rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions [] assumps -- `debug` ("Assump"++show(assumps))
 
 
