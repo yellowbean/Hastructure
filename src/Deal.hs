@@ -633,6 +633,11 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay)
                      baseBal = queryDeal t feeBase
                      tClosingDate = Map.findWithDefault _startDate "closing-date" (dates t)
 
+calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd _fdDay fa lpd _)
+   = f{ F.feeDue = fd + baseBal * r , F.feeDueDate = Just calcDay }
+     where
+     baseBal = queryDeal t (CurrentPoolCollectionInt calcDay)
+
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
