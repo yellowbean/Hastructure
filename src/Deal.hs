@@ -597,6 +597,14 @@ queryDeal t s =
     FutureCurrentPoolFactor asOfDay ->
         (queryDeal t (FutureCurrentPoolBalance asOfDay)) / (queryDeal t FutureOriginalPoolBalance)
 
+    CurrentPoolCollectionInt asOfDay ->
+      case (P.futureCf (pool t)) of
+        Nothing -> 0
+        Just _futureCf ->
+          case (CF.getTxnLatestAsOf _futureCf asOfDay) of
+            Just flow -> CF.mflowInterest flow
+            Nothing -> 0
+
     CumulativeDefaultBalance asOfDay ->
         case (P.futureCf (pool t)) of
           Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))

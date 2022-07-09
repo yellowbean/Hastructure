@@ -51,8 +51,7 @@ data Period = Daily
               | Annually
               deriving (Show)
 
-data DealStats = PoolInt
-              | CurrentBondBalance
+data DealStats =  CurrentBondBalance
               | CurrentPoolBalance
               | OriginalBondBalance
               | OriginalPoolBalance
@@ -64,6 +63,7 @@ data DealStats = PoolInt
               | FutureCurrentBondFactor T.Day
               | FutureCurrentPoolFactor T.Day
               | FutureOriginalPoolBalance
+              | CurrentPoolCollectionInt T.Day
               deriving (Show)
 
 $(deriveJSON defaultOptions ''DealStats)
