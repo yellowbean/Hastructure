@@ -65,6 +65,7 @@ data DealStats =  CurrentBondBalance
               | FutureCurrentPoolFactor T.Day
               | FutureOriginalPoolBalance
               | CurrentPoolCollectionInt T.Day
+              | CurrentBondBalanceOf [String]
               deriving (Show)
 
 $(deriveJSON defaultOptions ''DealStats)

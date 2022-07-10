@@ -39,6 +39,7 @@ type PlannedAmorSchedule = Ts
 data BondType = Sequential
                 | SinkFund SinkFundSchedule
                 | PAC PlannedAmorSchedule
+                | PAC_Anchor PlannedAmorSchedule [String]
                 | Lockout T.Day
                 | Z
                 | InterestByYield Float

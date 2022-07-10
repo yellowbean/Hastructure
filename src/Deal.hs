@@ -133,7 +133,8 @@ td = TestDeal {
                                            ,P.originRate=P.Fix 0.085
                                            ,P.originTerm=60
                                            ,P.period=Monthly
-                                           ,P.startDate=(T.fromGregorian 2022 1 1)}
+                                           ,P.startDate=(T.fromGregorian 2022 1 1)
+                                           ,P.prinType= P.Level}
                                          4000
                                          0.085
                                          60]
@@ -278,7 +279,7 @@ performAction d t (W.PayInt an bnds) =
   where
     bndMap = (bonds t)
     accMap = (accounts t)
-    acc = accMap Map.! an 
+    acc = accMap Map.! an
 
     bndsToPay = map (\x -> bndMap Map.! x ) bnds
     bndsWithDue = filter (\x -> ((L.bndDueInt x) > 0)) $ map (\x -> calcDueInt t d x) bndsToPay
@@ -292,26 +293,29 @@ performAction d t (W.PayInt an bnds) =
     bndMapUpdated =   Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Int") an accMap
 
+performAction d t (W.PayTillYield an bnds) =
+    performAction d t (W.PayInt an bnds)
+
 performAction d t (W.PayPrin an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
     bndMap = (bonds t)
     accMap = (accounts t)
-    acc = accMap Map.! an 
+    acc = accMap Map.! an
 
     bndsToPay = filter (\x -> ((L.bndBalance x) > 0)) $ map (\x -> bndMap Map.! x ) bnds
-    -- TODO  add filter lockout bonds here 
+    -- TODO  add filter lockout bonds here
     bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay  --`debug` ("bonds to pay->"++show(bndsToPay))
     bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
 
     availBal = A.accBalance acc
     actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
-    bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)  
-            -- `debug` ("BndDueAmts"++show(bndsDueAmts)++"DueBonds>>"++show(bndsWithDue))
+    bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)
     bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid   -- `debug` ("BTO pay ->>>"++show(bndsAmountToBePaid))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Prin") an accMap
+
 
 data ActionOnDate = CollectPoolIncome T.Day
                    |RunWaterfall T.Day String
@@ -340,7 +344,7 @@ applyFloatRate (L.Floater idx spd rt p f c) d ras
     where 
       idx_rate = case ra of 
         Just (RateCurve _idx _ts) -> getValByDate _ts d 
-        Nothing -> -0.5 
+        Nothing -> 0.0
       ra = find (\(RateCurve _idx _ts) -> (_idx==idx)) ras 
 
 setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal 
@@ -559,7 +563,7 @@ getInits t (Just assumps) =
 
     poolCf = P.aggPool $ P.runPool2 (pool t)  assumps  -- `debug` ("Assets Agged pool Cf->"++show(pool t))
     poolCfTs = filter (\txn -> (CF.tsDate txn) > startDate)  $ CF.getTsCashFlowFrame poolCf
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates  `debug` ("poolCf Dates"++show(pCollectionDates)) `debug` ("pool cf ts"++show(poolCfTs))
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates --  `debug` ("poolCf Dates"++show(pCollectionDates)) `debug` ("pool cf ts"++show(poolCfTs))
     t_with_cf  = setFutureCF t pCollectionCfAfterCutoff -- `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions [] assumps -- `debug` ("Assump"++show(assumps))
@@ -609,6 +613,13 @@ queryDeal t s =
         case (P.futureCf (pool t)) of
           Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))
           Nothing -> 0.0
+
+    CurrentBondBalanceOf bns ->
+       let
+          bnSet = S.fromList bns
+          bSubMap = Map.filterWithKey (\bn b -> (S.member bn bnSet)) (bonds t)
+       in
+          sum $ map (\x -> (L.bndBalance x) ) $ Map.elems bSubMap
 
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
@@ -677,6 +688,19 @@ calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi bond_bal _ prin_arr 
   where
     scheduleDue = getValOnByDate schedule calc_date  
     duePrin = max (bond_bal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
+
+calcDuePrin t calc_date b@(L.Bond bn (L.PAC_Anchor schedule bns) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+  b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+  where
+    scheduleDue = getValOnByDate schedule calc_date
+    anchor_bond_balance = (queryDeal t (CurrentBondBalanceOf bns))
+    duePrin = if (anchor_bond_balance > 0) then
+                 max (bond_bal - scheduleDue) 0
+              else
+                 bond_bal
+
+    -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
+
 
 calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_arrears lstIntPay _ _) =
   if (all (\x -> (isZbond x)) activeBnds) then

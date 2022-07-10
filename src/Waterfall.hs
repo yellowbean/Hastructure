@@ -37,21 +37,17 @@ data Limit = DuePct Float
             deriving (Show)
 
 data Formula = ABCD
-            | OtherFormula
+            | OtherFormula String
             deriving (Show)
 
 data Action = Transfer AccountName AccountName (Maybe String)
              | TransferBy AccountName AccountName Formula
              | PayFee [AccountName] [FeeName]
              | PayFeeBy Limit [AccountName] [FeeName]
-             -- | PayFeeByDuePct AccountName [FeeName] Float
-             -- | PayFeeByDueAmt AccountName [FeeName] Float
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
-             | PayTillYield AccountName BondName Float
+             | PayTillYield AccountName [BondName]
              | TransferReserve KeepReserve AccountName AccountName (Maybe String)
-             -- | ReserveTransferSource AccountName AccountName -- stop till source acc met target balance
-             -- | ReserveTransferTarget AccountName AccountName -- stop till target acc met target balance
              deriving (Show)
 
 type DistributionSeq = [Action]

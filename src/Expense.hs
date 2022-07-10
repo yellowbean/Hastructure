@@ -22,7 +22,7 @@ data FeeType = AnnualRateFee DealStats Float
               |FixFee Float
               |RecurFee Period Float
               deriving (Show)
---calcFee :: FeeType -> T.Day ->
+
 data Fee = Fee {
   feeName :: String
   ,feeType :: FeeType

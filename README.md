@@ -1,19 +1,21 @@
 [![Actions Status](https://github.com/yellowbean/Hastructure/workflows/Haskell%20CI/badge.svg)](https://github.com/yellowbean/Hastructure/actions)
 
 # Hastructure
-* A structured finance cashflow engine written in Haskell  :dollar:
-* A building block engine to model cashflows of structured product :bricks:
-* In-house and white-label friendly :car:
-* Python wrapper on the way  :snake:
+* :dollar: A structured finance cashflow engine written in Haskell 
+* :bricks: A building block engine to model cashflows of structured product
+* :car: In-house and white-label friendly 
+* :snake: Python wrapper on the way  
 ### Features
-* built-in REST API services :heavy_check_mark:
+* Built-in REST API services :heavy_check_mark:
+  * Language independent, can be integrated to various programming language stack.
 * Asset class coverage
   * Mortgage  :heavy_check_mark:
   * Student Loan
   * Auto Loan
   * Rentals
+  * Corp Loan
 * Pool Assumptions
-  * Mortgage (Prepay Default Recovery) :heavy_check_mark:
+  * Mortgage (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
 * Accounts
   * Liquidity Facility
   * Reserve Account  :heavy_check_mark:
@@ -21,9 +23,9 @@
   * Pay a single fee with a list of Accounts :heavy_check_mark:
 * Bonds
   * Float Index rate
-  * Passthrough :heavy_check_mark:
+  * Sequential :heavy_check_mark:
+  * Prepay Lockout :heavy_check_mark:
   * PAC Bond Support :heavy_check_mark:
-  * Term bond
   * Bond Pricing
     * IRR :heavy_check_mark:
     * WAL
@@ -34,6 +36,7 @@
   * Date/or after :heavy_check_mark:
 * Fees
   * Pool / Bond balanced based fees  :heavy_check_mark:
+  * Pool Interest pct :heavy_check_mark:
   * Fix Amount Fees  :heavy_check_mark:
 
 ### Online Demo
