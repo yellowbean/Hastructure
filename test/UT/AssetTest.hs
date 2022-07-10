@@ -44,10 +44,10 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
      in
         assertEqual "first row" 10.0  (CF.mflowPrincipal (head trs)) -- `debug` ("result"++show(tmcf_00))
 
-     testCase "Even Principal Type of Mortgage proj with assumption" $
-     let
-        tm1cf_00 = P.projCashflow tm1
-        trs = CF.getTsCashFlowFrame tm1cf_00
-     in
-        assertEqual "first row" 10.0  (CF.mflowPrincipal (head trs)) -- `debug` ("result"++show(tmcf_00))
+     --testCase "Even Principal Type of Mortgage proj with assumption" $
+     --let
+     --   tm1cf_00 = P.projCashflow tm1
+     --   trs = CF.getTsCashFlowFrame tm1cf_00
+     --in
+     --   assertEqual "first row" 10.0  (CF.mflowPrincipal (head trs)) -- `debug` ("result"++show(tmcf_00))
   ]
