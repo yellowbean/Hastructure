@@ -31,7 +31,6 @@ library
       Call
       Cashflow
       Deal
-      Equity
       Expense
       Liability
       Lib
@@ -83,7 +82,9 @@ test-suite Hastructure-test
   main-is: MainTest.hs
   other-modules:
       UT.AssetTest
+      UT.BondTest
       UT.CashflowTest
+      UT.DealTest
       Paths_Hastructure
   hs-source-dirs:
       test

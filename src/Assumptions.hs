@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Assumptions (AssumptionBuilder(..))
+module Assumptions (AssumptionBuilder(..),BondPricingInput(..))
 
  where
 
 import Call as C
-import Lib (Rate,Index)
+import Lib (Rate,Index,Ts(..),TsPoint(..))
 import qualified Data.Map as Map 
 import Data.List
 import Data.Aeson hiding (json)
@@ -29,5 +29,9 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | StopRunBy T.Day
                 deriving (Show)
 
+data BondPricingInput = DiscountCurve T.Day Ts
+                deriving (Show)
+
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
+$(deriveJSON defaultOptions ''BondPricingInput)

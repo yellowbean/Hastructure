@@ -9,12 +9,11 @@ module Waterfall
 
 
 import Language.Haskell.TH
-import           Data.Aeson       hiding (json)
-import           Data.Aeson.TH
+import Data.Aeson       hiding (json)
+import Data.Aeson.TH
 
 import Accounts (Account)
 import Asset (Mortgage, Pool)
-import Equity
 import Expense
 import Liability
 
@@ -40,6 +39,10 @@ data Formula = ABCD
             | OtherFormula String
             deriving (Show)
 
+data Pre = And Pre Pre
+         | Or Pre Pre
+         deriving (Show)
+
 data Action = Transfer AccountName AccountName (Maybe String)
              | TransferBy AccountName AccountName Formula
              | PayFee [AccountName] [FeeName]
@@ -47,6 +50,7 @@ data Action = Transfer AccountName AccountName (Maybe String)
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
              | PayTillYield AccountName [BondName]
+             | PayResidual AccountName BondName
              | TransferReserve KeepReserve AccountName AccountName (Maybe String)
              deriving (Show)
 
@@ -64,3 +68,4 @@ $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''KeepReserve)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''Formula)
+$(deriveJSON defaultOptions ''Pre)

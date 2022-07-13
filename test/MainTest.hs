@@ -1,4 +1,3 @@
-
 import Test.Tasty
 -- import Test.Tasty.SmallCheck as SC
 --import Test.Tasty.QuickCheck as QC
@@ -9,6 +8,7 @@ import Data.Ord
 
 import qualified UT.AssetTest as AT
 import qualified UT.CashflowTest as CFT
+import qualified UT.BondTest as BT
 
 import qualified Accounts as A
 import qualified Lib as L
@@ -24,7 +24,8 @@ acc2 = A.Account 150 "A2" Nothing Nothing Nothing
 tests :: TestTree
 tests = testGroup "Tests" [accTests,stmtTests
                            ,AT.mortgageTests
-                           ,CFT.cfTests]
+                           ,CFT.cfTests
+                           ,BT.pricingTests]
 
 accTests = testGroup "Account Tests"
   [testCase "Draw" $

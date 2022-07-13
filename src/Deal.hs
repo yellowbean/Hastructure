@@ -6,7 +6,6 @@ module Deal (TestDeal,run2,getInits,runDeal,ExpectReturn(..)
 
 import qualified Accounts as A
 import qualified Asset as P
-import qualified Equity as E
 import qualified Expense as F
 import qualified Liability as L
 import qualified Waterfall as W
@@ -101,7 +100,7 @@ td = TestDeal {
                                                 L.originBalance=3000
                                                 ,L.originDate= (T.fromGregorian 2022 1 1)
                                                 ,L.originRate= 0.08}
-                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 0.085 Quarterly Nothing Nothing
+                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 Quarterly Nothing Nothing
                              ,L.bndBalance=3000
                              ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0
@@ -117,7 +116,7 @@ td = TestDeal {
                                                 L.originBalance=3000
                                                 ,L.originDate= (T.fromGregorian 2022 1 1)
                                                 ,L.originRate= 0.08}
-                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 0.085 Quarterly Nothing Nothing
+                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 Quarterly Nothing Nothing
                              ,L.bndBalance=3000
                              ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0
@@ -281,13 +280,15 @@ performAction d t (W.PayInt an bnds) =
     accMap = (accounts t)
     acc = accMap Map.! an
 
+    availBal = A.accBalance acc
     bndsToPay = map (\x -> bndMap Map.! x ) bnds
+
     bndsWithDue = filter (\x -> ((L.bndDueInt x) > 0)) $ map (\x -> calcDueInt t d x) bndsToPay
     bndsDueAmts = map (\x -> (L.bndDueInt x) ) bndsWithDue
 
-    availBal = A.accBalance acc
     actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
     bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal
+
     bndsPaid = map (\(l,amt) -> (L.payInt d amt l)) bndsAmountToBePaid
 
     bndMapUpdated =   Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
@@ -295,6 +296,17 @@ performAction d t (W.PayInt an bnds) =
 
 performAction d t (W.PayTillYield an bnds) =
     performAction d t (W.PayInt an bnds)
+
+performAction d t (W.PayResidual an bndName) =
+  t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
+  where
+    bndMap = (bonds t)
+    accMap = (accounts t)
+
+    availBal = A.accBalance $ accMap Map.! an
+
+    accMapAfterPay = Map.adjust (A.draw availBal d "Pay Int") an accMap
+    bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
 
 performAction d t (W.PayPrin an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
@@ -304,11 +316,11 @@ performAction d t (W.PayPrin an bnds) =
     acc = accMap Map.! an
 
     bndsToPay = filter (\x -> ((L.bndBalance x) > 0)) $ map (\x -> bndMap Map.! x ) bnds
+    availBal = A.accBalance acc
     -- TODO  add filter lockout bonds here
     bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay  --`debug` ("bonds to pay->"++show(bndsToPay))
     bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
 
-    availBal = A.accBalance acc
     actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
     bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)
     bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid   -- `debug` ("BTO pay ->>>"++show(bndsAmountToBePaid))
@@ -339,7 +351,7 @@ setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _)
   = b { L.bndRate = (applyFloatRate ii d ras) }
 
 applyFloatRate :: L.InterestInfo -> T.Day -> [RateAssumption] -> Float 
-applyFloatRate (L.Floater idx spd rt p f c) d ras
+applyFloatRate (L.Floater idx spd p f c) d ras
   = idx_rate + spd
     where 
       idx_rate = case ra of 
@@ -350,7 +362,7 @@ applyFloatRate (L.Floater idx spd rt p f c) d ras
 setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal 
 setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
     where 
-        isFloat (L.Bond _ _ _ (L.Floater _ _ _ _ _ _) _ _ _ _ _ _ _ ) = True
+        isFloat (L.Bond _ _ _ (L.Floater _ _ _ _ _) _ _ _ _ _ _ _ ) = True
         isFloat (L.Bond _ _ _ (L.Fix _ ) _ _ _ _ _ _ _ ) = False
         floatBonds = filter (\x -> isFloat x) $ Map.elems (bonds t)
         floatBondNames = map (\x -> (L.bndName x)) floatBonds
@@ -450,6 +462,7 @@ cleanUp lq d accName t =
 
 data ExpectReturn = DealStatus
                   | DealPoolFlow
+                  | DealPoolFlowPricing
                   | DealTxns
                   | ExecutionSummary
                   deriving (Show)
@@ -482,16 +495,21 @@ extractExecutionTxns td  =
       accStmts = Map.mapKeys (\x -> Account x) $ Map.mapWithKey (\k v -> (A.accStmt v)) (accounts td)
       feeStmts = Map.mapKeys (\x -> Expense x) $ Map.mapWithKey (\k v -> (F.feeStmt v)) (fees td)
 
+priceBonds :: TestDeal -> AP.BondPricingInput -> Map.Map String L.PriceResult
+priceBonds t (AP.DiscountCurve d dc) = Map.map (\b -> L.priceBond d dc b) (bonds t)
 
-
-runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] 
-        -> (TestDeal,Maybe CF.CashFlowFrame, Maybe [(TxnComponent, Txn)])
-runDeal t er assumps =
+runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] -> Maybe AP.BondPricingInput
+        -> (TestDeal,Maybe CF.CashFlowFrame, Maybe [(TxnComponent, Txn)],Maybe (Map.Map String L.PriceResult))
+runDeal t er assumps bpi =
   case er of
-    DealStatus ->  (finalDeal, Nothing, Nothing)
-    DealPoolFlow -> (finalDeal, Just pcf, Nothing)
-    DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns(finalDeal)))
+    DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
+    DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
+    DealPoolFlowPricing -> (finalDeal, Just pcf, Nothing, bndPricing)  `debug` ("with pricing"++show(bndPricing))
+    DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns(finalDeal)),Nothing)
   where
+    bndPricing = case bpi of
+                   Nothing -> Nothing    `debug` ("pricing bpi with Nothing")
+                   Just _bpi -> Just (priceBonds finalDeal _bpi)   `debug` ("Pricing result")
     finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) (Just clls) -- `debug` (">>ADS==>> "++show(ads))
     (ads,pcf,rcurves,clls,t2) = getInits t assumps
 
@@ -652,9 +670,14 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd _fdDay fa 
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
-  = b {L.bndDueInt = 0 } 
+  = b {L.bndDueInt = 0 }
 
-calcDueInt t calc_date b@(L.Bond bn (L.InterestByYield y) bo bi bond_bal _ _ intDue lstIntPay _ mStmt)
+--calcDueInt t calc_date b@(L.Bond bn L.Equity bo _ bond_bal _ _ intDue lstIntPay _ mStmt)
+--  = b {L.bndDueInt = newDue }
+--  where
+--  newDue = maxBound :: Int
+
+calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ intDue lstIntPay _ mStmt)
   = b {L.bndDueInt = newDue }
   where
   newDue = L.backoutDueIntByYield calc_date b bond_bal

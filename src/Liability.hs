@@ -4,7 +4,8 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
-  ,InterestInfo(..),payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield)
+  ,InterestInfo(..),payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
+  ,priceBond,PriceResult(..),pv)
   where
 
 import Language.Haskell.TH
@@ -15,7 +16,7 @@ import Lib (Period,Floor,Cap,getValByDate)
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
-           ,TsPoint(..),getTxnDate,getTxnAmt)
+           ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal)
 import Data.List (findIndex,zip6)
 
 import Debug.Trace
@@ -23,8 +24,9 @@ debug = flip trace
 
 
 data InterestInfo = 
-          Floater Index Spread Rate Period (Maybe Floor) (Maybe Cap)
+          Floater Index Spread Period (Maybe Floor) (Maybe Cap)
           | Fix Rate
+          | InterestByYield Float
           deriving (Show)
 
 data OriginalInfo = OriginalInfo {
@@ -42,7 +44,7 @@ data BondType = Sequential
                 | PAC_Anchor PlannedAmorSchedule [String]
                 | Lockout T.Day
                 | Z
-                | InterestByYield Float
+                | Equity
                 deriving (Show)
 
 data Bond = Bond {
@@ -74,6 +76,11 @@ consolStmt b@Bond{bndStmt = Just (Statement (txn:txns))}
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
 payInt :: T.Day -> Float -> Bond -> Bond
+payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt)
+  = Bond bn Equity oi iinfo bal r duePrin dueInt (Just d) lpayPrin (Just new_stmt)
+  where
+    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt "INT PAY")
+
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
   Bond bn bt oi iinfo bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
@@ -94,21 +101,31 @@ type WAL = Float
 type Duration = Float
 type Yield = Float
 
-data PriceResult = PriceResult Valuation -- WAL Duration-- valuation,wal,accu,duration
+data PriceResult 
+  = PriceResult Valuation WAL Duration -- valuation,wal,accu,duration
+    deriving (Show,Eq)
 data YieldResult = Yield
 
 pv :: Ts -> T.Day -> T.Day -> Float -> Float
 pv rc today d amt = 
-    amt / (1+discount_rate)^(div distance 365)
+    amt / (1+discount_rate)^(div distance 365)  `debug` ("discount_rate"++show(discount_rate)++" dist"++show(distance))
     where
         discount_rate = getValByDate rc d
         distance = fromIntegral (T.diffDays d today)
 
 priceBond :: T.Day -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (Statement txns)))
-  = PriceResult $ sum $ map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns
+priceBond d rc b@(Bond _ _ _ _ bal _ _ _ _ _ (Just (Statement txns)))
+  = PriceResult
+     presentValue
+     ((foldr (\x acc ->  (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x)))) 0 txns) / 365 / bal)
+     (foldr (\x acc ->
+               (((fromIntegral (T.diffDays (getTxnDate x) d))/365) * ((pv rc d (getTxnDate x)  (getTxnAmt x)) / presentValue)) + acc)
+            0
+            txns)
+     where
+       presentValue = (sum ( map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns ))
 
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0
 
 type IRR = Float
 type InitBalance = Float
@@ -137,8 +154,8 @@ calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (Statement txns)))
 calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 
 backoutDueIntByYield :: T.Day -> Bond -> Float -> Float
-backoutDueIntByYield d b@(Bond _ (InterestByYield y) (OriginalInfo obal odate _)
-                           _ currentBalance _ _ _ _ _ (Just (Statement txns)))
+backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _)
+                           (InterestByYield y) currentBalance _ _ _ _ _ (Just (Statement txns)))
                        initAmt
   = if abs(diff_irr) < 0.000001 then
         initAmt
@@ -153,16 +170,9 @@ backoutDueIntByYield d b@(Bond _ (InterestByYield y) (OriginalInfo obal odate _)
      _irr = _calcIRR obal y odate (AmountCurve (cashflows++[(TsPoint d initAmt)]))
      cashflows = [ TsPoint (getTxnDate txn) (getTxnAmt txn)  | txn <- txns ]
 
-tb1 =   (Bond "A"
-      (InterestByYield 0.02)
-      (OriginalInfo 200 (T.fromGregorian 2018 1 1) 0.0)
-      (Fix 0.0)
-       150 0.0 0.0 0.0 Nothing Nothing
-       (Just (Statement [(BondTxn (T.fromGregorian 2019 1 1) 0 0 0 0 80 ""),(BondTxn (T.fromGregorian 2020 1 1) 0 0 0 0 20 "")]))
-       )
-
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
+$(deriveJSON defaultOptions ''PriceResult)

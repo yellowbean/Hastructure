@@ -32,6 +32,7 @@ debug = flip trace
 data RunDealReq = RunDealReq {
   deal :: D.TestDeal
   ,assump :: Maybe [AP.AssumptionBuilder]
+  ,bondPricing :: Maybe AP.BondPricingInput
 }
 $(deriveJSON defaultOptions ''RunDealReq)
 
@@ -49,10 +50,10 @@ mkYesod "App" [parseRoutes|
 instance Yesod App where
   yesodMiddleware = defaultYesodMiddleware
 
-postRunDealR :: Handler  Value -- D.TestDeal
+postRunDealR :: Handler Value -- D.TestDeal
 postRunDealR =  do
   runReq <- requireCheckJsonBody :: Handler RunDealReq
-  returnJson $ D.runDeal (deal runReq) D.DealPoolFlow (assump runReq)  `debug` "Getting Request"
+  returnJson $ D.runDeal (deal runReq) D.DealPoolFlowPricing (assump runReq) (bondPricing runReq) -- `debug` "Getting Request"
 
 optionsRunDealR :: Handler String -- D.TestDeal
 optionsRunDealR = do

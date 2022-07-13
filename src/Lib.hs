@@ -14,7 +14,7 @@ module Lib
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,getValByDate,getValOnByDate
     ,extractTxns,groupTxns,getTxns
-    ,getTxnDate,getTxnAmt,toDate
+    ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal
     ,paySeqLiabilitiesAmt
     ) where
 
@@ -193,6 +193,9 @@ getTxnDate :: Txn -> T.Day
 getTxnDate (BondTxn t _ _ _ _ _ _ ) = t
 getTxnDate (AccTxn t _ _ _ ) = t
 getTxnDate (ExpTxn t _ _ _ _ ) = t
+
+getTxnPrincipal :: Txn -> Float
+getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
 
 getTxnAmt :: Txn -> Float
 getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t

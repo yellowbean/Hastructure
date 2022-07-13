@@ -4,10 +4,12 @@
 * :dollar: A structured finance cashflow engine written in Haskell 
 * :bricks: A building block engine to model cashflows of structured product
 * :car: In-house and white-label friendly 
-* :snake: Python wrapper on the way  
+* :snake: [Python wrapper](https://github.com/yellowbean/PyABS) on the way   
 ### Features
-* Built-in REST API services :heavy_check_mark:
-  * Language independent, can be integrated to various programming language stack.
+* Integration
+  * Built-in REST API services :heavy_check_mark:
+    * Language independent, can be integrated to various programming language stack.
+  * Docker Support :worker:
 * Asset class coverage
   * Mortgage  :heavy_check_mark:
   * Student Loan
@@ -21,19 +23,21 @@
   * Reserve Account  :heavy_check_mark:
   * Bank Account (with interest) :heavy_check_mark:
   * Pay a single fee with a list of Accounts :heavy_check_mark:
-* Bonds
-  * Float Index rate
+* Bonds/Tranches
+  * Float Index rate :heavy_check_mark:
   * Sequential :heavy_check_mark:
   * Prepay Lockout :heavy_check_mark:
   * PAC Bond Support :heavy_check_mark:
+  * Z Bond Support :heavy_check_mark:
   * Bond Pricing
     * IRR :heavy_check_mark:
-    * WAL
-    * Accural Int
+    * WAL :heavy_check_mark:
+    * Duration :heavy_check_mark:
+    * Accural Int in pricing
 * Call
   * Pool/Bond Balance :heavy_check_mark:
   * Bond/Pool Factor :heavy_check_mark:
-  * Date/or after :heavy_check_mark:
+  * On Date/or after :heavy_check_mark:
 * Fees
   * Pool / Bond balanced based fees  :heavy_check_mark:
   * Pool Interest pct :heavy_check_mark:
