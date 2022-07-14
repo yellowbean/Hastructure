@@ -14,7 +14,7 @@ module Lib
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,getValByDate,getValOnByDate
     ,extractTxns,groupTxns,getTxns
-    ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal
+    ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
     ,paySeqLiabilitiesAmt
     ) where
 
@@ -197,6 +197,11 @@ getTxnDate (BondTxn t _ _ _ _ _ _ ) = t
 getTxnDate (AccTxn t _ _ _ ) = t
 getTxnDate (ExpTxn t _ _ _ _ ) = t
 
+getTxnBalance :: Txn -> Balance
+getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
+getTxnBalance (AccTxn _ t _ _ ) = t
+getTxnBalance (ExpTxn _ t _ _ _ ) = t
+
 getTxnPrincipal :: Txn -> Float
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
 
@@ -204,6 +209,10 @@ getTxnAmt :: Txn -> Float
 getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t
 getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
+
+getTxnAsOf :: [Txn] -> T.Day -> Maybe Txn
+getTxnAsOf txns d = find (\x -> (getTxnDate x) <= d) $ reverse txns
+
 
 emptyTxn :: Txn -> T.Day -> Txn 
 emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 "" )

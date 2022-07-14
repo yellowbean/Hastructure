@@ -16,7 +16,7 @@ import Lib (Period,Floor,Cap,getValByDate)
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
-           ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal)
+           ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance)
 import Data.List (findIndex,zip6)
 
 import Debug.Trace
@@ -96,13 +96,14 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stm
 
 
 type Valuation = Float
+type PerFace = Float
 type WAL = Float
 type Duration = Float
 type Yield = Float
 type AccruedInterest = Float
 
 data PriceResult 
-  = PriceResult Valuation WAL Duration -- valuation,wal,accu,duration
+  = PriceResult Valuation PerFace WAL Duration -- valuation,wal,accu,duration
     deriving (Show,Eq)
 data YieldResult = Yield
 
@@ -117,6 +118,7 @@ priceBond :: T.Day -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ _ _ bal _ _ _ _ _ (Just (Statement txns)))
   = PriceResult
      presentValue
+     (presentValue/cutoffBalance)
      ((foldr (\x acc ->  (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x)))) 0 txns) / 365 / bal)
      (foldr (\x acc ->
                (((fromIntegral (T.diffDays (getTxnDate x) d))/365) * ((pv rc d (getTxnDate x)  (getTxnAmt x)) / presentValue)) + acc)
@@ -125,8 +127,11 @@ priceBond d rc b@(Bond _ _ _ _ bal _ _ _ _ _ (Just (Statement txns)))
      where
        -- presentValue = (sum ( map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns ))
        presentValue = foldr (\x acc -> acc + (pv rc d (getTxnDate x) (getTxnAmt x)) ) 0 txns
+       cutoffBalance = case (getTxnAsOf txns d) of
+                          Nothing -> bal    -- TODO edge case not covered
+                          Just _txn -> getTxnBalance _txn
 
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0
 
 type IRR = Float
 type InitBalance = Float
