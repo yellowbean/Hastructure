@@ -28,6 +28,9 @@ import Data.Aeson.Types
 import Data.Aeson hiding (json)
 import Text.Regex.TDFA
 
+import Debug.Trace
+debug = flip trace
+
 type Rate = Float
 type Spread = Float
 type Balance = Float
@@ -276,8 +279,8 @@ getValByDate (AmountCurve dps) d
 
 getValByDate (FloatCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
-      Just (TsPoint _d v) -> v
-      Nothing -> 0
+      Just (TsPoint _d v) -> v  `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              `debug` ("Getting 0 ")
 
 getValByDates :: Ts -> [T.Day] -> [Float]
 getValByDates rc ds = map (getValByDate rc) ds

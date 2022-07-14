@@ -9,6 +9,7 @@ import Data.Ord
 import qualified UT.AssetTest as AT
 import qualified UT.CashflowTest as CFT
 import qualified UT.BondTest as BT
+import qualified UT.LibTest as LT
 
 import qualified Accounts as A
 import qualified Lib as L
@@ -25,7 +26,8 @@ tests :: TestTree
 tests = testGroup "Tests" [accTests,stmtTests
                            ,AT.mortgageTests
                            ,CFT.cfTests
-                           ,BT.pricingTests]
+                           ,BT.pricingTests
+                           ,LT.curveTests]
 
 accTests = testGroup "Account Tests"
   [testCase "Draw" $

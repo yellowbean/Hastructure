@@ -9,8 +9,8 @@ module Liability
   where
 
 import Language.Haskell.TH
-import           Data.Aeson       hiding (json)
-import           Data.Aeson.TH
+import Data.Aeson       hiding (json)
+import Data.Aeson.TH
 import Lib (Period,Floor,Cap,getValByDate)
 
 import qualified Data.Time as T
@@ -21,7 +21,6 @@ import Data.List (findIndex,zip6)
 
 import Debug.Trace
 debug = flip trace
-
 
 data InterestInfo = 
           Floater Index Spread Period (Maybe Floor) (Maybe Cap)
@@ -100,6 +99,7 @@ type Valuation = Float
 type WAL = Float
 type Duration = Float
 type Yield = Float
+type AccruedInterest = Float
 
 data PriceResult 
   = PriceResult Valuation WAL Duration -- valuation,wal,accu,duration
@@ -108,10 +108,10 @@ data YieldResult = Yield
 
 pv :: Ts -> T.Day -> T.Day -> Float -> Float
 pv rc today d amt = 
-    amt / (1+discount_rate)^(div distance 365)  `debug` ("discount_rate"++show(discount_rate)++" dist"++show(distance))
+    amt / (1+discount_rate)**((fromIntegral distance)/365)  `debug` ("discount_rate"++show(discount_rate)++" dist"++show(distance))
     where
         discount_rate = getValByDate rc d
-        distance = fromIntegral (T.diffDays d today)
+        distance = (T.diffDays d today)
 
 priceBond :: T.Day -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ _ _ bal _ _ _ _ _ (Just (Statement txns)))
@@ -123,7 +123,8 @@ priceBond d rc b@(Bond _ _ _ _ bal _ _ _ _ _ (Just (Statement txns)))
             0
             txns)
      where
-       presentValue = (sum ( map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns ))
+       -- presentValue = (sum ( map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns ))
+       presentValue = foldr (\x acc -> acc + (pv rc d (getTxnDate x) (getTxnAmt x)) ) 0 txns
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0
 
