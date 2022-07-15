@@ -15,7 +15,7 @@ module Lib
     ,getValByDate,getValOnByDate
     ,extractTxns,groupTxns,getTxns
     ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
-    ,paySeqLiabilitiesAmt
+    ,paySeqLiabilitiesAmt,getIntervalDays
     ) where
 
 import qualified Data.Time as T
@@ -136,6 +136,14 @@ genDates start_day p n =
        SemiAnnually -> 6
        Annually -> 12
        _ -> 0
+
+getIntervalDays :: [T.Day] -> [Int]
+getIntervalDays ds
+  = map (\(x,y)-> (fromIntegral (T.diffDays y x))) $ zip (init ds) (tail ds)
+
+getIntervalFactors :: [T.Day] -> [Float]
+getIntervalFactors ds
+  = map (\x ->  (fromIntegral x)/365) (getIntervalDays ds)
 
 previousDate :: T.Day -> Period -> T.Day
 previousDate start_day p

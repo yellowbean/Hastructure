@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Assumptions (AssumptionBuilder(..),BondPricingInput(..))
+module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval)
 
  where
 
@@ -19,7 +19,9 @@ import qualified Data.Time as T
 data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Float
+                | PrepaymentCPR Float
                 | DefaultConstant Float
+                | DefaultCDR Float
                 | Recovery (Rate,Int)
                 | LinearTo Int Float
                 | InterestRateConstant Index Float
@@ -32,6 +34,9 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
 data BondPricingInput = DiscountCurve T.Day Ts
                 deriving (Show)
 
+toPeriodRateByInterval :: Float -> Int -> Float
+toPeriodRateByInterval annualRate days
+  = 1 -  (1-annualRate) ** ((fromIntegral days)/365)
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)

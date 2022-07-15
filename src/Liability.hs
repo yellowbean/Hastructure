@@ -94,7 +94,6 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stm
     new_due = duePrin - amt
     new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 amt "PRIN PAY")
 
-
 type Valuation = Float
 type PerFace = Float
 type WAL = Float
@@ -118,14 +117,13 @@ priceBond :: T.Day -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ _ _ bal _ _ _ _ _ (Just (Statement txns)))
   = PriceResult
      presentValue
-     (presentValue/cutoffBalance)
+     (100*presentValue/cutoffBalance)
      ((foldr (\x acc ->  (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x)))) 0 txns) / 365 / bal)
      (foldr (\x acc ->
                (((fromIntegral (T.diffDays (getTxnDate x) d))/365) * ((pv rc d (getTxnDate x)  (getTxnAmt x)) / presentValue)) + acc)
             0
             txns)
      where
-       -- presentValue = (sum ( map (\x -> (pv rc d (getTxnDate x) (getTxnAmt x))) txns ))
        presentValue = foldr (\x acc -> acc + (pv rc d (getTxnDate x) (getTxnAmt x)) ) 0 txns
        cutoffBalance = case (getTxnAsOf txns d) of
                           Nothing -> bal    -- TODO edge case not covered

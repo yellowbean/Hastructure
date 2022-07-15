@@ -8,7 +8,8 @@ module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
 import Data.Time (Day)
 import qualified Data.Time as T
 import Lib (Period(..), Balance,calcInt,Dates,DayCount(..),calcIntRate,genDates
-           ,Balance,Rate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate )
+           ,Balance,Rate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate
+           ,getIntervalDays)
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
 import qualified Data.Map as Map
@@ -107,12 +108,13 @@ instance Asset Mortgage  where
     = genDates sd p ot
 
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt) asOfDay assumps =
-    CF.CashFlowFrame $ _projCashflow [] cb (previousDate (head cf_dates) p) cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0)
+    CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0)
     where
       cf_dates = filter (\x -> x > asOfDay) $ getPaymentDates m
+      last_pay_date = (previousDate (head cf_dates) p)
       cf_dates_length = length cf_dates -- `debug` ("CF dates=>"++show(cf_dates))
       cf_recovery_length = cf_dates_length + recovery_lag
-      (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumpCurves assumps 
+      (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumpCurves (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0) 
                                (replicate cf_dates_length 0.0) 
                                0
@@ -140,16 +142,26 @@ instance Asset Mortgage  where
       
       _projCashflow trs _bal _last_date [] _ _ _ = trs  -- `debug` ("Ending trs=>"++show(trs))
 
-      buildAssumpCurves (assump:assumps) _def_rates _ppy_rates _recovery_rate _recovery_lag = 
+      buildAssumpCurves pDates (assump:assumps) _def_rates _ppy_rates _recovery_rate _recovery_lag =
          case assump of 
              A.DefaultConstant r -> 
-                 buildAssumpCurves assumps (replicate cf_dates_length r) _ppy_rates _recovery_rate _recovery_lag
+                 buildAssumpCurves pDates assumps (replicate cf_dates_length r) _ppy_rates _recovery_rate _recovery_lag
              A.PrepaymentConstant r -> 
-                 buildAssumpCurves assumps _def_rates (replicate cf_dates_length r) _recovery_rate _recovery_lag
-             A.Recovery (rr,rl) -> buildAssumpCurves assumps _def_rates _ppy_rates rr rl
-             -- Recovery (recoveryRate,recoveryLag) -> 
-             _ -> buildAssumpCurves assumps _def_rates _ppy_rates _recovery_rate _recovery_lag
-      buildAssumpCurves [] _def_rates _ppy_rates _recovery_rate _recovery_lag = (_def_rates,_ppy_rates,_recovery_rate,_recovery_lag)
+                 buildAssumpCurves pDates assumps _def_rates (replicate cf_dates_length r) _recovery_rate _recovery_lag
+             A.Recovery (rr,rl) ->
+                 buildAssumpCurves pDates assumps _def_rates _ppy_rates rr rl
+             A.DefaultCDR r ->
+                 buildAssumpCurves pDates assumps (map (\x -> A.toPeriodRateByInterval r x)
+                                                       (getIntervalDays pDates))
+                                                  _ppy_rates _recovery_rate _recovery_lag
+             A.PrepaymentCPR r -> -- TODO need to convert to annualized rate
+                 buildAssumpCurves pDates assumps _def_rates
+                                                  (map (\x -> A.toPeriodRateByInterval r x)
+                                                       (getIntervalDays pDates))
+                                                  _recovery_rate _recovery_lag
+
+             _ -> buildAssumpCurves pDates assumps _def_rates _ppy_rates _recovery_rate _recovery_lag
+      buildAssumpCurves pDates [] _def_rates _ppy_rates _recovery_rate _recovery_lag = (_def_rates,_ppy_rates,_recovery_rate,_recovery_lag)
 
 _calc_p_i_flow :: Float -> [Balance] -> [Float] -> [Float] -> [Rate] -> (CF.Balances,CF.Principals,CF.Interests)
 _calc_p_i_flow pmt bals ps is [] = (bals,ps,is)
