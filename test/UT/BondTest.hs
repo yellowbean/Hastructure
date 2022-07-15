@@ -62,7 +62,7 @@ pricingTests = testGroup "Pricing Tests"
                        b1
     in
       testCase "flat rate discount " $
-      assertEqual "Test Pricing on case 01" (B.PriceResult 504.9505 0.16666667 1.0) pr
+      assertEqual "Test Pricing on case 01" (B.PriceResult 504.9505 16.831684 0.16666667 1.0 ) pr
     ,
      let
        b2 = b1 { B.bndStmt = Just (L.Statement [L.BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 ""
@@ -77,5 +77,5 @@ pricingTests = testGroup "Pricing Tests"
                         b2
      in
        testCase " discount curve with two rate points " $
-       assertEqual "Test Pricing on case 01" (B.PriceResult 816.1008 0.0483105 0.18040144 ) pr
+       assertEqual "Test Pricing on case 01" (B.PriceResult 816.1008 27.203362 0.0483105 0.18040144) pr
   ]
