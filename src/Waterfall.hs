@@ -16,6 +16,7 @@ import Accounts (Account)
 import Asset (Mortgage, Pool)
 import Expense
 import Liability
+import qualified Lib as L
 
 type FeeName = String
 type BondName = String
@@ -25,11 +26,11 @@ data PoolSource = CollectedInterest
                 | CollectedPrincipal
                 | CollectedRecoveries
                 | CollectedPrepayment
-             deriving (Show)
+                deriving (Show)
 
 data KeepReserve = TillSource 
                  | TillTarget
-             deriving (Show)
+                 deriving (Show)
 
 data Limit = DuePct Float
             | DueCapAmt Float
@@ -41,6 +42,7 @@ data Formula = ABCD
 
 data Pre = And Pre Pre
          | Or Pre Pre
+         | IfZero L.DealStats
          deriving (Show)
 
 data Action = Transfer AccountName AccountName (Maybe String)
@@ -60,8 +62,6 @@ data CollectionRule = Collect PoolSource AccountName
              deriving (Show)
 
 
-
--- $(deriveJSON defaultOptions ''DistSeq)
 $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''Limit)

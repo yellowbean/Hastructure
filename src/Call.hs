@@ -21,4 +21,8 @@ data CallOption = PoolBalance Float
                 | Or [CallOption] 
                 deriving (Show)
 
+
+
+
+
 $(deriveJSON defaultOptions ''CallOption)

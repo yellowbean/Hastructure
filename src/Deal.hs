@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Deal (TestDeal,run2,getInits,runDeal,ExpectReturn(..)
+module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
             ,bonds,accounts,fees) where
 
 import qualified Accounts as A
@@ -50,107 +50,6 @@ data TestDeal = TestDeal {
 } deriving (Show)
 
 $(deriveJSON defaultOptions ''TestDeal)
-
-td = TestDeal {
-  name = "test deal1"
-  ,dates = (Map.fromList [("closing-date",(T.fromGregorian 2022 1 1))
-                         ,("cutoff-date",(T.fromGregorian 2022 1 1))
-                         ,("first-pay-date",(T.fromGregorian 2022 2 25))
-                         ])
-  ,payPeriod = Monthly
-  ,collectPeriod = Monthly
-  ,accounts = (Map.fromList 
-  [("General", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
-  })),
-   ("Reserve", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
-  }))
-  ])
-  ,fees = (Map.fromList [("Service-Fee"
-                         ,F.Fee{F.feeName="service-fee"
-                                ,F.feeType = (F.FixFee 500)
-                                ,F.feeStart = (T.fromGregorian 2022 1 1)
-                                ,F.feeDue = 0
-                                ,F.feeDueDate = Nothing
-                                ,F.feeArrears = 0
-                                ,F.feeLastPaidDay = Nothing
-                                ,F.feeStmt = Nothing})])
-  ,bonds = (Map.fromList [("A"
-                          ,L.Bond{
-                              L.bndName="A"
-                             ,L.bndType=L.Sequential
-                             ,L.bndOriginInfo= L.OriginalInfo{
-                                                L.originBalance=3000
-                                                ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08}
-                             ,L.bndInterestInfo= L.Fix 0.08
-                             ,L.bndBalance=3000
-                             ,L.bndRate=0.08
-                             ,L.bndDuePrin=0.0
-                             ,L.bndDueInt=0.0
-                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})
-                         ,("B"
-                          ,L.Bond{
-                              L.bndName="B"
-                             ,L.bndType=L.PAC (AmountCurve
-                                            [(TsPoint (T.fromGregorian 2022 3 1) 100.0)
-                                            ,(TsPoint (T.fromGregorian 2022 3 1) 100.0)])
-                             ,L.bndOriginInfo= L.OriginalInfo{
-                                                L.originBalance=3000
-                                                ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08}
-                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 Quarterly Nothing Nothing
-                             ,L.bndBalance=3000
-                             ,L.bndRate=0.08
-                             ,L.bndDuePrin=0.0
-                             ,L.bndDueInt=0.0
-                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})
-                        ,("C"
-                          ,L.Bond{
-                              L.bndName="C"
-                             ,L.bndType=L.Lockout (T.fromGregorian 2022 6 1)
-                             ,L.bndOriginInfo= L.OriginalInfo{
-                                                L.originBalance=3000
-                                                ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08}
-                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 Quarterly Nothing Nothing
-                             ,L.bndBalance=3000
-                             ,L.bndRate=0.08
-                             ,L.bndDuePrin=0.0
-                             ,L.bndDueInt=0.0
-                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})
-                         ]
-           )
-  ,pool = P.Pool {P.assets=[P.Mortgage
-                                         P.OriginalInfo{
-                                           P.originBalance=4000
-                                           ,P.originRate=P.Fix 0.085
-                                           ,P.originTerm=60
-                                           ,P.period=Monthly
-                                           ,P.startDate=(T.fromGregorian 2022 1 1)
-                                           ,P.prinType= P.Level}
-                                         4000
-                                         0.085
-                                         60]
-                 ,P.futureCf=Nothing
-                 ,P.asOfDate = T.fromGregorian 2022 1 1}
-   ,waterfall = Map.fromList [("Base", [
-   W.PayFee ["General"] ["Service-Fee"]
-   ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
-   ,W.TransferReserve W.TillSource  "General" "General" Nothing
-   ,W.TransferReserve W.TillTarget  "General" "General" Nothing
-   ,W.PayInt "General" ["A"]
-   ,W.PayPrin "General" ["A"]
-   ])]
- ,collects = [W.Collect W.CollectedInterest "General"
-             ,W.Collect W.CollectedPrincipal "General"]
- ,call = Nothing
-}
 
 
 performAction :: T.Day -> TestDeal -> W.Action -> TestDeal
@@ -434,7 +333,9 @@ run2 t Nothing Nothing Nothing Nothing
 
 run2 t Nothing _ _ _ = (prepareDeal t) -- `debug` "End ????"
 
-data AssetLiquidationMethod = BalanceFactor Float Float -- performing & default
+data AssetLiquidationMethod = BalanceFactor Float Float -- by performing & default
+                            | BalanceFactor2 Float Float Float -- by performing/delinq/default factor
+                            | Custom Float -- custom amount
 
 
 cleanUp :: AssetLiquidationMethod -> T.Day -> String -> TestDeal -> TestDeal
@@ -456,7 +357,13 @@ cleanUp lq d accName t =
                                  
                proceeds = currenBal * currentFactor -- `debug` ("procees->"++show(currenBal))
                updateFn = A.deposit proceeds d "Liquidation Proceeds" 
-               accs = (accounts t) 
+               accs = (accounts t)
+
+      Custom amt ->
+        t {accounts = Map.adjust
+                        (\acc ->  A.deposit amt d "Liquidation Proceeds" acc )
+                        accName
+                        (accounts t)}
 
 
 
@@ -667,6 +574,15 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd _fdDay fa 
      where
      baseBal = queryDeal t (CurrentPoolCollectionInt calcDay)
 
+calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd Nothing fa _ _)
+  = f{ F.feeDue = amt , F.feeDueDate = Just calcDay }
+
+calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
+  | _fdDay == calcDay = f
+  | otherwise = if (inSamePeriod calcDay _fdDay p) then
+                  f
+                else
+                  f { F.feeDue = (fd+amt) , F.feeDueDate = Just calcDay }
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
@@ -721,9 +637,6 @@ calcDuePrin t calc_date b@(L.Bond bn (L.PAC_Anchor schedule bns) bo bi bond_bal 
                  max (bond_bal - scheduleDue) 0
               else
                  bond_bal
-
-    -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
-
 
 calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_arrears lstIntPay _ _) =
   if (all (\x -> (isZbond x)) activeBnds) then

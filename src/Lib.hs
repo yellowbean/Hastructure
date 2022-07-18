@@ -10,7 +10,7 @@ module Lib
     ,afterNPeriod,DealStats(..),Ts(..)
     ,Txn(..),combineTxn,Statement(..)
     ,appendStmt,periodRateFromAnnualRate
-    ,queryStmtAmt,previousDate
+    ,queryStmtAmt,previousDate,inSamePeriod
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,getValByDate,getValOnByDate
     ,extractTxns,groupTxns,getTxns
@@ -69,7 +69,12 @@ data DealStats =  CurrentBondBalance
               | FutureOriginalPoolBalance
               | CurrentPoolCollectionInt T.Day
               | CurrentBondBalanceOf [String]
+              | Max DealStats DealStats
+              | Min DealStats DealStats
+              | Sum DealStats DealStats
               deriving (Show)
+
+data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
 
 $(deriveJSON defaultOptions ''DealStats)
 $(deriveJSON defaultOptions ''Period)
@@ -304,6 +309,15 @@ getValByDates rc ds = map (getValByDate rc) ds
 
 toDate :: String -> T.Day
 toDate s = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d" s
+
+inSamePeriod :: T.Day -> T.Day -> Period -> Bool
+inSamePeriod t1 t2 p
+  = case p of
+      Monthly -> m1 == m2
+      Annually ->  y1 == y2
+    where
+      (y1,m1,d1) = T.toGregorian t1
+      (y2,m2,d2) = T.toGregorian t2
 
 
 $(deriveJSON defaultOptions ''Txn)
