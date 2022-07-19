@@ -7,7 +7,7 @@ module Lib
     ,genDates,StartDate,EndDate,LastIntPayDate
     ,Spread,Index(..)
     ,paySeqLiabilities,prorataFactors,periodToYear
-    ,afterNPeriod,DealStats(..),Ts(..)
+    ,afterNPeriod,DealStats(..),Ts(..),periodsBetween
     ,Txn(..),combineTxn,Statement(..)
     ,appendStmt,periodRateFromAnnualRate
     ,queryStmtAmt,previousDate,inSamePeriod
@@ -52,7 +52,7 @@ data Period = Daily
               | Quarterly 
               | SemiAnnually 
               | Annually
-              deriving (Show)
+              deriving (Show,Eq)
 
 data DealStats =  CurrentBondBalance
               | CurrentPoolBalance
@@ -72,7 +72,7 @@ data DealStats =  CurrentBondBalance
               | Max DealStats DealStats
               | Min DealStats DealStats
               | Sum DealStats DealStats
-              deriving (Show)
+              deriving (Show,Eq)
 
 data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
 
@@ -195,6 +195,15 @@ afterNPeriod d i p =
       SemiAnnually -> 6
       Annually -> 12
 
+periodsBetween :: T.Day -> T.Day -> Period -> Integer
+periodsBetween t1 t2 p
+  = case p of
+    Monthly -> _diff
+    Annually -> div _diff 12
+    Quarterly -> div _diff 4
+  where
+    _diff = T.cdMonths $ T.diffGregorianDurationClip t1 t2
+
 data Txn = BondTxn T.Day Balance Interest Principal Rate Cash Comment
           | AccTxn T.Day Balance Amount Comment
           | ExpTxn T.Day Balance Amount Balance Comment
@@ -245,7 +254,7 @@ queryStmtAmt (Just (Statement txns)) q =
 queryStmtAmt Nothing _ = 0
 
 data Statement = Statement [Txn]
-        deriving (Show)
+        deriving (Show,Eq)
 
 appendStmt :: Maybe Statement -> Txn -> Statement
 appendStmt (Just stmt@(Statement txns)) txn = Statement (txns++[txn])

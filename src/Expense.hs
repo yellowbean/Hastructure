@@ -21,7 +21,7 @@ data FeeType = AnnualRateFee DealStats Float
               |PctFee DealStats Float
               |FixFee Float
               |RecurFee Period Float
-              deriving (Show)
+              deriving (Show,Eq)
 
 data Fee = Fee {
   feeName :: String
@@ -32,7 +32,7 @@ data Fee = Fee {
   ,feeArrears :: Float
   ,feeLastPaidDay :: Maybe T.Day
   ,feeStmt :: Maybe Statement
-} deriving (Show)
+} deriving (Show,Eq)
 
 payFee :: T.Day -> Float -> Fee -> Fee
 payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =

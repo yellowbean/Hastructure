@@ -10,6 +10,7 @@ import qualified UT.AssetTest as AT
 import qualified UT.CashflowTest as CFT
 import qualified UT.BondTest as BT
 import qualified UT.LibTest as LT
+import qualified UT.ExpTest as ET
 
 import qualified Accounts as A
 import qualified Lib as L
@@ -27,7 +28,8 @@ tests = testGroup "Tests" [accTests,stmtTests
                            ,AT.mortgageTests
                            ,CFT.cfTests
                            ,BT.pricingTests
-                           ,LT.curveTests]
+                           ,LT.curveTests
+                           ,ET.expTests]
 
 accTests = testGroup "Account Tests"
   [testCase "Draw" $

@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
-            ,bonds,accounts,fees) where
+            ,bonds,accounts,fees,calcDueFee) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -575,14 +575,16 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd _fdDay fa 
      baseBal = queryDeal t (CurrentPoolCollectionInt calcDay)
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd Nothing fa _ _)
-  = f{ F.feeDue = amt , F.feeDueDate = Just calcDay }
+  = f{ F.feeDue = amt * (fromIntegral (periodsBetween calcDay fs p)) , F.feeDueDate = Just calcDay }
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   | _fdDay == calcDay = f
-  | otherwise = if (inSamePeriod calcDay _fdDay p) then
-                  f
+  | otherwise = if periodGap /= 0 then
+                  f { F.feeDue = (fd+(amt*(fromIntegral periodGap))) , F.feeDueDate = Just calcDay } `debug` ("Gap->"++show(fromIntegral periodGap))
                 else
-                  f { F.feeDue = (fd+amt) , F.feeDueDate = Just calcDay }
+                  f
+                  where
+                  periodGap = periodsBetween calcDay _fdDay p
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 

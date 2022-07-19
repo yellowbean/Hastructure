@@ -1,4 +1,4 @@
-module UT.DealTest()
+module UT.DealTest(td)
 where
 
 import Deal
