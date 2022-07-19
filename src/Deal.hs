@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
-            ,bonds,accounts,fees,calcDueFee) where
+            ,calcDueFee) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -548,12 +548,12 @@ queryDeal t s =
 
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
-calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd (Just _fdDay) fa _ _)
-  | _fdDay /= calcDay = f{ F.feeDue = amt, F.feeDueDate = Just calcDay}
+calcDueFee t calcDay f@(F.Fee fn F.FixFee  fs fd (Just _fdDay) fa _ _)
+  | _fdDay /= calcDay = f{ F.feeDue = fd , F.feeDueDate = Just calcDay}
   | otherwise = f
   
-calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd Nothing fa _ _)
-  = f{ F.feeDue = amt, F.feeDueDate = Just calcDay}
+calcDueFee t calcDay f@(F.Fee fn F.FixFee fs fd Nothing fa _ _)
+  = f{ F.feeDue = fd, F.feeDueDate = Just calcDay}
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
   = calcDueFee t calcDay f {F.feeDueDate = Just _startDate }
@@ -656,6 +656,9 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
                       Just pd -> pd
                       Nothing -> Map.findWithDefault _startDate "closing-date" (dates t)
     dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate ACT_365
+
+calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+  b {L.bndDuePrin = bond_bal }
 
 calcTargetAmount :: TestDeal -> A.Account -> Float
 calcTargetAmount t (A.Account _ n i (Just r) _ ) =

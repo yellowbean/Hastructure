@@ -19,7 +19,7 @@ import qualified Data.ByteString.Lazy.Char8 as L
 
 data FeeType = AnnualRateFee DealStats Float
               |PctFee DealStats Float
-              |FixFee Float
+              |FixFee
               |RecurFee Period Float
               deriving (Show,Eq)
 

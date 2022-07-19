@@ -34,9 +34,9 @@ td = TestDeal {
   ])
   ,D.fees = (Map.fromList [("Service-Fee"
                          ,F.Fee{F.feeName="service-fee"
-                                ,F.feeType = (F.FixFee 500)
+                                ,F.feeType = F.FixFee
                                 ,F.feeStart = (T.fromGregorian 2022 1 1)
-                                ,F.feeDue = 0
+                                ,F.feeDue = 100
                                 ,F.feeDueDate = Nothing
                                 ,F.feeArrears = 0
                                 ,F.feeLastPaidDay = Nothing
