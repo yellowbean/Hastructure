@@ -83,6 +83,5 @@ pricingTests = testGroup "Pricing Tests"
       b3 = b1 {B.bndStmt = Nothing,B.bndInterestInfo = B.InterestByYield 0.02}
     in
       testCase "pay interest to satisfy on yield" $
-      assertBool "" (abs(3060 - (B.backoutDueIntByYield (L.toDate "20230101") b3 100)) < 1)
-      --assertEqual "" 3060  (B.backoutDueIntByYield (L.toDate "20230101") b3 100)
+      assertEqual "" 60 (B.backoutDueIntByYield (L.toDate "20230101") b3)
   ]

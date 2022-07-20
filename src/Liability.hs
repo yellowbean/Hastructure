@@ -16,7 +16,7 @@ import Lib (Period,Floor,Cap,getValByDate)
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
-           ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance)
+           ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance,toDate)
 import Data.List (findIndex,zip6)
 
 import Debug.Trace
@@ -113,6 +113,18 @@ pv rc today d amt =
         discount_rate = getValByDate rc d
         distance = (T.diffDays d today)
 
+pv2 :: Float -> T.Day -> T.Day -> Float -> Float
+pv2 discount_rate today d amt =
+    amt / (1+discount_rate)**((fromIntegral distance)/365)
+  where
+    distance = (T.diffDays d today)
+
+fv2 :: Float -> T.Day -> T.Day -> Float -> Float
+fv2 discount_rate today futureDay amt =
+    amt * (1+discount_rate)**((fromIntegral distance)/365)
+  where
+    distance = (T.diffDays futureDay today)
+
 priceBond :: T.Day -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ _ _ bal _ _ _ _ _ (Just (Statement txns)))
   = PriceResult
@@ -157,25 +169,35 @@ calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (Statement txns)))
 
 calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 
-backoutDueIntByYield :: T.Day -> Bond -> Float -> Float
-backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _)
+backoutDueIntByYield2 :: T.Day -> Bond -> Float -> Float
+backoutDueIntByYield2 d b@(Bond _ _ (OriginalInfo obal odate _)
                            (InterestByYield y) currentBalance _ _ _ _ _ stmt)
                        initAmt
   = if abs(diff_irr) < 0.0001 then
-        initAmt
+        (initAmt - obal)   `debug` ("Return->"++show(initAmt - obal))
     else
-        backoutDueIntByYield d b nextAmount  --`debug` ("NextAmt=>"++show(nextAmount)++show(b)++show(d))
+        backoutDueIntByYield2 d b nextAmount  `debug` ("NextAmt=>"++show(nextAmount)++show(b)++show(d))
     where
      nextAmount = if diff_irr > 0 then
                        initAmt * 1.02
-                    else
+                  else
                        initAmt * 0.98
-     diff_irr = y - _irr  -- `debug` -- ("Found _irr"++show(_irr))
+     diff_irr = y - _irr   `debug`  ("Found _irr=> "++show(_irr)++show(d))
      _irr = _calcIRR obal y odate (AmountCurve (cashflows++[(TsPoint d initAmt)]))
      cashflows = case stmt of
                    Just (Statement txns) -> [ TsPoint (getTxnDate txn) (getTxnAmt txn)  | txn <- txns ]
                    Nothing -> []
 
+backoutDueIntByYield :: T.Day -> Bond -> Float
+backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _)
+                           (InterestByYield y) currentBalance _ _ _ _ _ stmt)
+  = (fv2 y odate d pv0) - obal
+    where
+     pv0 = obal - pvs
+     pvs = sum $ [ pv2 y odate (fst cf) (snd cf)  | cf <- cashflows ]
+     cashflows = case stmt of
+                   Just (Statement txns) -> [ ((getTxnDate txn),(getTxnAmt txn))  | txn <- txns ]
+                   Nothing -> []
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

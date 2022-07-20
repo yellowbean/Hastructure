@@ -598,7 +598,7 @@ calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _
 calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ intDue lstIntPay _ mStmt)
   = b {L.bndDueInt = newDue }
   where
-  newDue = L.backoutDueIntByYield calc_date b bond_bal
+  newDue = L.backoutDueIntByYield calc_date b
 
 calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ _ lstIntPay _ _) =
   b {L.bndDueInt = (dueInt+int_arrears) }
