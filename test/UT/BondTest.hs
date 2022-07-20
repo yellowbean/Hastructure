@@ -84,4 +84,18 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "pay interest to satisfy on yield" $
       assertEqual "" 60 (B.backoutDueIntByYield (L.toDate "20230101") b3)
+    ,
+    let
+      b4 = b1
+      pday = L.toDate "20220801"
+    in
+      testCase "pay prin to a bond" $
+      assertEqual "pay down prin" 2400  $ B.bndBalance (B.payPrin pday 600 b4)
+    ,
+    let
+      b5 = b1
+      pday = L.toDate "20220801"
+    in
+      testCase "pay int to 2 bonds" $
+      assertEqual "pay int" 2400  $ B.bndBalance (B.payPrin pday 600 b4)
   ]

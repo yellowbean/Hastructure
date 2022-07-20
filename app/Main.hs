@@ -5,10 +5,10 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Main where
 
-import           Data.Aeson       hiding (json)
-import           Data.Monoid      ((<>))
-import           Data.Text        (Text, pack)
-import           GHC.Generics
+import Data.Aeson       hiding (json)
+import Data.Monoid      ((<>))
+import Data.Text        (Text, pack)
+import GHC.Generics
 import qualified Deal as D
 import qualified Asset as P
 import qualified Assumptions as AP
@@ -24,7 +24,6 @@ import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.HTTP.Types
 import Network.Wai.Middleware.Cors
--- import Network.Wai.Middleware.Cors
 
 import Debug.Trace
 debug = flip trace
@@ -35,9 +34,6 @@ data RunDealReq = RunDealReq {
   ,bondPricing :: Maybe AP.BondPricingInput
 }
 $(deriveJSON defaultOptions ''RunDealReq)
-
--- type Api = SpockM () () () ()
--- type ApiAction a = SpockAction () () () a
 
 
 data App = App
@@ -67,7 +63,6 @@ getVersionR =  do
   addHeader "Access-Control-Allow-Methods" "GET"
   return "{\"version\":\"0.0.1\"}"
 
-  -- returnJson $
 
 main :: IO ()
 main =

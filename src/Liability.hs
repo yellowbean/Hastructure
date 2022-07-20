@@ -88,7 +88,7 @@ payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt
 
 payPrin :: T.Day -> Float -> Bond -> Bond
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
-  Bond bn bt oi iinfo new_bal r new_due dueInt lpayInt (Just d) (Just new_stmt)
+  Bond bn bt oi iinfo new_bal r new_due dueInt lpayInt (Just d) (Just new_stmt) -- `debug` ("New bal"++show(new_bal)++"AMT"++show(amt))
   where
     new_bal = bal - amt
     new_due = duePrin - amt

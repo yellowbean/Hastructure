@@ -184,13 +184,14 @@ performAction d t (W.PayInt an bnds) =
 
     bndsWithDue = filter (\x -> ((L.bndDueInt x) > 0)) $ map (\x -> calcDueInt t d x) bndsToPay
     bndsDueAmts = map (\x -> (L.bndDueInt x) ) bndsWithDue
+    bndsNames = map L.bndName bndsWithDue
 
     actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
     bndsAmountToBePaid = zip bndsWithDue  $ prorataFactors bndsDueAmts availBal
 
     bndsPaid = map (\(l,amt) -> (L.payInt d amt l)) bndsAmountToBePaid
 
-    bndMapUpdated =   Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
+    bndMapUpdated =   Map.union (Map.fromList $ zip bndsNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Int") an accMap
 
 performAction d t (W.PayTillYield an bnds) =
@@ -208,7 +209,7 @@ performAction d t (W.PayResidual an bndName) =
     bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
 
 performAction d t (W.PayPrin an bnds) =
-  t {accounts = accMapAfterPay, bonds = bndMapUpdated}
+  t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
   where
     bndMap = (bonds t)
     accMap = (accounts t)
@@ -217,15 +218,15 @@ performAction d t (W.PayPrin an bnds) =
     bndsToPay = filter (\x -> ((L.bndBalance x) > 0)) $ map (\x -> bndMap Map.! x ) bnds
     availBal = A.accBalance acc
     -- TODO  add filter lockout bonds here
-    bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay  --`debug` ("bonds to pay->"++show(bndsToPay))
+    bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay  --
     bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
 
-    actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts
+    actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts `debug` ("bonds totoal due ->"++show(bndsDueAmts))
     bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)
-    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid   -- `debug` ("BTO pay ->>>"++show(bndsAmountToBePaid))
+    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid   `debug` ("pay prin->>>To"++show(bnds))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
-    accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Prin") an accMap
+    accMapAfterPay = Map.adjust (A.draw actualPaidOut d ("Pay Prin:"++show(bnds))) an accMap
 
 
 data ActionOnDate = CollectPoolIncome T.Day
