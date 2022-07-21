@@ -126,17 +126,18 @@ fv2 discount_rate today futureDay amt =
     distance = (T.diffDays futureDay today)
 
 priceBond :: T.Day -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond _ _ _ _ bal _ _ _ _ _ (Just (Statement txns)))
+priceBond d rc b@(Bond _ _ (OriginalInfo obal _ _) _ bal _ _ _ _ _ (Just (Statement txns)))
   = PriceResult
      presentValue
-     (100*presentValue/cutoffBalance)
-     ((foldr (\x acc ->  (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x)))) 0 txns) / 365 / bal)
+     (100*presentValue/obal)
+     ((foldr (\x acc ->  (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x)))) 0 futureCf) / 365 / bal)
      (foldr (\x acc ->
                (((fromIntegral (T.diffDays (getTxnDate x) d))/365) * ((pv rc d (getTxnDate x)  (getTxnAmt x)) / presentValue)) + acc)
             0
-            txns)
+            futureCf)
      where
-       presentValue = foldr (\x acc -> acc + (pv rc d (getTxnDate x) (getTxnAmt x)) ) 0 txns
+       futureCf = filter (\x -> (getTxnDate x) > d) txns
+       presentValue = foldr (\x acc -> acc + (pv rc d (getTxnDate x) (getTxnAmt x)) ) 0 futureCf
        cutoffBalance = case (getTxnAsOf txns d) of
                           Nothing -> bal    -- TODO edge case not covered
                           Just _txn -> getTxnBalance _txn

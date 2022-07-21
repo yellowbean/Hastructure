@@ -7,7 +7,7 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Balance,Dates,StartDate,EndDate,LastIntPayDate
            ,DayCount(ACT_365),calcInt
-           ,DealStats,Statement(..),appendStmt,Txn(..),Balance
+           ,DealStats(..),Statement(..),appendStmt,Txn(..),Balance
            ,paySeqLiabilitiesAmt)
 
 import Data.Aeson hiding (json)
