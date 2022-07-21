@@ -97,5 +97,5 @@ pricingTests = testGroup "Pricing Tests"
       pday = L.toDate "20220801"
     in
       testCase "pay int to 2 bonds" $
-      assertEqual "pay int" 2400  $ B.bndBalance (B.payPrin pday 600 b4)
+      assertEqual "pay int" 2400  $ B.bndBalance (B.payPrin pday 600 b5)
   ]
