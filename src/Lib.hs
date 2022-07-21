@@ -295,6 +295,7 @@ data Ts = FloatCurve [(TsPoint Float)]
 
 data RateAssumption = RateCurve Index Ts
                     | RateFlat Index Float
+                    deriving (Show)
 
 getValOnByDate :: Ts -> T.Day -> Float
 getValOnByDate (AmountCurve dps) d 
@@ -310,8 +311,8 @@ getValByDate (AmountCurve dps) d
 
 getValByDate (FloatCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
-      Just (TsPoint _d v) -> v  `debug` ("Getting rate "++show(_d)++show(v))
-      Nothing -> 0              `debug` ("Getting 0 ")
+      Just (TsPoint _d v) -> v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
 
 getValByDates :: Ts -> [T.Day] -> [Float]
 getValByDates rc ds = map (getValByDate rc) ds

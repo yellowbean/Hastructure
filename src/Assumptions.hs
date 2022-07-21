@@ -6,7 +6,7 @@ module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInt
  where
 
 import Call as C
-import Lib (Rate,Index,Ts(..),TsPoint(..))
+import Lib (Rate,Index(..),Ts(..),TsPoint(..),toDate)
 import qualified Data.Map as Map 
 import Data.List
 import Data.Aeson hiding (json)

@@ -250,20 +250,32 @@ setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _) 
   = b { L.bndRate = (applyFloatRate ii d ras) }
 
+getRateAssumptionByIndex :: [RateAssumption] -> Index -> Maybe RateAssumption
+getRateAssumptionByIndex ras idx
+  = find
+      (\x -> case x of
+              (RateCurve _idx _ts) -> (_idx==idx)
+              (RateFlat _idx _rval) -> (_idx==idx))
+      ras
+
+
 applyFloatRate :: L.InterestInfo -> T.Day -> [RateAssumption] -> Float 
 applyFloatRate (L.Floater idx spd p f c) d ras
   = idx_rate + spd
     where 
       idx_rate = case ra of 
         Just (RateCurve _idx _ts) -> getValByDate _ts d 
+        Just (RateFlat _idx _r) ->  _r
         Nothing -> 0.0
-      ra = find (\(RateCurve _idx _ts) -> (_idx==idx)) ras 
+      ra = getRateAssumptionByIndex ras idx
+      --ra = find (\(RateCurve _idx _ts) -> (_idx==idx)) ras
 
 setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal 
 setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
     where 
         isFloat (L.Bond _ _ _ (L.Floater _ _ _ _ _) _ _ _ _ _ _ _ ) = True
         isFloat (L.Bond _ _ _ (L.Fix _ ) _ _ _ _ _ _ _ ) = False
+        isFloat (L.Bond _ _ _ (L.InterestByYield _ ) _ _ _ _ _ _ _ ) = False
         floatBonds = filter (\x -> isFloat x) $ Map.elems (bonds t)
         floatBondNames = map (\x -> (L.bndName x)) floatBonds
         updatedBonds = foldr (Map.adjust (setBondNewRate d ras)) (bonds t) floatBondNames
@@ -322,7 +334,7 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
           where
               waterfallToExe = (waterfall t)Map.!waterfallName -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
               dAfterWaterfall = (foldl (performAction d) t waterfallToExe)
-              dAfterRateSet = dAfterWaterfall --setBndsNextIntRate dAfterWaterfall d rates `debug` ("After Rate Set")
+              dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates `debug` ("After Rate Set")
               callOpts = fromMaybe [] clls
               callFlag = testCalls dAfterWaterfall d callOpts   -- `debug` ("Call Flag->"++show(callOpts))
 
@@ -462,7 +474,7 @@ getInits t (Just assumps) =
     ,pCollectionCfAfterCutoff
     ,rateCurves
     ,callOptions  
-    ,t_with_cf)
+    ,t_with_cf)  `debug` ("Rate Curve"++show(rateCurves))
   where
     startDate = Map.findWithDefault _startDate "cutoff-date" (dates t)
     firstPayDate = Map.findWithDefault _startDate "first-pay-date" (dates t)
