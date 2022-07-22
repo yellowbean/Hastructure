@@ -19,6 +19,8 @@
   * Corp Loan
 * Pool Assumptions
   * Mortgage (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
+* Multiple Waterfalls
+  * User defined waterfalls and supported any point of time during the running cycle
 * Accounts
   * Liquidity Facility
   * Reserve Account  :heavy_check_mark:
