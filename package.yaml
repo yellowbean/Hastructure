@@ -21,9 +21,11 @@ description:         Please see the README on GitHub at <https://github.com/yell
 
 dependencies:
 - base
+- hashable
 - time
 - lens
 - aeson
+- aeson-pretty
 - text
 - bytestring
 - template-haskell

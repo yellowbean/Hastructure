@@ -106,7 +106,7 @@ td = TestDeal {
                                          60]
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1}
-   ,D.waterfall = Map.fromList [("Base", [
+   ,D.waterfall = Map.fromList [(W.DistributionDay, [
    W.PayFee ["General"] ["Service-Fee"]
    ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
    ,W.TransferReserve W.TillSource  "General" "General" Nothing

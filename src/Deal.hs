@@ -21,6 +21,7 @@ import qualified Control.Lens as LS
 import Data.List
 import Data.Maybe
 import Data.Aeson hiding (json)
+import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -44,13 +45,12 @@ data TestDeal = TestDeal {
   ,fees :: Map.Map String F.Fee
   ,bonds :: Map.Map String L.Bond
   ,pool ::  (P.Pool P.Mortgage)
-  ,waterfall :: Map.Map String W.DistributionSeq
+  ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
   ,collects :: [W.CollectionRule]
   ,call :: Maybe (String ,[C.CallOption])
 } deriving (Show)
 
 $(deriveJSON defaultOptions ''TestDeal)
-
 
 performAction :: T.Day -> TestDeal -> W.Action -> TestDeal
 performAction d t (W.Transfer an1 an2 tags) =
@@ -231,19 +231,26 @@ performAction d t (W.PayPrin an bnds) =
 
 data ActionOnDate = CollectPoolIncome T.Day
                    |RunWaterfall T.Day String
+                   |PoolCollection T.Day String
                    deriving (Show)
 
 instance Ord ActionOnDate where
   compare (CollectPoolIncome d1) (CollectPoolIncome d2) = compare d1 d2
+  compare (PoolCollection d1 _) (PoolCollection d2 _) = compare d1 d2
   compare (RunWaterfall d1 _) (RunWaterfall d2 _) = compare d1 d2
   compare (CollectPoolIncome d1) (RunWaterfall d2 _) = compare d1 d2
+  compare (PoolCollection d1 _) (RunWaterfall d2 _) = compare d1 d2
   compare (RunWaterfall d1 _) (CollectPoolIncome d2) = compare d1 d2
+  compare (RunWaterfall d1 _) (PoolCollection d2 _) = compare d1 d2
 
 instance Eq ActionOnDate where
   (CollectPoolIncome d1) == (CollectPoolIncome d2) = d1 == d2
+  (PoolCollection d1 _) == (PoolCollection d2 _) = d1 == d2
   (RunWaterfall d1 _) == (RunWaterfall d2 _) = d1 == d2
   (CollectPoolIncome d1) == (RunWaterfall d2 _) = d1 == d2
+  (PoolCollection d1 _) == (RunWaterfall d2 _) = d1 == d2
   (RunWaterfall d1 _) == (CollectPoolIncome d2) = d1 == d2
+  (RunWaterfall d1 _) == (PoolCollection d2 _) = d1 == d2
 
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
@@ -302,26 +309,26 @@ testCalls t d opts = any (\x -> testCall t d x) opts -- `debug` ("testing call o
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
     -> Maybe [RateAssumption] -> Maybe [C.CallOption]-> TestDeal
-
-
 run2 t (Just _poolFlow) (Just []) _ _    -- stop at a date
   = (prepareDeal t) -- `debug` ("In B")-- `debug` "Preparing"
 
 run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
   | ((CF.sizeCashFlowFrame _poolFlow) == 0) || ((length ads) == 0) = (prepareDeal t) -- `debug` "In A"
   | ((CF.sizeCashFlowFrame _poolFlow) > 0) && (length ads > 0) -- `debug` ("in C with ad"++show(ad)++"Rest of Ads"++show(length ads))
-  = case ad of
-        CollectPoolIncome d ->
-          run2
-            (t {accounts=accs})
-            (CF.removeTsCashFlowFrameByDate _poolFlow d)
-            (Just ads)
-            rates
-            clls  --  `debug` ("running Pool ad to next period ->>>"++show(ad))
-          where
-            accs = depositPoolInflow (collects t) d _poolFlow (accounts t) --  `debug` ("Deposit->"++show(d))
+  = case ad of      
+        PoolCollection d waterfallName ->
+            (run2 
+              dAfter
+              (CF.removeTsCashFlowFrameByDate _poolFlow d)
+              (Just ads)
+              rates
+              clls)
+            where 
+               dAfter = foldl (performAction d) (t {accounts=accs}) waterfallToExe
+               waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
+               accs = depositPoolInflow (collects t) d _poolFlow (accounts t) -- `debug` ("Deposit->"++show(d))
 
-        RunWaterfall d waterfallName->
+        RunWaterfall d waterfallName ->
           if callFlag  then
               prepareDeal $ cleanUp (BalanceFactor 1.0 1.0) d "acc-prin" t --  `debug` ("Called !"++show(d))
           else
@@ -332,11 +339,11 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
                 rates
                 clls) -- `debug` ("Deal waterfall action RunTime =>"++show(clls))
           where
-              waterfallToExe = (waterfall t)Map.!waterfallName -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
-              dAfterWaterfall = (foldl (performAction d) t waterfallToExe)
-              dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates `debug` ("After Rate Set")
-              callOpts = fromMaybe [] clls
-              callFlag = testCalls dAfterWaterfall d callOpts   -- `debug` ("Call Flag->"++show(callOpts))
+               waterfallToExe = (waterfall t) Map.! W.DistributionDay -- `debug` ("ADS->"++show(ads))
+               dAfterWaterfall = (foldl (performAction d) t waterfallToExe)
+               dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates -- `debug` ("After Rate Set")
+               callOpts = fromMaybe [] clls
+               callFlag = testCalls dAfterWaterfall d callOpts   -- `debug` ("Call Flag->"++show(callOpts))
 
 
 run2 t Nothing Nothing Nothing Nothing
@@ -424,13 +431,13 @@ runDeal t er assumps bpi =
   case er of
     DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
-    DealPoolFlowPricing -> (finalDeal, Just pcf, Nothing, bndPricing)  `debug` ("with pricing"++show(bndPricing))
+    DealPoolFlowPricing -> (finalDeal, Just pcf, Nothing, bndPricing) -- `debug` ("with pricing"++show(bndPricing))
     DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns(finalDeal)),Nothing)
   where
     bndPricing = case bpi of
                    Nothing -> Nothing    `debug` ("pricing bpi with Nothing")
-                   Just _bpi -> Just (priceBonds finalDeal _bpi)   `debug` ("Pricing result")
-    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) (Just clls) -- `debug` (">>ADS==>> "++show(ads))
+                   Just _bpi -> Just (priceBonds finalDeal _bpi)   -- `debug` ("Pricing result")
+    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) (Just clls)  -- `debug` (">>ADS==>> "++show(ads))
     (ads,pcf,rcurves,clls,t2) = getInits t assumps
 
 prepareDeal :: TestDeal -> TestDeal 
@@ -486,7 +493,8 @@ getInits t (Just assumps) =
     projNum = 512
     bPayDates = map (\x -> RunWaterfall (afterNPeriod firstPayDate x bPayInt) "base") [0..projNum]
     pCollectionDates = map (\x -> (afterNPeriod startDate x pCollectionInt)) [0..projNum]
-    pCollectionDatesA = map (\x -> CollectPoolIncome x) pCollectionDates
+    -- pCollectionDatesA = map (\x -> CollectPoolIncome x) pCollectionDates
+    pCollectionDatesA = map (\x -> PoolCollection x "collection") pCollectionDates
 
     stopDate = find (\x -> case x of    
                             (AP.StopRunBy d) -> True
@@ -496,7 +504,9 @@ getInits t (Just assumps) =
     actionDates = case stopDate of
                     Just (AP.StopRunBy d) ->  filter (\x -> case x of
                                                   (RunWaterfall _d _) -> _d < d
-                                                  CollectPoolIncome _d -> _d < d ) _actionDates
+                                                  -- CollectPoolIncome _d -> _d < d
+                                                  (PoolCollection _d _) -> _d < d
+                                                  ) _actionDates
                     Nothing ->  _actionDates  -- `debug` (">>stop date"++show(stopDate))
 
     poolCf = P.aggPool $ P.runPool2 (pool t)  assumps  -- `debug` ("Assets Agged pool Cf->"++show(pool t))
@@ -684,15 +694,17 @@ calcTargetAmount t (A.Account _ n i (Just r) _ ) =
 
 depositPoolInflow :: [W.CollectionRule] -> T.Day -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolInflow rules d cf amap =
-  foldl fn amap rules
+  foldl fn amap rules  -- `debug` ("Depositing at "++show(d))
   where
       currentPoolInflow = CF.getSingleTsCashFlowFrame cf d
+
       fn _acc _r@(W.Collect _ _accName) =
           Map.adjust (A.deposit collectedCash d "Deposit CF from Pool") _accName _acc
           where 
               collectedCash = collectCash _r currentPoolInflow
+      
       collectCash r ts =
-        case  r of
+        case r of
           (W.Collect W.CollectedInterest _)   -> CF.mflowInterest ts
           (W.Collect W.CollectedPrincipal _)  -> CF.mflowPrincipal ts
           (W.Collect W.CollectedRecoveries _) -> CF.mflowRecovery ts
@@ -700,3 +712,72 @@ depositPoolInflow rules d cf amap =
 
 $(deriveJSON defaultOptions ''ExpectReturn)
 $(deriveJSON defaultOptions ''TxnComponent)
+
+td = TestDeal {
+  name = "test deal1"
+  ,dates = (Map.fromList [("closing-date",(T.fromGregorian 2022 1 1))
+                         ,("cutoff-date",(T.fromGregorian 2022 1 1))
+                         ,("first-pay-date",(T.fromGregorian 2022 2 25))
+                         ])
+  ,payPeriod = Monthly
+  ,collectPeriod = Monthly
+  ,accounts = (Map.fromList
+  [("General", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
+  })),
+   ("Reserve", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
+  }))
+  ])
+  ,fees = (Map.fromList [("Service-Fee"
+                         ,F.Fee{F.feeName="service-fee"
+                                ,F.feeType = F.FixFee
+                                ,F.feeStart = (T.fromGregorian 2022 1 1)
+                                ,F.feeDue = 100
+                                ,F.feeDueDate = Nothing
+                                ,F.feeArrears = 0
+                                ,F.feeLastPaidDay = Nothing
+                                ,F.feeStmt = Nothing})])
+  ,bonds = (Map.fromList [("A"
+                          ,L.Bond{
+                              L.bndName="A"
+                             ,L.bndType=L.Sequential
+                             ,L.bndOriginInfo= L.OriginalInfo{
+                                                L.originBalance=3000
+                                                ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                ,L.originRate= 0.08}
+                             ,L.bndInterestInfo= L.Fix 0.08
+                             ,L.bndBalance=3000
+                             ,L.bndRate=0.08
+                             ,L.bndDuePrin=0.0
+                             ,L.bndDueInt=0.0
+                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndStmt=Nothing})
+                         ]
+           )
+  ,pool = P.Pool {P.assets=[P.Mortgage
+                                         P.OriginalInfo{
+                                           P.originBalance=4000
+                                           ,P.originRate=P.Fix 0.085
+                                           ,P.originTerm=60
+                                           ,P.period=Monthly
+                                           ,P.startDate=(T.fromGregorian 2022 1 1)
+                                           ,P.prinType= P.Level}
+                                         4000
+                                         0.085
+                                         60]
+                 ,P.futureCf=Nothing
+                 ,P.asOfDate = T.fromGregorian 2022 1 1}
+   ,waterfall = Map.fromList [(W.DistributionDay, [
+                                 W.PayFee ["General"] ["Service-Fee"]
+                                 ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
+                                 ,W.TransferReserve W.TillSource  "General" "General" Nothing
+                                 ,W.TransferReserve W.TillTarget  "General" "General" Nothing
+                                 ,W.PayInt "General" ["A"]
+                                 ,W.PayPrin "General" ["A"]
+   ])]
+ ,collects = [W.Collect W.CollectedInterest "General"
+             ,W.Collect W.CollectedPrincipal "General"]
+ ,call = Nothing
+}
+
+

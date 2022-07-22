@@ -1,16 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,KeepReserve(..),Limit(..),Formula(..))
+  ,KeepReserve(..),Limit(..),Formula(..),ActionWhen(..))
   where
 
-
+import GHC.Generics
 import Language.Haskell.TH
-import Data.Aeson       hiding (json)
+import Data.Aeson hiding (json)
+import qualified Data.Text as T
+import Text.Read (readMaybe)
 import Data.Aeson.TH
+import Data.Aeson.Types
+import Data.Hashable
 
 import Accounts (Account)
 import Asset (Mortgage, Pool)
@@ -18,9 +23,30 @@ import Expense
 import Liability
 import qualified Lib as L
 
+
 type FeeName = String
 type BondName = String
 type AccountName = String
+
+data ActionWhen = EndOfPoolCollection
+                | DistributionDay
+                deriving (Show,Ord,Eq,Generic,Read)
+
+instance ToJSONKey ActionWhen where
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey ActionWhen where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+
+
+--instance Hashable ActionWhen
+--instance ToJSONKey ActionWhen
+--instance GToJSONKey ActionWhen
+--instance FromJSONKey ActionWhen
+
+$(deriveJSON defaultOptions ''ActionWhen)
 
 data PoolSource = CollectedInterest
                 | CollectedPrincipal

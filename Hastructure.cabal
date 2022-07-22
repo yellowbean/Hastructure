@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.5.
+-- This file has been generated from package.yaml by hpack version 0.34.7.
 --
 -- see: https://github.com/sol/hpack
 
@@ -41,9 +41,11 @@ library
       src
   build-depends:
       aeson
+    , aeson-pretty
     , base
     , bytestring
     , containers
+    , hashable
     , lens
     , regex-tdfa
     , template-haskell
@@ -61,9 +63,11 @@ executable Hastructure-exe
   build-depends:
       Hastructure
     , aeson
+    , aeson-pretty
     , base
     , bytestring
     , containers
+    , hashable
     , http-types
     , lens
     , regex-tdfa
@@ -94,9 +98,11 @@ test-suite Hastructure-test
   build-depends:
       Hastructure
     , aeson
+    , aeson-pretty
     , base
     , bytestring
     , containers
+    , hashable
     , lens
     , regex-tdfa
     , tasty
