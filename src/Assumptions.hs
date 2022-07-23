@@ -20,8 +20,10 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Float
                 | PrepaymentCPR Float
+                | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
                 | DefaultConstant Float
                 | DefaultCDR Float
+                | DefaultDistribution Float [Float] -- total default rate, distribution pct
                 | Recovery (Rate,Int)
                 | LinearTo Int Float
                 | InterestRateConstant Index Float

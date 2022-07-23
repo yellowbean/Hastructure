@@ -19,6 +19,7 @@ data CallOption = PoolBalance Float
                 | AfterDate T.Day
                 | And [CallOption] 
                 | Or [CallOption] 
+                | PoolPvValue Float  -- Call when PV of pool fall below
                 deriving (Show)
 
 

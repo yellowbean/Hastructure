@@ -5,10 +5,12 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mkCashFlowFrame,mkColDay,mkColNum,mkColBal,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
+                ,mflowDefault,mflowLoss
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,tsDefaultBal,getAllAfterCashFlowFrame
-                ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf
+                ,tsTotalCash
+                ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter
                 ,TsRow(..),Balances) where
 
 import Data.Time (Day)
@@ -32,6 +34,7 @@ type Amount = Float
 type Prepayment = Float
 type Recovery = Float 
 type Default = Float 
+type Loss = Float
 type Rate = Float
 type Date = T.Day
 
@@ -43,7 +46,6 @@ type Prepayments = [Prepayment]
 type Recoveries = [Recovery]
 type Rates = [Rate]
 
-
 data ColType = ColNum Float | ColDate Date | ColBal Float
     deriving (Show)
 
@@ -51,18 +53,18 @@ data TsRow = CashFlow Date Amount
                |BondFlow Date Balance Principal Interest
               -- |FeeFlow Date Balance Amount
               -- |AccountFlow Date Balance Amount
-              |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery
+              |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss
               deriving (Show)
 
 instance Ord TsRow where
   compare (CashFlow d1 _) (CashFlow d2 _) = compare d1 d2
   compare (BondFlow d1 _ _ _) (BondFlow d2 _ _ _) = compare d1 d2
-  compare (MortgageFlow d1 _ _ _ _ _ _) (MortgageFlow d2 _ _ _ _ _ _) = compare d1 d2
+  compare (MortgageFlow d1 _ _ _ _ _ _ _) (MortgageFlow d2 _ _ _ _ _ _ _) = compare d1 d2
 
 instance Eq TsRow where
   (CashFlow d1 _) == (CashFlow d2 _) = d1 == d2
   (BondFlow d1 _ _ _) == (BondFlow d2 _ _ _) = d1 == d2
-  (MortgageFlow d1 _ _ _ _ _ _) == (MortgageFlow d2 _ _ _ _ _ _) = d1 == d2
+  (MortgageFlow d1 _ _ _ _ _ _ _) == (MortgageFlow d2 _ _ _ _ _ _ _) = d1 == d2
 
 data CashFlowFrame = CashFlowFrame [TsRow]
               deriving (Show)
@@ -70,8 +72,8 @@ data CashFlowFrame = CashFlowFrame [TsRow]
                 -- |MortgageFrame [MortgageFlow]
 
 mkRow :: [ColType] -> TsRow
-mkRow ((ColDate d):(ColBal b):(ColNum prin):(ColNum i):(ColNum pre):(ColBal def_b):(ColNum rec):[])
-  = MortgageFlow d b prin i pre def_b rec
+mkRow ((ColDate d):(ColBal b):(ColNum prin):(ColNum i):(ColNum pre):(ColBal def_b):(ColNum rec):(ColNum los):[])
+  = MortgageFlow d b prin i pre def_b rec los
 
 mkCashFlowFrame :: [[ColType]] -> CashFlowFrame
 mkCashFlowFrame xss = CashFlowFrame $ map mkRow xss
@@ -100,7 +102,7 @@ getEarlierTsCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe TsRow
 getEarlierTsCashFlowFrame (CashFlowFrame trs) d
   = L.find (tsDateLT d) (reverse trs)
 
-getAllAfterCashFlowFrame ::CashFlowFrame -> T.Day -> CashFlowFrame
+getAllAfterCashFlowFrame :: CashFlowFrame -> T.Day -> CashFlowFrame
 getAllAfterCashFlowFrame cf@(CashFlowFrame trx) d
   = CashFlowFrame (getTxnAfter cf d)
 
@@ -125,14 +127,14 @@ mkColBal ds = [ (ColBal _d) | _d <- ds ]
 addTs :: TsRow -> TsRow -> TsRow
 addTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))
 addTs (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = (BondFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) )
-addTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 ) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 )
-  = (MortgageFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2))
+addTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 ) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 )
+  = (MortgageFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2))
 
 addTsCF :: TsRow -> TsRow -> TsRow
 addTsCF (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))
 addTsCF (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = (BondFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) )
-addTsCF (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 ) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 )
-  = (MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2))
+addTsCF (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 ) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2)
+  = (MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) )
 
 sumTs :: [TsRow] -> T.Day -> TsRow
 sumTs trs d = tsSetDate (foldr1 addTs trs) d
@@ -143,18 +145,23 @@ sumTsCF trs d = tsSetDate (foldr1 addTsCF trs) d
 tsDate :: TsRow -> T.Day
 tsDate (CashFlow x _) = x
 tsDate (BondFlow x  _ _ _) = x
-tsDate (MortgageFlow x _ _ _ _ _ _) = x
+tsDate (MortgageFlow x _ _ _ _ _ _ _) = x
+
+tsTotalCash :: TsRow -> Float
+tsTotalCash (CashFlow _ x) = x
+tsTotalCash (BondFlow _ _ a b) = a + b
+tsTotalCash (MortgageFlow x _ _ a b c _ e) = a + b + c + e
 
 tsDefaultBal :: TsRow -> Float
 tsDefaultBal (CashFlow _ _) = 0
 tsDefaultBal (BondFlow _ _ _ _) = 0
-tsDefaultBal (MortgageFlow _ _ _ _ _ x _) = x
+tsDefaultBal (MortgageFlow _ _ _ _ _ x _ _) = x
 
 
 tsSetDate :: TsRow -> T.Day ->TsRow
 tsSetDate (CashFlow _ a) x  = (CashFlow x a)
 tsSetDate (BondFlow _ a b c) x = (BondFlow x a b c)
-tsSetDate (MortgageFlow _ a b c d e f ) x = (MortgageFlow x a b c d e f)
+tsSetDate (MortgageFlow _ a b c d e f g) x = (MortgageFlow x a b c d e f g)
 
 reduceTs :: [TsRow] -> TsRow -> [TsRow]
 reduceTs [] _tr = [_tr]
@@ -172,12 +179,12 @@ combine (CashFlowFrame rs1) (CashFlowFrame rs2) =
 tsDateLT :: T.Day -> TsRow  -> Bool
 tsDateLT td (CashFlow d _) = d < td
 tsDateLT td (BondFlow d _ _ _) =  d < td
-tsDateLT td (MortgageFlow d _ _ _ _ _ _) = d < td
+tsDateLT td (MortgageFlow d _ _ _ _ _ _ _) = d < td
 
 tsDateLET :: T.Day -> TsRow  -> Bool
 tsDateLET td (CashFlow d _) = d <= td
 tsDateLET td (BondFlow d _ _ _) =  d <= td
-tsDateLET td (MortgageFlow d _ _ _ _ _ _) = d <= td
+tsDateLET td (MortgageFlow d _ _ _ _ _ _ _) = d <= td
 
 
 --splitTsRowByDates :: [TsRow] -> [T.Day] -> [TsRow] -> [TsRow]
@@ -204,23 +211,24 @@ aggTsByDates trs ds =
 
 
 mflowPrincipal :: TsRow -> Float
-mflowPrincipal (MortgageFlow _ _ x _ _ _ _) = x
+mflowPrincipal (MortgageFlow _ _ x _ _ _ _ _) = x
 mflowPrincipal _  = -1.0
 mflowInterest :: TsRow -> Float
-mflowInterest (MortgageFlow _ _ _ x _ _ _) = x
+mflowInterest (MortgageFlow _ _ _ x _ _ _ _) = x
 mflowInterest _  = -1.0
 mflowPrepayment :: TsRow -> Float
-mflowPrepayment (MortgageFlow _ _ _ _ x _ _) = x
+mflowPrepayment (MortgageFlow _ _ _ _ x _ _ _) = x
 mflowPrepayment _  = -1.0
 mflowDefault :: TsRow -> Float
-mflowDefault (MortgageFlow _ _ _ _ _ x _) = x
+mflowDefault (MortgageFlow _ _ _ _ _ x _ _) = x
 mflowDefault _  = -1.0
 mflowRecovery :: TsRow -> Float
-mflowRecovery (MortgageFlow _ _ _ _ _ _ x) = x
+mflowRecovery (MortgageFlow _ _ _ _ _ _ x _) = x
 mflowRecovery _  = -1.0
 mflowBalance :: TsRow -> Float
-mflowBalance (MortgageFlow _ x _ _ _ _ _) = x
-
+mflowBalance (MortgageFlow _ x _ _ _ _ _ _) = x
+mflowLoss :: TsRow -> Float
+mflowLoss (MortgageFlow _ _ _ _ _ _ _ x) = x
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
-            ,calcDueFee) where
+            ,calcDueFee,applicableAdjust) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -275,16 +275,34 @@ applyFloatRate (L.Floater idx spd p f c) d ras
         Just (RateFlat _idx _r) ->  _r
         Nothing -> 0.0
       ra = getRateAssumptionByIndex ras idx
-      --ra = find (\(RateCurve _idx _ts) -> (_idx==idx)) ras
 
-setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal 
+applicableAdjust :: T.Day -> L.Bond -> Bool
+applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _) _ _ _ _ _ _ _ )
+  = case rr of 
+      L.ByInterval p Nothing -> 
+          let 
+            diff = T.diffGregorianDurationClip (L.originDate oi) d 
+          in 
+            0 == mod (T.cdMonths diff) (fromIntegral (monthsOfPeriod p))
+      L.ByInterval p (Just startDate) -> 
+          let 
+            diff = T.diffGregorianDurationClip startDate d 
+          in 
+            0 == mod (T.cdMonths diff) (fromIntegral (monthsOfPeriod p))
+      L.MonthOfYear monthIndex -> 
+          let 
+            (_,m,_) = T.toGregorian d
+          in 
+            m == monthIndex
+
+applicableAdjust d (L.Bond _ _ oi (L.Fix _ ) _ _ _ _ _ _ _ ) = False
+applicableAdjust d (L.Bond _ _ oi (L.InterestByYield _ ) _ _ _ _ _ _ _ ) = False
+
+setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal
 setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
     where 
-        isFloat (L.Bond _ _ _ (L.Floater _ _ _ _ _) _ _ _ _ _ _ _ ) = True
-        isFloat (L.Bond _ _ _ (L.Fix _ ) _ _ _ _ _ _ _ ) = False
-        isFloat (L.Bond _ _ _ (L.InterestByYield _ ) _ _ _ _ _ _ _ ) = False
-        floatBonds = filter (\x -> isFloat x) $ Map.elems (bonds t)
-        floatBondNames = map (\x -> (L.bndName x)) floatBonds
+        floatBonds = filter (applicableAdjust d) $ Map.elems (bonds t)
+        floatBondNames = map L.bndName floatBonds
         updatedBonds = foldr (Map.adjust (setBondNewRate d ras)) (bonds t) floatBondNames
 
 setBndsNextIntRate t d Nothing = t 
@@ -355,7 +373,37 @@ run2 t Nothing _ _ _ = (prepareDeal t) -- `debug` "End ????"
 
 data AssetLiquidationMethod = BalanceFactor Float Float -- by performing & default
                             | BalanceFactor2 Float Float Float -- by performing/delinq/default factor
+                            | PV Float Float -- discount factor, recovery on default
                             | Custom Float -- custom amount
+
+calcLiquidationAmount :: AssetLiquidationMethod -> (P.Pool a) -> T.Day -> Float
+calcLiquidationAmount alm pool d 
+  = case alm of 
+      BalanceFactor currentFactor defaultFactor -> 
+          case (P.futureCf pool) of 
+            Nothing -> 0
+            Just (_futureCf) ->
+                let 
+                  poolInflow = CF.getEarlierTsCashFlowFrame _futureCf d 
+                  earlierTxns = CF.getTxnAsOf _futureCf d
+                  currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
+                in 
+                  case poolInflow of 
+                    Nothing -> 0
+                    Just (_ts) ->   -- TODO need to check if missing last row
+                        ((CF.mflowBalance _ts) * currentFactor + currentDefaulBal * defaultFactor)
+
+      PV discountRate recoveryPct ->
+          case (P.futureCf pool) of
+            Nothing -> 0 
+            Just (_futureCf) ->
+                let 
+                  futureTxns = CF.getTxnAfter _futureCf d
+                  earlierTxns = CF.getTxnAsOf _futureCf d
+                  pvCf = sum $ map (\x -> pv2  discountRate  d (CF.tsDate x) (CF.tsTotalCash x)) futureTxns 
+                  currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
+                in 
+                  currentDefaulBal * recoveryPct + pvCf 
 
 
 cleanUp :: AssetLiquidationMethod -> T.Day -> String -> TestDeal -> TestDeal

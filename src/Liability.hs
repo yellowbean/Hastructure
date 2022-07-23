@@ -4,8 +4,8 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
-  ,InterestInfo(..),payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
-  ,priceBond,PriceResult(..),pv)
+  ,payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
+  ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..))
   where
 
 import Language.Haskell.TH
@@ -16,14 +16,19 @@ import Lib (Period,Floor,Cap,getValByDate)
 import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
-           ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance,toDate)
+           ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance
+           ,toDate,pv2,)
 import Data.List (findIndex,zip6)
 
 import Debug.Trace
 debug = flip trace
 
+data RateReset = ByInterval Period (Maybe T.Day) -- period, maybe a start day
+               | MonthOfYear     Int  -- month index, 0 => Janaury
+               deriving (Show)
+
 data InterestInfo = 
-          Floater Index Spread Period (Maybe Floor) (Maybe Cap)
+          Floater Index Spread RateReset (Maybe Floor) (Maybe Cap)
           | Fix Rate
           | InterestByYield Float
           deriving (Show)
@@ -113,12 +118,6 @@ pv rc today d amt =
         discount_rate = getValByDate rc d
         distance = (T.diffDays d today)
 
-pv2 :: Float -> T.Day -> T.Day -> Float -> Float
-pv2 discount_rate today d amt =
-    amt / (1+discount_rate)**((fromIntegral distance)/365)
-  where
-    distance = (T.diffDays d today)
-
 fv2 :: Float -> T.Day -> T.Day -> Float -> Float
 fv2 discount_rate today futureDay amt =
     amt * (1+discount_rate)**((fromIntegral distance)/365)
@@ -204,4 +203,5 @@ $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
+$(deriveJSON defaultOptions ''RateReset)
 $(deriveJSON defaultOptions ''PriceResult)

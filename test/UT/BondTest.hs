@@ -6,6 +6,7 @@ import Test.Tasty.HUnit
 
 import qualified Data.Time as T
 import qualified Liability as B
+import qualified Deal as D
 import qualified Lib as L
 import qualified Asset as P
 import qualified Assumptions as A
@@ -21,6 +22,21 @@ b1 = B.Bond{B.bndName="A"
                                ,B.originDate= (T.fromGregorian 2022 1 1)
                                ,B.originRate= 0.08}
             ,B.bndInterestInfo= B.Fix 0.08
+            ,B.bndBalance=3000
+            ,B.bndRate=0.08
+            ,B.bndDuePrin=0.0
+            ,B.bndDueInt=0.0
+            ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+            ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+            ,B.bndStmt=Just $ L.Statement [ L.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 ""]}
+
+bfloat = B.Bond{B.bndName="A"
+            ,B.bndType=B.Sequential
+            ,B.bndOriginInfo= B.OriginalInfo{
+                               B.originBalance=3000
+                               ,B.originDate= (T.fromGregorian 2022 1 1)
+                               ,B.originRate= 0.08}
+            ,B.bndInterestInfo= B.Floater L.LPR5Y 0.015 (B.MonthOfYear 1) Nothing Nothing
             ,B.bndBalance=3000
             ,B.bndRate=0.08
             ,B.bndDuePrin=0.0
@@ -99,3 +115,23 @@ pricingTests = testGroup "Pricing Tests"
       testCase "pay int to 2 bonds" $
       assertEqual "pay int" 2400  $ B.bndBalance (B.payPrin pday 600 b5)
   ]
+
+bndTests = testGroup "Float Bond Tests" [
+    let
+       r1 = D.applicableAdjust bfloat (L.toDate "20220101") 
+       r2 = D.applicableAdjust bfloat (L.toDate "20220301") 
+    in
+      testCase "Adjust rate by Month of Year " $
+      assertEqual "" [True,False] [r1,r2]
+    ,
+    let 
+       bfloatResetInterval = bfloat {B.bndInterestInfo = B.Floater L.LPR5Y 0.015 
+                                                         (B.ByInterval L.Quarterly 
+                                                           (Just (L.toDate "20220401"))) 
+                                                         Nothing Nothing}
+       r1 = D.applicableAdjust bfloatResetInterval (L.toDate "20220701") 
+       r2 = D.applicableAdjust bfloatResetInterval (L.toDate "20220801") 
+    in 
+      testCase "Adjust rate by quarter  " $
+      assertEqual "" [True,False] [r1,r2]
+ ]

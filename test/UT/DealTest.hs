@@ -57,40 +57,6 @@ td = TestDeal {
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndStmt=Nothing})
-                         ,("B"
-                          ,L.Bond{
-                              L.bndName="B"
-                             ,L.bndType=L.PAC (AmountCurve
-                                            [(TsPoint (T.fromGregorian 2022 3 1) 100.0)
-                                            ,(TsPoint (T.fromGregorian 2022 3 1) 100.0)])
-                             ,L.bndOriginInfo= L.OriginalInfo{
-                                                L.originBalance=3000
-                                                ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08}
-                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 Quarterly Nothing Nothing
-                             ,L.bndBalance=3000
-                             ,L.bndRate=0.08
-                             ,L.bndDuePrin=0.0
-                             ,L.bndDueInt=0.0
-                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})
-                        ,("C"
-                          ,L.Bond{
-                              L.bndName="C"
-                             ,L.bndType=L.Lockout (T.fromGregorian 2022 6 1)
-                             ,L.bndOriginInfo= L.OriginalInfo{
-                                                L.originBalance=3000
-                                                ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08}
-                             ,L.bndInterestInfo= L.Floater LIBOR6M 0.01 Quarterly Nothing Nothing
-                             ,L.bndBalance=3000
-                             ,L.bndRate=0.08
-                             ,L.bndDuePrin=0.0
-                             ,L.bndDueInt=0.0
-                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})
                          ]
            )
   ,D.pool = P.Pool {P.assets=[P.Mortgage
@@ -107,12 +73,12 @@ td = TestDeal {
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1}
    ,D.waterfall = Map.fromList [(W.DistributionDay, [
-   W.PayFee ["General"] ["Service-Fee"]
-   ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
-   ,W.TransferReserve W.TillSource  "General" "General" Nothing
-   ,W.TransferReserve W.TillTarget  "General" "General" Nothing
-   ,W.PayInt "General" ["A"]
-   ,W.PayPrin "General" ["A"]
+                                 W.PayFee ["General"] ["Service-Fee"]
+                                 ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
+                                 ,W.TransferReserve W.TillSource  "General" "General" Nothing
+                                 ,W.TransferReserve W.TillTarget  "General" "General" Nothing
+                                 ,W.PayInt "General" ["A"]
+                                 ,W.PayPrin "General" ["A"]
    ])]
  ,D.collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]

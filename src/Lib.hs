@@ -16,6 +16,7 @@ module Lib
     ,extractTxns,groupTxns,getTxns
     ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
     ,paySeqLiabilitiesAmt,getIntervalDays
+    ,zipWith8, pv2, monthsOfPeriod
     ) where
 
 import qualified Data.Time as T
@@ -160,6 +161,15 @@ previousDate start_day p
        SemiAnnually -> 6
        Annually -> 12
        _ -> 0
+
+monthsOfPeriod :: Period -> Int 
+monthsOfPeriod p = 
+    case p of 
+      Monthly -> 1
+      Quarterly -> 3
+      SemiAnnually -> 6
+      Annually -> 12
+
 
 prorataFactors :: [Float] -> Float -> [Float]
 prorataFactors bals amt =
@@ -335,3 +345,19 @@ $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Statement)
+
+
+
+zipWith8 :: (a->b->c->d->e->f->g->h->i) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]
+zipWith8 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs)
+                   =  z a b c d e f g h : zipWith8 z as bs cs ds es fs gs hs
+zipWith8 _ _ _ _ _ _ _ _ _ = []
+
+pv2 :: Float -> T.Day -> T.Day -> Float -> Float
+pv2 discount_rate today d amt =
+    amt / (1+discount_rate)**((fromIntegral distance)/365)
+  where
+    distance = (T.diffDays d today)
+
+
+
