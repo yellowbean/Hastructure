@@ -118,8 +118,8 @@ pricingTests = testGroup "Pricing Tests"
 
 bndTests = testGroup "Float Bond Tests" [
     let
-       r1 = D.applicableAdjust bfloat (L.toDate "20220101") 
-       r2 = D.applicableAdjust bfloat (L.toDate "20220301") 
+       r1 = D.applicableAdjust (L.toDate "20220101") bfloat
+       r2 = D.applicableAdjust (L.toDate "20220301") bfloat
     in
       testCase "Adjust rate by Month of Year " $
       assertEqual "" [True,False] [r1,r2]
@@ -129,8 +129,8 @@ bndTests = testGroup "Float Bond Tests" [
                                                          (B.ByInterval L.Quarterly 
                                                            (Just (L.toDate "20220401"))) 
                                                          Nothing Nothing}
-       r1 = D.applicableAdjust bfloatResetInterval (L.toDate "20220701") 
-       r2 = D.applicableAdjust bfloatResetInterval (L.toDate "20220801") 
+       r1 = D.applicableAdjust (L.toDate "20220701") bfloatResetInterval
+       r2 = D.applicableAdjust (L.toDate "20220801") bfloatResetInterval
     in 
       testCase "Adjust rate by quarter  " $
       assertEqual "" [True,False] [r1,r2]
