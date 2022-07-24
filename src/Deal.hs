@@ -279,17 +279,13 @@ applyFloatRate (L.Floater idx spd p f c) d ras
 applicableAdjust :: T.Day -> L.Bond -> Bool
 applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _) _ _ _ _ _ _ _ )
   = case rr of 
-      L.ByInterval p Nothing -> 
+      L.ByInterval p mStartDate ->
           let 
-            diff = T.diffGregorianDurationClip (L.originDate oi) d 
-          in 
-            0 == mod (T.cdMonths diff) (fromIntegral (monthsOfPeriod p))
-      L.ByInterval p (Just startDate) -> 
-          let 
-            diff = T.diffGregorianDurationClip startDate d 
-          in 
-            0 == mod (T.cdMonths diff) (fromIntegral (monthsOfPeriod p))
-      L.MonthOfYear monthIndex -> 
+            _startDate =  fromMaybe (L.originDate oi) mStartDate
+            diff = T.diffGregorianDurationClip _startDate d
+          in
+            0 == mod (T.cdMonths diff) (fromIntegral ( monthsOfPeriod p))
+      L.MonthOfYear monthIndex ->
           let 
             (_,m,_) = T.toGregorian d
           in 
@@ -344,7 +340,7 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
             where 
                dAfter = foldl (performAction d) (t {accounts=accs}) waterfallToExe
                waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
-               accs = depositPoolInflow (collects t) d _poolFlow (accounts t) -- `debug` ("Deposit->"++show(d))
+               accs = depositPoolInflow (collects t) d _poolFlow (accounts t)  `debug` ("Deposit->"++show(d))
 
         RunWaterfall d waterfallName ->
           if callFlag  then
@@ -355,11 +351,11 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates clls
                 (Just _poolFlow)
                 (Just ads)
                 rates
-                clls) -- `debug` ("Deal waterfall action RunTime =>"++show(clls))
+                clls)  `debug` ("Deal waterfall action RunTime =>"++show(d))
           where
                waterfallToExe = (waterfall t) Map.! W.DistributionDay -- `debug` ("ADS->"++show(ads))
                dAfterWaterfall = (foldl (performAction d) t waterfallToExe)
-               dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates -- `debug` ("After Rate Set")
+               dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("After Rate Set")
                callOpts = fromMaybe [] clls
                callFlag = testCalls dAfterWaterfall d callOpts   -- `debug` ("Call Flag->"++show(callOpts))
 
@@ -541,7 +537,6 @@ getInits t (Just assumps) =
     projNum = 512
     bPayDates = map (\x -> RunWaterfall (afterNPeriod firstPayDate x bPayInt) "base") [0..projNum]
     pCollectionDates = map (\x -> (afterNPeriod startDate x pCollectionInt)) [0..projNum]
-    -- pCollectionDatesA = map (\x -> CollectPoolIncome x) pCollectionDates
     pCollectionDatesA = map (\x -> PoolCollection x "collection") pCollectionDates
 
     stopDate = find (\x -> case x of    
