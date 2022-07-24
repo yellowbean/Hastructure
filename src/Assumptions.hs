@@ -29,7 +29,7 @@ data AssumptionBuilder =  MortgageByAge ([Int],[Float])
                 | InterestRateConstant Index Float
                 | InterestRateCurve Index [(T.Day,Float)]
                 | PrepaymentByAging [(Int,Float)]
-                | CallWhen [C.CallOption]
+                | CallWhen ([C.CallOption],C.AssetLiquidationMethod,String) -- call options,liq method, account name
                 | StopRunBy T.Day
                 deriving (Show)
 
