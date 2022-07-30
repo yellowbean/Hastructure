@@ -40,12 +40,6 @@ instance FromJSONKey ActionWhen where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
 
-
---instance Hashable ActionWhen
---instance ToJSONKey ActionWhen
---instance GToJSONKey ActionWhen
---instance FromJSONKey ActionWhen
-
 $(deriveJSON defaultOptions ''ActionWhen)
 
 data PoolSource = CollectedInterest
@@ -58,8 +52,10 @@ data KeepReserve = TillSource
                  | TillTarget
                  deriving (Show)
 
-data Limit = DuePct Float
-            | DueCapAmt Float
+data Limit = DuePct Float  -- due fee
+            | DueCapAmt Float  -- due fee
+            | RemainBalPct L.DealStats Float -- pay till remain balance equals to a percentage of `stats`
+
             deriving (Show)
 
 data Formula = ABCD
@@ -77,6 +73,7 @@ data Action = Transfer AccountName AccountName (Maybe String)
              | PayFeeBy Limit [AccountName] [FeeName]
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
+             | PayPrinBy Limit AccountName BondName
              | PayTillYield AccountName [BondName]
              | PayResidual AccountName BondName
              | TransferReserve KeepReserve AccountName AccountName (Maybe String)

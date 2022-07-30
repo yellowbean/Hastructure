@@ -208,6 +208,9 @@ calc_p_i_flow_even evenPrin bal dates r
       size = length dates
       period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r ACT_360 | d <- [0..size-2]]
 
+data Loan = Loan OriginalInfo Balance Rate RemainTerms
+                deriving (Show)
+
 runPool2 :: Pool Mortgage -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
 runPool2 (Pool as _ asof) [] = map calcCashflow as
 runPool2 (Pool as _ asof) assumps = map (\x -> (projCashflow x asof assumps)) as

@@ -64,6 +64,7 @@ data DealStats =  CurrentBondBalance
               | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
               | CumulativeDefaultBalance T.Day
               | FutureCurrentPoolBalance T.Day
+              | FutureCurrentPoolDefaultBalance T.Day
               | FutureCurrentBondBalance T.Day
               | FutureCurrentBondFactor T.Day
               | FutureCurrentPoolFactor T.Day

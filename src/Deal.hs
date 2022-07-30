@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
-            ,calcDueFee,applicableAdjust) where
+            ,calcDueFee,applicableAdjust,performAction) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -208,6 +208,28 @@ performAction d t (W.PayResidual an bndName) =
     accMapAfterPay = Map.adjust (A.draw availBal d "Pay Int") an accMap
     bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
 
+performAction d t (W.PayPrinBy (W.RemainBalPct q pct) an bndName) =
+  t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
+  where
+    bndMap = (bonds t)
+    accMap = (accounts t)
+
+    availBal = A.accBalance $ accMap Map.! an
+    targetBnd = bndMap Map.! bndName
+    targetBndBal = L.bndBalance targetBnd
+
+    otherBndBal = (queryDeal t CurrentBondBalance) - targetBndBal
+
+    dueAmount = (1/(1-pct)) * ( targetBndBal * (1-pct) - (pct * otherBndBal))
+    actAmount = min availBal $ max dueAmount 0
+
+    accMapAfterPay = Map.adjust
+                        (A.draw actAmount d
+                                ("Pay Prin:"++show(q)++":"++show(pct)))
+                        an
+                        accMap
+    bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
+
 performAction d t (W.PayPrin an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
   where
@@ -221,9 +243,9 @@ performAction d t (W.PayPrin an bnds) =
     bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay  --
     bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
 
-    actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts `debug` ("bonds totoal due ->"++show(bndsDueAmts))
+    actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
     bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)
-    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid   `debug` ("pay prin->>>To"++show(bnds))
+    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d ("Pay Prin:"++show(bnds))) an accMap
@@ -621,25 +643,18 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd _fdDay fa 
      baseBal = queryDeal t (CurrentPoolCollectionInt calcDay)
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd Nothing fa _ _)
-  = f{ F.feeDue = amt * (fromIntegral (periodsBetween calcDay fs p)) , F.feeDueDate = Just calcDay }
+  = f{ F.feeDue = amt * (fromIntegral (periodsBetween calcDay fs p)) , F.feeDueDate = Just calcDay } `debug` ("New fee"++show(f))
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   | _fdDay == calcDay = f
-  | otherwise = if periodGap /= 0 then
-                  f { F.feeDue = (fd+(amt*(fromIntegral periodGap))) , F.feeDueDate = Just calcDay } `debug` ("Gap->"++show(fromIntegral periodGap))
-                else
-                  f
-                  where
-                  periodGap = periodsBetween calcDay _fdDay p
+  | periodGap == 0 = f
+  | otherwise = f { F.feeDue = (fd+(amt*(fromIntegral periodGap))) , F.feeDueDate = Just calcDay } `debug` ("Gap->"++show(fromIntegral periodGap))
+  where
+  periodGap = periodsBetween calcDay _fdDay p
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
   = b {L.bndDueInt = 0 }
-
---calcDueInt t calc_date b@(L.Bond bn L.Equity bo _ bond_bal _ _ intDue lstIntPay _ mStmt)
---  = b {L.bndDueInt = newDue }
---  where
---  newDue = maxBound :: Int
 
 calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ intDue lstIntPay _ mStmt)
   = b {L.bndDueInt = newDue }

@@ -21,6 +21,7 @@ data FeeType = AnnualRateFee DealStats Float
               |PctFee DealStats Float
               |FixFee
               |RecurFee Period Float
+              |Custom [(T.Day,Float)]
               deriving (Show,Eq)
 
 data Fee = Fee {

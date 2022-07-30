@@ -1,6 +1,9 @@
-module UT.DealTest(td)
+module UT.DealTest(td,waterfallTests)
+
 where
 
+import Test.Tasty
+import Test.Tasty.HUnit
 import Deal
 
 import qualified Accounts as A
@@ -27,7 +30,7 @@ td = TestDeal {
   ,D.payPeriod = Monthly
   ,D.collectPeriod = Monthly
   ,D.accounts = (Map.fromList
-  [("General", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
+  [("General", (A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
   })),
    ("Reserve", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
   }))
@@ -42,7 +45,7 @@ td = TestDeal {
                                 ,F.feeLastPaidDay = Nothing
                                 ,F.feeStmt = Nothing})])
   ,D.bonds = (Map.fromList [("A"
-                          ,L.Bond{
+                             ,L.Bond{
                               L.bndName="A"
                              ,L.bndType=L.Sequential
                              ,L.bndOriginInfo= L.OriginalInfo{
@@ -57,6 +60,22 @@ td = TestDeal {
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndStmt=Nothing})
+                             ,("B"
+                               ,L.Bond{
+                                L.bndName="B"
+                               ,L.bndType=L.Equity
+                               ,L.bndOriginInfo= L.OriginalInfo{
+                                                  L.originBalance=3000
+                                                  ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                  ,L.originRate= 0.08}
+                               ,L.bndInterestInfo= L.Fix 0.08
+                               ,L.bndBalance=500
+                               ,L.bndRate=0.08
+                               ,L.bndDuePrin=0.0
+                               ,L.bndDueInt=0.0
+                               ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                               ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                               ,L.bndStmt=Nothing})
                          ]
            )
   ,D.pool = P.Pool {P.assets=[P.Mortgage
@@ -84,3 +103,15 @@ td = TestDeal {
              ,W.Collect W.CollectedPrincipal "General"]
  ,D.call = Nothing
 }
+
+waterfallTests =  testGroup "Waterfall Tests"
+  [
+    let
+     afterAction = D.performAction (toDate "20220301") td $ W.PayPrinBy (W.RemainBalPct CurrentBondBalance  0.05) "General" "B"
+     afterBnd = (D.bonds afterAction) Map.! "B"
+     afterBndA = (D.bonds afterAction) Map.! "A"
+     afterAcc = (D.accounts afterAction) Map.! "General"
+    in
+      testCase "after pay till pct of deal bond balance" $
+      assertEqual "junior bond balance " [157.89471,3000] [(L.bndBalance afterBnd),(L.bndBalance afterBndA)]
+  ]
