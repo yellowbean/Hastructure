@@ -144,7 +144,7 @@ instance Asset Mortgage  where
               _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p cr) _remain_terms --  `debug` ("Remain Term"++show(_remain_terms))
               _new_prin = case prinPayType of
                              Level -> _pmt - _new_int
-                             Even -> (ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
+                             Even ->  _new_bal_after_ppy / (fromIntegral _remain_terms) --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
               _new_rec = _new_default * recovery_rate
               _new_loss = _new_default * ( 1 - recovery_rate )
               _end_bal = _new_bal_after_ppy - _new_prin
