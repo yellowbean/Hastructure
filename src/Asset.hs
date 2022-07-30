@@ -111,7 +111,7 @@ instance Asset Mortgage  where
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt) asOfDay assumps =
     CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0) (replicate cf_recovery_length 0.0)
     where
-      cf_dates = filter (\x -> x > asOfDay) $ getPaymentDates m
+      cf_dates = take rt $ filter (\x -> x > asOfDay) $ getPaymentDates m
       last_pay_date = (previousDate (head cf_dates) p)
       cf_dates_length = length cf_dates -- `debug` ("CF dates=>"++show(cf_dates))
       cf_recovery_length = cf_dates_length + recovery_lag
