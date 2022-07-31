@@ -344,24 +344,22 @@ testCalls t d opts = any (\x -> testCall t d x) opts -- `debug` ("testing call o
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
     -> Maybe [RateAssumption] -> Maybe ([C.CallOption],C.AssetLiquidationMethod,String)-> TestDeal
-run2 t (Just _poolFlow) (Just []) _ _    -- stop at a date
-  = (prepareDeal t) -- `debug` ("In B")-- `debug` "Preparing"
+run2 t _ (Just []) _ _   = (prepareDeal t)
 
-run2 t (Just _poolFlow) (Just (ad:ads)) rates calls
-  | ((CF.sizeCashFlowFrame _poolFlow) == 0) || ((length ads) == 0) = (prepareDeal t) -- `debug` "In A"
-  | ((CF.sizeCashFlowFrame _poolFlow) > 0) && (length ads > 0) -- `debug` ("in C with ad"++show(ad)++"Rest of Ads"++show(length ads))
-  = case ad of      
+run2 t poolFlow (Just (ad:ads)) rates calls
+  |  (length ads) == 0 = (prepareDeal t)  -- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
+  |  (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = (prepareDeal t) -- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
+  | otherwise
+  = case ad of
         PoolCollection d waterfallName ->
-            (run2 
-              dAfter
-              (CF.removeTsCashFlowFrameByDate _poolFlow d)
-              (Just ads)
-              rates
-              calls)
-            where 
-               dAfter = foldl (performAction d) (t {accounts=accs}) waterfallToExe
-               waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
-               accs = depositPoolInflow (collects t) d _poolFlow (accounts t)  `debug` ("Deposit->"++show(d))
+            case poolFlow of
+              Just _poolFlow ->
+                 (run2 dAfter (CF.removeTsCashFlowFrameByDate _poolFlow d) (Just ads) rates calls)
+                 where
+                    dAfter = foldl (performAction d) (t {accounts=accs}) waterfallToExe
+                    waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
+                    accs = depositPoolInflow (collects t) d _poolFlow (accounts t)  -- `debug` ("Deposit->"++show(d))
+              Nothing -> (run2 t poolFlow (Just ads) rates calls)
 
         RunWaterfall d waterfallName ->
           case calls of
@@ -369,22 +367,12 @@ run2 t (Just _poolFlow) (Just (ad:ads)) rates calls
                 if (testCalls dAfterWaterfall d callOpts) then
                   prepareDeal $ cleanUp lq d lqAcc t --  `debug` ("Called !"++show(d))
                 else
-                  (run2
-                     dAfterRateSet
-                     (Just _poolFlow)
-                     (Just ads)
-                     rates
-                     calls)
+                  (run2 dAfterRateSet poolFlow (Just ads) rates calls)
             Nothing ->
-               (run2
-                  dAfterRateSet
-                  (Just _poolFlow)
-                  (Just ads)
-                  rates
-                  Nothing)
+               (run2 dAfterRateSet poolFlow (Just ads) rates Nothing)
           where
                waterfallToExe = (waterfall t) Map.! W.DistributionDay -- `debug` ("ADS->"++show(ads))
-               dAfterWaterfall = (foldl (performAction d) t waterfallToExe)
+               dAfterWaterfall = (foldl (performAction d) t waterfallToExe)-- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
                dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("After Rate Set")
 
 
@@ -577,6 +565,9 @@ queryDeal t s =
         (queryDeal t CurrentBondBalance) / (queryDeal t OriginalBondBalance)
     PoolFactor -> 
         (queryDeal t CurrentPoolBalance) / (queryDeal t OriginalPoolBalance)
+
+    AllAccBalance ->
+        Map.foldr (\x acc -> (A.accBalance x)+acc) 0.0 (accounts t)
 
     FutureOriginalPoolBalance ->
       CF.mflowBalance $ head (CF.getTsCashFlowFrame _pool_cfs)

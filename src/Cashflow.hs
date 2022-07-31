@@ -186,15 +186,6 @@ tsDateLET td (CashFlow d _) = d <= td
 tsDateLET td (BondFlow d _ _ _) =  d <= td
 tsDateLET td (MortgageFlow d _ _ _ _ _ _ _) = d <= td
 
-
---splitTsRowByDates :: [TsRow] -> [T.Day] -> [TsRow] -> [TsRow]
---splitTsRowByDates accum _ [] = accum
---splitTsRowByDates accum ([]:day) ys = accum ++ (filter  (\x-> tsDate(x) <= day) ys)
---splitTsRowByDates accum (day:days) ys
---  = splitTsRowByDates (accum++ _xs ) days _ys
---     where
---       (_xs,_ys) = L.partition (tsDateLET day) ys
-
 aggTsByDates :: [TsRow] -> [T.Day] -> [TsRow]
 aggTsByDates trs ds =
   map (\(x,y) -> sumTsCF x y) (zip (reduceFn [] ds trs) ds)
