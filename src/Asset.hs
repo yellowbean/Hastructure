@@ -9,7 +9,7 @@ import Data.Time (Day)
 import qualified Data.Time as T
 import Lib (Period(..), Balance,calcInt,Dates,DayCount(..),calcIntRate,genDates
            ,Balance,Rate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate
-           ,getIntervalDays,zipWith8)
+           ,getIntervalDays,zipWith9,getValByDates,mkTs)
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
 import qualified Data.Map as Map
@@ -75,12 +75,13 @@ data Mortgage = Mortgage OriginalInfo Balance Rate RemainTerms
 
 instance Asset Mortgage  where
   calcCashflow m@(Mortgage (OriginalInfo ob or ot p sd ptype)  _bal _rate _term) =
-      CF.CashFlowFrame $ zipWith8
+      CF.CashFlowFrame $ zipWith9
                             CF.MortgageFlow
                               cf_dates
                               b_flow
                               prin_flow
                               int_flow
+                              (replicate l 0.0)
                               (replicate l 0.0)
                               (replicate l 0.0)
                               (replicate l 0.0)
@@ -109,21 +110,29 @@ instance Asset Mortgage  where
     = genDates sd p ot
 
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt) asOfDay assumps =
-    CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0) (replicate cf_recovery_length 0.0)
+    CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0) (replicate cf_recovery_length 0.0) rate_vector `debug` ("RV"++show(rate_vector))
     where
       cf_dates = take rt $ filter (\x -> x > asOfDay) $ getPaymentDates m
       last_pay_date = (previousDate (head cf_dates) p)
       cf_dates_length = length cf_dates -- `debug` ("CF dates=>"++show(cf_dates))
+      rate_vector = case or of
+                      Fix r ->  (replicate cf_dates_length r)
+                      Floater idx sprd _orate p mfloor ->
+                              case getRateAssumption assumps idx of
+                                Just (A.InterestRateCurve idx ps) ->  map (\x -> x+sprd)   $ getValByDates (mkTs ps) cf_dates
+                                Just (A.InterestRateConstant idx v) ->  map (\x -> x+sprd) $ replicate cf_dates_length v
+                                Nothing -> (replicate cf_dates_length 0.0)
+              -- Floater Index Spread Rate Period (Maybe Floor)
       cf_recovery_length = cf_dates_length + recovery_lag
       (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumpCurves (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0) 
                                (replicate cf_dates_length 0.0) 
                                0
                                0
-      initPmt = calcPmt cb (periodRateFromAnnualRate p cr) rt
+      --initPmt = calcPmt cb (periodRateFromAnnualRate p cr) rt
 
       _projCashflow 
-           trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) (_rec_amt:_rec_amts) (_loss_amt:_loss_amts)
+           trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) (_rate:_rates)
            | _bal > 0.01 = _projCashflow 
                                  (trs++[tr]) 
                                  _end_bal 
@@ -133,6 +142,7 @@ instance Asset Mortgage  where
                                  _ppy_rates 
                                  (replace _rec_amts recovery_lag _new_rec) -- `debug` ("Adding TR->>>"++show(tr))
                                  (replace _loss_amts recovery_lag _new_loss) -- `debug` ("Adding TR->>>"++show(tr))
+                                 _rates
            | otherwise = trs
            where
               _remain_terms = 1 + (length _pdates)
@@ -146,11 +156,11 @@ instance Asset Mortgage  where
                              Level -> _pmt - _new_int
                              Even ->  _new_bal_after_ppy / (fromIntegral _remain_terms) --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
               _new_rec = _new_default * recovery_rate
-              _new_loss = _new_default * ( 1 - recovery_rate )
+              _new_loss = _new_default * (1 - recovery_rate)
               _end_bal = _new_bal_after_ppy - _new_prin
-              tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default _rec_amt _loss_amt
+              tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default _rec_amt _loss_amt _rate
       
-      _projCashflow trs _bal _last_date [] _ _ _ _ = trs  -- `debug` ("Ending trs=>"++show(trs))
+      _projCashflow trs _bal _last_date [] _ _ _ _ _ = trs  -- `debug` ("Ending trs=>"++show(trs))
 
       buildAssumpCurves pDates (assump:assumps) _def_rates _ppy_rates _recovery_rate _recovery_lag =
          case assump of 
@@ -218,6 +228,13 @@ runPool2 (Pool as _ asof) assumps = map (\x -> (projCashflow x asof assumps)) as
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool asflows = foldr1 CF.combine asflows
 
+getRateAssumption :: [A.AssumptionBuilder] -> Index -> (Maybe A.AssumptionBuilder)
+getRateAssumption assumps idx
+  = find (\x ->
+            case x of
+             A.InterestRateCurve _idx vs -> if (idx == _idx) then True else False
+             A.InterestRateConstant _idx v -> if (idx == _idx) then True else False
+             _ -> False) assumps
 
 $(deriveJSON defaultOptions ''Mortgage)
 $(deriveJSON defaultOptions ''OriginalInfo)

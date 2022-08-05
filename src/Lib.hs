@@ -16,7 +16,8 @@ module Lib
     ,extractTxns,groupTxns,getTxns
     ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
     ,paySeqLiabilitiesAmt,getIntervalDays
-    ,zipWith8, pv2, monthsOfPeriod
+    ,zipWith8,zipWith9, pv2, monthsOfPeriod
+    ,weightedBy, getValByDates, mkTs
     ) where
 
 import qualified Data.Time as T
@@ -83,6 +84,7 @@ $(deriveJSON defaultOptions ''DealStats)
 $(deriveJSON defaultOptions ''Period)
 
 data Index = LPR5Y
+            | LPR1Y
             | LIBOR1M
             | LIBOR3M
             | LIBOR6M
@@ -309,6 +311,9 @@ data RateAssumption = RateCurve Index Ts
                     | RateFlat Index Float
                     deriving (Show)
 
+mkTs :: [(T.Day,Float)] -> Ts
+mkTs ps = FloatCurve [ (TsPoint d v)  | (d,v) <- ps]
+
 getValOnByDate :: Ts -> T.Day -> Float
 getValOnByDate (AmountCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
@@ -355,11 +360,17 @@ zipWith8 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs)
                    =  z a b c d e f g h : zipWith8 z as bs cs ds es fs gs hs
 zipWith8 _ _ _ _ _ _ _ _ _ = []
 
+zipWith9 :: (a->b->c->d->e->f->g->h->i->j) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]
+zipWith9 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js)
+                   =  z a b c d e f g h j : zipWith9 z as bs cs ds es fs gs hs js
+zipWith9 _ _ _ _ _ _ _ _ _ _ = []
+
 pv2 :: Float -> T.Day -> T.Day -> Float -> Float
 pv2 discount_rate today d amt =
     amt / (1+discount_rate)**((fromIntegral distance)/365)
   where
     distance = (T.diffDays d today)
 
-
+weightedBy :: [Float] -> [Float] -> Float
+weightedBy ws vs =  sum $ zipWith (*) ws vs
 

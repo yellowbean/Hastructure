@@ -16,7 +16,7 @@ import Data.Aeson.Types
 import qualified Data.Time as T
 
 
-data AssumptionBuilder =  MortgageByAge ([Int],[Float])
+data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Float
                 | PrepaymentCPR Float
@@ -38,7 +38,7 @@ data BondPricingInput = DiscountCurve T.Day Ts
 
 toPeriodRateByInterval :: Float -> Int -> Float
 toPeriodRateByInterval annualRate days
-  = 1 -  (1-annualRate) ** ((fromIntegral days)/365)
+  = 1 - (1-annualRate) ** ((fromIntegral days)/365)
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)
