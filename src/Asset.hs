@@ -150,8 +150,8 @@ instance Asset Mortgage  where
               _new_bal_after_default = _bal - _new_default
               _new_prepay = _new_bal_after_default * _ppy_rate
               _new_bal_after_ppy = _new_bal_after_default - _new_prepay
-              _new_int = _new_bal_after_ppy * calcIntRate _last_date _pdate cr ACT_360 -- `debug` ("Payment dates"++show(_pdate))
-              _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p cr) _remain_terms --  `debug` ("Remain Term"++show(_remain_terms))
+              _new_int = _new_bal_after_ppy * calcIntRate _last_date _pdate _rate ACT_360 -- `debug` ("Payment dates"++show(_pdate))
+              _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms --  `debug` ("Remain Term"++show(_remain_terms))
               _new_prin = case prinPayType of
                              Level -> _pmt - _new_int
                              Even ->  _new_bal_after_ppy / (fromIntegral _remain_terms) --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
