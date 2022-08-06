@@ -30,6 +30,7 @@ tests = testGroup "Tests" [accTests,stmtTests
                            ,CFT.cfTests
                            ,BT.pricingTests
                            ,LT.curveTests
+                           ,LT.queryStmtTests
                            ,ET.expTests
                            ,DT.waterfallTests]
 
