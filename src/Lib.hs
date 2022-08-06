@@ -75,7 +75,7 @@ data DealStats =  CurrentBondBalance
               | CurrentBondBalanceOf [String]
               | Max DealStats DealStats
               | Min DealStats DealStats
-              | Sum DealStats DealStats
+              | Sum [DealStats]
               deriving (Show,Eq)
 
 data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
@@ -263,7 +263,7 @@ queryStmtAmt (Just (Statement txns)) q =
   let
     resultTxns = filter (\txn -> (getTxnComment txn) =~ q)  txns
   in
-    foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns
+    abs $ foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns
 
 queryStmtAmt Nothing _ = 0
 

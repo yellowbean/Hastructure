@@ -59,6 +59,7 @@ data Limit = DuePct Float  -- due fee
             deriving (Show)
 
 data Formula = ABCD
+            | Sum L.DealStats
             | OtherFormula String
             deriving (Show)
 
