@@ -5,7 +5,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mkCashFlowFrame,mkColDay,mkColNum,mkColBal,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
-                ,mflowDefault,mflowLoss
+                ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,tsDefaultBal,getAllAfterCashFlowFrame
@@ -222,6 +222,8 @@ mflowLoss :: TsRow -> Float
 mflowLoss (MortgageFlow _ _ _ _ _ _ _ x _) = x
 mflowRate :: TsRow -> Float
 mflowRate (MortgageFlow _ _ _ _ _ _ _ _ x) = x
+mflowDate :: TsRow -> T.Day
+mflowDate (MortgageFlow x _ _ _ _ _ _ _ _) = x
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

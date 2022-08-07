@@ -3,6 +3,7 @@
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,calcCashflow,getCurrentBal,getOriginBal,runPool2
        ,RateType(..),projCashflow,MortgageAmortPlan(..)
+       ,Status(..)
 ) where
 
 import Data.Time (Day)
@@ -59,6 +60,12 @@ data MortgageAmortPlan = Level
                        | Even
               deriving (Show)
 
+data Status = Current
+            | Delinquency (Maybe Int)
+            | Defaulted (Maybe T.Day)
+            | Extended (Maybe T.Day)
+            deriving (Show)
+
 data OriginalInfo = OriginalInfo {
     originBalance::Float
     ,originRate:: RateType
@@ -70,11 +77,11 @@ data OriginalInfo = OriginalInfo {
 
 type RemainTerms = Int
 
-data Mortgage = Mortgage OriginalInfo Balance Rate RemainTerms
+data Mortgage = Mortgage OriginalInfo Balance Rate RemainTerms Status
                 deriving (Show)
 
 instance Asset Mortgage  where
-  calcCashflow m@(Mortgage (OriginalInfo ob or ot p sd ptype)  _bal _rate _term) =
+  calcCashflow m@(Mortgage (OriginalInfo ob or ot p sd ptype)  _bal _rate _term _) =
       CF.CashFlowFrame $ zipWith9
                             CF.MortgageFlow
                               cf_dates
@@ -96,21 +103,21 @@ instance Asset Mortgage  where
                                      Even -> calc_p_i_flow_even
                                               (ob / (fromIntegral ot)) ob cf_dates _rate --  `debug` ("Even Pay"++show((ob / (fromIntegral ot))))
 
-  getCurrentBal (Mortgage x _bal _ _) = _bal
+  getCurrentBal (Mortgage x _bal _ _ _) = _bal
 
-  getOriginBal (Mortgage (OriginalInfo _bal _ _ _ _ _ ) _ _ _ ) = _bal
+  getOriginBal (Mortgage (OriginalInfo _bal _ _ _ _ _ ) _ _ _ _) = _bal
 
-  getOriginRate (Mortgage (OriginalInfo _ or _ _ _ _ ) _ _ _ )
+  getOriginRate (Mortgage (OriginalInfo _ or _ _ _ _ ) _ _ _ _)
     = case or of
        Fix _r -> _r
        Floater _ _ _r _ Nothing -> _r
        Floater _ _ _r _ (Just floor) -> (max _r floor)
 
-  getPaymentDates (Mortgage (OriginalInfo _ _ ot p sd _) _ _ _ )
+  getPaymentDates (Mortgage (OriginalInfo _ _ ot p sd _) _ _ _ _)
     = genDates sd p ot
 
-  projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt) asOfDay assumps =
-    CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0) (replicate cf_recovery_length 0.0) rate_vector `debug` ("RV"++show(rate_vector))
+  projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt Current) asOfDay assumps =
+    CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0) (replicate cf_recovery_length 0.0) rate_vector -- `debug` ("RV"++show(rate_vector))
     where
       cf_dates = take rt $ filter (\x -> x > asOfDay) $ getPaymentDates m
       last_pay_date = (previousDate (head cf_dates) p)
@@ -183,6 +190,10 @@ instance Asset Mortgage  where
              _ -> buildAssumpCurves pDates assumps _def_rates _ppy_rates _recovery_rate _recovery_lag
       buildAssumpCurves pDates [] _def_rates _ppy_rates _recovery_rate _recovery_lag = (_def_rates,_ppy_rates,_recovery_rate,_recovery_lag)
 
+  projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt _ ) asOfDay assumps
+    = CF.CashFlowFrame [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr]
+
+
 _calc_p_i_flow :: Float -> [Balance] -> [Float] -> [Float] -> [Rate] -> (CF.Balances,CF.Principals,CF.Interests)
 _calc_p_i_flow pmt bals ps is [] = (bals,ps,is)
 _calc_p_i_flow pmt bals ps is (r:rs)
@@ -237,6 +248,7 @@ getRateAssumption assumps idx
              _ -> False) assumps
 
 $(deriveJSON defaultOptions ''Mortgage)
+$(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''RateType)
 $(deriveJSON defaultOptions ''Pool)

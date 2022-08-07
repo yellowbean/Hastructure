@@ -15,11 +15,15 @@ debug = flip trace
 
 tm = P.Mortgage
      (P.OriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Level)
-     8000 0.08 19
+     8000 0.08 19 P.Current
 
 tm1 = P.Mortgage
      (P.OriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
-     240 0.08 19
+     240 0.08 19 P.Current
+
+tm2 = P.Mortgage
+     (P.OriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
+     240 0.08 19 (P.Defaulted Nothing)
 
 asOfDate = L.toDate "20210605"
 tmcf_00 = P.projCashflow tm asOfDate []
@@ -43,6 +47,19 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
         trs = CF.getTsCashFlowFrame tm1cf_00
      in
         assertEqual "first row" 10.0  (CF.mflowPrincipal (head trs)) -- `debug` ("result"++show(tmcf_00))
+     ,
+     testCase "Default asset won't have cashflow if no assumption" $
+     let
+        asDay = (L.toDate "20220101")
+        tm2cf_00 = P.projCashflow tm2 asDay  []
+        trs = CF.getTsCashFlowFrame tm2cf_00
+     in
+        assertEqual "Empty for principal"
+                    -- [0.0, asDay, 1]
+                    (0.0, asDay, 1)
+                    ((CF.mflowPrincipal (head trs))
+                    ,(CF.mflowDate (head trs))
+                    ,(length trs))
 
      --testCase "Even Principal Type of Mortgage proj with assumption" $
      --let

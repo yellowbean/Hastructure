@@ -793,7 +793,8 @@ td = TestDeal {
                                            ,P.prinType= P.Level}
                                          4000
                                          0.085
-                                         60]
+                                         60
+                                         P.Current]
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1}
    ,waterfall = Map.fromList [(W.DistributionDay, [
