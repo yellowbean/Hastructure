@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
-            ,calcDueFee,applicableAdjust,performAction) where
+            ,calcDueFee,applicableAdjust,performAction,queryDeal) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -559,6 +559,10 @@ queryDeal t s =
        Map.foldr (\x acc -> (L.originBalance (L.bndOriginInfo x)) + acc) 0.0 (bonds t)
     CurrentPoolBalance ->
        foldl (\acc x -> (acc + (P.getCurrentBal x))) 0.0 (P.assets (pool t))
+    CurrentPoolDefaultedBalance ->
+       foldl (\acc x -> (acc + (P.getCurrentBal x)))
+             0.0 $
+             filter (\a-> P.isDefaulted a ) (P.assets (pool t))
     OriginalPoolBalance ->
        foldl (\acc x -> (acc + (P.getOriginBal x))) 0.0 (P.assets (pool t))
     BondFactor -> 
@@ -594,9 +598,13 @@ queryDeal t s =
             Nothing -> 0
 
     CumulativeDefaultBalance asOfDay ->
-        case (P.futureCf (pool t)) of
-          Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))
-          Nothing -> 0.0
+        let
+          futureDefaults = case (P.futureCf (pool t)) of
+                             Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))
+                             Nothing -> 0.0
+          currentDefaults = queryDeal t CurrentPoolDefaultedBalance
+        in
+          futureDefaults + currentDefaults
 
     CurrentBondBalanceOf bns ->
        let

@@ -3,7 +3,7 @@
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,calcCashflow,getCurrentBal,getOriginBal,runPool2
        ,RateType(..),projCashflow,MortgageAmortPlan(..)
-       ,Status(..)
+       ,Status(..),isDefaulted
 ) where
 
 import Data.Time (Day)
@@ -34,6 +34,7 @@ class Asset a where
   getCurrentBal :: a -> Float
   getOriginBal :: a -> Float
   getOriginRate :: a -> Float
+  isDefaulted :: a -> Bool
   getPaymentDates :: a -> [T.Day]
   projCashflow :: a -> T.Day -> [A.AssumptionBuilder] -> CF.CashFlowFrame
 
@@ -115,6 +116,9 @@ instance Asset Mortgage  where
 
   getPaymentDates (Mortgage (OriginalInfo _ _ ot p sd _) _ _ _ _)
     = genDates sd p ot
+
+  isDefaulted (Mortgage _ _ _ _ (Defaulted _)) = True
+  isDefaulted (Mortgage _ _ _ _ _) = False
 
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt Current) asOfDay assumps =
     CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0) (replicate cf_recovery_length 0.0) rate_vector -- `debug` ("RV"++show(rate_vector))

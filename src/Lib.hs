@@ -58,6 +58,7 @@ data Period = Daily
 
 data DealStats =  CurrentBondBalance
               | CurrentPoolBalance
+              | CurrentPoolDefaultedBalance
               | OriginalBondBalance
               | OriginalPoolBalance
               | BondFactor
@@ -300,12 +301,12 @@ instance Eq Txn where
     = d1 == d2
 
 data TsPoint a = TsPoint T.Day a
-                deriving (Show)
+                deriving (Show,Eq)
 
 data Ts = FloatCurve [(TsPoint Float)]
          |BoolCurve [(TsPoint Bool)]
          |AmountCurve [(TsPoint Float)]
-         deriving (Show)
+         deriving (Show,Eq)
 
 data RateAssumption = RateCurve Index Ts
                     | RateFlat Index Float

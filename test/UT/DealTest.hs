@@ -1,4 +1,4 @@
-module UT.DealTest(td,waterfallTests)
+module UT.DealTest(td,waterfallTests,queryTests)
 
 where
 
@@ -89,7 +89,20 @@ td = TestDeal {
                                          4000
                                          0.085
                                          60
-                                         P.Current]
+                                         P.Current
+                                ,P.Mortgage
+                                   P.OriginalInfo{
+                                     P.originBalance=4000
+                                     ,P.originRate=P.Fix 0.085
+                                     ,P.originTerm=60
+                                     ,P.period=Monthly
+                                     ,P.startDate=(T.fromGregorian 2022 1 1)
+                                     ,P.prinType= P.Level}
+                                   200
+                                   0.085
+                                   60
+                                   (P.Defaulted Nothing)
+                                 ]
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1}
    ,D.waterfall = Map.fromList [(W.DistributionDay, [
@@ -115,4 +128,13 @@ waterfallTests =  testGroup "Waterfall Tests"
     in
       testCase "after pay till pct of deal bond balance" $
       assertEqual "junior bond balance " [157.89471,3000] [(L.bndBalance afterBnd),(L.bndBalance afterBndA)]
+  ]
+
+queryTests =  testGroup "deal stat query Tests"
+  [
+    let
+     currentDefBal = D.queryDeal td CurrentPoolDefaultedBalance
+    in
+     testCase "query current assets in defaulted status" $
+     assertEqual "should be 200" 200 currentDefBal
   ]

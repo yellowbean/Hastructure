@@ -6,7 +6,7 @@ module Expense (Fee(..),FeeType(..),payFee)
   where
 
 import Lib(DayCount,Period,paySeqLiabilities,Dates,DealStats
-           ,appendStmt,Statement,Txn(..))
+           ,appendStmt,Statement,Txn(..),Ts(..))
 import Data.Traversable
 import Language.Haskell.TH
 
@@ -18,11 +18,11 @@ import           Data.Aeson.Types
 import qualified Data.ByteString.Lazy.Char8 as L
 
 data FeeType = AnnualRateFee DealStats Float
-              |PctFee DealStats Float
-              |FixFee
-              |RecurFee Period Float
-              |Custom [(T.Day,Float)]
-              deriving (Show,Eq)
+             | PctFee DealStats Float
+             | FixFee
+             | RecurFee Period Float
+             | Custom Ts
+             deriving (Show,Eq)
 
 data Fee = Fee {
   feeName :: String

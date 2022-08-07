@@ -32,7 +32,8 @@ tests = testGroup "Tests" [accTests,stmtTests
                            ,LT.curveTests
                            ,LT.queryStmtTests
                            ,ET.expTests
-                           ,DT.waterfallTests]
+                           ,DT.waterfallTests
+                           ,DT.queryTests]
 
 accTests = testGroup "Account Tests"
   [testCase "Draw" $
