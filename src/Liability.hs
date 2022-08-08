@@ -17,7 +17,7 @@ import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
            ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance
-           ,toDate,pv2,)
+           ,toDate,pv2,daysBetween)
 import Data.List (findIndex,zip6)
 
 import Debug.Trace
@@ -106,14 +106,14 @@ type Duration = Float
 type Yield = Float
 type AccruedInterest = Float
 
-data PriceResult 
-  = PriceResult Valuation PerFace WAL Duration -- valuation,wal,accu,duration
+data PriceResult = PriceResult Valuation PerFace WAL Duration -- valuation,wal,accu,duration
     deriving (Show,Eq)
+
 data YieldResult = Yield
 
 pv :: Ts -> T.Day -> T.Day -> Float -> Float
 pv rc today d amt = 
-    amt / (1+discount_rate)**((fromIntegral distance)/365)  -- `debug` ("discount_rate"++show(discount_rate)++" dist"++show(distance))
+    amt / (1+discount_rate)**((fromIntegral distance)/365) -- `debug` ("discount_rate"++show(discount_rate)++" dist days=>"++show(distance))
     where
         discount_rate = getValByDate rc d
         distance = (T.diffDays d today)
@@ -129,17 +129,22 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal _ _) _ bal _ _ _ _ _ (Just (Statem
   = PriceResult
      presentValue
      (100*presentValue/obal)
-     ((foldr (\x acc ->  (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x)))) 0 futureCf) / 365 / bal)
+     ((foldr (\x acc ->
+               (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x))))
+             0
+             futureCf)  / 365 / cutoffBalance)
      (foldr (\x acc ->
                (((fromIntegral (T.diffDays (getTxnDate x) d))/365) * ((pv rc d (getTxnDate x)  (getTxnAmt x)) / presentValue)) + acc)
             0
-            futureCf)
+            futureCf)  -- `debug` ("Cutoff balance"++show(cutoffBalance))
      where
        futureCf = filter (\x -> (getTxnDate x) > d) txns
        presentValue = foldr (\x acc -> acc + (pv rc d (getTxnDate x) (getTxnAmt x)) ) 0 futureCf
        cutoffBalance = case (getTxnAsOf txns d) of
-                          Nothing -> bal    -- TODO edge case not covered
-                          Just _txn -> getTxnBalance _txn
+                          Nothing ->  (getTxnBalance fstTxn) + (getTxnPrincipal fstTxn)
+                                     where
+                                      fstTxn = head txns
+                          Just _txn -> getTxnBalance _txn  --`debug` ("Found"++show(_txn))
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0
 
@@ -174,9 +179,9 @@ backoutDueIntByYield2 d b@(Bond _ _ (OriginalInfo obal odate _)
                            (InterestByYield y) currentBalance _ _ _ _ _ stmt)
                        initAmt
   = if abs(diff_irr) < 0.0001 then
-        (initAmt - obal)   `debug` ("Return->"++show(initAmt - obal))
+        (initAmt - obal)  -- `debug` ("Return->"++show(initAmt - obal))
     else
-        backoutDueIntByYield2 d b nextAmount  `debug` ("NextAmt=>"++show(nextAmount)++show(b)++show(d))
+        backoutDueIntByYield2 d b nextAmount  -- `debug` ("NextAmt=>"++show(nextAmount)++show(b)++show(d))
     where
      nextAmount = if diff_irr > 0 then
                        initAmt * 1.02

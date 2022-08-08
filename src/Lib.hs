@@ -4,7 +4,7 @@
 
 module Lib
     (Rate,Dates,Period(..),calcInt,calcIntRate,Balance,DayCount(..)
-    ,genDates,StartDate,EndDate,LastIntPayDate
+    ,genDates,StartDate,EndDate,LastIntPayDate,daysBetween
     ,Spread,Index(..)
     ,paySeqLiabilities,prorataFactors,periodToYear
     ,afterNPeriod,DealStats(..),Ts(..),periodsBetween
@@ -400,4 +400,8 @@ pv2 discount_rate today d amt =
 
 weightedBy :: [Float] -> [Float] -> Float
 weightedBy ws vs =  sum $ zipWith (*) ws vs
+
+daysBetween :: T.Day -> T.Day -> Integer
+daysBetween sd ed = (fromIntegral (T.diffDays sd ed))
+
 

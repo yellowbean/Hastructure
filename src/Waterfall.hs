@@ -30,6 +30,7 @@ type AccountName = String
 
 data ActionWhen = EndOfPoolCollection
                 | DistributionDay
+                | CleanUp
                 deriving (Show,Ord,Eq,Generic,Read)
 
 instance ToJSONKey ActionWhen where

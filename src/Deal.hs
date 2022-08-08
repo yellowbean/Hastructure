@@ -820,7 +820,8 @@ td = TestDeal {
                                  ,W.TransferReserve W.TillSource  "General" "General" Nothing
                                  ,W.TransferReserve W.TillTarget  "General" "General" Nothing
                                  ,W.PayInt "General" ["A"]
-                                 ,W.PayPrin "General" ["A"]])]
+                                 ,W.PayPrin "General" ["A"]])
+                               ,(W.CleanUp, [])]
  ,collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
  ,call = Just ([C.PoolFactor 0.08],C.BalanceFactor 1.0 0.5)
