@@ -642,7 +642,16 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd _fdDay fa 
      baseBal = queryDeal t (CurrentPoolCollectionInt calcDay)
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd Nothing fa _ _)
-  = f{ F.feeDue = amt * (fromIntegral (periodsBetween calcDay fs p)) , F.feeDueDate = Just calcDay } `debug` ("New fee"++show(f))
+  = f{ F.feeDue = amt * (fromIntegral (periodsBetween calcDay fs p)) , F.feeDueDate = Just calcDay } -- `debug` ("New fee"++show(f))
+
+calcDueFee t calcDay f@(F.Fee fn (F.Custom ts)  fs fd Nothing fa mflpd _)
+  = f{ F.feeDue = newFeeDue
+      ,F.feeDueDate = Just calcDay
+      ,F.feeType = (F.Custom futureDue)} -- `debug` ("New fee"++show(f))
+    where
+      newFeeDue =  cumulativeDue + fd
+      (currentNewDue,futureDue) = splitTsByDate ts calcDay
+      cumulativeDue = sumValTs currentNewDue
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   | _fdDay == calcDay = f

@@ -12,7 +12,7 @@ module Lib
     ,appendStmt,periodRateFromAnnualRate
     ,queryStmtAmt,previousDate,inSamePeriod
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
-    ,getValByDate,getValOnByDate
+    ,getValByDate,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,extractTxns,groupTxns,getTxns
     ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
     ,paySeqLiabilitiesAmt,getIntervalDays
@@ -308,6 +308,11 @@ data Ts = FloatCurve [(TsPoint Float)]
          |AmountCurve [(TsPoint Float)]
          deriving (Show,Eq)
 
+instance Ord a => Ord (TsPoint a) where
+  compare (TsPoint d1 tv1) (TsPoint d2 tv2)
+    = compare d1 d2
+
+
 data RateAssumption = RateCurve Index Ts
                     | RateFlat Index Float
                     deriving (Show)
@@ -331,6 +336,27 @@ getValByDate (FloatCurve dps) d
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
+
+splitTsByDate :: Ts -> T.Day -> (Ts, Ts)
+splitTsByDate (AmountCurve ds) d
+  = case (findIndex (\(TsPoint _d _) -> _d >= d ) ds) of
+      Nothing -> (AmountCurve ds, AmountCurve [])
+      Just idx -> (AmountCurve l, AmountCurve r)
+                  where
+                   (l,r) = splitAt idx ds
+
+subTsBetweenDates :: Ts -> Maybe T.Day -> Maybe T.Day -> Ts
+subTsBetweenDates (AmountCurve vs) (Just sd) (Just ed)
+  =  AmountCurve $ filter(\(TsPoint x _) -> (x > sd) && (x < ed) ) vs
+subTsBetweenDates (AmountCurve vs) Nothing (Just ed)
+  =  AmountCurve $ filter(\(TsPoint x _) ->  x < ed ) vs
+subTsBetweenDates (AmountCurve vs) (Just sd) Nothing
+  =  AmountCurve $ filter(\(TsPoint x _) ->  x > sd ) vs
+
+sumValTs :: Ts -> Float
+sumValTs (AmountCurve ds) = foldr (\(TsPoint _ v) acc -> acc+v ) 0 ds
+
+
 
 getValByDates :: Ts -> [T.Day] -> [Float]
 getValByDates rc ds = map (getValByDate rc) ds
