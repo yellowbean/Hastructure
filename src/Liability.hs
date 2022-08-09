@@ -130,9 +130,9 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal _ _) _ bal _ _ _ _ _ (Just (Statem
      presentValue
      (100*presentValue/obal)
      ((foldr (\x acc ->
-               (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x))))
+               (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x)/365)))
              0
-             futureCf)  / 365 / cutoffBalance)
+             futureCf)  / cutoffBalance)
      (foldr (\x acc ->
                (((fromIntegral (T.diffDays (getTxnDate x) d))/365) * ((pv rc d (getTxnDate x)  (getTxnAmt x)) / presentValue)) + acc)
             0

@@ -81,7 +81,7 @@ performAction d t (W.TransferBy an1 an2 formula) =
                   - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"\\|ABCD"))
         _ -> -1
 
-    transferAmt = min formulaAmount (A.accBalance sourceAcc) `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
+    transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
 
     accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++show(formula))) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++show(formula))) an2 accMapAfterDraw

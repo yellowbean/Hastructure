@@ -114,8 +114,8 @@ instance Asset Mortgage  where
        Floater _ _ _r _ Nothing -> _r
        Floater _ _ _r _ (Just floor) -> (max _r floor)
 
-  getPaymentDates (Mortgage (OriginalInfo _ _ ot p sd _) _ _ _ _)
-    = genDates sd p ot
+  getPaymentDates (Mortgage (OriginalInfo _ _ ot p sd _) _ _ ct _)
+    = genDates sd p (ot+ct)
 
   isDefaulted (Mortgage _ _ _ _ (Defaulted _)) = True
   isDefaulted (Mortgage _ _ _ _ _) = False
@@ -124,7 +124,7 @@ instance Asset Mortgage  where
     CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_recovery_length 0.0) (replicate cf_recovery_length 0.0) rate_vector -- `debug` ("RV"++show(rate_vector))
     where
       cf_dates = take rt $ filter (\x -> x > asOfDay) $ getPaymentDates m
-      last_pay_date = (previousDate (head cf_dates) p)
+      last_pay_date = (previousDate (head cf_dates) p) `debug` ("RT->"++show(rt)++" cf-dates "++show(cf_dates))
       cf_dates_length = length cf_dates -- `debug` ("CF dates=>"++show(cf_dates))
       rate_vector = case or of
                       Fix r ->  (replicate cf_dates_length r)
