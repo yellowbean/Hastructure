@@ -20,6 +20,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Float
                 | PrepaymentCPR Float
+                | PrepaymentCPRCurve [Float]
                 | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
                 | DefaultConstant Float
                 | DefaultCDR Float
@@ -29,7 +30,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | InterestRateConstant Index Float
                 | InterestRateCurve Index [(T.Day,Float)]
                 | PrepaymentByAging [(Int,Float)]
-                | CallWhen ([C.CallOption],C.AssetLiquidationMethod,String) -- call options,liq method, account name
+                | CallWhen [C.CallOption]
                 | StopRunBy T.Day
                 deriving (Show)
 

@@ -22,6 +22,7 @@ import Asset (Mortgage, Pool)
 import Expense
 import Liability
 import qualified Lib as L
+import qualified Call as C
 
 
 type FeeName = String
@@ -57,6 +58,7 @@ data Limit = DuePct Float  -- due fee
             | DueCapAmt Float  -- due fee
             | RemainBalPct L.DealStats Float -- pay till remain balance equals to a percentage of `stats`
 
+
             deriving (Show)
 
 data Formula = ABCD
@@ -73,12 +75,14 @@ data Action = Transfer AccountName AccountName (Maybe String)
              | TransferBy AccountName AccountName Formula
              | PayFee [AccountName] [FeeName]
              | PayFeeBy Limit [AccountName] [FeeName]
+             | PayFeeResidual (Maybe Limit) AccountName FeeName
              | PayInt AccountName [BondName]
              | PayPrin AccountName [BondName]
              | PayPrinBy Limit AccountName BondName
              | PayTillYield AccountName [BondName]
-             | PayResidual AccountName BondName
+             | PayResidual (Maybe Limit) AccountName BondName
              | TransferReserve KeepReserve AccountName AccountName (Maybe String)
+             | LiquidatePool C.LiquidationMethod AccountName
              deriving (Show)
 
 type DistributionSeq = [Action]

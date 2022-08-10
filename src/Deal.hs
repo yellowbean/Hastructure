@@ -47,7 +47,7 @@ data TestDeal = TestDeal {
   ,pool ::  (P.Pool P.Mortgage)
   ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
   ,collects :: [W.CollectionRule]
-  ,call :: Maybe ([C.CallOption],C.AssetLiquidationMethod)
+  ,call :: Maybe [C.CallOption]
 } deriving (Show)
 
 $(deriveJSON defaultOptions ''TestDeal)
@@ -197,16 +197,32 @@ performAction d t (W.PayInt an bnds) =
 performAction d t (W.PayTillYield an bnds) =
     performAction d t (W.PayInt an bnds)
 
-performAction d t (W.PayResidual an bndName) =
+performAction d t (W.PayResidual Nothing an bndName) =
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
-    bndMap = (bonds t)
-    accMap = (accounts t)
+    bndMap = bonds t
+    accMap = accounts t
 
     availBal = A.accBalance $ accMap Map.! an
 
     accMapAfterPay = Map.adjust (A.draw availBal d "Pay Int") an accMap
     bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
+
+performAction d t (W.PayFeeResidual limit an feeName) =
+  t {accounts = accMapAfterPay, fees = feeMapAfterPay}
+  where
+    feeMap = fees t
+    accMap = accounts t
+
+    availBal = A.accBalance $ accMap Map.! an
+    paidOutAmt = case limit of
+                   Just (W.DuePct pct) ->  pct * availBal
+                   Just (W.DueCapAmt cap) ->  min cap availBal
+                   Nothing -> availBal
+
+
+    accMapAfterPay = Map.adjust (A.draw paidOutAmt d "Pay Fee") an accMap
+    feeMapAfterPay = Map.adjust (F.payFee d paidOutAmt) feeName feeMap
 
 performAction d t (W.PayPrinBy (W.RemainBalPct q pct) an bndName) =
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
@@ -250,6 +266,12 @@ performAction d t (W.PayPrin an bnds) =
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d ("Pay Prin:"++show(bnds))) an accMap
 
+performAction d t (W.LiquidatePool lm an) =
+  t {accounts = accMapAfterLiq } -- TODO need to remove assets
+  where
+    liqAmt = calcLiquidationAmount lm (pool t) d
+    accMap = accounts t
+    accMapAfterLiq = Map.adjust (A.deposit liqAmt d ("Liquidation Proceeds:"++show lm)) an accMap
 
 data ActionOnDate = CollectPoolIncome T.Day
                    |RunWaterfall T.Day String
@@ -343,7 +365,7 @@ testCalls t d [] = False
 testCalls t d opts = any (\x -> testCall t d x) opts -- `debug` ("testing call options")
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
-    -> Maybe [RateAssumption] -> Maybe ([C.CallOption],C.AssetLiquidationMethod,String)-> TestDeal
+    -> Maybe [RateAssumption] -> Maybe ([C.CallOption])-> TestDeal
 run2 t _ (Just []) _ _   = (prepareDeal t)
 
 run2 t poolFlow (Just (ad:ads)) rates calls
@@ -363,15 +385,17 @@ run2 t poolFlow (Just (ad:ads)) rates calls
 
         RunWaterfall d waterfallName ->
           case calls of
-            Just (callOpts,lq,lqAcc) ->
+            Just callOpts ->
                 if (testCalls dAfterWaterfall d callOpts) then
-                  prepareDeal $ cleanUp lq d lqAcc t --  `debug` ("Called !"++show(d))
+                  prepareDeal $ foldl (performAction d) t cleanUpActions
+                  -- prepareDeal $ liquidatePool lq d lqAcc t --  `debug` ("Called !"++show(d))
                 else
                   (run2 dAfterRateSet poolFlow (Just ads) rates calls)
             Nothing ->
                (run2 dAfterRateSet poolFlow (Just ads) rates Nothing)
           where
-               waterfallToExe = (waterfall t) Map.! W.DistributionDay -- `debug` ("ADS->"++show(ads))
+               waterfallToExe = Map.findWithDefault [] W.DistributionDay (waterfall t)
+               cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)
                dAfterWaterfall = (foldl (performAction d) t waterfallToExe)-- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
                dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("After Rate Set")
 
@@ -384,7 +408,7 @@ run2 t Nothing Nothing Nothing Nothing
 run2 t Nothing _ _ _ = (prepareDeal t) -- `debug` "End ????"
 
 
-calcLiquidationAmount :: C.AssetLiquidationMethod -> (P.Pool a) -> T.Day -> Float
+calcLiquidationAmount :: C.LiquidationMethod -> (P.Pool a) -> T.Day -> Float
 calcLiquidationAmount alm pool d 
   = case alm of 
       C.BalanceFactor currentFactor defaultFactor ->
@@ -413,8 +437,8 @@ calcLiquidationAmount alm pool d
                 in 
                   currentDefaulBal * recoveryPct + pvCf 
 
-cleanUp :: C.AssetLiquidationMethod -> T.Day -> String -> TestDeal -> TestDeal
-cleanUp lq d accName t = 
+liquidatePool :: C.LiquidationMethod -> T.Day -> String -> TestDeal -> TestDeal
+liquidatePool lq d accName t =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
      proceeds = calcLiquidationAmount lq (pool t) d
@@ -489,10 +513,10 @@ buildRateCurves rs (assump:assumps) =
         dsToTs ds = FloatCurve $ map (\(d,f) -> (TsPoint d f) ) ds
 buildRateCurves rs [] = rs
 
-buildCallOptions :: Maybe ([C.CallOption],C.AssetLiquidationMethod,String) -> [AP.AssumptionBuilder] -> Maybe ([C.CallOption],C.AssetLiquidationMethod,String)
+buildCallOptions :: Maybe [C.CallOption] -> [AP.AssumptionBuilder] -> Maybe [C.CallOption]
 buildCallOptions rs (assump:assumps) =
     case assump of  
-      AP.CallWhen (opts,lq,accName) -> buildCallOptions (Just (opts,lq,accName)) assumps --`debug` ("assump in build"++show(assumps))
+      AP.CallWhen opts -> buildCallOptions (Just opts) assumps --`debug` ("assump in build"++show(assumps))
       _ -> buildCallOptions rs assumps
 
 buildCallOptions Nothing [] =  Nothing
@@ -508,7 +532,7 @@ setFutureCF t cf =
 
 
 getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] -> 
-    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe ([C.CallOption],C.AssetLiquidationMethod,String)
+    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption]
       ,TestDeal)
 getInits t (Just assumps) =
     (actionDates
@@ -821,10 +845,10 @@ td = TestDeal {
                                  ,W.TransferReserve W.TillTarget  "General" "General" Nothing
                                  ,W.PayInt "General" ["A"]
                                  ,W.PayPrin "General" ["A"]])
-                               ,(W.CleanUp, [])]
+                               ,(W.CleanUp, [W.LiquidatePool (C.BalanceFactor 1.0 0.2) "A"])]
  ,collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
- ,call = Just ([C.PoolFactor 0.08],C.BalanceFactor 1.0 0.5)
+ ,call = Just [C.PoolFactor 0.08]
 }
 
 

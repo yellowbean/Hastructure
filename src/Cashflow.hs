@@ -72,7 +72,7 @@ data CashFlowFrame = CashFlowFrame [TsRow]
                 -- |MortgageFrame [MortgageFlow]
 
 mkRow :: [ColType] -> TsRow
-mkRow ((ColDate d):(ColBal b):(ColNum prin):(ColNum i):(ColNum pre):(ColBal def_b):(ColNum rec):(ColNum los):(ColNum rat):[])
+mkRow (ColDate d:ColBal b:ColNum prin:ColNum i:ColNum pre:ColBal def_b:ColNum rec:ColNum los:ColNum rat:[])
   = MortgageFlow d b prin i pre def_b rec los rat
 
 mkCashFlowFrame :: [[ColType]] -> CashFlowFrame
@@ -84,19 +84,19 @@ sizeCashFlowFrame (CashFlowFrame ts) = length ts
 getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
 getTsCashFlowFrame (CashFlowFrame ts) = ts
 
-removeTsCashFlowFrameByDate :: CashFlowFrame -> T.Day -> (Maybe CashFlowFrame)
+removeTsCashFlowFrameByDate :: CashFlowFrame -> T.Day -> Maybe CashFlowFrame
 removeTsCashFlowFrameByDate (CashFlowFrame trs) d =
   let
-    r = filter (\x -> (tsDate x) /= d) trs
+    r = filter (\x -> tsDate x /= d) trs
   in
-    if (length r)==0 then
+    if null r then
       Nothing
     else
       Just (CashFlowFrame r)
 
 getSingleTsCashFlowFrame :: CashFlowFrame -> T.Day -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame trs) d
-  = head $ filter (\x -> (tsDate x) == d) trs
+  = head $ filter (\x -> tsDate x == d) trs
 
 getEarlierTsCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe TsRow
 getEarlierTsCashFlowFrame (CashFlowFrame trs) d
@@ -107,22 +107,22 @@ getAllAfterCashFlowFrame cf@(CashFlowFrame trx) d
   = CashFlowFrame (getTxnAfter cf d)
 
 getTxnAsOf :: CashFlowFrame -> T.Day -> [TsRow]
-getTxnAsOf (CashFlowFrame txn) d = filter (\x -> (tsDate x) <= d) txn
+getTxnAsOf (CashFlowFrame txn) d = filter (\x -> tsDate x <= d) txn
 
 getTxnAfter :: CashFlowFrame -> T.Day -> [TsRow]
-getTxnAfter (CashFlowFrame txn) d = filter (\x -> (tsDate x) > d) txn
+getTxnAfter (CashFlowFrame txn) d = filter (\x -> tsDate x > d) txn
 
 getTxnLatestAsOf :: CashFlowFrame -> T.Day -> Maybe TsRow
-getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> (tsDate x) <= d) $ reverse txn
+getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> tsDate x <= d) $ reverse txn
 
 mkColDay :: [T.Day] -> [ColType]
-mkColDay ds = [ (ColDate _d) | _d <- ds ]
+mkColDay ds = [ ColDate _d | _d <- ds ]
 
 mkColNum :: [Float] -> [ColType]
-mkColNum ds = [ (ColNum _d) | _d <- ds ]
+mkColNum ds = [ ColNum _d | _d <- ds ]
 
 mkColBal :: [Float] -> [ColType]
-mkColBal ds = [ (ColBal _d) | _d <- ds ]
+mkColBal ds = [ ColBal _d | _d <- ds ]
 
 addTs :: TsRow -> TsRow -> TsRow
 addTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))

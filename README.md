@@ -10,7 +10,7 @@
 * Integration
   * Built-in REST API services :heavy_check_mark:
     * Language independent, can be integrated to various programming language stack.
-  * Docker Support :worker:
+  * Docker Support (W.I.P)
 * Asset class coverage
   * Mortgage  :heavy_check_mark:
   * Student Loan
@@ -45,6 +45,7 @@
   * Pool / Bond balanced based fees  :heavy_check_mark:
   * Pool Interest pct :heavy_check_mark:
   * Fix Amount Fees  :heavy_check_mark:
+  * Custom Fee Flow :heavy_check_mark:
 
 ### Online Demo
 
