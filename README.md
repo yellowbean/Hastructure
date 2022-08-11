@@ -46,6 +46,8 @@
   * Pool Interest pct :heavy_check_mark:
   * Fix Amount Fees  :heavy_check_mark:
   * Custom Fee Flow :heavy_check_mark:
+* Scenario Analysis
+  * Running multiple scenarios
 
 ### Online Demo
 

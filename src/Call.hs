@@ -12,10 +12,10 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 
 data LiquidationMethod = BalanceFactor Float Float -- by performing & default
-                            | BalanceFactor2 Float Float Float -- by performing/delinq/default factor
-                            | PV Float Float -- discount factor, recovery on default
-                            | Custom Float -- custom amount
-                            deriving (Show)
+                       | BalanceFactor2 Float Float Float -- by performing/delinq/default factor
+                       | PV Float Float -- discount factor, recovery on default
+                       | Custom Float -- custom amount
+                       deriving (Show)
 
 data CallOption = PoolBalance Float
                 | BondBalance Float

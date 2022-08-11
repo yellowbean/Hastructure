@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval)
+module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
+                    ,AssumptionInput(..))
 
  where
 
@@ -16,11 +17,17 @@ import Data.Aeson.Types
 import qualified Data.Time as T
 
 
+type AssumptionLists = [AssumptionBuilder]
+
+data AssumptionInput = Single AssumptionLists
+                     | Multiple [AssumptionLists]
+                     deriving (Show)
+
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Float
                 | PrepaymentCPR Float
-                | PrepaymentCPRCurve [Float]
+                | PrepaymentCPRCurve [Float]     -- this will ignore the payment interval
                 | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
                 | DefaultConstant Float
                 | DefaultCDR Float
@@ -43,3 +50,4 @@ toPeriodRateByInterval annualRate days
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)
+$(deriveJSON defaultOptions ''AssumptionInput)

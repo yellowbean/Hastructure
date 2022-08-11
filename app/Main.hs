@@ -35,11 +35,19 @@ data RunDealReq = RunDealReq {
 }
 $(deriveJSON defaultOptions ''RunDealReq)
 
+data RunDealReq2 = RunDealReq2 {
+  _deal :: D.TestDeal
+  ,_assump :: Maybe AP.AssumptionInput
+  ,_bondPricing :: Maybe AP.BondPricingInput
+}
+$(deriveJSON defaultOptions ''RunDealReq2)
+
 
 data App = App
 
 mkYesod "App" [parseRoutes|
  /run_deal2 RunDealR POST OPTIONS
+ /run_deal RunDeal2R POST OPTIONS
  /version VersionR GET
 |]
 
@@ -49,10 +57,36 @@ instance Yesod App where
 postRunDealR :: Handler Value -- D.TestDeal
 postRunDealR =  do
   runReq <- requireCheckJsonBody :: Handler RunDealReq
-  returnJson $ D.runDeal (deal runReq) D.DealPoolFlowPricing (assump runReq) (bondPricing runReq) -- `debug` "Getting Request"
+  returnJson $
+      D.runDeal
+         (deal runReq)
+         D.DealPoolFlowPricing
+         (assump runReq)
+         (bondPricing runReq)
 
 optionsRunDealR :: Handler String -- D.TestDeal
 optionsRunDealR = do
+  addHeader "Access-Control-Allow-Origin" "*"
+  addHeader "Access-Control-Allow-Methods" "OPTIONS"
+  return "Good"
+
+postRunDeal2R :: Handler Value -- D.TestDeal
+postRunDeal2R =  do
+  runReq <- requireCheckJsonBody :: Handler RunDealReq2
+  case (_assump runReq) of
+    Just (AP.Single aps) -> returnJson $
+                               D.runDeal (_deal runReq) D.DealPoolFlowPricing (Just aps) (_bondPricing runReq)
+    Nothing -> returnJson $
+                 D.runDeal (_deal runReq) D.DealPoolFlowPricing Nothing (_bondPricing runReq)
+    Just (AP.Multiple apss) -> returnJson $
+                                map
+                                  (\x ->
+                                     D.runDeal (_deal runReq) D.DealPoolFlowPricing (Just x) (_bondPricing runReq))
+                                apss
+
+
+optionsRunDeal2R :: Handler String -- D.TestDeal
+optionsRunDeal2R = do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "OPTIONS"
   return "Good"

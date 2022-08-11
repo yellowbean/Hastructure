@@ -492,7 +492,7 @@ runDeal t er assumps bpi =
     DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns(finalDeal)),Nothing)
   where
     bndPricing = case bpi of
-                   Nothing -> Nothing    `debug` ("pricing bpi with Nothing")
+                   Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)   -- `debug` ("Pricing result")
     finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls  -- `debug` (">>ADS==>> "++show(ads))
     (ads,pcf,rcurves,calls,t2) = getInits t assumps

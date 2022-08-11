@@ -133,14 +133,13 @@ instance Asset Mortgage  where
                                 Just (A.InterestRateCurve idx ps) ->  map (+sprd)   $ getValByDates (mkTs ps) cf_dates
                                 Just (A.InterestRateConstant idx v) ->  map (+sprd) $ replicate cf_dates_length v
                                 Nothing -> (replicate cf_dates_length 0.0)
-              -- Floater Index Spread Rate Period (Maybe Floor)
+
       cf_recovery_length = cf_dates_length + recovery_lag
       (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumpCurves (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0) 
                                (replicate cf_dates_length 0.0) 
                                0
                                0
-      --initPmt = calcPmt cb (periodRateFromAnnualRate p cr) rt
 
       _projCashflow 
            trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) (_rate:_rates)
