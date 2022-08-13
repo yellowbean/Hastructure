@@ -39,7 +39,10 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | PrepaymentByAging [(Int,Float)]
                 | CallWhen [C.CallOption]
                 | StopRunBy T.Day
+                | EvenRecoveryOnDefault Float Int
                 deriving (Show)
+
+-- getAssumption :: [AssumptionBuilder] -> AssumptionBuilder
 
 data BondPricingInput = DiscountCurve T.Day Ts
                 deriving (Show)

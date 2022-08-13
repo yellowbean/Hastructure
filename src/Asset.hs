@@ -62,9 +62,9 @@ data MortgageAmortPlan = Level
               deriving (Show)
 
 data Status = Current
-            | Delinquency (Maybe Int)
             | Defaulted (Maybe T.Day)
-            | Extended (Maybe T.Day)
+            -- | Delinquency (Maybe Int)
+            -- | Extended (Maybe T.Day)
             deriving (Show)
 
 data OriginalInfo = OriginalInfo {
@@ -80,6 +80,16 @@ type RemainTerms = Int
 
 data Mortgage = Mortgage OriginalInfo Balance Rate RemainTerms Status
                 deriving (Show)
+-- trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) (_rate:_rates)
+
+--data MortgageAssumption = Simple [Float] [Float] (Float,Int) -- default rate , prepayment rate, recovery rate, recovery lag
+--                        | Deq [Float] [Float] (Float,Int) -- delinquency rate, default rate , prepayment rate, recovery rate, recovery lag
+--                        | DeqStatus [Float] [Float] (Float,Int)
+--
+---- project cashflow with different input assumptions
+--projCashflow :: Mortgage -> [[Float]] -> [[Float]]
+--projCashflow m v
+--  =
 
 instance Asset Mortgage  where
   calcCashflow m@(Mortgage (OriginalInfo ob or ot p sd ptype)  _bal _rate _term _) =
@@ -195,9 +205,26 @@ instance Asset Mortgage  where
              _ -> buildAssumpCurves pDates assumps _def_rates _ppy_rates _recovery_rate _recovery_lag
       buildAssumpCurves pDates [] _def_rates _ppy_rates _recovery_rate _recovery_lag = (_def_rates,_ppy_rates,_recovery_rate,_recovery_lag)
 
-  projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt _ ) asOfDay assumps
-    = CF.CashFlowFrame [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr]
+  projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted _) ) asOfDay assumps
+    = CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr]
+    --  where
 
+    --    totalRecovery = cb * rrate
+    --    _projCashflow trs (_pdate:_pdates) (_rec_amt:_rec_amts) (_loss_amt:_loss_amts)
+    --      = _projCashflow (trs++(CF.MortgageFlow _pdate cb 0 0 0 0 _rec_amt _loss_amt cr))
+    --                      new_bal
+    --                      _pdates
+    --                      _pdates
+
+
+    --        where
+    --          new_bal = _bal - _rec_amt - _loss_amt
+
+    --   recovery_lag = 10
+    --   recovery_rate = 0.5
+    --   total_recovery_amt = cb * recovery_rate
+    --   recoveries = replicate recovery_lag $ (total_recovery_amt / recovery_lag)
+    --   cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) $ getPaymentDates m
 
 _calc_p_i_flow :: Float -> [Balance] -> [Float] -> [Float] -> [Rate] -> (CF.Balances,CF.Principals,CF.Interests)
 _calc_p_i_flow pmt bals ps is [] = (bals,ps,is)

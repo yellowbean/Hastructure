@@ -77,8 +77,8 @@ performAction d t (W.TransferBy an1 an2 formula) =
     formulaAmount =
       case formula of
         W.ABCD -> (queryDeal t (CumulativeDefaultBalance d))
-                  + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1))
-                  - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"\\|ABCD"))
+                   + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1))
+                   - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD"))
         _ -> -1
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
@@ -495,7 +495,7 @@ runDeal t er assumps bpi =
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)   -- `debug` ("Pricing result")
     finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls  -- `debug` (">>ADS==>> "++show(ads))
-    (ads,pcf,rcurves,calls,t2) = getInits t assumps
+    (ads,pcf,rcurves,calls,t2) = getInits t assumps  `debug` "Init Pool"
 
 prepareDeal :: TestDeal -> TestDeal 
 prepareDeal t = t {bonds = Map.map L.consolStmt (bonds t)}
@@ -680,7 +680,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.Custom ts)  fs fd Nothing fa mflpd _)
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   | _fdDay == calcDay = f
   | periodGap == 0 = f
-  | otherwise = f { F.feeDue = (fd+(amt*(fromIntegral periodGap))) , F.feeDueDate = Just calcDay } `debug` ("Gap->"++show(fromIntegral periodGap))
+  | otherwise = f { F.feeDue = (fd+(amt*(fromIntegral periodGap))) , F.feeDueDate = Just calcDay } -- `debug` ("Gap->"++show(fromIntegral periodGap))
   where
   periodGap = periodsBetween calcDay _fdDay p
 

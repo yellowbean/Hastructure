@@ -85,6 +85,7 @@ test-suite Hastructure-test
   type: exitcode-stdio-1.0
   main-is: MainTest.hs
   other-modules:
+      Performance.Main
       UT.AssetTest
       UT.BondTest
       UT.CashflowTest

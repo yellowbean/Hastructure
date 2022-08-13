@@ -12,7 +12,9 @@ import GHC.Generics
 import qualified Deal as D
 import qualified Asset as P
 import qualified Assumptions as AP
+
 import Data.ByteString.Lazy.Char8 (unpack)
+import qualified Data.ByteString.Lazy as B
 
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
@@ -70,7 +72,7 @@ optionsRunDealR = do
   addHeader "Access-Control-Allow-Methods" "OPTIONS"
   return "Good"
 
-postRunDeal2R :: Handler Value -- D.TestDeal
+postRunDeal2R :: Handler Value
 postRunDeal2R =  do
   runReq <- requireCheckJsonBody :: Handler RunDealReq2
   case (_assump runReq) of

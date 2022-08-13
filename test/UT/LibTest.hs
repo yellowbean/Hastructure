@@ -29,13 +29,12 @@ queryStmtTests = testGroup "queryStmtTest"
     stmt1 = Statement [
              AccTxn (toDate "20200101") 100 (-12) "To:D|ABCD"
              ,AccTxn (toDate "20200101") 100 10 ""
-             ,AccTxn (toDate "20200101") 100 (-20) "To:C|ABCD"
-             ]
-    r1 = queryStmtAmt (Just stmt1) "To:D\\|ABCD"
-    r2 = queryStmtAmt (Just stmt1) "To:[A-Z]\\|ABCD"
+             ,AccTxn (toDate "20200101") 100 (-20) "To:C|ABCD" ]
+    r1 = queryStmtAmt (Just stmt1) "To:D|ABCD"
+    --r2 = queryStmtAmt (Just stmt1) "To:[A-Z]\\|ABCD"
    in
-    testCase "Query With Regex" $
+    testCase "Query With Plain String" $
     assertEqual "Simple String Comment"
-             [r1,r2 ]
-             [12,32 ]
+             [r1 ]
+             [12 ]
   ]
