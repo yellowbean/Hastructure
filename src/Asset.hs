@@ -3,11 +3,14 @@
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,calcCashflow,getCurrentBal,getOriginBal,runPool2
        ,RateType(..),projCashflow,MortgageAmortPlan(..)
-       ,Status(..),isDefaulted
+       ,Status(..),isDefaulted,IssuanceFields(..)
 ) where
 
 import Data.Time (Day)
 import qualified Data.Time as T
+import qualified Data.Text as Text
+import Text.Read (readMaybe)
+
 import Lib (Period(..), Balance,calcInt,Dates,DayCount(..),calcIntRate,genDates
            ,Balance,Rate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate
            ,getIntervalDays,zipWith9,getValByDates,mkTs)
@@ -38,9 +41,22 @@ class Asset a where
   getPaymentDates :: a -> [T.Day]
   projCashflow :: a -> T.Day -> [A.AssumptionBuilder] -> CF.CashFlowFrame
 
+data IssuanceFields = IssuanceBalance
+                    deriving (Show,Ord,Eq,Read)
+
+instance ToJSONKey IssuanceFields where
+  toJSONKey = toJSONKeyText (Text.pack . show)
+
+instance FromJSONKey IssuanceFields where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+
+
 data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
-                   ,asOfDate :: T.Day}
+                   ,asOfDate :: T.Day
+                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Float)}
                     deriving (Show)
 
 calcPmt :: Float -> Float -> Int -> Float
@@ -265,8 +281,8 @@ data Loan = Loan OriginalInfo Balance Rate RemainTerms
                 deriving (Show)
 
 runPool2 :: Pool Mortgage -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
-runPool2 (Pool as _ asof) [] = map calcCashflow as
-runPool2 (Pool as _ asof) assumps = map (\x -> projCashflow x asof assumps) as
+runPool2 (Pool as _ asof _) [] = map calcCashflow as
+runPool2 (Pool as _ asof _) assumps = map (\x -> projCashflow x asof assumps) as
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool = foldr1 CF.combine 
@@ -285,3 +301,4 @@ $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''RateType)
 $(deriveJSON defaultOptions ''Pool)
 $(deriveJSON defaultOptions ''MortgageAmortPlan)
+$(deriveJSON defaultOptions ''IssuanceFields)

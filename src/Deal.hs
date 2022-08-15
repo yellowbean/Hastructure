@@ -96,14 +96,14 @@ performAction d t (W.TransferReserve meetAcc sa ta tags) =
     targetAccBal = (A.accBalance targetAcc) 
     transferAmt = 
         case meetAcc of 
-             W.TillSource -> 
+             W.Source ->
                  let 
-                     sourceTarBal = calcTargetAmount t sourceAcc
+                     sourceTarBal = calcTargetAmount t d sourceAcc
                  in 
                      max (sourceAccBal - sourceTarBal ) 0
-             W.TillTarget ->
+             W.Target ->
                  let 
-                   targetBal = calcTargetAmount t targetAcc
+                   targetBal = calcTargetAmount t d targetAcc
                    transferAmtTarget = max (targetBal - targetAccBal) 0
                  in 
                      min transferAmtTarget sourceAccBal
@@ -588,7 +588,11 @@ queryDeal t s =
              0.0 $
              filter (\a-> P.isDefaulted a ) (P.assets (pool t))
     OriginalPoolBalance ->
-       foldl (\acc x -> (acc + (P.getOriginBal x))) 0.0 (P.assets (pool t))
+       -- foldl (\acc x -> (acc + (P.getOriginBal x))) 0.0 (P.assets (pool t))
+       case (P.issuanceStat (pool t)) of
+         Just m -> Map.findWithDefault (-2) P.IssuanceBalance m
+         Nothing -> (-1)
+
     BondFactor -> 
         (queryDeal t CurrentBondBalance) / (queryDeal t OriginalBondBalance)
     PoolFactor -> 
@@ -753,14 +757,16 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
 calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _) =
   b {L.bndDuePrin = bond_bal }
 
-calcTargetAmount :: TestDeal -> A.Account -> Float
-calcTargetAmount t (A.Account _ n i (Just r) _ ) =
+calcTargetAmount :: TestDeal -> T.Day -> A.Account -> Float
+calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
    eval r
    where
      eval ra = case ra of
-       A.PctReserve ds _rate -> (queryDeal t ds) * _rate
+       A.PctReserve CurrentPoolBalance _rate -> (queryDeal t (FutureCurrentPoolBalance d)) * _rate
+       A.PctReserve ds _rate -> (queryDeal t ds) * _rate --`debug` ("DQ"++show(ds)++"Q"++show(queryDeal t ds)++"A"++show(_rate))
        A.FixReserve amt -> amt
        A.Max ra1 ra2 -> max (eval ra1) (eval ra2)
+       A.Min ra1 ra2 -> min (eval ra1) (eval ra2)
 
 depositPoolInflow :: [W.CollectionRule] -> T.Day -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolInflow rules d cf amap =
@@ -795,6 +801,10 @@ td = TestDeal {
   [("General", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
   })),
    ("Reserve", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
+  }))
+   ,("ReservePCT", (A.Account { A.accName="General" ,A.accBalance=0.0
+   ,A.accType=Just (A.PctReserve (FutureCurrentPoolBalance (T.fromGregorian 2022 2 25) ) 500)
+   , A.accInterest=Nothing ,A.accStmt=Nothing
   }))
   ])
   ,fees = (Map.fromList [("Service-Fee"
@@ -837,12 +847,14 @@ td = TestDeal {
                                          60
                                          P.Current]
                  ,P.futureCf=Nothing
-                 ,P.asOfDate = T.fromGregorian 2022 1 1}
+                 ,P.asOfDate=T.fromGregorian 2022 1 1
+                 ,P.issuanceStat= Just (Map.fromList [(P.IssuanceBalance,4000)])
+                 }
    ,waterfall = Map.fromList [(W.DistributionDay, [
                                  W.PayFee ["General"] ["Service-Fee"]
                                  ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
-                                 ,W.TransferReserve W.TillSource  "General" "General" Nothing
-                                 ,W.TransferReserve W.TillTarget  "General" "General" Nothing
+                                 ,W.TransferReserve W.Source  "General" "General" Nothing
+                                 ,W.TransferReserve W.Target  "General" "General" Nothing
                                  ,W.PayInt "General" ["A"]
                                  ,W.PayPrin "General" ["A"]])
                                ,(W.CleanUp, [W.LiquidatePool (C.BalanceFactor 1.0 0.2) "A"])]
