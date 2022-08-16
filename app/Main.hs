@@ -8,16 +8,19 @@ module Main where
 import Data.Aeson       hiding (json)
 import Data.Monoid      ((<>))
 import Data.Text        (Text, pack)
+import Data.Yaml as Y
 import GHC.Generics
 import qualified Deal as D
 import qualified Asset as P
 import qualified Assumptions as AP
 
-import Data.ByteString.Lazy.Char8 (unpack)
+import qualified Data.ByteString.Lazy.Char8 as C8
 import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Char8 as BS
 
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
+import Data.Maybe
 import Data.Aeson.TH
 import Data.Aeson.Types
 
@@ -100,11 +103,20 @@ getVersionR =  do
   return "{\"version\":\"0.0.1\"}"
 
 
+data Config = Config { port :: Int}
+            deriving  (Show,Generic)
+instance FromJSON Config
+
 main :: IO ()
 main =
   do
+   config <- BS.readFile "config.yml"
+   let mc = Y.decode config :: Maybe Config
+   let (Config _p) = case mc of 
+                     Nothing -> Config 8082
+                     Just c -> c
    app <- toWaiApp App
-   run 8081 $ defaultMiddlewaresNoLogging
+   run _p $ defaultMiddlewaresNoLogging
             $ cors (const $ Just $ simpleCorsResourcePolicy
                                     { corsOrigins = Nothing
                                     , corsMethods = ["OPTIONS", "GET", "PUT", "POST"]

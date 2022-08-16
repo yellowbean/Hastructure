@@ -57,6 +57,7 @@ executables:
     - yesod
     - http-types
     - template-haskell
+    - yaml
     # - jsonschema-gen
     # - timeseries
 

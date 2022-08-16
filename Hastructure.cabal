@@ -78,6 +78,7 @@ executable Hastructure-exe
     , wai
     , wai-cors
     , warp
+    , yaml
     , yesod
   default-language: Haskell2010
 
