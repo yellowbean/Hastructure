@@ -108,8 +108,8 @@ td = TestDeal {
    ,D.waterfall = Map.fromList [(W.DistributionDay, [
                                  W.PayFee ["General"] ["Service-Fee"]
                                  ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
-                                 ,W.TransferReserve W.TillSource  "General" "General" Nothing
-                                 ,W.TransferReserve W.TillTarget  "General" "General" Nothing
+                                 ,W.TransferReserve W.Source  "General" "General" Nothing
+                                 ,W.TransferReserve W.Target  "General" "General" Nothing
                                  ,W.PayInt "General" ["A"]
                                  ,W.PayPrin "General" ["A"]
    ])]
