@@ -95,7 +95,8 @@ data OriginalInfo = OriginalInfo {
 type RemainTerms = Int
 
 data Mortgage = Mortgage OriginalInfo Balance Rate RemainTerms Status
-                deriving (Show)
+              | ScheduleMortgageFlow [CF.TsRow]
+              deriving (Show)
 -- trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) (_rate:_rates)
 
 --data MortgageAssumption = Simple [Float] [Float] (Float,Int) -- default rate , prepayment rate, recovery rate, recovery lag
@@ -106,6 +107,31 @@ data Mortgage = Mortgage OriginalInfo Balance Rate RemainTerms Status
 --projCashflow :: Mortgage -> [[Float]] -> [[Float]]
 --projCashflow m v
 --  =
+buildAssumptionRate :: [T.Day]-> [A.AssumptionBuilder] -> [Float] -> [Float] -> Float -> Int -> ([Float],[Float],Float,Int)
+buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
+       A.DefaultConstant r ->
+           buildAssumptionRate pDates assumps (replicate cf_dates_length r) _ppy_rates _recovery_rate _recovery_lag
+       A.PrepaymentConstant r ->
+           buildAssumptionRate pDates assumps _def_rates (replicate cf_dates_length r) _recovery_rate _recovery_lag
+       A.Recovery (rr,rl) ->
+           buildAssumptionRate pDates assumps _def_rates _ppy_rates rr rl
+       A.DefaultCDR r ->
+           buildAssumptionRate pDates assumps (map (A.toPeriodRateByInterval r)
+                                                 (getIntervalDays pDates))
+                                            _ppy_rates _recovery_rate _recovery_lag
+       A.PrepaymentCPR r -> -- TODO need to convert to annualized rate
+           buildAssumptionRate pDates assumps _def_rates
+                                            (map (A.toPeriodRateByInterval r)
+                                                 (getIntervalDays pDates))
+                                            _recovery_rate _recovery_lag
+       A.PrepaymentCPRCurve vs ->
+           buildAssumptionRate pDates assumps _def_rates vs _recovery_rate _recovery_lag
+
+       _ -> buildAssumptionRate pDates assumps _def_rates _ppy_rates _recovery_rate _recovery_lag
+   where
+     cf_dates_length = length pDates
+
+buildAssumptionRate pDates [] _def_rates _ppy_rates _recovery_rate _recovery_lag = (_def_rates,_ppy_rates,_recovery_rate,_recovery_lag)
 
 instance Asset Mortgage  where
   calcCashflow m@(Mortgage (OriginalInfo ob or ot p sd ptype)  _bal _rate _term _) =
@@ -129,6 +155,7 @@ instance Asset Mortgage  where
                                      Level -> calc_p_i_flow _bal pmt cf_dates _rate
                                      Even ->  calc_p_i_flow_even
                                                (ob / fromIntegral ot) ob cf_dates _rate --  `debug` ("Even Pay"++show((ob / (fromIntegral ot))))
+  calcCashflow s@(ScheduleMortgageFlow flows) = CF.CashFlowFrame flows
 
   getCurrentBal (Mortgage x _bal _ _ _) = _bal
 
@@ -161,8 +188,9 @@ instance Asset Mortgage  where
                                 Nothing -> (replicate cf_dates_length 0.0)
 
       cf_recovery_length = cf_dates_length + recovery_lag
-      (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumpCurves (last_pay_date:cf_dates) assumps
-                               (replicate cf_dates_length 0.0) 
+      -- (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumpCurves (last_pay_date:cf_dates) assumps
+      (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
+                               (replicate cf_dates_length 0.0)
                                (replicate cf_dates_length 0.0) 
                                0
                                0
@@ -198,29 +226,6 @@ instance Asset Mortgage  where
       
       _projCashflow trs _bal _last_date [] _ _ _ _ _ = trs  -- `debug` ("Ending trs=>"++show(trs))
 
-      buildAssumpCurves pDates (assump:assumps) _def_rates _ppy_rates _recovery_rate _recovery_lag =
-         case assump of 
-             A.DefaultConstant r -> 
-                 buildAssumpCurves pDates assumps (replicate cf_dates_length r) _ppy_rates _recovery_rate _recovery_lag
-             A.PrepaymentConstant r -> 
-                 buildAssumpCurves pDates assumps _def_rates (replicate cf_dates_length r) _recovery_rate _recovery_lag
-             A.Recovery (rr,rl) ->
-                 buildAssumpCurves pDates assumps _def_rates _ppy_rates rr rl
-             A.DefaultCDR r ->
-                 buildAssumpCurves pDates assumps (map (A.toPeriodRateByInterval r)
-                                                       (getIntervalDays pDates))
-                                                  _ppy_rates _recovery_rate _recovery_lag
-             A.PrepaymentCPR r -> -- TODO need to convert to annualized rate
-                 buildAssumpCurves pDates assumps _def_rates
-                                                  (map (A.toPeriodRateByInterval r)
-                                                       (getIntervalDays pDates))
-                                                  _recovery_rate _recovery_lag
-             A.PrepaymentCPRCurve vs ->
-                 buildAssumpCurves pDates assumps _def_rates vs _recovery_rate _recovery_lag
-
-             _ -> buildAssumpCurves pDates assumps _def_rates _ppy_rates _recovery_rate _recovery_lag
-      buildAssumpCurves pDates [] _def_rates _ppy_rates _recovery_rate _recovery_lag = (_def_rates,_ppy_rates,_recovery_rate,_recovery_lag)
-
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted _) ) asOfDay assumps
     = CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr]
     --  where
@@ -241,6 +246,21 @@ instance Asset Mortgage  where
     --   total_recovery_amt = cb * recovery_rate
     --   recoveries = replicate recovery_lag $ (total_recovery_amt / recovery_lag)
     --   cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) $ getPaymentDates m
+
+  projCashflow (ScheduleMortgageFlow flows) asOfDay assumps
+    = CF.CashFlowFrame $ flows
+     where
+       cf_dates_length = length flows
+       cf_dates = map CF.tsDate flows
+       last_pay_date = previousDate (head cf_dates) Lib.Monthly -- TODO hard code to Monthly
+       (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
+                              (replicate cf_dates_length 0.0)
+                              (replicate cf_dates_length 0.0)
+                              0
+                              0
+--instance Asset ScheduleMortgageFlow  where
+--  calcCashflow (ScheduleMortgageFlow flow) = CF.CashFlowFrame flow
+
 
 _calc_p_i_flow :: Float -> [Balance] -> [Float] -> [Float] -> [Rate] -> (CF.Balances,CF.Principals,CF.Interests)
 _calc_p_i_flow pmt bals ps is [] = (bals,ps,is)

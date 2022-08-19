@@ -17,7 +17,7 @@ module Lib
     ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
     ,paySeqLiabilitiesAmt,getIntervalDays
     ,zipWith8,zipWith9, pv2, monthsOfPeriod
-    ,weightedBy, getValByDates, mkTs
+    ,weightedBy, getValByDates, mkTs, DealStatus(..)
     ) where
 
 import qualified Data.Time as T
@@ -78,6 +78,12 @@ data DealStats =  CurrentBondBalance
               | Min DealStats DealStats
               | Sum [DealStats]
               deriving (Show,Eq)
+
+data DealStatus = EventOfAccelerate (Maybe T.Day)
+                | EventOfDefault (Maybe T.Day)
+                | Current
+                | Ended
+                | Revolving
 
 data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
 
@@ -305,9 +311,9 @@ instance Eq Txn where
 data TsPoint a = TsPoint T.Day a
                 deriving (Show,Eq)
 
-data Ts = FloatCurve [(TsPoint Float)]
-         |BoolCurve [(TsPoint Bool)]
-         |AmountCurve [(TsPoint Float)]
+data Ts = FloatCurve [TsPoint Float]
+         |BoolCurve [TsPoint Bool]
+         |AmountCurve [TsPoint Float]
          deriving (Show,Eq)
 
 instance Ord a => Ord (TsPoint a) where
@@ -320,7 +326,7 @@ data RateAssumption = RateCurve Index Ts
                     deriving (Show)
 
 mkTs :: [(T.Day,Float)] -> Ts
-mkTs ps = FloatCurve [ (TsPoint d v)  | (d,v) <- ps]
+mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
 
 getValOnByDate :: Ts -> T.Day -> Float
 getValOnByDate (AmountCurve dps) d 

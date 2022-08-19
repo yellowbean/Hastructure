@@ -29,7 +29,7 @@ import Data.Aeson.Types
 import Debug.Trace
 debug = flip trace
 
-_startDate = (T.fromGregorian 1970 1 1)
+_startDate = T.fromGregorian 1970 1 1
 
 class SPV a where
   projBondCashflow :: a -> ()
@@ -44,7 +44,7 @@ data TestDeal = TestDeal {
   ,accounts :: Map.Map String A.Account
   ,fees :: Map.Map String F.Fee
   ,bonds :: Map.Map String L.Bond
-  ,pool ::  (P.Pool P.Mortgage)
+  ,pool ::  P.Pool P.Mortgage
   ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
   ,collects :: [W.CollectionRule]
   ,call :: Maybe [C.CallOption]
@@ -56,21 +56,19 @@ performAction :: T.Day -> TestDeal -> W.Action -> TestDeal
 performAction d t (W.Transfer an1 an2 tags) =
   t {accounts = accMapAfterDeposit}
   where
-    accMap = (accounts t)
+    accMap = accounts t
     sourceAcc = Map.lookup an1 accMap
     transferAmt = case sourceAcc of
                     Just acc -> (A.accBalance acc)
                     Nothing -> 0
-    _tags = case tags of
-              Just x -> x
-              Nothing -> ""
+    _tags = fromMaybe "" tags
     accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++_tags)) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++_tags)) an2 accMapAfterDraw
 
 performAction d t (W.TransferBy an1 an2 formula) =
   t {accounts = accMapAfterDeposit}
   where
-    accMap = (accounts t)
+    accMap = accounts t
     sourceAcc = accMap Map.! an1
     targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
 
@@ -83,17 +81,17 @@ performAction d t (W.TransferBy an1 an2 formula) =
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
 
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++show(formula))) an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++show(formula))) an2 accMapAfterDraw
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++show formula )) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++show formula )) an2 accMapAfterDraw
 
 performAction d t (W.TransferReserve meetAcc sa ta tags) =
     t {accounts = accMapAfterTransfer }
   where
-    accMap = (accounts t)
+    accMap = accounts t
     sourceAcc = accMap Map.! sa
     targetAcc = accMap Map.! ta
-    sourceAccBal = (A.accBalance sourceAcc)
-    targetAccBal = (A.accBalance targetAcc) 
+    sourceAccBal = A.accBalance sourceAcc
+    targetAccBal = A.accBalance targetAcc 
     transferAmt = 
         case meetAcc of 
              W.Source ->
@@ -116,71 +114,71 @@ performAction d t (W.TransferReserve meetAcc sa ta tags) =
 performAction d t (W.PayFee ans fns) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
-    feeMap = (fees t)
+    feeMap = fees t
     accSet = S.fromList ans
-    accMap = Map.filterWithKey (\k _ -> (S.member k accSet)) (accounts t)
+    accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
 
-    feesToPay = map (\x -> feeMap Map.! x ) fns
-    feesWithDue = map (\x -> calcDueFee t d x) feesToPay
-    feeDueAmts = map (\x -> (F.feeDue x) ) feesWithDue
+    feesToPay = map (feeMap Map.!) fns
+    feesWithDue = map (calcDueFee t d) feesToPay
+    feeDueAmts = map F.feeDue feesWithDue
 
     accNList = Map.toList accMap
-    availBalLst = [ (n,(A.accBalance x)) | (n,x) <- accNList ]
+    availBalLst = [ (n,A.accBalance x) | (n,x) <- accNList ]
     availAccBals = map snd availBalLst
     availAccNames = map fst availBalLst
-    accList = map (\x -> accMap Map.! x) ans
+    accList = map (accMap Map.!) ans
 
     availBal = sum availAccBals
 
     actualPaidOut = min availBal $ sum feeDueAmts
     feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
-    feesPaid = map (\(f,amt) -> (F.payFee d amt f)) feesAmountToBePaid
+    feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
 
-    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee",("SupportPay:"++(head ans)))
+    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee","SupportPay:"++(head ans))
     accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
 
 performAction d t (W.PayFeeBy limit ans fns) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
-    feeMap = (fees t)
+    feeMap = fees t
     accSet = S.fromList ans
-    accMap = Map.filterWithKey (\k _ -> (S.member k accSet)) (accounts t)
+    accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
 
-    feesToPay = map (\x -> feeMap Map.! x ) fns
-    feesWithDue = map (\x -> calcDueFee t d x) feesToPay
+    feesToPay = map (feeMap Map.!) fns
+    feesWithDue = map (calcDueFee t d) feesToPay
     feeDueAmts = case limit of
-                   (W.DuePct pct) -> map (\x -> (F.feeDue x) * pct ) feesWithDue
-                   (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesWithDue
+                  (W.DuePct pct) -> map (\x -> pct * (F.feeDue x) ) feesWithDue
+                  (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesWithDue
 
     accNList = Map.toList accMap
     availBalLst = [ (n,(A.accBalance x)) | (n,x) <- accNList]
     availAccBals = map snd availBalLst
     availAccNames = map fst availBalLst
-    accList = map (\x -> accMap Map.! x) ans
+    accList = map (accMap Map.!) ans
 
     availBal = sum availAccBals
 
     actualPaidOut = min availBal $ sum feeDueAmts
     feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
-    feesPaid = map (\(f,amt) -> (F.payFee d amt f)) feesAmountToBePaid
+    feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
 
-    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee",("SupportPay:"++(head ans)))
+    accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee","SupportPay:"++head ans)
     accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
 performAction d t (W.PayInt an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
-    bndMap = (bonds t)
-    accMap = (accounts t)
+    bndMap = bonds t
+    accMap = accounts t
     acc = accMap Map.! an
 
     availBal = A.accBalance acc
-    bndsToPay = map (\x -> bndMap Map.! x ) bnds
+    bndsToPay = map (bndMap Map.!) bnds
 
     bndsWithDue = filter (\x -> ((L.bndDueInt x) > 0)) $ map (\x -> calcDueInt t d x) bndsToPay
     bndsDueAmts = map (\x -> (L.bndDueInt x) ) bndsWithDue
@@ -311,14 +309,19 @@ getRateAssumptionByIndex ras idx
 
 
 applyFloatRate :: L.InterestInfo -> T.Day -> [RateAssumption] -> Float 
-applyFloatRate (L.Floater idx spd p f c) d ras
-  = idx_rate + spd
-    where 
+applyFloatRate (L.Floater idx spd p mf mc) d ras
+  = case (mf,mc) of
+      (Nothing,Nothing) -> _rate
+      (Just f,Nothing) -> max f _rate
+      (Just f,Just c) -> min c $ max f _rate
+      (Nothing,Just c) -> min c _rate
+    where
       idx_rate = case ra of 
         Just (RateCurve _idx _ts) -> getValByDate _ts d 
         Just (RateFlat _idx _r) ->  _r
         Nothing -> 0.0
       ra = getRateAssumptionByIndex ras idx
+      _rate = idx_rate +spd
 
 applicableAdjust :: T.Day -> L.Bond -> Bool
 applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _) _ _ _ _ _ _ _ )
@@ -354,7 +357,7 @@ testCall t d opt =
        C.BondBalance x -> (queryDeal t CurrentBondBalance) < x
        C.PoolFactor x ->  ((queryDeal t (FutureCurrentPoolBalance d)) / (queryDeal t FutureOriginalPoolBalance))  < x
        C.BondFactor x ->  (queryDeal t BondFactor) < x
-       C.OnDate x -> ( x == d )
+       C.OnDate x -> x == d 
        C.AfterDate x -> d > x
        C.And xs -> all (testCall t d) xs
        C.Or xs -> any (testCall t d) xs
@@ -362,7 +365,7 @@ testCall t d opt =
 
 testCalls :: TestDeal -> T.Day -> [C.CallOption] -> Bool
 testCalls t d [] = False
-testCalls t d opts = any (\x -> testCall t d x) opts -- `debug` ("testing call options")
+testCalls t d opts = any (testCall t d) opts -- `debug` ("testing call options")
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
     -> Maybe [RateAssumption] -> Maybe ([C.CallOption])-> TestDeal
@@ -414,7 +417,7 @@ calcLiquidationAmount alm pool d
       C.BalanceFactor currentFactor defaultFactor ->
           case (P.futureCf pool) of 
             Nothing -> 0
-            Just (_futureCf) ->
+            Just _futureCf ->
                 let 
                   poolInflow = CF.getEarlierTsCashFlowFrame _futureCf d 
                   earlierTxns = CF.getTxnAsOf _futureCf d
@@ -422,13 +425,13 @@ calcLiquidationAmount alm pool d
                 in 
                   case poolInflow of 
                     Nothing -> 0
-                    Just (_ts) ->   -- TODO need to check if missing last row
+                    Just _ts ->   -- TODO need to check if missing last row
                         ((CF.mflowBalance _ts) * currentFactor + currentDefaulBal * defaultFactor)
 
       C.PV discountRate recoveryPct ->
           case (P.futureCf pool) of
             Nothing -> 0 
-            Just (_futureCf) ->
+            Just _futureCf ->
                 let 
                   futureTxns = CF.getTxnAfter _futureCf d
                   earlierTxns = CF.getTxnAsOf _futureCf d
@@ -443,7 +446,7 @@ liquidatePool lq d accName t =
   where
      proceeds = calcLiquidationAmount lq (pool t) d
      updateFn = A.deposit proceeds d "Liquidation Proceeds"
-     accs = (accounts t)
+     accs = accounts t
 
 data ExpectReturn = DealStatus
                   | DealPoolFlow
@@ -489,7 +492,7 @@ runDeal t er assumps bpi =
     DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
     DealPoolFlowPricing -> (finalDeal, Just pcf, Nothing, bndPricing) -- `debug` ("with pricing"++show(bndPricing))
-    DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns(finalDeal)),Nothing)
+    DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
@@ -527,8 +530,8 @@ setFutureCF :: TestDeal -> CF.CashFlowFrame -> TestDeal
 setFutureCF t cf = 
     t {pool = newPool}
     where 
-        _pool = (pool t)
-        newPool = _pool {P.futureCf = (Just cf)}
+        _pool = pool t
+        newPool = _pool {P.futureCf = Just cf}
 
 
 getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] -> 
@@ -544,8 +547,8 @@ getInits t (Just assumps) =
     startDate = Map.findWithDefault _startDate "cutoff-date" (dates t)
     firstPayDate = Map.findWithDefault _startDate "first-pay-date" (dates t)
 
-    pCollectionInt = (collectPeriod t)
-    bPayInt = (payPeriod t)
+    pCollectionInt = collectPeriod t
+    bPayInt = payPeriod t
 
 
     projNum = 512
@@ -763,7 +766,7 @@ calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
    where
      eval ra = case ra of
        A.PctReserve CurrentPoolBalance _rate -> (queryDeal t (FutureCurrentPoolBalance d)) * _rate
-       A.PctReserve ds _rate -> (queryDeal t ds) * _rate --`debug` ("DQ"++show(ds)++"Q"++show(queryDeal t ds)++"A"++show(_rate))
+       A.PctReserve ds _rate -> (queryDeal t ds) * _rate `debug` ("DQ"++show(ds)++"Q"++show(queryDeal t ds)++"A"++show(_rate))
        A.FixReserve amt -> amt
        A.Max ra1 ra2 -> max (eval ra1) (eval ra2)
        A.Min ra1 ra2 -> min (eval ra1) (eval ra2)
@@ -785,6 +788,9 @@ depositPoolInflow rules d cf amap =
           (W.Collect W.CollectedPrincipal _)  -> CF.mflowPrincipal ts
           (W.Collect W.CollectedRecoveries _) -> CF.mflowRecovery ts
           (W.Collect W.CollectedPrepayment _) -> CF.mflowPrepayment ts
+
+updateStatus :: TestDeal -> DealStatus -> TestDeal
+updateStatus t s = t
 
 $(deriveJSON defaultOptions ''ExpectReturn)
 $(deriveJSON defaultOptions ''TxnComponent)
