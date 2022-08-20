@@ -21,6 +21,9 @@
   * Mortgage (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
 * Multiple Waterfalls
   * User defined waterfalls and supported any point of time during the running cycle
+    * Waterfall at Distribution Day :heavy_check_mark:
+    * Waterfall at End of Pool Collection Day :heavy_check_mark:
+    * Waterfall for Clean Up Call  :heavy_check_mark:
 * Accounts
   * Liquidity Facility
   * Reserve Account  :heavy_check_mark:

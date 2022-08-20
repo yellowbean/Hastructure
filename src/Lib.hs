@@ -77,6 +77,9 @@ data DealStats =  CurrentBondBalance
               | Max DealStats DealStats
               | Min DealStats DealStats
               | Sum [DealStats]
+              | Factor DealStats Float
+              | CurrentBondPaidAt T.Day String
+              | CurrentBondsPaidAt T.Day [String]
               deriving (Show,Eq)
 
 data DealStatus = EventOfAccelerate (Maybe T.Day)

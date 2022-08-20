@@ -1,4 +1,4 @@
-module UT.LibTest(curveTests,queryStmtTests)
+module UT.LibTest(curveTests,queryStmtTests,datesTests)
 where
 
 import Test.Tasty
@@ -37,4 +37,20 @@ queryStmtTests = testGroup "queryStmtTest"
     assertEqual "Simple String Comment"
              [r1 ]
              [12 ]
+  ]
+
+datesTests = testGroup "date related "
+  [
+   let
+      d1 = genDates (toDate "20220801") Monthly 1
+   in
+     testCase "1 Month" $
+     assertEqual "1 Month" [toDate "20220901"] d1
+   ,
+   let
+      d2 = genDates (toDate "20220801") Monthly 0
+   in
+     testCase "zero extra" $
+     assertEqual "1 Month" [] d2
+
   ]

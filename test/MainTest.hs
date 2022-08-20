@@ -31,6 +31,7 @@ tests = testGroup "Tests" [accTests,stmtTests
                            ,BT.pricingTests
                            ,LT.curveTests
                            ,LT.queryStmtTests
+                           ,LT.datesTests
                            ,ET.expTests
                            ,DT.waterfallTests
                            ,DT.queryTests]
