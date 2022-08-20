@@ -14,7 +14,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,TsRow(..),Balances) where
 
 import Data.Time (Day)
-import Lib (Dates,weightedBy)
+import Lib (Dates,weightedBy,toDate)
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.List as L
@@ -55,13 +55,13 @@ data ColType = ColNum Float | ColDate Date | ColBal Float
     deriving (Show)
 
 data TsRow = CashFlow Date Amount
-               |BondFlow Date Balance Principal Interest
-              -- |FeeFlow Date Balance Amount
-              -- |AccountFlow Date Balance Amount
-              |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss Rate
-              |MortgageFlow2 Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss Rate
-              |MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss Rate
-              deriving (Show)
+           |BondFlow Date Balance Principal Interest
+           -- |FeeFlow Date Balance Amount
+           -- |AccountFlow Date Balance Amount
+           |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss Rate
+           |MortgageFlow2 Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss Rate
+           |MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss Rate
+           deriving (Show)
 
 instance Ord TsRow where
   compare (CashFlow d1 _) (CashFlow d2 _) = compare d1 d2
@@ -276,6 +276,9 @@ mflowDate :: TsRow -> T.Day
 mflowDate (MortgageFlow x _ _ _ _ _ _ _ _) = x
 mflowDate (MortgageFlow2 x _ _ _ _ _ _ _ _ _) = x
 mflowDate (MortgageFlow3 x _ _ _ _ _ _ _ _ _ _ _) = x
+
+
+
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

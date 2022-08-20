@@ -111,9 +111,10 @@ main :: IO ()
 main =
   do
    config <- BS.readFile "config.yml"
+   -- config <- Y.decodeFileThrow "config.yml"
    let mc = Y.decode config :: Maybe Config
    let (Config _p) = case mc of 
-                     Nothing -> Config 8082
+                     Nothing -> Config 8081
                      Just c -> c
    app <- toWaiApp App
    run _p $ defaultMiddlewaresNoLogging
