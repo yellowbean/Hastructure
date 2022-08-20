@@ -112,10 +112,13 @@ main =
   do
    config <- BS.readFile "config.yml"
    -- config <- Y.decodeFileThrow "config.yml"
-   let mc = Y.decode config :: Maybe Config
-   let (Config _p) = case mc of 
-                     Nothing -> Config 8081
-                     Just c -> c
+   let mc1 = Y.decodeEither' config :: Either ParseException Config
+  -- let mc = Y.decode config :: Maybe Config
+   let (Config _p) = case mc1 of
+                     --Nothing -> Config 8081
+                     --Just c -> c
+                     Left exp -> Config 8081
+                     Right c -> c
    app <- toWaiApp App
    run _p $ defaultMiddlewaresNoLogging
             $ cors (const $ Just $ simpleCorsResourcePolicy
