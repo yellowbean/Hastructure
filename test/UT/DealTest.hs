@@ -121,7 +121,7 @@ td = TestDeal {
 waterfallTests =  testGroup "Waterfall Tests"
   [
     let
-     afterAction = D.performAction (toDate "20220301") td $ W.PayPrinBy (W.RemainBalPct CurrentBondBalance  0.05) "General" "B"
+     afterAction = D.performAction (toDate "20220301") td $ W.PayPrinBy (W.RemainBalPct 0.05) "General" "B"
      afterBnd = (D.bonds afterAction) Map.! "B"
      afterBndA = (D.bonds afterAction) Map.! "A"
      afterAcc = (D.accounts afterAction) Map.! "General"
