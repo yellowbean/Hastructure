@@ -67,7 +67,7 @@ postRunDealR =  do
          (deal runReq)
          D.DealPoolFlowPricing
          (assump runReq)
-         (bondPricing runReq)
+         (bondPricing runReq) -- `debug` ("Loading Deal with pool>>"++show(D.pool (deal runReq)))
 
 optionsRunDealR :: Handler String -- D.TestDeal
 optionsRunDealR = do

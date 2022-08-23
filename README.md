@@ -50,7 +50,7 @@
   * Fix Amount Fees  :heavy_check_mark:
   * Custom Fee Flow :heavy_check_mark:
 * Scenario Analysis
-  * Running multiple scenarios
+  * Running multiple scenarios :heavy_check_mark:
 
 ### Online Demo
 

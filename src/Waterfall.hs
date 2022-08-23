@@ -86,7 +86,7 @@ data Action = Transfer AccountName AccountName (Maybe String)
              deriving (Show)
 
 type DistributionSeq = [Action]
-type DistributionSeq2 = [(Maybe Pre,Action)]
+type DistributionSeq2 = [(Maybe Pre,Action, Maybe String)]
 
 data CollectionRule = Collect PoolSource AccountName
              deriving (Show)

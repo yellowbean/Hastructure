@@ -66,7 +66,7 @@ performAction d t (W.Transfer an1 an2 tags) =
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++_tags)) an2 accMapAfterDraw
 
 performAction d t (W.TransferBy an1 an2 formula) =
-  t {accounts = accMapAfterDeposit}
+  t {accounts = accMapAfterDeposit}  -- `debug` ("ABCD "++show(d))
   where
     accMap = accounts t
     sourceAcc = accMap Map.! an1
@@ -77,7 +77,7 @@ performAction d t (W.TransferBy an1 an2 formula) =
         W.ABCD -> (queryDeal t (CumulativeDefaultBalance d))
                    + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1))
                    - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD"))
-        _ -> -1
+        _ -> -1  -- `debug` ("Done with Query :ABCD")
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
 
@@ -373,8 +373,14 @@ run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
 run2 t _ (Just []) _ _   = (prepareDeal t)
 
 run2 t poolFlow (Just (ad:ads)) rates calls
-  |  (length ads) == 0 = (prepareDeal t)  -- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
-  |  (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = (prepareDeal t) -- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
+  | length ads == 0 = prepareDeal t  -- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
+  | (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = prepareDeal t -- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
+  | (isNothing poolFlow) && ((queryDeal t CurrentBondBalance) == 0)
+     = case ad of
+        PoolCollection d _ ->
+            prepareDeal $ foldl (performAction d) t cleanUpActions
+        RunWaterfall d _ ->
+            prepareDeal $ foldl (performAction d) t cleanUpActions
   | otherwise
   = case ad of
         PoolCollection d waterfallName ->
@@ -392,16 +398,16 @@ run2 t poolFlow (Just (ad:ads)) rates calls
             Just callOpts ->
                 if (testCalls dAfterWaterfall d callOpts) then
                   prepareDeal $ foldl (performAction d) t cleanUpActions
-                  -- prepareDeal $ liquidatePool lq d lqAcc t --  `debug` ("Called !"++show(d))
                 else
                   (run2 dAfterRateSet poolFlow (Just ads) rates calls)
             Nothing ->
                (run2 dAfterRateSet poolFlow (Just ads) rates Nothing)
           where
                waterfallToExe = Map.findWithDefault [] W.DistributionDay (waterfall t)
-               cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)
                dAfterWaterfall = (foldl (performAction d) t waterfallToExe)-- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
                dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("After Rate Set")
+        where
+          cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)
 
 
 run2 t Nothing Nothing Nothing Nothing
@@ -570,8 +576,8 @@ getInits t (Just assumps) =
                                                   ) _actionDates
                     Nothing ->  _actionDates  -- `debug` (">>stop date"++show(stopDate))
 
-    poolCf = P.aggPool $ P.runPool2 (pool t) assumps  -- `debug` ("Assets Agged pool Cf->"++show(pool t))
-    poolCfTs = filter (\txn -> (CF.tsDate txn) > startDate)  $ CF.getTsCashFlowFrame poolCf
+    poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` ("Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
+    poolCfTs = filter (\txn -> (CF.tsDate txn) > startDate)  $ CF.getTsCashFlowFrame poolCf  -- `debug` ("projected pool cf"++show(poolCf))
     pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates --  `debug` ("poolCf Dates"++show(pCollectionDates)) `debug` ("pool cf ts"++show(poolCfTs))
     t_with_cf  = setFutureCF t pCollectionCfAfterCutoff -- `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
@@ -779,7 +785,7 @@ calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
    where
      eval ra = case ra of
        A.PctReserve CurrentPoolBalance _rate -> (queryDeal t (FutureCurrentPoolBalance d)) * _rate
-       A.PctReserve ds _rate -> (queryDeal t ds) * _rate `debug` ("DQ"++show(ds)++"Q"++show(queryDeal t ds)++"A"++show(_rate))
+       A.PctReserve ds _rate -> (queryDeal t ds) * _rate -- `debug` ("DQ"++show(ds)++"Q"++show(queryDeal t ds)++"A"++show(_rate))
        A.FixReserve amt -> amt
        A.Max ra1 ra2 -> max (eval ra1) (eval ra2)
        A.Min ra1 ra2 -> min (eval ra1) (eval ra2)

@@ -271,8 +271,8 @@ getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
 queryStmtAmt :: Maybe Statement -> String -> Float
 queryStmtAmt (Just (Statement txns)) q =
   let
-    resultTxns = filter (\txn -> (getTxnComment txn) == q)  txns
-    --resultTxns = filter (\txn -> (getTxnComment txn) =~ q)  txns
+    -- resultTxns = filter (\txn -> (getTxnComment txn) == q)  txns
+    resultTxns = filter (\txn -> (getTxnComment txn) =~ q)  txns
     -- TODO looks like a big performance hit on regrex
   in
     abs $ foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns

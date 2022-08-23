@@ -22,6 +22,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import Text.Printf
 
 import Debug.Trace
 debug = flip trace
@@ -284,11 +285,14 @@ instance Asset Mortgage  where
              _start_bal = last_bal
              _def_amt = _start_bal * _def_rate
              _ppy_amt = (_start_bal - _def_amt) * _ppy_rate -- `debug` ("Def amt"++show(_def_amt)++"Def rate"++show(_def_rate))
+             _after_bal = _start_bal - _def_amt - _ppy_amt
+             _survive_rate = (1 - _def_rate) * (1 - _ppy_rate) -- * (_start_bal / _schedule_bal) -- `debug` ("start bal"++show(_start_bal)++"schedule_bal"++show(_schedule_bal))
 
-             _schedule_bal = CF.mflowBalance flow
-             _survive_rate = (1 - _def_rate) * (1 - _ppy_rate) * (_start_bal / _schedule_bal)
-             _schedule_prin = _survive_rate * (CF.mflowPrincipal flow)
-             _schedule_int = _survive_rate * (CF.mflowInterest flow)
+             _schedule_ending_bal = CF.mflowBalance flow
+             _schedule_rate = _after_bal / _start_bal
+
+             _schedule_prin = _schedule_rate * (CF.mflowPrincipal flow)  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
+             _schedule_int = _schedule_rate * (CF.mflowInterest flow)
 
              _new_rec = _def_amt * recovery_rate
              _new_loss = _def_amt * (1 - recovery_rate)
@@ -368,12 +372,12 @@ runPool2 (Pool [] (Just (CF.CashFlowFrame mfs)) asof _) assumps
     let
       smf = ScheduleMortgageFlow mfs
     in
-    [ projCashflow smf asof assumps]  `debug` ("MFS"++show(mfs))
+    [ projCashflow smf asof assumps] -- `debug` ("MFS"++show(mfs))
 runPool2 (Pool as _ asof _) [] = map calcCashflow as
 runPool2 (Pool as _ asof _) assumps = map (\x -> projCashflow x asof assumps) as
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
-aggPool xs = foldr1 CF.combine xs  `debug` ("XS"++show(xs))
+aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))
 
 getRateAssumption :: [A.AssumptionBuilder] -> Index -> Maybe A.AssumptionBuilder
 getRateAssumption assumps idx

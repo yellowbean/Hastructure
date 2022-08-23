@@ -30,13 +30,14 @@ queryStmtTests = testGroup "queryStmtTest"
              AccTxn (toDate "20200101") 100 (-12) "To:D|ABCD"
              ,AccTxn (toDate "20200101") 100 10 ""
              ,AccTxn (toDate "20200101") 100 (-20) "To:C|ABCD" ]
-    r1 = queryStmtAmt (Just stmt1) "To:D|ABCD"
-    --r2 = queryStmtAmt (Just stmt1) "To:[A-Z]\\|ABCD"
+    r1 = queryStmtAmt (Just stmt1) "To:D\\|ABCD"
+    r2 = queryStmtAmt (Just stmt1) "To:[A-Z]\\|ABCD"
+    r3 = queryStmtAmt Nothing "To:[A-Z]\\|ABCD"
    in
     testCase "Query With Plain String" $
     assertEqual "Simple String Comment"
-             [r1 ]
-             [12 ]
+             [r1,r2,r3]
+             [12,32,0]
   ]
 
 datesTests = testGroup "date related "

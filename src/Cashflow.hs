@@ -24,6 +24,8 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 
+import Text.Printf
+
 import Debug.Trace
 debug = flip trace
 
@@ -61,7 +63,6 @@ data TsRow = CashFlow Date Amount
            |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss Rate
            |MortgageFlow2 Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss Rate
            |MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss Rate
-           deriving (Show)
 
 instance Ord TsRow where
   compare (CashFlow d1 _) (CashFlow d2 _) = compare d1 d2
@@ -76,6 +77,15 @@ instance Eq TsRow where
   (MortgageFlow d1 _ _ _ _ _ _ _ _) == (MortgageFlow d2 _ _ _ _ _ _ _ _) = d1 == d2
   (MortgageFlow2 d1 _ _ _ _ _ _ _ _ _) == (MortgageFlow2 d2 _ _ _ _ _ _ _ _ _) = d1 == d2
   (MortgageFlow3 d1 _ _ _ _ _ _ _ _ _ _ _) == (MortgageFlow3 d2 _ _ _ _ _ _ _ _ _ _ _) = d1 == d2
+
+instance Show TsRow where
+  show (CashFlow d f1) = "Cashflow "++ show(d) ++ printf " %.2f" f1
+  show (BondFlow d f1 f2 f3) = "BondFlow " ++show(d) ++ printf " %.2f %.2f %.2f" f1 f2 f3
+  show (MortgageFlow d f1 f2 f3 f4 f5 f6 f7 f8 ) = "MortgageFlow " ++show(d) ++ printf " %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f" f1 f2 f3 f4 f5 f6 f7 f8
+  show (MortgageFlow2 d f1 f2 f3 f4 f5 f6 f7 f8 f9) = "MortgageFlow2 " ++show(d) ++ printf " %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f" f1 f2 f3 f4 f5 f6 f7 f8 f9
+  show (MortgageFlow3 d f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11) = "MortgageFlow3 " ++show(d) ++ printf " %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f" f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11
+
+
 
 data CashFlowFrame = CashFlowFrame [TsRow]
               deriving (Show)
