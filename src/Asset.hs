@@ -117,16 +117,17 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
        A.Recovery (rr,rl) ->
            buildAssumptionRate pDates assumps _def_rates _ppy_rates rr rl
        A.DefaultCDR r ->
+           buildAssumptionRate pDates assumps _ppy_rates
+                                              (map (A.toPeriodRateByInterval r)
+                                                   (getIntervalDays pDates))
+                                               _recovery_rate _recovery_lag
+       A.PrepaymentCPR r -> -- TODO need to convert to annualized rate
            buildAssumptionRate pDates assumps (map (A.toPeriodRateByInterval r)
                                                  (getIntervalDays pDates))
-                                            _ppy_rates _recovery_rate _recovery_lag
-       A.PrepaymentCPR r -> -- TODO need to convert to annualized rate
-           buildAssumptionRate pDates assumps _def_rates
-                                            (map (A.toPeriodRateByInterval r)
-                                                 (getIntervalDays pDates))
-                                            _recovery_rate _recovery_lag
+                                              _def_rates
+                                              _recovery_rate _recovery_lag
        A.PrepaymentCPRCurve vs ->
-           buildAssumptionRate pDates assumps _def_rates vs _recovery_rate _recovery_lag
+           buildAssumptionRate pDates assumps vs _def_rates _recovery_rate _recovery_lag
 
        _ -> buildAssumptionRate pDates assumps _def_rates _ppy_rates _recovery_rate _recovery_lag
    where
@@ -250,6 +251,7 @@ instance Asset Mortgage  where
   projCashflow (ScheduleMortgageFlow flows) asOfDay assumps
     = CF.CashFlowFrame $ _projectFlow
                            []
+                           1.0
                            beg_bal
                            flows
                            def_rates
@@ -272,27 +274,29 @@ instance Asset Mortgage  where
                               0
                               0
        _projectFlow
-         trs last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss
+         trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss
             = _projectFlow
                   (trs++[tr])
-                  _new_bal
+                  _survive_rate
+                  _end_bal
                   flows
                   _def_rates
                   _ppy_rates
                   (tail _rec_vector)
-                  (tail _loss_vector)
+                  (tail _loss_vector)   -- `debug` ("Adding"++show(tr))
              where
              _start_bal = last_bal
              _def_amt = _start_bal * _def_rate
              _ppy_amt = (_start_bal - _def_amt) * _ppy_rate -- `debug` ("Def amt"++show(_def_amt)++"Def rate"++show(_def_rate))
              _after_bal = _start_bal - _def_amt - _ppy_amt
-             _survive_rate = (1 - _def_rate) * (1 - _ppy_rate) -- * (_start_bal / _schedule_bal) -- `debug` ("start bal"++show(_start_bal)++"schedule_bal"++show(_schedule_bal))
+             _survive_rate = (1 - _def_rate) * (1 - _ppy_rate) * bal_factor -- `debug` ("Bal factor"++show(bal_factor))
 
-             _schedule_ending_bal = CF.mflowBalance flow
-             _schedule_rate = _after_bal / _start_bal
+             --_schedule_rate = _after_bal / _start_bal
+             _schedule_bal = (CF.mflowBalance flow)
+             -- _schedule_rate = _after_bal / _schedule_bal
 
-             _schedule_prin = _schedule_rate * (CF.mflowPrincipal flow)  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
-             _schedule_int = _schedule_rate * (CF.mflowInterest flow)
+             _schedule_prin = _survive_rate * (CF.mflowPrincipal flow)  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
+             _schedule_int = _survive_rate * (CF.mflowInterest flow)
 
              _new_rec = _def_amt * recovery_rate
              _new_loss = _def_amt * (1 - recovery_rate)
@@ -300,12 +304,14 @@ instance Asset Mortgage  where
              _rec_vector = replace _rec recovery_lag _new_rec
              _loss_vector = replace _loss recovery_lag _new_loss
 
-             _new_bal = _start_bal - _def_amt - _ppy_amt - _schedule_prin
-             tr = CF.MortgageFlow (CF.tsDate flow) _new_bal _schedule_prin _schedule_int _ppy_amt _def_amt (head _rec_vector) (head _loss_vector) 0.0
+             _end_bal = max 0 $ _after_bal - _schedule_prin -- TODO maybe rounding issue introduced by aeson/fromJSON
+
+             tr = CF.MortgageFlow (CF.tsDate flow) _end_bal _schedule_prin _schedule_int _ppy_amt _def_amt (head _rec_vector) (head _loss_vector) 0.0
        _projectFlow
-         trs last_bal [] _ _ (r:rs) (l:ls)
+         trs b_factor last_bal [] _ _ (r:rs) (l:ls)
            = _projectFlow
                (trs++[tr])
+               b_factor
                last_bal
                []
                []
@@ -325,7 +331,7 @@ instance Asset Mortgage  where
                       r
                       l
                       0.0
-       _projectFlow trs last_bal [] _ _ [] [] = trs --  `debug` ("End at "++show(trs))
+       _projectFlow trs _ last_bal [] _ _ [] [] = trs --  `debug` ("End at "++show(trs))
 
 _calc_p_i_flow :: Float -> [Balance] -> [Float] -> [Float] -> [Rate] -> (CF.Balances,CF.Principals,CF.Interests)
 _calc_p_i_flow pmt bals ps is [] = (bals,ps,is)

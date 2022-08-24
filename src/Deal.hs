@@ -433,7 +433,7 @@ calcLiquidationAmount alm pool d
                   case poolInflow of 
                     Nothing -> 0
                     Just _ts ->   -- TODO need to check if missing last row
-                        ((CF.mflowBalance _ts) * currentFactor + currentDefaulBal * defaultFactor)
+                        ((CF.mflowBalance _ts) * currentFactor + currentDefaulBal * defaultFactor) `debug` ("LIQ:"++show(_ts))
 
       C.PV discountRate recoveryPct ->
           case (P.futureCf pool) of
