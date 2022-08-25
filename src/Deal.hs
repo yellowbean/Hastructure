@@ -74,10 +74,11 @@ performAction d t (W.TransferBy an1 an2 formula) =
 
     formulaAmount =
       case formula of
-        W.ABCD -> (queryDeal t (CumulativeDefaultBalance d))
-                   + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1))
-                   - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD"))
-        _ -> -1  -- `debug` ("Done with Query :ABCD")
+        W.ABCD -> max 0 $
+                  (queryDeal t (CumulativeDefaultBalance d))
+                   + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1)) -- TODO to be normalized on comment format
+                   - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"\\|ABCD")) -- `debug` ("Done with Query :A"++show(queryDeal t (CumulativeDefaultBalance d))++"C"++show(queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1))++"D"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD")))
+        _ -> -1
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
 

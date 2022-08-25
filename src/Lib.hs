@@ -275,7 +275,7 @@ queryStmtAmt (Just (Statement txns)) q =
     resultTxns = filter (\txn -> (getTxnComment txn) =~ q)  txns
     -- TODO looks like a big performance hit on regrex
   in
-    abs $ foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns
+    abs $ foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns -- `debug` ("DEBUG Query"++show(resultTxns))
 
 queryStmtAmt Nothing _ = 0
 
