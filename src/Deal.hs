@@ -679,12 +679,14 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lp
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay) fa lpd _)
   | _fdDay == calcDay = f
   | otherwise = f{ F.feeDue = fd + baseBal * r * (periodToYear feeStartDate calcDay ACT_360)
-                            , F.feeDueDate = Just calcDay }
+                            , F.feeDueDate = Just calcDay } -- `debug` ("Fee DUE base"++show(baseBal))
                  where
                      feeStartDate = case lpd of
                                         (Just _lpd) -> _lpd
                                         Nothing -> tClosingDate 
-                     baseBal = queryDeal t feeBase
+                     baseBal = case feeBase of
+                                 FutureCurrentPoolBalance _ ->  queryDeal t $ FutureCurrentPoolBalance calcDay
+                                 _ -> 0.0
                      tClosingDate = Map.findWithDefault _startDate "closing-date" (dates t)
 
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd _fdDay fa lpd _)

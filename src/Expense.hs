@@ -15,7 +15,6 @@ import qualified Data.Text
 import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
 import           Data.Aeson.Types
-import qualified Data.ByteString.Lazy.Char8 as L
 
 data FeeType = AnnualRateFee DealStats Float
              | PctFee DealStats Float
