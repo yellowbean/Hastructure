@@ -17,8 +17,9 @@ import qualified Data.Time as T
 import Lib (Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
            ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance
-           ,toDate,pv2,daysBetween)
-import Data.List (findIndex,zip6)
+           ,toDate,pv2,daysBetween,getTxnDate)
+import Data.List (findIndex,zip6,find)
+import qualified Cashflow as CF
 
 import Debug.Trace
 debug = flip trace
@@ -106,7 +107,7 @@ type Duration = Float
 type Yield = Float
 type AccruedInterest = Float
 
-data PriceResult = PriceResult Valuation PerFace WAL Duration -- valuation,wal,accu,duration
+data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest -- valuation,wal,accu,duration
     deriving (Show,Eq)
 
 data YieldResult = Yield
@@ -125,7 +126,7 @@ fv2 discount_rate today futureDay amt =
     distance = (T.diffDays futureDay today)
 
 priceBond :: T.Day -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond _ _ (OriginalInfo obal _ _) _ bal _ _ _ _ _ (Just (Statement txns)))
+priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ lastIntPayDay _ (Just (Statement txns)))
   = PriceResult
      presentValue
      (100*presentValue/obal)
@@ -137,16 +138,32 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal _ _) _ bal _ _ _ _ _ (Just (Statem
                (((fromIntegral (T.diffDays (getTxnDate x) d))/365) * ((pv rc d (getTxnDate x)  (getTxnAmt x)) / presentValue)) + acc)
             0
             futureCf)  -- `debug` ("Cutoff balance"++show(cutoffBalance))
+     accruedInt
      where
        futureCf = filter (\x -> (getTxnDate x) > d) txns
        presentValue = foldr (\x acc -> acc + (pv rc d (getTxnDate x) (getTxnAmt x)) ) 0 futureCf
        cutoffBalance = case (getTxnAsOf txns d) of
-                          Nothing ->  (getTxnBalance fstTxn) + (getTxnPrincipal fstTxn)
+                          Nothing ->  (getTxnBalance fstTxn) + (getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                      where
                                       fstTxn = head txns
                           Just _txn -> getTxnBalance _txn  --`debug` ("Found"++show(_txn))
+       accruedInt = case _t of
+                      Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * cr * leftBal
+                      Just _ -> 0  -- `debug` ("all txn"++show(_t))-- `debug` ("l day, right"++show(leftPayDay)++show(d)++show(T.diffDays leftPayDay d))
+                    where
+                      _t = find (\x -> (getTxnDate x) == d) txns
+                      leftTxns = takeWhile (\txn -> (getTxnDate txn) < d) txns
+                      (leftPayDay,leftBal) =
+                        case leftTxns of
+                          [] -> case lastIntPayDay of
+                                 Nothing ->  (od,bal)
+                                 Just _d -> (_d,bal)
+                          _ -> let
+                                leftTxn = last leftTxns
+                              in
+                                (getTxnDate leftTxn,getTxnBalance leftTxn)
 
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0
 
 type IRR = Float
 type InitBalance = Float

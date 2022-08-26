@@ -9,6 +9,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,tsDefaultBal,getAllAfterCashFlowFrame
+                ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
                 ,tsTotalCash
                 ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter
                 ,TsRow(..),Balances) where
@@ -123,15 +124,43 @@ getEarlierTsCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe TsRow
 getEarlierTsCashFlowFrame (CashFlowFrame trs) d
   = L.find (tsDateLT d) (reverse trs)
 
-getAllAfterCashFlowFrame :: CashFlowFrame -> T.Day -> CashFlowFrame
+getAllBeforeCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe CashFlowFrame
+getAllBeforeCashFlowFrame cf@(CashFlowFrame trx) d
+  =
+   let
+     txn = getTxnAsOf cf d
+   in
+     case txn of
+       [] -> Nothing
+       _ -> Just (CashFlowFrame txn)
+
+getAllAfterCashFlowFrame :: CashFlowFrame -> T.Day -> Maybe CashFlowFrame
 getAllAfterCashFlowFrame cf@(CashFlowFrame trx) d
-  = CashFlowFrame (getTxnAfter cf d)
+  =
+   let
+     txn = getTxnAfter cf d
+   in
+     case txn of
+       [] -> Nothing
+       _ -> Just (CashFlowFrame txn)
+
+splitCashFlowFrameByDate :: CashFlowFrame -> T.Day -> (Maybe CashFlowFrame, Maybe CashFlowFrame)
+splitCashFlowFrameByDate (CashFlowFrame txn) d
+  = let
+      (l,r) = L.partition (tsDateLT d) txn
+    in
+      case (l,r) of
+        ([],[]) -> (Nothing,Nothing)
+        ([],_r) -> (Nothing, Just (CashFlowFrame _r))
+        (_l,[]) -> (Just (CashFlowFrame _l), Nothing)
+        (_l,_r) -> (Just (CashFlowFrame _l), Just (CashFlowFrame _r))
+
 
 getTxnAsOf :: CashFlowFrame -> T.Day -> [TsRow]
-getTxnAsOf (CashFlowFrame txn) d = filter (\x -> tsDate x <= d) txn
+getTxnAsOf (CashFlowFrame txn) d = filter (\x -> tsDate x < d) txn
 
 getTxnAfter :: CashFlowFrame -> T.Day -> [TsRow]
-getTxnAfter (CashFlowFrame txn) d = filter (\x -> tsDate x > d) txn
+getTxnAfter (CashFlowFrame txn) d = filter (\x -> tsDate x >= d) txn
 
 getTxnLatestAsOf :: CashFlowFrame -> T.Day -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> tsDate x <= d) $ reverse txn

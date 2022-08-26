@@ -273,27 +273,27 @@ performAction d t (W.LiquidatePool lm an) =
     accMap = accounts t
     accMapAfterLiq = Map.adjust (A.deposit liqAmt d ("Liquidation Proceeds:"++show lm)) an accMap
 
-data ActionOnDate = CollectPoolIncome T.Day
-                   |RunWaterfall T.Day String
+data ActionOnDate = RunWaterfall T.Day String
                    |PoolCollection T.Day String
                    deriving (Show)
 
+actionDate :: ActionOnDate -> T.Day
+actionDate ad =
+   case ad of
+     RunWaterfall d _ -> d
+     PoolCollection d _ -> d
+
+
 instance Ord ActionOnDate where
-  compare (CollectPoolIncome d1) (CollectPoolIncome d2) = compare d1 d2
   compare (PoolCollection d1 _) (PoolCollection d2 _) = compare d1 d2
   compare (RunWaterfall d1 _) (RunWaterfall d2 _) = compare d1 d2
-  compare (CollectPoolIncome d1) (RunWaterfall d2 _) = compare d1 d2
   compare (PoolCollection d1 _) (RunWaterfall d2 _) = compare d1 d2
-  compare (RunWaterfall d1 _) (CollectPoolIncome d2) = compare d1 d2
   compare (RunWaterfall d1 _) (PoolCollection d2 _) = compare d1 d2
 
 instance Eq ActionOnDate where
-  (CollectPoolIncome d1) == (CollectPoolIncome d2) = d1 == d2
   (PoolCollection d1 _) == (PoolCollection d2 _) = d1 == d2
   (RunWaterfall d1 _) == (RunWaterfall d2 _) = d1 == d2
-  (CollectPoolIncome d1) == (RunWaterfall d2 _) = d1 == d2
   (PoolCollection d1 _) == (RunWaterfall d2 _) = d1 == d2
-  (RunWaterfall d1 _) == (CollectPoolIncome d2) = d1 == d2
   (RunWaterfall d1 _) == (PoolCollection d2 _) = d1 == d2
 
 
@@ -377,21 +377,22 @@ run2 t poolFlow (Just (ad:ads)) rates calls
   | length ads == 0 = prepareDeal t  -- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
   | (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = prepareDeal t -- `debug` ("Total Acc balance" ++ show(queryDeal t AllAccBalance))
   | (isNothing poolFlow) && ((queryDeal t CurrentBondBalance) == 0)
-     = case ad of
-        PoolCollection d _ ->
-            prepareDeal $ foldl (performAction d) t cleanUpActions
-        RunWaterfall d _ ->
-            prepareDeal $ foldl (performAction d) t cleanUpActions
+     = let
+        d = actionDate ad
+       in
+        prepareDeal $ foldl (performAction d) t cleanUpActions
+
   | otherwise
   = case ad of
         PoolCollection d waterfallName ->
             case poolFlow of
               Just _poolFlow ->
-                 (run2 dAfter (CF.removeTsCashFlowFrameByDate _poolFlow d) (Just ads) rates calls)
+                 (run2 dAfter outstanding_flow (Just ads) rates calls)
                  where
                     dAfter = foldl (performAction d) (t {accounts=accs}) waterfallToExe
                     waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
-                    accs = depositPoolInflow (collects t) d _poolFlow (accounts t)  -- `debug` ("Deposit->"++show(d))
+                    (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate _poolFlow d
+                    accs = depositPoolInflow (collects t) d collected_flow (accounts t)  -- `debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
               Nothing -> (run2 t poolFlow (Just ads) rates calls)
 
         RunWaterfall d waterfallName ->
@@ -562,7 +563,7 @@ getInits t (Just assumps) =
     projNum = 512
     bPayDates = map (\x -> RunWaterfall (afterNPeriod firstPayDate x bPayInt) "base") [0..projNum]
     pCollectionDates = map (\x -> (afterNPeriod startDate x pCollectionInt)) [0..projNum]
-    pCollectionDatesA = map (\x -> PoolCollection x "collection") pCollectionDates
+    pCollectionDatesA = map (\x -> PoolCollection x "collection") $ tail pCollectionDates
 
     stopDate = find (\x -> case x of    
                             (AP.StopRunBy d) -> True
@@ -793,16 +794,16 @@ calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
        A.Max ra1 ra2 -> max (eval ra1) (eval ra2)
        A.Min ra1 ra2 -> min (eval ra1) (eval ra2)
 
-depositPoolInflow :: [W.CollectionRule] -> T.Day -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
-depositPoolInflow rules d cf amap =
-  foldl fn amap rules  -- `debug` ("Depositing at "++show(d))
+depositPoolInflow :: [W.CollectionRule] -> T.Day -> Maybe CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
+depositPoolInflow rules d (Just (CF.CashFlowFrame txn)) amap =
+  foldl fn amap rules --  `debug` ("Depositing at "++show(d)++"txn"++show(txn))
   where
-      currentPoolInflow = CF.getSingleTsCashFlowFrame cf d
+      currentPoolInflow = txn
 
       fn _acc _r@(W.Collect _ _accName) =
           Map.adjust (A.deposit collectedCash d "Deposit CF from Pool") _accName _acc
           where 
-              collectedCash = collectCash _r currentPoolInflow
+              collectedCash = sum $ map (collectCash _r) currentPoolInflow
       
       collectCash r ts =
         case r of
