@@ -3,9 +3,9 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Lib
-    (Rate,Dates,Period(..),calcInt,calcIntRate,Balance,DayCount(..)
+    (Amount,Rate,Dates,Period(..),calcInt,calcIntRate,Balance,DayCount(..)
     ,genDates,StartDate,EndDate,LastIntPayDate,daysBetween
-    ,Spread,Index(..)
+    ,Spread,Index(..),Date
     ,paySeqLiabilities,prorataFactors,periodToYear
     ,afterNPeriod,DealStats(..),Ts(..),periodsBetween
     ,Txn(..),combineTxn,Statement(..)
@@ -15,38 +15,44 @@ module Lib
     ,getValByDate,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,extractTxns,groupTxns,getTxns
     ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
-    ,paySeqLiabilitiesAmt,getIntervalDays
-    ,zipWith8,zipWith9, pv2, monthsOfPeriod
+    ,paySeqLiabilitiesAmt,getIntervalDays,nextDate
+    ,zipWith8,zipWith9, pv2, monthsOfPeriod,IRate
     ,weightedBy, getValByDates, mkTs, DealStatus(..)
+    ,mulBI,mkRateTs
     ) where
 
 import qualified Data.Time as T
 import qualified Data.Time.Format as TF
 import Data.List
+import Data.Fixed
+-- import qualified Data.Scientific as SCI
 import qualified Data.Map as M
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Aeson hiding (json)
 import Text.Regex.TDFA
+import Data.Fixed
 
 import Debug.Trace
 debug = flip trace
 
-type Rate = Float
-type Spread = Float
-type Balance = Float
-type Amount = Float
+type Rate = Rational  -- general Rate like pool factor
+type IRate = Micro    -- Interest Rate Type
+type Spread = Micro
+type Balance = Centi
+type Amount = Centi
 type Comment = String
-type Dates = [T.Day]
+type Dates = [Date]
+type Date = T.Day
 type StartDate = T.Day
 type EndDate = T.Day
 type LastIntPayDate = T.Day
-type Floor = Float
-type Principal = Float
-type Interest = Float
-type Cash = Float
-type Cap = Float
+type Floor = Micro
+type Principal = Centi
+type Interest = Centi
+type Cash = Centi
+type Cap = Micro
 
 data Period = Daily 
               | Weekly 
@@ -85,8 +91,8 @@ data DealStats =  CurrentBondBalance
 data DealStatus = EventOfAccelerate (Maybe T.Day)
                 | EventOfDefault (Maybe T.Day)
                 | Current
-                | Ended
                 | Revolving
+                | Ended
 
 data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
 
@@ -110,7 +116,7 @@ data DayCount = ACT_360
                | ACT_365
                deriving (Show)
 
-periodToYear :: T.Day -> T.Day -> DayCount -> Float
+periodToYear :: T.Day -> T.Day -> DayCount -> Rational
 periodToYear start_date end_date day_count =
   case day_count of
     ACT_360 -> days / 360
@@ -128,23 +134,29 @@ annualRateToPeriodRate p annualRate =
       SemiAnnually -> 1/2
       Annually -> 1.0
 
-periodRateFromAnnualRate :: Period -> Float -> Float
+periodRateFromAnnualRate :: Period -> IRate -> IRate
 periodRateFromAnnualRate Annually annual_rate  = annual_rate
 periodRateFromAnnualRate Monthly annual_rate  = annual_rate / 12
 periodRateFromAnnualRate Quarterly annual_rate  = annual_rate / 4
 periodRateFromAnnualRate SemiAnnually annual_rate  = annual_rate / 2
 
 
-calcIntRate :: T.Day -> T.Day -> Rate -> DayCount -> Float
+calcIntRate :: T.Day -> T.Day -> IRate -> DayCount -> IRate
 calcIntRate start_date end_date int_rate day_count =
-   int_rate * (periodToYear start_date end_date day_count)
+   int_rate * (fromRational (periodToYear start_date end_date day_count))
 
-calcInt :: Balance -> T.Day -> T.Day -> Rate -> DayCount -> Float
+calcInt :: Balance -> T.Day -> T.Day -> IRate -> DayCount -> Amount
 calcInt bal start_date end_date int_rate day_count =
-  bal * (calcIntRate start_date end_date int_rate day_count)
+  fromRational $ (toRational bal) * (toRational (calcIntRate start_date end_date int_rate day_count)) --TODO looks strange
 
 addD :: T.Day -> T.CalendarDiffDays -> T.Day
 addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
+
+mulBI :: Balance -> IRate -> Amount
+mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
+
+-- mulRs :: E2 -> E6 -> E2
+-- mulRs bal _r =
 
 genDates :: T.Day -> Period -> Int -> [T.Day]
 genDates start_day p n =
@@ -156,6 +168,17 @@ genDates start_day p n =
        SemiAnnually -> 6
        Annually -> 12
        _ -> 0
+
+nextDate :: Date -> Period -> Date
+nextDate d p
+  = T.addGregorianMonthsClip m d
+    where
+      m = case p of
+        Monthly -> 1
+        Quarterly -> 3
+        SemiAnnually -> 6
+        Annually -> 12
+        _ -> 0
 
 getIntervalDays :: [T.Day] -> [Int]
 getIntervalDays ds
@@ -185,7 +208,7 @@ monthsOfPeriod p =
       Annually -> 12
 
 
-prorataFactors :: [Float] -> Float -> [Float]
+prorataFactors :: [Centi] -> Centi -> [Centi]
 prorataFactors bals amt =
   case s of 
     0.0 -> bals
@@ -194,7 +217,7 @@ prorataFactors bals amt =
     s = foldl (+) 0 bals
     amtToPay = min s amt
 
-paySeqLiabilities :: Float -> [Float] -> [(Float,Float)]
+paySeqLiabilities :: Amount -> [Balance] -> [(Amount,Balance)]
 paySeqLiabilities startAmt liabilities =
   tail $ reverse $ foldl pay [(startAmt, 0)] liabilities
   where pay accum@((amt, _):xs) target = 
@@ -203,7 +226,7 @@ paySeqLiabilities startAmt liabilities =
                          else
                             (0, target-amt):accum
 
-paySeqLiabilitiesAmt :: Float -> [Float] -> [Float]
+paySeqLiabilitiesAmt :: Amount -> [Balance] -> [Amount]
 paySeqLiabilitiesAmt startAmt funds =
     map (\(a,b) -> (a-b)) $ zip funds remainBals
   where 
@@ -222,13 +245,14 @@ afterNPeriod d i p =
 periodsBetween :: T.Day -> T.Day -> Period -> Integer
 periodsBetween t1 t2 p
   = case p of
-    Monthly -> _diff
-    Annually -> div _diff 12
-    Quarterly -> div _diff 4
+      Weekly ->  div (T.diffDays t1 t2) 7
+      Monthly -> _diff
+      Annually -> div _diff 12
+      Quarterly -> div _diff 4
   where
     _diff = T.cdMonths $ T.diffGregorianDurationClip t1 t2
 
-data Txn = BondTxn T.Day Balance Interest Principal Rate Cash Comment
+data Txn = BondTxn T.Day Balance Interest Principal IRate Cash Comment
           | AccTxn T.Day Balance Amount Comment
           | ExpTxn T.Day Balance Amount Balance Comment
         deriving (Show)
@@ -248,10 +272,10 @@ getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
 getTxnBalance (AccTxn _ t _ _ ) = t
 getTxnBalance (ExpTxn _ t _ _ _ ) = t
 
-getTxnPrincipal :: Txn -> Float
+getTxnPrincipal :: Txn -> Centi
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
 
-getTxnAmt :: Txn -> Float
+getTxnAmt :: Txn -> Centi
 getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t
 getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
@@ -268,7 +292,7 @@ emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 "" )
 getTxnByDate :: [Txn] -> T.Day -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
 
-queryStmtAmt :: Maybe Statement -> String -> Float
+queryStmtAmt :: Maybe Statement -> String -> Centi
 queryStmtAmt (Just (Statement txns)) q =
   let
     -- resultTxns = filter (\txn -> (getTxnComment txn) == q)  txns
@@ -314,9 +338,11 @@ instance Eq Txn where
 data TsPoint a = TsPoint T.Day a
                 deriving (Show,Eq)
 
-data Ts = FloatCurve [TsPoint Float]
+data Ts = FloatCurve [TsPoint Rational]
          |BoolCurve [TsPoint Bool]
-         |AmountCurve [TsPoint Float]
+         |AmountCurve [TsPoint Amount]
+         |BalanceCurve [TsPoint Balance]
+         |IRateCurve [TsPoint IRate]
          deriving (Show,Eq)
 
 instance Ord a => Ord (TsPoint a) where
@@ -325,27 +351,34 @@ instance Ord a => Ord (TsPoint a) where
 
 
 data RateAssumption = RateCurve Index Ts
-                    | RateFlat Index Float
+                    | RateFlat Index IRate
                     deriving (Show)
 
-mkTs :: [(T.Day,Float)] -> Ts
+mkTs :: [(T.Day,Rational)] -> Ts
 mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
 
-getValOnByDate :: Ts -> T.Day -> Float
+mkRateTs :: [(T.Day,IRate)] -> Ts
+mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
+
+getValOnByDate :: Ts -> T.Day -> Amount
 getValOnByDate (AmountCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
       Nothing -> 0
 
-getValByDate :: Ts -> T.Day -> Float
+getValByDate :: Ts -> T.Day -> Rational
 getValByDate (AmountCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
-      Just (TsPoint _d v) -> v
+      Just (TsPoint _d v) -> toRational v
       Nothing -> 0
 
 getValByDate (FloatCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
-      Just (TsPoint _d v) -> v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+getValByDate (IRateCurve dps) d
+  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
 splitTsByDate :: Ts -> T.Day -> (Ts, Ts)
@@ -364,12 +397,10 @@ subTsBetweenDates (AmountCurve vs) Nothing (Just ed)
 subTsBetweenDates (AmountCurve vs) (Just sd) Nothing
   =  AmountCurve $ filter(\(TsPoint x _) ->  x > sd ) vs
 
-sumValTs :: Ts -> Float
+sumValTs :: Ts -> Amount
 sumValTs (AmountCurve ds) = foldr (\(TsPoint _ v) acc -> acc+v ) 0 ds
 
-
-
-getValByDates :: Ts -> [T.Day] -> [Float]
+getValByDates :: Ts -> [T.Day] -> [Rational]
 getValByDates rc ds = map (getValByDate rc) ds
 
 toDate :: String -> T.Day
@@ -403,16 +434,21 @@ zipWith9 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js)
                    =  z a b c d e f g h j : zipWith9 z as bs cs ds es fs gs hs js
 zipWith9 _ _ _ _ _ _ _ _ _ _ = []
 
-pv2 :: Float -> T.Day -> T.Day -> Float -> Float
+pv2 :: IRate -> Date -> Date -> Amount -> Amount
 pv2 discount_rate today d amt =
-    amt / (1+discount_rate)**((fromIntegral distance)/365)
+    mulBI amt $ 1/denominator
   where
-    distance = (T.diffDays d today)
+    denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
+    distance =  daysBetween d today
 
-weightedBy :: [Float] -> [Float] -> Float
-weightedBy ws vs =  sum $ zipWith (*) ws vs
+floatToFixed :: HasResolution a => Float -> Fixed a
+floatToFixed x = y where
+  y = MkFixed (round (fromInteger (resolution y) * x))
 
-daysBetween :: T.Day -> T.Day -> Integer
+weightedBy :: [Centi] -> [Rational] -> Rational
+weightedBy ws vs =  sum $ zipWith (*) vs $ map toRational ws
+
+daysBetween :: Date -> Date -> Integer
 daysBetween sd ed = (fromIntegral (T.diffDays sd ed))
 
 

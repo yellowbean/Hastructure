@@ -6,7 +6,7 @@ module Expense (Fee(..),FeeType(..),payFee)
   where
 
 import Lib(DayCount,Period,paySeqLiabilities,Dates,DealStats
-           ,appendStmt,Statement,Txn(..),Ts(..))
+           ,appendStmt,Statement,Txn(..),Ts(..),Amount,Balance,Date,Rate)
 import Data.Traversable
 import Language.Haskell.TH
 
@@ -16,25 +16,27 @@ import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
 import           Data.Aeson.Types
 
-data FeeType = AnnualRateFee DealStats Float
-             | PctFee DealStats Float
+import Data.Fixed
+
+data FeeType = AnnualRateFee DealStats Rate
+             | PctFee DealStats Rate
              | FixFee
-             | RecurFee Period Float
+             | RecurFee Period Balance
              | Custom Ts
              deriving (Show,Eq)
 
 data Fee = Fee {
   feeName :: String
   ,feeType :: FeeType
-  ,feeStart :: T.Day
-  ,feeDue :: Float
-  ,feeDueDate :: Maybe T.Day
-  ,feeArrears :: Float
-  ,feeLastPaidDay :: Maybe T.Day
+  ,feeStart :: Date
+  ,feeDue :: Balance
+  ,feeDueDate :: Maybe Date
+  ,feeArrears :: Balance
+  ,feeLastPaidDay :: Maybe Date
   ,feeStmt :: Maybe Statement
 } deriving (Show,Eq)
 
-payFee :: T.Day -> Float -> Fee -> Fee
+payFee :: T.Day -> Amount -> Fee -> Fee
 payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
    f {feeLastPaidDay = Just d
      ,feeDue = dueRemain

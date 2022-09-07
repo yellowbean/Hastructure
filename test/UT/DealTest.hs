@@ -127,7 +127,7 @@ waterfallTests =  testGroup "Waterfall Tests"
      afterAcc = (D.accounts afterAction) Map.! "General"
     in
       testCase "after pay till pct of deal bond balance" $
-      assertEqual "junior bond balance " [157.89471,3000] [(L.bndBalance afterBnd),(L.bndBalance afterBndA)]
+      assertEqual "junior bond balance " [158.75,3000] [(L.bndBalance afterBnd),(L.bndBalance afterBndA)]
   ]
 
 queryTests =  testGroup "deal stat query Tests"

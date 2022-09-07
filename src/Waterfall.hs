@@ -54,9 +54,9 @@ data Satisfy = Source
              | Target
                  deriving (Show)
 
-data Limit = DuePct Float  -- due fee
-            | DueCapAmt Float  -- due fee
-            | RemainBalPct Float -- pay till remain balance equals to a percentage of `stats`
+data Limit = DuePct L.Balance  -- due fee
+            | DueCapAmt L.Balance  -- due fee
+            | RemainBalPct L.Rate -- pay till remain balance equals to a percentage of `stats`
             | KeepBalAmt L.DealStats -- pay till a certain amount remains in an account
             | Multiple Limit Float -- factor of a limit:w
             deriving (Show)
@@ -69,6 +69,7 @@ data Formula = ABCD
 data Pre = And Pre Pre
          | Or Pre Pre
          | IfZero L.DealStats
+         | DealStatus
          deriving (Show)
 
 data Action = Transfer AccountName AccountName (Maybe String)
@@ -86,7 +87,7 @@ data Action = Transfer AccountName AccountName (Maybe String)
              deriving (Show)
 
 type DistributionSeq = [Action]
-type DistributionSeq2 = [(Maybe Pre,Action, Maybe String)]
+type DistributionSeq2 = [(Maybe Pre, Action, Maybe String)]
 
 data CollectionRule = Collect PoolSource AccountName
              deriving (Show)

@@ -39,7 +39,7 @@
     * IRR :heavy_check_mark:
     * WAL :heavy_check_mark:
     * Duration :heavy_check_mark:
-    * Accural Int in pricing
+    * Accrual Int in pricing :heavy_check_mark:
 * Call
   * Pool/Bond Balance :heavy_check_mark:
   * Bond/Pool Factor :heavy_check_mark:

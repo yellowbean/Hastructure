@@ -7,7 +7,7 @@ module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInt
  where
 
 import Call as C
-import Lib (Rate,Index(..),Ts(..),TsPoint(..),toDate)
+import Lib (IRate,Rate,Index(..),Ts(..),TsPoint(..),toDate)
 import qualified Data.Map as Map 
 import Data.List
 import Data.Aeson hiding (json)
@@ -25,17 +25,17 @@ data AssumptionInput = Single AssumptionLists
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | MortgageByRate ([Float],[Float])
-                | PrepaymentConstant Float
-                | PrepaymentCPR Float
-                | PrepaymentCPRCurve [Float]     -- this will ignore the payment interval
+                | PrepaymentConstant Rate
+                | PrepaymentCPR Rate
+                | PrepaymentCPRCurve [Rate]     -- this will ignore the payment interval
                 | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
-                | DefaultConstant Float
-                | DefaultCDR Float
+                | DefaultConstant Rate
+                | DefaultCDR Rate
                 | DefaultDistribution Float [Float] -- total default rate, distribution pct
                 | Recovery (Rate,Int)
                 | LinearTo Int Float
-                | InterestRateConstant Index Float
-                | InterestRateCurve Index [(T.Day,Float)]
+                | InterestRateConstant Index IRate
+                | InterestRateCurve Index [(T.Day,IRate)]
                 | PrepaymentByAging [(Int,Float)]
                 | CallWhen [C.CallOption]
                 | StopRunBy T.Day
@@ -47,9 +47,9 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
 data BondPricingInput = DiscountCurve T.Day Ts
                 deriving (Show)
 
-toPeriodRateByInterval :: Float -> Int -> Float
+toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
-  = 1 - (1-annualRate) ** ((fromIntegral days)/365)
+  = 1 - (1-annualRate) ^^ (div days 365)
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)

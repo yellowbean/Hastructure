@@ -58,6 +58,7 @@ executables:
     - http-types
     - template-haskell
     - yaml
+    - scientific
     # - jsonschema-gen
     # - timeseries
 

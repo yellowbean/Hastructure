@@ -71,6 +71,7 @@ executable Hastructure-exe
     , http-types
     , lens
     , regex-tdfa
+    , scientific
     , template-haskell
     , text
     , time

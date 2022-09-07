@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Main where
 
-import Data.Aeson       hiding (json)
+import Data.Aeson hiding (json)
 import Data.Monoid      ((<>))
 import Data.Text        (Text, pack)
 import Data.Yaml as Y
@@ -38,21 +38,25 @@ data RunDealReq = RunDealReq {
   ,assump :: Maybe [AP.AssumptionBuilder]
   ,bondPricing :: Maybe AP.BondPricingInput
 }
-$(deriveJSON defaultOptions ''RunDealReq)
 
 data RunDealReq2 = RunDealReq2 {
   _deal :: D.TestDeal
   ,_assump :: Maybe AP.AssumptionInput
   ,_bondPricing :: Maybe AP.BondPricingInput
 }
-$(deriveJSON defaultOptions ''RunDealReq2)
 
+data RunPoolReq = RunPoolReq {
+  pool :: P.Pool P.Mortgage
+  ,poolAggRule :: P.AggregationRule
+  ,poolAssump :: Maybe [AP.AssumptionBuilder]
+}
 
 data App = App
 
 mkYesod "App" [parseRoutes|
  /run_deal2 RunDealR POST OPTIONS
  /run_deal RunDeal2R POST OPTIONS
+ /run_pool RunPoolR POST OPTIONS
  /version VersionR GET
 |]
 
@@ -78,7 +82,7 @@ optionsRunDealR = do
 postRunDeal2R :: Handler Value
 postRunDeal2R =  do
   runReq <- requireCheckJsonBody :: Handler RunDealReq2
-  case (_assump runReq) of
+  case _assump runReq of
     Just (AP.Single aps) -> returnJson $
                                D.runDeal (_deal runReq) D.DealPoolFlowPricing (Just aps) (_bondPricing runReq)
     Nothing -> returnJson $
@@ -90,11 +94,26 @@ postRunDeal2R =  do
                                 apss
 
 
-optionsRunDeal2R :: Handler String -- D.TestDeal
+optionsRunDeal2R :: Handler String
 optionsRunDeal2R = do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "OPTIONS"
   return "Good"
+
+optionsRunPoolR :: Handler String
+optionsRunPoolR = do
+  addHeader "Access-Control-Allow-Origin" "*"
+  addHeader "Access-Control-Allow-Methods" "OPTIONS"
+  return "Good"
+
+postRunPoolR :: Handler Value -- D.TestDeal
+postRunPoolR =  do
+  runReq <- requireCheckJsonBody :: Handler RunPoolReq
+  returnJson $
+     P.projPoolCFs
+        (pool runReq)
+        (fromMaybe [] (poolAssump runReq))
+        (poolAggRule runReq)
 
 getVersionR :: Handler String
 getVersionR =  do
@@ -111,12 +130,8 @@ main :: IO ()
 main =
   do
    config <- BS.readFile "config.yml"
-   -- config <- Y.decodeFileThrow "config.yml"
-   let mc1 = Y.decodeEither' config :: Either ParseException Config
-  -- let mc = Y.decode config :: Maybe Config
-   let (Config _p) = case mc1 of
-                     --Nothing -> Config 8081
-                     --Just c -> c
+   let mc = Y.decodeEither' config :: Either ParseException Config
+   let (Config _p) = case mc of
                      Left exp -> Config 8081
                      Right c -> c
    app <- toWaiApp App
@@ -125,4 +140,9 @@ main =
                                     { corsOrigins = Nothing
                                     , corsMethods = ["OPTIONS", "GET", "PUT", "POST"]
                                     , corsRequestHeaders = simpleHeaders })
-            $ app
+            app
+
+
+$(deriveJSON defaultOptions ''RunDealReq)
+$(deriveJSON defaultOptions ''RunDealReq2)
+$(deriveJSON defaultOptions ''RunPoolReq)
