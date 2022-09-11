@@ -20,7 +20,7 @@ import Data.Fixed
 
 data FeeType = AnnualRateFee DealStats Rate
              | PctFee DealStats Rate
-             | FixFee
+             | FixFee Balance
              | RecurFee Period Balance
              | Custom Ts
              deriving (Show,Eq)

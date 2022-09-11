@@ -121,7 +121,7 @@ performAction d t (W.PayFee ans fns) =
     accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
 
     feesToPay = map (feeMap Map.!) fns
-    feesWithDue = map (calcDueFee t d) feesToPay
+    feesWithDue = map (calcDueFee t d) feesToPay `debug` ("Show Fee"++show(feesToPay))
     feeDueAmts = map F.feeDue feesWithDue
 
     accNList = Map.toList accMap
@@ -132,7 +132,7 @@ performAction d t (W.PayFee ans fns) =
 
     availBal = sum availAccBals
 
-    actualPaidOut = min availBal $ sum feeDueAmts
+    actualPaidOut = min availBal $ sum feeDueAmts `debug` ("Fee Due Amounts"++show(feeDueAmts))
     feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
 
@@ -602,10 +602,10 @@ getInits t mAssumps =
                                                  _actionDates
                     Nothing ->  _actionDates   -- `debug` (">>stop date"++show(stopDate))
 
-    poolCf = P.aggPool $ P.runPool2 (pool t) assumps   `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
-    poolCfTs = filter (\txn -> (CF.tsDate txn) > startDate)  $ CF.getTsCashFlowFrame poolCf   `debug` ("projected pool cf"++show(poolCf))
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates  `debug` ("poolCf "++show(poolCfTs)) -- `debug` ("pool cf ts"++show(poolCfTs))
-    t_with_cf  = setFutureCF t pCollectionCfAfterCutoff  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
+    poolCf = P.aggPool $ P.runPool2 (pool t) assumps  --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
+    poolCfTs = filter (\txn -> (CF.tsDate txn) > startDate)  $ CF.getTsCashFlowFrame poolCf  --  `debug` ("projected pool cf"++show(poolCf))
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates --  `debug` ("poolCf "++show(poolCfTs)) -- `debug` ("pool cf ts"++show(poolCfTs))
+    t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions Nothing assumps -- `debug` ("Assump"++show(assumps))
 
@@ -727,12 +727,11 @@ queryDeal t s =
 
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
-calcDueFee t calcDay f@(F.Fee fn F.FixFee  fs fd (Just _fdDay) fa _ _)
-  | _fdDay /= calcDay = f{ F.feeDue = fd , F.feeDueDate = Just calcDay}
+calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd (Just _fdDay) fa _ _)
+  | _fdDay /= calcDay = f{F.feeDueDate = Just calcDay}
   | otherwise = f
-  
-calcDueFee t calcDay f@(F.Fee fn F.FixFee fs fd Nothing fa _ _)
-  = f{ F.feeDue = fd, F.feeDueDate = Just calcDay}
+calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd Nothing fa _ _)
+  = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} `debug` ("DEBUG--> init with amt "++show(fd))
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
   = calcDueFee t calcDay f {F.feeDueDate = Just _startDate }
@@ -908,7 +907,7 @@ td = TestDeal {
   ])
   ,fees = (Map.fromList [("Service-Fee"
                          ,F.Fee{F.feeName="service-fee"
-                                ,F.feeType = F.FixFee
+                                ,F.feeType = F.FixFee 50
                                 ,F.feeStart = (T.fromGregorian 2022 1 1)
                                 ,F.feeDue = 100
                                 ,F.feeDueDate = Nothing
