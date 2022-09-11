@@ -303,10 +303,12 @@ mflowRecovery (MortgageFlow _ _ _ _ _ _ x _ _) = x
 mflowRecovery (MortgageFlow2 _ _ _ _ _ _ _ x _ _) = x
 mflowRecovery (MortgageFlow3 _ _ _ _ _ _ _ _ _ x _ _) = x
 mflowRecovery _  = -1.0
+
 mflowBalance :: TsRow -> Centi
 mflowBalance (MortgageFlow _ x _ _ _ _ _ _ _) = x
 mflowBalance (MortgageFlow2 _ x _ _ _ _ _ _ _ _) = x
 mflowBalance (MortgageFlow3 _ x _ _ _ _ _ _ _ _ _ _) = x
+
 mflowLoss :: TsRow -> Centi
 mflowLoss (MortgageFlow _ _ _ _ _ _ _ x _) = x
 mflowLoss (MortgageFlow2 _ _ _ _ _ _ _ _ x _) = x

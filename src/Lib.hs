@@ -14,7 +14,7 @@ module Lib
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,getValByDate,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,extractTxns,groupTxns,getTxns
-    ,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
+    ,getTxnComment,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
     ,paySeqLiabilitiesAmt,getIntervalDays,nextDate
     ,zipWith8,zipWith9, pv2, monthsOfPeriod,IRate
     ,weightedBy, getValByDates, mkTs, DealStatus(..)
@@ -80,12 +80,18 @@ data DealStats =  CurrentBondBalance
               | FutureOriginalPoolBalance
               | CurrentPoolCollectionInt T.Day
               | CurrentBondBalanceOf [String]
+              | Factor DealStats Float
+              | BondIntPaidAt T.Day String
+              | BondsIntPaidAt T.Day [String]
+              | FeePaidAt T.Day String
+              | FeesPaidAt T.Day [String]
+              | CurrentDueBondInt [String]
+              | CurrentDueFee [String]
               | Max DealStats DealStats
               | Min DealStats DealStats
+              | LastBondIntPaid [String]
+              | LastFeePaid [String]
               | Sum [DealStats]
-              | Factor DealStats Float
-              | CurrentBondPaidAt T.Day String
-              | CurrentBondsPaidAt T.Day [String]
               deriving (Show,Eq)
 
 data DealStatus = EventOfAccelerate (Maybe T.Day)

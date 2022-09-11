@@ -3,3 +3,5 @@ dist-newstyle/
 .idea/
 stack.yaml.lock
 *~
+/.vscode/
+Hastructure-exe
