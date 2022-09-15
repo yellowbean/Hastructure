@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,calcCashflow,getCurrentBal,getOriginBal,runPool2
-       ,RateType(..),projCashflow,MortgageAmortPlan(..)
+       ,RateType(..),projCashflow,AmortPlan(..)
        ,Status(..),isDefaulted,IssuanceFields(..)
        ,Asset,projPoolCFs,AggregationRule
 ) where
@@ -81,9 +81,10 @@ data RateType = Fix IRate
               -- index, spread, initial-rate reset interval,floor
               deriving (Show)
 
-data MortgageAmortPlan = Level
-                       | Even
-              deriving (Show)
+data AmortPlan = Level   -- for mortgage
+               | Even    -- for mortgage
+               | I_P -- interest only and principal due at last payment
+               deriving (Show)
 
 data Status = Current
             | Defaulted (Maybe T.Day)
@@ -97,13 +98,15 @@ data OriginalInfo = OriginalInfo {
     ,originTerm:: Int
     ,period:: Period
     ,startDate :: Day
-    ,prinType :: MortgageAmortPlan
+    ,prinType :: AmortPlan
     } deriving (Show)
 
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms Status
               | ScheduleMortgageFlow [CF.TsRow]
               deriving (Show)
+
+data ConsumerCredit = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
 -- trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) (_rate:_rates)
 
 --data MortgageAssumption = Simple [Float] [Float] (Float,Int) -- default rate , prepayment rate, recovery rate, recovery lag
@@ -141,7 +144,7 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
 
 buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag = (_ppy_rates,_def_rates,_recovery_rate,_recovery_lag)
 
-projectMortgageFlow :: [CF.TsRow] -> Balance -> Date -> Dates -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [IRate] -> (Int,Rate) -> Period -> MortgageAmortPlan -> [CF.TsRow]
+projectMortgageFlow :: [CF.TsRow] -> Balance -> Date -> Dates -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [IRate] -> (Int,Rate) -> Period -> AmortPlan -> [CF.TsRow]
 projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec_vector@(_rec_amt:_rec_amts) _loss_vector@(_loss_amt:_loss_amts) (_rate:_rates) (recovery_lag,recovery_rate) p pt
   | _bal > 0.01 = projectMortgageFlow
                   (trs++[tr])
@@ -289,7 +292,6 @@ instance Asset Mortgage  where
   isDefaulted (Mortgage _ _ _ _ _) = False
 
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt Current) asOfDay assumps =
-    --CF.CashFlowFrame $ _projCashflow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector -- `debug` ("RV"++show(rate_vector))
     CF.CashFlowFrame $ projectMortgageFlow
                             []
                             cb
@@ -382,6 +384,65 @@ calc_p_i_flow_even evenPrin bal dates r
       size = length dates
       period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r ACT_360 | d <- [0..size-2]]
 
+calc_p_i_flow_i_p :: Balance -> Dates -> IRate -> (CF.Balances,CF.Principals,CF.Interests)
+calc_p_i_flow_i_p bal dates r
+  = (_bals,_prins,_ints)
+    where
+      size = length dates
+      period_rs = [ calcIntRate (dates!!d) (dates!!(d+1)) r ACT_360 | d <- [0..size-2]]
+      _ints = [  mulBI bal _r | _r <- period_rs ]
+      _bals = (replicate (size - 1) bal ) ++ [ 0 ]
+      _prins = (replicate (size - 1) 0 ) ++ [ bal ]
+
+instance Asset ConsumerCredit where
+  calcCashflow pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ ) =
+    CF.CashFlowFrame $ zipWith9
+                         CF.PersonalLoanFlow
+                           cf_dates
+                           b_flow
+                           prin_flow
+                           int_flow
+                           (replicate l 0.0)
+                           (replicate l 0.0)
+                           (replicate l 0.0)
+                           (replicate l 0.0)
+                           (replicate l _rate)
+    where
+      orate = getOriginRate pl
+      pmt = calcPmt ob (periodRateFromAnnualRate p orate) ot
+      cf_dates = getPaymentDates pl 0
+      l = length cf_dates
+      (b_flow,prin_flow,int_flow) = case ptype of
+                                     Level -> calc_p_i_flow _bal pmt cf_dates _rate
+                                     Even  -> calc_p_i_flow_even (ob / fromIntegral ot) ob cf_dates _rate
+                                     I_P   -> calc_p_i_flow_i_p _bal cf_dates _rate
+
+  getCurrentBal pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+    = _bal
+
+  getOriginRate pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+    = case or of
+       Fix _r -> _r
+       Floater _ _ _r _ Nothing -> _r
+       Floater _ _ _r _ (Just floor) -> max _r floor
+
+  getOriginBal pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+    = ob
+
+  isDefaulted pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term  (Defaulted _))
+    = True
+
+  isDefaulted pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+    = False
+
+  getPaymentDates pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term (Defaulted _))  extra
+    = genDates sd p (ot+_term+extra)
+
+  projCashflow pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )  asOfDay assumps
+    = calcCashflow pl  -- TODO To fix
+
+
+
 runPool2 :: Pool Mortgage -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
 runPool2 (Pool as (Just cf) asof _) [] = [cf]
 runPool2 (Pool as (Just (CF.CashFlowFrame mfs)) asof _) assumps
@@ -430,6 +491,6 @@ $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''RateType)
 $(deriveJSON defaultOptions ''Pool)
-$(deriveJSON defaultOptions ''MortgageAmortPlan)
+$(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''IssuanceFields)
 $(deriveJSON defaultOptions ''AggregationRule)

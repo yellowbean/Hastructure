@@ -18,7 +18,7 @@ module Lib
     ,paySeqLiabilitiesAmt,getIntervalDays,nextDate
     ,zipWith8,zipWith9, pv2, monthsOfPeriod,IRate
     ,weightedBy, getValByDates, mkTs, DealStatus(..)
-    ,mulBI,mkRateTs
+    ,mulBI,mkRateTs,Pre(..)
     ) where
 
 import qualified Data.Time as T
@@ -94,15 +94,8 @@ data DealStats =  CurrentBondBalance
               | Sum [DealStats]
               deriving (Show,Eq)
 
-data DealStatus = EventOfAccelerate (Maybe T.Day)
-                | EventOfDefault (Maybe T.Day)
-                | Current
-                | Revolving
-                | Ended
 
 data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
-
-$(deriveJSON defaultOptions ''DealStats)
 $(deriveJSON defaultOptions ''Period)
 
 data Index = LPR5Y
@@ -111,6 +104,7 @@ data Index = LPR5Y
             | LIBOR3M
             | LIBOR6M
             | LIBOR1Y
+            | PRIME
             | SOFR1M
             | SOFR3M
             | SOFR6M
@@ -457,4 +451,24 @@ weightedBy ws vs =  sum $ zipWith (*) vs $ map toRational ws
 daysBetween :: Date -> Date -> Integer
 daysBetween sd ed = (fromIntegral (T.diffDays sd ed))
 
+data DealStatus = EventOfAccelerate (Maybe T.Day)
+                | EventOfDefault (Maybe T.Day)
+                | Current
+                | Revolving
+                | Ended
+                deriving (Show)
 
+$(deriveJSON defaultOptions ''DealStatus)
+$(deriveJSON defaultOptions ''DealStats)
+
+data Pre = And Pre Pre
+         | Or Pre Pre
+         | IfZero DealStats
+         | IfGT DealStats Centi
+         | IfGET DealStats Centi
+         | IfLT DealStats Centi
+         | IfLET DealStats Centi
+         | IfDealStatus DealStatus
+         deriving (Show)
+
+$(deriveJSON defaultOptions ''Pre)

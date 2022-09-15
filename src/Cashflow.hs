@@ -10,7 +10,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,tsDefaultBal,getAllAfterCashFlowFrame
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
-                ,tsTotalCash,Date
+                ,tsTotalCash,Date -- ,PersonalLoanFlow
                 ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter
                 ,TsRow(..),Balances) where
 
@@ -65,6 +65,7 @@ data TsRow = CashFlow Date Amount
            |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
            |MortgageFlow2 Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate
            |MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss IRate
+           |PersonalLoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
            deriving(Show)
 
 instance Ord TsRow where

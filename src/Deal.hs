@@ -36,6 +36,9 @@ class SPV a where
   projBondCashflow :: a -> ()
   projAssetCashflow :: a -> ()
 
+data DateType = ClosingDate
+              | CutoffDate
+              | FirstPayDate
 
 data TestDeal = TestDeal {
   name :: String
@@ -53,8 +56,23 @@ data TestDeal = TestDeal {
 
 $(deriveJSON defaultOptions ''TestDeal)
 
-performAction :: T.Day -> TestDeal -> W.Action -> TestDeal
-performAction d t (W.Transfer an1 an2 tags) =
+testPre :: Date -> TestDeal ->  Pre -> Bool
+testPre d t p =
+  case p of
+    And p1 p2 -> (testPre d t p1) && (testPre d t p1)
+    Or p1 p2 -> (testPre d t p1) || (testPre d t p1)
+    IfZero s  -> (queryDeal t s) == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
+    IfGT s  amt -> (queryDeal t s) > amt
+    IfGET s  amt -> (queryDeal t s) >= amt
+    IfLT s  amt -> (queryDeal t s) < amt
+    IfLET s  amt -> (queryDeal t s) <= amt
+
+performAction :: Date -> TestDeal -> (Maybe Pre, W.Action) -> TestDeal
+performAction d t (Just _pre, _action)
+  | (testPre d t _pre) == True = performAction d t (Nothing, _action)
+  | otherwise  = t
+
+performAction d t (Nothing, (W.Transfer an1 an2 tags)) =
   t {accounts = accMapAfterDeposit}
   where
     accMap = accounts t
@@ -66,7 +84,7 @@ performAction d t (W.Transfer an1 an2 tags) =
     accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++_tags)) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++_tags)) an2 accMapAfterDraw
 
-performAction d t (W.TransferBy an1 an2 formula) =
+performAction d t (Nothing, (W.TransferBy an1 an2 formula)) =
   t {accounts = accMapAfterDeposit}  -- `debug` ("ABCD "++show(d))
   where
     accMap = accounts t
@@ -86,7 +104,7 @@ performAction d t (W.TransferBy an1 an2 formula) =
     accMapAfterDraw = Map.adjust (A.draw transferAmt d ("To:"++an2++"|"++show formula )) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d ("From:"++an1++"|"++show formula )) an2 accMapAfterDraw
 
-performAction d t (W.TransferReserve meetAcc sa ta tags) =
+performAction d t (Nothing, (W.TransferReserve meetAcc sa ta tags) )=
     t {accounts = accMapAfterTransfer }
   where
     accMap = accounts t
@@ -113,7 +131,7 @@ performAction d t (W.TransferReserve meetAcc sa ta tags) =
           0 -> accMap
           amt ->  Map.adjust (A.draw amt d "withdraw") sa  $ Map.adjust (A.deposit amt d "transfer") ta $ accMap
 
-performAction d t (W.PayFee ans fns) =
+performAction d t (Nothing, (W.PayFee ans fns)) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
     feeMap = fees t
@@ -121,7 +139,7 @@ performAction d t (W.PayFee ans fns) =
     accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
 
     feesToPay = map (feeMap Map.!) fns
-    feesWithDue = map (calcDueFee t d) feesToPay `debug` ("Show Fee"++show(feesToPay))
+    feesWithDue = map (calcDueFee t d) feesToPay -- `debug` ("Show Fee"++show(feesToPay))
     feeDueAmts = map F.feeDue feesWithDue
 
     accNList = Map.toList accMap
@@ -132,7 +150,7 @@ performAction d t (W.PayFee ans fns) =
 
     availBal = sum availAccBals
 
-    actualPaidOut = min availBal $ sum feeDueAmts `debug` ("Fee Due Amounts"++show(feeDueAmts))
+    actualPaidOut = min availBal $ sum feeDueAmts -- `debug` ("Fee Due Amounts"++show(feeDueAmts))
     feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
 
@@ -142,7 +160,7 @@ performAction d t (W.PayFee ans fns) =
     accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
 
-performAction d t (W.PayFeeBy limit ans fns) =
+performAction d t (Nothing, (W.PayFeeBy limit ans fns)) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
     feeMap = fees t
@@ -172,7 +190,7 @@ performAction d t (W.PayFeeBy limit ans fns) =
     accsAfterPay = A.supportPay accList d actualPaidOut ("Pay Fee","SupportPay:"++head ans)
     accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
-performAction d t (W.PayInt an bnds) =
+performAction d t (Nothing, (W.PayInt an bnds)) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
     bndMap = bonds t
@@ -194,10 +212,10 @@ performAction d t (W.PayInt an bnds) =
     bndMapUpdated =   Map.union (Map.fromList $ zip bndsNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Int") an accMap
 
-performAction d t (W.PayTillYield an bnds) =
-    performAction d t (W.PayInt an bnds)
+performAction d t (Nothing, (W.PayTillYield an bnds)) =
+    performAction d t (Nothing, (W.PayInt an bnds))
 
-performAction d t (W.PayResidual Nothing an bndName) =
+performAction d t (Nothing, (W.PayResidual Nothing an bndName)) =
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     bndMap = bonds t
@@ -208,7 +226,7 @@ performAction d t (W.PayResidual Nothing an bndName) =
     accMapAfterPay = Map.adjust (A.draw availBal d "Pay Int") an accMap
     bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
 
-performAction d t (W.PayFeeResidual limit an feeName) =
+performAction d t (Nothing, (W.PayFeeResidual limit an feeName)) =
   t {accounts = accMapAfterPay, fees = feeMapAfterPay}
   where
     feeMap = fees t
@@ -225,7 +243,7 @@ performAction d t (W.PayFeeResidual limit an feeName) =
     feeMapAfterPay = Map.adjust (F.payFee d paidOutAmt) feeName feeMap
 
 -- ^ pay bond till its balance as pct of total balance
-performAction d t (W.PayPrinBy (W.RemainBalPct pct) an bndName) =
+performAction d t (Nothing, (W.PayPrinBy (W.RemainBalPct pct) an bndName))=
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     bndMap = (bonds t)
@@ -248,7 +266,7 @@ performAction d t (W.PayPrinBy (W.RemainBalPct pct) an bndName) =
                         accMap
     bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
 
-performAction d t (W.PayPrin an bnds) =
+performAction d t (Nothing, (W.PayPrin an bnds)) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
   where
     bndMap = (bonds t)
@@ -268,7 +286,7 @@ performAction d t (W.PayPrin an bnds) =
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d ("Pay Prin:"++show(bnds))) an accMap
 
-performAction d t (W.PayPrinResidual an bnds) =
+performAction d t (Nothing, (W.PayPrinResidual an bnds)) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
   where
     bndMap = (bonds t)
@@ -287,7 +305,7 @@ performAction d t (W.PayPrinResidual an bnds) =
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d ("Pay Prin:"++show(bnds))) an accMap
 
-performAction d t (W.LiquidatePool lm an) =
+performAction d t (Nothing, (W.LiquidatePool lm an)) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets
   where
     liqAmt = calcLiquidationAmount lm (pool t) d
@@ -731,7 +749,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd (Just _fdDay) fa _ _)
   | _fdDay /= calcDay = f{F.feeDueDate = Just calcDay}
   | otherwise = f
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd Nothing fa _ _)
-  = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} `debug` ("DEBUG--> init with amt "++show(fd))
+  = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd))
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
   = calcDueFee t calcDay f {F.feeDueDate = Just _startDate }
@@ -949,13 +967,13 @@ td = TestDeal {
                  ,P.issuanceStat= Just (Map.fromList [(P.IssuanceBalance,4000)])
                  }
    ,waterfall = Map.fromList [(W.DistributionDay, [
-                                 W.PayFee ["General"] ["Service-Fee"]
-                                 ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
-                                 ,W.TransferReserve W.Source  "General" "General" Nothing
-                                 ,W.TransferReserve W.Target  "General" "General" Nothing
-                                 ,W.PayInt "General" ["A"]
-                                 ,W.PayPrin "General" ["A"]])
-                               ,(W.CleanUp, [W.LiquidatePool (C.BalanceFactor 1.0 0.2) "A"])]
+                                 (Nothing, W.PayFee ["General"] ["Service-Fee"])
+                                 ,(Nothing, W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
+                                 ,(Nothing, W.TransferReserve W.Source  "General" "General" Nothing)
+                                 ,(Nothing, W.TransferReserve W.Target  "General" "General" Nothing)
+                                 ,(Nothing, W.PayInt "General" ["A"])
+                                 ,(Nothing, W.PayPrin "General" ["A"])])
+                               ,(W.CleanUp, [(Nothing, W.LiquidatePool (C.BalanceFactor 1.0 0.2) "A")])]
  ,collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
  ,call = Just [C.PoolFactor 0.08]

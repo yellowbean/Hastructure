@@ -16,6 +16,7 @@ import Text.Read (readMaybe)
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Hashable
+import Data.Fixed
 
 import Accounts (Account)
 import Asset (Mortgage, Pool)
@@ -52,7 +53,7 @@ data PoolSource = CollectedInterest
 
 data Satisfy = Source
              | Target
-                 deriving (Show)
+             deriving (Show)
 
 data Limit = DuePct L.Balance  -- due fee
             | DueCapAmt L.Balance  -- due fee
@@ -66,11 +67,7 @@ data Formula = ABCD
             | OtherFormula String
             deriving (Show)
 
-data Pre = And Pre Pre
-         | Or Pre Pre
-         | IfZero L.DealStats
-         | DealStatus
-         deriving (Show)
+
 
 data Action = Transfer AccountName AccountName (Maybe String)
              | TransferBy AccountName AccountName Formula
@@ -87,11 +84,15 @@ data Action = Transfer AccountName AccountName (Maybe String)
              | LiquidatePool C.LiquidationMethod AccountName
              deriving (Show)
 
-type DistributionSeq = [Action]
-type DistributionSeq2 = [(Maybe Pre, Action, Maybe String)]
+--type DistributionSeq = [Action]
+type DistributionSeq = [(Maybe L.Pre, Action)]
+
+--data DistributionSeq = DistSeq [Action]
+--                     | DistSeqPre [(Maybe Pre,Action)]
+--                     deriving (Show)
 
 data CollectionRule = Collect PoolSource AccountName
-             deriving (Show)
+                    deriving (Show)
 
 
 $(deriveJSON defaultOptions ''PoolSource)
@@ -100,4 +101,3 @@ $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''Formula)
-$(deriveJSON defaultOptions ''Pre)
