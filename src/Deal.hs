@@ -621,7 +621,7 @@ getInits t mAssumps =
                     Nothing ->  _actionDates   -- `debug` (">>stop date"++show(stopDate))
 
     poolCf = P.aggPool $ P.runPool2 (pool t) assumps  --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
-    poolCfTs = filter (\txn -> (CF.tsDate txn) > startDate)  $ CF.getTsCashFlowFrame poolCf  --  `debug` ("projected pool cf"++show(poolCf))
+    poolCfTs = filter (\txn -> (CF.tsDate txn) >= startDate)  $ CF.getTsCashFlowFrame poolCf  --  `debug` ("projected pool cf"++show(poolCf))
     pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs pCollectionDates --  `debug` ("poolCf "++show(poolCfTs)) -- `debug` ("pool cf ts"++show(poolCfTs))
     t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
