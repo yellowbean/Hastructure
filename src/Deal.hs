@@ -795,19 +795,18 @@ calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
   = b {L.bndDueInt = 0 }
 
-calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ intDue lstIntPay _ mStmt)
-  = b {L.bndDueInt = newDue }
+calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ int_due lstIntPay _ mStmt)
+  = b {L.bndDueInt = newDue+ int_due }
   where
   newDue = L.backoutDueIntByYield calc_date b
 
-calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ _ lstIntPay _ _) =
-  b {L.bndDueInt = (dueInt+int_arrears) }
+calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due lstIntPay _ _) =
+  b {L.bndDueInt = (new_due_int+int_due) } -- `debug` ("Due INT"++show(bn)++show(int_due))
   where
-    int_arrears = 0
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
                       Nothing -> Map.findWithDefault _startDate "closing-date" (dates t)
-    dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate ACT_365
+    new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate ACT_365
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
