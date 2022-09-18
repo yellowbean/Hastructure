@@ -37,7 +37,7 @@ td = TestDeal {
   ])
   ,D.fees = (Map.fromList [("Service-Fee"
                          ,F.Fee{F.feeName="service-fee"
-                                ,F.feeType = F.FixFee
+                                ,F.feeType = F.FixFee 10
                                 ,F.feeStart = (T.fromGregorian 2022 1 1)
                                 ,F.feeDue = 100
                                 ,F.feeDueDate = Nothing
@@ -106,12 +106,12 @@ td = TestDeal {
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1}
    ,D.waterfall = Map.fromList [(W.DistributionDay, [
-                                 W.PayFee ["General"] ["Service-Fee"]
-                                 ,W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"]
-                                 ,W.TransferReserve W.Source  "General" "General" Nothing
-                                 ,W.TransferReserve W.Target  "General" "General" Nothing
-                                 ,W.PayInt "General" ["A"]
-                                 ,W.PayPrin "General" ["A"]
+                                 (Nothing, W.PayFee ["General"] ["Service-Fee"])
+                                 ,(Nothing, W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
+                                 ,(Nothing, W.TransferReserve W.Source  "General" "General" Nothing)
+                                 ,(Nothing, W.TransferReserve W.Target  "General" "General" Nothing)
+                                 ,(Nothing, W.PayInt "General" ["A"])
+                                 ,(Nothing, W.PayPrin "General" ["A"])
    ])]
  ,D.collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
@@ -121,7 +121,7 @@ td = TestDeal {
 waterfallTests =  testGroup "Waterfall Tests"
   [
     let
-     afterAction = D.performAction (toDate "20220301") td $ W.PayPrinBy (W.RemainBalPct 0.05) "General" "B"
+     afterAction = D.performAction (toDate "20220301") td $ (Nothing, W.PayPrinBy (W.RemainBalPct 0.05) "General" "B")
      afterBnd = (D.bonds afterAction) Map.! "B"
      afterBndA = (D.bonds afterAction) Map.! "A"
      afterAcc = (D.accounts afterAction) Map.! "General"

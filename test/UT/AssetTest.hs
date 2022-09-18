@@ -43,10 +43,10 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
      ,
      testCase "Even Principal Type of Mortgage" $
      let
-        tm1cf_00 = P.calcCashflow tm1
+        tm1cf_00 = P.calcCashflow tm1 asOfDate
         trs = CF.getTsCashFlowFrame tm1cf_00
      in
-        assertEqual "first row" 10.0  (CF.mflowPrincipal (head trs)) -- `debug` ("result"++show(tmcf_00))
+        assertEqual "first row" 12.63  (CF.mflowPrincipal (head trs)) -- `debug` ("result"++show(tmcf_00))
      ,
      testCase "Default asset won't have cashflow if no assumption" $
      let
