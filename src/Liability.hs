@@ -26,7 +26,7 @@ import Debug.Trace
 debug = flip trace
 
 data RateReset = ByInterval Period (Maybe T.Day) -- period, maybe a start day
-               | MonthOfYear     Int  -- month index, 0 => Janaury
+               | MonthOfYear  Int  -- month index, 0 => Janaury
                deriving (Show)
 
 data InterestInfo = 

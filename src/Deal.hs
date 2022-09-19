@@ -13,6 +13,7 @@ import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified Call as C
 import Lib
+import Util
 
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -139,8 +140,8 @@ performAction d t (Nothing, (W.PayFee ans fns)) =
     accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
 
     feesToPay = map (feeMap Map.!) fns
-    feesWithDue = map (calcDueFee t d) feesToPay -- `debug` ("Show Fee"++show(feesToPay))
-    feeDueAmts = map F.feeDue feesWithDue
+    feesWithDue = map (calcDueFee t d) feesToPay  -- `debug` ("Show Fee"++show(feesToPay))
+    feeDueAmts = map F.feeDue feesWithDue   -- `debug` ("Show Fee with Due "++show(feesWithDue))
 
     accNList = Map.toList accMap
     availBalLst = [ (n,A.accBalance x) | (n,x) <- accNList ]
@@ -413,7 +414,7 @@ testCalls t d opts = any (testCall t d) opts -- `debug` ("testing call options")
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
     -> Maybe [RateAssumption] -> Maybe ([C.CallOption])-> TestDeal
-run2 t _ (Just []) _ _   = (prepareDeal t)  `debug` ("End with Empty ActionOnDate")
+run2 t _ (Just []) _ _   = (prepareDeal t) --  `debug` ("End with Empty ActionOnDate")
 
 run2 t poolFlow (Just (ad:ads)) rates calls
   | length ads == 0 = prepareDeal t  -- `debug` ("End with ads")
@@ -455,11 +456,11 @@ run2 t poolFlow (Just (ad:ads)) rates calls
 
 
 run2 t Nothing Nothing Nothing Nothing
-  = run2 t (Just pcf) (Just ads) Nothing Nothing   `debug` ("Shouldn't be here")
+  = run2 t (Just pcf) (Just ads) Nothing Nothing  -- `debug` ("Shouldn't be here")
   where
     (ads,pcf,rcurves,clls,_) = getInits t Nothing
 
-run2 t Nothing _ _ _ = (prepareDeal t)  `debug` ("End with Pool CF")
+run2 t Nothing _ _ _ = (prepareDeal t) -- `debug` ("End with Pool CF")
 
 
 calcLiquidationAmount :: C.LiquidationMethod -> (P.Pool a) -> Date -> Amount
@@ -678,6 +679,14 @@ queryDeal t s =
          _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
          _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
 
+    FutureCurrentPoolBegBalance asOfDay ->
+         case _poolSnapshot of
+            Just ts -> CF.mflowBegBalance ts
+            Nothing -> -0.1
+        where
+         _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+         _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
+
 
     CurrentPoolCollectionInt asOfDay ->
       case (P.futureCf (pool t)) of
@@ -740,8 +749,18 @@ queryDeal t s =
            sum $ map (\x -> (F.feeDue x) ) $ Map.elems fSubMap
     Sum _s ->
         sum $ map (queryDeal t)  _s
-    -- `debug` ("Query -> "++show(s))
-    -- CurrentBondsPaidAt asOfDay bns -> 100.0
+
+
+getPoolFlows :: TestDeal -> Maybe Date -> Maybe Date -> [CF.TsRow]
+getPoolFlows t sd ed =
+  case (sd,ed) of
+    (Nothing,Nothing) ->  _trs
+    (Nothing,(Just _ed)) -> CF.getTxnAsOf _projCf _ed  -- < d
+    ((Just _sd),Nothing) -> CF.getTxnAfter _projCf _sd   -- >= d
+    ((Just _sd),(Just _ed)) -> filter (\x -> (CF.tsDate x >= _sd) && (CF.tsDate x < _ed)) _trs
+  where
+    _projCf = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+    _trs =  CF.getTsCashFlowFrame _projCf
 
 
 calcDueFee :: TestDeal -> T.Day -> F.Fee -> F.Fee
@@ -752,23 +771,31 @@ calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd Nothing fa _ _)
   = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd))
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
-  = calcDueFee t calcDay f {F.feeDueDate = Just _startDate }
+  = calcDueFee t calcDay f {F.feeDueDate = Just fs }
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay) fa lpd _)
   | _fdDay == calcDay = f
-  | otherwise = f{ F.feeDue = fd + (fromRational ((toRational baseBal) * r * (periodToYear feeStartDate calcDay ACT_360)))
-                            , F.feeDueDate = Just calcDay } -- `debug` ("Fee DUE base"++show(baseBal))
+  | otherwise = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay } --  `debug` ("Fee DUE base"++show(newDue))
                  where
                      feeStartDate = case lpd of
                                         (Just _lpd) -> _lpd
-                                        Nothing -> tClosingDate 
-                     baseBal = case feeBase of
-                                 FutureCurrentPoolBalance _ ->  queryDeal t $ FutureCurrentPoolBalance calcDay
-                                 _ -> 0.0
+                                        Nothing -> tClosingDate
+                     unAccruedFlows = getPoolFlows t (Just feeStartDate) (Just calcDay) -- `debug` ("S E"++show(_fdDay)++">>"++show(calcDay))
+
+                     baseBals = case feeBase of
+                                 CurrentPoolBalance ->  map CF.mflowBalance unAccruedFlows
+                                 CurrentPoolBegBalance ->  map CF.mflowBegBalance unAccruedFlows
+                                 -- CurrentPoolBalance ->  queryDeal t $ FutureCurrentPoolBalance calcDay
+                                 -- CurrentPoolBegBalance ->  queryDeal t $ FutureCurrentPoolBegBalance calcDay
+                     patchDate = case lpd of
+                                   (Just _lpd) -> CF.mflowDate $ last $ getPoolFlows t Nothing (Just feeStartDate)
+                                   Nothing -> tClosingDate
+                     factors = getIntervalFactors $  [patchDate] ++ (map CF.mflowDate unAccruedFlows) -- `debug` ("capture flow"++show(unAccruedFlows))
+                     newDue = sum $ map (\(_b,_f) -> mulBR _b (r * _f) ) $ zip baseBals factors -- `debug` ("Bals"++show(baseBals)++"F>>"++show(factors)++"R>>"++show(r))
                      tClosingDate = Map.findWithDefault _startDate "closing-date" (dates t)
 
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd _fdDay fa lpd _)
-   = f{ F.feeDue = fd + (fromRational ((toRational baseBal) * r) ), F.feeDueDate = Just calcDay }
+   = f{ F.feeDue = fd + (mulBR baseBal r), F.feeDueDate = Just calcDay }
      where
      baseBal = queryDeal t (CurrentPoolCollectionInt calcDay)
 

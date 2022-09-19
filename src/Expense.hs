@@ -10,7 +10,6 @@ import Lib(DayCount,Period,paySeqLiabilities,Dates,DealStats
 import Data.Traversable
 import Language.Haskell.TH
 
-import qualified Data.Time as T
 import qualified Data.Text
 import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
@@ -22,6 +21,7 @@ data FeeType = AnnualRateFee DealStats Rate
              | PctFee DealStats Rate
              | FixFee Balance
              | RecurFee Period Balance
+             | MonthOfYear Int Balance
              | Custom Ts
              deriving (Show,Eq)
 
@@ -36,7 +36,7 @@ data Fee = Fee {
   ,feeStmt :: Maybe Statement
 } deriving (Show,Eq)
 
-payFee :: T.Day -> Amount -> Fee -> Fee
+payFee :: Date -> Amount -> Fee -> Fee
 payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
    f {feeLastPaidDay = Just d
      ,feeDue = dueRemain

@@ -15,7 +15,7 @@ module Lib
     ,getValByDate,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,extractTxns,groupTxns,getTxns
     ,getTxnComment,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
-    ,paySeqLiabilitiesAmt,getIntervalDays,nextDate
+    ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
     ,zipWith8,zipWith9, pv2, monthsOfPeriod,IRate
     ,weightedBy, getValByDates, mkTs, DealStatus(..)
     ,mulBI,mkRateTs,Pre(..)
@@ -64,6 +64,7 @@ data Period = Daily
 
 data DealStats =  CurrentBondBalance
               | CurrentPoolBalance
+              | CurrentPoolBegBalance
               | CurrentPoolDefaultedBalance
               | OriginalBondBalance
               | OriginalPoolBalance
@@ -73,6 +74,7 @@ data DealStats =  CurrentBondBalance
               | AllAccBalance
               | CumulativeDefaultBalance T.Day
               | FutureCurrentPoolBalance T.Day
+              | FutureCurrentPoolBegBalance T.Day
               | FutureCurrentPoolDefaultBalance T.Day
               | FutureCurrentBondBalance T.Day
               | FutureCurrentBondFactor T.Day
@@ -155,9 +157,6 @@ addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
 mulBI :: Balance -> IRate -> Amount
 mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
 
--- mulRs :: E2 -> E6 -> E2
--- mulRs bal _r =
-
 genDates :: T.Day -> Period -> Int -> [T.Day]
 genDates start_day p n =
    [ T.addGregorianDurationClip (T.CalendarDiffDays (toInteger i*mul) 0) start_day | i <- [1..n]]
@@ -180,13 +179,13 @@ nextDate d p
         Annually -> 12
         _ -> 0
 
-getIntervalDays :: [T.Day] -> [Int]
+getIntervalDays :: [Date] -> [Int]
 getIntervalDays ds
   = map (\(x,y)-> (fromIntegral (T.diffDays y x))) $ zip (init ds) (tail ds)
 
-getIntervalFactors :: [T.Day] -> [Float]
+getIntervalFactors :: [Date] -> [Rate]
 getIntervalFactors ds
-  = map (\x ->  (fromIntegral x)/365) (getIntervalDays ds)
+  = map (\x -> (toRational x) / 365) (getIntervalDays ds) -- `debug` ("Interval Days"++show(ds))
 
 previousDate :: T.Day -> Period -> T.Day
 previousDate start_day p

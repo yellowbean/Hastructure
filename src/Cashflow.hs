@@ -8,7 +8,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
                 ,getEarlierTsCashFlowFrame
-                ,mflowBalance,tsDefaultBal,getAllAfterCashFlowFrame
+                ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
                 ,tsTotalCash,Date -- ,PersonalLoanFlow
                 ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter
@@ -305,19 +305,26 @@ mflowRecovery (MortgageFlow2 _ _ _ _ _ _ _ x _ _) = x
 mflowRecovery (MortgageFlow3 _ _ _ _ _ _ _ _ _ x _ _) = x
 mflowRecovery _  = -1.0
 
-mflowBalance :: TsRow -> Centi
+mflowBalance :: TsRow -> Centi -- getting end balance of period
 mflowBalance (MortgageFlow _ x _ _ _ _ _ _ _) = x
 mflowBalance (MortgageFlow2 _ x _ _ _ _ _ _ _ _) = x
 mflowBalance (MortgageFlow3 _ x _ _ _ _ _ _ _ _ _ _) = x
+
+mflowBegBalance :: TsRow -> Centi -- backout beg balance of period
+mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _) = x + p + ppy + def
+mflowBegBalance (MortgageFlow2 _ x p _ ppy _ def _ _ _) = x + p + ppy + def
+mflowBegBalance (MortgageFlow3 _ x p _ ppy _ _ _ def _ _ _) = x + p + ppy + def
 
 mflowLoss :: TsRow -> Centi
 mflowLoss (MortgageFlow _ _ _ _ _ _ _ x _) = x
 mflowLoss (MortgageFlow2 _ _ _ _ _ _ _ _ x _) = x
 mflowLoss (MortgageFlow3 _ _ _ _ _ _ _ _ _ _ x _) = x
+
 mflowRate :: TsRow -> IRate
 mflowRate (MortgageFlow _ _ _ _ _ _ _ _ x) = x
 mflowRate (MortgageFlow2 _ _ _ _ _ _ _ _ _ x) = x
 mflowRate (MortgageFlow3 _ _ _ _ _ _ _ _ _ _ _ x) = x
+
 mflowDate :: TsRow -> T.Day
 mflowDate (MortgageFlow x _ _ _ _ _ _ _ _) = x
 mflowDate (MortgageFlow2 x _ _ _ _ _ _ _ _ _) = x

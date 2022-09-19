@@ -34,6 +34,8 @@ library
       Expense
       Liability
       Lib
+      Types
+      Util
       Waterfall
   other-modules:
       Paths_Hastructure
