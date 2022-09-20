@@ -785,11 +785,13 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay)
                      baseBals = case feeBase of
                                  CurrentPoolBalance ->  map CF.mflowBalance unAccruedFlows
                                  CurrentPoolBegBalance ->  map CF.mflowBegBalance unAccruedFlows
+                                 OriginalPoolBalance -> replicate (length unAccruedFlows) $ P.getIssuanceField (pool t) P.IssuanceBalance
                                  -- CurrentPoolBalance ->  queryDeal t $ FutureCurrentPoolBalance calcDay
                                  -- CurrentPoolBegBalance ->  queryDeal t $ FutureCurrentPoolBegBalance calcDay
                      patchDate = case lpd of
                                    (Just _lpd) -> CF.mflowDate $ last $ getPoolFlows t Nothing (Just feeStartDate)
                                    Nothing -> tClosingDate
+
                      factors = getIntervalFactors $  [patchDate] ++ (map CF.mflowDate unAccruedFlows) -- `debug` ("capture flow"++show(unAccruedFlows))
                      newDue = sum $ map (\(_b,_f) -> mulBR _b (r * _f) ) $ zip baseBals factors -- `debug` ("Bals"++show(baseBals)++"F>>"++show(factors)++"R>>"++show(r))
                      tClosingDate = Map.findWithDefault _startDate "closing-date" (dates t)

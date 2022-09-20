@@ -5,6 +5,7 @@ module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,RateType(..),projCashflow,AmortPlan(..)
        ,Status(..),isDefaulted,IssuanceFields(..)
        ,Asset,projPoolCFs,AggregationRule
+       ,getIssuanceField
 ) where
 
 import Data.Time (Day)
@@ -63,6 +64,13 @@ data Pool a = Pool {assets :: [a]
                    ,asOfDate :: T.Day
                    ,issuanceStat :: Maybe (Map.Map IssuanceFields Centi)}
                     deriving (Show)
+
+getIssuanceField :: Pool a -> IssuanceFields -> Centi
+getIssuanceField p _if
+  = case (issuanceStat p) of
+      Just m -> Map.findWithDefault 0.0 _if m
+      Nothing -> 0.0
+
 
 calcPmt :: Balance -> IRate -> Int -> Amount
 calcPmt bal periodRate periods =
