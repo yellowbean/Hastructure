@@ -786,6 +786,9 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay)
                                  CurrentPoolBalance ->  map CF.mflowBalance unAccruedFlows
                                  CurrentPoolBegBalance ->  map CF.mflowBegBalance unAccruedFlows
                                  OriginalPoolBalance -> replicate (length unAccruedFlows) $ P.getIssuanceField (pool t) P.IssuanceBalance
+                                 CurrentBondBalance -> [(queryDeal t CurrentBondBalance)] --TODO how to get ?
+                                 OriginalBondBalance -> [(queryDeal t OriginalBondBalance)]  --TODO how to get?
+                                 CurrentBondBalanceOf bns -> [(queryDeal t (CurrentBondBalanceOf bns))]
                                  -- CurrentPoolBalance ->  queryDeal t $ FutureCurrentPoolBalance calcDay
                                  -- CurrentPoolBegBalance ->  queryDeal t $ FutureCurrentPoolBegBalance calcDay
                      patchDate = case lpd of
