@@ -6,7 +6,8 @@ module Expense (Fee(..),FeeType(..),payFee)
   where
 
 import Lib(DayCount,Period,paySeqLiabilities,Dates,DealStats
-           ,appendStmt,Statement,Txn(..),Ts(..),Amount,Balance,Date,Rate)
+           ,Amount,Balance,Date,Rate,Ts(..))
+import Stmt(appendStmt,Statement,Txn(..))
 import Data.Traversable
 import Language.Haskell.TH
 

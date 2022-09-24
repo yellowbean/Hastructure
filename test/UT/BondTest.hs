@@ -8,6 +8,7 @@ import qualified Data.Time as T
 import qualified Liability as B
 import qualified Deal as D
 import qualified Lib as L
+import qualified Stmt  as S
 import qualified Asset as P
 import qualified Assumptions as A
 import qualified Cashflow as CF
@@ -28,7 +29,7 @@ b1 = B.Bond{B.bndName="A"
             ,B.bndDueInt=0.0
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-            ,B.bndStmt=Just $ L.Statement [ L.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 ""]}
+            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 ""]}
 
 bfloat = B.Bond{B.bndName="A"
             ,B.bndType=B.Sequential
@@ -43,7 +44,7 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndDueInt=0.0
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-            ,B.bndStmt=Just $ L.Statement [ L.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 ""]}
+            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 ""]}
 
 
 pricingTests = testGroup "Pricing Tests"
@@ -82,8 +83,8 @@ pricingTests = testGroup "Pricing Tests"
       assertEqual "Test Pricing on case 01" (B.PriceResult (51000 / 101) (1700 / 101) (1 / 4) (1 / 1) 0.0) pr
     ,
      let
-       b2 = b1 { B.bndStmt = Just (L.Statement [L.BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 ""
-                                                ,L.BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 ""])}
+       b2 = b1 { B.bndStmt = Just (S.Statement [S.BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 ""
+                                                ,S.BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 ""])}
 
        pr = B.priceBond (L.toDate "20220201")
                         (L.FloatCurve

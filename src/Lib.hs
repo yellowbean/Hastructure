@@ -8,17 +8,16 @@ module Lib
     ,Spread,Index(..),Date
     ,paySeqLiabilities,prorataFactors,periodToYear
     ,afterNPeriod,DealStats(..),Ts(..),periodsBetween
-    ,Txn(..),combineTxn,Statement(..)
-    ,appendStmt,periodRateFromAnnualRate
-    ,queryStmtAmt,previousDate,inSamePeriod
+    ,periodRateFromAnnualRate
+    ,previousDate,inSamePeriod
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
+    ,toDate
     ,getValByDate,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
-    ,extractTxns,groupTxns,getTxns
-    ,getTxnComment,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
-    ,zipWith8,zipWith9, pv2, monthsOfPeriod,IRate
+    ,zipWith8,zipWith9, pv2, monthsOfPeriod
     ,weightedBy, getValByDates, mkTs, DealStatus(..)
     ,mulBI,mkRateTs,Pre(..)
+    ,Interest,Principal,IRate,Cash,Comment
     ) where
 
 import qualified Data.Time as T
@@ -34,8 +33,11 @@ import Data.Aeson hiding (json)
 import Text.Regex.TDFA
 import Data.Fixed
 
+import Types
+
 import Debug.Trace
 debug = flip trace
+
 
 type Rate = Rational  -- general Rate like pool factor
 type IRate = Micro    -- Interest Rate Type
@@ -72,27 +74,28 @@ data DealStats =  CurrentBondBalance
               | PoolFactor
               | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
               | AllAccBalance
-              | CumulativeDefaultBalance T.Day
-              | FutureCurrentPoolBalance T.Day
-              | FutureCurrentPoolBegBalance T.Day
-              | FutureCurrentPoolDefaultBalance T.Day
-              | FutureCurrentBondBalance T.Day
-              | FutureCurrentBondFactor T.Day
-              | FutureCurrentPoolFactor T.Day
+              | CumulativeDefaultBalance Date
+              | FutureCurrentPoolBalance Date
+              | FutureCurrentPoolBegBalance Date
+              | FutureCurrentPoolDefaultBalance Date
+              | FutureCurrentBondBalance Date
+              | FutureCurrentBondFactor Date
+              | FutureCurrentPoolFactor Date
               | FutureOriginalPoolBalance
-              | CurrentPoolCollectionInt T.Day
               | CurrentBondBalanceOf [String]
               | Factor DealStats Float
-              | BondIntPaidAt T.Day String
-              | BondsIntPaidAt T.Day [String]
-              | FeePaidAt T.Day String
-              | FeesPaidAt T.Day [String]
+              | BondIntPaidAt Date String
+              | BondsIntPaidAt Date [String]
+              | FeePaidAt Date String
+              | FeesPaidAt Date [String]
               | CurrentDueBondInt [String]
               | CurrentDueFee [String]
               | Max DealStats DealStats
               | Min DealStats DealStats
               | LastBondIntPaid [String]
               | LastFeePaid [String]
+              | BondBalanceHistory Date Date
+              | PoolCollectionIntHistory Date Date
               | Sum [DealStats]
               deriving (Show,Eq)
 
@@ -114,15 +117,12 @@ data Index = LPR5Y
             deriving (Show,Eq)
 -- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
 
-data DayCount = ACT_360
-               | ACT_365
-               deriving (Show)
 
-periodToYear :: T.Day -> T.Day -> DayCount -> Rational
+periodToYear :: Date -> Date -> DayCount -> Rational
 periodToYear start_date end_date day_count =
   case day_count of
-    ACT_360 -> days / 360
-    ACT_365 -> days / 365
+    DC_ACT_360 -> days / 360
+    DC_ACT_365 -> days / 365
   where
     days = fromIntegral (T.diffDays end_date start_date)
 
@@ -251,88 +251,8 @@ periodsBetween t1 t2 p
   where
     _diff = T.cdMonths $ T.diffGregorianDurationClip t1 t2
 
-data Txn = BondTxn T.Day Balance Interest Principal IRate Cash Comment
-          | AccTxn T.Day Balance Amount Comment
-          | ExpTxn T.Day Balance Amount Balance Comment
-        deriving (Show)
-
-getTxnComment :: Txn -> String
-getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
-getTxnComment (AccTxn _ _ _ t ) = t
-getTxnComment (ExpTxn _ _ _ _ t ) = t
-
-getTxnDate :: Txn -> T.Day 
-getTxnDate (BondTxn t _ _ _ _ _ _ ) = t
-getTxnDate (AccTxn t _ _ _ ) = t
-getTxnDate (ExpTxn t _ _ _ _ ) = t
-
-getTxnBalance :: Txn -> Balance
-getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
-getTxnBalance (AccTxn _ t _ _ ) = t
-getTxnBalance (ExpTxn _ t _ _ _ ) = t
-
-getTxnPrincipal :: Txn -> Centi
-getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
-
-getTxnAmt :: Txn -> Centi
-getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t
-getTxnAmt (AccTxn _ _ t _ ) = t
-getTxnAmt (ExpTxn _ _ t _ _ ) = t
-
-getTxnAsOf :: [Txn] -> T.Day -> Maybe Txn
-getTxnAsOf txns d = find (\x -> (getTxnDate x) <= d) $ reverse txns
 
 
-emptyTxn :: Txn -> T.Day -> Txn 
-emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 "" )
-emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 "" )
-emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 "" )
-
-getTxnByDate :: [Txn] -> T.Day -> Maybe Txn
-getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
-
-queryStmtAmt :: Maybe Statement -> String -> Centi
-queryStmtAmt (Just (Statement txns)) q =
-  let
-    -- resultTxns = filter (\txn -> (getTxnComment txn) == q)  txns
-    resultTxns = filter (\txn -> (getTxnComment txn) =~ q)  txns
-    -- TODO looks like a big performance hit on regrex
-  in
-    abs $ foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns -- `debug` ("DEBUG Query"++show(resultTxns))
-
-queryStmtAmt Nothing _ = 0
-
-data Statement = Statement [Txn]
-        deriving (Show,Eq)
-
-appendStmt :: Maybe Statement -> Txn -> Statement
-appendStmt (Just stmt@(Statement txns)) txn = Statement (txns++[txn])
-appendStmt Nothing txn = Statement [txn]
-
-extractTxns :: [Txn] -> [Statement] -> [Txn]
-extractTxns rs ((Statement _txns):stmts) = extractTxns (rs++_txns) stmts 
-extractTxns rs [] = rs
-
-getTxns :: Maybe Statement -> [Txn]
-getTxns Nothing = []
-getTxns (Just (Statement txn)) = txn
-
-groupTxns :: Maybe Statement -> M.Map T.Day [Txn]
-groupTxns (Just (Statement txns))
-  = M.fromAscListWith (++) $ [(getTxnDate txn,[txn]) | txn <- txns]
--- groupTxns Nothing = mempty
-
-combineTxn :: Txn -> Txn -> Txn
-combineTxn (BondTxn d1 b1 i1 p1 r1 c1 m1) (BondTxn d2 b2 i2 p2 r2 c2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) ""
-
-instance Ord Txn where
-  compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ )
-    = compare d1 d2
-
-instance Eq Txn where 
-  (BondTxn d1 _ _ _ _ _ _ ) == (BondTxn d2 _ _ _ _ _ _ )
-    = d1 == d2
 
 data TsPoint a = TsPoint T.Day a
                 deriving (Show,Eq)
@@ -415,11 +335,9 @@ inSamePeriod t1 t2 p
       (y2,m2,d2) = T.toGregorian t2
 
 
-$(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Index)
-$(deriveJSON defaultOptions ''Statement)
 
 
 

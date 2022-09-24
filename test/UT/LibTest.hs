@@ -6,6 +6,7 @@ import Test.Tasty.HUnit
 
 import qualified Data.Time as T
 import Lib
+import Stmt
 
 curveTests =testGroup "Curve Tests"
   [

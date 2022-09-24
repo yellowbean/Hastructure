@@ -6,10 +6,11 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
     where
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,LastIntPayDate
-           ,DayCount(ACT_365),calcInt
-           ,DealStats(..),Statement(..),appendStmt,Txn(..),Balance
+           ,calcInt
+           ,DealStats(..),Balance
            ,paySeqLiabilitiesAmt,IRate)
-
+import Stmt (Statement(..),appendStmt,Txn(..))
+import Types
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -48,7 +49,7 @@ depositInt acc@(Account
   acc {accBalance = newBal,accStmt = (Just newStmt)}
   where
     newBal = (accured_int + bal)
-    accured_int = calcInt bal sd ed r ACT_365
+    accured_int = calcInt bal sd ed r DC_ACT_365
     newStmt = appendStmt stmt (AccTxn ed newBal accured_int "Deposit Int")
 
 transfer :: Account -> Amount -> T.Day -> Account -> (Account, Account)

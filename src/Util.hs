@@ -14,8 +14,7 @@ import Debug.Trace
 debug = flip trace
 
 mulBR :: Balance -> Rate -> Centi
-mulBR b r
-  = fromRational $ (toRational b) * r --`debug` ("b "++show(b)++"r "++show(r)++" = "++show(b * (fromRational r)))
+mulBR b r = fromRational $ (toRational b) * r --`debug` ("b "++show(b)++"r "++show(r)++" = "++show(b * (fromRational r)))
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
@@ -25,3 +24,10 @@ zipLeftover (x:xs) (y:ys) = zipLeftover xs ys
 
 lastN :: Int -> [a] -> [a]
 lastN n xs = zipLeftover (drop n xs) xs
+
+
+--data BoundDate = Include Date
+--               | Exclude Date
+--
+--class TsList a where
+--  subByRange :: a -> Maybe BoundDate -> Maybe BoundDate -> a

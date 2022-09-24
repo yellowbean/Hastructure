@@ -26,6 +26,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import Types
 import Text.Printf
 import Data.Fixed
 
@@ -44,7 +45,7 @@ class Asset a where
   getOriginBal :: a -> Balance
   getOriginRate :: a -> IRate
   isDefaulted :: a -> Bool
-  getPaymentDates :: a -> Int -> [T.Day]
+  getPaymentDates :: a -> Int -> [Date]
   projCashflow :: a -> Date -> [A.AssumptionBuilder] -> CF.CashFlowFrame
 
 data IssuanceFields = IssuanceBalance
@@ -61,7 +62,7 @@ instance FromJSONKey IssuanceFields where
 
 data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
-                   ,asOfDate :: T.Day
+                   ,asOfDate :: Date
                    ,issuanceStat :: Maybe (Map.Map IssuanceFields Centi)}
                     deriving (Show)
 
@@ -95,7 +96,7 @@ data AmortPlan = Level   -- for mortgage
                deriving (Show)
 
 data Status = Current
-            | Defaulted (Maybe T.Day)
+            | Defaulted (Maybe Date)
             -- | Delinquency (Maybe Int)
             -- | Extended (Maybe T.Day)
             deriving (Show)
@@ -115,7 +116,7 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms Status
 
 data ConsumerCredit = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
 
-buildAssumptionRate :: [T.Day]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int)
+buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int)
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
        A.DefaultConstant r ->
            buildAssumptionRate pDates assumps _ppy_rates (replicate cf_dates_length r) _recovery_rate _recovery_lag
@@ -163,7 +164,7 @@ projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) 
                _new_bal_after_default = _bal - _new_default
                _new_prepay = _new_bal_after_default * (fromRational _ppy_rate)
                _new_bal_after_ppy = _new_bal_after_default - _new_prepay
-               _new_int = mulBI _new_bal_after_ppy (calcIntRate _last_date _pdate _rate ACT_360) -- `debug` ("Payment dates"++show(_pdate))
+               _new_int = mulBI _new_bal_after_ppy (calcIntRate _last_date _pdate _rate DC_ACT_360) -- `debug` ("Payment dates"++show(_pdate))
                _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms --  `debug` ("Remain Term"++show(_remain_terms))
                _new_prin = case pt of
                               Level -> _pmt - _new_int
@@ -364,7 +365,7 @@ calc_p_i_flow bal pmt dates r =
   _calc_p_i_flow pmt bal [] [] [] period_r
     where
       size = length dates
-      period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r ACT_360 | d <- [0..size-2]]
+      period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
 
 _calc_p_i_flow_even :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> (CF.Balances,CF.Principals,CF.Interests)
 _calc_p_i_flow_even evenPrin last_bal bals ps is [] = (bals,ps,is) -- `debug` ("Return->"++show(bals)++show(is))
@@ -381,14 +382,14 @@ calc_p_i_flow_even evenPrin bal dates r
   = _calc_p_i_flow_even evenPrin bal [] [] [] period_r  -- `debug` ("SIze of rates"++show(length period_r))
     where
       size = length dates
-      period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r ACT_360 | d <- [0..size-2]]
+      period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
 
 calc_p_i_flow_i_p :: Balance -> Dates -> IRate -> (CF.Balances,CF.Principals,CF.Interests)
 calc_p_i_flow_i_p bal dates r
   = (_bals,_prins,_ints)
     where
       size = length dates
-      period_rs = [ calcIntRate (dates!!d) (dates!!(d+1)) r ACT_360 | d <- [0..size-2]]
+      period_rs = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
       _ints = [  mulBI bal _r | _r <- period_rs ]
       _bals = (replicate (size - 1) bal ) ++ [ 0 ]
       _prins = (replicate (size - 1) 0 ) ++ [ bal ]
@@ -460,8 +461,8 @@ runPool2 (Pool as _ asof _) assumps = map (\x -> projCashflow x asof assumps) as
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))
 
-data AggregationRule = Regular T.Day Period
-                     | Custom T.Day [T.Day]
+data AggregationRule = Regular Date Period
+                     | Custom Date [Date]
 
 projPoolCFs :: Pool Mortgage -> [A.AssumptionBuilder] -> AggregationRule -> CF.CashFlowFrame
 projPoolCFs pool as (Regular cutoffDay p)

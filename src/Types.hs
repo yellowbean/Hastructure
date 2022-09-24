@@ -20,6 +20,12 @@ data DayCount = DC_30_360
               | DC_ACT_360
               | DC_ACT_365
               | DC_ACT_ACT
+              deriving (Show)
+
+--data DealComponent = CompLiability 
+--                   | CompPool 
+--                   | CompAsset 
+--                   | CompCall 
 
 
 $(deriveJSON defaultOptions ''DayCount)

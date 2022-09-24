@@ -15,12 +15,13 @@ import qualified UT.DealTest as DT
 
 import qualified Accounts as A
 import qualified Lib as L
+import qualified Stmt as S
 import qualified Data.Time as T
 
 main = defaultMain tests
 
 td = T.fromGregorian  2020 1 1
-stmt1 = L.Statement [(L.AccTxn td 100 20 "Pay"),(L.AccTxn td 100 10 "")]
+stmt1 = S.Statement [(S.AccTxn td 100 20 "Pay"),(S.AccTxn td 100 10 "")]
 acc1 = A.Account 100 "A1" Nothing Nothing (Just stmt1)
 acc2 = A.Account 150 "A2" Nothing Nothing Nothing
 
@@ -48,7 +49,7 @@ accTests = testGroup "Account Tests"
 stmtTests = testGroup "Statement Test"
   [testCase "Aggregate Txn" $
     assertEqual "Sum by regrex"
-      (L.queryStmtAmt (A.accStmt acc1) "Pay") 20
+      (S.queryStmtAmt (A.accStmt acc1) "Pay") 20
   ]
 
 

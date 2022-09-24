@@ -5,7 +5,8 @@
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
   ,payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
-  ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..))
+  ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
+  ,weightAverageBalance)
   where
 
 import Language.Haskell.TH
@@ -15,17 +16,25 @@ import Data.Fixed
 
 import qualified Data.Time as T
 import Lib (Date,Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
-           ,Txn(..),combineTxn,Statement(..),appendStmt,Period(..),Ts(..)
-           ,TsPoint(..),getTxnDate,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance
-           ,toDate,pv2,daysBetween,getTxnDate,Amount
-           ,Period,Floor,Cap,getValByDate,IRate,mulBI)
+           ,Period(..),Ts(..)
+           ,TsPoint(..)
+           ,toDate,pv2,daysBetween,Amount
+           ,Period,Floor,Cap,getValByDate,IRate,mulBI
+           ,getIntervalFactors)
+
+import Util (mulBR)
+
+import Stmt (Txn(..),combineTxn,Statement(..),appendStmt,getTxnDate
+           ,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance,getTxnDate,sliceStmt
+           ,getTxnBegBalance)
+
 import Data.List (findIndex,zip6,find)
 import qualified Cashflow as CF
 
 import Debug.Trace
 debug = flip trace
 
-data RateReset = ByInterval Period (Maybe T.Day) -- period, maybe a start day
+data RateReset = ByInterval Period (Maybe Date) -- period, maybe a start day
                | MonthOfYear  Int  -- month index, 0 => Janaury
                deriving (Show)
 
@@ -45,13 +54,13 @@ type SinkFundSchedule = Ts
 type PlannedAmorSchedule = Ts
 
 data BondType = Sequential
-                | SinkFund SinkFundSchedule
-                | PAC PlannedAmorSchedule
-                | PAC_Anchor PlannedAmorSchedule [String]
-                | Lockout T.Day
-                | Z
-                | Equity
-                deriving (Show)
+              | SinkFund SinkFundSchedule
+              | PAC PlannedAmorSchedule
+              | PAC_Anchor PlannedAmorSchedule [String]
+              | Lockout Date
+              | Z
+              | Equity
+              deriving (Show)
 
 data Bond = Bond {
   bndName :: String
@@ -62,26 +71,26 @@ data Bond = Bond {
   ,bndRate :: IRate
   ,bndDuePrin :: Balance
   ,bndDueInt :: Balance
-  ,bndLastIntPay :: Maybe T.Day
-  ,bndLastPrinPay :: Maybe T.Day
+  ,bndLastIntPay :: Maybe Date
+  ,bndLastPrinPay :: Maybe Date
   ,bndStmt :: Maybe Statement
 } deriving (Show)
 
 consolTxn :: [Txn] -> Txn -> [Txn]
 consolTxn (txn:txns) txn0
   = if txn==txn0 then 
-     (combineTxn txn txn0):txns
+      (combineTxn txn txn0):txns
     else
-     txn0:txn:txns 
+      txn0:txn:txns 
 consolTxn [] txn = [txn]
 
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndStmt = Just (Statement (txn:txns))}
-  =  b {bndStmt = Just (Statement (reverse (foldl consolTxn [txn] txns)  ))}
+  =  b {bndStmt = Just (Statement (reverse (foldl consolTxn [txn] txns)))}
 
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
-payInt :: T.Day -> Amount -> Bond -> Bond
+payInt :: Date -> Amount -> Bond -> Bond
 payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt)
   = Bond bn Equity oi iinfo bal r duePrin dueInt (Just d) lpayPrin (Just new_stmt)
   where
@@ -127,7 +136,7 @@ fv2 discount_rate today futureDay amt =
   where
     distance = daysBetween futureDay today
 
-priceBond :: T.Day -> Ts -> Bond -> PriceResult
+priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ lastIntPayDay _ (Just (Statement txns)))
   = PriceResult
      presentValue
@@ -212,9 +221,8 @@ calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 --                   Just (Statement txns) -> [ TsPoint (getTxnDate txn) (getTxnAmt txn)  | txn <- txns ]
 --                   Nothing -> []
 
-backoutDueIntByYield :: T.Day -> Bond -> Balance
-backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _)
-                           (InterestByYield y) currentBalance _ _ _ _ _ stmt)
+backoutDueIntByYield :: Date -> Bond -> Balance
+backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield y) currentBalance _ _ _ _ _ stmt)
   = (fv2 y odate d pv0) - obal
     where
      pv0 = obal - pvs
@@ -222,6 +230,19 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _)
      cashflows = case stmt of
                    Just (Statement txns) -> [ ((getTxnDate txn),(getTxnAmt txn))  | txn <- txns ]
                    Nothing -> []
+
+weightAverageBalance :: Date -> Date -> Bond -> Balance
+weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ stmt)
+  = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
+    where
+     _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
+     _bals = [currentBalance] ++ map getTxnBegBalance txns -- `debug` ("txn"++show(txns))
+     _ds = map getTxnDate txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
+     _b = consolStmt b   
+     txns =  case (sliceStmt (bndStmt _b) sd ed) of
+                Nothing -> []
+                Just (Statement _txns) -> _txns-- map getTxnBalance _txns
+
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
