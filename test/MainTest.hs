@@ -12,6 +12,7 @@ import qualified UT.BondTest as BT
 import qualified UT.LibTest as LT
 import qualified UT.ExpTest as ET
 import qualified UT.DealTest as DT
+import qualified UT.UtilTest as UtilT
 
 import qualified Accounts as A
 import qualified Lib as L
@@ -35,7 +36,13 @@ tests = testGroup "Tests" [accTests,stmtTests
                            ,LT.datesTests
                            ,ET.expTests
                            ,DT.waterfallTests
-                           ,DT.queryTests]
+                           ,DT.queryTests
+                           ,UtilT.daycountTests1
+                           ,UtilT.daycountTests2
+                           ,UtilT.daycountTests3
+                           ,UtilT.daycountTests4
+                           
+                           ]
 
 accTests = testGroup "Account Tests"
   [testCase "Draw" $

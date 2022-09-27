@@ -97,6 +97,7 @@ test-suite Hastructure-test
       UT.DealTest
       UT.ExpTest
       UT.LibTest
+      UT.UtilTest
       Paths_Hastructure
   hs-source-dirs:
       test
