@@ -15,7 +15,7 @@ import Data.Aeson.TH
 import Data.Fixed
 
 import qualified Data.Time as T
-import Lib (Date,Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
+import Lib (Date,Balance,Rate,Spread,Index(..),Dates,calcInt
            ,Period(..),Ts(..)
            ,TsPoint(..)
            ,toDate,pv2,daysBetween,Amount
@@ -23,6 +23,7 @@ import Lib (Date,Balance,Rate,Spread,Index(..),Dates,calcInt,DayCount(..)
            ,getIntervalFactors)
 
 import Util (mulBR)
+import Types
 
 import Stmt (Txn(..),combineTxn,Statement(..),appendStmt,getTxnDate
            ,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance,getTxnDate,sliceStmt

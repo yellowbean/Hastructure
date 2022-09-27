@@ -16,6 +16,7 @@ import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified Call as C
 import Lib
+import Types
 
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -23,9 +24,9 @@ import qualified Data.Set as S
 
 td = TestDeal {
   D.name = "test deal1"
-  ,D.dates = (Map.fromList [("closing-date",(T.fromGregorian 2022 1 1))
-                         ,("cutoff-date",(T.fromGregorian 2022 1 1))
-                         ,("first-pay-date",(T.fromGregorian 2022 2 25))
+  ,D.dates = (Map.fromList [(ClosingDate,(T.fromGregorian 2022 1 1))
+                         ,(CutoffDate,(T.fromGregorian 2022 1 1))
+                         ,(FirstPayDate,(T.fromGregorian 2022 2 25))
                          ])
   ,D.payPeriod = Monthly
   ,D.collectPeriod = Monthly

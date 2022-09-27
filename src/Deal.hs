@@ -14,6 +14,7 @@ import qualified Assumptions as AP
 import qualified Call as C
 import Lib
 import Util
+import Types
 import Stmt (Statement(..),Txn,queryStmtAmt,getTxns,getTxnAmt,getTxnDate,getTxnComment)
 
 import qualified Data.Map as Map
@@ -39,13 +40,10 @@ class SPV a where
   getBondStmtByName :: a -> Maybe [String] -> Map.Map String (Maybe Statement)
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
 
-data DateType = ClosingDate
-              | CutoffDate
-              | FirstPayDate
 
 data TestDeal = TestDeal {
   name :: String
-  ,dates :: Map.Map String T.Day
+  ,dates :: Map.Map DateType T.Day
   ,payPeriod :: Period
   ,collectPeriod :: Period
   ,accounts :: Map.Map String A.Account
@@ -266,8 +264,8 @@ performAction d t (Nothing, (W.PayFeeResidual limit an feeName)) =
 performAction d t (Nothing, (W.PayPrinBy (W.RemainBalPct pct) an bndName))=
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
-    bndMap = (bonds t)
-    accMap = (accounts t)
+    bndMap = bonds t
+    accMap = accounts t
 
     availBal = A.accBalance $ accMap Map.! an
     targetBnd = bndMap Map.! bndName
@@ -614,8 +612,8 @@ getInits t mAssumps =
     ,callOptions  
     ,t_with_cf)   -- `debug` ("deal with pool"++show(pool t_with_cf))
   where
-    startDate = Map.findWithDefault _startDate "cutoff-date" (dates t)
-    firstPayDate = Map.findWithDefault _startDate "first-pay-date" (dates t)
+    startDate = Map.findWithDefault _startDate CutoffDate (dates t)
+    firstPayDate = Map.findWithDefault _startDate FirstPayDate (dates t)
 
     pCollectionInt = collectPeriod t
     bPayInt = payPeriod t
@@ -867,7 +865,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due lstInt
   where
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
-                      Nothing -> Map.findWithDefault _startDate "closing-date" (dates t)
+                      Nothing -> Map.findWithDefault _startDate ClosingDate (dates t)
     new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365
 
 
@@ -915,7 +913,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
     new_bal = bond_bal + dueInt
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
-                      Nothing -> Map.findWithDefault _startDate "closing-date" (dates t)
+                      Nothing -> Map.findWithDefault _startDate ClosingDate (dates t)
     dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365
 
 calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _) =
@@ -968,9 +966,9 @@ $(deriveJSON defaultOptions ''TxnComponent)
 
 td = TestDeal {
   name = "test deal1"
-  ,dates = (Map.fromList [("closing-date",(T.fromGregorian 2022 1 1))
-                         ,("cutoff-date",(T.fromGregorian 2022 1 1))
-                         ,("first-pay-date",(T.fromGregorian 2022 2 25))
+  ,dates = (Map.fromList [(ClosingDate ,(T.fromGregorian 2022 1 1))
+                         ,(CutoffDate,(T.fromGregorian 2022 1 1))
+                         ,(FirstPayDate,(T.fromGregorian 2022 2 25))
                          ])
   ,payPeriod = Monthly
   ,collectPeriod = Monthly

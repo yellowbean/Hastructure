@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Lib
-    (Amount,Rate,Dates,Period(..),calcInt,calcIntRate,Balance,DayCount(..)
+    (Amount,Rate,Dates,Period(..),calcInt,calcIntRate,Balance
     ,genDates,StartDate,EndDate,LastIntPayDate,daysBetween
     ,Spread,Index(..),Date
     ,paySeqLiabilities,prorataFactors,periodToYear
@@ -143,21 +143,21 @@ periodRateFromAnnualRate Quarterly annual_rate  = annual_rate / 4
 periodRateFromAnnualRate SemiAnnually annual_rate  = annual_rate / 2
 
 
-calcIntRate :: T.Day -> T.Day -> IRate -> DayCount -> IRate
+calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
 calcIntRate start_date end_date int_rate day_count =
    int_rate * (fromRational (periodToYear start_date end_date day_count))
 
-calcInt :: Balance -> T.Day -> T.Day -> IRate -> DayCount -> Amount
+calcInt :: Balance -> Date -> Date -> IRate -> DayCount -> Amount
 calcInt bal start_date end_date int_rate day_count =
   fromRational $ (toRational bal) * (toRational (calcIntRate start_date end_date int_rate day_count)) --TODO looks strange
 
-addD :: T.Day -> T.CalendarDiffDays -> T.Day
+addD :: Date -> T.CalendarDiffDays -> Date
 addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
 
 mulBI :: Balance -> IRate -> Amount
 mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
 
-genDates :: T.Day -> Period -> Int -> [T.Day]
+genDates :: Date -> Period -> Int -> [Date]
 genDates start_day p n =
    [ T.addGregorianDurationClip (T.CalendarDiffDays (toInteger i*mul) 0) start_day | i <- [1..n]]
    where

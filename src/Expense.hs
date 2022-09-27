@@ -5,7 +5,7 @@
 module Expense (Fee(..),FeeType(..),payFee)
   where
 
-import Lib(DayCount,Period,paySeqLiabilities,Dates,DealStats
+import Lib(Period,paySeqLiabilities,Dates,DealStats
            ,Amount,Balance,Date,Rate,Ts(..))
 import Stmt(appendStmt,Statement,Txn(..))
 import Data.Traversable
@@ -17,6 +17,7 @@ import           Data.Aeson.TH
 import           Data.Aeson.Types
 
 import Data.Fixed
+import Types
 
 data FeeType = AnnualRateFee DealStats Rate
              | PctFee DealStats Rate

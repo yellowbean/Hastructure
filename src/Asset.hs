@@ -13,7 +13,7 @@ import qualified Data.Time as T
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
-import Lib (Period(..),calcInt,Dates,Date,DayCount(..),calcIntRate,genDates
+import Lib (Period(..),calcInt,Dates,Date,calcIntRate,genDates
            ,Balance,Rate,IRate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate
            ,nextDate,Amount,getIntervalDays,zipWith9,getValByDates,mkTs,periodsBetween,Floor,Rate
            ,mulBI,mkRateTs)
