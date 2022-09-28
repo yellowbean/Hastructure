@@ -4,10 +4,12 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Types
-  (DayCount(..),DateType(..))
+  (DayCount(..),DateType(..),OverrideType(..)
+  ,ActionOnDate(..))
   where
 
 import qualified Data.Text as T
+import qualified Data.Time as Time
 import GHC.Generics
 import Language.Haskell.TH
 
@@ -24,6 +26,10 @@ import Data.Aeson.Types
 --actual/actual - calculates the daily interest using the actual number of days in the year and then multiplies that by the actual number of days in each time period.
 
 -- http://www.deltaquants.com/day-count-conventions
+
+type Date = Time.Day
+type Dates = [Time.Day]
+
 
 data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Basis
               | DC_30Ep_360 -- 30E+/360
@@ -42,7 +48,29 @@ data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Bas
 data DateType = ClosingDate
               | CutoffDate
               | FirstPayDate
+              | RevolvingEndDate
+              | StatedMaturityDate
               deriving (Show,Ord,Eq,Generic,Read)
+
+data ActionOnDate = RunWaterfall Date String
+                   |PoolCollection Date String
+                   deriving (Show)
+
+
+
+instance Ord ActionOnDate where
+  compare (PoolCollection d1 _) (PoolCollection d2 _) = compare d1 d2
+  compare (RunWaterfall d1 _) (RunWaterfall d2 _) = compare d1 d2
+  compare (PoolCollection d1 _) (RunWaterfall d2 _) = compare d1 d2
+  compare (RunWaterfall d1 _) (PoolCollection d2 _) = compare d1 d2
+
+instance Eq ActionOnDate where
+  (PoolCollection d1 _) == (PoolCollection d2 _) = d1 == d2
+  (RunWaterfall d1 _) == (RunWaterfall d2 _) = d1 == d2
+  (PoolCollection d1 _) == (RunWaterfall d2 _) = d1 == d2
+  (RunWaterfall d1 _) == (PoolCollection d2 _) = d1 == d2
+
+
 
 instance ToJSONKey DateType where
   toJSONKey = toJSONKeyText (T.pack . show)
@@ -52,12 +80,11 @@ instance FromJSONKey DateType where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
 
-
---data DealComponent = CompLiability 
---                   | CompPool 
---                   | CompAsset 
---                   | CompCall 
+data OverrideType = CustomActionOnDates [ActionOnDate]
+                    deriving (Show)
 
 
 $(deriveJSON defaultOptions ''DayCount)
 $(deriveJSON defaultOptions ''DateType)
+$(deriveJSON defaultOptions ''OverrideType)
+$(deriveJSON defaultOptions ''ActionOnDate)
