@@ -190,8 +190,4 @@ genSerialDates dp sd num
         (_y,_m,_d) = T.toGregorian sd  
         yearBegin = T.fromGregorian _y 1 1
 
-actionDate :: ActionOnDate -> Date
-actionDate (RunWaterfall d _) = d
-actionDate (PoolCollection d _) = d
-actionDate (EarnAccInt d _) = d
 
