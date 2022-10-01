@@ -26,7 +26,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Types
+import Types hiding (Current)
 import Text.Printf
 import Data.Fixed
 
@@ -68,7 +68,7 @@ data Pool a = Pool {assets :: [a]
 
 getIssuanceField :: Pool a -> IssuanceFields -> Centi
 getIssuanceField p _if
-  = case (issuanceStat p) of
+  = case issuanceStat p of
       Just m -> Map.findWithDefault 0.0 _if m
       Nothing -> 0.0
 
@@ -92,7 +92,7 @@ data RateType = Fix IRate
 
 data AmortPlan = Level   -- for mortgage
                | Even    -- for mortgage
-               | I_P -- interest only and principal due at last payment
+               | I_P     -- interest only and principal due at last payment
                deriving (Show)
 
 data Status = Current

@@ -5,12 +5,14 @@ module Stmt
   (Statement(..),Txn(..)
    ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,queryStmtAmt,appendStmt,combineTxn,sliceStmt,getTxnBegBalance
+   ,sliceTxns
   )
   where
 
 import Lib (Date,Balance,Amount,Interest,Principal,IRate,Cash,Comment
             ,toDate)
 import Util (mulBR)
+import Types
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -20,10 +22,21 @@ import Data.Fixed
 import Data.List
 import qualified Data.Map as M
 
+data TxnComment = PayInt BondNames 
+                | PayPrin BondNames
+                | PayFee FeeNames
+                | Transfer AccName
+                | PoolInflowPrin 
+                | PoolInflowInt
+                | PoolInflowRec
+                | And [TxnComment]
+                deriving (Show)
+
+
 data Txn = BondTxn Date Balance Interest Principal IRate Cash Comment
           | AccTxn Date Balance Amount Comment
           | ExpTxn Date Balance Amount Balance Comment
-        deriving (Show)
+          deriving (Show)
 
 getTxnComment :: Txn -> String
 getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
@@ -42,6 +55,7 @@ getTxnBalance (ExpTxn _ t _ _ _ ) = t
 
 getTxnBegBalance :: Txn -> Balance
 getTxnBegBalance (BondTxn _ t _ p _ _ _ ) = t + p
+getTxnBegBalance (AccTxn _ b a _ ) = b + a
 
 getTxnPrincipal :: Txn -> Centi
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
@@ -77,6 +91,9 @@ sliceStmt (Just (Statement txns)) sd ed
   = Just $ Statement $ filter 
                   (\x -> ((getTxnDate x) >= sd) && ((getTxnDate x) <= ed)) txns 
 
+sliceTxns :: [Txn] -> Date -> Date -> [Txn]
+sliceTxns txns sd ed 
+  = filter (\x -> (getTxnDate x)>=sd && (getTxnDate x)<ed) txns
 
 data Statement = Statement [Txn]
         deriving (Show,Eq)

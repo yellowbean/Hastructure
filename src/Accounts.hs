@@ -2,22 +2,29 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
-                ,getAvailBal,transfer)
+                ,getAvailBal,transfer,depositInt
+                ,InterestInfo(..),buildEarnIntAction)
     where
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,LastIntPayDate
            ,calcInt
            ,DealStats(..),Balance
-           ,paySeqLiabilitiesAmt,IRate)
-import Stmt (Statement(..),appendStmt,Txn(..))
+           ,paySeqLiabilitiesAmt,IRate,mulBI
+           ,getIntervalFactors)
+import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getTxnDate)
 import Types
+import Util
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 
-data InterestInfo = BankAccount IRate Period
-                   deriving (Show)
+import Debug.Trace
+debug = flip trace
+
+data InterestInfo = BankAccount IRate Date DatePattern
+                    --BankAccount IRate Period
+                    deriving (Show)
 
 data ReserveAmount = PctReserve DealStats Rate
                    | FixReserve Balance
@@ -37,20 +44,56 @@ $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)
 $(deriveJSON defaultOptions ''Account)
 
-depositInt :: Account -> StartDate -> EndDate -> Account
-depositInt acc@(Account
-                bal
+buildEarnIntAction :: [Account] -> Date -> [(String,Dates)] -> [(String,Dates)]
+buildEarnIntAction [] ed r = r
+buildEarnIntAction (acc:accs) ed r = 
+  case acc of 
+    (Account _ _ Nothing _ _) -> buildEarnIntAction accs ed r
+    (Account _ an (Just (BankAccount _ lastAccDate dp)) _ _)
+      -> let 
+           (T.CalendarDiffDays cdm cdd) = T.diffGregorianDurationClip ed lastAccDate 
+           num = case dp of
+                   MonthEnd -> cdm + 1
+                   QuarterEnd -> (div cdm 3) + 1 -- `debug` ("cdm"++show cdm)
+                   YearEnd  -> (div cdm 12) + 1
+                   MonthFirst -> cdm + 1
+                   QuarterFirst -> (div cdm 3) + 1
+                   YearFirst -> (div cdm 12) + 1
+                   MonthDayOfYear _ _ -> (div cdm 12) + 1
+                   DayOfMonth _ -> cdm + 1
+                   DayOfWeek _ -> cdm * 4 + 1 -- `debug` ("cdm"++show cdm)
+         in 
+           buildEarnIntAction accs ed [(an, (genSerialDates dp lastAccDate (fromInteger num)))]++r    
+
+
+depositInt :: Account -> Date -> Account
+depositInt a@(Account _ _ Nothing _ _) _ = a
+depositInt a@(Account 
+                bal 
+                _ 
+                (Just (BankAccount r lastCollectDate dp)) 
                 _
-                (Just (BankAccount r _) )
-                _
-                stmt)
-                sd
-                ed =
-  acc {accBalance = newBal,accStmt = (Just newStmt)}
-  where
-    newBal = (accured_int + bal)
-    accured_int = calcInt bal sd ed r DC_ACT_365
-    newStmt = appendStmt stmt (AccTxn ed newBal accured_int "Deposit Int")
+                stmt) ed 
+          = a {accBalance = newBal
+              ,accStmt= Just new_stmt
+              ,accInterest = Just (BankAccount r ed dp)}
+          where 
+            accrued_int = case stmt of 
+                            Nothing -> mulBR (mulBI bal r) (yearCountFraction DC_ACT_365 lastCollectDate ed)
+                            Just (Statement _txns) ->
+                              let 
+                                _accrue_txns = sliceTxns _txns lastCollectDate ed
+                                _bals = [bal] ++ (map getTxnBegBalance _accrue_txns)
+                                _ds = map getTxnDate _txns
+                                _dfs = getIntervalFactors $ [lastCollectDate] ++ _ds ++ [ed]
+                              in
+                                mulBI (sum $ zipWith mulBR _bals _dfs) r
+
+
+            newBal = accrued_int + bal 
+            new_txn = (AccTxn ed newBal accrued_int "Deposit Int")
+            new_stmt = appendStmt stmt new_txn
+
 
 transfer :: Account -> Amount -> T.Day -> Account -> (Account, Account)
 transfer source_acc@(Account s_bal _ _ _ s_stmt)
@@ -73,7 +116,7 @@ deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
     newStmt = appendStmt maybeStmt (AccTxn d newBal amount source)
 
 draw :: Amount -> Date -> String -> Account -> Account
-draw amount d source acc = deposit (- amount) d source acc
+draw amount = deposit (- amount) 
 
 getAvailBal :: Account -> Balance
 getAvailBal a = (accBalance a)

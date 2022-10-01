@@ -368,15 +368,7 @@ weightedBy ws vs =  sum $ zipWith (*) vs $ map toRational ws
 daysBetween :: Date -> Date -> Integer
 daysBetween sd ed = (fromIntegral (T.diffDays sd ed))
 
-data DealStatus = EventOfAccelerate (Maybe T.Day)
-                | EventOfDefault (Maybe T.Day)
-                | Current
-                | Revolving
-                | Ended
-                deriving (Show)
-
-$(deriveJSON defaultOptions ''DealStatus)
-$(deriveJSON defaultOptions ''DealStats)
+(deriveJSON defaultOptions ''DealStats)
 
 data Pre = And Pre Pre
          | Or Pre Pre

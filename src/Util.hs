@@ -1,7 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Util
-    (mulBR,lastN,yearCountFraction)
+    (mulBR,lastN,yearCountFraction,genSerialDates
+    ,actionDate)
     where
 import qualified Data.Time as T
 import Data.List
@@ -142,3 +143,55 @@ yearCountFraction dc sd ed
       eLeap = T.isLeapYear eyear
       (syear,smonth,sday) = T.toGregorian sd 
       (eyear,emonth,eday) = T.toGregorian ed 
+
+genSerialDates :: DatePattern -> Date -> Int -> Dates
+genSerialDates dp sd num
+  = take num $ filter (>= sd) $ 
+      case dp of 
+        MonthEnd -> 
+                [T.fromGregorian yearRange (fst __md) (snd __md) | yearRange <- [_y..(_y+yrs)]
+                                                                 ,__md <- monthEnds yearRange ]
+                where 
+                  yrs = fromIntegral $ div num 12 + 1                   
+        QuarterEnd -> 
+                [T.fromGregorian yearRange __m __d | yearRange <- [_y..(_y+yrs)]
+                                                   ,(__m,__d) <- quarterEnds]
+                where 
+                  yrs = fromIntegral $ div num 4 + 1                   
+        YearEnd -> 
+                [T.fromGregorian yearRange 12 31 | yearRange <- [_y..(_y+(toInteger num))]]
+        YearFirst ->
+                [T.fromGregorian yearRange 1 1 | yearRange <- [_y..(_y+(toInteger num))]]
+        MonthFirst ->
+                [T.fromGregorian yearRange monthRange 1 | yearRange <- [_y..(_y+yrs)]
+                                                        , monthRange <- [1..12]]
+                where 
+                  yrs = fromIntegral $ div num 12 + 1                   
+        QuarterFirst ->
+                [T.fromGregorian yearRange __m 1 | yearRange <- [_y..(_y+yrs)]
+                                                 ,__m <- [3,6,9,12]]
+                where 
+                  yrs = fromIntegral $ div num 4 + 1                   
+        MonthDayOfYear m d -> 
+                [T.fromGregorian yearRange m d | yearRange <- [_y..(_y+(toInteger num))]]
+        DayOfMonth d ->
+                [T.fromGregorian yearRange monthRange d | yearRange <- [_y..(_y+yrs)]
+                                                        , monthRange <- [1..12]]
+                where 
+                  yrs = fromIntegral $ div num 12 + 1                   
+       -- DayOfWeek -> [] 
+      where 
+        quarterEnds = [(3,31),(6,30),(9,30),(12,31)]
+        monthEnds y = 
+          if T.isLeapYear y then
+            [(1,31),(2,28),(3,31),(4,30),(5,31),(6,30),(7,31),(8,31),(9,30),(10,31),(11,30),(12,31)]
+          else
+            [(1,31),(2,29),(3,31),(4,30),(5,31),(6,30),(7,31),(8,31),(9,30),(10,31),(11,30),(12,31)]
+        (_y,_m,_d) = T.toGregorian sd  
+        yearBegin = T.fromGregorian _y 1 1
+
+actionDate :: ActionOnDate -> Date
+actionDate (RunWaterfall d _) = d
+actionDate (PoolCollection d _) = d
+actionDate (EarnAccInt d _) = d
+

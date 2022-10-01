@@ -7,6 +7,7 @@ import Data.List
 import Data.Ord
 
 import qualified UT.AssetTest as AT
+import qualified UT.AccountTest as AccT
 import qualified UT.CashflowTest as CFT
 import qualified UT.BondTest as BT
 import qualified UT.LibTest as LT
@@ -41,7 +42,7 @@ tests = testGroup "Tests" [accTests,stmtTests
                            ,UtilT.daycountTests2
                            ,UtilT.daycountTests3
                            ,UtilT.daycountTests4
-                           
+                           ,AccT.intTests
                            ]
 
 accTests = testGroup "Account Tests"

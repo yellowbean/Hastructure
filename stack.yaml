@@ -8,7 +8,8 @@
 # A snapshot resolver dictates the compiler version and the set of packages
 # to be used for project dependencies. For example:
 #
-# resolver: lts-3.5
+# resolver: lts-19.25
+resolver: lts-18.22
 # resolver: nightly-2015-09-21
 # resolver: ghc-7.10.2
 #
@@ -17,9 +18,10 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver:
-  url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/22.yaml
-
+#resolver:
+#  url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/22.yaml
+  #url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/19/25.yaml
+#  url: https://www.stackage.org/lts-19.25
 # User packages to be built.
 # Various formats can be used as shown in the example below.
 #
@@ -41,6 +43,7 @@ packages:
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #
 extra-deps:
+#   - time-1.12.2@sha256:88e8493d9130038d3b9968a2530a0900141cd3d938483c83dde56e12b875ebc8,6510
 #  - json-schema-0.7.4.2
 #  - timeseries-0.4.1@sha256:2c4b6995942e6aa3b474aa29bfc51016448cc3d7b58e46a459c26c60a96883cb,2892
 #   - dates-0.2.3.0
@@ -75,4 +78,4 @@ extra-deps:
 # Allow a newer minor version of GHC than the snapshot specifies
 # compiler-check: newer-minor
 
-     #allow-newer : true
+# allow-newer : true

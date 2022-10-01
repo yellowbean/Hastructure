@@ -1,5 +1,5 @@
 name:                Hastructure
-version:             0.1.0.0
+version:             0.1.1.0
 github:              "yellowbean/Hastructure"
 license:             BSD3
 author:              "Xiaoyu"
@@ -22,7 +22,7 @@ description:         Please see the README on GitHub at <https://github.com/yell
 dependencies:
 - base
 - hashable
-- time
+- time 
 - lens
 - aeson
 - aeson-pretty

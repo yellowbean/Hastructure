@@ -35,6 +35,7 @@ import Debug.Trace
 debug = flip trace
 
 _startDate = T.fromGregorian 1970 1 1
+_farEnoughDate = T.fromGregorian 2100 1 1
 
 class SPV a where
   getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
@@ -332,10 +333,6 @@ performAction d t (Nothing, (W.LiquidatePool lm an)) =
     accMap = accounts t
     accMapAfterLiq = Map.adjust (A.deposit liqAmt d ("Liquidation Proceeds:"++show lm)) an accMap
 
-actionDate :: ActionOnDate -> Date
-actionDate (RunWaterfall d _) = d
-actionDate (PoolCollection d _) = d
-
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _) 
   = b { L.bndRate = (applyFloatRate ii d ras) }
@@ -447,13 +444,20 @@ run2 t poolFlow (Just (ad:ads)) rates calls
         where
              waterfallToExe = Map.findWithDefault [] W.DistributionDay (waterfall t) --  `debug` ("Getting waterfall with wf"++show(waterfallToExe))
              dAfterWaterfall = foldl (performAction d) t waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
-             dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  `debug` ("Running AD W"++show(d)) -- `debug` ("After Rate Set")
+             dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates -- `debug` ("Running AD W"++show(d)) -- `debug` ("After Rate Set")
+      EarnAccInt d accName ->
+        let 
+          newAcc = Map.adjust (`A.depositInt` d)  accName  (accounts t)
+          dAfterInt = t {accounts=newAcc} 
+        in 
+          run2 dAfterInt poolFlow (Just ads) rates Nothing
+          
       where
         cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
 
 
 run2 t Nothing Nothing Nothing Nothing
-  = run2 t (Just pcf) (Just ads) Nothing Nothing   `debug` (">>>>"++show(ads))
+  = run2 t (Just pcf) (Just ads) Nothing Nothing  -- `debug` (">>>>"++show(ads))
   where
     (ads,pcf,rcurves,clls,_) = getInits t Nothing
 
@@ -546,7 +550,7 @@ runDeal t er assumps bpi =
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)   -- `debug` ("Pricing result")
-    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls  -- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
+    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls -- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
     (ads,pcf,rcurves,calls,t2) = getInits t assumps
 
 prepareDeal :: TestDeal -> TestDeal 
@@ -594,7 +598,7 @@ getInits t mAssumps =
   where
     startDate = Map.findWithDefault _startDate CutoffDate (dates t)
     firstPayDate = Map.findWithDefault _startDate FirstPayDate (dates t)
-    statedDate = Map.findWithDefault _startDate StatedMaturityDate (dates t)
+    statedDate = Map.findWithDefault _farEnoughDate StatedMaturityDate (dates t)
 
     pCollectionInt = collectPeriod t
     bPayInt = payPeriod t
@@ -612,6 +616,11 @@ getInits t mAssumps =
     bPayDates = map (\x -> RunWaterfall (afterNPeriod firstPayDate x bPayInt) "base") [0..projNum]
     pCollectionDates = map (\x -> afterNPeriod startDate x pCollectionInt) [0..projNum]
     pCollectionDatesA = map (\x -> PoolCollection x "collection") $ tail pCollectionDates
+    -- aIntSweepDates = [     |           ]
+    -- build interest earn for bank accounts 
+    intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) statedDate []
+    iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
+                                           , _d <- accIntDates ]
 
     stopDate = find 
                  (\case
@@ -621,14 +630,15 @@ getInits t mAssumps =
 
     _actionDates = sort $ 
                     case overrideActionDates of 
-                      Nothing -> bPayDates ++ pCollectionDatesA
+                      Nothing -> bPayDates ++ pCollectionDatesA ++ iAccIntDates  `debug` ("Int Dates"++show iAccIntDates)
                       Just (CustomActionOnDates _ds) -> _ds -- `debug` ("CUSTOM"++show(_ds))
     actionDates = case stopDate of
                     Just (AP.StopRunBy d) 
                       -> filter
                             (\case
                               (RunWaterfall _d _) -> _d < d
-                              (PoolCollection _d _) -> _d < d)
+                              (PoolCollection _d _) -> _d < d
+                              (EarnAccInt _d _) -> _d < d)
                          _actionDates
                     Nothing ->  _actionDates   -- `debug` (">>action dates"++show(_actionDates))
 
@@ -951,9 +961,6 @@ depositPoolInflow rules d (Just (CF.CashFlowFrame txn)) amap =
           (W.Collect W.CollectedRecoveries _) -> CF.mflowRecovery ts
           (W.Collect W.CollectedPrepayment _) -> CF.mflowPrepayment ts
 
-
-updateStatus :: TestDeal -> DealStatus -> TestDeal
-updateStatus t s = t
 
 $(deriveJSON defaultOptions ''ExpectReturn)
 $(deriveJSON defaultOptions ''TxnComponent)
