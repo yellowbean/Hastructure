@@ -89,15 +89,15 @@ yearCountFraction dc sd ed
       -- 30/360 Bond basis , this was call 30E/360 ISDA by kalotay
       DC_30_360_German -> let
                             _sday = if sday==31 || (endOfFeb syear smonth sday) then 
-                                      30`debug` ("German eof start if>> "++ show (endOfFeb syear smonth sday)++show syear ++show smonth++show sday)
+                                      30 -- `debug` ("German eof start if>> "++ show (endOfFeb syear smonth sday)++show syear ++show smonth++show sday)
                                     else 
                                       sday  
-                                    `debug` ("German eof start else "++ show (endOfFeb syear smonth sday)++show syear ++show smonth++show sday)
+                                    -- `debug` ("German eof start else "++ show (endOfFeb syear smonth sday)++show syear ++show smonth++show sday)
                             _eday = if eday==31 || (endOfFeb eyear emonth eday) then 
                                       30
                                     else
                                       eday    
-                                    `debug` ("German eof end "++ show (endOfFeb eyear emonth eday)++show eyear++show emonth++show eday)
+                                    -- `debug` ("German eof end "++ show (endOfFeb eyear emonth eday)++show eyear++show emonth++show eday)
                             num = toRational (_eday - _sday) + 30*_gapMonth + 360*_diffYears `debug` ("German"++show(_sday)++"<>"++show _eday)
                           in 
                             num / 360

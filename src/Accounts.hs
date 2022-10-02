@@ -81,18 +81,19 @@ depositInt a@(Account
             accrued_int = case stmt of 
                             Nothing -> mulBR 
                                          (mulBI bal r) 
-                                         (yearCountFraction DC_30E_360 lastCollectDate ed) `debug` (">>"++show lastCollectDate++">>"++show ed)
+                                         (yearCountFraction DC_30E_360 lastCollectDate ed) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
                             Just (Statement _txns) ->
                               let 
                                 _accrue_txns = sliceTxns _txns lastCollectDate ed
-                                _bals = [bal] ++ (map getTxnBegBalance _accrue_txns)
-                                _ds = map getTxnDate _txns
+                                _bals = (map getTxnBegBalance _accrue_txns) ++ [bal] `debug` ("ACCU TXN"++show _accrue_txns)
+                                _ds = map getTxnDate _accrue_txns
                                 _dfs = getIntervalFactors $ [lastCollectDate] ++ _ds ++ [ed]
                               in
-                                mulBI (sum $ zipWith mulBR _bals _dfs) r
+                                mulBI (sum $ zipWith mulBR _bals _dfs) r  
+                                `debug` (">>>"++show _bals ++">>>"++show ([lastCollectDate] ++ _ds ++ [ed]) ++">>>"++show _dfs)
 
 
-            newBal = accrued_int + bal  `debug` ("INT ACC->"++ show accrued_int)
+            newBal = accrued_int + bal   `debug` ("INT ACC->"++ show accrued_int)
             new_txn = (AccTxn ed newBal accrued_int "Deposit Int")
             new_stmt = appendStmt stmt new_txn
 

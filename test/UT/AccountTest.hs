@@ -14,9 +14,11 @@ import qualified Data.Time as T
 intTests =
   let 
     acc1 = Account 200 "A1" (Just (BankAccount 0.03 (toDate "20221001") QuarterEnd)) Nothing Nothing
-    acc2 = Account 200 "A1" (Just (BankAccount 0.03 (toDate "20220301") MonthEnd)) Nothing 
-          (Just (Statement [AccTxn (toDate "20220915") 150 30 ""
-                          ,AccTxn (toDate "20220715") 120 10 ""]))
+    acc2 = Account 150 "A1" (Just (BankAccount 0.03 (toDate "20220301") MonthEnd)) Nothing 
+          (Just (Statement [
+                          AccTxn (toDate "20220715") 120 10 ""
+                          ,AccTxn (toDate "20220915") 150 30 ""
+                          ]))
   in 
     testGroup "Interest on Bank Account Test"
      [
@@ -28,8 +30,12 @@ intTests =
         assertEqual "QuarterEnd Same Year" 
           [("A1",(genSerialDates QuarterEnd (toDate "20221001") 1))] $ 
           buildEarnIntAction [acc1] (toDate "20221231") []
-      ,testCase "Validate Interest Calculation" $
+      ,testCase "Validate Interest Calculation 1" $
         assertEqual "MonthEnd with No txn"
         200.5
         (accBalance (depositInt acc1 (toDate "20221101")))
+      ,testCase "Validate Interest Calculation 2" $
+        assertEqual "MonthEnd with txns"
+        152.94
+        (accBalance (depositInt acc2 (toDate "20221101")))
      ]

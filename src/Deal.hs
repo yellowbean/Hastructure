@@ -630,7 +630,7 @@ getInits t mAssumps =
 
     _actionDates = sort $ 
                     case overrideActionDates of 
-                      Nothing -> bPayDates ++ pCollectionDatesA ++ iAccIntDates  `debug` ("Int Dates"++show iAccIntDates)
+                      Nothing -> bPayDates ++ pCollectionDatesA ++ iAccIntDates -- `debug` ("Int Dates"++show iAccIntDates)
                       Just (CustomActionOnDates _ds) -> _ds -- `debug` ("CUSTOM"++show(_ds))
     actionDates = case stopDate of
                     Just (AP.StopRunBy d) 
