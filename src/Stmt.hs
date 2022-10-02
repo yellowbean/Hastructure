@@ -55,7 +55,7 @@ getTxnBalance (ExpTxn _ t _ _ _ ) = t
 
 getTxnBegBalance :: Txn -> Balance
 getTxnBegBalance (BondTxn _ t _ p _ _ _ ) = t + p
-getTxnBegBalance (AccTxn _ b a _ ) = b + a
+getTxnBegBalance (AccTxn _ b a _ ) = b - a
 
 getTxnPrincipal :: Txn -> Centi
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
