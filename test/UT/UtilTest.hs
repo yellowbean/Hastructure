@@ -8,6 +8,7 @@ import qualified Data.Time as T
 import Util
 import Types
 import Data.Fixed
+import Data.Ratio ((%))
 
 import Debug.Trace
 debug = flip trace
@@ -22,47 +23,47 @@ daycountTests1 =
   [
     testCase "Act/Act" $
       assertEqual "should be close to 0.1694288494678 " 
-        (toRational ((div 4 365) + (div 58 366))) $ 
+        ((4 % 365) + (58 % 366)) $  --TODO to be confirm from Delta
         yearCountFraction DC_ACT_ACT d1 d2
     ,testCase "Act/365F" $
       assertEqual "" 
-        (toRational (div 62 365)) $ 
+        (62 % 365) $ 
         yearCountFraction DC_ACT_365F d1 d2
     ,testCase "Act/360" $
       assertEqual "" 
-        (toRational (div 62 360)) $ 
+        (62 % 360) $ 
         yearCountFraction DC_ACT_360 d1 d2
     ,testCase "Act/365A" $
       assertEqual "" 
-        (toRational (div 62 365)) $ 
+        (62 % 365) $ 
         yearCountFraction DC_ACT_365A d1 d2
     ,testCase "Act/365L" $
       assertEqual "" 
-        (toRational (div 62 366)) $ 
+        (62 % 366) $ 
         yearCountFraction DC_ACT_365L d1 d2
     ,testCase "NL/365" $
       assertEqual "" 
-        (toRational (div 62 365)) $ 
+        (62 % 365) $ 
         yearCountFraction DC_NL_365 d1 d2
     ,testCase "30 360 ISDA" $
       assertEqual "" 
-        (toRational (div 60 360)) $ 
+        (60 % 360) $ 
         yearCountFraction DC_30_360_ISDA d1 d2
     ,testCase "30E 360" $
       assertEqual "" 
-        (toRational (div 60 360)) $ 
+        (60 % 360) $ 
         yearCountFraction DC_30E_360 d1 d2
     ,testCase "30Ep 360" $
       assertEqual "" 
-        (toRational (div 60 360)) $ 
+        (60 % 360) $ 
         yearCountFraction DC_30Ep_360 d1 d2
     ,testCase "30 360 German" $
       assertEqual "" 
-        (toRational (div 60 360)) $ 
+        (60 % 360) $ 
         yearCountFraction DC_30_360_German d1 d2
     ,testCase "30 360 US" $
       assertEqual "" 
-        (toRational (div 60 360)) $ 
+        (60 % 360) $ 
         yearCountFraction DC_30_360_US d1 d2
   ]
 
@@ -74,48 +75,48 @@ daycountTests2 =
    testGroup "Day Count Tests 2"
  [
    testCase "Act/Act" $
-     assertEqual "should be close to 0.1694288494678 " 
-       (toRational ((div 4 365) + (div 59 366))) $ 
+     assertEqual "" 
+       ((4 % 365) + (59 % 366)) $ 
        yearCountFraction DC_ACT_ACT d1 d2
    ,testCase "Act/365F" $
      assertEqual "" 
-       (toRational (div 63 365)) $ 
+       (63 % 365) $ 
        yearCountFraction DC_ACT_365F d1 d2
    ,testCase "Act/360" $
      assertEqual "" 
-       (toRational (div 63 360)) $ 
+       (63 % 360) $ 
        yearCountFraction DC_ACT_360 d1 d2
    ,testCase "Act/365A" $
      assertEqual "" 
-       (toRational (div 63 366)) $ 
+       (63 % 366) $ 
        yearCountFraction DC_ACT_365A d1 d2
    ,testCase "Act/365L" $
      assertEqual "" 
-       (toRational (div 63 366)) $ 
+       (63 % 366) $ 
        yearCountFraction DC_ACT_365L d1 d2
    ,testCase "NL/365" $
      assertEqual "" 
-       (toRational (div 62 365)) $ 
+       (62 % 365) $ 
        yearCountFraction DC_NL_365 d1 d2
    ,testCase "30 360 ISDA" $
      assertEqual "" 
-       (toRational (div 61 360)) $ 
+       (61 % 360) $ 
        yearCountFraction DC_30_360_ISDA d1 d2
    ,testCase "30E 360" $
      assertEqual "" 
-       (toRational (div 61 360)) $ 
+       (61 % 360) $ 
        yearCountFraction DC_30E_360 d1 d2
    ,testCase "30Ep 360" $
      assertEqual "" 
-       (toRational (div 61 360)) $ 
+       (61 % 360) $ 
        yearCountFraction DC_30Ep_360 d1 d2
    ,testCase "30 360 German" $
      assertEqual "" 
-       (toRational (div 62 360)) $ 
+       (62 % 360) $ 
        yearCountFraction DC_30_360_German d1 d2
    ,testCase "30 360 US" $
      assertEqual "" 
-       (toRational (div 61 360)) $ 
+       (61 % 360) $ 
        yearCountFraction DC_30_360_US d1 d2
  ]
  
@@ -128,47 +129,47 @@ daycountTests3 =
  [
    testCase "Act/Act" $
      assertEqual "should be close to 0.1694288494678 " 
-       (toRational ((div 62 365) + (div 334 366))) $ 
+       ((62 % 365) + (334 % 366)) $ 
        yearCountFraction DC_ACT_ACT d1 d2
    ,testCase "Act/365F" $
      assertEqual "" 
-       (toRational (div 396 365)) $ 
+       (396 % 365) $ 
        yearCountFraction DC_ACT_365F d1 d2
    ,testCase "Act/360" $
      assertEqual "" 
-       (toRational (div 396 360)) $ 
+       (396 % 360) $ 
        yearCountFraction DC_ACT_360 d1 d2
    ,testCase "Act/365A" $
      assertEqual "" 
-       (toRational (div 396 366)) $ 
+       (396 % 366) $ 
        yearCountFraction DC_ACT_365A d1 d2
    ,testCase "Act/365L" $
      assertEqual "" 
-       (toRational (div 396 366)) $ 
+       (396 % 366) $ 
        yearCountFraction DC_ACT_365L d1 d2
    ,testCase "NL/365" $
      assertEqual "" 
-       (toRational (div 395 365)) $ 
+       (395 % 365) $ 
        yearCountFraction DC_NL_365 d1 d2
    ,testCase "30 360 ISDA" $
      assertEqual "" 
-       (toRational (div 390 360)) $ 
+       (390 % 360) $ 
        yearCountFraction DC_30_360_ISDA d1 d2
    ,testCase "30E 360" $
      assertEqual "" 
-       (toRational (div 390 360)) $ 
+       (390 % 360) $ 
        yearCountFraction DC_30E_360 d1 d2
    ,testCase "30Ep 360" $
      assertEqual "" 
-       (toRational (div 390 360)) $ 
+       (390 % 360) $ 
        yearCountFraction DC_30Ep_360 d1 d2
    ,testCase "30 360 German" $
      assertEqual "" 
-       (toRational (div 390 360)) $ 
+       (390 % 360) $ 
        yearCountFraction DC_30_360_German d1 d2
    ,testCase "30 360 US" $
      assertEqual "" 
-       (toRational (div 390 360)) $ 
+       (390 % 360) $ 
        yearCountFraction DC_30_360_US d1 d2
  ]
  
@@ -180,48 +181,48 @@ daycountTests4 =
    testGroup "Day Count Tests 4"
  [
    testCase "Act/Act" $
-     assertEqual "should be close to 0.1694288494678 " 
-       (toRational ((div 335 366) + (div 150 366))) $ 
+     assertEqual "" 
+       ((335 % 366) + (150 % 365)) $ 
        yearCountFraction DC_ACT_ACT d1 d2
    ,testCase "Act/365F" $
      assertEqual "" 
-       (toRational (div 485 365)) $ 
+       (485 % 365) $ 
        yearCountFraction DC_ACT_365F d1 d2
    ,testCase "Act/360" $
      assertEqual "" 
-       (toRational (div 485 360)) $ 
+       (485 % 360) $ 
        yearCountFraction DC_ACT_360 d1 d2
    ,testCase "Act/365A" $
      assertEqual "" 
-       (toRational (div 485 366)) $ 
+       (485 % 366) $ 
        yearCountFraction DC_ACT_365A d1 d2
    ,testCase "Act/365L" $
      assertEqual "" 
-       (toRational (div 485 365)) $ 
+       (485 % 365) $ 
        yearCountFraction DC_ACT_365L d1 d2
    ,testCase "NL/365" $
      assertEqual "" 
-       (toRational (div 484 365)) $ 
+       (484 % 365) $ 
        yearCountFraction DC_NL_365 d1 d2
    ,testCase "30 360 ISDA" $
      assertEqual "" 
-       (toRational (div 480 360)) $ 
+       (480 % 360) $ 
        yearCountFraction DC_30_360_ISDA d1 d2
    ,testCase "30E 360" $
      assertEqual "" 
-       (toRational (div 479 360)) $ 
+       (479 % 360) $ 
        yearCountFraction DC_30E_360 d1 d2
    ,testCase "30Ep 360" $
      assertEqual "" 
-       (toRational (div 480 360)) $ 
+       (480 % 360) $ 
        yearCountFraction DC_30Ep_360 d1 d2
    ,testCase "30 360 German" $
      assertEqual "" 
-       (toRational (div 479 360)) $ 
+       (479 % 360) $ 
        yearCountFraction DC_30_360_German d1 d2
    ,testCase "30 360 US" $
      assertEqual "" 
-       (toRational (div 480 360)) $ 
+       (480 % 360) $ 
        yearCountFraction DC_30_360_US d1 d2
  ]
      

@@ -79,7 +79,9 @@ depositInt a@(Account
               ,accInterest = Just (BankAccount r ed dp)}
           where 
             accrued_int = case stmt of 
-                            Nothing -> mulBR (mulBI bal r) (yearCountFraction DC_ACT_365 lastCollectDate ed)
+                            Nothing -> mulBR 
+                                         (mulBI bal r) 
+                                         (yearCountFraction DC_30E_360 lastCollectDate ed) `debug` (">>"++show lastCollectDate++">>"++show ed)
                             Just (Statement _txns) ->
                               let 
                                 _accrue_txns = sliceTxns _txns lastCollectDate ed
@@ -90,7 +92,7 @@ depositInt a@(Account
                                 mulBI (sum $ zipWith mulBR _bals _dfs) r
 
 
-            newBal = accrued_int + bal 
+            newBal = accrued_int + bal  `debug` ("INT ACC->"++ show accrued_int)
             new_txn = (AccTxn ed newBal accrued_int "Deposit Int")
             new_stmt = appendStmt stmt new_txn
 

@@ -6,7 +6,8 @@
 module Types
   (DayCount(..),DateType(..),OverrideType(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
-  ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames)
+  ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames
+  ,actionDate)
   where
 
 import qualified Data.Text as T
