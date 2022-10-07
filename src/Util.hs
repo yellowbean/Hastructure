@@ -2,6 +2,8 @@
 
 module Util
     (mulBR,lastN,yearCountFraction,genSerialDates
+    ,getValByDate,getValByDates
+    ,genSerialDatesTill
     )
     where
 import qualified Data.Time as T
@@ -188,10 +190,45 @@ genSerialDates dp sd num
         quarterEnds = [(3,31),(6,30),(9,30),(12,31)]
         monthEnds y = 
           if T.isLeapYear y then
-            [(1,31),(2,28),(3,31),(4,30),(5,31),(6,30),(7,31),(8,31),(9,30),(10,31),(11,30),(12,31)]
-          else
             [(1,31),(2,29),(3,31),(4,30),(5,31),(6,30),(7,31),(8,31),(9,30),(10,31),(11,30),(12,31)]
+          else
+            [(1,31),(2,28),(3,31),(4,30),(5,31),(6,30),(7,31),(8,31),(9,30),(10,31),(11,30),(12,31)]
         (_y,_m,_d) = T.toGregorian sd  
         yearBegin = T.fromGregorian _y 1 1
 
+genSerialDatesTill:: Date -> DatePattern -> Date -> Dates 
+genSerialDatesTill sd ptn ed 
+  = genSerialDates ptn sd (fromInteger (succ num))  --`debug` ("Num"++show num)
+    where 
+      (sy,sm,sday) = T.toGregorian sd 
+      (ey,em,eday) = T.toGregorian ed 
+      T.CalendarDiffDays cdM cdD = T.diffGregorianDurationRollOver ed sd 
+      num = case ptn of 
+              MonthEnd -> cdM
+              QuarterEnd ->  div cdM 3
+              YearEnd ->  div cdM 12
+              MonthFirst -> cdM 
+              QuarterFirst-> div cdM 3
+              YearFirst->  div cdM 12
+              MonthDayOfYear _m _d -> div cdM 12 -- T.MonthOfYear T.DayOfMonth
+              DayOfMonth _d -> cdM -- T.DayOfMonth 
+              -- DayOfWeek Int -> -- T.DayOfWeek 
 
+getValByDate :: Ts -> Date -> Rational
+getValByDate (AmountCurve dps) d 
+  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+      Just (TsPoint _d v) -> toRational v
+      Nothing -> 0
+
+getValByDate (FloatCurve dps) d 
+  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+getValByDate (IRateCurve dps) d
+  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+getValByDates :: Ts -> [T.Day] -> [Rational]
+getValByDates rc ds = map (getValByDate rc) ds

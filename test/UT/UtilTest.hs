@@ -1,4 +1,5 @@
-module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4)--,daycountTests3,daycountTests4)
+module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
+                  ,tsTest,dateVectorPatternTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -6,6 +7,7 @@ import Test.Tasty.HUnit
 
 import qualified Data.Time as T
 import Util
+import Lib
 import Types
 import Data.Fixed
 import Data.Ratio ((%))
@@ -225,4 +227,32 @@ daycountTests4 =
        (480 % 360) $ 
        yearCountFraction DC_30_360_US d1 d2
  ]
-     
+
+tsTest = 
+  let
+    d1 = T.fromGregorian 2007 12 28
+    d2 = T.fromGregorian 2008 2 28
+    testTs = mkTs [(toDate "20061201",100)
+                  ,(toDate "20070201",80)  
+                  ,(toDate "20080201",60)]
+  in
+    testGroup "Test Trigger Threshold Curve"
+  [
+    testCase "" $
+      assertEqual "left most" 
+        [0,100,80,60] $
+        getValByDates testTs [(toDate "20061201")
+                             ,(toDate "20061211")
+                             ,(toDate "20070301")
+                             ,(toDate "20081201")]]
+
+dateVectorPatternTest = 
+  let 
+    a = 1
+  in 
+    testGroup "Test on Date Vector generation"
+    [ testCase "" $
+        assertEqual "LeapYear&Month End"
+          [(toDate "20240229"), (toDate "20240331")]
+          (genSerialDates MonthEnd (toDate "20240215") 2)
+    ]                          

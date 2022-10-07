@@ -1,4 +1,4 @@
-module UT.DealTest(td,waterfallTests,queryTests)
+module UT.DealTest(td,waterfallTests,queryTests,triggerTests)
 
 where
 
@@ -24,12 +24,13 @@ import qualified Data.Set as S
 
 td = TestDeal {
   D.name = "test deal1"
-  ,D.dates = (Map.fromList [(ClosingDate,(T.fromGregorian 2022 1 1))
-                         ,(CutoffDate,(T.fromGregorian 2022 1 1))
-                         ,(FirstPayDate,(T.fromGregorian 2022 2 25))
-                         ])
-  ,D.payPeriod = Monthly
-  ,D.collectPeriod = Monthly
+  ,D.status = Amortizing
+  ,D.dates = PatternInterval $ 
+               (Map.fromList [
+                (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
+               ])
   ,D.accounts = (Map.fromList
   [("General", (A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
   })),
@@ -106,7 +107,7 @@ td = TestDeal {
                                  ]
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1}
-   ,D.waterfall = Map.fromList [(W.DistributionDay, [
+   ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (Nothing, W.PayFee ["General"] ["Service-Fee"])
                                  ,(Nothing, W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
                                  ,(Nothing, W.TransferReserve W.Source  "General" "General" Nothing)
@@ -117,6 +118,10 @@ td = TestDeal {
  ,D.collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
  ,D.call = Nothing
+ ,D.triggers = Just $
+                Map.fromList $
+                  [((BeginDistributionWF,AfterDate (toDate "20220501")),DealStatusTo Revolving)]
+ ,D.overrides = Nothing
 }
 
 waterfallTests =  testGroup "Waterfall Tests"
@@ -138,4 +143,35 @@ queryTests =  testGroup "deal stat query Tests"
     in
      testCase "query current assets in defaulted status" $
      assertEqual "should be 200" 200 currentDefBal
+  ]
+
+triggerTests = testGroup "Trigger Tests"
+  [ let 
+      setup = 0 
+      poolflows = CF.CashFlowFrame $
+                     [CF.MortgageFlow (toDate "20220201") 800 100 20 0 0 0 0 0.08
+                     ,CF.MortgageFlow (toDate "20220301") 700 100 20 0 0 0 0 0.08
+                     ,CF.MortgageFlow (toDate "20220401") 600 100 20 0 0 0 0 0.08
+                     ,CF.MortgageFlow (toDate "20220501") 500 100 20 0 0 0 0 0.08
+                     ,CF.MortgageFlow (toDate "20220601") 400 100 20 0 0 0 0 0.08
+                     ,CF.MortgageFlow (toDate "20220701") 300 100 20 0 0 0 0 0.08
+                     ]
+      ads = [PoolCollection (toDate "20220201") "" 
+             ,RunWaterfall  (toDate "20220225") ""
+             ,PoolCollection (toDate "20220301")""
+             ,RunWaterfall  (toDate "20220325") ""
+             ,PoolCollection (toDate "20220401")""
+             ,RunWaterfall  (toDate "20220425") ""
+             ,PoolCollection (toDate "20220501")""
+             ,RunWaterfall  (toDate "20220525") ""
+             ,PoolCollection (toDate "20220601")""
+             ,RunWaterfall  (toDate "20220625") ""
+             ,PoolCollection (toDate "20220701")""
+             ,RunWaterfall  (toDate "20220725") ""  ]
+      fdeal = run2 td (Just poolflows) (Just ads) Nothing Nothing 
+    in 
+      testCase "deal becaomes revolving" $
+      assertEqual "revoving" 
+        Revolving 
+        (status fdeal)
   ]

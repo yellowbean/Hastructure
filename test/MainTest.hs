@@ -35,13 +35,17 @@ tests = testGroup "Tests" [accTests,stmtTests
                            ,LT.curveTests
                            ,LT.queryStmtTests
                            ,LT.datesTests
+                           ,LT.prorataTests
                            ,ET.expTests
                            ,DT.waterfallTests
                            ,DT.queryTests
+                           ,DT.triggerTests
                            ,UtilT.daycountTests1
                            ,UtilT.daycountTests2
                            ,UtilT.daycountTests3
                            ,UtilT.daycountTests4
+                           ,UtilT.tsTest
+                           ,UtilT.dateVectorPatternTest
                            ,AccT.intTests
                            ]
 

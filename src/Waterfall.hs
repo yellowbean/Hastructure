@@ -22,16 +22,13 @@ import Accounts (Account)
 import Asset (Mortgage, Pool)
 import Expense
 import Liability
+import Types
 import qualified Lib as L
 import qualified Call as C
 
 
-type FeeName = String
-type BondName = String
-type AccountName = String
-
 data ActionWhen = EndOfPoolCollection
-                | DistributionDay
+                | DistributionDay DealStatus
                 | CleanUp
                 deriving (Show,Ord,Eq,Generic,Read)
 
@@ -43,12 +40,13 @@ instance FromJSONKey ActionWhen where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
 
-$(deriveJSON defaultOptions ''ActionWhen)
 
 data PoolSource = CollectedInterest
                 | CollectedPrincipal
                 | CollectedRecoveries
                 | CollectedPrepayment
+                | CollectedRental
+                | CollectedFee
                 deriving (Show)
 
 data Satisfy = Source
@@ -58,12 +56,12 @@ data Satisfy = Source
 data Limit = DuePct L.Balance  -- due fee
             | DueCapAmt L.Balance  -- due fee
             | RemainBalPct L.Rate -- pay till remain balance equals to a percentage of `stats`
-            | KeepBalAmt L.DealStats -- pay till a certain amount remains in an account
+            | KeepBalAmt DealStats -- pay till a certain amount remains in an account
             | Multiple Limit Float -- factor of a limit:w
             deriving (Show)
 
-data Formula = ABCD
-            | Sum L.DealStats
+data Formula = ABCD          -- short cuts to complex arthimics on deal stats
+            | Sum DealStats
             | OtherFormula String
             deriving (Show)
 
@@ -71,6 +69,7 @@ data Formula = ABCD
 
 data Action = Transfer AccountName AccountName (Maybe String)
              | TransferBy AccountName AccountName Formula
+             | CalcFee [FeeName]
              | PayFee [AccountName] [FeeName]
              | PayFeeBy Limit [AccountName] [FeeName]
              | PayFeeResidual (Maybe Limit) AccountName FeeName
@@ -82,6 +81,7 @@ data Action = Transfer AccountName AccountName (Maybe String)
              | PayResidual (Maybe Limit) AccountName BondName
              | TransferReserve Satisfy AccountName AccountName (Maybe String)
              | LiquidatePool C.LiquidationMethod AccountName
+             | RunTrigger (Maybe [Trigger])
              deriving (Show)
 
 --type DistributionSeq = [Action]
@@ -101,3 +101,4 @@ $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''Formula)
+$(deriveJSON defaultOptions ''ActionWhen)

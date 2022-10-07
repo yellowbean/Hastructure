@@ -119,7 +119,7 @@ getVersionR :: Handler String
 getVersionR =  do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "GET"
-  return "{\"version\":\"0.0.1\"}"
+  return "{\"version\":\"0.0.2\"}"
 
 
 data Config = Config { port :: Int}

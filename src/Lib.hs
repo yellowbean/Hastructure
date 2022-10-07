@@ -7,15 +7,15 @@ module Lib
     ,genDates,StartDate,EndDate,LastIntPayDate,daysBetween
     ,Spread,Index(..),Date
     ,paySeqLiabilities,prorataFactors,periodToYear
-    ,afterNPeriod,DealStats(..),Ts(..),periodsBetween
+    ,afterNPeriod,Ts(..),periodsBetween
     ,periodRateFromAnnualRate
     ,previousDate,inSamePeriod
     ,Floor,Cap,TsPoint(..),RateAssumption(..)
     ,toDate
-    ,getValByDate,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
+    ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
     ,zipWith8,zipWith9, pv2, monthsOfPeriod
-    ,weightedBy, getValByDates, mkTs, DealStatus(..)
+    ,weightedBy, mkTs, DealStatus(..)
     ,mulBI,mkRateTs,Pre(..)
     ,Interest,Principal,IRate,Cash,Comment
     ) where
@@ -56,52 +56,8 @@ type Interest = Centi
 type Cash = Centi
 type Cap = Micro
 
-data Period = Daily 
-              | Weekly 
-              | Monthly 
-              | Quarterly 
-              | SemiAnnually 
-              | Annually
-              deriving (Show,Eq)
-
-data DealStats =  CurrentBondBalance
-              | CurrentPoolBalance
-              | CurrentPoolBegBalance
-              | CurrentPoolDefaultedBalance
-              | OriginalBondBalance
-              | OriginalPoolBalance
-              | BondFactor
-              | PoolFactor
-              | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
-              | AllAccBalance
-              | CumulativeDefaultBalance Date
-              | FutureCurrentPoolBalance Date
-              | FutureCurrentPoolBegBalance Date
-              | FutureCurrentPoolDefaultBalance Date
-              | FutureCurrentBondBalance Date
-              | FutureCurrentBondFactor Date
-              | FutureCurrentPoolFactor Date
-              | FutureOriginalPoolBalance
-              | CurrentBondBalanceOf [String]
-              | Factor DealStats Float
-              | BondIntPaidAt Date String
-              | BondsIntPaidAt Date [String]
-              | FeePaidAt Date String
-              | FeesPaidAt Date [String]
-              | CurrentDueBondInt [String]
-              | CurrentDueFee [String]
-              | Max DealStats DealStats
-              | Min DealStats DealStats
-              | LastBondIntPaid [String]
-              | LastFeePaid [String]
-              | BondBalanceHistory Date Date
-              | PoolCollectionIntHistory Date Date
-              | Sum [DealStats]
-              deriving (Show,Eq)
-
 
 data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
-$(deriveJSON defaultOptions ''Period)
 
 data Index = LPR5Y
             | LPR1Y
@@ -210,11 +166,13 @@ monthsOfPeriod p =
 prorataFactors :: [Centi] -> Centi -> [Centi]
 prorataFactors bals amt =
   case s of 
-    0.0 -> bals
-    _ -> map (\y -> y * amtToPay) (map (\x -> x / s) bals)
+    0.0 -> replicate (length bals) 0.0
+    _ -> map (\y -> (fromRational (y * (toRational amtToPay)))) weights -- `debug` ("Weights->>"++ show weights)
+           where 
+             weights = map (\x -> (toRational x) / s) bals
   where
-    s = foldl (+) 0 bals
-    amtToPay = min s amt
+    s = toRational $ sum bals
+    amtToPay = min s (toRational amt)
 
 paySeqLiabilities :: Amount -> [Balance] -> [(Amount,Balance)]
 paySeqLiabilities startAmt liabilities =
@@ -254,51 +212,24 @@ periodsBetween t1 t2 p
 
 
 
-data TsPoint a = TsPoint T.Day a
-                deriving (Show,Eq)
-
-data Ts = FloatCurve [TsPoint Rational]
-         |BoolCurve [TsPoint Bool]
-         |AmountCurve [TsPoint Amount]
-         |BalanceCurve [TsPoint Balance]
-         |IRateCurve [TsPoint IRate]
-         deriving (Show,Eq)
-
-instance Ord a => Ord (TsPoint a) where
-  compare (TsPoint d1 tv1) (TsPoint d2 tv2)
-    = compare d1 d2
 
 
 data RateAssumption = RateCurve Index Ts
                     | RateFlat Index IRate
                     deriving (Show)
 
-mkTs :: [(T.Day,Rational)] -> Ts
+mkTs :: [(Date,Rational)] -> Ts
 mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
 
-mkRateTs :: [(T.Day,IRate)] -> Ts
+mkRateTs :: [(Date,IRate)] -> Ts
 mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
 
-getValOnByDate :: Ts -> T.Day -> Amount
+getValOnByDate :: Ts -> Date -> Amount
 getValOnByDate (AmountCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
       Nothing -> 0
 
-getValByDate :: Ts -> T.Day -> Rational
-getValByDate (AmountCurve dps) d 
-  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
-      Just (TsPoint _d v) -> toRational v
-      Nothing -> 0
-
-getValByDate (FloatCurve dps) d 
-  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
-      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
-      Nothing -> 0              -- `debug` ("Getting 0 ")
-getValByDate (IRateCurve dps) d
-  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of
-      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
-      Nothing -> 0              -- `debug` ("Getting 0 ")
 
 splitTsByDate :: Ts -> T.Day -> (Ts, Ts)
 splitTsByDate (AmountCurve ds) d
@@ -319,8 +250,6 @@ subTsBetweenDates (AmountCurve vs) (Just sd) Nothing
 sumValTs :: Ts -> Amount
 sumValTs (AmountCurve ds) = foldr (\(TsPoint _ v) acc -> acc+v ) 0 ds
 
-getValByDates :: Ts -> [T.Day] -> [Rational]
-getValByDates rc ds = map (getValByDate rc) ds
 
 toDate :: String -> T.Day
 toDate s = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d" s
@@ -335,10 +264,7 @@ inSamePeriod t1 t2 p
       (y2,m2,d2) = T.toGregorian t2
 
 
-$(deriveJSON defaultOptions ''Ts)
-$(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Index)
-
 
 
 zipWith8 :: (a->b->c->d->e->f->g->h->i) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]
@@ -368,16 +294,3 @@ weightedBy ws vs =  sum $ zipWith (*) vs $ map toRational ws
 daysBetween :: Date -> Date -> Integer
 daysBetween sd ed = (fromIntegral (T.diffDays sd ed))
 
-(deriveJSON defaultOptions ''DealStats)
-
-data Pre = And Pre Pre
-         | Or Pre Pre
-         | IfZero DealStats
-         | IfGT DealStats Centi
-         | IfGET DealStats Centi
-         | IfLT DealStats Centi
-         | IfLET DealStats Centi
-         | IfDealStatus DealStatus
-         deriving (Show)
-
-$(deriveJSON defaultOptions ''Pre)

@@ -1,4 +1,4 @@
-module UT.LibTest(curveTests,queryStmtTests,datesTests)
+module UT.LibTest(curveTests,queryStmtTests,datesTests,prorataTests)
 where
 
 import Test.Tasty
@@ -6,6 +6,7 @@ import Test.Tasty.HUnit
 
 import qualified Data.Time as T
 import Lib
+import Util
 import Stmt
 
 curveTests =testGroup "Curve Tests"
@@ -55,4 +56,23 @@ datesTests = testGroup "date related "
      testCase "zero extra" $
      assertEqual "1 Month" [] d2
 
+  ]
+
+prorataTests = testGroup "prorata Test"
+  [
+    let 
+      bals1 = [100,200,300]
+    in 
+      testCase "3 bals" $
+        assertEqual ""
+          [10,20,30]
+          (prorataFactors bals1 60)
+    ,
+    let 
+      bals2 = [100,200,0]
+    in 
+      testCase "2 bals" $
+        assertEqual ""
+          [20,40,0]
+          (prorataFactors bals2 60)
   ]

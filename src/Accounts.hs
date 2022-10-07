@@ -7,13 +7,13 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
     where
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,LastIntPayDate
-           ,calcInt
-           ,DealStats(..),Balance
+           ,calcInt ,Balance
            ,paySeqLiabilitiesAmt,IRate,mulBI
            ,getIntervalFactors)
 import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getTxnDate)
 import Types
 import Util
+-- import IntrestRate
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -23,8 +23,8 @@ import Debug.Trace
 debug = flip trace
 
 data InterestInfo = BankAccount IRate Date DatePattern
-                    --BankAccount IRate Period
-                    deriving (Show)
+                 -- | InvestmentAccount IRate Date Period
+                  deriving (Show)
 
 data ReserveAmount = PctReserve DealStats Rate
                    | FixReserve Balance
@@ -61,7 +61,7 @@ buildEarnIntAction (acc:accs) ed r =
                    YearFirst -> (div cdm 12) + 1
                    MonthDayOfYear _ _ -> (div cdm 12) + 1
                    DayOfMonth _ -> cdm + 1
-                   DayOfWeek _ -> cdm * 4 + 1 -- `debug` ("cdm"++show cdm)
+                   -- DayOfWeek _ -> cdm * 4 + 1 -- `debug` ("cdm"++show cdm)
          in 
            buildEarnIntAction accs ed [(an, (genSerialDates dp lastAccDate (fromInteger num)))]++r    
 

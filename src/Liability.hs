@@ -19,10 +19,10 @@ import Lib (Date,Balance,Rate,Spread,Index(..),Dates,calcInt
            ,Period(..),Ts(..)
            ,TsPoint(..)
            ,toDate,pv2,daysBetween,Amount
-           ,Period,Floor,Cap,getValByDate,IRate,mulBI
+           ,Period,Floor,Cap,IRate,mulBI
            ,getIntervalFactors)
 
-import Util (mulBR)
+import Util
 import Types
 
 import Stmt (Txn(..),combineTxn,Statement(..),appendStmt,getTxnDate
@@ -100,7 +100,7 @@ payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt lpayInt lpayPrin 
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
   Bond bn bt oi iinfo bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
-    new_due = dueInt - amt
+    new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
     new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt "INT PAY")
 
 payPrin :: Date -> Amount -> Bond -> Bond

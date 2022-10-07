@@ -5,7 +5,7 @@
 module Expense (Fee(..),FeeType(..),payFee)
   where
 
-import Lib(Period,paySeqLiabilities,Dates,DealStats
+import Lib(Period,paySeqLiabilities,Dates
            ,Amount,Balance,Date,Rate,Ts(..))
 import Stmt(appendStmt,Statement,Txn(..))
 import Data.Traversable

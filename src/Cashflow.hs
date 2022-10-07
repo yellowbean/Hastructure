@@ -19,6 +19,7 @@ import Data.Time (Day)
 import Data.Fixed
 import Lib (Dates,weightedBy,toDate,IRate,getIntervalFactors)
 import Util (mulBR)
+import Types
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.List as L

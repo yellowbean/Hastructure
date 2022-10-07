@@ -15,7 +15,7 @@ import Text.Read (readMaybe)
 
 import Lib (Period(..),calcInt,Dates,Date,calcIntRate,genDates
            ,Balance,Rate,IRate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate
-           ,nextDate,Amount,getIntervalDays,zipWith9,getValByDates,mkTs,periodsBetween,Floor,Rate
+           ,nextDate,Amount,getIntervalDays,zipWith9,mkTs,periodsBetween,Floor,Rate
            ,mulBI,mkRateTs)
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
@@ -29,7 +29,7 @@ import Data.Aeson.Types
 import Types hiding (Current)
 import Text.Printf
 import Data.Fixed
-
+import Util
 import Debug.Trace
 debug = flip trace
 
