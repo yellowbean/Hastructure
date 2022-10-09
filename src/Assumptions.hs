@@ -14,7 +14,13 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import Types
 import qualified Data.Time as T
+
+import Data.Fixed
+import Data.Ratio
+import Debug.Trace
+debug = flip trace
 
 
 type AssumptionLists = [AssumptionBuilder]
@@ -24,16 +30,17 @@ data AssumptionInput = Single AssumptionLists
                      deriving (Show)
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
-                | MortgageByRate ([Float],[Float])
+                -- | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Rate
                 | PrepaymentCPR Rate
-                | PrepaymentCPRCurve [Rate]     -- this will ignore the payment interval
+                -- | PrepaymentCPRCurve [Rate]     -- this will ignore the payment interval
                 | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
                 | DefaultConstant Rate
                 | DefaultCDR Rate
-                | DefaultDistribution Float [Float] -- total default rate, distribution pct
+                -- | DefaultDistribution Float [Float] -- total default rate, distribution pct
                 | Recovery (Rate,Int)
-                | LinearTo Int Float
+                -- | LinearTo Int Float
+                | PrepaymentFactors Ts
                 | InterestRateConstant Index IRate
                 | InterestRateCurve Index [(T.Day,IRate)]
                 | PrepaymentByAging [(Int,Float)]
@@ -49,7 +56,7 @@ data BondPricingInput = DiscountCurve T.Day Ts
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
-  = 1 - (1-annualRate) ^^ (div days 365)
+  = toRational $ 1 - (fromRational (1-annualRate)) ** ((fromIntegral days) / 365) `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)

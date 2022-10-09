@@ -25,6 +25,7 @@ import qualified Control.Lens as LS
 import Data.List
 import Data.Fixed
 import Data.Maybe
+import Data.Time.Clock
 import Data.Aeson hiding (json)
 import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
@@ -84,8 +85,8 @@ instance DealDates DateDesp where
       in 
          sd
          
-  getClosingDate (CustomDates pActions bActions )
-    = actionDate $ head pActions
+  getClosingDate (CustomDates _ pActions cd bActions )
+    = cd
 
   getClosingDate (FixInterval _m _p1 _p2)  
     = _m Map.! ClosingDate
@@ -96,7 +97,7 @@ instance DealDates DateDesp where
       in 
          sd
   
-  getFirstPayDate (CustomDates pActions bActions )
+  getFirstPayDate (CustomDates _ pActions _ bActions )
     = actionDate $ head bActions
   
   getFirstPayDate (FixInterval _m _p1 _p2)  
@@ -389,7 +390,7 @@ getRateAssumptionByIndex ras idx
 
 
 applyFloatRate :: L.InterestInfo -> T.Day -> [RateAssumption] -> IRate
-applyFloatRate (L.Floater idx spd p mf mc) d ras
+applyFloatRate (L.Floater idx spd p dc mf mc) d ras
   = case (mf,mc) of
       (Nothing,Nothing) -> _rate
       (Just f,Nothing) -> max f _rate
@@ -404,7 +405,7 @@ applyFloatRate (L.Floater idx spd p mf mc) d ras
       _rate = idx_rate + spd
 
 applicableAdjust :: T.Day -> L.Bond -> Bool
-applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _) _ _ _ _ _ _ _ )
+applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ )
   = case rr of 
       L.ByInterval p mStartDate ->
           let 
@@ -418,7 +419,7 @@ applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _) _ _ _ _ _ _ _ )
           in 
             m == monthIndex
 
-applicableAdjust d (L.Bond _ _ oi (L.Fix _ ) _ _ _ _ _ _ _ ) = False
+applicableAdjust d (L.Bond _ _ oi (L.Fix _ _ ) _ _ _ _ _ _ _ ) = False
 applicableAdjust d (L.Bond _ _ oi (L.InterestByYield _ ) _ _ _ _ _ _ _ ) = False
 
 setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal
@@ -435,7 +436,8 @@ testCall t d opt =
     case opt of 
        C.PoolBalance x -> (queryDeal t (FutureCurrentPoolBalance d)) < x
        C.BondBalance x -> (queryDeal t CurrentBondBalance) < x
-       C.PoolFactor x ->  (queryDealRate t (FutureCurrentPoolFactor d)) < (fromRational x)
+       C.PoolFactor x ->  (queryDealRate t (FutureCurrentPoolFactor d)) < fromRational x
+                        --  `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
                         -- _factor  < (fromRational x)  `debug` ("Test on Pool Factor: "++show((pool t))++" v-> "++show(_factor))
                         -- where
                         --   _factor = (queryDeal t (FutureCurrentPoolBalance d)) / (queryDeal t OriginalPoolBalance)
@@ -506,21 +508,21 @@ runTriggers t d _trgs =
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate]
     -> Maybe [RateAssumption] -> Maybe ([C.CallOption])-> TestDeal
-run2 t _ (Just []) _ _   = (prepareDeal t) --  `debug` ("End with Empty ActionOnDate")
+run2 t _ (Just []) _ _   = (prepareDeal t)   `debug` ("End with Empty ActionOnDate")
 
 run2 t poolFlow (Just (ad:ads)) rates calls
-  | (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = prepareDeal t -- `debug` ("End with pool flow")
+  | (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = prepareDeal t  `debug` ("End with pool flow")
   | (isNothing poolFlow) && ((queryDeal t CurrentBondBalance) == 0)
      = let
         d = actionDate ad -- `debug` ("Running 2 with pool flow"++show(poolFlow))
        in
-        prepareDeal $ foldl (performAction d) t cleanUpActions
+        prepareDeal $ foldl (performAction d) t cleanUpActions -- `debug` ("Deal end with bal =0 ")
   | otherwise
   = case ad of
       PoolCollection d _ ->
           case poolFlow of
             Just _poolFlow ->
-               run2 dRunWithTrigger1 outstanding_flow (Just ads) rates calls -- `debug` ("Pool Deposit>>"++show(d)++">>>"++show(outstanding_flow)++"next ad"++show(head ads)++"Bond balance"++show((queryDeal t AllAccBalance)))
+               run2 dRunWithTrigger1 outstanding_flow (Just ads) rates calls -- `debug` ("Running Pool at"++ show d)
                where
                   (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate _poolFlow d -- `debug` ("Splitting:"++show(d)++"|||"++show(_poolFlow))
                   accs = depositPoolInflow (collects t) d collected_flow (accounts t) --  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
@@ -535,11 +537,11 @@ run2 t poolFlow (Just (ad:ads)) rates calls
         case calls of
           Just callOpts ->
               if testCalls dRunWithTrigger1 d callOpts then
-                prepareDeal $ foldl (performAction d) dRunWithTrigger1 cleanUpActions -- `debug` ("Called ! ")
+                prepareDeal $ foldl (performAction d) dRunWithTrigger1 cleanUpActions `debug` ("Called ! "++ show d)
               else
-                run2 dRunWithTrigger1 poolFlow (Just ads) rates calls  -- `debug` ("Not called ")
+                run2 dRunWithTrigger1 poolFlow (Just ads) rates calls  `debug` ("Not called "++ show d )
           Nothing ->
-             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing --  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
         where
              -- waterfallToExe = Map.findWithDefault [] W.DistributionDay (waterfall t) --  `debug` ("Getting waterfall with wf"++show(waterfallToExe))
              dRunWithTrigger0 = runTriggers t d $ queryTrigger t BeginDistributionWF
@@ -660,7 +662,7 @@ runDeal t er assumps bpi =
     (ads,pcf,rcurves,calls,t2) = getInits t assumps
 
 prepareDeal :: TestDeal -> TestDeal 
-prepareDeal t = t {bonds = Map.map L.consolStmt (bonds t)}
+prepareDeal t = t {bonds = Map.map L.consolStmt (bonds t)} -- `debug` ("Consolidation in preparingw")
 
 buildRateCurves :: [RateAssumption]-> [AP.AssumptionBuilder] -> [RateAssumption] 
 buildRateCurves rs (assump:assumps) = 
@@ -692,14 +694,15 @@ setFutureCF t cf =
     newPool = _pool {P.futureCf = Just cf}
 
 populateDealDates :: DateDesp -> (Date,Date,[ActionOnDate],[ActionOnDate],Date)
-populateDealDates (CustomDates _ps _bs) 
-  = ((actionDate (head _ps))
-     ,(actionDate (head _bs))
+populateDealDates (CustomDates _cutoff _ps _closing _bs) 
+  = (actionDate (head _ps)
+     ,actionDate (head _bs)
      ,_ps
      ,_bs
      ,(actionDate (max (last _ps) (last _bs))))
+
 populateDealDates (PatternInterval _m) 
-  = (startDate,firstPayDate,pa,ba,max ed1 ed2)  `debug` ("PA>>>"++ show pa)
+  = (startDate,firstPayDate,pa,ba,max ed1 ed2) -- `debug` ("PA>>>"++ show pa)
     where 
       pa = [ PoolCollection _d "" | _d <- genSerialDatesTill startDate dp1 ed1 ]
       ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill firstPayDate dp2 ed2 ]
@@ -722,8 +725,6 @@ getInits t mAssumps =
     projNum = 512
     
     (startDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)   
-    -- aIntSweepDates = [     |           ]
-    -- build interest earn for bank accounts 
     intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate []
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
                                            , _d <- accIntDates ]
@@ -745,8 +746,8 @@ getInits t mAssumps =
                          _actionDates
                     Nothing ->  _actionDates   -- `debug` (">>action dates"++show(_actionDates))
 
-    poolCf = P.aggPool $ P.runPool2 (pool t) assumps  --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
-    poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  --  `debug` ("projected pool cf"++show(poolCf))
+    poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` show (P.runPool2 (pool t) assumps) --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
+    poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf --  `debug` ("projected & aggred pool cf"++show(poolCf))
     pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates) -- `debug` ("poolCf "++show(poolCfTs)++">>"++show(actionDates pActionDates) ) -- `debug` ("pool cf ts"++show(poolCfTs))
     t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
@@ -768,7 +769,7 @@ queryDealRate t s =
            (toRational (queryDeal t (FutureCurrentPoolBalance asOfDay))) / (toRational (queryDeal t OriginalPoolBalance) )
 
 
-queryDeal :: TestDeal -> DealStats ->  Centi
+queryDeal :: TestDeal -> DealStats -> Balance
 queryDeal t s =
   case s of
     CurrentBondBalance ->
@@ -788,7 +789,10 @@ queryDeal t s =
          Nothing -> (-1) -- `debug` ("Pool Stat"++show(pool t))
 
     AllAccBalance ->
-        Map.foldr (\x acc -> (A.accBalance x)+acc) 0.0 (accounts t)
+        --Map.foldr (\x acc -> (A.accBalance x)+acc) 0.0 (accounts t) `debug` ("Summing acc balance")
+        sum $ map A.accBalance $ Map.elems (accounts t) `debug` ("Summing acc balance")
+        -- 0.0
+        
 
     --FutureOriginalPoolBalance ->
     --  CF.mflowBalance $ head (CF.getTsCashFlowFrame _pool_cfs)
@@ -919,8 +923,8 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay)
         (baseBal,newDueDay) = case feeBase of
                               CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing,collectionEndDay)
                               -- CurrentPoolBegBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing
-                              OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) P.IssuanceBalance) (periodToYear accrueStart calcDay DC_ACT_365),collectionEndDay)
-                              OriginalBondBalance -> (mulBR (queryDeal t OriginalBondBalance) (periodToYear accrueStart calcDay DC_ACT_365),calcDay)
+                              OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) P.IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),collectionEndDay)
+                              OriginalBondBalance -> (mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),calcDay)
                               CurrentBondBalance -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t),calcDay)
                               CurrentBondBalanceOf bns -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns)),calcDay)
 
@@ -964,12 +968,16 @@ calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ int_
   newDue = L.backoutDueIntByYield calc_date b
 
 calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due lstIntPay _ _) =
-  b {L.bndDueInt = (new_due_int+int_due) }   `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
+  b {L.bndDueInt = (new_due_int+int_due) }   -- `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
   where
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
                       Nothing -> getClosingDate (dates t)
-    new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365 `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
+    dc = case bi of 
+           L.Floater _ _ _ _dc _ _ -> _dc 
+           L.Fix _ _dc -> _dc 
+           
+    new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F -- `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
@@ -979,7 +987,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi bond_bal _ prin_arr int_
     duePrin = bond_bal 
 
 calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
-  if (cd > calc_date)  then 
+  if cd > calc_date then 
     b {L.bndDuePrin = 0}
   else
     b {L.bndDuePrin = duePrin}
@@ -1017,7 +1025,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
                       Nothing -> getClosingDate (dates t)
-    dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365
+    dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F
 
 calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _) =
   b {L.bndDuePrin = bond_bal }
@@ -1067,9 +1075,9 @@ $(deriveJSON defaultOptions ''TxnComponent)
 td = TestDeal {
   name = "test deal1"
   ,dates = PatternInterval $
-             Map.fromList [(ClosingDate ,((T.fromGregorian 2022 1 1),MonthFirst,toDate("20300101")))
-                         ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,toDate("20300101")))
-                         ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,toDate("20300101") ))
+             Map.fromList [(ClosingDate ,(T.fromGregorian 2022 1 1,MonthFirst,toDate("20300101")))
+                         ,(CutoffDate,(T.fromGregorian 2022 1 1,MonthFirst,toDate("20300101")))
+                         ,(FirstPayDate,(T.fromGregorian 2022 2 25,DayOfMonth 25,toDate("20300101") ))
                           ]
   ,status = Amortizing
   ,accounts = (Map.fromList
@@ -1099,7 +1107,7 @@ td = TestDeal {
                                                 L.originBalance=3000
                                                 ,L.originDate= (T.fromGregorian 2022 1 1)
                                                 ,L.originRate= 0.08}
-                             ,L.bndInterestInfo= L.Fix 0.08
+                             ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
                              ,L.bndBalance=3000
                              ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0

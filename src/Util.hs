@@ -4,6 +4,9 @@ module Util
     (mulBR,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates
     ,genSerialDatesTill
+    ,timeIt
+    ,calcInt,calcIntRate
+    ,multiplyTs,zipTs,getTsVals
     )
     where
 import qualified Data.Time as T
@@ -15,6 +18,10 @@ import qualified Data.Map as M
 
 import Lib
 import Types
+
+import Text.Printf
+import Control.Exception
+import System.CPUTime
 
 import Debug.Trace
 debug = flip trace
@@ -115,6 +122,8 @@ yearCountFraction dc sd ed
                         num = toRational (_eday - _sday) + 30*_gapMonth + 360*_diffYears
                       in 
                         num / 360
+      -- _ -> 0.08333 `debug` ("DCCC->"++ show dc)                  
+      
       -- https://www.iso20022.org/15022/uhb/mt565-16-field-22f.htm
 
     where 
@@ -230,5 +239,51 @@ getValByDate (IRateCurve dps) d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
-getValByDates :: Ts -> [T.Day] -> [Rational]
+getValByDate (FactorCurveClosed dps ed) d 
+  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+      Just found@(TsPoint _found_d _found_v) -> 
+        if d >= ed then 
+          1.0
+        else 
+          _found_v
+      Nothing -> 1.0
+
+getValByDates :: Ts -> [Date] -> [Rational]
 getValByDates rc ds = map (getValByDate rc) ds
+
+getTsVals :: Ts -> [Rational]
+getTsVals (FloatCurve ts) = [ v | (TsPoint d v) <- ts ]
+
+calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
+calcIntRate start_date end_date int_rate day_count =
+  let 
+    yf = yearCountFraction day_count start_date end_date
+  in 
+    int_rate * (fromRational yf)
+
+calcInt :: Balance -> Date -> Date -> IRate -> DayCount -> Amount
+calcInt bal start_date end_date int_rate day_count =
+  let 
+    yfactor = yearCountFraction day_count start_date end_date
+  in 
+    fromRational $ (toRational bal) * (yfactor * (toRational int_rate)) --TODO looks strange
+
+
+
+timeIt :: IO t -> IO t
+timeIt a = do
+    start <- getCPUTime
+    v <- a
+    end   <- getCPUTime
+    let diff = (fromIntegral (end - start)) / (10^12)
+    printf "Computation time: %0.3f sec\n" (diff :: Double)
+    return v
+
+zipTs :: [Date] -> [Rational] -> Ts 
+zipTs ds rs 
+  = FloatCurve [ TsPoint d r | (d,r) <- (zip ds rs) ]
+
+
+multiplyTs :: Ts -> Ts -> Ts
+multiplyTs (FloatCurve ts1) ts2
+  = FloatCurve [(TsPoint d (v * (getValByDate ts2 d))) | (TsPoint d v) <- ts1 ] 

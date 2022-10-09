@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 {-# LANGUAGE TemplateHaskell #-}
 module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,calcCashflow,getCurrentBal,getOriginBal,runPool2
@@ -13,7 +14,7 @@ import qualified Data.Time as T
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
-import Lib (Period(..),calcInt,Dates,Date,calcIntRate,genDates
+import Lib (Period(..),Dates,Date,genDates
            ,Balance,Rate,IRate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate
            ,nextDate,Amount,getIntervalDays,zipWith9,mkTs,periodsBetween,Floor,Rate
            ,mulBI,mkRateTs)
@@ -131,11 +132,20 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
                                                _recovery_rate _recovery_lag
        A.PrepaymentCPR r -> -- TODO need to convert to annualized rate
            buildAssumptionRate pDates assumps (map (A.toPeriodRateByInterval r)
-                                                 (getIntervalDays pDates))
+                                                   (getIntervalDays pDates))
                                               _def_rates
                                               _recovery_rate _recovery_lag
-       A.PrepaymentCPRCurve vs ->
-           buildAssumptionRate pDates assumps vs _def_rates _recovery_rate _recovery_lag
+       A.PrepaymentFactors _ts -> 
+           let
+             ppy_ts = zipTs pDates _ppy_rates
+             new_prepayment_rates = getTsVals $ multiplyTs ppy_ts _ts 
+           in                   
+             buildAssumptionRate pDates assumps 
+                                              new_prepayment_rates
+                                              _def_rates
+                                              _recovery_rate _recovery_lag
+
+       -- A.PrepaymentCPRCurve vs ->  buildAssumptionRate pDates assumps vs _def_rates _recovery_rate _recovery_lag
 
        _ -> buildAssumptionRate pDates assumps _ppy_rates _def_rates _recovery_rate _recovery_lag
    where
@@ -202,26 +212,28 @@ projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRa
 projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss (recovery_lag,recovery_rate)
   = projectScheduleFlow (trs++[tr]) _survive_rate _end_bal flows _def_rates _ppy_rates (tail _rec_vector) (tail _loss_vector) (recovery_lag,recovery_rate) -- `debug` ("===>C")
      where
-     _start_bal = last_bal
-     _def_amt = _start_bal * (fromRational _def_rate)
-     _ppy_amt = (_start_bal - _def_amt) * (fromRational _ppy_rate) -- `debug` ("Def amt"++show(_def_amt)++"Def rate"++show(_def_rate))
-     _after_bal = _start_bal - _def_amt - _ppy_amt
-     _survive_rate = (1 - _def_rate) * (1 - _ppy_rate) * bal_factor -- `debug` ("Bal factor"++show(bal_factor))
+       _start_bal = last_bal
+       _def_amt = mulBR _start_bal _def_rate
+       _ppy_amt = mulBR (_start_bal - _def_amt) _ppy_rate -- `debug` (">>>"++ show (_start_bal - _def_amt)++">>>"++ show (fromRational _ppy_rate) ++">>>"++ show ((_start_bal - _def_amt) * (fromRational _ppy_rate)))      -- `debug` (show _start_bal ++">>"++ show (fromRational _def_rate) ++ ">>" ++"DEF AMT"++ show _def_amt)-- `debug` ("Def amt"++show(_def_amt)++"Def rate"++show(_def_rate))
+       _after_bal = _start_bal - _def_amt - _ppy_amt   -- `debug` ("PPY AMT"++ show _ppy_amt ++ ">>>" ++ show (fromRational _ppy_rate))
+       _survive_rate = (1 - _def_rate) * (1 - _ppy_rate) * bal_factor -- `debug` ("Bal factor"++show(bal_factor))
 
-     _schedule_bal = (CF.mflowBalance flow)
+       _schedule_bal = CF.mflowBalance flow
 
-     _schedule_prin = fromRational ( _survive_rate * (toRational (CF.mflowPrincipal flow))) --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
-     _schedule_int = fromRational (_survive_rate * (toRational (CF.mflowInterest flow)))
+       --_schedule_prin = fromRational ( _survive_rate * (toRational (CF.mflowPrincipal flow))) --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
+       --_schedule_int = fromRational (_survive_rate * (toRational (CF.mflowInterest flow)))
+       _schedule_prin = (mulBR (CF.mflowPrincipal flow) _survive_rate) --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
+       _schedule_int = (mulBR (CF.mflowInterest flow) _survive_rate)
 
-     _new_rec = _def_amt * (fromRational recovery_rate)
-     _new_loss = _def_amt * (fromRational (1 - recovery_rate))
+       _new_rec = mulBR _def_amt recovery_rate
+       _new_loss = mulBR _def_amt (1 - recovery_rate)
 
-     _rec_vector = replace _rec recovery_lag _new_rec
-     _loss_vector = replace _loss recovery_lag _new_loss
+       _rec_vector = replace _rec recovery_lag _new_rec
+       _loss_vector = replace _loss recovery_lag _new_loss
 
-     _end_bal = max 0 $ _after_bal - _schedule_prin
+       _end_bal = max 0 $ _after_bal - _schedule_prin
 
-     tr = CF.MortgageFlow (CF.tsDate flow) _end_bal _schedule_prin _schedule_int _ppy_amt _def_amt (head _rec_vector) (head _loss_vector) 0.0
+       tr = CF.MortgageFlow (CF.tsDate flow) _end_bal _schedule_prin _schedule_int _ppy_amt _def_amt (head _rec_vector) (head _loss_vector) 0.0
 
 projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,recovery_rate)
   = projectScheduleFlow
@@ -336,13 +348,13 @@ instance Asset Mortgage  where
                              ppy_rates
                              (replicate curve_dates_length 0.0)
                              (replicate curve_dates_length 0.0)
-                             (recovery_lag,recovery_rate)
+                             (recovery_lag,recovery_rate) -- `debug` ("PPY Rate for cf table"++show ppy_rates)
 
        where
         beg_bal = (CF.mflowPrincipal (head flows) + CF.mflowBalance (head flows))
-        (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps [] [] 0 0
+        (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps [] [] 0 0 -- `debug` ("Assumpt"++ show assumps)
         curve_dates_length =  recovery_lag + length flows
-        temp_p = Lib.Monthly
+        temp_p = Lib.Monthly -- TODO to fix this hard code 
         cf_dates = (map CF.tsDate flows) ++ (genDates
                                               (CF.tsDate (last flows))
                                               temp_p

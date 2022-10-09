@@ -72,7 +72,7 @@ data Period = Daily
               deriving (Show,Eq)
 
 data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
-              | CustomDates [ActionOnDate] [ActionOnDate]
+              | CustomDates Date [ActionOnDate] Date [ActionOnDate]
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
               deriving (Show,Eq)
 
@@ -198,6 +198,7 @@ data Ts = FloatCurve [TsPoint Rational]
          |BalanceCurve [TsPoint Balance]
          |AmountCurve [TsPoint Balance]
          |IRateCurve [TsPoint IRate]
+         |FactorCurveClosed [TsPoint Rational] Date
          deriving (Show,Eq,Ord,Read)
 
 instance Ord a => Ord (TsPoint a) where

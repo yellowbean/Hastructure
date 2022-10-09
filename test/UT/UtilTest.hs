@@ -232,9 +232,14 @@ tsTest =
   let
     d1 = T.fromGregorian 2007 12 28
     d2 = T.fromGregorian 2008 2 28
+    dpairs = [(toDate "20061201",100)
+                  ,(toDate "20070201",80)  
+                  ,(toDate "20080201",60)]
+    ed =  (toDate "20090101")
     testTs = mkTs [(toDate "20061201",100)
                   ,(toDate "20070201",80)  
                   ,(toDate "20080201",60)]
+    tps = [TsPoint _d _v | (_d,_v) <- dpairs ]
   in
     testGroup "Test Trigger Threshold Curve"
   [
@@ -244,7 +249,33 @@ tsTest =
         getValByDates testTs [(toDate "20061201")
                              ,(toDate "20061211")
                              ,(toDate "20070301")
-                             ,(toDate "20081201")]]
+                             ,(toDate "20081201")]
+
+    ,testCase "FactorCurveClosed" $                         
+      assertEqual "leftNotFound as 1"
+        1.0 $
+        getValByDate 
+          (FactorCurveClosed tps ed)
+          (toDate "20060601")
+    ,testCase "FactorCurveClosed" $                         
+      assertEqual "in middle"
+        80 $
+        getValByDate 
+          (FactorCurveClosed tps ed)
+          (toDate "20070202")          
+    ,testCase "FactorCurveClosed" $                         
+      assertEqual "right after last dps"
+        60 $
+        getValByDate 
+          (FactorCurveClosed tps ed)
+          (toDate "20081221") 
+    ,testCase "FactorCurveClosed" $                         
+      assertEqual "After end date"
+        1.0 $
+        getValByDate 
+          (FactorCurveClosed tps ed)
+          (toDate "20090601")
+  ]
 
 dateVectorPatternTest = 
   let 

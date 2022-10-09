@@ -15,7 +15,7 @@ import Data.Aeson.TH
 import Data.Fixed
 
 import qualified Data.Time as T
-import Lib (Date,Balance,Rate,Spread,Index(..),Dates,calcInt
+import Lib (Date,Balance,Rate,Spread,Index(..),Dates
            ,Period(..),Ts(..)
            ,TsPoint(..)
            ,toDate,pv2,daysBetween,Amount
@@ -40,8 +40,8 @@ data RateReset = ByInterval Period (Maybe Date) -- period, maybe a start day
                deriving (Show)
 
 data InterestInfo = 
-          Floater Index Spread RateReset (Maybe Floor) (Maybe Cap)
-          | Fix IRate
+          Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
+          | Fix IRate DayCount 
           | InterestByYield IRate
           deriving (Show)
 
@@ -87,7 +87,7 @@ consolTxn [] txn = [txn]
 
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndStmt = Just (Statement (txn:txns))}
-  =  b {bndStmt = Just (Statement (reverse (foldl consolTxn [txn] txns)))}
+  =  b {bndStmt = Just (Statement (reverse (foldl consolTxn [txn] txns)))} -- `debug` ("Consoling stmt for "++ show (bndName b))
 
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
@@ -101,7 +101,7 @@ payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt
   Bond bn bt oi iinfo bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
-    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt "INT PAY")
+    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt ("INT PAY:Due"++show new_due))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =

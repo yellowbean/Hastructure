@@ -12,6 +12,7 @@ import qualified Stmt  as S
 import qualified Asset as P
 import qualified Assumptions as A
 import qualified Cashflow as CF
+import Types
 
 import Debug.Trace
 debug = flip trace
@@ -22,7 +23,7 @@ b1 = B.Bond{B.bndName="A"
                                B.originBalance=3000
                                ,B.originDate= (T.fromGregorian 2022 1 1)
                                ,B.originRate= 0.08}
-            ,B.bndInterestInfo= B.Fix 0.08
+            ,B.bndInterestInfo= B.Fix 0.08 DC_ACT_365F
             ,B.bndBalance=3000
             ,B.bndRate=0.08
             ,B.bndDuePrin=0.0
@@ -37,7 +38,7 @@ bfloat = B.Bond{B.bndName="A"
                                B.originBalance=3000
                                ,B.originDate= (T.fromGregorian 2022 1 1)
                                ,B.originRate= 0.08}
-            ,B.bndInterestInfo= B.Floater L.LPR5Y 0.015 (B.MonthOfYear 1) Nothing Nothing
+            ,B.bndInterestInfo= B.Floater L.LPR5Y 0.015 (B.MonthOfYear 1) DC_ACT_365F Nothing Nothing
             ,B.bndBalance=3000
             ,B.bndRate=0.08
             ,B.bndDuePrin=0.0
@@ -130,7 +131,8 @@ bndTests = testGroup "Float Bond Tests" [
     let 
        bfloatResetInterval = bfloat {B.bndInterestInfo = B.Floater L.LPR5Y 0.015 
                                                          (B.ByInterval L.Quarterly 
-                                                           (Just (L.toDate "20220401"))) 
+                                                           (Just (L.toDate "20220401")))
+                                                         DC_ACT_365F   
                                                          Nothing Nothing}
        r1 = D.applicableAdjust (L.toDate "20220701") bfloatResetInterval
        r2 = D.applicableAdjust (L.toDate "20220801") bfloatResetInterval

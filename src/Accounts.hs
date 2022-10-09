@@ -7,7 +7,7 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
     where
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,LastIntPayDate
-           ,calcInt ,Balance
+           ,Balance
            ,paySeqLiabilitiesAmt,IRate,mulBI
            ,getIntervalFactors)
 import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getTxnDate)
@@ -85,15 +85,15 @@ depositInt a@(Account
                             Just (Statement _txns) ->
                               let 
                                 _accrue_txns = sliceTxns _txns lastCollectDate ed
-                                _bals = (map getTxnBegBalance _accrue_txns) ++ [bal] `debug` ("ACCU TXN"++show _accrue_txns)
+                                _bals = (map getTxnBegBalance _accrue_txns) ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
                                 _ds = map getTxnDate _accrue_txns
                                 _dfs = getIntervalFactors $ [lastCollectDate] ++ _ds ++ [ed]
                               in
                                 mulBI (sum $ zipWith mulBR _bals _dfs) r  
-                                `debug` (">>>"++show _bals ++">>>"++show ([lastCollectDate] ++ _ds ++ [ed]) ++">>>"++show _dfs)
+                                -- `debug` (">>>"++show _bals ++">>>"++show ([lastCollectDate] ++ _ds ++ [ed]) ++">>>"++show _dfs)
 
 
-            newBal = accrued_int + bal   `debug` ("INT ACC->"++ show accrued_int)
+            newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
             new_txn = (AccTxn ed newBal accrued_int "Deposit Int")
             new_stmt = appendStmt stmt new_txn
 

@@ -3,10 +3,10 @@
 {-# LANGUAGE DeriveAnyClass #-}
 
 module Lib
-    (Amount,Rate,Dates,Period(..),calcInt,calcIntRate,Balance
+    (Amount,Rate,Dates,Period(..),Balance
     ,genDates,StartDate,EndDate,LastIntPayDate,daysBetween
     ,Spread,Index(..),Date
-    ,paySeqLiabilities,prorataFactors,periodToYear
+    ,paySeqLiabilities,prorataFactors
     ,afterNPeriod,Ts(..),periodsBetween
     ,periodRateFromAnnualRate
     ,previousDate,inSamePeriod
@@ -34,7 +34,6 @@ import Text.Regex.TDFA
 import Data.Fixed
 
 import Types
-
 import Debug.Trace
 debug = flip trace
 
@@ -74,13 +73,6 @@ data Index = LPR5Y
 -- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
 
 
-periodToYear :: Date -> Date -> DayCount -> Rational
-periodToYear start_date end_date day_count =
-  case day_count of
-    DC_ACT_360 -> days / 360
-    DC_ACT_365 -> days / 365
-  where
-    days = fromIntegral (T.diffDays end_date start_date)
 
 annualRateToPeriodRate :: Period -> Float -> Float
 annualRateToPeriodRate p annualRate =
@@ -99,13 +91,6 @@ periodRateFromAnnualRate Quarterly annual_rate  = annual_rate / 4
 periodRateFromAnnualRate SemiAnnually annual_rate  = annual_rate / 2
 
 
-calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
-calcIntRate start_date end_date int_rate day_count =
-   int_rate * (fromRational (periodToYear start_date end_date day_count))
-
-calcInt :: Balance -> Date -> Date -> IRate -> DayCount -> Amount
-calcInt bal start_date end_date int_rate day_count =
-  fromRational $ (toRational bal) * (toRational (calcIntRate start_date end_date int_rate day_count)) --TODO looks strange
 
 addD :: Date -> T.CalendarDiffDays -> Date
 addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
