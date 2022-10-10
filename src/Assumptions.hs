@@ -56,7 +56,7 @@ data BondPricingInput = DiscountCurve T.Day Ts
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
-  = toRational $ 1 - (fromRational (1-annualRate)) ** ((fromIntegral days) / 365) `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
+  = toRational $ 1 - (fromRational (1-annualRate)) ** ((fromIntegral days) / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)

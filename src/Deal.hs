@@ -258,7 +258,8 @@ performAction d t (Nothing, (W.PayInt an bnds)) =
     bndsPaid = map (\(l,amt) -> (L.payInt d amt l)) bndsAmountToBePaid
 
     bndMapUpdated =   Map.union (Map.fromList $ zip bndsNames bndsPaid) bndMap
-    accMapAfterPay = Map.adjust (A.draw actualPaidOut d "Pay Int") an accMap
+    comment = "Pay Int:"++(intercalate "," bndsNames)
+    accMapAfterPay = Map.adjust (A.draw actualPaidOut d comment) an accMap
 
 performAction d t (Nothing, (W.PayTillYield an bnds)) =
     performAction d t (Nothing, (W.PayInt an bnds))
@@ -271,7 +272,7 @@ performAction d t (Nothing, (W.PayResidual Nothing an bndName)) =
 
     availBal = A.accBalance $ accMap Map.! an
 
-    accMapAfterPay = Map.adjust (A.draw availBal d "Pay Int") an accMap
+    accMapAfterPay = Map.adjust (A.draw availBal d ("Pay Residual:"++bndName)) an accMap
     bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
 
 performAction d t (Nothing, (W.PayFeeResidual limit an feeName)) =
@@ -287,7 +288,7 @@ performAction d t (Nothing, (W.PayFeeResidual limit an feeName)) =
                    Nothing -> availBal
 
 
-    accMapAfterPay = Map.adjust (A.draw paidOutAmt d "Pay Fee") an accMap
+    accMapAfterPay = Map.adjust (A.draw paidOutAmt d ("Pay Fee Residual:"++feeName)) an accMap
     feeMapAfterPay = Map.adjust (F.payFee d paidOutAmt) feeName feeMap
 
 -- ^ pay bond till its balance as pct of total balance
@@ -309,7 +310,7 @@ performAction d t (Nothing, (W.PayPrinBy (W.RemainBalPct pct) an bndName))=
 
     accMapAfterPay = Map.adjust
                         (A.draw actAmount d
-                                ("Pay Prin:"++show(pct)))
+                                ("Pay Prin:"++bndName++"|"++show(pct)))
                         an
                         accMap
     bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
@@ -358,7 +359,7 @@ performAction d t (Nothing, (W.LiquidatePool lm an)) =
   where
     liqAmt = calcLiquidationAmount lm (pool t) d
     accMap = accounts t
-    accMapAfterLiq = Map.adjust (A.deposit liqAmt d ("Liquidation Proceeds:"++show lm)) an accMap
+    accMapAfterLiq = Map.adjust (A.deposit liqAmt d ("Liquidation with:"++show lm++"|Amt:"++show liqAmt)) an accMap
 
 performAction d t (Nothing, (W.CalcFee fns)) 
   = t {fees = newFeeMap }
@@ -577,17 +578,18 @@ calcLiquidationAmount alm pool d
   = case alm of 
       C.BalanceFactor currentFactor defaultFactor ->
           case (P.futureCf pool) of 
-            Nothing -> 0
+            Nothing -> 0  -- `debug` ("No futureCF")
             Just _futureCf ->
                 let 
-                  poolInflow = CF.getEarlierTsCashFlowFrame _futureCf d 
+                  poolInflow = CF.getEarlierTsCashFlowFrame _futureCf d -- `debug` ("liq:"++show _futureCf++"D"++ show d)
                   earlierTxns = CF.getTxnAsOf _futureCf d
                   currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
                 in 
                   case poolInflow of 
-                    Nothing -> 0
+                    Nothing -> 0  -- `debug` ("No pool Inflow")
                     Just _ts ->   -- TODO need to check if missing last row
-                        ((CF.mflowBalance _ts) * (fromRational currentFactor) + currentDefaulBal * (fromRational defaultFactor))  -- `debug` ("LIQ:"++show(_ts))
+                        (mulBR (CF.mflowBalance _ts) currentFactor) + (mulBR currentDefaulBal defaultFactor) 
+                        `debug` ("LIQ:"++show poolInflow)
 
       C.PV discountRate recoveryPct ->
           case (P.futureCf pool) of
@@ -790,7 +792,7 @@ queryDeal t s =
 
     AllAccBalance ->
         --Map.foldr (\x acc -> (A.accBalance x)+acc) 0.0 (accounts t) `debug` ("Summing acc balance")
-        sum $ map A.accBalance $ Map.elems (accounts t) `debug` ("Summing acc balance")
+        sum $ map A.accBalance $ Map.elems (accounts t) -- `debug` ("Summing acc balance")
         -- 0.0
         
 

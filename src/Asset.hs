@@ -169,10 +169,10 @@ projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) 
                   p
                   pt
                 where
-               _remain_terms = 1 + (length _pdates) - recovery_lag
-               _new_default = _bal * (fromRational _def_rate)
+               _remain_terms = 1 + max 0 ((length _pdates) - recovery_lag)
+               _new_default = mulBR _bal _def_rate
                _new_bal_after_default = _bal - _new_default
-               _new_prepay = _new_bal_after_default * (fromRational _ppy_rate)
+               _new_prepay = mulBR _new_bal_after_default _ppy_rate
                _new_bal_after_ppy = _new_bal_after_default - _new_prepay
                _new_int = mulBI _new_bal_after_ppy (calcIntRate _last_date _pdate _rate DC_ACT_360) -- `debug` ("Payment dates"++show(_pdate))
                _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms --  `debug` ("Remain Term"++show(_remain_terms))
@@ -180,11 +180,11 @@ projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) 
                               Level -> _pmt - _new_int
                               Even ->  _new_bal_after_ppy / fromIntegral _remain_terms --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
 
-               _new_rec = _new_default * (fromRational recovery_rate)
-               _new_loss = _new_default * (fromRational (1 - recovery_rate))
+               _new_rec = mulBR _new_default recovery_rate
+               _new_loss = mulBR _new_default (1 - recovery_rate)
 
-               _current_rec = (replace _rec_vector recovery_lag _new_rec)
-               _current_loss = (replace _loss_vector recovery_lag _new_loss)
+               _current_rec = replace _rec_vector recovery_lag _new_rec
+               _current_loss = replace _loss_vector recovery_lag _new_loss
 
                _end_bal = _new_bal_after_ppy - _new_prin
                tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default (head _current_rec) (head _current_loss) _rate
@@ -316,7 +316,7 @@ instance Asset Mortgage  where
                             rate_vector
                             (recovery_lag,recovery_rate)
                             p
-                            prinPayType  -- `debug` ("Payment dates=>"++show(cf_dates))
+                            prinPayType `debug` ("rrate"++show recovery_rate++"rlag"++show recovery_lag) -- `debug` ("Payment dates=>"++show(cf_dates))
     where
       cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) (getPaymentDates m recovery_lag) --  `debug` ("CF Dates"++show(recovery_lag))
       last_pay_date = previousDate (head cf_dates) p -- `debug` ("RT->"++show rt++" cf-dates "++show cf_dates)
@@ -329,11 +329,11 @@ instance Asset Mortgage  where
                                 Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
                                 Nothing -> (replicate cf_dates_length 0.0)
 
-      (def_rates,ppy_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
+      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0)
                                (replicate cf_dates_length 0.0) 
                                0
-                               0
+                               0  
 
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted _) ) asOfDay assumps
     = CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr]
