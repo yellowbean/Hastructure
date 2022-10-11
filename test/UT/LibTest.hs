@@ -8,9 +8,9 @@ import qualified Data.Time as T
 import Lib
 import Util
 import Stmt
+import Data.Ratio
 
-curveTests =testGroup "Curve Tests"
-  [
+curveTests =
     let
      _ts = (FloatCurve [TsPoint (toDate "20210101") 0.01
                          ,TsPoint (toDate "20230101") 0.02])
@@ -18,11 +18,29 @@ curveTests =testGroup "Curve Tests"
      _r2 = getValByDate _ts (toDate "20210201")
      _r3 = getValByDate _ts (toDate "20230102")
      _r4 = getValByDate _ts (toDate "20231231")
+
+     _priceTs = (PricingCurve
+                  [TsPoint (toDate "20210101") 0.01
+                  ,TsPoint (toDate "20210110") 0.02])
     in
-      testCase "Query interst rate curve by date" $
+  testGroup "Curve Tests"
+  [
+    testCase "Query interst rate curve by date" $
       assertEqual
         "test 4 dates"
         [_r1,_r2,_r3,_r4] [0, 0.01,0.02,0.02]
+    ,testCase "Pricing Curve Test1" $
+      assertEqual "left"
+        0.01
+        (getValByDate _priceTs (toDate "20201231"))
+    ,testCase "Pricing Curve Test2" $
+      assertEqual "Right"
+        0.02
+        (getValByDate _priceTs (toDate "20210121"))
+    ,testCase "Pricing Curve Test3" $
+      assertEqual "Mid"
+        (13 % 900)
+        (getValByDate _priceTs (toDate "20210105"))
   ]
 
 queryStmtTests = testGroup "queryStmtTest"

@@ -187,8 +187,8 @@ performAction d t (Nothing, (W.PayFee ans fns)) =
     accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
 
     feesToPay = map (feeMap Map.!) fns
-    feesWithDue = map (calcDueFee t d) feesToPay  -- `debug` ("Show Fee"++show(feesToPay))
-    feeDueAmts = map F.feeDue feesWithDue   -- `debug` ("Show Fee with Due "++show(feesWithDue))
+    -- feesWithDue = map (calcDueFee t d) feesToPay  -- `debug` ("Show Fee"++show(feesToPay))
+    feeDueAmts = map F.feeDue feesToPay -- feesWithDue   -- `debug` ("Show Fee with Due "++show(feesWithDue))
 
     accNList = Map.toList accMap
     availBalLst = [ (n,A.accBalance x) | (n,x) <- accNList ]
@@ -199,7 +199,7 @@ performAction d t (Nothing, (W.PayFee ans fns)) =
     availBal = sum availAccBals
 
     actualPaidOut = min availBal $ sum feeDueAmts -- `debug` ("Fee Due Amounts"++show(feeDueAmts))
-    feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
+    feesAmountToBePaid = zip feesToPay  $ prorataFactors feeDueAmts availBal
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
@@ -216,10 +216,10 @@ performAction d t (Nothing, (W.PayFeeBy limit ans fns)) =
     accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
 
     feesToPay = map (feeMap Map.!) fns
-    feesWithDue = map (calcDueFee t d) feesToPay
+    -- feesWithDue = map (calcDueFee t d) feesToPay
     feeDueAmts = case limit of
-                  (W.DuePct pct) -> map (\x -> pct * (F.feeDue x) ) feesWithDue
-                  (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesWithDue
+                  (W.DuePct pct) -> map (\x -> pct * (F.feeDue x) ) feesToPay
+                  (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesToPay
 
     accNList = Map.toList accMap
     availBalLst = [ (n,(A.accBalance x)) | (n,x) <- accNList]
@@ -230,7 +230,7 @@ performAction d t (Nothing, (W.PayFeeBy limit ans fns)) =
     availBal = sum availAccBals
 
     actualPaidOut = min availBal $ sum feeDueAmts
-    feesAmountToBePaid = zip feesWithDue  $ prorataFactors feeDueAmts availBal
+    feesAmountToBePaid = zip feesToPay  $ prorataFactors feeDueAmts availBal
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
@@ -476,6 +476,8 @@ testTrigger t d trigger =
     (AllTrigger tgs) -> all (testTrigger t d) tgs
     (AnyTrigger tgs) -> any (testTrigger t d) tgs
 
+    Always b -> b
+
 
 testTriggers :: TestDeal -> Date -> [Trigger] -> Bool
 testTriggers t d [] = False
@@ -485,11 +487,23 @@ runEffects :: TestDeal -> Date -> TriggerEffect -> TestDeal
 runEffects t d te 
   = case te of 
       DealStatusTo _ds -> t {status=_ds}
+      DoAccrueFee fns -> 
+        let 
+          fset = S.fromList fns
+          newFeeMap = Map.mapWithKey 
+                            (\k v ->
+                              if (S.member k fset) then 
+                                (calcDueFee t d v)
+                              else 
+                                v) 
+                            (fees t)
+        in 
+          t {fees = newFeeMap}  
       _ -> t `debug` ("Shouldn't happen")
 
 
 runTriggers :: TestDeal -> Date -> Map.Map (WhenTrigger,Trigger) TriggerEffect -> TestDeal 
---runTriggers t d empty = t 
+--runTriggers t d empty = t              | AlwaysTrue
 runTriggers t d _trgs = 
   foldl 
     (\_t _te -> runEffects _t d _te)
@@ -560,7 +574,14 @@ run2 t poolFlow (Just (ad:ads)) rates calls
           dAfterInt = t {accounts=newAcc} 
         in 
           run2 dAfterInt poolFlow (Just ads) rates Nothing
-          
+      
+      AccrueFee d feeName -> 
+        let 
+          newFeeMap = Map.adjust (calcDueFee t d) feeName (fees t)
+          dAfterFeeAccrued = t {fees=newFeeMap}
+        in 
+          run2 dAfterFeeAccrued poolFlow (Just ads) rates Nothing
+            
       where
         cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
 
@@ -730,6 +751,11 @@ getInits t mAssumps =
     intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate []
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
                                            , _d <- accIntDates ]
+                                           
+    --fee accrue dates 
+    _feeAccrueDates = F.buildFeeAccrueAction (Map.elems (fees t)) _farEnoughDate []
+    feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates
+                                           , _d <- feeAccureDates ]
 
     stopDate = find 
                  (\case
@@ -737,15 +763,12 @@ getInits t mAssumps =
                    _ -> False)
                  assumps --  `debug` (">>Assumps"++show(assumps))
 
-    _actionDates = sort $ bActionDates ++ pActionDates ++ iAccIntDates -- `debug` (">>pactionDates"++show pActionDates)
+    _actionDates = sort $ bActionDates ++ pActionDates ++ iAccIntDates ++ feeAccrueDates -- `debug` (">>pactionDates"++show pActionDates)
     allActionDates = case stopDate of
                     Just (AP.StopRunBy d) 
                       -> filter
-                            (\case
-                              (RunWaterfall _d _) -> _d < d
-                              (PoolCollection _d _) -> _d < d
-                              (EarnAccInt _d _) -> _d < d)
-                         _actionDates
+                           (\x -> actionDate x < d)
+                           _actionDates
                     Nothing ->  _actionDates   -- `debug` (">>action dates"++show(_actionDates))
 
     poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` show (P.runPool2 (pool t) assumps) --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
@@ -817,7 +840,7 @@ queryDeal t s =
          _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
          _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
 
-    PoolCollectionIntHistory fromDay asOfDay ->
+    PoolCollectionHistory incomeType fromDay asOfDay ->
       sum $ map CF.mflowInterest subflow
       where
       subflow = case (P.futureCf (pool t)) of
@@ -904,61 +927,68 @@ calcDayToPoolDate t calcDay
 
 
 calcDueFee :: TestDeal -> Date -> F.Fee -> F.Fee
-calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt)  fs fd (Just _fdDay) fa _ _)
-  = f 
-calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd Nothing fa _ _)
-  = if calcDay > fs then 
-      f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd))
-    else 
-      f
+calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay fa _ _)
+  | isNothing fdDay = f
+  | calcDay >= fs = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd))
+  | otherwise = f
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
-  = if calcDay > fs then 
-      calcDueFee t calcDay f {F.feeDueDate = Just fs }
-    else 
-      f
+  | calcDay > fs = calcDueFee t calcDay f {F.feeDueDate = Just fs }
+  | otherwise = f
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay) fa lpd _)
   = f{ F.feeDue=fd+newDue, F.feeDueDate = Just newDueDay } -- `debug` ("Fee DUE base"++show(newDue))                   
       where 
         accrueStart = _fdDay
+        collectionEndDay = calcDayToPoolDate t calcDay
         (baseBal,newDueDay) = case feeBase of
-                              CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing,collectionEndDay)
-                              -- CurrentPoolBegBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing
-                              OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) P.IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),collectionEndDay)
-                              OriginalBondBalance -> (mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),calcDay)
-                              CurrentBondBalance -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t),calcDay)
-                              CurrentBondBalanceOf bns -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns)),calcDay)
+                                CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing,collectionEndDay)
+                                -- CurrentPoolBegBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing
+                                OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) P.IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),collectionEndDay)
+                                OriginalBondBalance -> (mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),calcDay)
+                                CurrentBondBalance -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t),calcDay)
+                                CurrentBondBalanceOf bns -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns)),calcDay)
 
         newDue = mulBR baseBal r
-        collectionEndDay = calcDayToPoolDate t calcDay
 
-calcDueFee t calcDay f@(F.Fee fn (F.PctFee PoolCollectionInt r) fs fd fdDay fa lpd _)
+calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCollectionIncome it) r ) fs fd fdDay fa lpd _)
+  = f { F.feeDue = fd + (mulBR baseBal r), F.feeDueDate = Just calcDay }
+    where 
+      baseBal = queryDeal t (PoolCollectionHistory it lastBegDay calcDay)
+      lastBegDay = case fdDay of
+                     (Just _fdDay) -> _fdDay
+                     Nothing -> fs
+-- deprecating
+calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCollectionIncome InterestAmount) r) fs fd fdDay fa lpd _)
    = f{ F.feeDue = fd + (mulBR baseBal r), F.feeDueDate = Just calcDay }
      where
-     baseBal = queryDeal t (PoolCollectionIntHistory lastBegDay calcDay)
+     baseBal = queryDeal t (PoolCollectionHistory InterestAmount lastBegDay calcDay)
      lastBegDay = case fdDay of
                     (Just _fdDay) -> _fdDay
                     Nothing -> fs
 
-calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd Nothing fa _ _)
-  = f{ F.feeDue = amt * (fromIntegral (periodsBetween calcDay fs p)) , F.feeDueDate = Just calcDay } -- `debug` ("New fee"++show(f))
 
-calcDueFee t calcDay f@(F.Fee fn (F.Custom ts)  fs fd Nothing fa mflpd _)
+
+calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd Nothing fa mflpd _)
   = f{ F.feeDue = newFeeDue
       ,F.feeDueDate = Just calcDay
-      ,F.feeType = (F.Custom futureDue)} -- `debug` ("New fee"++show(f))
+      ,F.feeType = (F.FeeFlow futureDue)} -- `debug` ("New fee"++show(f))
     where
       newFeeDue =  cumulativeDue + fd
       (currentNewDue,futureDue) = splitTsByDate ts calcDay
       cumulativeDue = sumValTs currentNewDue
 
+calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd Nothing fa _ _)
+  = f{ F.feeDue = amt * (fromIntegral (periodGaps - 1)), F.feeDueDate = Just calcDay } -- `debug` ("New fee"++show(f))
+  where
+    periodGaps = length $ projDatesByPattern p fs calcDay  -- `debug` ("###"++show (projDatesByPattern p fs calcDay))
+
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   | _fdDay == calcDay = f
   | periodGap == 0 = f
-  | otherwise = f { F.feeDue = (fd+(amt*(fromIntegral periodGap))) , F.feeDueDate = Just calcDay } -- `debug` ("Gap->"++show(fromIntegral periodGap))
+  | otherwise = f { F.feeDue = (fd+(amt*(fromIntegral (periodGap - 1)))) , F.feeDueDate = Just calcDay } -- `debug` ("Gap->"++show(fromIntegral periodGap))
   where
-  periodGap = periodsBetween calcDay _fdDay p
+    periodGap =  length $ projDatesByPattern p _fdDay calcDay
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
@@ -1148,8 +1178,9 @@ td = TestDeal {
  ,call = Just [C.PoolFactor 0.08]
  ,triggers = Just $ 
                Map.fromList $
-                 [((BeginDistributionWF,AfterDate (toDate "20220301"))
-                   ,DealStatusTo Revolving)]
+                 [((BeginDistributionWF,AfterDate (toDate "20220301")) ,DealStatusTo Revolving)
+                  ,((EndCollection,Always True),DoAccrueFee ["Service-Fee"]) 
+                   ]
  ,overrides = Just [ CustomActionOnDates 
                       [RunWaterfall (toDate "20220101") "base"
                       ,PoolCollection (toDate "20221101") "collection"] ]  

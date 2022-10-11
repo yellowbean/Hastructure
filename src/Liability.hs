@@ -24,6 +24,7 @@ import Lib (Date,Balance,Rate,Spread,Index(..),Dates
 
 import Util
 import Types
+import Data.Ratio 
 
 import Stmt (Txn(..),combineTxn,Statement(..),appendStmt,getTxnDate
            ,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance,getTxnDate,sliceStmt
@@ -101,7 +102,7 @@ payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt
   Bond bn bt oi iinfo bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
-    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt ("INT PAY:Due"++show new_due))
+    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt ("INT PAY:Due "++show new_due))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
@@ -109,7 +110,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stm
   where
     new_bal = bal - amt
     new_due = duePrin - amt
-    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 amt "PRIN PAY")
+    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 amt ("PRIN PAY:Due "++show new_due))
 
 type Valuation = Micro
 type PerFace = Micro
@@ -117,25 +118,28 @@ type WAL = Centi
 type Duration = Micro
 type Yield = Micro
 type AccruedInterest = Centi
-
-data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest -- valuation,wal,accu,duration
-    deriving (Show,Eq)
+type IRR = Rational
 
 data YieldResult = Yield
 
+data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest -- valuation,wal,accu,duration
+                   deriving (Show,Eq)
+
+
 pv :: Ts -> Date -> Date -> Amount -> Rational
-pv rc today d amt = 
-     toRational (amt) * (1 / discount_factor)
-    where
-        discount_factor = (1+discount_rate) ^^ (fromInteger (div distance 365)) -- `debug` ("discount_rate"++show(discount_rate)++" dist days=>"++show(distance))
-        discount_rate = getValByDate rc d
-        distance = daysBetween d today
+pv pc@(PricingCurve _) today d amt = 
+   toRational (amt) * (1 / discount_factor) `debug` ("DF:"++show discount_factor)
+  where
+   distance = daysBetween today d
+   discount_rate = fromRational $ getValByDate pc d `debug` ("Get val by ts"++show pc ++">>d"++ show d)
+   discount_factor = (1+discount_rate) ^^ (div distance 365)   `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
+   -- discount_factor = (1+discount_rate) ** (fromRational $ (yearCountFraction DC_ACT_ACT today d))
 
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
 fv2 discount_rate today futureDay amt =
     mulBI amt ((1+discount_rate) ^^ (fromInteger (div distance 365)))
   where
-    distance = daysBetween futureDay today
+    distance = daysBetween today futureDay
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ lastIntPayDay _ (Just (Statement txns)))
@@ -177,7 +181,6 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ lastIntPayDay _
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0
 
-type IRR = Rational
 
 _calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
 _calcIRR amt initIrr today (AmountCurve cashflows)

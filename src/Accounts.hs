@@ -48,22 +48,10 @@ buildEarnIntAction :: [Account] -> Date -> [(String,Dates)] -> [(String,Dates)]
 buildEarnIntAction [] ed r = r
 buildEarnIntAction (acc:accs) ed r = 
   case acc of 
-    (Account _ _ Nothing _ _) -> buildEarnIntAction accs ed r
+    (Account _ _ Nothing _ _) 
+      -> buildEarnIntAction accs ed r
     (Account _ an (Just (BankAccount _ lastAccDate dp)) _ _)
-      -> let 
-           (T.CalendarDiffDays cdm cdd) = T.diffGregorianDurationClip ed lastAccDate 
-           num = case dp of
-                   MonthEnd -> cdm + 1
-                   QuarterEnd -> (div cdm 3) + 1 -- `debug` ("cdm"++show cdm)
-                   YearEnd  -> (div cdm 12) + 1
-                   MonthFirst -> cdm + 1
-                   QuarterFirst -> (div cdm 3) + 1
-                   YearFirst -> (div cdm 12) + 1
-                   MonthDayOfYear _ _ -> (div cdm 12) + 1
-                   DayOfMonth _ -> cdm + 1
-                   -- DayOfWeek _ -> cdm * 4 + 1 -- `debug` ("cdm"++show cdm)
-         in 
-           buildEarnIntAction accs ed [(an, (genSerialDates dp lastAccDate (fromInteger num)))]++r    
+      -> buildEarnIntAction accs ed [(an, projDatesByPattern dp lastAccDate ed)]++r    
 
 
 depositInt :: Account -> Date -> Account

@@ -7,7 +7,7 @@ module Types
   (DayCount(..),DateType(..),OverrideType(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
-  ,Pre(..),DealStats(..),Ts(..),TsPoint(..)
+  ,Pre(..),DealStats(..),Ts(..),TsPoint(..),PoolCollectionType(..)
   ,actionDate,actionDates,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..))
   where
@@ -24,6 +24,7 @@ import Data.Aeson hiding (json)
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Fixed
+import Data.Ix
 
 
 type BondName = String
@@ -35,6 +36,7 @@ type AccountName = String
 type AccNames = [String]
 type Balance = Centi
 type IRate = Micro
+type Rate = Rational 
 
 type Date = Time.Day
 type Dates = [Time.Day]
@@ -77,14 +79,16 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               deriving (Show,Eq)
 
 data ActionOnDate = RunWaterfall Date String
-                   |PoolCollection Date String
-                   |EarnAccInt Date AccName -- sweep bank account interest
+                   | PoolCollection Date String
+                   | EarnAccInt Date AccName -- sweep bank account interest
+                   | AccrueFee Date FeeName
                    deriving (Show,Generic,Read)
 
 actionDate :: ActionOnDate -> Date
 actionDate (RunWaterfall d _) = d
 actionDate (PoolCollection d _) = d
 actionDate (EarnAccInt d _) = d
+actionDate (AccrueFee d _) = d
 
 actionDates :: [ActionOnDate] -> Dates 
 actionDates = map actionDate
@@ -138,12 +142,18 @@ data DatePattern = MonthEnd
                  | YearEnd 
                  | MonthFirst
                  | QuarterFirst
+                 | MidYear
                  | YearFirst
                  | MonthDayOfYear Int Int  -- T.MonthOfYear T.DayOfMonth
                  | DayOfMonth Int -- T.DayOfMonth 
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq)
 
+data PoolCollectionType = InterestAmount 
+                        | PrincipalAmount 
+                        | RentalAmount
+                        | FeeAmount 
+                        deriving (Show,Ord,Read,Eq)
 
 data DealStats =  CurrentBondBalance
               | CurrentPoolBalance
@@ -154,6 +164,7 @@ data DealStats =  CurrentBondBalance
               | BondFactor
               | PoolFactor
               | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
+              | PoolCollectionIncome PoolCollectionType
               | AllAccBalance
               | CumulativeDefaultBalance Date
               | FutureCurrentPoolBalance Date
@@ -176,7 +187,7 @@ data DealStats =  CurrentBondBalance
               | LastBondIntPaid [String]
               | LastFeePaid [String]
               | BondBalanceHistory Date Date
-              | PoolCollectionIntHistory Date Date
+              | PoolCollectionHistory PoolCollectionType Date Date
               | Sum [DealStats]
               deriving (Show,Eq,Ord,Read)
 
@@ -199,16 +210,13 @@ data Ts = FloatCurve [TsPoint Rational]
          |AmountCurve [TsPoint Balance]
          |IRateCurve [TsPoint IRate]
          |FactorCurveClosed [TsPoint Rational] Date
+         |PricingCurve [TsPoint Rational] 
          deriving (Show,Eq,Ord,Read)
 
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2)
     = compare d1 d2
 
-data Curve = DRationalCurve [TsPoint Rational]
-           | DBoolCurve [TsPoint Bool]
-           | DBalanceCurve [TsPoint Balance]
-           | DIRateCurve [TsPoint IRate]
 
 
 data WhenTrigger = EndCollection
@@ -222,7 +230,7 @@ data Threshold = Below
                | Above
                | EqAbove
                deriving (Show,Eq,Ord,Read,Generic)
-
+      
 instance ToJSONKey Threshold where
   toJSONKey = genericToJSONKey opts
 instance FromJSONKey Threshold where
@@ -235,6 +243,7 @@ data Trigger = Threshold Threshold DealStats Balance
              | OnDates [Dates]
              | AllTrigger [Trigger]
              | AnyTrigger [Trigger]
+             | Always  Bool
              deriving (Show,Eq,Ord,Read,Generic)
 
 instance ToJSONKey Trigger where
@@ -249,6 +258,7 @@ instance FromJSONKey Trigger where
 
 
 data TriggerEffect = DealStatusTo DealStatus
+                   | DoAccrueFee FeeNames
                    | AddTrigger Trigger 
                    | TriggerEffects [TriggerEffect]
                    deriving (Show,Eq)
@@ -270,3 +280,4 @@ $(deriveJSON defaultOptions ''TriggerEffect)
 $(deriveJSON defaultOptions ''WhenTrigger)
 $(deriveJSON defaultOptions ''DateDesp)
 $(deriveJSON defaultOptions ''Period)
+$(deriveJSON defaultOptions ''PoolCollectionType)

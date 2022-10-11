@@ -2,8 +2,8 @@
 
 module Util
     (mulBR,lastN,yearCountFraction,genSerialDates
-    ,getValByDate,getValByDates
-    ,genSerialDatesTill
+    ,getValByDate,getValByDates,projDatesByPattern 
+    ,genSerialDatesTill      
     ,timeIt
     ,calcInt,calcIntRate
     ,multiplyTs,zipTs,getTsVals
@@ -14,6 +14,7 @@ import Data.List
 import Data.Fixed
 import Data.Ratio ((%))
 import Data.Ix
+import Data.Maybe
 import qualified Data.Map as M
 
 import Lib
@@ -223,6 +224,12 @@ genSerialDatesTill sd ptn ed
               DayOfMonth _d -> cdM -- T.DayOfMonth 
               -- DayOfWeek Int -> -- T.DayOfWeek 
 
+tsPointVal :: TsPoint a -> a 
+tsPointVal (TsPoint d v) = v
+
+tsPointDate :: TsPoint a -> Date
+tsPointDate (TsPoint d _) = d
+
 getValByDate :: Ts -> Date -> Rational
 getValByDate (AmountCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
@@ -247,6 +254,25 @@ getValByDate (FactorCurveClosed dps ed) d
         else 
           _found_v
       Nothing -> 1.0
+
+getValByDate (PricingCurve dps) d 
+  = case (d>=lday,d<=fday) of 
+      (True,_) -> tsPointVal $ last dps
+      (_,True) -> tsPointVal $ head dps
+      _  -> let 
+              rindex = fromMaybe 0 $findIndex (\(TsPoint _dl _) -> ( _dl > d )) dps
+              rdp@(TsPoint _dr _rv) = dps!!rindex 
+              ldp@(TsPoint _dl _lv) = dps!!(pred rindex)
+              leftDistance = toRational $ daysBetween _dl d  -- `debug` ("LEFT"++show leftDistance)
+              distance = toRational $ daysBetween _dl _dr -- `debug` ("DIST"++show distance)
+              vdistance =  _rv - _lv -- ("DIST")
+            in 
+              toRational $ _lv + (vdistance * leftDistance) / distance 
+              -- `debug` ("D "++ show _lv++">>"++ show vdistance++">>"++ show leftDistance++">>"++ show distance)
+    where 
+      fday = tsPointDate $ head dps
+      lday = tsPointDate $ last dps
+
 
 getValByDates :: Ts -> [Date] -> [Rational]
 getValByDates rc ds = map (getValByDate rc) ds
@@ -287,3 +313,19 @@ zipTs ds rs
 multiplyTs :: Ts -> Ts -> Ts
 multiplyTs (FloatCurve ts1) ts2
   = FloatCurve [(TsPoint d (v * (getValByDate ts2 d))) | (TsPoint d v) <- ts1 ] 
+
+projDatesByPattern :: DatePattern -> Date -> Date -> Dates
+projDatesByPattern dp sd ed 
+  = let 
+      (T.CalendarDiffDays cdm cdd) = T.diffGregorianDurationClip ed sd
+      num = case dp of
+              MonthEnd -> cdm + 1
+              QuarterEnd -> (div cdm 3) + 1 -- `debug` ("cdm"++show cdm)
+              YearEnd  -> (div cdm 12) + 1
+              MonthFirst -> cdm + 1
+              QuarterFirst -> (div cdm 3) + 1
+              YearFirst -> (div cdm 12) + 1
+              MonthDayOfYear _ _ -> (div cdm 12) + 1
+              DayOfMonth _ -> cdm + 1
+    in 
+      genSerialDates dp sd (fromInteger num)

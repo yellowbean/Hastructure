@@ -277,5 +277,5 @@ weightedBy :: [Centi] -> [Rational] -> Rational
 weightedBy ws vs =  sum $ zipWith (*) vs $ map toRational ws
 
 daysBetween :: Date -> Date -> Integer
-daysBetween sd ed = (fromIntegral (T.diffDays sd ed))
+daysBetween sd ed = (fromIntegral (T.diffDays ed sd))
 
