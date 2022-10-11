@@ -22,18 +22,12 @@ import qualified Data.Time as T
 
 main = defaultMain tests
 
-td = T.fromGregorian  2020 1 1
-stmt1 = S.Statement [(S.AccTxn td 100 20 "Pay"),(S.AccTxn td 100 10 "")]
-acc1 = A.Account 100 "A1" Nothing Nothing (Just stmt1)
-acc2 = A.Account 150 "A2" Nothing Nothing Nothing
-
 tests :: TestTree
-tests = testGroup "Tests" [accTests,stmtTests
-                           ,AT.mortgageTests
+tests = testGroup "Tests" [AT.mortgageTests
                            ,CFT.cfTests
                            ,BT.pricingTests
                            ,LT.curveTests
-                           ,LT.queryStmtTests
+                           --,LT.queryStmtTests
                            ,LT.datesTests
                            ,LT.prorataTests
                            ,ET.expTests
@@ -48,21 +42,6 @@ tests = testGroup "Tests" [accTests,stmtTests
                            ,UtilT.dateVectorPatternTest
                            ,AccT.intTests
                            ]
-
-accTests = testGroup "Account Tests"
-  [testCase "Draw" $
-    assertEqual "draw:amount"
-      (A.getAvailBal (A.draw 60 td "" acc1 )) 40
-   ,testCase "Transfer" $
-    assertEqual "transfer:amount"
-      (A.getAvailBal (fst (A.transfer acc1 20 td acc2))) 80
-  ]
-
-stmtTests = testGroup "Statement Test"
-  [testCase "Aggregate Txn" $
-    assertEqual "Sum by regrex"
-      (S.queryStmtAmt (A.accStmt acc1) "Pay") 20
-  ]
 
 
 

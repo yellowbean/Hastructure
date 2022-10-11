@@ -5,14 +5,14 @@ module Stmt
   (Statement(..),Txn(..)
    ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,queryStmtAmt,appendStmt,combineTxn,sliceStmt,getTxnBegBalance
-   ,sliceTxns
+   ,sliceTxns,TxnComment(..)
   )
   where
 
 import Lib (Date,Balance,Amount,Interest,Principal,IRate,Cash,Comment
             ,toDate)
 import Util (mulBR)
-import Types
+import Types hiding (And)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -22,23 +22,26 @@ import Data.Fixed
 import Data.List
 import qualified Data.Map as M
 
-data TxnComment = PayInt BondNames 
-                | PayPrin BondNames
-                | PayFee FeeNames
-                | Transfer AccName
-                | PoolInflowPrin 
-                | PoolInflowInt
-                | PoolInflowRec
+data TxnComment = PayInt [BondName] (Maybe Balance)
+                | PayYield BondName
+                | PayPrin [BondName] (Maybe Balance)
+                | PayFee FeeName Balance
+                | PayFeeYield FeeName
+                | Transfer AccName AccName
+                | PoolInflow PoolSource
+                | LiquidationProceeds Balance
+                | BankInt
+                | Empty 
                 | And [TxnComment]
                 deriving (Show)
 
 
-data Txn = BondTxn Date Balance Interest Principal IRate Cash Comment
-          | AccTxn Date Balance Amount Comment
-          | ExpTxn Date Balance Amount Balance Comment
+data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
+          | AccTxn Date Balance Amount TxnComment
+          | ExpTxn Date Balance Amount Balance TxnComment
           deriving (Show)
 
-getTxnComment :: Txn -> String
+getTxnComment :: Txn -> TxnComment
 getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
 getTxnComment (AccTxn _ _ _ t ) = t
 getTxnComment (ExpTxn _ _ _ _ t ) = t
@@ -69,9 +72,9 @@ getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> (getTxnDate x) <= d) $ reverse txns
 
 emptyTxn :: Txn -> Date -> Txn
-emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 "" )
-emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 "" )
-emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 "" )
+emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 Empty )
+emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 Empty )
+emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
@@ -79,7 +82,7 @@ getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
 queryStmtAmt :: Maybe Statement -> String -> Centi
 queryStmtAmt (Just (Statement txns)) q =
   let
-    resultTxns = filter (\txn -> (getTxnComment txn) =~ q)  txns
+    resultTxns =  txns --TODO BUG!! -- filter (\txn -> (getTxnComment txn) =~ q)  txns
   in
     abs $ foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns -- `debug` ("DEBUG Query"++show(resultTxns))
 
@@ -122,7 +125,7 @@ groupTxns (Just (Statement txns))
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 m1) (BondTxn d2 b2 i2 p2 r2 c2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) (m1++":"++m2)
+    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) (And [m1,m2])
 
 instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ )
@@ -134,3 +137,4 @@ instance Eq Txn where
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)
+$(deriveJSON defaultOptions ''TxnComment)

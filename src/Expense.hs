@@ -8,7 +8,7 @@ module Expense (Fee(..),FeeType(..),payFee
 
 import Lib(Period,paySeqLiabilities,Dates
            ,Amount,Balance,Date,Rate,Ts(..))
-import Stmt(appendStmt,Statement,Txn(..))
+import Stmt(appendStmt,Statement,Txn(..),TxnComment(..))
 import Data.Traversable
 import Language.Haskell.TH
 
@@ -48,7 +48,7 @@ payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
    where
     [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd]
     paid = fa + fd - arrearRemain - dueRemain
-    newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain "")
+    newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn dueRemain))
 
 buildFeeAccrueAction :: [Fee] -> Date -> [(String,Dates)] -> [(String,Dates)]
 buildFeeAccrueAction [] ed r = r

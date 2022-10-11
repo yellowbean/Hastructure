@@ -41,14 +41,6 @@ instance FromJSONKey ActionWhen where
     Nothing -> fail ("Invalid key: " ++ show t)
 
 
-data PoolSource = CollectedInterest
-                | CollectedPrincipal
-                | CollectedRecoveries
-                | CollectedPrepayment
-                | CollectedRental
-                | CollectedFee
-                deriving (Show)
-
 data Satisfy = Source
              | Target
              deriving (Show)
@@ -95,7 +87,6 @@ data CollectionRule = Collect PoolSource AccountName
                     deriving (Show)
 
 
-$(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''Satisfy)

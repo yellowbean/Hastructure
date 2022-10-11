@@ -16,8 +16,8 @@ intTests =
     acc1 = Account 200 "A1" (Just (BankAccount 0.03 (toDate "20221001") QuarterEnd)) Nothing Nothing
     acc2 = Account 150 "A1" (Just (BankAccount 0.03 (toDate "20220301") MonthEnd)) Nothing 
           (Just (Statement [
-                          AccTxn (toDate "20220715") 120 10 ""
-                          ,AccTxn (toDate "20220915") 150 30 ""
+                          AccTxn (toDate "20220715") 120 10 Empty
+                          ,AccTxn (toDate "20220915") 150 30 Empty
                           ]))
   in 
     testGroup "Interest on Bank Account Test"

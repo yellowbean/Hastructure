@@ -31,7 +31,7 @@ b1 = B.Bond{B.bndName="A"
             ,B.bndDueInt=0.0
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 ""]}
+            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 S.Empty]}
 
 bfloat = B.Bond{B.bndName="A"
             ,B.bndType=B.Sequential
@@ -46,7 +46,7 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndDueInt=0.0
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 ""]}
+            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 S.Empty]}
 
 
 pricingTests = testGroup "Pricing Tests"
@@ -87,8 +87,8 @@ pricingTests = testGroup "Pricing Tests"
         pr
     ,
      let
-       b2 = b1 { B.bndStmt = Just (S.Statement [S.BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 ""
-                                                ,S.BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 ""])}
+       b2 = b1 { B.bndStmt = Just (S.Statement [S.BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 S.Empty
+                                                ,S.BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 S.Empty])}
 
        pr = B.priceBond (L.toDate "20220201")
                         (L.PricingCurve

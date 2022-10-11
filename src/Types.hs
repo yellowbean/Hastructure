@@ -7,7 +7,7 @@ module Types
   (DayCount(..),DateType(..),OverrideType(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
-  ,Pre(..),DealStats(..),Ts(..),TsPoint(..),PoolCollectionType(..)
+  ,Pre(..),DealStats(..),Ts(..),TsPoint(..),PoolSource(..)
   ,actionDate,actionDates,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..))
   where
@@ -149,11 +149,14 @@ data DatePattern = MonthEnd
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq)
 
-data PoolCollectionType = InterestAmount 
-                        | PrincipalAmount 
-                        | RentalAmount
-                        | FeeAmount 
-                        deriving (Show,Ord,Read,Eq)
+data PoolSource = CollectedInterest
+                | CollectedPrincipal
+                | CollectedRecoveries
+                | CollectedPrepayment
+                | CollectedRental
+                | CollectedFee
+                deriving (Show,Ord,Read,Eq)
+
 
 data DealStats =  CurrentBondBalance
               | CurrentPoolBalance
@@ -164,7 +167,7 @@ data DealStats =  CurrentBondBalance
               | BondFactor
               | PoolFactor
               | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
-              | PoolCollectionIncome PoolCollectionType
+              | PoolCollectionIncome PoolSource
               | AllAccBalance
               | CumulativeDefaultBalance Date
               | FutureCurrentPoolBalance Date
@@ -187,7 +190,7 @@ data DealStats =  CurrentBondBalance
               | LastBondIntPaid [String]
               | LastFeePaid [String]
               | BondBalanceHistory Date Date
-              | PoolCollectionHistory PoolCollectionType Date Date
+              | PoolCollectionHistory PoolSource Date Date
               | Sum [DealStats]
               deriving (Show,Eq,Ord,Read)
 
@@ -280,4 +283,4 @@ $(deriveJSON defaultOptions ''TriggerEffect)
 $(deriveJSON defaultOptions ''WhenTrigger)
 $(deriveJSON defaultOptions ''DateDesp)
 $(deriveJSON defaultOptions ''Period)
-$(deriveJSON defaultOptions ''PoolCollectionType)
+$(deriveJSON defaultOptions ''PoolSource)

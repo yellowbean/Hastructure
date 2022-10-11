@@ -316,7 +316,7 @@ instance Asset Mortgage  where
                             rate_vector
                             (recovery_lag,recovery_rate)
                             p
-                            prinPayType `debug` ("rrate"++show recovery_rate++"rlag"++show recovery_lag) -- `debug` ("Payment dates=>"++show(cf_dates))
+                            prinPayType -- `debug` ("rrate"++show recovery_rate++"rlag"++show recovery_lag) -- `debug` ("Payment dates=>"++show(cf_dates))
     where
       cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) (getPaymentDates m recovery_lag) --  `debug` ("CF Dates"++show(recovery_lag))
       last_pay_date = previousDate (head cf_dates) p -- `debug` ("RT->"++show rt++" cf-dates "++show cf_dates)
@@ -327,7 +327,7 @@ instance Asset Mortgage  where
                               case getRateAssumption assumps idx of
                                 Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates (mkRateTs ps) cf_dates
                                 Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
-                                Nothing -> (replicate cf_dates_length 0.0)
+                                Nothing -> replicate cf_dates_length 0.0
 
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0)

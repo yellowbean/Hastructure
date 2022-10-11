@@ -33,19 +33,20 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 -- | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Rate
                 | PrepaymentCPR Rate
-                -- | PrepaymentCPRCurve [Rate]     -- this will ignore the payment interval
-                | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
+                | PrepaymentFactors Ts
                 | DefaultConstant Rate
                 | DefaultCDR Rate
-                -- | DefaultDistribution Float [Float] -- total default rate, distribution pct
                 | Recovery (Rate,Int)
-                -- | LinearTo Int Float
-                | PrepaymentFactors Ts
                 | InterestRateConstant Index IRate
                 | InterestRateCurve Index [(T.Day,IRate)]
-                | PrepaymentByAging [(Int,Float)]
                 | CallWhen [C.CallOption]
                 | StopRunBy T.Day
+                -- To be implement
+                | PoolHairCut PoolSource Rate
+                | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
+                -- | DefaultDistribution Float [Float] -- total default rate, distribution pct
+                -- | LinearTo Int Float
+                | PrepaymentByAging [(Int,Float)]
                 | EvenRecoveryOnDefault Float Int
                 deriving (Show)
 

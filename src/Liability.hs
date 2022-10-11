@@ -26,9 +26,7 @@ import Util
 import Types
 import Data.Ratio 
 
-import Stmt (Txn(..),combineTxn,Statement(..),appendStmt,getTxnDate
-           ,getTxnAmt,getTxnPrincipal,getTxnAsOf,getTxnBalance,getTxnDate,sliceStmt
-           ,getTxnBegBalance)
+import qualified Stmt as S 
 
 import Data.List (findIndex,zip6,find)
 import qualified Cashflow as CF
@@ -75,20 +73,20 @@ data Bond = Bond {
   ,bndDueInt :: Balance
   ,bndLastIntPay :: Maybe Date
   ,bndLastPrinPay :: Maybe Date
-  ,bndStmt :: Maybe Statement
+  ,bndStmt :: Maybe S.Statement
 } deriving (Show)
 
-consolTxn :: [Txn] -> Txn -> [Txn]
+consolTxn :: [S.Txn] -> S.Txn -> [S.Txn]
 consolTxn (txn:txns) txn0
   = if txn==txn0 then 
-      (combineTxn txn txn0):txns
+      (S.combineTxn txn txn0):txns
     else
       txn0:txn:txns 
 consolTxn [] txn = [txn]
 
 consolStmt :: Bond -> Bond
-consolStmt b@Bond{bndStmt = Just (Statement (txn:txns))}
-  =  b {bndStmt = Just (Statement (reverse (foldl consolTxn [txn] txns)))} -- `debug` ("Consoling stmt for "++ show (bndName b))
+consolStmt b@Bond{bndStmt = Just (S.Statement (txn:txns))}
+  =  b {bndStmt = Just (S.Statement (reverse (foldl consolTxn [txn] txns)))} -- `debug` ("Consoling stmt for "++ show (bndName b))
 
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
@@ -96,13 +94,13 @@ payInt :: Date -> Amount -> Bond -> Bond
 payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt)
   = Bond bn Equity oi iinfo bal r duePrin dueInt (Just d) lpayPrin (Just new_stmt)
   where
-    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt "INT PAY")
+    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
   Bond bn bt oi iinfo bal r duePrin new_due (Just d) lpayPrin (Just new_stmt)
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
-    new_stmt = appendStmt stmt (BondTxn d bal amt 0 r amt ("INT PAY:Due "++show new_due))
+    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn] (Just new_due)))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stmt) =
@@ -110,7 +108,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt lpayInt lpayPrin stm
   where
     new_bal = bal - amt
     new_due = duePrin - amt
-    new_stmt = appendStmt stmt (BondTxn d new_bal 0 amt 0 amt ("PRIN PAY:Due "++show new_due))
+    new_stmt = S.appendStmt stmt (S.BondTxn d new_bal 0 amt 0 amt (S.PayPrin [bn] (Just new_due)))
 
 type Valuation = Micro
 type PerFace = Micro
@@ -142,33 +140,33 @@ fv2 discount_rate today futureDay amt =
     distance = daysBetween today futureDay
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ lastIntPayDay _ (Just (Statement txns)))
+priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ lastIntPayDay _ (Just (S.Statement txns)))
   = PriceResult
      presentValue
      (fromRational (100*(toRational presentValue)/(toRational obal)))
      ((foldr (\x acc ->
-               (acc + ((fromIntegral (T.diffDays (getTxnDate x) d))*(getTxnPrincipal x)/365)))
+               (acc + ((fromIntegral (T.diffDays (S.getTxnDate x) d))*(S.getTxnPrincipal x)/365)))
              0
              futureCf)  / cutoffBalance)
      (fromRational (foldr (\x acc ->
-               (((fromIntegral (T.diffDays (getTxnDate x) d))/365) * ((pv rc d (getTxnDate x)  (getTxnAmt x)) / (toRational presentValue))) + acc)
+               (((fromIntegral (T.diffDays (S.getTxnDate x) d))/365) * ((pv rc d (S.getTxnDate x)  (S.getTxnAmt x)) / (toRational presentValue))) + acc)
             0
             futureCf))  -- `debug` ("Cutoff balance"++show(cutoffBalance))
      accruedInt
      where
-       futureCf = filter (\x -> (getTxnDate x) > d) txns
-       presentValue = fromRational $ foldr (\x acc -> acc + (pv rc d (getTxnDate x) (getTxnAmt x)) ) 0 futureCf
-       cutoffBalance = case (getTxnAsOf txns d) of
-                          Nothing ->  (getTxnBalance fstTxn) + (getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
+       futureCf = filter (\x -> (S.getTxnDate x) > d) txns
+       presentValue = fromRational $ foldr (\x acc -> acc + (pv rc d (S.getTxnDate x) (S.getTxnAmt x)) ) 0 futureCf
+       cutoffBalance = case (S.getTxnAsOf txns d) of
+                          Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                      where
                                       fstTxn = head txns
-                          Just _txn -> getTxnBalance _txn  --`debug` ("Found"++show(_txn))
+                          Just _txn -> S.getTxnBalance _txn  --`debug` ("Found"++show(_txn))
        accruedInt = case _t of
                       Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * (mulBI leftBal cr)
                       Just _ -> 0  -- `debug` ("all txn"++show(_t))-- `debug` ("l day, right"++show(leftPayDay)++show(d)++show(T.diffDays leftPayDay d))
                     where
-                      _t = find (\x -> (getTxnDate x) == d) txns
-                      leftTxns = takeWhile (\txn -> (getTxnDate txn) < d) txns
+                      _t = find (\x -> (S.getTxnDate x) == d) txns
+                      leftTxns = takeWhile (\txn -> (S.getTxnDate txn) < d) txns
                       (leftPayDay,leftBal) =
                         case leftTxns of
                           [] -> case lastIntPayDay of
@@ -177,7 +175,7 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ lastIntPayDay _
                           _ -> let
                                 leftTxn = last leftTxns
                               in
-                                (getTxnDate leftTxn,getTxnBalance leftTxn)
+                                (S.getTxnDate leftTxn,S.getTxnBalance leftTxn)
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0
 
@@ -198,10 +196,10 @@ _calcIRR amt initIrr today (AmountCurve cashflows)
                    initIrr * 0.99
 
 calcBondYield :: Date -> Balance ->  Bond -> Rate
-calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (Statement txns)))
+calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
  =  _calcIRR cost 0.05 d (AmountCurve cashflows)
    where
-     cashflows = [ TsPoint (getTxnDate txn) (getTxnAmt txn)  | txn <- txns ]
+     cashflows = [ TsPoint (S.getTxnDate txn) (S.getTxnAmt txn)  | txn <- txns ]
 
 calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 
@@ -232,7 +230,7 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield 
      pv0 = obal - pvs
      pvs = sum $ [ pv2 y odate (fst cf) (snd cf)  | cf <- cashflows ]
      cashflows = case stmt of
-                   Just (Statement txns) -> [ ((getTxnDate txn),(getTxnAmt txn))  | txn <- txns ]
+                   Just (S.Statement txns) -> [ ((S.getTxnDate txn),(S.getTxnAmt txn))  | txn <- txns ]
                    Nothing -> []
 
 weightAverageBalance :: Date -> Date -> Bond -> Balance
@@ -240,12 +238,12 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ stmt)
   = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
     where
      _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
-     _bals = [currentBalance] ++ map getTxnBegBalance txns -- `debug` ("txn"++show(txns))
-     _ds = map getTxnDate txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
+     _bals = [currentBalance] ++ map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
+     _ds = map S.getTxnDate txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
      _b = consolStmt b   
-     txns =  case (sliceStmt (bndStmt _b) sd ed) of
+     txns =  case (S.sliceStmt (bndStmt _b) sd ed) of
                 Nothing -> []
-                Just (Statement _txns) -> _txns-- map getTxnBalance _txns
+                Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 
 
 $(deriveJSON defaultOptions ''InterestInfo)
