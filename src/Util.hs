@@ -292,7 +292,8 @@ calcInt bal start_date end_date int_rate day_count =
   let 
     yfactor = yearCountFraction day_count start_date end_date
   in 
-    fromRational $ (toRational bal) * (yfactor * (toRational int_rate)) --TODO looks strange
+    mulBR bal (yfactor * (toRational int_rate)) 
+    -- fromRational $ (toRational bal) * (yfactor * (toRational int_rate)) --TODO looks strange
 
 
 

@@ -841,7 +841,7 @@ queryDeal t s =
          _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
          _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
 
-    PoolCollectionHistory inc Date DateomeType fromDay asOfDay ->
+    PoolCollectionHistory incomeType fromDay asOfDay ->
       sum fieldAmts
       where
         fieldAmts = map

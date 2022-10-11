@@ -25,7 +25,7 @@ daycountTests1 =
   [
     testCase "Act/Act" $
       assertEqual "should be close to 0.1694288494678 " 
-        ((4 % 365) + (58 % 366)) $  --TODO to be confirm from Delta
+        ((4 % 365) + (58 % 366)) $  
         yearCountFraction DC_ACT_ACT d1 d2
     ,testCase "Act/365F" $
       assertEqual "" 
