@@ -145,6 +145,17 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
                                               _def_rates
                                               _recovery_rate _recovery_lag
 
+       A.DefaultFactors _ts -> 
+           let
+             def_ts = zipTs pDates _def_rates
+             new_def_rates = getTsVals $ multiplyTs def_ts _ts 
+           in                   
+             buildAssumptionRate pDates assumps 
+                                              _ppy_rates
+                                              new_def_rates
+                                              _recovery_rate _recovery_lag
+
+
        -- A.PrepaymentCPRCurve vs ->  buildAssumptionRate pDates assumps vs _def_rates _recovery_rate _recovery_lag
 
        _ -> buildAssumptionRate pDates assumps _ppy_rates _def_rates _recovery_rate _recovery_lag

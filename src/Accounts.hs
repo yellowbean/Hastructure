@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
-                ,getAvailBal,transfer,depositInt
+                ,transfer,depositInt
                 ,InterestInfo(..),buildEarnIntAction)
     where
 import qualified Data.Time as T
@@ -110,14 +110,12 @@ deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
 draw :: Amount -> Date -> TxnComment -> Account -> Account
 draw amount = deposit (- amount) 
 
-getAvailBal :: Account -> Balance
-getAvailBal a = (accBalance a)
 
 supportPay :: [Account] -> Date -> Amount -> (TxnComment, TxnComment) -> [Account]
 supportPay all_accs@(acc:accs) d amt (m1,m2) = 
     (draw payOutAmt d m1 acc): (map (\(_acc,amt) -> draw amt d m2 _acc) supportPayByAcc)
   where 
-      availBals = map getAvailBal all_accs
+      availBals = map accBalance all_accs
       accNames = map accName all_accs
       payOutAmt:payOutAmts = paySeqLiabilitiesAmt amt availBals
       supportPayByAcc = filter (\(_acc,_amt_out) -> _amt_out > 0)   $ zip accs payOutAmts

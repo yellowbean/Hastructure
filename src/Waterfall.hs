@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,Satisfy(..),Limit(..),Formula(..),ActionWhen(..))
+  ,Satisfy(..),Limit(..),ActionWhen(..))
   where
 
 import GHC.Generics
@@ -23,6 +23,7 @@ import Asset (Mortgage, Pool)
 import Expense
 import Liability
 import Types
+import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
 
@@ -45,22 +46,17 @@ data Satisfy = Source
              | Target
              deriving (Show)
 
-data Limit = DuePct L.Balance  -- due fee
+data Limit = DuePct L.Balance  --
             | DueCapAmt L.Balance  -- due fee
             | RemainBalPct L.Rate -- pay till remain balance equals to a percentage of `stats`
             | KeepBalAmt DealStats -- pay till a certain amount remains in an account
             | Multiple Limit Float -- factor of a limit:w
-            deriving (Show)
-
-data Formula = ABCD          -- short cuts to complex arthimics on deal stats
-            | Sum DealStats
-            | OtherFormula String
+            | Formula DealStats
             deriving (Show)
 
 
-
-data Action = Transfer AccountName AccountName (Maybe String)
-             | TransferBy AccountName AccountName Formula
+data Action = Transfer AccountName AccountName 
+             | TransferBy Limit AccountName AccountName
              | CalcFee [FeeName]
              | PayFee [AccountName] [FeeName]
              | PayFeeBy Limit [AccountName] [FeeName]
@@ -91,5 +87,4 @@ $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
-$(deriveJSON defaultOptions ''Formula)
 $(deriveJSON defaultOptions ''ActionWhen)

@@ -36,6 +36,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | PrepaymentFactors Ts
                 | DefaultConstant Rate
                 | DefaultCDR Rate
+                | DefaultFactors Ts
                 | Recovery (Rate,Int)
                 | InterestRateConstant Index IRate
                 | InterestRateCurve Index [(T.Day,IRate)]

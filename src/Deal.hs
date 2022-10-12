@@ -42,6 +42,8 @@ class SPV a where
   getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
   getBondStmtByName :: a -> Maybe [String] -> Map.Map String (Maybe Statement)
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
+  getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
+  
 
 class DealDates a where 
   getClosingDate :: a -> Date
@@ -65,7 +67,7 @@ data TestDeal = TestDeal {
 instance SPV TestDeal where
   getBondByName t bns
     = case bns of
-         Nothing -> (bonds t)
+         Nothing -> bonds t
          Just _bns -> Map.filterWithKey (\k _ ->  (S.member k (S.fromList _bns))) (bonds t)
 
   getBondStmtByName t bns
@@ -75,8 +77,13 @@ instance SPV TestDeal where
 
   getFeeByName t fns
     = case fns of
-         Nothing -> (fees t)
+         Nothing -> fees t
          Just _fns -> Map.filterWithKey (\k _ ->  (S.member k (S.fromList _fns))) (fees t)
+  
+  getAccountByName t ans
+    = case ans of
+         Nothing -> accounts t
+         Just _ans -> Map.filterWithKey (\k _ ->  (S.member k (S.fromList _ans))) (accounts t)
 
 instance DealDates DateDesp where 
   getClosingDate (PatternInterval _m)
@@ -117,35 +124,30 @@ testPre d t p =
 
 performAction :: Date -> TestDeal -> (Maybe Pre, W.Action) -> TestDeal
 performAction d t (Just _pre, _action)
-  | (testPre d t _pre) == True = performAction d t (Nothing, _action)
+  | testPre d t _pre = performAction d t (Nothing, _action)
   | otherwise  = t
 
-performAction d t (Nothing, (W.Transfer an1 an2 tags)) =
+performAction d t (Nothing, W.Transfer an1 an2) =
   t {accounts = accMapAfterDeposit}
   where
     accMap = accounts t
-    sourceAcc = Map.lookup an1 accMap
-    transferAmt = case sourceAcc of
-                    Just acc -> (A.accBalance acc)
-                    Nothing -> 0
-    _tags = fromMaybe "" tags
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
+    sourceAcc = accMap Map.! an1
+    transferAmt = max 0 (A.accBalance sourceAcc)
+    comment = Transfer an1 an2
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d comment ) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d  comment) an2 accMapAfterDraw
 
-performAction d t (Nothing, (W.TransferBy an1 an2 formula)) =
+performAction d t (Nothing, W.TransferBy limit an1 an2) =
   t {accounts = accMapAfterDeposit}  -- `debug` ("ABCD "++show(d))
   where
     accMap = accounts t
     sourceAcc = accMap Map.! an1
     targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
 
-    formulaAmount =
-      case formula of
-        W.ABCD -> max 0 $
-                  (queryDeal t (CumulativeDefaultBalance d))
-                   + (queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1)) -- TODO to be normalized on comment format
-                   - (queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"\\|ABCD")) -- `debug` ("Done with Query :A"++show(queryDeal t (CumulativeDefaultBalance d))++"C"++show(queryStmtAmt (A.accStmt targetAcc) ("SupportPay:"++an1))++"D"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD")))
-        _ -> -1
+    formulaAmount = case limit of 
+                      W.DuePct r -> r * A.accBalance sourceAcc
+                      W.DueCapAmt a -> min a (A.accBalance sourceAcc)
+
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
 
@@ -179,7 +181,7 @@ performAction d t (Nothing, (W.TransferReserve meetAcc sa ta tags) )=
           0 -> accMap
           amt ->  Map.adjust (A.draw amt d (Transfer sa ta)) sa  $ Map.adjust (A.deposit amt d (Transfer sa ta)) ta $ accMap
 
-performAction d t (Nothing, (W.PayFee ans fns)) =
+performAction d t (Nothing, W.PayFee ans fns) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
     feeMap = fees t
@@ -204,11 +206,11 @@ performAction d t (Nothing, (W.PayFee ans fns)) =
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
 
-    accsAfterPay = A.supportPay accList d actualPaidOut (Empty,Empty)  --TODO 
+    accsAfterPay = A.supportPay accList d actualPaidOut (SeqPayFee fns ,SeqPayFee fns)  
     accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
 
-performAction d t (Nothing, (W.PayFeeBy limit ans fns)) =
+performAction d t (Nothing, W.PayFeeBy limit ans fns) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
     feeMap = fees t
@@ -222,7 +224,7 @@ performAction d t (Nothing, (W.PayFeeBy limit ans fns)) =
                   (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesToPay
 
     accNList = Map.toList accMap
-    availBalLst = [ (n,(A.accBalance x)) | (n,x) <- accNList]
+    availBalLst = [ (n,A.accBalance x) | (n,x) <- accNList]
     availAccBals = map snd availBalLst
     availAccNames = map fst availBalLst
     accList = map (accMap Map.!) ans
@@ -235,10 +237,10 @@ performAction d t (Nothing, (W.PayFeeBy limit ans fns)) =
 
     feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
 
-    accsAfterPay = A.supportPay accList d actualPaidOut (Empty,Empty)  --TODO
+    accsAfterPay = A.supportPay accList d actualPaidOut (SeqPayFee fns,SeqPayFee fns)  
     accMapUpdated = Map.union (Map.fromList (zip ans accsAfterPay)) (accounts t)
 
-performAction d t (Nothing, (W.PayInt an bnds)) =
+performAction d t (Nothing, W.PayInt an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
     bndMap = bonds t
@@ -255,7 +257,7 @@ performAction d t (Nothing, (W.PayInt an bnds)) =
     actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("due mats"++ show bndsDueAmts ++">>"++ show availBal)
     bndsAmountToBePaid = zip bndsWithDue $ prorataFactors bndsDueAmts availBal -- `debug` ("prorata"++ show (prorataFactors bndsDueAmts availBal) )
 
-    bndsPaid = map (\(l,amt) -> (L.payInt d amt l)) bndsAmountToBePaid
+    bndsPaid = map (\(l,amt) -> L.payInt d amt l) bndsAmountToBePaid
 
     bndMapUpdated =   Map.union (Map.fromList $ zip bndsNames bndsPaid) bndMap
     comment = PayInt bnds Nothing
@@ -264,10 +266,10 @@ performAction d t (Nothing, (W.PayInt an bnds)) =
                        an
                        accMap
 
-performAction d t (Nothing, (W.PayTillYield an bnds)) =
-    performAction d t (Nothing, (W.PayInt an bnds))
+performAction d t (Nothing, W.PayTillYield an bnds) =
+    performAction d t (Nothing, W.PayInt an bnds)
 
-performAction d t (Nothing, (W.PayResidual Nothing an bndName)) =
+performAction d t (Nothing, W.PayResidual Nothing an bndName) =
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     bndMap = bonds t
@@ -278,7 +280,7 @@ performAction d t (Nothing, (W.PayResidual Nothing an bndName)) =
     accMapAfterPay = Map.adjust (A.draw availBal d (PayYield bndName)) an accMap
     bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
 
-performAction d t (Nothing, (W.PayFeeResidual limit an feeName)) =
+performAction d t (Nothing, W.PayFeeResidual limit an feeName) =
   t {accounts = accMapAfterPay, fees = feeMapAfterPay}
   where
     feeMap = fees t
@@ -295,7 +297,7 @@ performAction d t (Nothing, (W.PayFeeResidual limit an feeName)) =
     feeMapAfterPay = Map.adjust (F.payFee d paidOutAmt) feeName feeMap
 
 -- ^ pay bond till its balance as pct of total balance
-performAction d t (Nothing, (W.PayPrinBy (W.RemainBalPct pct) an bndName))=
+performAction d t (Nothing, W.PayPrinBy (W.RemainBalPct pct) an bndName)=  --Need to replace with formula
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     bndMap = bonds t
@@ -317,27 +319,27 @@ performAction d t (Nothing, (W.PayPrinBy (W.RemainBalPct pct) an bndName))=
                         accMap
     bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
 
-performAction d t (Nothing, (W.PayPrin an bnds)) =
+performAction d t (Nothing, W.PayPrin an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
   where
-    bndMap = (bonds t)
-    accMap = (accounts t)
+    bndMap = bonds t
+    accMap = accounts t
     acc = accMap Map.! an
 
     bndsToPay = filter (\x -> ((L.bndBalance x) > 0)) $ map (\x -> bndMap Map.! x ) bnds
     availBal = A.accBalance acc
     -- TODO  add filter lockout bonds here
-    bndsWithDue = map (\x -> calcDuePrin t d x) bndsToPay  --
-    bndsDueAmts = map (\x -> (L.bndDuePrin x) ) bndsWithDue
+    bndsWithDue = map (calcDuePrin t d) bndsToPay  --
+    bndsDueAmts = map L.bndDuePrin bndsWithDue
 
-    actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
+    actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
     bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)
-    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
+    bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds Nothing)) an accMap
 
-performAction d t (Nothing, (W.PayPrinResidual an bnds)) = 
+performAction d t (Nothing, W.PayPrinResidual an bnds) = 
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
   where
     bndMap = bonds t
@@ -349,21 +351,21 @@ performAction d t (Nothing, (W.PayPrinResidual an bnds)) =
     -- TODO  add filter lockout bonds here
     bndsDueAmts = map L.bndBalance bndsToPay
 
-    actualPaidOut = min availBal $ foldl (+) 0 bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
+    actualPaidOut = min availBal $ sum  bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
     bndsAmountToBePaid = zip bndsToPay (prorataFactors bndsDueAmts availBal)
-    bndsPaid = map (\(l,amt) -> (L.payPrin d amt l)) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
+    bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds Nothing)) an accMap
 
-performAction d t (Nothing, (W.LiquidatePool lm an)) =
+performAction d t (Nothing, W.LiquidatePool lm an) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets
   where
     liqAmt = calcLiquidationAmount lm (pool t) d
     accMap = accounts t
     accMapAfterLiq = Map.adjust (A.deposit liqAmt d (LiquidationProceeds liqAmt)) an accMap
 
-performAction d t (Nothing, (W.CalcFee fns)) 
+performAction d t (Nothing, W.CalcFee fns) 
   = t {fees = newFeeMap }
   where 
     fset = S.fromList fns
@@ -381,7 +383,7 @@ performAction d t (Nothing, (W.CalcFee fns))
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _) 
-  = b { L.bndRate = (applyFloatRate ii d ras) }
+  = b { L.bndRate = applyFloatRate ii d ras }
 
 getRateAssumptionByIndex :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumptionByIndex ras idx
@@ -429,7 +431,7 @@ setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal
 setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
     where 
         floatBonds = filter (applicableAdjust d) $ Map.elems (bonds t)
-        floatBondNames = map L.bndName floatBonds
+        floatBondNames = map L.bndName floatBonds -- `debug` ("Resetting bonds=>"++ show floatBondNames)
         updatedBonds = foldr (Map.adjust (setBondNewRate d ras)) (bonds t) floatBondNames
 
 setBndsNextIntRate t d Nothing = t 
@@ -567,7 +569,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls
                                 (waterfall t)
 
              dAfterWaterfall = foldl (performAction d) dRunWithTrigger0 waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
-             dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates -- `debug` ("Running AD W"++show(d)) -- `debug` ("After Rate Set")
+             dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("Running Rate assumption"++show(rates)) -- `debug` ("After Rate Set")
              dRunWithTrigger1 = runTriggers dAfterRateSet d $ queryTrigger dAfterRateSet EndDistributionWF
       EarnAccInt d accName ->
         let 
@@ -679,11 +681,11 @@ runDeal t er assumps bpi =
     DealPoolFlowPricing -> (finalDeal, Just pcf, Nothing, bndPricing) -- `debug` ("with pricing"++show(bndPricing))
     DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
+    (ads,pcf,rcurves,calls,t2) = getInits t assumps
+    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls -- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
-                   Just _bpi -> Just (priceBonds finalDeal _bpi)   -- `debug` ("Pricing result")
-    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls -- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
-    (ads,pcf,rcurves,calls,t2) = getInits t assumps
+                   Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
 
 prepareDeal :: TestDeal -> TestDeal 
 prepareDeal t = t {bonds = Map.map L.consolStmt (bonds t)} -- `debug` ("Consolidation in preparingw")

@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Stmt
   (Statement(..),Txn(..)
@@ -12,7 +13,7 @@ module Stmt
 import Lib (Date,Balance,Amount,Interest,Principal,IRate,Cash,Comment
             ,toDate)
 import Util (mulBR)
-import Types hiding (And)
+import Types 
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -20,21 +21,41 @@ import Data.Aeson hiding (json)
 import Text.Regex.TDFA
 import Data.Fixed
 import Data.List
+import Data.Maybe
+import GHC.Generics
+import qualified Data.Vector as V
+import qualified Data.Text as T
 import qualified Data.Map as M
 
 data TxnComment = PayInt [BondName] (Maybe Balance)
                 | PayYield BondName
                 | PayPrin [BondName] (Maybe Balance)
                 | PayFee FeeName Balance
+                | SeqPayFee [FeeName] 
                 | PayFeeYield FeeName
-                | Transfer AccName AccName
+                | Transfer AccName AccName 
                 | PoolInflow PoolSource
                 | LiquidationProceeds Balance
                 | BankInt
                 | Empty 
-                | And [TxnComment]
-                deriving (Show)
+                | TxnComments [TxnComment]
+                deriving (Eq,Show,Generic)
 
+instance ToJSON TxnComment where 
+  toJSON (PayInt bns mb) = String $ T.pack $ "<PayInt:"++ show bns ++ ","++ show mb ++ ">"
+  toJSON (PayYield bn) = String $ T.pack $ "<PayYield:"++ bn++">"
+  toJSON (PayPrin bns mb) =  String $ T.pack $ "<PayPrin:"++ show bns ++ ","++ show mb ++ ">"
+  toJSON (PayFee fn b) =  String $ T.pack $ "<PayFee:" ++ fn ++ ","++ show b ++ ">"
+  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++show fns++">"
+  toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
+  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++"->"++ an2++">"
+  toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
+  toJSON (LiquidationProceeds b) =  String $ T.pack $ "<Liquidation:"++show b++">"
+  toJSON BankInt =  String $ T.pack $ "<Bank Interest>"
+  toJSON Empty =  String $ T.pack $ "" 
+  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
+ 
+instance FromJSON TxnComment
 
 data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
           | AccTxn Date Balance Amount TxnComment
@@ -60,10 +81,10 @@ getTxnBegBalance :: Txn -> Balance
 getTxnBegBalance (BondTxn _ t _ p _ _ _ ) = t + p
 getTxnBegBalance (AccTxn _ b a _ ) = b - a
 
-getTxnPrincipal :: Txn -> Centi
+getTxnPrincipal :: Txn -> Balance
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
 
-getTxnAmt :: Txn -> Centi
+getTxnAmt :: Txn -> Balance
 getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t
 getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
@@ -79,7 +100,7 @@ emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
 
-queryStmtAmt :: Maybe Statement -> String -> Centi
+queryStmtAmt :: Maybe Statement -> String -> Balance
 queryStmtAmt (Just (Statement txns)) q =
   let
     resultTxns =  txns --TODO BUG!! -- filter (\txn -> (getTxnComment txn) =~ q)  txns
@@ -125,7 +146,7 @@ groupTxns (Just (Statement txns))
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 m1) (BondTxn d2 b2 i2 p2 r2 c2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) (And [m1,m2])
+    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) (TxnComments [m1,m2])
 
 instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ )
@@ -137,4 +158,4 @@ instance Eq Txn where
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)
-$(deriveJSON defaultOptions ''TxnComment)
+-- $(deriveJSON defaultOptions ''TxnComment)

@@ -126,11 +126,11 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest --
 
 pv :: Ts -> Date -> Date -> Amount -> Rational
 pv pc@(PricingCurve _) today d amt = 
-   toRational (amt) * (1 / discount_factor) `debug` ("DF:"++show discount_factor)
+   toRational (amt) * (1 / discount_factor) -- `debug` ("DF:"++show discount_factor)
   where
    distance = daysBetween today d
-   discount_rate = fromRational $ getValByDate pc d `debug` ("Get val by ts"++show pc ++">>d"++ show d)
-   discount_factor = (1+discount_rate) ^^ (div distance 365)   `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
+   discount_rate = fromRational $ getValByDate pc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
+   discount_factor = (1+discount_rate) ^^ (div distance 365)  -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
    -- discount_factor = (1+discount_rate) ** (fromRational $ (yearCountFraction DC_ACT_ACT today d))
 
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
