@@ -32,6 +32,7 @@ dependencies:
 - containers
 - regex-tdfa
 - vector
+- wai
 
 library:
   source-dirs: src
@@ -53,8 +54,8 @@ executables:
     - unordered-containers
     - containers
     - warp
-    - wai
     - wai-cors
+      
     - yesod
     - http-types
     - template-haskell
