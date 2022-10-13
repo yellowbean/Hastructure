@@ -6,7 +6,7 @@ module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,RateType(..),projCashflow,AmortPlan(..)
        ,Status(..),isDefaulted,IssuanceFields(..)
        ,Asset,projPoolCFs,AggregationRule
-       ,getIssuanceField
+       ,getIssuanceField,futureCf
 ) where
 
 import Data.Time (Day)

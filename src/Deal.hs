@@ -965,9 +965,10 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay)
         newDue = mulBR baseBal r
 
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCollectionIncome it) r ) fs fd fdDay fa lpd _)
-  = f { F.feeDue = fd + mulBR baseBal r, F.feeDueDate = Just calcDay }
+  = f { F.feeDue = newDueFee, F.feeDueDate = Just calcDay } -- `debug` ("BAL"++show baseBal++"New Fee Due"++ show newDueFee)
     where 
-      baseBal = queryDeal t (PoolCollectionHistory it lastBegDay calcDay)
+      baseBal = queryDeal t (PoolCollectionHistory it lastBegDay calcDay) -- `debug` ("PIcome"++ show it++">>"++show lastBegDay++">>"++show calcDay)
+      newDueFee = fd + mulBR baseBal r
       lastBegDay = case fdDay of
                      (Just _fdDay) -> _fdDay
                      Nothing -> fs

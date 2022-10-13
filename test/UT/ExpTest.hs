@@ -60,3 +60,19 @@ expTests =  testGroup "Expense Tests"
                                  ]
 
   ]
+
+--cnVatFeeTest = 
+--  let 
+--    vatFeeInt = Fee "VatFee" 
+--                  (PctFee (PoolCollectionIncome CollectedInterest) 0.0325) 
+--                  (L.toDate "20220101") 0 Nothing 0 Nothing Nothing
+--    poolFlows = CashFlowFrame $ [MortgageFlow (toDate "20220101") 100 20 15 0 0 0 0 0.01
+--                                 ,MortgageFlow (toDate "20220101") 100 20 15 0 0 0 0 0.01
+--                                 ]
+--  in 
+--    testGroup "China VAT fee test" $
+--    [
+--
+--
+--    ]
+   
