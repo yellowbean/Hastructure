@@ -9,7 +9,8 @@ module Types
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),DealStats(..),Ts(..),TsPoint(..),PoolSource(..)
   ,actionDate,actionDates,DateDesp(..),Period(..)
-  ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..))
+  ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
+  ,RangeType(..))
   where
 
 import qualified Data.Text as T
@@ -227,6 +228,8 @@ data WhenTrigger = EndCollection
                  | BeginDistributionWF
                  | EndDistributionWF
                  deriving (Show,Eq,Ord,Read,Generic)
+
+data RangeType = II | IE | EI | EE
 
 data Threshold = Below
                | EqBelow

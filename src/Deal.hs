@@ -190,9 +190,9 @@ performAction d t (Nothing, W.PayFee ans fns) =
 
     feesToPay = map (feeMap Map.!) fns
     -- feesWithDue = map (calcDueFee t d) feesToPay  -- `debug` ("Show Fee"++show(feesToPay))
-    feeDueAmts = map F.feeDue feesToPay -- feesWithDue   -- `debug` ("Show Fee with Due "++show(feesWithDue))
+    feeDueAmts = map F.feeDue feesToPay  
 
-    accNList = Map.toList accMap
+    accNList = Map.toList accMap `debug` ("Show Fee with Due "++show(feeDueAmts))
     availBalLst = [ (n,A.accBalance x) | (n,x) <- accNList ]
     availAccBals = map snd availBalLst
     availAccNames = map fst availBalLst
@@ -753,7 +753,7 @@ getInits t mAssumps =
     (startDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)   
     intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate []
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
-                                           , _d <- accIntDates ]
+                                           , _d <- accIntDates ] -- `debug` ("PoolactionDates"++show  pActionDates)
                                            
     --fee accrue dates 
     _feeAccrueDates = F.buildFeeAccrueAction (Map.elems (fees t)) _farEnoughDate []
@@ -766,7 +766,10 @@ getInits t mAssumps =
                    _ -> False)
                  assumps --  `debug` (">>Assumps"++show(assumps))
 
-    _actionDates = sort $ bActionDates ++ pActionDates ++ iAccIntDates ++ feeAccrueDates -- `debug` (">>pactionDates"++show pActionDates)
+    _actionDates = sort $ bActionDates ++ 
+                          pActionDates ++ 
+                          iAccIntDates ++ 
+                          feeAccrueDates -- `debug` (">>pactionDates"++show feeAccrueDates)
     allActionDates = case stopDate of
                     Just (AP.StopRunBy d) 
                       -> filter
@@ -852,10 +855,14 @@ queryDeal t s =
                         CollectedPrincipal -> CF.mflowPrincipal 
                         CollectedPrepayment -> CF.mflowPrepayment
                         CollectedRecoveries -> CF.mflowRecovery)    
-                      subflow 
+                      subflow  -- `debug` ("SDED"++ show fromDay ++ show asOfDay ++"Pool Collection Histroy"++show subflow)
         subflow = case (P.futureCf (pool t)) of
                     Nothing ->  []
-                    Just _futureCf -> CF.getTxnBetween _futureCf fromDay asOfDay
+                    Just _futureCf -> 
+                        if fromDay == asOfDay then 
+                            CF.getTxnBetween2 _futureCf II fromDay asOfDay
+                        else 
+                            CF.getTxnBetween2 _futureCf EI fromDay asOfDay
 
     CumulativeDefaultBalance asOfDay ->
         let
@@ -941,8 +948,8 @@ calcDayToPoolDate t calcDay
 
 calcDueFee :: TestDeal -> Date -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay fa _ _)
-  | isNothing fdDay = f
-  | calcDay >= fs = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd))
+  | isJust fdDay = f  
+  | calcDay >= fs && (isNothing fdDay) = f{ F.feeDue = amt, F.feeDueDate = Just calcDay}  `debug` ("DEBUG--> init with amt "++show(fd)++show amt)
   | otherwise = f
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
@@ -967,7 +974,8 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay)
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCollectionIncome it) r ) fs fd fdDay fa lpd _)
   = f { F.feeDue = newDueFee, F.feeDueDate = Just calcDay } -- `debug` ("BAL"++show baseBal++"New Fee Due"++ show newDueFee)
     where 
-      baseBal = queryDeal t (PoolCollectionHistory it lastBegDay calcDay) -- `debug` ("PIcome"++ show it++">>"++show lastBegDay++">>"++show calcDay)
+      baseBal = queryDeal t (PoolCollectionHistory it lastBegDay calcDay)  
+                   -- `debug` ("PH query at "++ show calcDay ++ ">>>" ++ show it++">>"++show lastBegDay++">>"++show calcDay)
       newDueFee = fd + mulBR baseBal r
       lastBegDay = case fdDay of
                      (Just _fdDay) -> _fdDay

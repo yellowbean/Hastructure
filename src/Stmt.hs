@@ -42,6 +42,7 @@ data TxnComment = PayInt [BondName] (Maybe Balance)
                 | LiquidationProceeds Balance
                 | BankInt
                 | Empty 
+                | Tag String
                 | TxnComments [TxnComment]
                 deriving (Eq,Show,Generic)
 

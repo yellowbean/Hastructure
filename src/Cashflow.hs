@@ -11,7 +11,8 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
                 ,tsTotalCash,Date -- ,PersonalLoanFlow
-                ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter,getTxnBetween
+                ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter
+                ,getTxnBetween,getTxnBetween2
                 ,mflowWeightAverageBalance
                 ,TsRow(..),Balances) where
 
@@ -173,6 +174,13 @@ getTxnAfter (CashFlowFrame txn) d = filter (\x -> tsDate x >= d) txn
 getTxnBetween :: CashFlowFrame -> Date -> Date -> [TsRow]
 getTxnBetween (CashFlowFrame txn) sd ed
   =  filter (\x -> ((tsDate x) >= sd) && ((tsDate x) < ed)) txn
+
+getTxnBetween2 :: CashFlowFrame -> RangeType -> Date -> Date -> [TsRow]
+getTxnBetween2 (CashFlowFrame txn) rt sd ed
+  =  case rt of 
+       II -> filter (\x -> ((tsDate x) >= sd) && ((tsDate x) <= ed)) txn
+       IE -> filter (\x -> ((tsDate x) >= sd) && ((tsDate x) < ed)) txn
+       EI -> filter (\x -> ((tsDate x) > sd) && ((tsDate x) <= ed)) txn
 
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> tsDate x <= d) $ reverse txn
