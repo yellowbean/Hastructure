@@ -51,6 +51,8 @@ library
     , containers
     , hashable
     , lens
+    , regex-base
+    , regex-pcre
     , regex-tdfa
     , template-haskell
     , text
@@ -76,6 +78,8 @@ executable Hastructure-exe
     , hashable
     , http-types
     , lens
+    , regex-base
+    , regex-pcre
     , regex-tdfa
     , scientific
     , template-haskell
@@ -117,6 +121,8 @@ test-suite Hastructure-test
     , containers
     , hashable
     , lens
+    , regex-base
+    , regex-pcre
     , regex-tdfa
     , tasty
     , tasty-golden

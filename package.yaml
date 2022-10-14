@@ -31,6 +31,8 @@ dependencies:
 - template-haskell
 - containers
 - regex-tdfa
+- regex-base
+- regex-pcre
 - vector
 - wai
 

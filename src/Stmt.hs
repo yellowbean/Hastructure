@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Stmt
   (Statement(..),Txn(..)
@@ -18,11 +19,14 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Aeson hiding (json)
-import Text.Regex.TDFA
+-- import Text.Regex.TDFA
+import Text.Regex.Base
+import Text.Regex.PCRE
 import Data.Fixed
 import Data.List
 import Data.Maybe
 import GHC.Generics
+-- import Text.RawString.QQ
 import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Map as M
@@ -48,14 +52,32 @@ instance ToJSON TxnComment where
   toJSON (PayFee fn b) =  String $ T.pack $ "<PayFee:" ++ fn ++ ","++ show b ++ ">"
   toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++show fns++">"
   toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
-  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++"->"++ an2++">"
+  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
   toJSON (LiquidationProceeds b) =  String $ T.pack $ "<Liquidation:"++show b++">"
-  toJSON BankInt =  String $ T.pack $ "<Bank Interest>"
+  toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
  
-instance FromJSON TxnComment
+-- instance FromJSON TxnComment
+
+instance FromJSON TxnComment where
+    parseJSON = withText "Empty" parseTxn
+
+parseTxn :: T.Text -> Parser TxnComment 
+parseTxn "" = return Empty 
+parseTxn "<BankInt>" = return BankInt
+parseTxn t = case tagName of 
+  "Transfer" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
+  where 
+      pat = "<(\\S+):(\\S+)>"::String
+      sr = ((T.unpack t) =~ pat)::[[String]]
+      tagName =  head sr!!1::String
+      contents = head sr!!2::String
+                                       
 
 data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
           | AccTxn Date Balance Amount TxnComment
