@@ -16,7 +16,8 @@ import qualified Call as C
 import Lib
 import Util
 import Types
-import Stmt (TxnComment(..),Statement(..),Txn,queryStmtAmt,getTxns,getTxnAmt,getTxnDate,getTxnComment)
+import Stmt (TxnComment(..),Statement(..),Txn,getTxns,getTxnAmt,getTxnDate,getTxnComment
+            ,queryTxnAmt)
 
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -147,6 +148,13 @@ performAction d t (Nothing, W.TransferBy limit an1 an2) =
     formulaAmount = case limit of 
                       W.DuePct r -> r * A.accBalance sourceAcc
                       W.DueCapAmt a -> min a (A.accBalance sourceAcc)
+                      W.Formula fm ->
+                          case fm of 
+                            W.ABCD -> (queryDeal t (CumulativeDefaultBalance d)) + 
+                                      (queryTxnAmt targetAcc (Transfer an2 an1)) +
+                                      (queryTxnAmt sourceAcc (Transfer an1 an2))  
+                                        
+
 
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
@@ -192,7 +200,7 @@ performAction d t (Nothing, W.PayFee ans fns) =
     -- feesWithDue = map (calcDueFee t d) feesToPay  -- `debug` ("Show Fee"++show(feesToPay))
     feeDueAmts = map F.feeDue feesToPay  
 
-    accNList = Map.toList accMap `debug` ("Show Fee with Due "++show(feeDueAmts))
+    accNList = Map.toList accMap -- `debug` ("Show Fee with Due "++show(feeDueAmts))
     availBalLst = [ (n,A.accBalance x) | (n,x) <- accNList ]
     availAccBals = map snd availBalLst
     availAccNames = map fst availBalLst
@@ -613,7 +621,7 @@ calcLiquidationAmount alm pool d
                     Nothing -> 0  -- `debug` ("No pool Inflow")
                     Just _ts ->   -- TODO need to check if missing last row
                         (mulBR (CF.mflowBalance _ts) currentFactor) + (mulBR currentDefaulBal defaultFactor) 
-                        `debug` ("LIQ:"++show poolInflow)
+                        -- `debug` ("LIQ:"++show poolInflow)
 
       C.PV discountRate recoveryPct ->
           case (P.futureCf pool) of
@@ -785,7 +793,7 @@ getInits t mAssumps =
     callOptions = buildCallOptions Nothing assumps -- `debug` ("Assump"++show(assumps))
 
 
-queryDealRate :: TestDeal -> DealStats ->  Micro
+queryDealRate :: TestDeal -> DealStats -> Micro
 queryDealRate t s =
   case s of
     BondFactor ->
@@ -824,7 +832,6 @@ queryDeal t s =
         sum $ map A.accBalance $ Map.elems (accounts t) -- `debug` ("Summing acc balance")
         -- 0.0
         
-
     --FutureOriginalPoolBalance ->
     --  CF.mflowBalance $ head (CF.getTsCashFlowFrame _pool_cfs)
     -- where
@@ -925,13 +932,16 @@ queryDeal t s =
         sum $ map (queryDeal t)  _s
 
 
-getPoolFlows :: TestDeal -> Maybe Date -> Maybe Date -> [CF.TsRow]
-getPoolFlows t sd ed =
+getPoolFlows :: TestDeal -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
+getPoolFlows t sd ed rt =
   case (sd,ed) of
     (Nothing,Nothing) ->  _trs
-    (Nothing,Just _ed) -> CF.getTxnAsOf _projCf _ed  -- < d
+    (Nothing,Just _ed) -> case rt of 
+                             EI -> filter (\x -> CF.tsDate x <= _ed) _trs
     (Just _sd,Nothing) -> CF.getTxnAfter _projCf _sd   -- >= d
-    (Just _sd,Just _ed) -> filter (\x -> (CF.tsDate x >= _sd) && (CF.tsDate x < _ed)) _trs
+    (Just _sd,Just _ed) -> case rt of 
+                             IE -> filter (\x -> (CF.tsDate x >= _sd) && (CF.tsDate x < _ed)) _trs
+                             EI -> filter (\x -> (CF.tsDate x > _sd) && (CF.tsDate x <= _ed)) _trs
   where
     _projCf = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
     _trs =  CF.getTsCashFlowFrame _projCf
@@ -941,28 +951,28 @@ getPoolFlows t sd ed =
 --  =
 calcDayToPoolDate :: TestDeal -> Date -> Date 
 calcDayToPoolDate t calcDay 
-  = CF.mflowDate $ last pFlows
+  = CF.mflowDate $ last pFlows -- `debug` ("calDayToPoolDate"++show calcDay ++">>>>>"++show pFlows)
     where 
-      pFlows = getPoolFlows t Nothing (Just calcDay)
+      pFlows = getPoolFlows t Nothing (Just calcDay) EI  -- II here is not being used
 
 
 calcDueFee :: TestDeal -> Date -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay fa _ _)
   | isJust fdDay = f  
-  | calcDay >= fs && (isNothing fdDay) = f{ F.feeDue = amt, F.feeDueDate = Just calcDay}  `debug` ("DEBUG--> init with amt "++show(fd)++show amt)
+  | calcDay >= fs && (isNothing fdDay) = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd)++show amt)
   | otherwise = f
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
-  | calcDay > fs = calcDueFee t calcDay f {F.feeDueDate = Just fs }
-  | otherwise = f
+  | calcDay >= fs = calcDueFee t calcDay f {F.feeDueDate = Just fs }
+  | otherwise = f -- `debug` ("Fee Equal ? "++show calcDay ++show fs)
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay) fa lpd _)
-  = f{ F.feeDue=fd+newDue, F.feeDueDate = Just newDueDay } -- `debug` ("Fee DUE base"++show(newDue))                   
+  = f{ F.feeDue=fd+newDue, F.feeDueDate = Just newDueDay }  -- `debug` ("Fee DUE new Due "++show calcDay ++show baseBal ++show(newDue))                   
       where 
         accrueStart = _fdDay
         collectionEndDay = calcDayToPoolDate t calcDay
         (baseBal,newDueDay) = case feeBase of
-                                CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing,collectionEndDay)
+                                CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing II,collectionEndDay)
                                 -- CurrentPoolBegBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing
                                 OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) P.IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),collectionEndDay)
                                 OriginalBondBalance -> (mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),calcDay)

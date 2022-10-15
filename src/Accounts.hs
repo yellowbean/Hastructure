@@ -11,7 +11,7 @@ import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,Las
            ,paySeqLiabilitiesAmt,IRate,mulBI
            ,getIntervalFactors)
 import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getTxnDate
-            ,TxnComment(..))
+            ,TxnComment(..),QueryByComment(..),getTxnComment,getTxnAmt)
 import Types
 import Util
 -- import IntrestRate
@@ -41,9 +41,6 @@ data Account = Account {
     ,accStmt :: Maybe Statement
 } deriving (Show)
 
-$(deriveJSON defaultOptions ''InterestInfo)
-$(deriveJSON defaultOptions ''ReserveAmount)
-$(deriveJSON defaultOptions ''Account)
 
 buildEarnIntAction :: [Account] -> Date -> [(String,Dates)] -> [(String,Dates)]
 buildEarnIntAction [] ed r = r
@@ -80,7 +77,6 @@ depositInt a@(Account
                               in
                                 mulBI (sum $ zipWith mulBR _bals _dfs) r  
                                 -- `debug` (">>>"++show _bals ++">>>"++show ([lastCollectDate] ++ _ds ++ [ed]) ++">>>"++show _dfs)
-
 
             newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
             new_txn = (AccTxn ed newBal accrued_int BankInt)
@@ -119,3 +115,27 @@ supportPay all_accs@(acc:accs) d amt (m1,m2) =
       accNames = map accName all_accs
       payOutAmt:payOutAmts = paySeqLiabilitiesAmt amt availBals
       supportPayByAcc = filter (\(_acc,_amt_out) -> _amt_out > 0)   $ zip accs payOutAmts
+
+instance QueryByComment Account where 
+    queryStmt (Account _ _ _ _ Nothing) tc = []
+    queryStmt (Account _ _ _ _ (Just (Statement txns))) tc
+      = filter (\x -> (getTxnComment x) == tc) txns
+
+    queryTxnAmt a tc 
+      = sum $ map getTxnAmt $ queryStmt a tc
+
+--queryStmt :: Account -> TxnComment -> Balance
+--queryStmt (Account _ _ _ _ Nothing) tc = 0
+--queryStmt (Account _ _ _ _ (Just (Statement txns))) tc
+--  =  foldr (\(AccTxn _ _amt _ _tc ) accum -> 
+--             (if (_tc ==  tc) then
+--               (accum + _amt)
+--             else 
+--               accum))
+--           0
+--           txns
+--      -- $ filter (\x -> (getTxnComment x)==tc) txns
+
+$(deriveJSON defaultOptions ''InterestInfo)
+$(deriveJSON defaultOptions ''ReserveAmount)
+$(deriveJSON defaultOptions ''Account)

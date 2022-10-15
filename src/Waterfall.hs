@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,Satisfy(..),Limit(..),ActionWhen(..))
+  ,Satisfy(..),Limit(..),ActionWhen(..),FormulaType(..))
   where
 
 import GHC.Generics
@@ -46,14 +46,18 @@ data Satisfy = Source
              | Target
              deriving (Show)
 
+data FormulaType = ABCD
+             deriving (Show)
+     
+
+
 data Limit = DuePct L.Balance  --
             | DueCapAmt L.Balance  -- due fee
             | RemainBalPct L.Rate -- pay till remain balance equals to a percentage of `stats`
             | KeepBalAmt DealStats -- pay till a certain amount remains in an account
             | Multiple Limit Float -- factor of a limit:w
-            | Formula DealStats
+            | Formula FormulaType
             deriving (Show)
-
 
 data Action = Transfer AccountName AccountName 
              | TransferBy Limit AccountName AccountName
@@ -88,3 +92,4 @@ $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)
+$(deriveJSON defaultOptions ''FormulaType)

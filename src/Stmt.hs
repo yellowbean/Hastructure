@@ -6,8 +6,8 @@
 module Stmt
   (Statement(..),Txn(..)
    ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
-   ,queryStmtAmt,appendStmt,combineTxn,sliceStmt,getTxnBegBalance
-   ,sliceTxns,TxnComment(..)
+   ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance
+   ,sliceTxns,TxnComment(..),QueryByComment(..)
   )
   where
 
@@ -123,15 +123,6 @@ emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
 
-queryStmtAmt :: Maybe Statement -> String -> Balance
-queryStmtAmt (Just (Statement txns)) q =
-  let
-    resultTxns =  txns --TODO BUG!! -- filter (\txn -> (getTxnComment txn) =~ q)  txns
-  in
-    abs $ foldr (\x a -> (getTxnAmt x) + a) 0 resultTxns -- `debug` ("DEBUG Query"++show(resultTxns))
-
-queryStmtAmt Nothing _ = 0
-
 sliceStmt :: Maybe Statement -> Date -> Date -> Maybe Statement
 sliceStmt Nothing sd ed  = Nothing
 sliceStmt (Just (Statement txns)) sd ed 
@@ -141,6 +132,11 @@ sliceStmt (Just (Statement txns)) sd ed
 sliceTxns :: [Txn] -> Date -> Date -> [Txn]
 sliceTxns txns sd ed 
   = filter (\x -> (getTxnDate x)>=sd && (getTxnDate x)<ed) txns
+
+class QueryByComment a where 
+    queryStmt :: a -> TxnComment -> [Txn]
+    queryTxnAmt :: a -> TxnComment -> Balance
+
 
 data Statement = Statement [Txn]
         deriving (Show,Eq)

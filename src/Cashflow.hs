@@ -178,9 +178,9 @@ getTxnBetween (CashFlowFrame txn) sd ed
 getTxnBetween2 :: CashFlowFrame -> RangeType -> Date -> Date -> [TsRow]
 getTxnBetween2 (CashFlowFrame txn) rt sd ed
   =  case rt of 
-       II -> filter (\x -> ((tsDate x) >= sd) && ((tsDate x) <= ed)) txn
-       IE -> filter (\x -> ((tsDate x) >= sd) && ((tsDate x) < ed)) txn
-       EI -> filter (\x -> ((tsDate x) > sd) && ((tsDate x) <= ed)) txn
+       II -> filter (\x -> (tsDate x >= sd) && (tsDate x <= ed)) txn
+       IE -> filter (\x -> (tsDate x >= sd) && (tsDate x < ed)) txn
+       EI -> filter (\x -> (tsDate x > sd) && (tsDate x <= ed)) txn
 
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> tsDate x <= d) $ reverse txn
@@ -348,7 +348,7 @@ mflowDate (MortgageFlow3 x _ _ _ _ _ _ _ _ _ _ _) = x
 
 mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs
-  = sum $ zipWith mulBR _bals _dfs  -- `debug` (show(_bals)++show(_dfs)++show([sd]++_ds)++show(txns))
+  = sum $ zipWith mulBR _bals _dfs  -- `debug` ("CalcingAvgBal=>"++show sd++show ed++show txns  )
     where
      _dfs =  getIntervalFactors $ [sd]++_ds
      _bals = map mflowBegBalance txns
