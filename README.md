@@ -51,6 +51,8 @@
   * Custom Fee Flow :heavy_check_mark:
 * Scenario Analysis
   * Running multiple scenarios :heavy_check_mark:
+* Formula Support 
+  * User is able to using var of deal ( Pool Balance,Account balance .. ) to construct formula.
 * Misc
   * Support user define pay dates & pool collection dates :heavy_check_mark:
 

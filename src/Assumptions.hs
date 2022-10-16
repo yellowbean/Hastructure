@@ -26,7 +26,7 @@ debug = flip trace
 type AssumptionLists = [AssumptionBuilder]
 
 data AssumptionInput = Single AssumptionLists
-                     | Multiple [AssumptionLists]
+                     | Multiple (Map.Map String AssumptionLists)
                      deriving (Show)
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])

@@ -18,6 +18,8 @@ import qualified Data.ByteString.Lazy.Char8 as C8
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Char8 as BS
 
+import qualified Data.Map as Map 
+
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Maybe
@@ -55,7 +57,7 @@ data App = App
 
 mkYesod "App" [parseRoutes|
  /run_deal2 RunDealR POST OPTIONS
- /run_deal RunDeal2R POST OPTIONS
+ /run_deal RunDeal2R POST OPTIONS    -- acception both single and multiple scenario run
  /run_pool RunPoolR POST OPTIONS
  /version VersionR GET
 |]
@@ -84,14 +86,28 @@ postRunDeal2R =  do
   runReq <- requireCheckJsonBody :: Handler RunDealReq2
   case _assump runReq of
     Just (AP.Single aps) -> returnJson $
-                               D.runDeal (_deal runReq) D.DealPoolFlowPricing (Just aps) (_bondPricing runReq)
+                               D.runDeal 
+                                 (_deal runReq) 
+                                 D.DealPoolFlowPricing 
+                                 (Just aps) 
+                                 (_bondPricing runReq)
+
     Nothing -> returnJson $
-                 D.runDeal (_deal runReq) D.DealPoolFlowPricing Nothing (_bondPricing runReq)
-    Just (AP.Multiple apss) -> returnJson $
-                                map
-                                  (\x ->
-                                     D.runDeal (_deal runReq) D.DealPoolFlowPricing (Just x) (_bondPricing runReq))
-                                apss
+                 D.runDeal 
+                   (_deal runReq) 
+                   D.DealPoolFlowPricing 
+                   Nothing 
+                   (_bondPricing runReq)
+
+    Just (AP.Multiple apsm) -> 
+        returnJson $
+          Map.map 
+            (\x -> D.runDeal 
+                     (_deal runReq) 
+                     D.DealPoolFlowPricing 
+                     (Just x) 
+                     (_bondPricing runReq))
+             apsm
 
 
 optionsRunDeal2R :: Handler String
