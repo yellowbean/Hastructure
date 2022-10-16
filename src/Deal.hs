@@ -148,14 +148,17 @@ performAction d t (Nothing, W.TransferBy limit an1 an2) =
     formulaAmount = case limit of 
                       W.DuePct r -> r * A.accBalance sourceAcc
                       W.DueCapAmt a -> min a (A.accBalance sourceAcc)
-                      W.Formula fm ->
-                          case fm of 
-                            W.ABCD -> (queryDeal t (CumulativeDefaultBalance d)) + 
-                                      (queryTxnAmt targetAcc (Transfer an2 an1)) +
-                                      (queryTxnAmt sourceAcc (Transfer an1 an2))  
-                                        
-
-
+                      W.DS ds -> queryDeal t ds
+                      W.Formula W.ABCD -> max 
+                                            ((queryDeal t (CumulativeDefaultBalance d)) + 
+                                               (negate (queryTxnAmt targetAcc (Transfer an2 an1))) +
+                                               (negate (queryTxnAmt sourceAcc (Transfer an1 an2))))
+                                          0
+                                        --`debug`
+                                        --  ("AB"++show (queryDeal t (CumulativeDefaultBalance d))
+                                        --   ++"C"++ show (negate (queryTxnAmt targetAcc (Transfer an2 an1)))
+                                        --   ++"D"++ show (negate (queryTxnAmt sourceAcc (Transfer an1 an2))
+                                        --  ))
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
 
@@ -385,8 +388,17 @@ performAction d t (Nothing, W.CalcFee fns)
                       _f)
                   (fees t)
 
--- performAction d t (Nothing, (W.RunTrigger Nothing)) 
---  = runTriggers t d Nothing
+performAction d t (Nothing, W.CalcBondInt bns) 
+  = t {bonds = newBondMap }
+  where 
+    bset = S.fromList bns
+    newBondMap = Map.mapWithKey
+                  (\bn _b ->
+                    if S.member bn bset then 
+                      calcDueInt t d _b 
+                    else
+                      _b)
+                  (bonds t)
 
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
@@ -600,7 +612,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls
 run2 t Nothing Nothing Nothing Nothing
   = run2 t (Just pcf) (Just ads) Nothing Nothing  -- `debug` (">>>>"++show(ads))
   where
-    (ads,pcf,rcurves,clls,_) = getInits t Nothing
+    (ads,pcf,rcurves,clls,_) = getInits t Nothing -- `debug` ("Init Done")
 
 run2 t Nothing _ _ _ = prepareDeal t -- `debug` ("End with Pool CF")
 
@@ -689,7 +701,7 @@ runDeal t er assumps bpi =
     DealPoolFlowPricing -> (finalDeal, Just pcf, Nothing, bndPricing) -- `debug` ("with pricing"++show(bndPricing))
     DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
-    (ads,pcf,rcurves,calls,t2) = getInits t assumps
+    (ads,pcf,rcurves,calls,t2) = getInits t assumps --  `debug` ("Init in runDeal")
     finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls -- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
@@ -783,7 +795,7 @@ getInits t mAssumps =
                       -> filter
                            (\x -> actionDate x < d)
                            _actionDates
-                    Nothing ->  _actionDates   -- `debug` (">>action dates"++show(_actionDates))
+                    Nothing ->  _actionDates    `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` show (P.runPool2 (pool t) assumps) --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
     poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf --  `debug` ("projected & aggred pool cf"++show(poolCf))
@@ -828,10 +840,10 @@ queryDeal t s =
          Nothing -> (-1) -- `debug` ("Pool Stat"++show(pool t))
 
     AllAccBalance ->
-        --Map.foldr (\x acc -> (A.accBalance x)+acc) 0.0 (accounts t) `debug` ("Summing acc balance")
         sum $ map A.accBalance $ Map.elems (accounts t) -- `debug` ("Summing acc balance")
-        -- 0.0
-        
+    
+    AccBalance ans -> 
+        sum $ map A.accBalance $ Map.elems $ getAccountByName t (Just ans)
     --FutureOriginalPoolBalance ->
     --  CF.mflowBalance $ head (CF.getTsCashFlowFrame _pool_cfs)
     -- where
@@ -929,7 +941,19 @@ queryDeal t s =
         in
            sum $ map F.feeDue $ Map.elems fSubMap
     Sum _s ->
-        sum $ map (queryDeal t)  _s
+        sum $ map (queryDeal t) _s
+
+    Substract (ds:dss) -> 
+        (queryDeal t ds) - (queryDeal t (Sum dss))
+
+    Constant n -> fromRational n
+
+    Max ds1 ds2 ->
+        max (queryDeal t ds1) (queryDeal t ds2)
+     
+    Min ds1 ds2 ->
+        min (queryDeal t ds1) (queryDeal t ds2)
+
 
 
 getPoolFlows :: TestDeal -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]

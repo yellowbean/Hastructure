@@ -46,8 +46,6 @@ data Satisfy = Source
              | Target
              deriving (Show)
 
-data FormulaType = ABCD
-             deriving (Show)
      
 
 
@@ -57,11 +55,13 @@ data Limit = DuePct L.Balance  --
             | KeepBalAmt DealStats -- pay till a certain amount remains in an account
             | Multiple Limit Float -- factor of a limit:w
             | Formula FormulaType
+            | DS DealStats
             deriving (Show)
 
 data Action = Transfer AccountName AccountName 
              | TransferBy Limit AccountName AccountName
              | CalcFee [FeeName]
+             | CalcBondInt [BondName]
              | PayFee [AccountName] [FeeName]
              | PayFeeBy Limit [AccountName] [FeeName]
              | PayFeeResidual (Maybe Limit) AccountName FeeName
@@ -92,4 +92,3 @@ $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)
-$(deriveJSON defaultOptions ''FormulaType)

@@ -10,7 +10,7 @@ module Types
   ,Pre(..),DealStats(..),Ts(..),TsPoint(..),PoolSource(..)
   ,actionDate,actionDates,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
-  ,RangeType(..))
+  ,RangeType(..),FormulaType(..))
   where
 
 import qualified Data.Text as T
@@ -170,6 +170,7 @@ data DealStats =  CurrentBondBalance
               | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
               | PoolCollectionIncome PoolSource
               | AllAccBalance
+              | AccBalance [String]
               | CumulativeDefaultBalance Date
               | FutureCurrentPoolBalance Date
               | FutureCurrentPoolBegBalance Date
@@ -179,20 +180,22 @@ data DealStats =  CurrentBondBalance
               | FutureCurrentPoolFactor Date
               | FutureOriginalPoolBalance
               | CurrentBondBalanceOf [String]
-              | Factor DealStats Float
               | BondIntPaidAt Date String
               | BondsIntPaidAt Date [String]
               | FeePaidAt Date String
               | FeesPaidAt Date [String]
               | CurrentDueBondInt [String]
               | CurrentDueFee [String]
-              | Max DealStats DealStats
-              | Min DealStats DealStats
               | LastBondIntPaid [String]
               | LastFeePaid [String]
               | BondBalanceHistory Date Date
               | PoolCollectionHistory PoolSource Date Date
+              | Factor DealStats Rational
+              | Max DealStats DealStats
+              | Min DealStats DealStats
               | Sum [DealStats]
+              | Substract [DealStats]
+              | Constant Rational
               deriving (Show,Eq,Ord,Read)
 
 data Pre = And Pre Pre
@@ -204,6 +207,10 @@ data Pre = And Pre Pre
          | IfLET DealStats Centi
          | IfDealStatus DealStatus
          deriving (Show)
+
+data FormulaType = ABCD
+                 | Other
+                 deriving (Show,Eq)
 
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read)
@@ -287,3 +294,4 @@ $(deriveJSON defaultOptions ''WhenTrigger)
 $(deriveJSON defaultOptions ''DateDesp)
 $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''PoolSource)
+$(deriveJSON defaultOptions ''FormulaType)
