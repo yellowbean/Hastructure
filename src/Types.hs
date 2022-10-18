@@ -218,7 +218,6 @@ data TsPoint a = TsPoint Date a
 data Ts = FloatCurve [TsPoint Rational]
          |BoolCurve [TsPoint Bool]
          |BalanceCurve [TsPoint Balance]
-         |AmountCurve [TsPoint Balance]
          |IRateCurve [TsPoint IRate]
          |FactorCurveClosed [TsPoint Rational] Date
          |PricingCurve [TsPoint Rational] 
@@ -227,8 +226,6 @@ data Ts = FloatCurve [TsPoint Rational]
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2)
     = compare d1 d2
-
-
 
 data WhenTrigger = EndCollection
                  | EndCollectionWF

@@ -231,7 +231,7 @@ tsPointDate :: TsPoint a -> Date
 tsPointDate (TsPoint d _) = d
 
 getValByDate :: Ts -> Date -> Rational
-getValByDate (AmountCurve dps) d 
+getValByDate (BalanceCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> toRational v
       Nothing -> 0

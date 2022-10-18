@@ -181,11 +181,11 @@ priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0
 
 
 _calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
-_calcIRR amt initIrr today (AmountCurve cashflows)
+_calcIRR amt initIrr today (BalanceCurve cashflows)
    = if ((abs(diff) < 0.005) || (abs(nextIrr-initIrr)<0.0001)) then
        initIrr
      else
-       _calcIRR amt nextIrr today (AmountCurve cashflows)  -- `debug` ("NextIRR -> "++show(nextIrr))
+       _calcIRR amt nextIrr today (BalanceCurve cashflows)  -- `debug` ("NextIRR -> "++show(nextIrr))
      where
        discount (TsPoint _d _a) _r =  (toRational _a) / ((1+_r)^(div (fromIntegral (T.diffDays _d today)) 365))
        pv = foldr (\_ts acc -> (discount _ts initIrr) + acc) 0 cashflows -- `debug` ("")
@@ -197,31 +197,12 @@ _calcIRR amt initIrr today (AmountCurve cashflows)
 
 calcBondYield :: Date -> Balance ->  Bond -> Rate
 calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
- =  _calcIRR cost 0.05 d (AmountCurve cashflows)
+ =  _calcIRR cost 0.05 d (BalanceCurve cashflows)
    where
      cashflows = [ TsPoint (S.getTxnDate txn) (S.getTxnAmt txn)  | txn <- txns ]
 
 calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 
---backoutDueIntByYield2 :: Date -> Bond -> Float -> Float
---backoutDueIntByYield2 d
---                      b@(Bond _ _ (OriginalInfo obal odate _)
---                        (InterestByYield y) currentBalance _ _ _ _ _ stmt)
---                      initAmt
---  = if abs(diff_irr) < 0.0001 then
---        (initAmt - obal)  -- `debug` ("Return->"++show(initAmt - obal))
---    else
---        backoutDueIntByYield2 d b nextAmount  -- `debug` ("NextAmt=>"++show(nextAmount)++show(b)++show(d))
---    where
---     nextAmount = if diff_irr > 0 then
---                       initAmt * 1.02
---                  else
---                       initAmt * 0.98
---     diff_irr = y - _irr   `debug`  ("Found _irr=> "++show(_irr)++show(d))
---     _irr = _calcIRR obal y odate (AmountCurve (cashflows++[(TsPoint d initAmt)]))
---     cashflows = case stmt of
---                   Just (Statement txns) -> [ TsPoint (getTxnDate txn) (getTxnAmt txn)  | txn <- txns ]
---                   Nothing -> []
 
 backoutDueIntByYield :: Date -> Bond -> Balance
 backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield y) currentBalance _ _ _ _ _ stmt)
@@ -241,7 +222,7 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ stmt)
      _bals = [currentBalance] ++ map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
      _ds = map S.getTxnDate txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
      _b = consolStmt b   
-     txns =  case (S.sliceStmt (bndStmt _b) sd ed) of
+     txns =  case S.sliceStmt (bndStmt _b) sd ed of
                 Nothing -> []
                 Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 

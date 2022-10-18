@@ -209,31 +209,31 @@ mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
 mkRateTs :: [(Date,IRate)] -> Ts
 mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
 
-getValOnByDate :: Ts -> Date -> Amount
-getValOnByDate (AmountCurve dps) d 
+getValOnByDate :: Ts -> Date -> Balance
+getValOnByDate (BalanceCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
       Nothing -> 0
 
 
 splitTsByDate :: Ts -> T.Day -> (Ts, Ts)
-splitTsByDate (AmountCurve ds) d
+splitTsByDate (BalanceCurve ds) d
   = case (findIndex (\(TsPoint _d _) -> _d >= d ) ds) of
-      Nothing -> (AmountCurve ds, AmountCurve [])
-      Just idx -> (AmountCurve l, AmountCurve r)
+      Nothing -> (BalanceCurve ds, BalanceCurve [])
+      Just idx -> (BalanceCurve l, BalanceCurve r)
                   where
                    (l,r) = splitAt idx ds
 
 subTsBetweenDates :: Ts -> Maybe T.Day -> Maybe T.Day -> Ts
-subTsBetweenDates (AmountCurve vs) (Just sd) (Just ed)
-  =  AmountCurve $ filter(\(TsPoint x _) -> (x > sd) && (x < ed) ) vs
-subTsBetweenDates (AmountCurve vs) Nothing (Just ed)
-  =  AmountCurve $ filter(\(TsPoint x _) ->  x < ed ) vs
-subTsBetweenDates (AmountCurve vs) (Just sd) Nothing
-  =  AmountCurve $ filter(\(TsPoint x _) ->  x > sd ) vs
+subTsBetweenDates (BalanceCurve vs) (Just sd) (Just ed)
+  =  BalanceCurve $ filter(\(TsPoint x _) -> (x > sd) && (x < ed) ) vs
+subTsBetweenDates (BalanceCurve vs) Nothing (Just ed)
+  =  BalanceCurve $ filter(\(TsPoint x _) ->  x < ed ) vs
+subTsBetweenDates (BalanceCurve vs) (Just sd) Nothing
+  =  BalanceCurve $ filter(\(TsPoint x _) ->  x > sd ) vs
 
 sumValTs :: Ts -> Amount
-sumValTs (AmountCurve ds) = foldr (\(TsPoint _ v) acc -> acc+v ) 0 ds
+sumValTs (BalanceCurve ds) = foldr (\(TsPoint _ v) acc -> acc+v ) 0 ds
 
 
 toDate :: String -> T.Day

@@ -795,7 +795,7 @@ getInits t mAssumps =
                       -> filter
                            (\x -> actionDate x < d)
                            _actionDates
-                    Nothing ->  _actionDates    `debug` (">>action dates done"++show(_actionDates))
+                    Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` show (P.runPool2 (pool t) assumps) --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
     poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf --  `debug` ("projected & aggred pool cf"++show(poolCf))
