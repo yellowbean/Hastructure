@@ -40,16 +40,16 @@ expTests =  testGroup "Expense Tests"
      tsPoints = [(L.TsPoint (L.toDate "20220101") 10.0)
                  ,(L.TsPoint (L.toDate "20220301") 15.0)
                  ,(L.TsPoint (L.toDate "20220601") 20.0)]
-     f1 = Fee "FeeName1" (FeeFlow (L.AmountCurve tsPoints)) (L.toDate "20210101") 0 Nothing 0 Nothing Nothing
+     f1 = Fee "FeeName1" (FeeFlow (L.BalanceCurve tsPoints)) (L.toDate "20210101") 0 Nothing 0 Nothing Nothing
      _calcDate = (L.toDate "20220321")
      _calcDate2 = (L.toDate "20220621")
      _calcDate3 = (L.toDate "20211221")
-     f1_ = Fee "FeeName1" (FeeFlow (L.AmountCurve [(L.TsPoint (L.toDate "20220601") 20.0)])) (L.toDate "20210101") 25 (Just (L.toDate "20220321")) 0 Nothing Nothing
-     f2_ = f1 {feeDue = 45.0, feeDueDate = Just _calcDate2, feeType = FeeFlow (L.AmountCurve [])}
+     f1_ = Fee "FeeName1" (FeeFlow (L.BalanceCurve [(L.TsPoint (L.toDate "20220601") 20.0)])) (L.toDate "20210101") 25 (Just (L.toDate "20220321")) 0 Nothing Nothing
+     f2_ = f1 {feeDue = 45.0, feeDueDate = Just _calcDate2, feeType = FeeFlow (L.BalanceCurve [])}
      f3_ = f1 {feeDue = 0, feeDueDate = Just _calcDate3}
 
-     f1WithDue = Fee "FeeName1" (FeeFlow (L.AmountCurve tsPoints)) (L.toDate "20210101") 3 Nothing 0 Nothing Nothing
-     _f1WithDue = f1WithDue {feeType= FeeFlow (L.AmountCurve [(L.TsPoint (L.toDate "20220601") 20.0)]), feeDue = 28, feeDueDate = Just _calcDate}
+     f1WithDue = Fee "FeeName1" (FeeFlow (L.BalanceCurve tsPoints)) (L.toDate "20210101") 3 Nothing 0 Nothing Nothing
+     _f1WithDue = f1WithDue {feeType= FeeFlow (L.BalanceCurve [(L.TsPoint (L.toDate "20220601") 20.0)]), feeDue = 28, feeDueDate = Just _calcDate}
     in
       testCase "test on Custom Fee Type" $
       assertEqual "calc Due Fee" [f1_ , f2_ , f3_ , _f1WithDue]

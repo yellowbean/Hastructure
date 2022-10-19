@@ -402,7 +402,7 @@ performAction d t (Nothing, W.CalcBondInt bns)
 
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
-setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _) 
+setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
 
 getRateAssumptionByIndex :: [RateAssumption] -> Index -> Maybe RateAssumption
@@ -430,7 +430,7 @@ applyFloatRate (L.Floater idx spd p dc mf mc) d ras
       _rate = idx_rate + spd
 
 applicableAdjust :: T.Day -> L.Bond -> Bool
-applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ )
+applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ _ )
   = case rr of 
       L.ByInterval p mStartDate ->
           let 
@@ -444,8 +444,8 @@ applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ )
           in 
             m == monthIndex
 
-applicableAdjust d (L.Bond _ _ oi (L.Fix _ _ ) _ _ _ _ _ _ _ ) = False
-applicableAdjust d (L.Bond _ _ oi (L.InterestByYield _ ) _ _ _ _ _ _ _ ) = False
+applicableAdjust d (L.Bond _ _ oi (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
+applicableAdjust d (L.Bond _ _ oi (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
 
 setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal
 setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
@@ -1046,34 +1046,38 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
     periodGap =  length $ projDatesByPattern p _fdDay calcDay
 
 calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ lstIntPay _ _) 
+calcDueInt t calc_date b@(L.Bond _ _ _ _ _ _ _ _ Nothing _ _ _) 
+  = calcDueInt t calc_date (b {L.bndDueIntDate = Just (getClosingDate (dates t))})
+
+calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ _ lstIntPay _ _) 
   = b {L.bndDueInt = 0 }
 
-calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ int_due lstIntPay _ mStmt)
+calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ int_due _ lstIntPay _ mStmt)
   = b {L.bndDueInt = newDue+ int_due }
   where
   newDue = L.backoutDueIntByYield calc_date b
 
-calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due lstIntPay _ _) =
-  b {L.bndDueInt = (new_due_int+int_due) }   -- `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
-  where
-    lastIntPayDay = case lstIntPay of
-                      Just pd -> pd
-                      Nothing -> getClosingDate (dates t)
-    dc = case bi of 
-           L.Floater _ _ _ _dc _ _ -> _dc 
-           L.Fix _ _dc -> _dc 
-           
-    new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F -- `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
+calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just int_due_date) lstIntPay _ _) 
+  | calc_date == int_due_date = b
+  | otherwise = b {L.bndDueInt = (new_due_int+int_due),L.bndDueIntDate = Just calc_date }   `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
+              where
+                lastIntPayDay = case lstIntPay of
+                                  Just pd -> pd
+                                  Nothing -> getClosingDate (dates t)
+                dc = case bi of 
+                       L.Floater _ _ _ _dc _ _ -> _dc 
+                       L.Fix _ _dc -> _dc 
+                     
+                new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F  `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = duePrin} 
   where
     duePrin = bond_bal 
 
-calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
   if cd > calc_date then 
     b {L.bndDuePrin = 0}
   else
@@ -1081,13 +1085,13 @@ calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr in
   where
     duePrin = bond_bal 
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date  
     duePrin = max (bond_bal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PAC_Anchor schedule bns) bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PAC_Anchor schedule bns) bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date
@@ -1097,13 +1101,13 @@ calcDuePrin t calc_date b@(L.Bond bn (L.PAC_Anchor schedule bns) bo bi bond_bal 
               else
                  bond_bal
 
-calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_arrears lstIntPay _ _) =
+calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_arrears _ lstIntPay _ _) =
   if (all (\x -> (isZbond x)) activeBnds) then
       b {L.bndDuePrin = bond_bal} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   else 
       b {L.bndDuePrin = 0, L.bndBalance = new_bal, L.bndLastIntPay=Just calc_date} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
-    isZbond (L.Bond _ bt _ _ _ _ _ _ _ _ _) 
+    isZbond (L.Bond _ bt _ _ _ _ _ _ _ _ _ _) 
       = case bt of
           L.Z -> True
           _ -> False
@@ -1114,7 +1118,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
                       Nothing -> getClosingDate (dates t)
     dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F
 
-calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = bond_bal }
 
 patchDateToStats :: Date -> DealStats -> DealStats
@@ -1199,6 +1203,7 @@ td = TestDeal {
                              ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0
                              ,L.bndDueInt=0.0
+                             ,L.bndDueIntDate=Nothing
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndStmt=Nothing})
