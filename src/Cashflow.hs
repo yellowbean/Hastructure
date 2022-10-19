@@ -156,7 +156,7 @@ splitCashFlowFrameByDate (CashFlowFrame txns) d
   = let
       --l = filter (\x -> tsDate x < d) txns  `debug` (show(l))
       --r = filter (\x -> tsDate x >= d) txns `debug` (show(r))
-      p = L.partition (tsDateLT d) txns
+      p = L.partition (tsDateLET d) txns
     in
       case p of
         ([], []) -> (Nothing,Nothing)

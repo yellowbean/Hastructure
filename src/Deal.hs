@@ -549,12 +549,14 @@ run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [Rat
 run2 t _ (Just []) _ _   = (prepareDeal t)   `debug` ("End with Empty ActionOnDate")
 
 run2 t poolFlow (Just (ad:ads)) rates calls
-  | (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = prepareDeal t  -- `debug` ("End with pool flow")
-  | (isNothing poolFlow) && ((queryDeal t CurrentBondBalance) == 0)
-     = let
-        d = actionDate ad -- `debug` ("Running 2 with pool flow"++show(poolFlow))
-       in
-        prepareDeal $ foldl (performAction d) t cleanUpActions -- `debug` ("Deal end with bal =0 ")
+  -- | (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = prepareDeal t  `debug` ("End with pool flow and acc balance")
+  -- | (isNothing poolFlow) && ((queryDeal t CurrentBondBalance) == 0) 
+  | (isNothing poolFlow) && ((queryDeal t  AllAccBalance) == 0) 
+     = prepareDeal $ foldl 
+                      (performAction (actionDate ad)) 
+                      t 
+                      cleanUpActions 
+                      `debug` ("End with pool flow and bond balance")-- `debug` ("Deal end with bal =0 ")
   | otherwise
   = case ad of
       PoolCollection d _ ->
@@ -562,8 +564,8 @@ run2 t poolFlow (Just (ad:ads)) rates calls
             Just _poolFlow ->
                run2 dRunWithTrigger1 outstanding_flow (Just ads) rates calls -- `debug` ("Running Pool at"++ show d)
                where
-                  (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate _poolFlow d -- `debug` ("Splitting:"++show(d)++"|||"++show(_poolFlow))
-                  accs = depositPoolInflow (collects t) d collected_flow (accounts t) --  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
+                  (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate _poolFlow d  
+                  accs = depositPoolInflow (collects t) d collected_flow (accounts t) -- `debug` ("Splitting:"++show(d)++"|||"++show(collected_flow))--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
                   dAfterDeposit = t {accounts=accs}
                   dRunWithTrigger0 = runTriggers dAfterDeposit d $ queryTrigger dAfterDeposit EndCollection
                   waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
@@ -610,11 +612,11 @@ run2 t poolFlow (Just (ad:ads)) rates calls
 
 
 run2 t Nothing Nothing Nothing Nothing
-  = run2 t (Just pcf) (Just ads) Nothing Nothing  -- `debug` (">>>>"++show(ads))
+  = run2 t (Just pcf) (Just ads) Nothing Nothing   `debug` ("Everything is Nothing")
   where
     (ads,pcf,rcurves,clls,_) = getInits t Nothing -- `debug` ("Init Done")
 
-run2 t Nothing _ _ _ = prepareDeal t -- `debug` ("End with Pool CF")
+run2 t Nothing _ _ _ = prepareDeal t `debug` ("End with Pool CF2")
 
 
 calcLiquidationAmount :: C.LiquidationMethod -> (P.Pool a) -> Date -> Amount
@@ -702,7 +704,7 @@ runDeal t er assumps bpi =
     DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
     (ads,pcf,rcurves,calls,t2) = getInits t assumps --  `debug` ("Init in runDeal")
-    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls -- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
+    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls -- `debug` ("ACTIONS"++show ads)-- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
@@ -1059,7 +1061,7 @@ calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ int_
 
 calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just int_due_date) lstIntPay _ _) 
   | calc_date == int_due_date = b
-  | otherwise = b {L.bndDueInt = (new_due_int+int_due),L.bndDueIntDate = Just calc_date }   `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
+  | otherwise = b {L.bndDueInt = (new_due_int+int_due),L.bndDueIntDate = Just calc_date }   -- `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
               where
                 lastIntPayDay = case lstIntPay of
                                   Just pd -> pd
@@ -1068,7 +1070,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just 
                        L.Floater _ _ _ _dc _ _ -> _dc 
                        L.Fix _ _dc -> _dc 
                      
-                new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F  `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
+                new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F -- `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
 
 
 calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
