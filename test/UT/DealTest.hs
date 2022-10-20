@@ -34,7 +34,7 @@ td = TestDeal {
   ,D.accounts = (Map.fromList
   [("General", (A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
   })),
-   ("Reserve", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
+   ("Reserve", (A.Account { A.accName="Reserve" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
   }))
   ])
   ,D.fees = (Map.fromList [("Service-Fee"
@@ -59,6 +59,7 @@ td = TestDeal {
                              ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0
                              ,L.bndDueInt=0.0
+                             ,L.bndDueIntDate=Nothing
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndStmt=Nothing})
@@ -75,6 +76,7 @@ td = TestDeal {
                                ,L.bndRate=0.08
                                ,L.bndDuePrin=0.0
                                ,L.bndDueInt=0.0
+                               ,L.bndDueIntDate=Nothing
                                ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                                ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
                                ,L.bndStmt=Nothing})
@@ -110,8 +112,8 @@ td = TestDeal {
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (Nothing, W.PayFee ["General"] ["Service-Fee"])
                                  ,(Nothing, W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
-                                 ,(Nothing, W.TransferReserve W.Source  "General" "General" Nothing)
-                                 ,(Nothing, W.TransferReserve W.Target  "General" "General" Nothing)
+                                 ,(Nothing, W.TransferReserve W.Source  "Reserve" "General" Nothing)
+                                 ,(Nothing, W.TransferReserve W.Target  "General" "Reserve" Nothing)
                                  ,(Nothing, W.PayInt "General" ["A"])
                                  ,(Nothing, W.PayPrin "General" ["A"])
    ])]
@@ -170,8 +172,9 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220725") ""  ]
       fdeal = run2 td (Just poolflows) (Just ads) Nothing Nothing 
     in 
-      testCase "deal becaomes revolving" $
+      testCase "deal becomes revolving" $
       assertEqual "revoving" 
         Revolving 
         (status fdeal)
   ]
+
