@@ -10,7 +10,10 @@ module Types
   ,Pre(..),DealStats(..),Ts(..),TsPoint(..),PoolSource(..)
   ,actionDate,actionDates,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
-  ,RangeType(..),FormulaType(..))
+  ,RangeType(..),FormulaType(..)
+  ,Balance
+  ,Date,Dates
+  ,EndType)
   where
 
 import qualified Data.Text as T
@@ -83,10 +86,12 @@ data ActionOnDate = RunWaterfall Date String
                    | PoolCollection Date String
                    | EarnAccInt Date AccName -- sweep bank account interest
                    | AccrueFee Date FeeName
+                   | ResetLiqProvider Date String
                    deriving (Show,Generic,Read)
 
 actionDate :: ActionOnDate -> Date
 actionDate (RunWaterfall d _) = d
+actionDate (ResetLiqProvider d _) = d
 actionDate (PoolCollection d _) = d
 actionDate (EarnAccInt d _) = d
 actionDate (AccrueFee d _) = d
@@ -171,6 +176,8 @@ data DealStats =  CurrentBondBalance
               | PoolCollectionIncome PoolSource
               | AllAccBalance
               | AccBalance [String]
+              | ReserveAccGap [String] 
+              | ReserveAccGapAt Date [String] 
               | CumulativeDefaultBalance Date
               | FutureCurrentPoolBalance Date
               | FutureCurrentPoolBegBalance Date
@@ -234,6 +241,8 @@ data WhenTrigger = EndCollection
                  deriving (Show,Eq,Ord,Read,Generic)
 
 data RangeType = II | IE | EI | EE
+data EndType = IN | EX
+              deriving (Show)
 
 data Threshold = Below
                | EqBelow
@@ -246,7 +255,7 @@ instance ToJSONKey Threshold where
 instance FromJSONKey Threshold where
   fromJSONKey = genericFromJSONKey opts
 
-data Trigger = Threshold Threshold DealStats Balance
+data Trigger = ThresholdConstant Threshold DealStats Balance
              | ThresholdCurve Threshold DealStats Ts
              | AfterDate Date
              | AfterOnDate Date

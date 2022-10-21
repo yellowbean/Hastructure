@@ -26,6 +26,7 @@ import Types
 import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
+import qualified CreditEnhancement as CE
 
 
 data ActionWhen = EndOfPoolCollection
@@ -74,6 +75,7 @@ data Action = Transfer AccountName AccountName
              | TransferReserve Satisfy AccountName AccountName (Maybe String)
              | LiquidatePool C.LiquidationMethod AccountName
              | RunTrigger (Maybe [Trigger])
+             | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
              deriving (Show)
 
 --type DistributionSeq = [Action]

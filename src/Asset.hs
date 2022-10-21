@@ -218,7 +218,6 @@ projectMortgageFlow trs _b _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts)
     tr = CF.MortgageFlow _pdate _b 0 0 0 0 _rec_amt _loss_amt 0.0
 
 projectMortgageFlow trs _ _ [] _ _ [] [] _ _ _ _ = trs   -- `debug` ("Ending trs=>"++show(trs))
-
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
 projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss (recovery_lag,recovery_rate)
   = projectScheduleFlow (trs++[tr]) _survive_rate _end_bal flows _def_rates _ppy_rates (tail _rec_vector) (tail _loss_vector) (recovery_lag,recovery_rate) -- `debug` ("===>C")
@@ -372,7 +371,7 @@ instance Asset Mortgage  where
                                               recovery_lag)
         last_pay_date = previousDate (head cf_dates) temp_p -- `debug` ("CF Dates"++show(cf_dates))
 
-_calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> (CF.Balances,CF.Principals,CF.Interests)
+_calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow pmt last_bal bals ps is [] = (bals,ps,is)
 _calc_p_i_flow pmt last_bal bals ps is (r:rs)
   | last_bal < 0.01  =  (bals,ps,is)
@@ -383,14 +382,14 @@ _calc_p_i_flow pmt last_bal bals ps is (r:rs)
         new_prin = pmt - new_int
         new_bal = last_bal - new_prin
 
-calc_p_i_flow :: Balance -> Amount -> Dates -> IRate -> (CF.Balances,CF.Principals,CF.Interests)
+calc_p_i_flow :: Balance -> Amount -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
 calc_p_i_flow bal pmt dates r =
   _calc_p_i_flow pmt bal [] [] [] period_r
     where
       size = length dates
       period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
 
-_calc_p_i_flow_even :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> (CF.Balances,CF.Principals,CF.Interests)
+_calc_p_i_flow_even :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow_even evenPrin last_bal bals ps is [] = (bals,ps,is) -- `debug` ("Return->"++show(bals)++show(is))
 _calc_p_i_flow_even evenPrin last_bal bals ps is (r:rs)
   | last_bal < 0.01 = (bals,ps,is)
@@ -400,14 +399,14 @@ _calc_p_i_flow_even evenPrin last_bal bals ps is (r:rs)
         new_int = mulBI last_bal r
         new_bal = last_bal - evenPrin
 
-calc_p_i_flow_even :: Amount -> Balance -> Dates -> IRate -> (CF.Balances,CF.Principals,CF.Interests)
+calc_p_i_flow_even :: Amount -> Balance -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
 calc_p_i_flow_even evenPrin bal dates r
   = _calc_p_i_flow_even evenPrin bal [] [] [] period_r  -- `debug` ("SIze of rates"++show(length period_r))
     where
       size = length dates
       period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
 
-calc_p_i_flow_i_p :: Balance -> Dates -> IRate -> (CF.Balances,CF.Principals,CF.Interests)
+calc_p_i_flow_i_p :: Balance -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
 calc_p_i_flow_i_p bal dates r
   = (_bals,_prins,_ints)
     where

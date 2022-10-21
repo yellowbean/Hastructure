@@ -3,7 +3,7 @@
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
                 ,transfer,depositInt
-                ,InterestInfo(..),buildEarnIntAction)
+                ,InterestInfo(..),buildEarnIntAction,)
     where
 import qualified Data.Time as T
 import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,LastIntPayDate

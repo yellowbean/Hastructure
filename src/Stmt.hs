@@ -40,6 +40,7 @@ data TxnComment = PayInt [BondName] (Maybe Balance)
                 | Transfer AccName AccName 
                 | PoolInflow PoolSource
                 | LiquidationProceeds Balance
+                | LiquidationSupport String
                 | BankInt
                 | Empty 
                 | Tag String
@@ -61,7 +62,8 @@ instance ToJSON TxnComment where
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
- 
+  toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
+
 -- instance FromJSON TxnComment
 
 instance FromJSON TxnComment where
@@ -85,26 +87,31 @@ parseTxn t = case tagName of
 data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
           | AccTxn Date Balance Amount TxnComment
           | ExpTxn Date Balance Amount Balance TxnComment
+          | SupportTxn Date Balance Amount Balance TxnComment
           deriving (Show)
 
 getTxnComment :: Txn -> TxnComment
 getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
 getTxnComment (AccTxn _ _ _ t ) = t
 getTxnComment (ExpTxn _ _ _ _ t ) = t
+getTxnComment (SupportTxn _ _ _ _ t ) = t
 
 getTxnDate :: Txn -> Date
 getTxnDate (BondTxn t _ _ _ _ _ _ ) = t
 getTxnDate (AccTxn t _ _ _ ) = t
 getTxnDate (ExpTxn t _ _ _ _ ) = t
+getTxnDate (SupportTxn t _ _ _ _) = t
 
 getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
 getTxnBalance (AccTxn _ t _ _ ) = t
 getTxnBalance (ExpTxn _ t _ _ _ ) = t
+getTxnBalance (SupportTxn _ t _ _ _ ) = t
 
 getTxnBegBalance :: Txn -> Balance
 getTxnBegBalance (BondTxn _ t _ p _ _ _ ) = t + p
 getTxnBegBalance (AccTxn _ b a _ ) = b - a
+getTxnBegBalance (SupportTxn _ b a _ _ ) = b + a
 
 getTxnPrincipal :: Txn -> Balance
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
@@ -113,6 +120,7 @@ getTxnAmt :: Txn -> Balance
 getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t
 getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
+getTxnAmt (SupportTxn _ _ t _ _) = t
 
 getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> (getTxnDate x) <= d) $ reverse txns
@@ -121,6 +129,7 @@ emptyTxn :: Txn -> Date -> Txn
 emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 Empty )
 emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 Empty )
 emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
+emptyTxn (SupportTxn _ _ _ _ _) d = (SupportTxn d 0 0 0 Empty )
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts

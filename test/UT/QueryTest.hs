@@ -32,4 +32,5 @@ queryTest =
           assertEqual "Mid slide"
             30.0
             (queryDeal t (PoolCollectionHistory CollectedInterest (toDate "20220115") (toDate "20220315")))            
+
       ]

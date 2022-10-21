@@ -3,12 +3,14 @@
 {-# LANGUAGE LambdaCase #-}
 
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
-            ,calcDueFee,applicableAdjust,performAction,queryDeal) where
+            ,calcDueFee,applicableAdjust,performAction,queryDeal
+            ,setFutureCF,calcTargetAmount) where
 
 import qualified Accounts as A
 import qualified Asset as P
 import qualified Expense as F
 import qualified Liability as L
+import qualified CreditEnhancement as CE
 import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
@@ -61,6 +63,7 @@ data TestDeal = TestDeal {
   ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
   ,collects :: [W.CollectionRule]
   ,call :: Maybe [C.CallOption]
+  ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
   ,triggers :: Maybe (Map.Map (WhenTrigger,Trigger) TriggerEffect)
   ,overrides :: Maybe [OverrideType]
 } deriving (Show)
@@ -400,6 +403,19 @@ performAction d t (Nothing, W.CalcBondInt bns)
                       _b)
                   (bonds t)
 
+performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqSupport limit pName an)
+  = t { accounts = newAccMap, liqProvider = Just newLiqMap }
+  where 
+      _transferAmt = case limit of 
+                      Nothing -> 0 
+                      Just (W.DS (ReserveAccGap [an]))
+                        -> queryDeal t (ReserveAccGapAt d [an])
+                      _ -> 0
+      transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
+      accMap = (accounts t)
+      newAccMap = Map.adjust (A.deposit transferAmt d (LiquidationSupport pName)) an accMap
+      newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
+
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
@@ -477,18 +493,18 @@ testCalls t d [] = False
 testCalls t d opts = any (testCall t d) opts -- `debug` ("testing call options")
 
 queryTrigger :: TestDeal -> WhenTrigger -> Map.Map (WhenTrigger,Trigger) TriggerEffect
-queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ Nothing _) wt = Map.empty
-queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt 
+queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ Nothing _) wt = Map.empty
+queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt 
   = Map.filterWithKey (\(_wt,_) v -> _wt == wt) trgsM  
        
 
 testTrigger :: TestDeal -> Date -> Trigger -> Bool 
 testTrigger t d trigger = 
   case trigger of 
-    (Threshold Below ds v) -> (queryDeal t ds) < v
-    (Threshold EqBelow ds v) -> (queryDeal t ds) <= v
-    (Threshold Above ds v) -> (queryDeal t ds) > v
-    (Threshold EqAbove ds v) -> (queryDeal t ds) >= v
+    (ThresholdConstant Below ds v) -> (queryDeal t ds) < v
+    (ThresholdConstant EqBelow ds v) -> (queryDeal t ds) <= v
+    (ThresholdConstant Above ds v) -> (queryDeal t ds) > v
+    (ThresholdConstant EqAbove ds v) -> (queryDeal t ds) >= v
     (ThresholdCurve Below ds ts ) -> (queryDeal t ds) < (fromRational (getValByDate ts d))
     (ThresholdCurve EqBelow ds ts ) -> (queryDeal t ds) <= (fromRational (getValByDate ts d))
     (ThresholdCurve Above ds ts ) -> (queryDeal t ds) > (fromRational (getValByDate ts d))
@@ -606,6 +622,16 @@ run2 t poolFlow (Just (ad:ads)) rates calls
           dAfterFeeAccrued = t {fees=newFeeMap}
         in 
           run2 dAfterFeeAccrued poolFlow (Just ads) rates Nothing
+
+      ResetLiqProvider d liqName -> 
+        case (liqProvider t) of 
+          Nothing -> run2 t poolFlow (Just ads) rates Nothing
+          (Just mLiqProvider) 
+            -> let 
+                 newLiqMap = Map.adjust (updateLiqProvider t d) liqName mLiqProvider
+                 dAfterResetLiq = t {liqProvider =Just newLiqMap}
+               in   
+                 run2 dAfterResetLiq poolFlow (Just ads) rates Nothing
             
       where
         cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
@@ -781,6 +807,17 @@ getInits t mAssumps =
     _feeAccrueDates = F.buildFeeAccrueAction (Map.elems (fees t)) _farEnoughDate []
     feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates
                                            , _d <- feeAccureDates ]
+    --liquidation facitliy 
+    
+    
+    liqResetDates = case (liqProvider t) of 
+                      Nothing -> []
+                      Just mLiqProvider -> 
+                          let 
+                            _liqResetDates = CE.buildLiqResetAction (Map.elems mLiqProvider) _farEnoughDate []                    
+                          in 
+                            [ ResetLiqProvider _d _liqName |(_liqName,__liqResetDates) <- _liqResetDates
+                                                          , _d <- __liqResetDates ]
 
     stopDate = find 
                  (\case
@@ -791,7 +828,8 @@ getInits t mAssumps =
     _actionDates = sort $ bActionDates ++ 
                           pActionDates ++ 
                           iAccIntDates ++ 
-                          feeAccrueDates -- `debug` (">>pactionDates"++show feeAccrueDates)
+                          feeAccrueDates ++
+                          liqResetDates-- `debug` (">>pactionDates"++show feeAccrueDates)
     allActionDates = case stopDate of
                     Just (AP.StopRunBy d) 
                       -> filter
@@ -846,6 +884,15 @@ queryDeal t s =
     
     AccBalance ans -> 
         sum $ map A.accBalance $ Map.elems $ getAccountByName t (Just ans)
+
+    ReserveAccGapAt d ans ->
+        max 0 $
+          (sum $ map 
+                   (calcTargetAmount t d) $ 
+                   Map.elems $ getAccountByName t (Just ans))
+          - 
+          (queryDeal t (AccBalance ans)) 
+        -- 0.0 -- let t d 
     --FutureOriginalPoolBalance ->
     --  CF.mflowBalance $ head (CF.getTsCashFlowFrame _pool_cfs)
     -- where
@@ -1047,7 +1094,13 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   where
     periodGap =  length $ projDatesByPattern p _fdDay calcDay
 
-calcDueInt :: TestDeal -> T.Day -> L.Bond -> L.Bond
+updateLiqProvider :: TestDeal -> Date -> CE.LiqFacility -> CE.LiqFacility
+updateLiqProvider t d liq@(CE.LiqFacility _ (CE.ReplenishSupport _ b) curBal _ curCredit stmt)
+  = liq { CE.liqBalance = (max b curBal)}
+updateLiqProvider t d liq = liq
+
+
+calcDueInt :: TestDeal -> Date -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond _ _ _ _ _ _ _ _ Nothing _ _ _) 
   = calcDueInt t calc_date (b {L.bndDueIntDate = Just (getClosingDate (dates t))})
 
@@ -1132,20 +1185,33 @@ patchDateToStats d t
          _ -> t
 
 calcTargetAmount :: TestDeal -> Date -> A.Account -> Balance
+calcTargetAmount t d (A.Account _ n i Nothing _ ) = 0
 calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
    eval r -- `debug` ("$$$$ Evaluating" ++show(r)++" result:==>>"++show((eval r)))
    where
      eval ra = case ra of
-       A.PctReserve (Sum ds) _rate -> fromRational $ (toRational (queryDeal t (Sum (map (patchDateToStats d) ds)))) * _rate  -- `debug` ("In multiple query spot"++show(ds))
-       A.PctReserve ds _rate -> fromRational $ (toRational (queryDeal t (patchDateToStats d ds))) * _rate
+       A.PctReserve (Sum ds) _rate -> mulBR (queryDeal t (Sum (map (patchDateToStats d) ds))) _rate  -- `debug` ("In multiple query spot"++show(ds))
+       A.PctReserve ds _rate -> mulBR (queryDeal t (patchDateToStats d ds))  _rate
        A.FixReserve amt -> amt
        A.Max ra1 ra2 -> max (eval ra1) (eval ra2)  -- `debug` ("Max result here ->>> left "++show(eval ra1)++" right "++show(eval ra2))
        A.Min ra1 ra2 -> min (eval ra1) (eval ra2)
 
+--calcTargetAmount :: TestDeal -> A.Account -> Balance
+--calcTargetAmount t (A.Account _ n i (Just r) _ ) =
+--   eval r -- `debug` ("$$$$ Evaluating" ++show(r)++" result:==>>"++show((eval r)))
+--   where
+--     eval ra = case ra of
+--       A.PctReserve (Sum ds) _rate -> mulBR (queryDeal t (Sum ds)) _rate  -- `debug` ("In multiple query spot"++show(ds))
+--       A.PctReserve ds _rate -> mulBR (queryDeal t ds)  _rate
+--       A.FixReserve amt -> amt
+--       A.Max ra1 ra2 -> max (eval ra1) (eval ra2)  -- `debug` ("Max result here ->>> left "++show(eval ra1)++" right "++show(eval ra2))
+--       A.Min ra1 ra2 -> min (eval ra1) (eval ra2)
+
+
 depositPoolInflow :: [W.CollectionRule] -> T.Day -> Maybe CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolInflow rules d Nothing amap = amap -- `debug` ("Deposit inflow Nothing")
 depositPoolInflow rules d (Just (CF.CashFlowFrame txn)) amap =
-  foldl fn amap rules  -- `debug` ("Deposit inflow at "++show(d)++"txn"++show(txn))
+  foldl fn amap rules  -- `debug` ("Deposit inflow  at "++show(d)++"txn"++show(txn))
   where
       currentPoolInflow = txn
 
@@ -1238,6 +1304,7 @@ td = TestDeal {
  ,collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
  ,call = Just [C.PoolFactor 0.08]
+ ,liqProvider = Nothing
  ,triggers = Just $ 
                Map.fromList $
                  [((BeginDistributionWF,AfterDate (toDate "20220301")) ,DealStatusTo Revolving)

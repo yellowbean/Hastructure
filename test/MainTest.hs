@@ -42,6 +42,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.tsTest
                            ,UtilT.dateVectorPatternTest
                            ,AccT.intTests
+                           ,AccT.reserveAccTest
                            ,QT.queryTest
                            ]
 

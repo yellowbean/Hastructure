@@ -14,11 +14,11 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter
                 ,getTxnBetween,getTxnBetween2
                 ,mflowWeightAverageBalance
-                ,TsRow(..),Balances) where
+                ,TsRow(..)) where
 
 import Data.Time (Day)
 import Data.Fixed
-import Lib (Dates,weightedBy,toDate,IRate,getIntervalFactors)
+import Lib (weightedBy,toDate,IRate,getIntervalFactors)
 import Util (mulBR)
 import Types
 import qualified Data.Map as Map
@@ -37,7 +37,7 @@ debug = flip trace
 
 type Interest = Centi
 type Principal = Centi
-type Balance = Centi
+-- type Balance = Centi
 type Amount = Centi
 type Prepayment = Centi
 type Recovery = Centi
@@ -49,10 +49,10 @@ type Delinquent120 = Centi
 type Default = Centi
 type Loss = Centi
 type Rate = Rational
-type Date = T.Day
+-- type Date = T.Day
 
 type Amounts = [Float]
-type Balances = [Balance]
+-- type Balances = [Balance]
 type Principals = [Principal]
 type Interests = [Interest]
 type Prepayments = [Prepayment]

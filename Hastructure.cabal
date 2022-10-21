@@ -30,6 +30,7 @@ library
       Assumptions
       Call
       Cashflow
+      CreditEnhancement
       Deal
       Expense
       InterestRate
