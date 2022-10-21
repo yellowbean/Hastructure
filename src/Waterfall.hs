@@ -76,6 +76,7 @@ data Action = Transfer AccountName AccountName
              | LiquidatePool C.LiquidationMethod AccountName
              | RunTrigger (Maybe [Trigger])
              | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
+             | LiqRepay (Maybe Limit) AccountName CE.LiquidityProviderName 
              deriving (Show)
 
 --type DistributionSeq = [Action]

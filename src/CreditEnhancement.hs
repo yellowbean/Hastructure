@@ -5,7 +5,7 @@
 
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction
-  ,LiquidityProviderName,draw
+  ,LiquidityProviderName,draw,repay
   )
   where
 
@@ -60,7 +60,14 @@ draw  bal d liq@LiqFacility{ liqBalance = availBal
         newStmt = appendStmt 
                     mStmt
                     (SupportTxn d newBal bal newCredit Empty)
-                                    
+
+repay :: Balance -> Date -> LiqFacility -> LiqFacility
+repay bal d liq@LiqFacility{liqBalance = liqBal, liqStmt = mStmt ,liqCredit = accCredit} 
+  = liq { liqCredit = newCredit,liqStmt = Just newStmt}
+    where 
+        newCredit = accCredit - bal
+        newStmt = appendStmt mStmt (SupportTxn d liqBal (negate bal) newCredit Empty)
+
 
 $(deriveJSON defaultOptions ''LiqSupportType)
 $(deriveJSON defaultOptions ''LiqFacility)

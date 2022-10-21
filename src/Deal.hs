@@ -416,6 +416,18 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothi
       newAccMap = Map.adjust (A.deposit transferAmt d (LiquidationSupport pName)) an accMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
+performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqRepay limit an pName)
+  = t { accounts = newAccMap, liqProvider = Just newLiqMap }
+  where 
+      liqDue = CE.liqCredit $ _liqProvider Map.! pName
+      transferAmt = case limit of 
+                      Nothing -> min liqDue $ A.accBalance $ accs Map.! an
+                      _ -> 0 -- to be implement
+      accMap = (accounts t)
+      newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accMap
+      newLiqMap = Map.adjust (CE.repay transferAmt d ) pName _liqProvider 
+
+
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
