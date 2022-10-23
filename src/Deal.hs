@@ -125,6 +125,8 @@ testPre d t p =
     IfGET s  amt -> (queryDeal t s) >= amt
     IfLT s  amt -> (queryDeal t s) < amt
     IfLET s  amt -> (queryDeal t s) <= amt
+    IfAfterDate _d -> d > _d
+    IfBeforeDate _d -> d < _d
 
 performAction :: Date -> TestDeal -> (Maybe Pre, W.Action) -> TestDeal
 performAction d t (Just _pre, _action)
@@ -415,6 +417,32 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothi
       accMap = (accounts t)
       newAccMap = Map.adjust (A.deposit transferAmt d (LiquidationSupport pName)) an accMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
+
+performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (Nothing, W.LiqPayFee limit pName fn)
+  = t { fees = newFeeMap, liqProvider = Just newLiqMap }
+  where 
+      _transferAmt = case limit of 
+                      Nothing -> 0 
+                      Just (W.DS (CurrentDueFee [fn]))
+                        -> queryDeal t (CurrentDueFee [fn])
+                      _ -> 0
+      transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
+      newFeeMap = Map.adjust (F.payFee d transferAmt) fn feeMap
+      newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
+
+
+performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (Nothing, W.LiqPayBond limit pName bn)
+  = t { bonds = newBondMap, liqProvider = Just newLiqMap }
+  where 
+      _transferAmt = case limit of 
+                      Nothing -> 0 
+                      Just (W.DS (CurrentDueBondInt [bn]))
+                        -> queryDeal t (CurrentDueBondInt [bn])
+                      _ -> 0
+      transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
+      newBondMap = Map.adjust (L.payInt d transferAmt ) bn bndMap
+      newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
+
 
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqRepay limit an pName)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap }

@@ -213,6 +213,8 @@ data Pre = And Pre Pre
          | IfLT DealStats Centi
          | IfLET DealStats Centi
          | IfDealStatus DealStatus
+         | IfAfterDate Date
+         | IfBeforeDate Date
          deriving (Show)
 
 data FormulaType = ABCD
