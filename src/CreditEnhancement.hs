@@ -26,13 +26,14 @@ type LiquidityProviderName = String
 
 data LiqSupportType = ReplenishSupport DatePattern Balance
                     | FixSupport 
+                    | UnLimit
                     deriving(Show)
 
 data LiqFacility = LiqFacility {
     liqName :: String 
     ,liqType :: LiqSupportType 
-    ,liqBalance :: Balance
-    ,liqCredit :: Balance
+    ,liqBalance :: Maybe Balance  -- available balance to support. Nothing -> unlimit 
+    ,liqCredit :: Balance  -- total support balance 
     ,liqStart :: Date
     ,liqStmt :: Maybe Statement
 } deriving (Show)
@@ -50,12 +51,14 @@ buildLiqResetAction (liqProvider:liqProviders) ed r =
     _ -> buildLiqResetAction liqProviders ed r
 
 draw :: Balance -> Date -> LiqFacility -> LiqFacility
-draw  bal d liq@LiqFacility{ liqBalance = availBal 
+draw  bal d liq@LiqFacility{ liqBalance = liqBal
                             ,liqStmt = mStmt
                             ,liqCredit = accCredit} 
   = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = Just newStmt}
     where 
-        newBal = availBal - bal
+        newBal = case liqBal of 
+                   Just availBal -> Just (availBal - bal)
+                   Nothing -> Nothing
         newCredit = accCredit+bal
         newStmt = appendStmt 
                     mStmt

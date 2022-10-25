@@ -112,8 +112,8 @@ td = TestDeal {
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (Nothing, W.PayFee ["General"] ["Service-Fee"])
                                  ,(Nothing, W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
-                                 ,(Nothing, W.TransferReserve W.Source  "Reserve" "General" Nothing)
-                                 ,(Nothing, W.TransferReserve W.Target  "General" "Reserve" Nothing)
+                                 ,(Nothing, W.TransferReserve W.Source  "Reserve" "General")
+                                 ,(Nothing, W.TransferReserve W.Target  "General" "Reserve")
                                  ,(Nothing, W.PayInt "General" ["A"])
                                  ,(Nothing, W.PayPrin "General" ["A"])
    ])]

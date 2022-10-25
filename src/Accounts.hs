@@ -29,6 +29,7 @@ data InterestInfo = BankAccount IRate Date DatePattern
 
 data ReserveAmount = PctReserve DealStats Rate
                    | FixReserve Balance
+                   | Either Pre ReserveAmount ReserveAmount
                    | Max ReserveAmount ReserveAmount
                    | Min ReserveAmount ReserveAmount
                    deriving (Show)

@@ -1,4 +1,4 @@
-module UT.AssetTest(mortgageTests)
+module UT.AssetTest(mortgageTests,mortgageCalcTests)
 where
 
 import Test.Tasty
@@ -29,6 +29,16 @@ asOfDate = L.toDate "20210605"
 tmcf_00 = P.projCashflow tm asOfDate []
 trs = CF.getTsCashFlowFrame tmcf_00
 tmcf_default = P.projCashflow tm asOfDate [A.DefaultConstant 0.015]
+
+
+mortgageCalcTests = testGroup "Mortgage Calc Test" 
+  [
+    testCase "Calc Pmt" $
+        assertEqual "PMT 01"
+           154.15 --TODO not tie out with googlesheet 154.155613009
+                  --DUETO calcPmt is returning a balance which rounds to 2 decimalj  
+           (P.calcPmt 1200 0.12 24)
+  ]
 
 
 mortgageTests = testGroup "Mortgage cashflow Tests"

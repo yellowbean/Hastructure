@@ -170,11 +170,11 @@ performAction d t (Nothing, W.TransferBy limit an1 an2) =
     accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
 
-performAction d t (Nothing, (W.TransferReserve meetAcc sa ta tags) )=
+performAction d t (Nothing, (W.TransferReserve meetAcc sa ta))=
     t {accounts = accMapAfterTransfer }
   where
-    accMap = accounts t
-    sourceAcc = accMap Map.! sa
+    accMap = accounts t  -- `debug` ("Looking up acc"++show sa++show ta++show (Map.keys (accounts t)))
+    sourceAcc = accMap Map.! sa 
     targetAcc = accMap Map.! ta
     sourceAccBal = A.accBalance sourceAcc
     targetAccBal = A.accBalance targetAcc 
@@ -195,7 +195,8 @@ performAction d t (Nothing, (W.TransferReserve meetAcc sa ta tags) )=
     accMapAfterTransfer
       = case transferAmt of
           0 -> accMap
-          amt ->  Map.adjust (A.draw amt d (Transfer sa ta)) sa  $ Map.adjust (A.deposit amt d (Transfer sa ta)) ta $ accMap
+          amt ->  Map.adjust (A.draw amt d (Transfer sa ta)) sa  $ 
+                  Map.adjust (A.deposit amt d (Transfer sa ta)) ta $ accMap
 
 performAction d t (Nothing, W.PayFee ans fns) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
@@ -406,16 +407,17 @@ performAction d t (Nothing, W.CalcBondInt bns)
                   (bonds t)
 
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqSupport limit pName an)
-  = t { accounts = newAccMap, liqProvider = Just newLiqMap }
+  = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)
   where 
       _transferAmt = case limit of 
                       Nothing -> 0 
-                      Just (W.DS (ReserveAccGap [an]))
-                        -> queryDeal t (ReserveAccGapAt d [an])
-                      _ -> 0
-      transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
-      accMap = (accounts t)
-      newAccMap = Map.adjust (A.deposit transferAmt d (LiquidationSupport pName)) an accMap
+                      Just (W.DS (ReserveAccGap [an])) -> queryDeal t (ReserveAccGapAt d [an]) -- `debug` ("Query Gap"++ show (queryDeal t (ReserveAccGapAt d [an])))
+                      _ -> 0 
+      transferAmt = case CE.liqBalance $  _liqProvider Map.! pName of 
+                       Nothing -> _transferAmt
+                       Just _availBal -> min _transferAmt _availBal
+ --     transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName  -- `debug` ("_tAmft"++show _transferAmt)
+      newAccMap = Map.adjust (A.deposit transferAmt d (LiquidationSupport pName)) an accs
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
 performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (Nothing, W.LiqPayFee limit pName fn)
@@ -426,7 +428,10 @@ performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (Nothing
                       Just (W.DS (CurrentDueFee [fn]))
                         -> queryDeal t (CurrentDueFee [fn])
                       _ -> 0
-      transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
+      transferAmt = case CE.liqBalance $  _liqProvider Map.! pName of 
+                       Nothing -> _transferAmt
+                       Just _availBal -> min _transferAmt _availBal
+     -- transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
       newFeeMap = Map.adjust (F.payFee d transferAmt) fn feeMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
@@ -439,7 +444,10 @@ performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (Nothin
                       Just (W.DS (CurrentDueBondInt [bn]))
                         -> queryDeal t (CurrentDueBondInt [bn])
                       _ -> 0
-      transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
+      transferAmt = case CE.liqBalance $  _liqProvider Map.! pName of 
+                       Nothing -> _transferAmt
+                       Just _availBal -> min _transferAmt _availBal
+      --transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
       newBondMap = Map.adjust (L.payInt d transferAmt ) bn bndMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
@@ -451,8 +459,7 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothi
       transferAmt = case limit of 
                       Nothing -> min liqDue $ A.accBalance $ accs Map.! an
                       _ -> 0 -- to be implement
-      accMap = (accounts t)
-      newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accMap
+      newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs
       newLiqMap = Map.adjust (CE.repay transferAmt d ) pName _liqProvider 
 
 
@@ -931,12 +938,7 @@ queryDeal t s =
                    (calcTargetAmount t d) $ 
                    Map.elems $ getAccountByName t (Just ans))
           - 
-          (queryDeal t (AccBalance ans)) 
-        -- 0.0 -- let t d 
-    --FutureOriginalPoolBalance ->
-    --  CF.mflowBalance $ head (CF.getTsCashFlowFrame _pool_cfs)
-    -- where
-    --  _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+          (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
 
     FutureCurrentPoolBalance asOfDay ->
          case _poolSnapshot of
@@ -1135,8 +1137,8 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
     periodGap =  length $ projDatesByPattern p _fdDay calcDay
 
 updateLiqProvider :: TestDeal -> Date -> CE.LiqFacility -> CE.LiqFacility
-updateLiqProvider t d liq@(CE.LiqFacility _ (CE.ReplenishSupport _ b) curBal _ curCredit stmt)
-  = liq { CE.liqBalance = (max b curBal)}
+updateLiqProvider t d liq@(CE.LiqFacility _ (CE.ReplenishSupport _ b) (Just curBal) _ curCredit stmt) -- refresh available balance
+  = liq { CE.liqBalance = Just (max b curBal)}
 updateLiqProvider t d liq = liq
 
 
@@ -1233,6 +1235,10 @@ calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
        A.PctReserve (Sum ds) _rate -> mulBR (queryDeal t (Sum (map (patchDateToStats d) ds))) _rate  -- `debug` ("In multiple query spot"++show(ds))
        A.PctReserve ds _rate -> mulBR (queryDeal t (patchDateToStats d ds))  _rate
        A.FixReserve amt -> amt
+       A.Either p ra1 ra2 -> if testPre d t p then 
+                                eval ra1
+                            else 
+                                eval ra2 
        A.Max ra1 ra2 -> max (eval ra1) (eval ra2)  -- `debug` ("Max result here ->>> left "++show(eval ra1)++" right "++show(eval ra2))
        A.Min ra1 ra2 -> min (eval ra1) (eval ra2)
 
@@ -1336,8 +1342,8 @@ td = TestDeal {
    ,waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (Nothing, W.PayFee ["General"] ["Service-Fee"])
                                  ,(Nothing, W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
-                                 ,(Nothing, W.TransferReserve W.Source  "General" "General" Nothing)
-                                 ,(Nothing, W.TransferReserve W.Target  "General" "General" Nothing)
+                                 ,(Nothing, W.TransferReserve W.Source  "General" "General")
+                                 ,(Nothing, W.TransferReserve W.Target  "General" "General")
                                  ,(Nothing, W.PayInt "General" ["A"])
                                  ,(Nothing, W.PayPrin "General" ["A"])])
                                ,(W.CleanUp, [(Nothing, W.LiquidatePool (C.BalanceFactor 1.0 0.2) "A")])]

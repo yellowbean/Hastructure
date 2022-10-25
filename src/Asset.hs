@@ -6,7 +6,7 @@ module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,RateType(..),projCashflow,AmortPlan(..)
        ,Status(..),isDefaulted,IssuanceFields(..)
        ,Asset,projPoolCFs,AggregationRule
-       ,getIssuanceField
+       ,getIssuanceField,calcPmt
 ) where
 
 import Data.Time (Day)
@@ -77,9 +77,12 @@ getIssuanceField p _if
 calcPmt :: Balance -> IRate -> Int -> Amount
 calcPmt bal periodRate periods =
    let
-     pmtFactor =  (periodRate * (1+periodRate)^periods)/((1+periodRate)^periods-1)
+     -- pmtFactor = (periodRate * (1+periodRate)^periods)/((1+periodRate)^periods-1)
+     periodRate1 = toRational periodRate
+     r1 =  ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1) -- `debug` ("PR>>"++show periodRate)
+     pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
    in
-     mulBI bal pmtFactor
+     mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
 
 replace :: [a] -> Int -> a -> [a]
 replace xs i e = case splitAt i xs of
@@ -185,10 +188,13 @@ projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) 
                _new_bal_after_default = _bal - _new_default
                _new_prepay = mulBR _new_bal_after_default _ppy_rate
                _new_bal_after_ppy = _new_bal_after_default - _new_prepay
-               _new_int = mulBI _new_bal_after_ppy (calcIntRate _last_date _pdate _rate DC_ACT_360) -- `debug` ("Payment dates"++show(_pdate))
-               _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms --  `debug` ("Remain Term"++show(_remain_terms))
+               -- _new_int = mulBI _new_bal_after_ppy (calcIntRate _last_date _pdate _rate DC_ACT_360) -- `debug` ("Payment dates"++show(_pdate))
+               _new_int = mulBI _new_bal_after_ppy (periodRateFromAnnualRate p _rate)  -- `debug` ("Balance"++show(_new_bal_after_ppy))
+               _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms 
+                   -- `debug` ("Bal"++show _new_bal_after_ppy++"Rate"++show (periodRateFromAnnualRate p _rate) ++"Remain Term"++show(_remain_terms)
+                   --         ++"new INT"++ show _new_int)
                _new_prin = case pt of
-                              Level -> _pmt - _new_int
+                              Level -> _pmt - _new_int -- `debug` ("PMT->"++ show _pmt)
                               Even ->  _new_bal_after_ppy / fromIntegral _remain_terms --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
 
                _new_rec = mulBR _new_default recovery_rate

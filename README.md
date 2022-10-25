@@ -25,7 +25,6 @@
     * Waterfall at End of Pool Collection Day :heavy_check_mark:
     * Waterfall for Clean Up Call  :heavy_check_mark:
 * Accounts
-  * Liquidity Facility
   * Reserve Account  :heavy_check_mark:
   * Bank Account (with interest) :heavy_check_mark:
   * Pay a single fee with a list of Accounts :heavy_check_mark:
@@ -49,6 +48,8 @@
   * Pool Interest pct :heavy_check_mark:
   * Fix Amount Fees  :heavy_check_mark:
   * Custom Fee Flow :heavy_check_mark:
+* Liquidity Provider 
+  * line of credit/ Unlimit support  :heavy_check_mark:
 * Scenario Analysis
   * Running multiple scenarios :heavy_check_mark:
 * Formula Support 
@@ -59,6 +60,8 @@
 ### Online Demo
 
 The demo only cover very limit features of this engine and subject to UI performance issue due to rapid prototype design of web component
+
+**Pls noted that the web demo is far behind latest development/stable version**
 
 * [Here](https://deal-bench.xyz)
 

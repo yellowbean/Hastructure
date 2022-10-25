@@ -72,7 +72,7 @@ data Action = Transfer AccountName AccountName
              | PayPrinBy Limit AccountName BondName
              | PayTillYield AccountName [BondName]
              | PayResidual (Maybe Limit) AccountName BondName
-             | TransferReserve Satisfy AccountName AccountName (Maybe String)
+             | TransferReserve Satisfy AccountName AccountName 
              | LiquidatePool C.LiquidationMethod AccountName
              | RunTrigger (Maybe [Trigger])
              | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
