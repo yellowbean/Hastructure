@@ -64,6 +64,7 @@ data TestDeal = TestDeal {
   ,collects :: [W.CollectionRule]
   ,call :: Maybe [C.CallOption]
   ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
+  ,custom:: Maybe (Map.Map String CustomDataType)
   ,triggers :: Maybe (Map.Map (WhenTrigger,Trigger) TriggerEffect)
   ,overrides :: Maybe [OverrideType]
 } deriving (Show)
@@ -159,11 +160,6 @@ performAction d t (Nothing, W.TransferBy limit an1 an2) =
                                                (negate (queryTxnAmt targetAcc (Transfer an2 an1))) +
                                                (negate (queryTxnAmt sourceAcc (Transfer an1 an2))))
                                           0
-                                        --`debug`
-                                        --  ("AB"++show (queryDeal t (CumulativeDefaultBalance d))
-                                        --   ++"C"++ show (negate (queryTxnAmt targetAcc (Transfer an2 an1)))
-                                        --   ++"D"++ show (negate (queryTxnAmt sourceAcc (Transfer an1 an2))
-                                        --  ))
 
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
 
@@ -336,6 +332,28 @@ performAction d t (Nothing, W.PayPrinBy (W.RemainBalPct pct) an bndName)=  --Nee
                         accMap
     bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
 
+performAction d t (Nothing, W.PayPrinBy (W.DS ds) an bndName)=  --Need to replace with formula
+  t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
+  where
+    bndMap = bonds t
+    accMap = accounts t
+
+    availBal = A.accBalance $ accMap Map.! an
+    targetBnd = bndMap Map.! bndName
+
+    patchedDs = patchDateToStats d ds 
+    payAmount = min availBal (queryDeal t patchedDs) -- `debug` ("Query with "++show (patchedDs))
+
+    accMapAfterPay = Map.adjust
+                        (A.draw payAmount d (PayPrin [bndName] Nothing)) 
+                        an
+                        accMap  -- `debug` ("payOutAmt"++show (queryDeal t patchedDs))
+    bndMapAfterPay = Map.adjust 
+                       (L.payPrin d payAmount) 
+                       bndName $
+                       Map.adjust (calcDuePrin t d) bndName bndMap -- `debug` ("Actual PayAmount"++show payAmount)
+
+
 performAction d t (Nothing, W.PayPrin an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
   where
@@ -462,6 +480,16 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothi
       newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs
       newLiqMap = Map.adjust (CE.repay transferAmt d ) pName _liqProvider 
 
+performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqYield limit an pName)
+  = t { accounts = newAccMap, liqProvider = Just newLiqMap }
+  where 
+      transferAmt = case limit of 
+                      Nothing -> A.accBalance $ accs Map.! an
+                      _ -> 0 -- to be implement
+      newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs
+      newLiqMap = Map.adjust (CE.repay transferAmt d ) pName _liqProvider 
+
+
 
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
@@ -540,8 +568,8 @@ testCalls t d [] = False
 testCalls t d opts = any (testCall t d) opts -- `debug` ("testing call options")
 
 queryTrigger :: TestDeal -> WhenTrigger -> Map.Map (WhenTrigger,Trigger) TriggerEffect
-queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ Nothing _) wt = Map.empty
-queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt 
+queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ Nothing _) wt = Map.empty
+queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt 
   = Map.filterWithKey (\(_wt,_) v -> _wt == wt) trgsM  
        
 
@@ -915,7 +943,7 @@ queryDeal t s =
     OriginalBondBalance ->
        Map.foldr (\x acc -> (L.originBalance (L.bndOriginInfo x)) + acc) 0.0 (bonds t)
     CurrentPoolBalance ->
-       foldl (\acc x -> (acc + (P.getCurrentBal x))) 0.0 (P.assets (pool t))
+       foldl (\acc x -> (acc + (P.getCurrentBal x))) 0.0 (P.assets (pool t)) `debug` ("Qurey loan level asset balance")
     CurrentPoolDefaultedBalance ->
        foldl (\acc x -> (acc + (P.getCurrentBal x)))
              0.0 $
@@ -946,7 +974,7 @@ queryDeal t s =
             Nothing -> -0.1  -- `debug` ("REsult 2 >>"++show(_poolSnapshot))
         where
          _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
-         _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
+         _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay  -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
 
     FutureCurrentPoolBegBalance asOfDay ->
          case _poolSnapshot of
@@ -992,8 +1020,9 @@ queryDeal t s =
 
     BondsIntPaidAt d bns ->
        let
-          bnSet = S.fromList bns
-          bSubMap = Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
+          -- bnSet = S.fromList bns
+          -- bSubMap = Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
+          bSubMap =  (getBondByName t (Just bns))   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
           stmts = map L.bndStmt $ Map.elems bSubMap
           ex s = case s of
                    Nothing -> 0
@@ -1003,9 +1032,24 @@ queryDeal t s =
                                           (PayInt _ _) -> True
                                           _ -> False)   $
                           filter (\x -> d == getTxnDate x) txns
-                    -- ("INT PAY" == (getTxnComment x))
        in
           sum $ map ex stmts
+
+    BondsPrinPaidAt d bns ->
+       let
+          bSubMap =  (getBondByName t (Just bns))   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
+          stmts = map L.bndStmt $ Map.elems bSubMap
+          ex s = case s of
+                   Nothing -> 0
+                   Just (Statement txns) 
+                     -> sum $ map getTxnAmt $
+                          filter (\y -> case (getTxnComment y) of 
+                                          (PayPrin _ _) -> True
+                                          _ -> False)   $
+                          filter (\x -> d == getTxnDate x) txns
+       in
+          sum $ map ex stmts
+
 
     FeesPaidAt d fns ->
        let
@@ -1035,7 +1079,7 @@ queryDeal t s =
         sum $ map (queryDeal t) _s
 
     Substract (ds:dss) -> 
-        (queryDeal t ds) - (queryDeal t (Sum dss))
+        (queryDeal t ds) - (queryDeal t (Sum dss)) -- `debug` ("SS->"++show (queryDeal t ds)++"SS2->"++ show (queryDeal t (Sum dss)))
 
     Constant n -> fromRational n
 
@@ -1043,9 +1087,16 @@ queryDeal t s =
         max (queryDeal t ds1) (queryDeal t ds2)
      
     Min ds1 ds2 ->
-        min (queryDeal t ds1) (queryDeal t ds2)
+        min (queryDeal t ds1) (queryDeal t ds2) -- `debug` ("MIN->"++ show (queryDeal t ds1)++"|"++ show (queryDeal t ds2)++show ds2)
 
-
+    CustomData s d ->
+        case (custom t) of 
+          Nothing -> 0 
+          Just mCustom ->
+              case mCustom Map.! s of 
+                CustomConstant v -> fromRational v 
+                CustomCurve cv -> (getValOnByDate cv d)
+                CustomDS ds -> (queryDeal t (patchDateToStats d ds ))
 
 getPoolFlows :: TestDeal -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t sd ed rt =
@@ -1087,7 +1138,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd (Just _fdDay)
         accrueStart = _fdDay
         collectionEndDay = calcDayToPoolDate t calcDay
         (baseBal,newDueDay) = case feeBase of
-                                CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing II,collectionEndDay)
+                                CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing II,collectionEndDay)-- `debug` ("FeeBase" ++ show (getPoolFlows t Nothing Nothing II))
                                 -- CurrentPoolBegBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing
                                 OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) P.IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),collectionEndDay)
                                 OriginalBondBalance -> (mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),calcDay)
@@ -1109,7 +1160,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCollectionIncome it) r ) fs fd f
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee ds r ) fs fd fdDay fa lpd _)
   = f { F.feeDue = fd + mulBR baseBal r, F.feeDueDate = Just calcDay }
     where 
-      baseBal = queryDeal t ds 
+      baseBal = queryDeal t (patchDateToStats calcDay ds)
       lastBegDay = case fdDay of
                      (Just _fdDay) -> _fdDay
                      Nothing -> fs
@@ -1224,6 +1275,13 @@ patchDateToStats d t
          CurrentPoolBalance -> FutureCurrentPoolBalance d
          LastBondIntPaid bns -> BondsIntPaidAt d bns
          LastFeePaid fns -> FeesPaidAt d fns
+         LastBondPrinPaid bns -> BondsPrinPaidAt d bns
+         Sum _ds -> Sum $ map (patchDateToStats d) _ds
+         Substract _ds -> Substract $ map (patchDateToStats d) _ds
+         Min d1 d2 -> Min (patchDateToStats d d1) (patchDateToStats d d2)
+         Max d1 d2 -> Max (patchDateToStats d d1) (patchDateToStats d d2)
+         Factor _ds r -> Factor (patchDateToStats d _ds) r
+         UseCustomData n -> CustomData n d
          _ -> t
 
 calcTargetAmount :: TestDeal -> Date -> A.Account -> Balance
@@ -1351,6 +1409,7 @@ td = TestDeal {
              ,W.Collect W.CollectedPrincipal "General"]
  ,call = Just [C.PoolFactor 0.08]
  ,liqProvider = Nothing
+ ,custom = Nothing
  ,triggers = Just $ 
                Map.fromList $
                  [((BeginDistributionWF,AfterDate (toDate "20220301")) ,DealStatusTo Revolving)

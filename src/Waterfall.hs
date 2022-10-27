@@ -47,8 +47,6 @@ data Satisfy = Source
              | Target
              deriving (Show)
 
-     
-
 
 data Limit = DuePct L.Balance  --
             | DueCapAmt L.Balance  -- due fee
@@ -79,6 +77,7 @@ data Action = Transfer AccountName AccountName
              | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
              | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
              | LiqRepay (Maybe Limit) AccountName CE.LiquidityProviderName 
+             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
              deriving (Show)
 
 --type DistributionSeq = [Action]

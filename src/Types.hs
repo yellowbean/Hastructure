@@ -7,11 +7,11 @@ module Types
   (DayCount(..),DateType(..),OverrideType(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
-  ,Pre(..),DealStats(..),Ts(..),TsPoint(..),PoolSource(..)
+  ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
   ,actionDate,actionDates,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
-  ,RangeType(..),FormulaType(..)
-  ,Balance
+  ,RangeType(..),FormulaType(..),CustomDataType(..)
+  ,Balance,DealStats(..)
   ,Date,Dates
   ,EndType)
   where
@@ -101,17 +101,9 @@ actionDates = map actionDate
 
 instance Ord ActionOnDate where
   compare a1 a2 = compare (actionDate a1) (actionDate a2)
-  --compare (PoolCollection d1 _) (PoolCollection d2 _) = compare d1 d2
-  --compare (RunWaterfall d1 _) (RunWaterfall d2 _) = compare d1 d2
-  --compare (PoolCollection d1 _) (RunWaterfall d2 _) = compare d1 d2
-  --compare (RunWaterfall d1 _) (PoolCollection d2 _) = compare d1 d2
 
 instance Eq ActionOnDate where
   a1 == a2 = (actionDate a1) == (actionDate a2)
-  --(PoolCollection d1 _) == (PoolCollection d2 _) = d1 == d2
-  --(RunWaterfall d1 _) == (RunWaterfall d2 _) = d1 == d2
-  --(PoolCollection d1 _) == (RunWaterfall d2 _) = d1 == d2
-  --(RunWaterfall d1 _) == (PoolCollection d2 _) = d1 == d2
 
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }
@@ -136,13 +128,11 @@ data DealStatus = EventOfAccelerate (Maybe Date)
                 | Ended
                 deriving (Show,Ord,Eq,Read)
 
---instance ToJSONKey DealStatus where
---  -- toJSONKey = toJSONKeyText (T.pack . show)
---  toJSONKey = genericToJSONKey opts
---
---instance FromJSONKey DealStatus where
---  fromJSONKey = genericFromJSONKey opts
- 
+data CustomDataType = CustomConstant Rational 
+                    | CustomCurve    Ts 
+                    | CustomDS       DealStats
+                    deriving (Show,Ord,Eq,Read)
+
 data DatePattern = MonthEnd
                  | QuarterEnd
                  | YearEnd 
@@ -173,6 +163,7 @@ data DealStats =  CurrentBondBalance
               | BondFactor
               | PoolFactor
               | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
+              | UseCustomData String
               | PoolCollectionIncome PoolSource
               | AllAccBalance
               | AccBalance [String]
@@ -189,11 +180,14 @@ data DealStats =  CurrentBondBalance
               | CurrentBondBalanceOf [String]
               | BondIntPaidAt Date String
               | BondsIntPaidAt Date [String]
+              | BondPrinPaidAt Date String
+              | BondsPrinPaidAt Date [String]
               | FeePaidAt Date String
               | FeesPaidAt Date [String]
               | CurrentDueBondInt [String]
               | CurrentDueFee [String]
               | LastBondIntPaid [String]
+              | LastBondPrinPaid [String]
               | LastFeePaid [String]
               | BondBalanceHistory Date Date
               | PoolCollectionHistory PoolSource Date Date
@@ -203,6 +197,7 @@ data DealStats =  CurrentBondBalance
               | Sum [DealStats]
               | Substract [DealStats]
               | Constant Rational
+              | CustomData String Date
               deriving (Show,Eq,Ord,Read)
 
 data Pre = And Pre Pre
@@ -303,3 +298,4 @@ $(deriveJSON defaultOptions ''DateDesp)
 $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''FormulaType)
+$(deriveJSON defaultOptions ''CustomDataType)

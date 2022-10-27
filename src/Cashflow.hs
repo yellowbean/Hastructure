@@ -350,10 +350,10 @@ mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs
   = sum $ zipWith mulBR _bals _dfs  -- `debug` ("CalcingAvgBal=>"++show sd++show ed++show txns  )
     where
-     _dfs =  getIntervalFactors $ [sd]++_ds
-     _bals = map mflowBegBalance txns
-     _ds = map mflowDate txns
      txns = filter (\x -> (mflowDate x>=sd)&&(mflowDate x)<=ed) trs
+     _ds = map mflowDate txns `debug` ("fee base txns"++show txns)
+     _bals = map mflowBegBalance txns
+     _dfs =  getIntervalFactors $ [sd]++_ds
 
 
 $(deriveJSON defaultOptions ''TsRow)
