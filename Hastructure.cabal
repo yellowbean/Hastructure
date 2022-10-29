@@ -7,6 +7,7 @@ cabal-version: 1.12
 name:           Hastructure
 version:        0.1.1.0
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
+category:       StructuredFinance;Securitisation;Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
 bug-reports:    https://github.com/yellowbean/Hastructure/issues
 author:         Xiaoyu
