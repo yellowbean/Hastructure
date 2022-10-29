@@ -1,7 +1,8 @@
 FROM fpco/stack-build:lts-19 as build
 RUN mkdir /opt/build
 COPY . /opt/build
-RUN cd /opt/build && stack build  --copy-bins --resolver lts-18.22 # --system-ghc
+RUN cd /opt/build && stack build  --copy-bins  \ 
+    --local-bin-path /opt/build  --resolver lts-18.22 # --system-ghc
 
 
 FROM ubuntu:22.04
@@ -14,6 +15,6 @@ RUN apt-get update && apt-get install -y \
 # NOTICE THIS LINE
 
 
-COPY --from=build /opt/build/.local/bin/Hastructure-exe .
-COPY config.yml /opt/myapp
+COPY --from=build /opt/build/Hastructure-exe .
+#COPY config.yml /opt/myapp
 CMD ["/opt/myapp/Hastructure-exe"]
