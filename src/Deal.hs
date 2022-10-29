@@ -128,6 +128,8 @@ testPre d t p =
     IfLET s  amt -> (queryDeal t s) <= amt
     IfAfterDate _d -> d > _d
     IfBeforeDate _d -> d < _d
+    IfAfterOnDate _d -> d >= _d
+    IfBeforeOnDate _d -> d <= _d
 
 performAction :: Date -> TestDeal -> (Maybe Pre, W.Action) -> TestDeal
 performAction d t (Just _pre, _action)

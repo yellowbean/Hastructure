@@ -210,6 +210,8 @@ data Pre = And Pre Pre
          | IfDealStatus DealStatus
          | IfAfterDate Date
          | IfBeforeDate Date
+         | IfAfterOnDate Date
+         | IfBeforeOnDate Date
          deriving (Show)
 
 data FormulaType = ABCD
