@@ -345,7 +345,7 @@ performAction d t (Nothing, W.PayPrinBy (W.DS ds) an bndName)=  --Need to replac
     payAmount = min availBal (queryDeal t patchedDs) -- `debug` ("Query with "++show (patchedDs))
 
     accMapAfterPay = Map.adjust
-                        (A.draw payAmount d (PayPrin [bndName] Nothing)) 
+                        (A.draw payAmount d (TxnComments [PayPrin [bndName] Nothing,UsingDS ds])) 
                         an
                         accMap  -- `debug` ("payOutAmt"++show (queryDeal t patchedDs))
     bndMapAfterPay = Map.adjust 

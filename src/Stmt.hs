@@ -44,6 +44,7 @@ data TxnComment = PayInt [BondName] (Maybe Balance)
                 | BankInt
                 | Empty 
                 | Tag String
+                | UsingDS DealStats
                 | UsingFormula FormulaType
                 | TxnComments [TxnComment]
                 deriving (Eq,Show,Generic)
@@ -58,6 +59,7 @@ instance ToJSON TxnComment where
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
   toJSON (LiquidationProceeds b) =  String $ T.pack $ "<Liquidation:"++show b++">"
+  toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
   toJSON (UsingFormula fm) =  String $ T.pack $ "<Formula:"++ show fm++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 

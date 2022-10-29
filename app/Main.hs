@@ -59,7 +59,7 @@ mkYesod "App" [parseRoutes|
  /run_deal2 RunDealR POST OPTIONS
  /run_deal RunDeal2R POST OPTIONS    -- acception both single and multiple scenario run
  /run_pool RunPoolR POST OPTIONS
- /version VersionR GET
+ /version VersionR GET OPTIONS
 |]
 
 instance Yesod App where
@@ -75,7 +75,7 @@ postRunDealR =  do
          (assump runReq)
          (bondPricing runReq) -- `debug` ("Loading Deal with pool>>"++show(D.pool (deal runReq)))
 
-optionsRunDealR :: Handler String -- D.TestDeal
+optionsRunDealR :: Handler String 
 optionsRunDealR = do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "OPTIONS"
@@ -136,6 +136,12 @@ getVersionR =  do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "GET"
   return "{\"version\":\"0.0.2\"}"
+
+optionsVersionR :: Handler String 
+optionsVersionR = do
+  addHeader "Access-Control-Allow-Origin" "*"
+  addHeader "Access-Control-Allow-Methods" "OPTIONS"
+  return "Good"
 
 
 data Config = Config { port :: Int}
