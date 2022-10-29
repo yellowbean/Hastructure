@@ -1,10 +1,10 @@
 FROM fpco/stack-build:lts-19 as build
 RUN mkdir /opt/build
 COPY . /opt/build
-RUN cd /opt/build && stack -v  build  --resolver lts-18.22 # --system-ghc
+RUN cd /opt/build && stack  build  --resolver lts-18.22 # --system-ghc
 
 
-FROM ubuntu:lts
+FROM ubuntu:22.04
 RUN mkdir -p /opt/myapp
 ARG BINARY_PATH
 WORKDIR /opt/myapp
