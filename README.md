@@ -1,4 +1,5 @@
 [![Actions Status](https://github.com/yellowbean/Hastructure/workflows/Haskell%20CI/badge.svg)](https://github.com/yellowbean/Hastructure/actions)
+[![Docker Build](https://img.shields.io/docker/v/yellowbean/hastructure?color=green)](https://hub.docker.com/r/yellowbean/hastructure)
 
 # Hastructure
 * :dollar: A structured finance cashflow engine written in Haskell 
@@ -10,7 +11,7 @@
 * Integration
   * Built-in REST API services :heavy_check_mark:
     * Language independent, can be integrated to various programming language stack.
-  * Docker Support (W.I.P)
+  * Docker Support :heavy_check_mark:
 * Asset class coverage
   * Mortgage  :heavy_check_mark:
   * Student Loan
