@@ -33,7 +33,6 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
-          file: ./Dockerfile
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:latest
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
