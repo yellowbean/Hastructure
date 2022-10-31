@@ -39,7 +39,8 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | DefaultFactors Ts
                 | Recovery (Rate,Int)
                 | InterestRateConstant Index IRate
-                | InterestRateCurve Index [(T.Day,IRate)]
+                | InterestRateCurve Index [(T.Day,IRate)] -- Deprecating
+                | InterestRateCurve2 Index Ts
                 | CallWhen [C.CallOption]
                 | StopRunBy T.Day
                 -- To be implement

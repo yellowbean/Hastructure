@@ -672,9 +672,9 @@ run2 t poolFlow (Just (ad:ads)) rates calls
               if testCalls dRunWithTrigger1 d callOpts then
                 prepareDeal $ foldl (performAction d) dRunWithTrigger1 cleanUpActions `debug` ("Called ! "++ show d)
               else
-                run2 dRunWithTrigger1 poolFlow (Just ads) rates calls  `debug` ("Not called "++ show d )
+                run2 dRunWithTrigger1 poolFlow (Just ads) rates calls  -- `debug` ("Not called "++ show d )
           Nothing ->
-             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing  -- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
         where
              -- waterfallToExe = Map.findWithDefault [] W.DistributionDay (waterfall t) --  `debug` ("Getting waterfall with wf"++show(waterfallToExe))
              dRunWithTrigger0 = runTriggers t d $ queryTrigger t BeginDistributionWF

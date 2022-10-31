@@ -38,11 +38,10 @@ data RateReset = ByInterval Period (Maybe Date) -- period, maybe a start day
                | MonthOfYear  Int  -- month index, 0 => Janaury
                deriving (Show)
 
-data InterestInfo = 
-          Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
-          | Fix IRate DayCount 
-          | InterestByYield IRate
-          deriving (Show)
+data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
+                  | Fix IRate DayCount 
+                  | InterestByYield IRate
+                  deriving (Show)
 
 data OriginalInfo = OriginalInfo {
   originBalance::Balance
@@ -118,12 +117,10 @@ type Duration = Micro
 type Yield = Micro
 type AccruedInterest = Centi
 type IRR = Rational
-
 data YieldResult = Yield
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest -- valuation,wal,accu,duration
                    deriving (Show,Eq)
-
 
 pv :: Ts -> Date -> Date -> Amount -> Rational
 pv pc@(PricingCurve _) today d amt = 

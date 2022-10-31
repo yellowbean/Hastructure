@@ -3,8 +3,7 @@
 module Util
     (mulBR,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern 
-    ,genSerialDatesTill      
-    ,timeIt
+    ,genSerialDatesTill,subDates,getTsDates      
     ,calcInt,calcIntRate
     ,multiplyTs,zipTs,getTsVals
     )
@@ -22,7 +21,6 @@ import Types
 
 import Text.Printf
 import Control.Exception
-import System.CPUTime
 
 import Debug.Trace
 debug = flip trace
@@ -280,6 +278,25 @@ getValByDates rc ds = map (getValByDate rc) ds
 getTsVals :: Ts -> [Rational]
 getTsVals (FloatCurve ts) = [ v | (TsPoint d v) <- ts ]
 
+
+getTsDates :: Ts -> [Date]
+getTsDates (IRateCurve tps) =  map tsPointDate tps
+--subTs :: Ts -> RangeType -> Date -> Date -> Ts 
+--subTs rt ts = 
+--    case rt of 
+--      II -> 
+--      EI -> 
+--      IE -> 
+--      EE -> 
+
+subDates :: RangeType -> Date -> Date -> [Date] -> [Date]
+subDates rt sd ed ds 
+  = case rt of 
+      II -> filter (\x -> x >= sd && x <= ed ) ds 
+      EI -> filter (\x -> x > sd && x <= ed ) ds
+      IE -> filter (\x -> x >= sd && x < ed ) ds
+      EE -> filter (\x -> x > sd && x < ed ) ds
+
 calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
 calcIntRate start_date end_date int_rate day_count =
   let 
@@ -294,16 +311,6 @@ calcInt bal start_date end_date int_rate day_count =
   in 
     mulBR bal (yfactor * (toRational int_rate)) 
 
-
-
-timeIt :: IO t -> IO t
-timeIt a = do
-    start <- getCPUTime
-    v <- a
-    end   <- getCPUTime
-    let diff = (fromIntegral (end - start)) / (10^12)
-    printf "Computation time: %0.3f sec\n" (diff :: Double)
-    return v
 
 zipTs :: [Date] -> [Rational] -> Ts 
 zipTs ds rs 
@@ -329,3 +336,5 @@ projDatesByPattern dp sd ed
               DayOfMonth _ -> cdm + 1
     in 
       genSerialDates dp sd (fromInteger num)
+
+

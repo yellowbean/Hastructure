@@ -11,7 +11,7 @@ import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,Las
            ,paySeqLiabilitiesAmt,IRate,mulBI
            ,getIntervalFactors)
 import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getTxnDate
-            ,TxnComment(..),QueryByComment(..),getTxnComment,getTxnAmt)
+            ,TxnComment(..),QueryByComment(..),getTxnComment,getTxnAmt,weightAvgBalanceByDates)
 import Types
 import Util
 -- import IntrestRate
@@ -24,7 +24,7 @@ import Debug.Trace
 debug = flip trace
 
 data InterestInfo = BankAccount IRate Date DatePattern
-                 -- | InvestmentAccount IRate Date Period
+                  | InvestmentAccount Ts IRate Date DatePattern
                   deriving (Show)
 
 data ReserveAmount = PctReserve DealStats Rate
@@ -51,19 +51,14 @@ buildEarnIntAction (acc:accs) ed r =
       -> buildEarnIntAction accs ed r
     (Account _ an (Just (BankAccount _ lastAccDate dp)) _ _)
       -> buildEarnIntAction accs ed [(an, projDatesByPattern dp lastAccDate ed)]++r    
+    (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _)
+      -> buildEarnIntAction accs ed [(an, projDatesByPattern dp lastAccDate ed)]++r    
 
 
 depositInt :: Account -> Date -> Account
 depositInt a@(Account _ _ Nothing _ _) _ = a
-depositInt a@(Account 
-                bal 
-                _ 
-                (Just (BankAccount r lastCollectDate dp)) 
-                _
-                stmt) ed 
-          = a {accBalance = newBal
-              ,accStmt= Just new_stmt
-              ,accInterest = Just (BankAccount r ed dp)}
+depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed 
+          = a {accBalance = newBal ,accStmt= Just new_stmt ,accInterest = Just (BankAccount r ed dp)}
           where 
             accrued_int = case stmt of 
                             Nothing -> mulBR 
@@ -77,11 +72,34 @@ depositInt a@(Account
                                 _dfs = getIntervalFactors $ [lastCollectDate] ++ _ds ++ [ed]
                               in
                                 mulBI (sum $ zipWith mulBR _bals _dfs) r  
-                                -- `debug` (">>>"++show _bals ++">>>"++show ([lastCollectDate] ++ _ds ++ [ed]) ++">>>"++show _dfs)
 
             newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
             new_txn = (AccTxn ed newBal accrued_int BankInt)
             new_stmt = appendStmt stmt new_txn
+
+depositInt a@(Account bal _ (Just (InvestmentAccount rc spd lastCollectDate dp)) _ stmt) ed 
+          = a {accBalance = newBal ,accStmt= Just new_stmt ,accInterest = Just (InvestmentAccount rc spd ed dp)}
+          where 
+            accrued_int = case stmt of 
+                            Nothing -> let  
+                                         curve_ds = subDates EE lastCollectDate ed $ getTsDates rc
+                                         ds = [lastCollectDate] ++ curve_ds ++ [ed]
+                                         dfs = getIntervalFactors ds
+                                         rs = tail $ getValByDates rc ds 
+                                       in 
+                                          0.0 -- bal * zipWith (*) dfs rs
+                            Just (Statement _txns) ->
+                              let 
+                                curve_ds = getTsDates rc
+                                curve_vs = getTsVals rc 
+                                bals = weightAvgBalanceByDates curve_ds _txns
+                              in
+                                sum $ zipWith mulBR bals curve_vs
+
+            newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
+            new_txn = (AccTxn ed newBal accrued_int BankInt)
+            new_stmt = appendStmt stmt new_txn
+
 
 
 transfer :: Account -> Amount -> T.Day -> Account -> (Account, Account)

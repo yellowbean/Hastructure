@@ -8,11 +8,12 @@ module Stmt
    ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance
    ,sliceTxns,TxnComment(..),QueryByComment(..)
+   ,weightAvgBalanceByDates,weightAvgBalance
   )
   where
 
 import Lib (Date,Balance,Amount,Interest,Principal,IRate,Cash,Comment
-            ,toDate)
+            ,toDate,getIntervalFactors)
 import Util (mulBR)
 import Types 
 import Language.Haskell.TH
@@ -145,6 +146,22 @@ sliceStmt (Just (Statement txns)) sd ed
 sliceTxns :: [Txn] -> Date -> Date -> [Txn]
 sliceTxns txns sd ed 
   = filter (\x -> (getTxnDate x)>=sd && (getTxnDate x)<ed) txns
+
+
+weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
+weightAvgBalanceByDates ds txns 
+  = map (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) intervals
+  where 
+      intervals = zip (init ds) (tail ds)
+
+weightAvgBalance :: Date -> Date -> [Txn] -> Balance -- txn has to be between sd & ed
+weightAvgBalance sd ed txns 
+  = sum $ zipWith mulBR bals dsFactor
+  where 
+      _txns = sliceTxns txns sd ed
+      bals = (map getTxnBegBalance _txns) ++ [getTxnBalance (last _txns)]
+      ds = [sd]++(map getTxnDate _txns)++[ed]
+      dsFactor = getIntervalFactors ds
 
 class QueryByComment a where 
     queryStmt :: a -> TxnComment -> [Txn]

@@ -14,6 +14,7 @@ import qualified UT.LibTest as LT
 import qualified UT.ExpTest as ET
 import qualified UT.DealTest as DT
 import qualified UT.QueryTest as QT
+import qualified UT.StmtTest as ST
 import qualified UT.UtilTest as UtilT
 
 import qualified Accounts as A
@@ -45,6 +46,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AccT.intTests
                            ,AccT.reserveAccTest
                            ,QT.queryTest
+                           ,ST.txnTest
                            ]
 
 

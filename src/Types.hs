@@ -142,6 +142,7 @@ data DatePattern = MonthEnd
                  | YearFirst
                  | MonthDayOfYear Int Int  -- T.MonthOfYear T.DayOfMonth
                  | DayOfMonth Int -- T.DayOfMonth 
+                 | CustomDate [Dates]
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq)
 
@@ -240,6 +241,7 @@ data WhenTrigger = EndCollection
                  deriving (Show,Eq,Ord,Read,Generic)
 
 data RangeType = II | IE | EI | EE
+
 data EndType = IN | EX
               deriving (Show)
 
