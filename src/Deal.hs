@@ -527,10 +527,10 @@ applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ _ )
   = case rr of 
       L.ByInterval p mStartDate ->
           let 
-            _startDate =  fromMaybe (L.originDate oi) mStartDate
+            _startDate = fromMaybe (L.originDate oi) mStartDate
             diff = T.diffGregorianDurationClip _startDate d
           in
-            0 == mod (T.cdMonths diff) (fromIntegral ( monthsOfPeriod p))
+            0 == mod (T.cdMonths diff) (fromIntegral (monthsOfPeriod p))
       L.MonthOfYear monthIndex ->
           let 
             (_,m,_) = T.toGregorian d
@@ -688,8 +688,21 @@ run2 t poolFlow (Just (ad:ads)) rates calls
              dRunWithTrigger1 = runTriggers dAfterRateSet d $ queryTrigger dAfterRateSet EndDistributionWF
       EarnAccInt d accName ->
         let 
-          newAcc = Map.adjust (`A.depositInt` d)  accName  (accounts t)
-          dAfterInt = t {accounts=newAcc} 
+          -- newAcc = Map.adjust (`A.depositInt` d)  accName  (accounts t)
+          newAcc = Map.adjust 
+                     (\a -> case a of
+                             (A.Account _ _ (Just (A.BankAccount _ _ _)) _ _ ) -> 
+                                 (A.depositInt a d)
+                             (A.Account _ _ (Just (A.InvestmentAccount idx _ _ _)) _ _ ) -> 
+                                 let 
+                                   rc = getRateAssumptionByIndex (fromMaybe [] rates) idx 
+                                 in 
+                                   case rc of
+                                     Nothing -> a 
+                                     Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d)
+                     accName  
+                     (accounts t)
+          dAfterInt = t {accounts = newAcc} 
         in 
           run2 dAfterInt poolFlow (Just ads) rates Nothing
       
