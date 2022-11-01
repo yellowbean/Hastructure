@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Util
-    (mulBR,lastN,yearCountFraction,genSerialDates
+    (mulBR,mulBIR,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern 
     ,genSerialDatesTill,subDates,getTsDates      
     ,calcInt,calcIntRate
@@ -26,7 +26,10 @@ import Debug.Trace
 debug = flip trace
 
 mulBR :: Balance -> Rate -> Centi
-mulBR b r = fromRational $ (toRational b) * r --`debug` ("b "++show(b)++"r "++show(r)++" = "++show(b * (fromRational r)))
+mulBR b r = fromRational $ toRational b * r --`debug` ("b "++show(b)++"r "++show(r)++" = "++show(b * (fromRational r)))
+
+mulBIR :: Balance -> IRate -> Centi
+mulBIR b r = fromRational $ (toRational b) * (toRational r)
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
@@ -281,6 +284,9 @@ getTsVals (FloatCurve ts) = [ v | (TsPoint d v) <- ts ]
 
 getTsDates :: Ts -> [Date]
 getTsDates (IRateCurve tps) =  map tsPointDate tps
+getTsDates (FloatCurve tps) =  map tsPointDate tps
+getTsDates (PricingCurve tps) =  map tsPointDate tps
+getTsDates (BalanceCurve tps) =  map tsPointDate tps
 --subTs :: Ts -> RangeType -> Date -> Date -> Ts 
 --subTs rt ts = 
 --    case rt of 

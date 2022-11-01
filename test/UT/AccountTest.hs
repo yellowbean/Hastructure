@@ -1,4 +1,4 @@
-module UT.AccountTest(intTests,reserveAccTest)
+module UT.AccountTest(intTests,reserveAccTest,investTests)
 where
 
 import Test.Tasty
@@ -41,6 +41,27 @@ intTests =
         152.42
         (accBalance (depositInt acc2 (toDate "20221101")))
      ]
+
+investTests =
+  let 
+    rc = mkTs [(toDate "20211201",0.03),(toDate "20221201",0.03)]
+    acc1 = Account 2000 "A1" (Just (InvestmentAccount SOFR1Y 0.015 (toDate "20221001") QuarterEnd)) Nothing Nothing
+    acc2 = Account 150 "A1" (Just (InvestmentAccount SOFR1Y 0.01 (toDate "20220301") MonthEnd)) Nothing 
+          (Just (Statement [ AccTxn (toDate "20220715") 120 10 Empty
+                            ,AccTxn (toDate "20220915") 150 30 Empty ]))
+  in 
+    testGroup "Interest on Invest Account Test"
+     [
+      testCase "Validate Interest Calculation 1" $
+        assertEqual "MonthEnd with No txn"
+        2007.64
+        (accBalance (depositIntByCurve acc1 rc (toDate "20221101")))
+      ,testCase "Validate Interest Calculation 2" $
+        assertEqual "MonthEnd with txns"
+        153.22
+        (accBalance (depositIntByCurve acc2 rc (toDate "20221101")))
+     ]
+
 
 reserveAccTest = 
   let 

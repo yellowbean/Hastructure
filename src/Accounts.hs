@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
-                ,transfer,depositInt
+                ,transfer,depositInt,depositIntByCurve
                 ,InterestInfo(..),buildEarnIntAction,)
     where
 import qualified Data.Time as T
@@ -13,6 +13,7 @@ import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,Las
 import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getTxnDate
             ,TxnComment(..),QueryByComment(..),getTxnComment,getTxnAmt,weightAvgBalanceByDates)
 import Types
+import Lib
 import Util
 -- import IntrestRate
 import Data.Aeson hiding (json)
@@ -24,7 +25,7 @@ import Debug.Trace
 debug = flip trace
 
 data InterestInfo = BankAccount IRate Date DatePattern
-                  | InvestmentAccount Ts IRate Date DatePattern
+                  | InvestmentAccount Index Spread Date DatePattern
                   deriving (Show)
 
 data ReserveAmount = PctReserve DealStats Rate
@@ -77,24 +78,30 @@ depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed
             new_txn = (AccTxn ed newBal accrued_int BankInt)
             new_stmt = appendStmt stmt new_txn
 
-depositInt a@(Account bal _ (Just (InvestmentAccount rc spd lastCollectDate dp)) _ stmt) ed 
-          = a {accBalance = newBal ,accStmt= Just new_stmt ,accInterest = Just (InvestmentAccount rc spd ed dp)}
+depositIntByCurve :: Account -> Ts -> Date -> Account
+depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectDate dp)) _ stmt)
+                  rc
+                  ed 
+          = a {accBalance = newBal 
+              ,accStmt= Just new_stmt 
+              ,accInterest = Just (InvestmentAccount idx spd ed dp)}
           where 
             accrued_int = case stmt of 
-                            Nothing -> let  
-                                         curve_ds = subDates EE lastCollectDate ed $ getTsDates rc
-                                         ds = [lastCollectDate] ++ curve_ds ++ [ed]
-                                         dfs = getIntervalFactors ds
-                                         rs = tail $ getValByDates rc ds 
-                                       in 
-                                          0.0 -- bal * zipWith (*) dfs rs
+                            Nothing -> 
+                                let  
+                                  curve_ds = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
+                                  curve_vs = map (\x -> toRational (getValByDate rc x) + toRational spd) $ (init curve_ds)
+                                  ds_factor = getIntervalFactors curve_ds
+                                  weightInt = sum $ zipWith (*) curve_vs ds_factor --  `debug` ("ds"++show curve_ds++"vs"++show curve_vs++"factors"++show ds_factor)
+                                in 
+                                  mulBR bal weightInt
                             Just (Statement _txns) ->
                               let 
-                                curve_ds = getTsDates rc
-                                curve_vs = getTsVals rc 
+                                curve_ds = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
+                                curve_vs = map (\x -> toRational (getValByDate rc x) + toRational spd) $ (init curve_ds)
                                 bals = weightAvgBalanceByDates curve_ds _txns
                               in
-                                sum $ zipWith mulBR bals curve_vs
+                                sum $ zipWith mulBR bals curve_vs -- `debug` ("cds"++show curve_ds++"vs"++ show curve_vs++"bs"++show bals)
 
             newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
             new_txn = (AccTxn ed newBal accrued_int BankInt)
