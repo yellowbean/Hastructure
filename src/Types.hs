@@ -197,6 +197,7 @@ data DealStats =  CurrentBondBalance
               | Min DealStats DealStats
               | Sum [DealStats]
               | Substract [DealStats]
+              | Divide DealStats DealStats
               | Constant Rational
               | CustomData String Date
               deriving (Show,Eq,Ord,Read)
@@ -223,12 +224,12 @@ data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read)
 
 data Ts = FloatCurve [TsPoint Rational]
-         |BoolCurve [TsPoint Bool]
-         |BalanceCurve [TsPoint Balance]
-         |IRateCurve [TsPoint IRate]
-         |FactorCurveClosed [TsPoint Rational] Date
-         |PricingCurve [TsPoint Rational] 
-         deriving (Show,Eq,Ord,Read)
+        | BoolCurve [TsPoint Bool]
+        | BalanceCurve [TsPoint Balance]
+        | IRateCurve [TsPoint IRate]
+        | FactorCurveClosed [TsPoint Rational] Date
+        | PricingCurve [TsPoint Rational] 
+        deriving (Show,Eq,Ord,Read)
 
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2)

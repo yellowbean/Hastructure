@@ -1104,6 +1104,8 @@ queryDeal t s =
     Min ds1 ds2 ->
         min (queryDeal t ds1) (queryDeal t ds2) -- `debug` ("MIN->"++ show (queryDeal t ds1)++"|"++ show (queryDeal t ds2)++show ds2)
 
+    Divide ds1 ds2 -> (queryDeal t ds1) / (queryDeal t ds2)
+
     CustomData s d ->
         case (custom t) of 
           Nothing -> 0 
