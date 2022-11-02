@@ -699,8 +699,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls
                                  in 
                                    case rc of
                                      Nothing -> a -- `debug` ("error..."++show accName)
-                                     Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d `debug` ("int acc"++show accName)
-                             _ -> a -- `debug` ("failed to match "++show accName))
+                                     Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d  ) -- `debug` ("int acc"++show accName)
                      accName  
                      (accounts t)
           dAfterInt = t {accounts = newAcc} 
