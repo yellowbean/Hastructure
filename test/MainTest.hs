@@ -33,6 +33,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            --,LT.queryStmtTests
                            ,LT.datesTests
                            ,LT.prorataTests
+                           ,LT.tsOperationTests
                            ,ET.expTests
                            ,DT.waterfallTests
                            ,DT.queryTests

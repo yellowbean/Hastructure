@@ -919,7 +919,7 @@ getInits t mAssumps =
                           pActionDates ++ 
                           iAccIntDates ++ 
                           feeAccrueDates ++
-                          liqResetDates   `debug` (">>pactionDates"++show iAccIntDates)
+                          liqResetDates   -- `debug` (">>pactionDates"++show iAccIntDates)
     allActionDates = case stopDate of
                        Just (AP.StopRunBy d) ->
                          filter (\x -> actionDate x < d) _actionDates
@@ -1180,15 +1180,14 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee ds r ) fs fd fdDay fa lpd _)
                      (Just _fdDay) -> _fdDay
                      Nothing -> fs
 
-
-calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd Nothing fa mflpd _)
+calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd _ fa mflpd _)
   = f{ F.feeDue = newFeeDue
       ,F.feeDueDate = Just calcDay
-      ,F.feeType = (F.FeeFlow futureDue)} -- `debug` ("New fee"++show(f))
+      ,F.feeType = (F.FeeFlow futureDue)} -- `debug` ("New fee due"++show newFeeDue)
     where
-      newFeeDue =  cumulativeDue + fd
       (currentNewDue,futureDue) = splitTsByDate ts calcDay
       cumulativeDue = sumValTs currentNewDue
+      newFeeDue =  cumulativeDue + fd  -- `debug` ("cumulativeDue"++ show cumulativeDue)
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd Nothing fa _ _)
   = f{ F.feeDue = amt * (fromIntegral (periodGaps - 1)), F.feeDueDate = Just calcDay } -- `debug` ("New fee"++show(f))

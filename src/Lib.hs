@@ -195,10 +195,6 @@ periodsBetween t1 t2 p
     _diff = T.cdMonths $ T.diffGregorianDurationClip t1 t2
 
 
-
-
-
-
 data RateAssumption = RateCurve Index Ts
                     | RateFlat Index IRate
                     deriving (Show)
@@ -218,7 +214,7 @@ getValOnByDate (BalanceCurve dps) d
 
 splitTsByDate :: Ts -> T.Day -> (Ts, Ts)
 splitTsByDate (BalanceCurve ds) d
-  = case (findIndex (\(TsPoint _d _) -> _d >= d ) ds) of
+  = case (findIndex (\(TsPoint _d _) -> _d > d ) ds) of
       Nothing -> (BalanceCurve ds, BalanceCurve [])
       Just idx -> (BalanceCurve l, BalanceCurve r)
                   where

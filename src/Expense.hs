@@ -58,9 +58,10 @@ buildFeeAccrueAction (fee:fees) ed r =
       -> buildFeeAccrueAction fees ed [(fn, projDatesByPattern dp fs ed)]++r    
     (Fee fn (FixFee _) fs _ _ _ _ _)
       -> buildFeeAccrueAction fees ed [(fn, [fs])]++r    
+    (Fee fn (FeeFlow _ts) _ _ _ _ _ _)
+      -> buildFeeAccrueAction fees ed [(fn, getTsDates _ts)]++r    
     _
       -> buildFeeAccrueAction fees ed r
-
 
 
 

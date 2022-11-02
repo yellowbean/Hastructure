@@ -1,7 +1,8 @@
 module UT.LibTest(curveTests
                  --,queryStmtTests
                  ,datesTests
-                 ,prorataTests)
+                 ,prorataTests
+                 ,tsOperationTests)
 where
 
 import Test.Tasty
@@ -97,3 +98,33 @@ prorataTests = testGroup "prorata Test"
           [20,40,0]
           (prorataFactors bals2 60)
   ]
+
+tsOperationTests =
+  let 
+   bcurve = BalanceCurve [TsPoint (toDate "20221101") 100
+                         ,TsPoint (toDate "20221201") 50]
+  in
+   testGroup "operation on ts"
+   [
+     testCase "split ts by date" $ 
+       assertEqual " split in middle "
+       (BalanceCurve [TsPoint (toDate "20221101") 100]
+       ,BalanceCurve [TsPoint (toDate "20221201") 50]) $
+       splitTsByDate bcurve (toDate "20221110")
+    ,testCase "split ts by date on left 1" $ 
+       assertEqual " split on out of scope"
+       (BalanceCurve []
+       ,BalanceCurve [TsPoint (toDate "20221101") 100,TsPoint (toDate "20221201") 50]) $
+       splitTsByDate bcurve (toDate "20221001")
+    ,testCase "split ts by date on right 2" $ 
+       assertEqual " split on out of scope"  
+       (BalanceCurve [TsPoint (toDate "20221101") 100,TsPoint (toDate "20221201") 50] 
+       ,(BalanceCurve [])) $ 
+       splitTsByDate bcurve (toDate "20221202")
+    ,testCase "split ts by date on left 3" $ 
+       assertEqual " split on out of scope"
+       (BalanceCurve [TsPoint (toDate "20221101") 100]
+       ,BalanceCurve [TsPoint (toDate "20221201") 50]) $
+       splitTsByDate bcurve (toDate "20221101")
+   ]
+
