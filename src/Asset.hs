@@ -224,6 +224,7 @@ projectMortgageFlow trs _b _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts)
     tr = CF.MortgageFlow _pdate _b 0 0 0 0 _rec_amt _loss_amt 0.0
 
 projectMortgageFlow trs _ _ [] _ _ [] [] _ _ _ _ = trs   -- `debug` ("Ending trs=>"++show(trs))
+
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
 projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss (recovery_lag,recovery_rate)
   = projectScheduleFlow (trs++[tr]) _survive_rate _end_bal flows _def_rates _ppy_rates (tail _rec_vector) (tail _loss_vector) (recovery_lag,recovery_rate) -- `debug` ("===>C")
@@ -301,6 +302,7 @@ instance Asset Mortgage  where
       (b_flow,prin_flow,int_flow) = case ptype of
                                      Level -> calc_p_i_flow _bal pmt ([last_pay_date]++cf_dates) _rate
                                      Even ->  calc_p_i_flow_even (_bal / fromIntegral _term) _bal ([last_pay_date]++cf_dates) _rate -- `debug` show(calc_p_i_flow_even (_bal / fromIntegral _term) _bal ([last_pay_date]++cf_dates) _rate)
+
   calcCashflow s@(ScheduleMortgageFlow flows )  d = CF.CashFlowFrame flows
 
   getCurrentBal (Mortgage x _bal _ _ _) = _bal

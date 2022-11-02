@@ -692,14 +692,15 @@ run2 t poolFlow (Just (ad:ads)) rates calls
           newAcc = Map.adjust 
                      (\a -> case a of
                              (A.Account _ _ (Just (A.BankAccount _ _ _)) _ _ ) -> 
-                                 (A.depositInt a d)
+                                 (A.depositInt a d)  -- `debug` ("int acc"++show accName)
                              (A.Account _ _ (Just (A.InvestmentAccount idx _ _ _)) _ _ ) -> 
                                  let 
                                    rc = getRateAssumptionByIndex (fromMaybe [] rates) idx 
                                  in 
                                    case rc of
-                                     Nothing -> a 
-                                     Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d)
+                                     Nothing -> a -- `debug` ("error..."++show accName)
+                                     Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d `debug` ("int acc"++show accName)
+                             _ -> a -- `debug` ("failed to match "++show accName))
                      accName  
                      (accounts t)
           dAfterInt = t {accounts = newAcc} 
@@ -889,7 +890,7 @@ getInits t mAssumps =
     projNum = 512
     
     (startDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)   
-    intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate []
+    intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate [] -- `debug` (show (startDate,firstPayDate,pActionDates,bActionDates,endDate))
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
                                            , _d <- accIntDates ] -- `debug` ("PoolactionDates"++show  pActionDates)
                                            
@@ -900,7 +901,7 @@ getInits t mAssumps =
     --liquidation facitliy 
     
     
-    liqResetDates = case (liqProvider t) of 
+    liqResetDates = case liqProvider t of 
                       Nothing -> []
                       Just mLiqProvider -> 
                           let 
@@ -919,13 +920,11 @@ getInits t mAssumps =
                           pActionDates ++ 
                           iAccIntDates ++ 
                           feeAccrueDates ++
-                          liqResetDates-- `debug` (">>pactionDates"++show feeAccrueDates)
+                          liqResetDates   `debug` (">>pactionDates"++show iAccIntDates)
     allActionDates = case stopDate of
-                    Just (AP.StopRunBy d) 
-                      -> filter
-                           (\x -> actionDate x < d)
-                           _actionDates
-                    Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
+                       Just (AP.StopRunBy d) ->
+                         filter (\x -> actionDate x < d) _actionDates
+                       Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` show (P.runPool2 (pool t) assumps) --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
     poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf --  `debug` ("projected & aggred pool cf"++show(poolCf))
