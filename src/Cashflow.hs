@@ -13,7 +13,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsTotalCash,Date -- ,PersonalLoanFlow
                 ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter
                 ,getTxnBetween,getTxnBetween2
-                ,mflowWeightAverageBalance
+                ,mflowWeightAverageBalance,appendCashFlow
                 ,TsRow(..)) where
 
 import Data.Time (Day)
@@ -351,10 +351,13 @@ mflowWeightAverageBalance sd ed trs
   = sum $ zipWith mulBR _bals _dfs  -- `debug` ("CalcingAvgBal=>"++show sd++show ed++show txns  )
     where
      txns = filter (\x -> (mflowDate x>=sd)&&(mflowDate x)<=ed) trs
-     _ds = map mflowDate txns `debug` ("fee base txns"++show txns)
+     _ds = map mflowDate txns -- `debug` ("fee base txns"++show txns)
      _bals = map mflowBegBalance txns
      _dfs =  getIntervalFactors $ [sd]++_ds
 
+appendCashFlow :: CashFlowFrame -> [TsRow] -> CashFlowFrame
+appendCashFlow (CashFlowFrame _tsr) tsr 
+  = CashFlowFrame $ _tsr ++ tsr
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

@@ -13,7 +13,7 @@ module Types
   ,RangeType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
   ,Date,Dates
-  ,EndType)
+  ,EndType,TxnComponent)
   where
 
 import qualified Data.Text as T
@@ -82,12 +82,12 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
               deriving (Show,Eq)
 
-data ActionOnDate = RunWaterfall Date String
-                   | PoolCollection Date String
-                   | EarnAccInt Date AccName -- sweep bank account interest
-                   | AccrueFee Date FeeName
-                   | ResetLiqProvider Date String
-                   deriving (Show,Generic,Read)
+data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
+                  | AccrueFee Date FeeName
+                  | ResetLiqProvider Date String
+                  | PoolCollection Date String
+                  | RunWaterfall Date String
+                  deriving (Show,Generic,Read)
 
 actionDate :: ActionOnDate -> Date
 actionDate (RunWaterfall d _) = d
@@ -243,6 +243,24 @@ data WhenTrigger = EndCollection
 
 data RangeType = II | IE | EI | EE
 
+
+data TxnComponent = RunningWaterfall Date String
+                  | CollectedPeriod Date Date Date
+                  | TriggerStatus Date
+                  | CallAt Date
+                  deriving (Show)
+
+--instance Eq TxnComponent where 
+--    (Account s1) == (Account s2) = s1 ==  s2
+--    (Bond s1) == (Bond s2) = s1 ==  s2
+--    (Expense s1) == (Expense s2) = s1 == s2
+--
+--
+--instance Ord TxnComponent where 
+--    compare (Account s1) (Account s2) = compare s1 s2
+--    compare (Bond s1) (Bond s2) = compare s1 s2
+--    compare (Expense s1) (Expense s2) = compare s1 s2
+
 data EndType = IN | EX
               deriving (Show)
 
@@ -262,6 +280,8 @@ data Trigger = ThresholdConstant Threshold DealStats Balance
              | AfterDate Date
              | AfterOnDate Date
              | OnDates [Dates]
+             | PrinShortfall String -- a bond failed to match target balance
+             | MissMatureDate Date  -- a bond remain oustanding after mature date
              | AllTrigger [Trigger]
              | AnyTrigger [Trigger]
              | Always  Bool

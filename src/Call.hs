@@ -29,7 +29,5 @@ data CallOption = PoolBalance Balance
                 deriving (Show)
 
 
-
-
 $(deriveJSON defaultOptions ''CallOption)
 $(deriveJSON defaultOptions ''LiquidationMethod)

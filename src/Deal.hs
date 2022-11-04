@@ -4,7 +4,8 @@
 
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
-            ,setFutureCF,calcTargetAmount) where
+            ,setFutureCF
+            ,calcTargetAmount) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -492,8 +493,6 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothi
       newLiqMap = Map.adjust (CE.repay transferAmt d ) pName _liqProvider 
 
 
-
-
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
@@ -555,7 +554,7 @@ testCall t d opt =
        C.PoolBalance x -> (queryDeal t (FutureCurrentPoolBalance d)) < x
        C.BondBalance x -> (queryDeal t CurrentBondBalance) < x
        C.PoolFactor x ->  (queryDealRate t (FutureCurrentPoolFactor d)) < fromRational x
-                        --  `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
+                         `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
                         -- _factor  < (fromRational x)  `debug` ("Test on Pool Factor: "++show((pool t))++" v-> "++show(_factor))
                         -- where
                         --   _factor = (queryDeal t (FutureCurrentPoolBalance d)) / (queryDeal t OriginalPoolBalance)
@@ -566,8 +565,8 @@ testCall t d opt =
        C.Or xs -> any (testCall t d) xs
 
 testCalls :: TestDeal -> Date -> [C.CallOption] -> Bool
-testCalls t d [] = False
-testCalls t d opts = any (testCall t d) opts -- `debug` ("testing call options")
+testCalls t d [] = False  -- `debug` ("Empty call optns")
+testCalls t d opts = any (testCall t d) opts  -- `debug` ("testing call options"++ show opts)
 
 queryTrigger :: TestDeal -> WhenTrigger -> Map.Map (WhenTrigger,Trigger) TriggerEffect
 queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ Nothing _) wt = Map.empty
@@ -589,6 +588,14 @@ testTrigger t d trigger =
     
     AfterDate _d -> d > _d
     AfterOnDate _d ->  d > _d
+
+    PrinShortfall bondName 
+      -> let 
+           bn@L.Bond{L.bndType = L.PAC _target} = (bonds t) Map.! bondName
+           bal = L.bndBalance bn
+           targetBal = getValOnByDate _target d
+        in 
+           bal < targetBal
 
     (AllTrigger tgs) -> all (testTrigger t d) tgs
     (AnyTrigger tgs) -> any (testTrigger t d) tgs
@@ -620,7 +627,7 @@ runEffects t d te
 
 
 runTriggers :: TestDeal -> Date -> Map.Map (WhenTrigger,Trigger) TriggerEffect -> TestDeal 
---runTriggers t d empty = t              | AlwaysTrue
+-- runTriggers t d empty = t    
 runTriggers t d _trgs = 
   foldl 
     (\_t _te -> runEffects _t d _te)
@@ -636,11 +643,17 @@ runTriggers t d _trgs =
   -- ie. pool factor should be run when the pool collection day
   --     bond factor should be run at the begining or the ending of the waterfall.
   
-
+runCall :: Date -> [C.CallOption] -> TestDeal -> TestDeal 
+runCall d opts t 
+  = if testCalls t d opts then 
+      prepareDeal $ foldl (performAction d) t cleanUpActions `debug` ("Called ! "++ show d)
+    else
+      t
+    where
+      cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([C.CallOption])-> TestDeal
 run2 t _ (Just []) _ _   = (prepareDeal t)   `debug` ("End with Empty ActionOnDate")
-
 run2 t poolFlow (Just (ad:ads)) rates calls
   -- | (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = prepareDeal t  `debug` ("End with pool flow and acc balance")
   -- | (isNothing poolFlow) && ((queryDeal t CurrentBondBalance) == 0) 
@@ -655,28 +668,27 @@ run2 t poolFlow (Just (ad:ads)) rates calls
       PoolCollection d _ ->
           case poolFlow of
             Just _poolFlow ->
-               run2 dRunWithTrigger1 outstanding_flow (Just ads) rates calls -- `debug` ("Running Pool at"++ show d)
+               run2 dRunWithTrigger1 outstanding_flow (Just ads) rates calls -- `debug` ("Running Pool at"++ show d++"calls"++ show calls)
                where
                   (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate _poolFlow d  
                   accs = depositPoolInflow (collects t) d collected_flow (accounts t) -- `debug` ("Splitting:"++show(d)++"|||"++show(collected_flow))--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
-                  dAfterDeposit = t {accounts=accs}
+                  dAfterDeposit = (appendCollectedCF t collected_flow) {accounts=accs}  -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
                   dRunWithTrigger0 = runTriggers dAfterDeposit d $ queryTrigger dAfterDeposit EndCollection
                   waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
                   dAfterAction = foldl (performAction d) dRunWithTrigger0 waterfallToExe
                   dRunWithTrigger1 = runTriggers dAfterAction d $ queryTrigger dAfterAction EndCollectionWF
-            Nothing -> run2 t poolFlow (Just ads) rates calls
+            Nothing -> run2 t Nothing (Just ads) rates calls -- `debug` ("pool ends with call"++show calls)
 
       RunWaterfall d _ ->
         case calls of
           Just callOpts ->
-              if testCalls dRunWithTrigger1 d callOpts then
+              if testCalls dRunWithTrigger1 d callOpts then 
                 prepareDeal $ foldl (performAction d) dRunWithTrigger1 cleanUpActions `debug` ("Called ! "++ show d)
               else
                 run2 dRunWithTrigger1 poolFlow (Just ads) rates calls  -- `debug` ("Not called "++ show d )
           Nothing ->
-             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing  -- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
         where
-             -- waterfallToExe = Map.findWithDefault [] W.DistributionDay (waterfall t) --  `debug` ("Getting waterfall with wf"++show(waterfallToExe))
              dRunWithTrigger0 = runTriggers t d $ queryTrigger t BeginDistributionWF
              waterfallToExe = Map.findWithDefault 
                                 [] 
@@ -688,7 +700,6 @@ run2 t poolFlow (Just (ad:ads)) rates calls
              dRunWithTrigger1 = runTriggers dAfterRateSet d $ queryTrigger dAfterRateSet EndDistributionWF
       EarnAccInt d accName ->
         let 
-          -- newAcc = Map.adjust (`A.depositInt` d)  accName  (accounts t)
           newAcc = Map.adjust 
                      (\a -> case a of
                              (A.Account _ _ (Just (A.BankAccount _ _ _)) _ _ ) -> 
@@ -704,35 +715,35 @@ run2 t poolFlow (Just (ad:ads)) rates calls
                      (accounts t)
           dAfterInt = t {accounts = newAcc} 
         in 
-          run2 dAfterInt poolFlow (Just ads) rates Nothing
+          run2 dAfterInt poolFlow (Just ads) rates calls
       
       AccrueFee d feeName -> 
         let 
           newFeeMap = Map.adjust (calcDueFee t d) feeName (fees t)
           dAfterFeeAccrued = t {fees=newFeeMap}
         in 
-          run2 dAfterFeeAccrued poolFlow (Just ads) rates Nothing
+          run2 dAfterFeeAccrued poolFlow (Just ads) rates calls
 
       ResetLiqProvider d liqName -> 
         case (liqProvider t) of 
-          Nothing -> run2 t poolFlow (Just ads) rates Nothing
+          Nothing -> run2 t poolFlow (Just ads) rates calls
           (Just mLiqProvider) 
             -> let 
                  newLiqMap = Map.adjust (updateLiqProvider t d) liqName mLiqProvider
                  dAfterResetLiq = t {liqProvider =Just newLiqMap}
                in   
-                 run2 dAfterResetLiq poolFlow (Just ads) rates Nothing
+                 run2 dAfterResetLiq poolFlow (Just ads) rates calls
             
       where
         cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
 
 
 run2 t Nothing Nothing Nothing Nothing
-  = run2 t (Just pcf) (Just ads) Nothing Nothing   `debug` ("Everything is Nothing")
+  = run2 t (Just pcf) (Just ads) Nothing Nothing  -- `debug` ("Everything is Nothing")
   where
-    (ads,pcf,rcurves,clls,_) = getInits t Nothing -- `debug` ("Init Done")
+    (ads,pcf,rcurves,clls) = getInits t Nothing -- `debug` ("Init Done")
 
-run2 t Nothing _ _ _ = prepareDeal t `debug` ("End with Pool CF2")
+run2 t Nothing _ _ _ = prepareDeal t -- `debug` ("End with Pool CF2")
 
 
 calcLiquidationAmount :: C.LiquidationMethod -> (P.Pool a) -> Date -> Amount
@@ -780,32 +791,17 @@ data ExpectReturn = DealStatus
                   | ExecutionSummary
                   deriving (Show)
 
-data TxnComponent = Account String
-                   | Expense String
-                   | Bond String
-                   | Pool String
-                   deriving (Show)
 
-instance Eq TxnComponent where 
-    (Account s1) == (Account s2) = s1 ==  s2
-    (Bond s1) == (Bond s2) = s1 ==  s2
-    (Expense s1) == (Expense s2) = s1 == s2
-
-instance Ord TxnComponent where 
-    compare (Account s1) (Account s2) = compare s1 s2
-    compare (Bond s1) (Bond s2) = compare s1 s2
-    compare (Expense s1) (Expense s2) = compare s1 s2
-
-pairTxn :: (Map.Map TxnComponent (Maybe Statement)) -> [(TxnComponent, Txn)]
-pairTxn m = Map.foldrWithKey (\k v t ->  [ (k,txn) | txn <- (getTxns v)]++t) [] m 
-
-extractExecutionTxns:: TestDeal ->  [(TxnComponent, Txn)]
-extractExecutionTxns td  = 
-      (pairTxn bndStmts)++(pairTxn accStmts) ++(pairTxn feeStmts)
-  where 
-      bndStmts = Map.mapKeys (\x -> Bond x) $ Map.mapWithKey (\k v -> (L.bndStmt v)) (bonds td)
-      accStmts = Map.mapKeys (\x -> Account x) $ Map.mapWithKey (\k v -> (A.accStmt v)) (accounts td)
-      feeStmts = Map.mapKeys (\x -> Expense x) $ Map.mapWithKey (\k v -> (F.feeStmt v)) (fees td)
+--pairTxn :: (Map.Map TxnComponent (Maybe Statement)) -> [(TxnComponent, Txn)]
+--pairTxn m = Map.foldrWithKey (\k v t ->  [ (k,txn) | txn <- (getTxns v)]++t) [] m 
+--
+--extractExecutionTxns:: TestDeal ->  [(TxnComponent, Txn)]
+--extractExecutionTxns td  = 
+--      (pairTxn bndStmts)++(pairTxn accStmts) ++(pairTxn feeStmts)
+--  where 
+--      bndStmts = Map.mapKeys (\x -> Bond x) $ Map.mapWithKey (\k v -> (L.bndStmt v)) (bonds td)
+--      accStmts = Map.mapKeys (\x -> Account x) $ Map.mapWithKey (\k v -> (A.accStmt v)) (accounts td)
+--      feeStmts = Map.mapKeys (\x -> Expense x) $ Map.mapWithKey (\k v -> (F.feeStmt v)) (fees td)
 
 priceBonds :: TestDeal -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (\b -> L.priceBond d dc b) (bonds t)
@@ -817,10 +813,10 @@ runDeal t er assumps bpi =
     DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
     DealPoolFlowPricing -> (finalDeal, Just pcf, Nothing, bndPricing) -- `debug` ("with pricing"++show(bndPricing))
-    DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
+    -- DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
-    (ads,pcf,rcurves,calls,t2) = getInits t assumps --  `debug` ("Init in runDeal")
-    finalDeal = run2 t2 (Just pcf) (Just ads) (Just rcurves) calls -- `debug` ("ACTIONS"++show ads)-- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
+    (ads,pcf,rcurves,calls) = getInits t assumps -- `debug` ("cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
+    finalDeal = run2 (removePoolCf t) (Just pcf) (Just ads) (Just rcurves) calls   `debug` ("calls"++ show calls)-- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
@@ -850,6 +846,18 @@ buildCallOptions Nothing [] =  Nothing
 buildCallOptions rs [] =  rs
 
 
+appendCollectedCF :: TestDeal -> Maybe CF.CashFlowFrame -> TestDeal
+appendCollectedCF t Nothing = t
+appendCollectedCF t@(TestDeal { pool = mpool }) (Just cf@(CF.CashFlowFrame _trs))
+  = case (P.futureCf mpool) of 
+      Nothing -> t {pool = mpool {P.futureCf = Just cf}}
+      Just _p -> t {pool = mpool {P.futureCf = Just (CF.appendCashFlow _p _trs)}}
+
+removePoolCf :: TestDeal -> TestDeal 
+removePoolCf t@(TestDeal {pool = _pool})
+  = case (P.futureCf _pool) of 
+      Nothing -> t 
+      Just _cf -> t {pool = _pool {P.futureCf = Nothing}}
 setFutureCF :: TestDeal -> CF.CashFlowFrame -> TestDeal
 setFutureCF t cf = 
     t {pool = newPool}
@@ -875,14 +883,14 @@ populateDealDates (PatternInterval _m)
     
 
 getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] -> 
-    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption]
-      ,TestDeal)
+    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption])
 getInits t mAssumps =
     (allActionDates
     ,pCollectionCfAfterCutoff
     ,rateCurves
-    ,callOptions  
-    ,t_with_cf)   -- `debug` ("deal with pool"++show(pool t_with_cf))
+    ,callOptions)
+    --,t_with_cf)   -- `debug` ("deal with pool"++show(pool t_with_cf))
+    --,t)   -- `debug` ("deal with pool"++show(pool t_with_cf))
   where
     assumps = fromMaybe [] mAssumps
 
@@ -892,14 +900,11 @@ getInits t mAssumps =
     intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate [] -- `debug` (show (startDate,firstPayDate,pActionDates,bActionDates,endDate))
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
                                            , _d <- accIntDates ] -- `debug` ("PoolactionDates"++show  pActionDates)
-                                           
     --fee accrue dates 
     _feeAccrueDates = F.buildFeeAccrueAction (Map.elems (fees t)) _farEnoughDate []
     feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates
                                            , _d <- feeAccureDates ]
     --liquidation facitliy 
-    
-    
     liqResetDates = case liqProvider t of 
                       Nothing -> []
                       Just mLiqProvider -> 
@@ -908,7 +913,6 @@ getInits t mAssumps =
                           in 
                             [ ResetLiqProvider _d _liqName |(_liqName,__liqResetDates) <- _liqResetDates
                                                           , _d <- __liqResetDates ]
-
     stopDate = find 
                  (\case
                    (AP.StopRunBy d) -> True
@@ -928,7 +932,7 @@ getInits t mAssumps =
     poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` show (P.runPool2 (pool t) assumps) --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
     poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf --  `debug` ("projected & aggred pool cf"++show(poolCf))
     pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates) -- `debug` ("poolCf "++show(poolCfTs)++">>"++show(actionDates pActionDates) ) -- `debug` ("pool cf ts"++show(poolCfTs))
-    t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
+    -- t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions Nothing assumps -- `debug` ("Assump"++show(assumps))
 
@@ -982,12 +986,15 @@ queryDeal t s =
           (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
 
     FutureCurrentPoolBalance asOfDay ->
-         case _poolSnapshot of
-            Just ts -> CF.mflowBalance ts  -- `debug` ("REsult 1 >>"++show(CF.mflowBalance ts))
-            Nothing -> -0.1  -- `debug` ("REsult 2 >>"++show(_poolSnapshot))
-        where
-         _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
-         _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay  -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
+       case (P.futureCf (pool t)) of 
+         Nothing -> 0.0
+         Just (CF.CashFlowFrame trs) -> CF.mflowBalance $ last trs
+       --  case _poolSnapshot of
+       --     Just ts -> CF.mflowBalance ts  -- `debug` ("REsult 1 >>"++show(CF.mflowBalance ts))
+       --     Nothing -> -0.1  -- `debug` ("REsult 2 >>"++show(_poolSnapshot))
+       -- where
+       --  _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+       --  _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay  -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
 
     FutureCurrentPoolBegBalance asOfDay ->
          case _poolSnapshot of

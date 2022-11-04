@@ -80,7 +80,7 @@ reserveAccTest =
      [
       testCase "Test on Pct Reserve" $
         assertEqual "shall be " 
-          1.1
+          0.7
           (calcTargetAmount ttd (toDate "20220826") acc1)
      ,testCase "Test on fix Reserve" $
         assertEqual "shall be " 

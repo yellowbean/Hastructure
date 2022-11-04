@@ -78,6 +78,7 @@ data Action = Transfer AccountName AccountName
              | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
              | LiqRepay (Maybe Limit) AccountName CE.LiquidityProviderName 
              | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
+             | RunCall
              deriving (Show)
 
 --type DistributionSeq = [Action]
