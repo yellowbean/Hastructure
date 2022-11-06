@@ -66,7 +66,7 @@ data TestDeal = TestDeal {
   ,call :: Maybe [C.CallOption]
   ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
   ,custom:: Maybe (Map.Map String CustomDataType)
-  ,triggers :: Maybe (Map.Map (WhenTrigger,Trigger) TriggerEffect)
+  ,triggers :: Maybe (Map.Map WhenTrigger [(Trigger,TriggerEffect)])
   ,overrides :: Maybe [OverrideType]
 } deriving (Show)
 
@@ -131,6 +131,7 @@ testPre d t p =
     IfBeforeDate _d -> d < _d
     IfAfterOnDate _d -> d >= _d
     IfBeforeOnDate _d -> d <= _d
+    IfDealStatus st -> status t == st
 
 performAction :: Date -> TestDeal -> (Maybe Pre, W.Action) -> TestDeal
 performAction d t (Just _pre, _action)
@@ -159,7 +160,7 @@ performAction d t (Nothing, W.TransferBy limit an1 an2) =
                       W.DueCapAmt a -> min a (A.accBalance sourceAcc)
                       W.DS ds -> queryDeal t ds
                       W.Formula W.ABCD -> max 
-                                            ((queryDeal t (CumulativeDefaultBalance d)) + 
+                                            ((queryDeal t CumulativePoolDefaultedBalance) + 
                                                (negate (queryTxnAmt targetAcc (Transfer an2 an1))) +
                                                (negate (queryTxnAmt sourceAcc (Transfer an1 an2))))
                                           0
@@ -551,7 +552,7 @@ setBndsNextIntRate t d Nothing = t
 testCall :: TestDeal -> T.Day -> C.CallOption -> Bool 
 testCall t d opt = 
     case opt of 
-       C.PoolBalance x -> (queryDeal t (FutureCurrentPoolBalance d)) < x
+       C.PoolBalance x -> (queryDeal t FutureCurrentPoolBalance) < x
        C.BondBalance x -> (queryDeal t CurrentBondBalance) < x
        C.PoolFactor x ->  (queryDealRate t (FutureCurrentPoolFactor d)) < fromRational x
                          `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
@@ -568,34 +569,33 @@ testCalls :: TestDeal -> Date -> [C.CallOption] -> Bool
 testCalls t d [] = False  -- `debug` ("Empty call optns")
 testCalls t d opts = any (testCall t d) opts  -- `debug` ("testing call options"++ show opts)
 
-queryTrigger :: TestDeal -> WhenTrigger -> Map.Map (WhenTrigger,Trigger) TriggerEffect
-queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ Nothing _) wt = Map.empty
+queryTrigger :: TestDeal -> WhenTrigger -> [(Trigger,TriggerEffect)]
+queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ Nothing _) wt = []
 queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt 
-  = Map.filterWithKey (\(_wt,_) v -> _wt == wt) trgsM  
-       
+  =  Map.findWithDefault [] wt trgsM 
 
 testTrigger :: TestDeal -> Date -> Trigger -> Bool 
 testTrigger t d trigger = 
   case trigger of 
-    (ThresholdConstant Below ds v) -> (queryDeal t ds) < v
-    (ThresholdConstant EqBelow ds v) -> (queryDeal t ds) <= v
-    (ThresholdConstant Above ds v) -> (queryDeal t ds) > v
-    (ThresholdConstant EqAbove ds v) -> (queryDeal t ds) >= v
-    (ThresholdCurve Below ds ts ) -> (queryDeal t ds) < (fromRational (getValByDate ts d))
-    (ThresholdCurve EqBelow ds ts ) -> (queryDeal t ds) <= (fromRational (getValByDate ts d))
-    (ThresholdCurve Above ds ts ) -> (queryDeal t ds) > (fromRational (getValByDate ts d))
-    (ThresholdCurve EqAbove ds ts ) -> (queryDeal t ds) >= (fromRational (getValByDate ts d))
+    (ThresholdBalance Below ds v) -> (queryDeal t (patchDateToStats d ds)) < v
+    (ThresholdBalance EqBelow ds v) -> (queryDeal t (patchDateToStats d ds)) <= v
+    (ThresholdBalance Above ds v) -> (queryDeal t (patchDateToStats d ds)) > v  -- `debug` (">> Above 0"++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
+    (ThresholdBalance EqAbove ds v) -> (queryDeal t (patchDateToStats d ds)) >= v
+    (ThresholdBalCurve Below ds ts ) -> (queryDeal t (patchDateToStats d ds)) < (fromRational (getValByDate ts d))
+    (ThresholdBalCurve EqBelow ds ts ) -> (queryDeal t (patchDateToStats d ds)) <= (fromRational (getValByDate ts d))
+    (ThresholdBalCurve Above ds ts ) -> (queryDeal t (patchDateToStats d ds)) > (fromRational (getValByDate ts d))
+    (ThresholdBalCurve EqAbove ds ts ) -> (queryDeal t (patchDateToStats d ds)) >= (fromRational (getValByDate ts d))
+    (ThresholdRate Below ds v ) -> (queryDealRate t (patchDateToStats d ds)) < v
+    (ThresholdRate EqBelow ds v ) -> (queryDealRate t (patchDateToStats d ds)) <= v
+    (ThresholdRate Above ds v) -> (queryDealRate t (patchDateToStats d ds)) > v
+    (ThresholdRate EqAbove ds v ) -> (queryDealRate t (patchDateToStats d ds)) >= v
+    (ThresholdRateCurve Below ds ts ) -> (queryDealRate t (patchDateToStats d ds)) < (fromRational (getValByDate ts d))
+    (ThresholdRateCurve EqBelow ds ts ) -> (queryDealRate t (patchDateToStats d ds)) <= (fromRational (getValByDate ts d))
+    (ThresholdRateCurve Above ds ts ) -> (queryDealRate t (patchDateToStats d ds)) > (fromRational (getValByDate ts d))
+    (ThresholdRateCurve EqAbove ds ts ) -> (queryDealRate t (patchDateToStats d ds)) >= (fromRational (getValByDate ts d))
     
     AfterDate _d -> d > _d
     AfterOnDate _d ->  d > _d
-
-    PrinShortfall bondName 
-      -> let 
-           bn@L.Bond{L.bndType = L.PAC _target} = (bonds t) Map.! bondName
-           bal = L.bndBalance bn
-           targetBal = getValOnByDate _target d
-        in 
-           bal < targetBal
 
     (AllTrigger tgs) -> all (testTrigger t d) tgs
     (AnyTrigger tgs) -> any (testTrigger t d) tgs
@@ -626,18 +626,16 @@ runEffects t d te
       _ -> t `debug` ("Shouldn't happen")
 
 
-runTriggers :: TestDeal -> Date -> Map.Map (WhenTrigger,Trigger) TriggerEffect -> TestDeal 
--- runTriggers t d empty = t    
+runTriggers :: TestDeal -> Date -> [(Trigger,TriggerEffect)] -> TestDeal 
 runTriggers t d _trgs = 
   foldl 
     (\_t _te -> runEffects _t d _te)
     t
-    triggeredEffects 
+    triggeredEffects -- `debug` ("Running Trigger"++show d++show _trgs ++" Effects->"++ show triggeredEffects)
   where 
-    triggeredEffects = Map.elems $
-                         Map.filterWithKey
-                           (\(aw,k) v -> testTrigger t d k)
-                           _trgs
+    -- triggeredEffects = Map.filter (\(tg,te) -> testTrigger t d tg) _trgs
+    
+    triggeredEffects = [ snd x | x <- _trgs, testTrigger t d (fst x) ] -- `debug` ("DEBUG->TG"++show [ testTrigger t d (fst x) | x <- _trgs ])
 
   -- TODO in the best case, trigger should only run when the target variable changes
   -- ie. pool factor should be run when the pool collection day
@@ -653,6 +651,7 @@ runCall d opts t
       cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
 
 run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([C.CallOption])-> TestDeal
+run2 t@TestDeal{status=Ended} _ _ _ _ = (prepareDeal t) `debug` ("Deal Ended")
 run2 t _ (Just []) _ _   = (prepareDeal t)   `debug` ("End with Empty ActionOnDate")
 run2 t poolFlow (Just (ad:ads)) rates calls
   -- | (isNothing poolFlow) && ((queryDeal t AllAccBalance) == 0) = prepareDeal t  `debug` ("End with pool flow and acc balance")
@@ -687,7 +686,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls
               else
                 run2 dRunWithTrigger1 poolFlow (Just ads) rates calls  -- `debug` ("Not called "++ show d )
           Nothing ->
-             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing  `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
         where
              dRunWithTrigger0 = runTriggers t d $ queryTrigger t BeginDistributionWF
              waterfallToExe = Map.findWithDefault 
@@ -697,7 +696,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls
 
              dAfterWaterfall = foldl (performAction d) dRunWithTrigger0 waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
              dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("Running Rate assumption"++show(rates)) -- `debug` ("After Rate Set")
-             dRunWithTrigger1 = runTriggers dAfterRateSet d $ queryTrigger dAfterRateSet EndDistributionWF
+             dRunWithTrigger1 = runTriggers dAfterRateSet d $ queryTrigger dAfterRateSet EndDistributionWF  
       EarnAccInt d accName ->
         let 
           newAcc = Map.adjust 
@@ -790,18 +789,6 @@ data ExpectReturn = DealStatus
                   | DealTxns
                   | ExecutionSummary
                   deriving (Show)
-
-
---pairTxn :: (Map.Map TxnComponent (Maybe Statement)) -> [(TxnComponent, Txn)]
---pairTxn m = Map.foldrWithKey (\k v t ->  [ (k,txn) | txn <- (getTxns v)]++t) [] m 
---
---extractExecutionTxns:: TestDeal ->  [(TxnComponent, Txn)]
---extractExecutionTxns td  = 
---      (pairTxn bndStmts)++(pairTxn accStmts) ++(pairTxn feeStmts)
---  where 
---      bndStmts = Map.mapKeys (\x -> Bond x) $ Map.mapWithKey (\k v -> (L.bndStmt v)) (bonds td)
---      accStmts = Map.mapKeys (\x -> Account x) $ Map.mapWithKey (\k v -> (A.accStmt v)) (accounts td)
---      feeStmts = Map.mapKeys (\x -> Expense x) $ Map.mapWithKey (\k v -> (F.feeStmt v)) (fees td)
 
 priceBonds :: TestDeal -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (\b -> L.priceBond d dc b) (bonds t)
@@ -949,7 +936,12 @@ queryDealRate t s =
 
     FutureCurrentPoolFactor asOfDay ->
         fromRational $
-           (toRational (queryDeal t (FutureCurrentPoolBalance asOfDay))) / (toRational (queryDeal t OriginalPoolBalance) )
+           (toRational (queryDeal t FutureCurrentPoolBalance)) / (toRational (queryDeal t OriginalPoolBalance) )
+
+    CumulativePoolDefaultedRate ->
+        fromRational $
+           (toRational (queryDeal t CumulativePoolDefaultedBalance)) / (toRational (queryDeal t OriginalPoolBalance) )
+     
 
 
 queryDeal :: TestDeal -> DealStats -> Balance
@@ -960,7 +952,7 @@ queryDeal t s =
     OriginalBondBalance ->
        Map.foldr (\x acc -> (L.originBalance (L.bndOriginInfo x)) + acc) 0.0 (bonds t)
     CurrentPoolBalance ->
-       foldl (\acc x -> (acc + (P.getCurrentBal x))) 0.0 (P.assets (pool t)) `debug` ("Qurey loan level asset balance")
+       foldl (\acc x -> (acc + (P.getCurrentBal x))) 0.0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
     CurrentPoolDefaultedBalance ->
        foldl (\acc x -> (acc + (P.getCurrentBal x)))
              0.0 $
@@ -985,7 +977,7 @@ queryDeal t s =
           - 
           (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
 
-    FutureCurrentPoolBalance asOfDay ->
+    FutureCurrentPoolBalance ->
        case (P.futureCf (pool t)) of 
          Nothing -> 0.0
          Just (CF.CashFlowFrame trs) -> CF.mflowBalance $ last trs
@@ -1022,10 +1014,14 @@ queryDeal t s =
                         else 
                             CF.getTxnBetween2 _futureCf EI fromDay asOfDay
 
-    CumulativeDefaultBalance asOfDay ->
+    CumulativePoolDefaultedBalance ->
         let
           futureDefaults = case (P.futureCf (pool t)) of
-                             Just futureCf ->  foldr (\r a -> (CF.tsDefaultBal r) + a)  0  $ CF.getTxnAsOf futureCf asOfDay -- `debug` (">>as of day"++show(asOfDay))
+                             Just (CF.CashFlowFrame _historyTxn) 
+                                -> foldr 
+                                     (\r a -> (CF.tsDefaultBal r) + a) 
+                                     0 
+                                     _historyTxn
                              Nothing -> 0.0
           currentDefaults = queryDeal t CurrentPoolDefaultedBalance
         in
@@ -1070,6 +1066,13 @@ queryDeal t s =
        in
           sum $ map ex stmts
 
+    BondBalanceGapAt d bName -> 
+        let 
+           bn@L.Bond{L.bndType = L.PAC _target} = (bonds t) Map.! bName
+           bal = L.bndBalance bn
+           targetBal = getValOnByDate _target d
+        in 
+           max 0 $ bal - targetBal  -- `debug` ("B T"++ show bal++"|"++show targetBal)
 
     FeesPaidAt d fns ->
        let
@@ -1293,10 +1296,10 @@ calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arre
 patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
    = case t of
-         CurrentPoolBalance -> FutureCurrentPoolBalance d
          LastBondIntPaid bns -> BondsIntPaidAt d bns
          LastFeePaid fns -> FeesPaidAt d fns
          LastBondPrinPaid bns -> BondsPrinPaidAt d bns
+         BondBalanceGap bn -> BondBalanceGapAt d bn
          Sum _ds -> Sum $ map (patchDateToStats d) _ds
          Substract _ds -> Substract $ map (patchDateToStats d) _ds
          Min d1 d2 -> Min (patchDateToStats d d1) (patchDateToStats d d2)
@@ -1370,7 +1373,7 @@ td = TestDeal {
    ("Reserve", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
   }))
    ,("ReservePCT", (A.Account { A.accName="General" ,A.accBalance=0.0
-   ,A.accType=Just (A.PctReserve (FutureCurrentPoolBalance (T.fromGregorian 2022 2 25) ) 500)
+   ,A.accType=Just (A.PctReserve (FutureCurrentPoolBalance) 500)
    , A.accInterest=Nothing ,A.accStmt=Nothing
   }))
   ])
@@ -1433,9 +1436,11 @@ td = TestDeal {
  ,custom = Nothing
  ,triggers = Just $ 
                Map.fromList $
-                 [((BeginDistributionWF,AfterDate (toDate "20220301")) ,DealStatusTo Revolving)
-                  ,((EndCollection,Always True),DoAccrueFee ["Service-Fee"]) 
-                   ]
+                 [(BeginDistributionWF,[(AfterDate (toDate "20220301"),DealStatusTo Revolving)])
+                  ,(EndCollection,[(Always True,DoAccrueFee ["Service-Fee"])])
+                  ,(EndDistributionWF, [(PrinShortfall "A"
+                                        ,DealStatusTo (DealAccelerated Nothing))])]
+                   
  ,overrides = Just [ CustomActionOnDates 
                       [RunWaterfall (toDate "20220101") "base"
                       ,PoolCollection (toDate "20221101") "collection"] ]  

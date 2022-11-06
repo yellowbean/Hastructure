@@ -40,7 +40,7 @@ instance ToJSONKey ActionWhen where
 instance FromJSONKey ActionWhen where
   fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
     Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
+    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 
 data Satisfy = Source
@@ -78,7 +78,6 @@ data Action = Transfer AccountName AccountName
              | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
              | LiqRepay (Maybe Limit) AccountName CE.LiquidityProviderName 
              | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
-             | RunCall
              deriving (Show)
 
 --type DistributionSeq = [Action]

@@ -121,8 +121,8 @@ instance FromJSONKey DateType where
 data OverrideType = CustomActionOnDates [ActionOnDate]
                     deriving (Show)
 
-data DealStatus = EventOfAccelerate (Maybe Date)
-                | EventOfDefault (Maybe Date)
+data DealStatus = DealAccelerated (Maybe Date)
+                | DealDefaulted (Maybe Date)
                 | Amortizing
                 | Revolving
                 | Ended
@@ -156,51 +156,53 @@ data PoolSource = CollectedInterest
 
 
 data DealStats =  CurrentBondBalance
-              | CurrentPoolBalance
-              | CurrentPoolBegBalance
-              | CurrentPoolDefaultedBalance
-              | OriginalBondBalance
-              | OriginalPoolBalance
-              | BondFactor
-              | PoolFactor
-              | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
-              | UseCustomData String
-              | PoolCollectionIncome PoolSource
-              | AllAccBalance
-              | AccBalance [String]
-              | ReserveAccGap [String] 
-              | ReserveAccGapAt Date [String] 
-              | CumulativeDefaultBalance Date
-              | FutureCurrentPoolBalance Date
-              | FutureCurrentPoolBegBalance Date
-              | FutureCurrentPoolDefaultBalance Date
-              | FutureCurrentBondBalance Date
-              | FutureCurrentBondFactor Date
-              | FutureCurrentPoolFactor Date
-              | FutureOriginalPoolBalance
-              | CurrentBondBalanceOf [String]
-              | BondIntPaidAt Date String
-              | BondsIntPaidAt Date [String]
-              | BondPrinPaidAt Date String
-              | BondsPrinPaidAt Date [String]
-              | FeePaidAt Date String
-              | FeesPaidAt Date [String]
-              | CurrentDueBondInt [String]
-              | CurrentDueFee [String]
-              | LastBondIntPaid [String]
-              | LastBondPrinPaid [String]
-              | LastFeePaid [String]
-              | BondBalanceHistory Date Date
-              | PoolCollectionHistory PoolSource Date Date
-              | Factor DealStats Rational
-              | Max DealStats DealStats
-              | Min DealStats DealStats
-              | Sum [DealStats]
-              | Substract [DealStats]
-              | Divide DealStats DealStats
-              | Constant Rational
-              | CustomData String Date
-              deriving (Show,Eq,Ord,Read)
+               | CurrentPoolBalance
+               | CurrentPoolBegBalance
+               | CurrentPoolDefaultedBalance
+               | CumulativePoolDefaultedBalance
+               | CumulativePoolDefaultedRate
+               | OriginalBondBalance
+               | OriginalPoolBalance
+               | BondFactor
+               | PoolFactor
+               | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
+               | UseCustomData String
+               | PoolCollectionIncome PoolSource
+               | AllAccBalance
+               | AccBalance [String]
+               | ReserveAccGap [String] 
+               | ReserveAccGapAt Date [String] 
+               | FutureCurrentPoolBalance
+               | FutureCurrentPoolBegBalance Date
+               | FutureCurrentBondBalance Date
+               | FutureCurrentBondFactor Date
+               | FutureCurrentPoolFactor Date
+               | FutureOriginalPoolBalance
+               | CurrentBondBalanceOf [String]
+               | BondIntPaidAt Date String
+               | BondsIntPaidAt Date [String]
+               | BondPrinPaidAt Date String
+               | BondsPrinPaidAt Date [String]
+               | BondBalanceGap String
+               | BondBalanceGapAt Date String
+               | FeePaidAt Date String
+               | FeesPaidAt Date [String]
+               | CurrentDueBondInt [String]
+               | CurrentDueFee [String]
+               | LastBondIntPaid [String]
+               | LastBondPrinPaid [String]
+               | LastFeePaid [String]
+               | BondBalanceHistory Date Date
+               | PoolCollectionHistory PoolSource Date Date
+               | Factor DealStats Rational
+               | Max DealStats DealStats
+               | Min DealStats DealStats
+               | Sum [DealStats]
+               | Substract [DealStats]
+               | Divide DealStats DealStats
+               | Constant Rational
+               | CustomData String Date
+               deriving (Show,Eq,Ord,Read)
 
 data Pre = And Pre Pre
          | Or Pre Pre
@@ -241,6 +243,14 @@ data WhenTrigger = EndCollection
                  | EndDistributionWF
                  deriving (Show,Eq,Ord,Read,Generic)
 
+instance ToJSONKey WhenTrigger where
+  toJSONKey = toJSONKeyText (T.pack . show)
+instance FromJSONKey WhenTrigger where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+
+
 data RangeType = II | IE | EI | EE
 
 
@@ -275,24 +285,23 @@ instance ToJSONKey Threshold where
 instance FromJSONKey Threshold where
   fromJSONKey = genericFromJSONKey opts
 
-data Trigger = ThresholdConstant Threshold DealStats Balance
-             | ThresholdCurve Threshold DealStats Ts
+data Trigger = ThresholdBalance Threshold DealStats Balance
+             | ThresholdBalCurve Threshold DealStats Ts
+             | ThresholdRate Threshold DealStats Micro
+             | ThresholdRateCurve Threshold DealStats Ts
              | AfterDate Date
              | AfterOnDate Date
              | OnDates [Dates]
-             | PrinShortfall String -- a bond failed to match target balance
-             | MissMatureDate Date  -- a bond remain oustanding after mature date
+             | PrinShortfall BondName -- a bond failed to match target balance
+             | MissMatureDate BondName  -- a bond remain oustanding after mature date
              | AllTrigger [Trigger]
              | AnyTrigger [Trigger]
              | Always  Bool
              deriving (Show,Eq,Ord,Read,Generic)
 
 instance ToJSONKey Trigger where
-  -- toJSONKey = genericToJSONKey opts
-  -- toJSONKey = genericToJSONKey opts
   toJSONKey = toJSONKeyText (T.pack . show)
 instance FromJSONKey Trigger where
-  --fromJSONKey = genericFromJSONKey opts
   fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
