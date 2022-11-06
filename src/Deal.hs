@@ -1296,6 +1296,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arre
 patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
    = case t of
+         CurrentPoolBalance -> FutureCurrentPoolBalance
          LastBondIntPaid bns -> BondsIntPaidAt d bns
          LastFeePaid fns -> FeesPaidAt d fns
          LastBondPrinPaid bns -> BondsPrinPaidAt d bns

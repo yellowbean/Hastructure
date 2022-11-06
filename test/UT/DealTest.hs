@@ -122,7 +122,7 @@ td = TestDeal {
  ,D.call = Nothing
  ,D.triggers = Just $
                 Map.fromList $
-                  [((BeginDistributionWF,AfterDate (toDate "20220501")),DealStatusTo Revolving)]
+                  [(BeginDistributionWF,[(AfterDate (toDate "20220501"),DealStatusTo Revolving)])]
  ,D.overrides = Nothing
 }
 
