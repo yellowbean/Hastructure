@@ -285,15 +285,14 @@ instance ToJSONKey Threshold where
 instance FromJSONKey Threshold where
   fromJSONKey = genericFromJSONKey opts
 
-data Trigger = ThresholdBalance Threshold DealStats Balance
+data Trigger = ThresholdBal Threshold DealStats Balance
              | ThresholdBalCurve Threshold DealStats Ts
              | ThresholdRate Threshold DealStats Micro
              | ThresholdRateCurve Threshold DealStats Ts
              | AfterDate Date
              | AfterOnDate Date
              | OnDates [Dates]
-             | PrinShortfall BondName -- a bond failed to match target balance
-             | MissMatureDate BondName  -- a bond remain oustanding after mature date
+             | PassMaturityDate BondName  -- a bond remain oustanding after mature date
              | AllTrigger [Trigger]
              | AnyTrigger [Trigger]
              | Always  Bool

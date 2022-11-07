@@ -70,6 +70,7 @@ data Bond = Bond {
   ,bndRate :: IRate
   ,bndDuePrin :: Balance
   ,bndDueInt :: Balance
+  ,bndMaturiyDate :: Maybe Date
   ,bndDueIntDate :: Maybe Date
   ,bndLastIntPay :: Maybe Date
   ,bndLastPrinPay :: Maybe Date
@@ -91,20 +92,20 @@ consolStmt b@Bond{bndStmt = Just (S.Statement (txn:txns))}
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
 payInt :: Date -> Amount -> Bond -> Bond
-payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = Bond bn Equity oi iinfo bal r duePrin dueInt dueIntDate (Just d) lpayPrin (Just new_stmt)
+payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
+  = bnd { bndStmt = Just new_stmt }
   where
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
-payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt) =
-  Bond bn bt oi iinfo bal r duePrin new_due dueIntDate (Just d) lpayPrin (Just new_stmt)
+payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
+  = bnd {bndDueInt=new_due, bndStmt=Just new_stmt}
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn] (Just new_due)))
 
 payPrin :: Date -> Amount -> Bond -> Bond
-payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt) =
-  Bond bn bt oi iinfo new_bal r new_due dueInt dueIntDate lpayInt (Just d) (Just new_stmt) -- `debug` ("New bal"++show(new_bal)++"AMT"++show(amt))
+payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
+  = bnd {bndDuePrin =new_due, bndBalance = new_bal , bndStmt=Just new_stmt}
   where
     new_bal = bal - amt
     new_due = duePrin - amt
@@ -138,7 +139,7 @@ fv2 discount_rate today futureDay amt =
     distance = daysBetween today futureDay
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
+priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
   = PriceResult
      presentValue
      (fromRational (100*(toRational presentValue)/(toRational obal)))
@@ -175,7 +176,7 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ lastIntPayDay
                               in
                                 (S.getTxnDate leftTxn,S.getTxnBalance leftTxn)
 
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0
 
 
 _calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
@@ -194,16 +195,16 @@ _calcIRR amt initIrr today (BalanceCurve cashflows)
                    initIrr * 0.99
 
 calcBondYield :: Date -> Balance ->  Bond -> Rate
-calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
+calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
  =  _calcIRR cost 0.05 d (BalanceCurve cashflows)
    where
      cashflows = [ TsPoint (S.getTxnDate txn) (S.getTxnAmt txn)  | txn <- txns ]
 
-calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
+calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 
 
 backoutDueIntByYield :: Date -> Bond -> Balance
-backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield y) currentBalance _ _ _ _ _ _ stmt)
+backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield y) currentBalance  _ _ _ _ _ _ _ stmt)
   = (fv2 y odate d pv0) - obal
     where
      pv0 = obal - pvs
@@ -213,7 +214,7 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield 
                    Nothing -> []
 
 weightAverageBalance :: Date -> Date -> Bond -> Balance
-weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
+weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ _ stmt)
   = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
     where
      _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
