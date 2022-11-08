@@ -527,8 +527,7 @@ testCall t d opt =
     case opt of 
        C.PoolBalance x -> (queryDeal t FutureCurrentPoolBalance) < x
        C.BondBalance x -> (queryDeal t CurrentBondBalance) < x
-       C.PoolFactor x ->  (queryDealRate t (FutureCurrentPoolFactor d)) < fromRational x
-                         `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
+       C.PoolFactor x ->  (queryDealRate t (FutureCurrentPoolFactor d)) < fromRational x -- `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
                         -- _factor  < (fromRational x)  `debug` ("Test on Pool Factor: "++show((pool t))++" v-> "++show(_factor))
                         -- where
                         --   _factor = (queryDeal t (FutureCurrentPoolBalance d)) / (queryDeal t OriginalPoolBalance)
@@ -549,18 +548,21 @@ queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt
 
 testTrigger :: TestDeal -> Date -> Trigger -> Bool 
 testTrigger t d trigger = 
+  
   case trigger of 
-    (ThresholdBal Below ds v) -> (queryDeal t (patchDateToStats d ds)) < v
-    (ThresholdBal EqBelow ds v) -> (queryDeal t (patchDateToStats d ds)) <= v
-    (ThresholdBal Above ds v) -> (queryDeal t (patchDateToStats d ds)) > v  -- `debug` (">> Above 0"++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
-    (ThresholdBal EqAbove ds v) -> (queryDeal t (patchDateToStats d ds)) >= v
+    -- query balance
+    (ThresholdBal Below ds v) -> (queryDeal t (patchDateToStats d ds)) < v  --  `debug` ("< Above "++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
+    (ThresholdBal EqBelow ds v) -> (queryDeal t (patchDateToStats d ds)) <= v -- `debug` ("<= Above "++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
+    (ThresholdBal Above ds v) -> (queryDeal t (patchDateToStats d ds)) > v  --  `debug` ("> Above "++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
+    (ThresholdBal EqAbove ds v) -> (queryDeal t (patchDateToStats d ds)) >= v -- `debug` (">= Above "++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
     (ThresholdBalCurve Below ds ts ) -> (queryDeal t (patchDateToStats d ds)) < (fromRational (getValByDate ts d))
     (ThresholdBalCurve EqBelow ds ts ) -> (queryDeal t (patchDateToStats d ds)) <= (fromRational (getValByDate ts d))
     (ThresholdBalCurve Above ds ts ) -> (queryDeal t (patchDateToStats d ds)) > (fromRational (getValByDate ts d))
     (ThresholdBalCurve EqAbove ds ts ) -> (queryDeal t (patchDateToStats d ds)) >= (fromRational (getValByDate ts d))
+    -- query rate
     (ThresholdRate Below ds v ) -> (queryDealRate t (patchDateToStats d ds)) < v
     (ThresholdRate EqBelow ds v ) -> (queryDealRate t (patchDateToStats d ds)) <= v
-    (ThresholdRate Above ds v) -> (queryDealRate t (patchDateToStats d ds)) > v
+    (ThresholdRate Above ds v) -> (queryDealRate t (patchDateToStats d ds)) > v -- `debug` ("> Above "++show trigger++"||"++ show ((queryDealRate t (patchDateToStats d ds)) > v)++show "DATE"++show d)
     (ThresholdRate EqAbove ds v ) -> (queryDealRate t (patchDateToStats d ds)) >= v
     (ThresholdRateCurve Below ds ts ) -> (queryDealRate t (patchDateToStats d ds)) < (fromRational (getValByDate ts d))
     (ThresholdRateCurve EqBelow ds ts ) -> (queryDealRate t (patchDateToStats d ds)) <= (fromRational (getValByDate ts d))
@@ -572,10 +574,7 @@ testTrigger t d trigger =
                              in 
                                 case L.bndMaturiyDate b of 
                                   Nothing -> False
-                                  Just _d -> if (L.bndBalance b) > 0 && ( d >= _d ) then
-                                                 True
-                                               else
-                                                 False
+                                  Just _d -> (L.bndBalance b) > 0 && ( d >= _d ) 
     
     AfterDate _d -> d > _d
     AfterOnDate _d ->  d > _d
@@ -669,7 +668,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls
               else
                 run2 dRunWithTrigger1 poolFlow (Just ads) rates calls  -- `debug` ("Not called "++ show d )
           Nothing ->
-             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing  `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+             run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing  -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
         where
              dRunWithTrigger0 = runTriggers t d $ queryTrigger t BeginDistributionWF
              waterfallToExe = Map.findWithDefault 
@@ -919,10 +918,13 @@ queryDealRate t s =
     FutureCurrentPoolFactor asOfDay ->
         fromRational $
            (toRational (queryDeal t FutureCurrentPoolBalance)) / (toRational (queryDeal t OriginalPoolBalance) )
-
+    
     CumulativePoolDefaultedRate ->
-        fromRational $
-           (toRational (queryDeal t CumulativePoolDefaultedBalance)) / (toRational (queryDeal t OriginalPoolBalance) )
+        let 
+          originPoolBal = (toRational (queryDeal t OriginalPoolBalance) ) -- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
+          cumuPoolDefBal = (toRational (queryDeal t CumulativePoolDefaultedBalance)) -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
+        in 
+          fromRational $ cumuPoolDefBal / originPoolBal -- `debug` (show (toRational (queryDeal t OriginalPoolBalance) ))
      
 
 
@@ -1004,7 +1006,7 @@ queryDeal t s =
                                      (\r a -> (CF.tsDefaultBal r) + a) 
                                      0 
                                      _historyTxn
-                             Nothing -> 0.0
+                             Nothing -> 0.0 `debug` ("Geting future defaults"++show futureDefaults)
           currentDefaults = queryDeal t CurrentPoolDefaultedBalance
         in
           futureDefaults + currentDefaults
