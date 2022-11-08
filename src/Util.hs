@@ -253,7 +253,7 @@ getValByDate (ThresholdCurve dps) d
       Nothing -> tsPointVal $ last dps
 
 getValByDate (FactorCurveClosed dps ed) d 
-  = case find (\(TsPoint _d _) -> ( d < _d )) (reverse dps)  of 
+  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
       Just found@(TsPoint _found_d _found_v) -> 
         if d >= ed then 
           1.0
