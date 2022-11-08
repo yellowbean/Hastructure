@@ -1,5 +1,5 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
-                  ,tsTest,dateVectorPatternTest)--,daycountTests3,daycountTests4)
+                  ,tsTest,ts2Test,dateVectorPatternTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -241,7 +241,7 @@ tsTest =
                   ,(toDate "20080201",60)]
     tps = [TsPoint _d _v | (_d,_v) <- dpairs ]
   in
-    testGroup "Test Trigger Threshold Curve"
+    testGroup "Test Trigger Factor Curve"
   [
     testCase "" $
       assertEqual "left most" 
@@ -276,6 +276,35 @@ tsTest =
           (FactorCurveClosed tps ed)
           (toDate "20090601")
   ]
+
+ts2Test = 
+    let 
+       testThresholdCurve = ThresholdCurve [(TsPoint (toDate "20220101") (1 % 100))
+                                           ,(TsPoint (toDate "20220201") (2 % 100))
+                                           ,(TsPoint (toDate "20220301") (3 % 100))]
+    in 
+    testGroup "Test Trigger Threshold Curve"
+  [
+    testCase "" $
+      assertEqual "left most" 
+        (1 % 100) $
+        getValByDate testThresholdCurve (toDate "20211201")
+    ,testCase "" $
+      assertEqual "on first-ts" 
+        (1 % 100) $
+        getValByDate testThresholdCurve (toDate "20220101")
+    ,testCase "" $
+      assertEqual "after first-ts" 
+        (2 % 100) $
+        getValByDate testThresholdCurve (toDate "20220110")
+    ,testCase "" $
+      assertEqual "Right most" 
+        (3 % 100) $
+        getValByDate testThresholdCurve (toDate "20220310")
+  ]
+
+
+
 
 dateVectorPatternTest = 
   let 

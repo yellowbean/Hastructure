@@ -43,6 +43,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.daycountTests3
                            ,UtilT.daycountTests4
                            ,UtilT.tsTest
+                           ,UtilT.ts2Test
                            ,UtilT.dateVectorPatternTest
                            ,AccT.intTests
                            ,AccT.investTests

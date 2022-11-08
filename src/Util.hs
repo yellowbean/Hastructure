@@ -247,8 +247,13 @@ getValByDate (IRateCurve dps) d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
+getValByDate (ThresholdCurve dps) d
+  = case find (\(TsPoint _d _) -> ( d <= _d )) dps  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> tsPointVal $ last dps
+
 getValByDate (FactorCurveClosed dps ed) d 
-  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+  = case find (\(TsPoint _d _) -> ( d < _d )) (reverse dps)  of 
       Just found@(TsPoint _found_d _found_v) -> 
         if d >= ed then 
           1.0

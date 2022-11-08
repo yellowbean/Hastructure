@@ -562,11 +562,11 @@ testTrigger t d trigger =
     -- query rate
     (ThresholdRate Below ds v ) -> (queryDealRate t (patchDateToStats d ds)) < v
     (ThresholdRate EqBelow ds v ) -> (queryDealRate t (patchDateToStats d ds)) <= v
-    (ThresholdRate Above ds v) -> (queryDealRate t (patchDateToStats d ds)) > v -- `debug` ("> Above "++show trigger++"||"++ show ((queryDealRate t (patchDateToStats d ds)) > v)++show "DATE"++show d)
+    (ThresholdRate Above ds v) -> (queryDealRate t (patchDateToStats d ds)) > v  
     (ThresholdRate EqAbove ds v ) -> (queryDealRate t (patchDateToStats d ds)) >= v
     (ThresholdRateCurve Below ds ts ) -> (queryDealRate t (patchDateToStats d ds)) < (fromRational (getValByDate ts d))
     (ThresholdRateCurve EqBelow ds ts ) -> (queryDealRate t (patchDateToStats d ds)) <= (fromRational (getValByDate ts d))
-    (ThresholdRateCurve Above ds ts ) -> (queryDealRate t (patchDateToStats d ds)) > (fromRational (getValByDate ts d))
+    (ThresholdRateCurve Above ds ts ) -> (queryDealRate t (patchDateToStats d ds)) > (fromRational (getValByDate ts d))  -- `debug` ("> Above "++ show (queryDealRate t (patchDateToStats d ds))++"|"++ show (getValByDate ts d) ++"|"++show "DATE"++show d)
     (ThresholdRateCurve EqAbove ds ts ) -> (queryDealRate t (patchDateToStats d ds)) >= (fromRational (getValByDate ts d))
     
     (PassMaturityDate bn) -> let 

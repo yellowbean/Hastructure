@@ -228,6 +228,8 @@ data TsPoint a = TsPoint Date a
 data Ts = FloatCurve [TsPoint Rational]
         | BoolCurve [TsPoint Bool]
         | BalanceCurve [TsPoint Balance]
+        | RatioCurve [TsPoint Rational]
+        | ThresholdCurve [TsPoint Rational]
         | IRateCurve [TsPoint IRate]
         | FactorCurveClosed [TsPoint Rational] Date
         | PricingCurve [TsPoint Rational] 
