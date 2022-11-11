@@ -13,7 +13,7 @@ module Types
   ,RangeType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
   ,Date,Dates
-  ,EndType,TxnComponent)
+  ,EndType,ResultComponent(..))
   where
 
 import qualified Data.Text as T
@@ -256,10 +256,11 @@ instance FromJSONKey WhenTrigger where
 data RangeType = II | IE | EI | EE
 
 
-data TxnComponent = RunningWaterfall Date String
-                  | CollectedPeriod Date Date Date
-                  | TriggerStatus Date
-                  | CallAt Date
+data ResultComponent = CallAt Date
+                  | DealStatusChangeTo Date DealStatus
+                  -- | BondIntShortfall Date String Balance  -- when deal ends
+                  | BondOutstanding String Balance -- when deal ends
+                  | BondOutstandingInt String Balance -- when deal ends
                   deriving (Show)
 
 --instance Eq TxnComponent where 
@@ -334,3 +335,4 @@ $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''CustomDataType)
+$(deriveJSON defaultOptions ''ResultComponent)

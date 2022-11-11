@@ -548,7 +548,6 @@ queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt
 
 testTrigger :: TestDeal -> Date -> Trigger -> Bool 
 testTrigger t d trigger = 
-  
   case trigger of 
     -- query balance
     (ThresholdBal Below ds v) -> (queryDeal t (patchDateToStats d ds)) < v  --  `debug` ("< Above "++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
@@ -577,7 +576,7 @@ testTrigger t d trigger =
                                   Just _d -> (L.bndBalance b) > 0 && ( d >= _d ) 
     
     AfterDate _d -> d > _d
-    AfterOnDate _d ->  d > _d
+    AfterOnDate _d -> d >= _d
 
     (AllTrigger tgs) -> all (testTrigger t d) tgs
     (AnyTrigger tgs) -> any (testTrigger t d) tgs
@@ -776,12 +775,12 @@ priceBonds :: TestDeal -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (\b -> L.priceBond d dc b) (bonds t)
 
 runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] -> Maybe AP.BondPricingInput
-        -> (TestDeal,Maybe CF.CashFlowFrame, Maybe [(TxnComponent, Txn)],Maybe (Map.Map String L.PriceResult))
+        -> (TestDeal,Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 runDeal t er assumps bpi =
   case er of
     DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
-    DealPoolFlowPricing -> (finalDeal, Just pcf, Nothing, bndPricing) -- `debug` ("with pricing"++show(bndPricing))
+    DealPoolFlowPricing -> (finalDeal, Just pcf, Just (getRunResult finalDeal), bndPricing) -- `debug` ("with pricing"++show(bndPricing))
     -- DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
     (ads,pcf,rcurves,calls) = getInits t assumps -- `debug` ("cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
@@ -790,8 +789,19 @@ runDeal t er assumps bpi =
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
 
+getRunResult :: TestDeal -> [ResultComponent]
+getRunResult t = 
+    os_bn_i ++ os_bn_b
+  where 
+    bs = Map.elems $ bonds t
+    os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) | _b <- filter (\b -> L.bndBalance b > 0 ) bs ]
+    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) | _b <- filter (\b -> L.bndDueInt b > 0 ) bs ]
+    
+
+
 prepareDeal :: TestDeal -> TestDeal 
-prepareDeal t = t {bonds = Map.map L.consolStmt (bonds t)} -- `debug` ("Consolidation in preparingw")
+prepareDeal t = 
+    t {bonds = Map.map L.consolStmt (bonds t)} -- `debug` ("Consolidation in preparingw")
 
 buildRateCurves :: [RateAssumption]-> [AP.AssumptionBuilder] -> [RateAssumption] 
 buildRateCurves rs (assump:assumps) = 
@@ -827,6 +837,7 @@ removePoolCf t@(TestDeal {pool = _pool})
   = case (P.futureCf _pool) of 
       Nothing -> t 
       Just _cf -> t {pool = _pool {P.futureCf = Nothing}}
+
 setFutureCF :: TestDeal -> CF.CashFlowFrame -> TestDeal
 setFutureCF t cf = 
     t {pool = newPool}
@@ -1331,7 +1342,6 @@ depositPoolInflow rules d (Just (CF.CashFlowFrame txn)) amap =
 
 
 $(deriveJSON defaultOptions ''ExpectReturn)
-$(deriveJSON defaultOptions ''TxnComponent)
 
 td = TestDeal {
   name = "test deal1"

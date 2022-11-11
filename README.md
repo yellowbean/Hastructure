@@ -23,6 +23,9 @@
 * Multiple Waterfalls
   * User defined waterfalls and supported any point of time during the running cycle
     * Waterfall at Distribution Day :heavy_check_mark:
+      * Waterfall before EOD :heavy_check_mark:
+      * Waterfall when Event of Acceleration :heavy_check_mark:
+      * Waterfall when Event of Default :heavy_check_mark:
     * Waterfall at End of Pool Collection Day :heavy_check_mark:
     * Waterfall for Clean Up Call  :heavy_check_mark:
 * Accounts
@@ -51,6 +54,11 @@
   * Custom Fee Flow :heavy_check_mark:
 * Liquidity Provider 
   * line of credit/ Unlimit support  :heavy_check_mark:
+* Trigger 
+  * Base on Date :heavy_check_mark:
+  * Base on Formula :heavy_check_mark:
+    * Pool performance :heavy_check_mark:
+    * Bond stats :heavy_check_mark:
 * Scenario Analysis
   * Running multiple scenarios :heavy_check_mark:
 * Formula Support 
