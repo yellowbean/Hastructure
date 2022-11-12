@@ -16,6 +16,7 @@ import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified Call as C
+import Stmt
 import Lib
 import Util
 import Types
@@ -44,6 +45,7 @@ _farEnoughDate = T.fromGregorian 2080 1 1
 
 class SPV a where
   getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
+  getBondBegBal :: a -> String -> Balance
   getBondStmtByName :: a -> Maybe [String] -> Map.Map String (Maybe Statement)
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
   getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
@@ -80,6 +82,13 @@ instance SPV TestDeal where
     = Map.map L.bndStmt bndsM
       where
       bndsM = Map.map L.consolStmt $ getBondByName t bns
+
+  getBondBegBal t bn 
+    = case (L.bndStmt b) of 
+        Just (Statement stmts) -> getTxnBegBalance $ head stmts -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
+        Nothing -> L.bndBalance b  -- `debug` ("Getting beg bal nothing"++bn)
+        where
+            b = (bonds t) Map.! bn
 
   getFeeByName t fns
     = case fns of
@@ -789,15 +798,14 @@ runDeal t er assumps bpi =
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
 
+
 getRunResult :: TestDeal -> [ResultComponent]
 getRunResult t = 
     os_bn_i ++ os_bn_b
   where 
     bs = Map.elems $ bonds t
-    os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) | _b <- filter (\b -> L.bndBalance b > 0 ) bs ]
-    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) | _b <- filter (\b -> L.bndDueInt b > 0 ) bs ]
-    
-
+    os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
+    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
 
 prepareDeal :: TestDeal -> TestDeal 
 prepareDeal t = 

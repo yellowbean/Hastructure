@@ -247,6 +247,7 @@ data WhenTrigger = EndCollection
 
 instance ToJSONKey WhenTrigger where
   toJSONKey = toJSONKeyText (T.pack . show)
+
 instance FromJSONKey WhenTrigger where
   fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
     Just k -> pure k
@@ -259,8 +260,8 @@ data RangeType = II | IE | EI | EE
 data ResultComponent = CallAt Date
                   | DealStatusChangeTo Date DealStatus
                   -- | BondIntShortfall Date String Balance  -- when deal ends
-                  | BondOutstanding String Balance -- when deal ends
-                  | BondOutstandingInt String Balance -- when deal ends
+                  | BondOutstanding String Balance Balance -- when deal ends
+                  | BondOutstandingInt String Balance Balance -- when deal ends
                   deriving (Show)
 
 --instance Eq TxnComponent where 
