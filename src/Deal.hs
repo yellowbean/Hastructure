@@ -55,14 +55,14 @@ class DealDates a where
   getClosingDate :: a -> Date
   getFirstPayDate :: a -> Date
 
-data TestDeal = TestDeal {
+data TestDeal a = TestDeal {
   name :: String
   ,status :: DealStatus
   ,dates :: DateDesp
   ,accounts :: Map.Map String A.Account
   ,fees :: Map.Map String F.Fee
   ,bonds :: Map.Map String L.Bond
-  ,pool ::  P.Pool P.Mortgage
+  ,pool ::  P.Pool a -- P.Mortgage
   ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
   ,collects :: [W.CollectionRule]
   ,call :: Maybe [C.CallOption]
@@ -72,7 +72,7 @@ data TestDeal = TestDeal {
   ,overrides :: Maybe [OverrideType]
 } deriving (Show)
 
-instance SPV TestDeal where
+instance SPV (TestDeal a) where
   getBondByName t bns
     = case bns of
          Nothing -> bonds t
@@ -126,7 +126,7 @@ instance DealDates DateDesp where
     = _m Map.! FirstPayDate
 
 
-testPre :: Date -> TestDeal ->  Pre -> Bool
+testPre :: P.Asset a => Date -> (TestDeal a) ->  Pre -> Bool
 testPre d t p =
   case p of
     Types.And p1 p2 -> (testPre d t p1) && (testPre d t p1)
@@ -142,7 +142,7 @@ testPre d t p =
     IfBeforeOnDate _d -> d <= _d
     IfDealStatus st -> status t == st
 
-performAction :: Date -> TestDeal -> (Maybe Pre, W.Action) -> TestDeal
+performAction :: P.Asset a => Date -> (TestDeal a) -> (Maybe Pre, W.Action) -> (TestDeal a)
 performAction d t (Just _pre, _action)
   | testPre d t _pre = performAction d t (Nothing, _action)
   | otherwise  = t
@@ -522,7 +522,7 @@ applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ _ _ )
 applicableAdjust d (L.Bond _ _ oi (L.Fix _ _ ) _ _ _ _ _ _ _ _ _ ) = False
 applicableAdjust d (L.Bond _ _ oi (L.InterestByYield _ ) _ _ _ _ _ _ _ _ _ ) = False
 
-setBndsNextIntRate :: TestDeal -> T.Day -> Maybe [RateAssumption] -> TestDeal
+setBndsNextIntRate :: (TestDeal a) -> T.Day -> Maybe [RateAssumption] -> (TestDeal a)
 setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
     where 
         floatBonds = filter (applicableAdjust d) $ Map.elems (bonds t)
@@ -531,7 +531,7 @@ setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
 
 setBndsNextIntRate t d Nothing = t 
 
-testCall :: TestDeal -> T.Day -> C.CallOption -> Bool 
+testCall :: P.Asset a => (TestDeal a) -> T.Day -> C.CallOption -> Bool 
 testCall t d opt = 
     case opt of 
        C.PoolBalance x -> (queryDeal t FutureCurrentPoolBalance) < x
@@ -546,16 +546,16 @@ testCall t d opt =
        C.And xs -> all (testCall t d) xs
        C.Or xs -> any (testCall t d) xs
 
-testCalls :: TestDeal -> Date -> [C.CallOption] -> Bool
+testCalls :: P.Asset a => (TestDeal a) -> Date -> [C.CallOption] -> Bool
 testCalls t d [] = False  -- `debug` ("Empty call optns")
 testCalls t d opts = any (testCall t d) opts  -- `debug` ("testing call options"++ show opts)
 
-queryTrigger :: TestDeal -> WhenTrigger -> [(Trigger,TriggerEffect)]
+queryTrigger :: P.Asset a => (TestDeal a) -> WhenTrigger -> [(Trigger,TriggerEffect)]
 queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ Nothing _) wt = []
 queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt 
   =  Map.findWithDefault [] wt trgsM 
 
-testTrigger :: TestDeal -> Date -> Trigger -> Bool 
+testTrigger :: P.Asset a => (TestDeal a) -> Date -> Trigger -> Bool 
 testTrigger t d trigger = 
   case trigger of 
     -- query balance
@@ -593,11 +593,11 @@ testTrigger t d trigger =
     Always b -> b
 
 
-testTriggers :: TestDeal -> Date -> [Trigger] -> Bool
+testTriggers :: P.Asset a => (TestDeal a) -> Date -> [Trigger] -> Bool
 testTriggers t d [] = False
 testTriggers t d triggers = any (testTrigger t d) triggers 
 
-runEffects :: TestDeal -> Date -> TriggerEffect -> TestDeal 
+runEffects :: P.Asset a => (TestDeal a) -> Date -> TriggerEffect -> (TestDeal a) 
 runEffects t d te 
   = case te of 
       DealStatusTo _ds -> t {status=_ds}
@@ -616,7 +616,7 @@ runEffects t d te
       _ -> t `debug` ("Shouldn't happen")
 
 
-runTriggers :: TestDeal -> Date -> [(Trigger,TriggerEffect)] -> TestDeal 
+runTriggers :: P.Asset a => (TestDeal a) -> Date -> [(Trigger,TriggerEffect)] -> (TestDeal a)
 runTriggers t d _trgs = 
   foldl 
     (\_t _te -> runEffects _t d _te)
@@ -631,7 +631,7 @@ runTriggers t d _trgs =
   -- ie. pool factor should be run when the pool collection day
   --     bond factor should be run at the begining or the ending of the waterfall.
   
-runCall :: Date -> [C.CallOption] -> TestDeal -> TestDeal 
+runCall :: P.Asset a => Date -> [C.CallOption] -> (TestDeal a) -> (TestDeal a)
 runCall d opts t 
   = if testCalls t d opts then 
       prepareDeal $ foldl (performAction d) t cleanUpActions `debug` ("Called ! "++ show d)
@@ -640,7 +640,8 @@ runCall d opts t
     where
       cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
 
-run2 :: TestDeal -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([C.CallOption])-> TestDeal
+run2 :: P.Asset a => (TestDeal a) -> Maybe CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] 
+        -> Maybe ([C.CallOption])-> (TestDeal a)
 run2 t@TestDeal{status=Ended} _ _ _ _ = (prepareDeal t) `debug` ("Deal Ended")
 run2 t _ (Just []) _ _   = (prepareDeal t)   `debug` ("End with Empty ActionOnDate")
 run2 t poolFlow (Just (ad:ads)) rates calls
@@ -765,7 +766,7 @@ calcLiquidationAmount alm pool d
                 in 
                   pvCf + mulBI currentDefaulBal recoveryPct
 
-liquidatePool :: C.LiquidationMethod -> T.Day -> String -> TestDeal -> TestDeal
+liquidatePool :: C.LiquidationMethod -> T.Day -> String -> (TestDeal a) -> (TestDeal a)
 liquidatePool lq d accName t =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
@@ -780,11 +781,11 @@ data ExpectReturn = DealStatus
                   | ExecutionSummary
                   deriving (Show)
 
-priceBonds :: TestDeal -> AP.BondPricingInput -> Map.Map String L.PriceResult
+priceBonds :: (TestDeal a) -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (\b -> L.priceBond d dc b) (bonds t)
 
-runDeal :: TestDeal -> ExpectReturn -> Maybe [AP.AssumptionBuilder] -> Maybe AP.BondPricingInput
-        -> (TestDeal,Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
+runDeal :: P.Asset a => (TestDeal a) -> ExpectReturn -> Maybe [AP.AssumptionBuilder] -> Maybe AP.BondPricingInput
+        -> ((TestDeal a),Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 runDeal t er assumps bpi =
   case er of
     DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
@@ -799,15 +800,14 @@ runDeal t er assumps bpi =
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
 
 
-getRunResult :: TestDeal -> [ResultComponent]
-getRunResult t = 
-    os_bn_i ++ os_bn_b
+getRunResult :: (TestDeal a) -> [ResultComponent]
+getRunResult t = os_bn_i ++ os_bn_b
   where 
     bs = Map.elems $ bonds t
     os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
     os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
 
-prepareDeal :: TestDeal -> TestDeal 
+prepareDeal :: (TestDeal a) -> (TestDeal a)
 prepareDeal t = 
     t {bonds = Map.map L.consolStmt (bonds t)} -- `debug` ("Consolidation in preparingw")
 
@@ -833,20 +833,20 @@ buildCallOptions Nothing [] =  Nothing
 buildCallOptions rs [] =  rs
 
 
-appendCollectedCF :: TestDeal -> Maybe CF.CashFlowFrame -> TestDeal
+appendCollectedCF :: (TestDeal a) -> Maybe CF.CashFlowFrame -> (TestDeal a)
 appendCollectedCF t Nothing = t
 appendCollectedCF t@(TestDeal { pool = mpool }) (Just cf@(CF.CashFlowFrame _trs))
   = case (P.futureCf mpool) of 
       Nothing -> t {pool = mpool {P.futureCf = Just cf}}
       Just _p -> t {pool = mpool {P.futureCf = Just (CF.appendCashFlow _p _trs)}}
 
-removePoolCf :: TestDeal -> TestDeal 
+removePoolCf :: (TestDeal a) -> (TestDeal a)
 removePoolCf t@(TestDeal {pool = _pool})
   = case (P.futureCf _pool) of 
       Nothing -> t 
       Just _cf -> t {pool = _pool {P.futureCf = Nothing}}
 
-setFutureCF :: TestDeal -> CF.CashFlowFrame -> TestDeal
+setFutureCF :: (TestDeal a)-> CF.CashFlowFrame -> (TestDeal a)
 setFutureCF t cf = 
     t {pool = newPool}
     where 
@@ -870,19 +870,15 @@ populateDealDates (PatternInterval _m)
       (firstPayDate,dp2,ed2) = _m Map.! FirstPayDate 
     
 
-getInits :: TestDeal -> Maybe [AP.AssumptionBuilder] -> 
+getInits :: P.Asset a => (TestDeal a) -> Maybe [AP.AssumptionBuilder] -> 
     ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption])
 getInits t mAssumps =
     (allActionDates
     ,pCollectionCfAfterCutoff
     ,rateCurves
     ,callOptions)
-    --,t_with_cf)   -- `debug` ("deal with pool"++show(pool t_with_cf))
-    --,t)   -- `debug` ("deal with pool"++show(pool t_with_cf))
   where
     assumps = fromMaybe [] mAssumps
-
-    projNum = 512
     
     (startDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)   
     intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate [] -- `debug` (show (startDate,firstPayDate,pActionDates,bActionDates,endDate))
@@ -924,7 +920,7 @@ getInits t mAssumps =
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions Nothing assumps -- `debug` ("Assump"++show(assumps))
 
-queryDealRate :: TestDeal -> DealStats -> Micro
+queryDealRate :: P.Asset a => (TestDeal a) -> DealStats -> Micro
 queryDealRate t s =
   case s of
     BondFactor ->
@@ -947,7 +943,7 @@ queryDealRate t s =
      
 
 
-queryDeal :: TestDeal -> DealStats -> Balance
+queryDeal :: P.Asset a => (TestDeal a) -> DealStats -> Balance
 queryDeal t s =
   case s of
     CurrentBondBalance ->
@@ -1126,7 +1122,7 @@ queryDeal t s =
                 CustomCurve cv -> (getValOnByDate cv d)
                 CustomDS ds -> (queryDeal t (patchDateToStats d ds ))
 
-getPoolFlows :: TestDeal -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
+getPoolFlows :: (TestDeal a) -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t sd ed rt =
   case (sd,ed) of
     (Nothing,Nothing) ->  _trs
@@ -1143,14 +1139,14 @@ getPoolFlows t sd ed rt =
 --getBondStmts :: TestDeal -> [String] -> Maybe Date -> Maybe Date -> Map String [Txn]
 --getBondStmts t bondNames startDate endDate
 --  =
-calcDayToPoolDate :: TestDeal -> Date -> Date 
+calcDayToPoolDate :: (TestDeal a) -> Date -> Date 
 calcDayToPoolDate t calcDay 
   = CF.mflowDate $ last pFlows -- `debug` ("calDayToPoolDate"++show calcDay ++">>>>>"++show pFlows)
     where 
       pFlows = getPoolFlows t Nothing (Just calcDay) EI  -- II here is not being used
 
 
-calcDueFee :: TestDeal -> Date -> F.Fee -> F.Fee
+calcDueFee :: P.Asset a => (TestDeal a) -> Date -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay fa _ _)
   | isJust fdDay = f  
   | calcDay >= fs && (isNothing fdDay) = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd)++show amt)
@@ -1214,13 +1210,13 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   where
     periodGap =  length $ projDatesByPattern p _fdDay calcDay
 
-updateLiqProvider :: TestDeal -> Date -> CE.LiqFacility -> CE.LiqFacility
+updateLiqProvider :: (TestDeal a) -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@(CE.LiqFacility _ (CE.ReplenishSupport _ b) (Just curBal) _ curCredit stmt) -- refresh available balance
   = liq { CE.liqBalance = Just (max b curBal)}
 updateLiqProvider t d liq = liq
 
 
-calcDueInt :: TestDeal -> Date -> L.Bond -> L.Bond
+calcDueInt :: (TestDeal a) -> Date -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond _ _ _ _ _ _ _ _ _ Nothing _ _ _) 
   = calcDueInt t calc_date (b {L.bndDueIntDate = Just (getClosingDate (dates t))})
 
@@ -1246,7 +1242,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due _ (Jus
                 new_due_int = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F -- `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
 
 
-calcDuePrin :: TestDeal -> T.Day -> L.Bond -> L.Bond
+calcDuePrin :: P.Asset a => (TestDeal a) -> T.Day -> L.Bond -> L.Bond
 calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi bond_bal _ prin_arr int_arrears _ _ _ _ _) =
   b {L.bndDuePrin = duePrin} 
   where
@@ -1312,7 +1308,7 @@ patchDateToStats d t
          UseCustomData n -> CustomData n d
          _ -> t
 
-calcTargetAmount :: TestDeal -> Date -> A.Account -> Balance
+calcTargetAmount :: P.Asset a => (TestDeal a) -> Date -> A.Account -> Balance
 calcTargetAmount t d (A.Account _ n i Nothing _ ) = 0
 calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
    eval r -- `debug` ("$$$$ Evaluating" ++show(r)++" result:==>>"++show((eval r)))

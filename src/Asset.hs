@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 {-# LANGUAGE TemplateHaskell #-}
-module Asset (Mortgage(..),Pool(..),OriginalInfo(..),calc_p_i_flow
+module Asset (Mortgage(..),Loan(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,calcCashflow,getCurrentBal,getOriginBal,runPool2
        ,RateType(..),projCashflow,AmortPlan(..)
        ,Status(..),isDefaulted,IssuanceFields(..)
@@ -97,6 +97,7 @@ data RateType = Fix IRate
 data AmortPlan = Level   -- for mortgage
                | Even    -- for mortgage
                | I_P     -- interest only and principal due at last payment
+               | ScheduleRepayment Ts-- custom principal follow
                deriving (Show)
 
 data Status = Current
@@ -112,13 +113,23 @@ data OriginalInfo = OriginalInfo {
     ,period:: Period
     ,startDate :: Day
     ,prinType :: AmortPlan
+    } 
+  | LoanOriginalInfo {
+     originBalance::Centi
+    ,originRate:: RateType
+    ,originTerm:: Int
+    ,period:: Period
+    ,startDate :: Day
+    ,prinType :: AmortPlan
     } deriving (Show)
+ 
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms Status
               | ScheduleMortgageFlow [CF.TsRow]
               deriving (Show)
 
-data ConsumerCredit = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
+data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
+            deriving (Show)
 
 buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int)
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
@@ -167,6 +178,56 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
 
 buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag = (_ppy_rates,_def_rates,_recovery_rate,_recovery_lag)
 
+
+projectLoanFlow :: [CF.TsRow] -> Balance -> Date -> Dates 
+                -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [IRate] -> (Int,Rate) -> Period 
+                -> AmortPlan -> [CF.TsRow]
+projectLoanFlow trs _bal _last_date (_pdate:_pdates) 
+                (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec_vector@(_rec_amt:_rec_amts) _loss_vector@(_loss_amt:_loss_amts) (_rate:_rates) (recovery_lag,recovery_rate) 
+                p pt
+  | _bal > 0.01 = projectLoanFlow
+                  (trs++[tr])
+                  _end_bal
+                  _pdate
+                  _pdates
+                  _def_rates
+                  _ppy_rates
+                  (tail _current_rec) -- (replace _rec_vector recovery_lag  _new_rec) -- `debug` ("Adding TR->>>"++show(tr))
+                  (tail _current_loss) -- (replace _loss_vector recovery_lag _new_loss) -- `debug` ("Adding TR->>>"++show(tr))
+                  _rates
+                  (recovery_lag,recovery_rate)
+                  p
+                  pt
+                where
+               _remain_terms = 1 + max 0 ((length _pdates) - recovery_lag)
+               _new_default = mulBR _bal _def_rate
+               _new_bal_after_default = _bal - _new_default
+               _new_prepay = mulBR _new_bal_after_default _ppy_rate
+               _new_bal_after_ppy = _new_bal_after_default - _new_prepay
+               _new_int = mulBI _new_bal_after_ppy (periodRateFromAnnualRate p _rate)  -- `debug` ("Balance"++show(_new_bal_after_ppy))
+               _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms 
+               _new_prin = case pt of 
+                             I_P -> case _pdates of 
+                                      [] -> _new_bal_after_ppy
+                                      _ -> 0
+                             ScheduleRepayment _ts -> -1
+
+               _new_rec = mulBR _new_default recovery_rate
+               _new_loss = mulBR _new_default (1 - recovery_rate)
+
+               _current_rec = replace _rec_vector recovery_lag _new_rec
+               _current_loss = replace _loss_vector recovery_lag _new_loss
+
+               _end_bal = _new_bal_after_ppy - _new_prin
+               tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default (head _current_rec) (head _current_loss) _rate
+
+projectLoanFlow trs _b _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _ _lag_rate _p _pt
+ = projectLoanFlow (trs++[tr]) _b _pdate _pdates [] [] _rec_amts _loss_amts [0.0] _lag_rate _p _pt
+  where
+    tr = CF.MortgageFlow _pdate _b 0 0 0 0 _rec_amt _loss_amt 0.0
+
+projectLoanFlow trs _ last_bal [] _ _ [] [] _ _ _ _ = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
+
 projectMortgageFlow :: [CF.TsRow] -> Balance -> Date -> Dates -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [IRate] -> (Int,Rate) -> Period -> AmortPlan -> [CF.TsRow]
 projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec_vector@(_rec_amt:_rec_amts) _loss_vector@(_loss_amt:_loss_amts) (_rate:_rates) (recovery_lag,recovery_rate) p pt
   | _bal > 0.01 = projectMortgageFlow
@@ -208,7 +269,7 @@ projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) 
 
 projectMortgageFlow trs _b _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _ _lag_rate _p _pt
  = projectMortgageFlow
-    (trs++[tr])-- projectMortgageFlow trs _b _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _
+    (trs++[tr])
     _b
     _pdate
     _pdates
@@ -277,6 +338,7 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
              r
              l
              0.0
+
 projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
 
 instance Asset Mortgage  where
@@ -351,7 +413,7 @@ instance Asset Mortgage  where
                                (replicate cf_dates_length 0.0)
                                (replicate cf_dates_length 0.0) 
                                0
-                               0  
+                               0
 
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted _) ) asOfDay assumps
     = CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr]
@@ -424,8 +486,8 @@ calc_p_i_flow_i_p bal dates r
       _bals = (replicate (size - 1) bal ) ++ [ 0 ]
       _prins = (replicate (size - 1) 0 ) ++ [ bal ]
 
-instance Asset ConsumerCredit where
-  calcCashflow pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ ) d =
+instance Asset Loan where
+  calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ ) d =
     CF.CashFlowFrame $ zipWith9
                          CF.PersonalLoanFlow
                            cf_dates
@@ -448,41 +510,68 @@ instance Asset ConsumerCredit where
                                      Even  -> calc_p_i_flow_even (ob / fromIntegral ot) ob cf_dates _rate
                                      I_P   -> calc_p_i_flow_i_p _bal cf_dates _rate
 
-  getCurrentBal pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+  getCurrentBal pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
     = _bal
 
-  getOriginRate pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+  getOriginRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
     = case or of
        Fix _r -> _r
        Floater _ _ _r _ Nothing -> _r
        Floater _ _ _r _ (Just floor) -> max _r floor
 
-  getOriginBal pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+  getOriginBal pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
     = ob
 
-  isDefaulted pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term  (Defaulted _))
+  isDefaulted pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term  (Defaulted _))
     = True
 
-  isDefaulted pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+  isDefaulted pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
     = False
 
-  getPaymentDates pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term (Defaulted _))  extra
+  getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term (Defaulted _))  extra
     = genDates sd p (ot+_term+extra)
 
-  projCashflow pl@(PersonalLoan (OriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )  asOfDay assumps
-    = calcCashflow pl asOfDay  -- TODO To fix
+  projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt Current) asOfDay assumps =
+    CF.CashFlowFrame $ projectLoanFlow
+                            []
+                            cb
+                            last_pay_date
+                            cf_dates
+                            def_rates
+                            ppy_rates
+                            (replicate cf_dates_length 0.0)
+                            (replicate cf_dates_length 0.0)
+                            rate_vector
+                            (recovery_lag,recovery_rate)
+                            p
+                            prinPayType -- `debug` ("rrate"++show recovery_rate++"rlag"++show recovery_lag) -- `debug` ("Payment dates=>"++show(cf_dates))
+    where
+      cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) (getPaymentDates pl recovery_lag) --  `debug` ("CF Dates"++show(recovery_lag))
+      last_pay_date = previousDate (head cf_dates) p -- `debug` ("RT->"++show rt++" cf-dates "++show cf_dates)
+      cf_dates_length = length cf_dates --  `debug` ("CF dates=>"++show(cf_dates))
+      rate_vector = case or of
+                      Fix r ->  replicate cf_dates_length r
+                      Floater idx sprd _orate p mfloor ->
+                              case getRateAssumption assumps idx of
+                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates (mkRateTs ps) cf_dates
+                                Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
+                                Nothing -> replicate cf_dates_length 0.0
+
+      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
+                               (replicate cf_dates_length 0.0)
+                               (replicate cf_dates_length 0.0) 
+                               0
+                               0
 
 
-
-runPool2 :: Pool Mortgage -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
+-- runPool2 :: Pool Mortgage -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
+-- runPool2 :: (Pool a) -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
+runPool2 :: Asset a => (Pool a) -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
 runPool2 (Pool as (Just cf) asof _) [] = [cf]
 runPool2 (Pool as (Just (CF.CashFlowFrame mfs)) asof _) assumps
    =
     let
       smf = ScheduleMortgageFlow mfs
-      -- existing_default_bal = foldl (\acc x -> (acc + (P.getCurrentBal x)))
-      --                                     0.0 $
-      --                                     filter (\a-> P.isDefaulted a ) as
     in
     [ projCashflow smf asof assumps] -- `debug` ("MFS"++show(mfs))
 runPool2 (Pool as _ asof _) [] = map (\x -> calcCashflow x asof) as
@@ -495,13 +584,10 @@ data AggregationRule = Regular Date Period
                      | Custom Date [Date]
 
 projPoolCFs :: Pool Mortgage -> [A.AssumptionBuilder] -> AggregationRule -> CF.CashFlowFrame
-projPoolCFs pool as (Regular cutoffDay p)
-     = CF.CashFlowFrame $ CF.aggTsByDates rightCfs intervals
+projPoolCFs pool as (Regular cutoffDay p) = CF.CashFlowFrame $ CF.aggTsByDates rightCfs intervals
      where
-       -- groupedCfs = groupBy (\x -> periodsBetween cutoffDay (CF.tsDate x) p) rightCfs
        intervals = genDates cutoffDay p $ fromIntegral periodsInRange
        periodsInRange = (periodsBetween cutoffDay (CF.tsDate (last rightCfs)) p) + 1
-       -- rightCfs = CF.getTsCashFlowFrame $ fromMaybe [] mRightCfs
        rightCfs = case mRightCfs of
                      Just (CF.CashFlowFrame txns) -> txns
                      Nothing -> []
@@ -518,6 +604,7 @@ getRateAssumption assumps idx
              _ -> False) assumps
 
 $(deriveJSON defaultOptions ''Mortgage)
+$(deriveJSON defaultOptions ''Loan)
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''RateType)
