@@ -587,8 +587,8 @@ projPoolCFs pool as (Regular cutoffDay p) = CF.CashFlowFrame $ CF.aggTsByDates r
        rightCfs = case mRightCfs of
                      Just (CF.CashFlowFrame txns) -> txns
                      Nothing -> []
-       (mLeftCfs,mRightCfs) = CF.splitCashFlowFrameByDate aggCf cutoffDay `debug` ("pool aggCF"++ show aggCf)
-       aggCf = aggPool poolCfs `debug` ("pool CF"++ show poolCfs)
+       (mLeftCfs,mRightCfs) = CF.splitCashFlowFrameByDate aggCf cutoffDay -- `debug` ("pool aggCF"++ show aggCf)
+       aggCf = aggPool poolCfs -- `debug` ("pool CF"++ show poolCfs)
        poolCfs = runPool2 pool as 
 
 getRateAssumption :: [A.AssumptionBuilder] -> Index -> Maybe A.AssumptionBuilder
