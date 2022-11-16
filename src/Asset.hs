@@ -125,7 +125,7 @@ data OriginalInfo = OriginalInfo {
  
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms Status
-              | ScheduleMortgageFlow [CF.TsRow]
+              | ScheduleMortgageFlow Date [CF.TsRow]
               deriving (Show)
 
 data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
@@ -298,8 +298,6 @@ projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) 
 
        _schedule_bal = CF.mflowBalance flow
 
-       --_schedule_prin = fromRational ( _survive_rate * (toRational (CF.mflowPrincipal flow))) --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
-       --_schedule_int = fromRational (_survive_rate * (toRational (CF.mflowInterest flow)))
        _schedule_prin = (mulBR (CF.mflowPrincipal flow) _survive_rate) --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
        _schedule_int = (mulBR (CF.mflowInterest flow) _survive_rate)
 
@@ -365,7 +363,7 @@ instance Asset Mortgage  where
                                      Level -> calc_p_i_flow _bal pmt ([last_pay_date]++cf_dates) _rate
                                      Even ->  calc_p_i_flow_even (_bal / fromIntegral _term) _bal ([last_pay_date]++cf_dates) _rate -- `debug` show(calc_p_i_flow_even (_bal / fromIntegral _term) _bal ([last_pay_date]++cf_dates) _rate)
 
-  calcCashflow s@(ScheduleMortgageFlow flows )  d = CF.CashFlowFrame flows
+  calcCashflow s@(ScheduleMortgageFlow beg_date flows)  d = CF.CashFlowFrame flows
 
   getCurrentBal (Mortgage x _bal _ _ _) = _bal
 
@@ -418,7 +416,7 @@ instance Asset Mortgage  where
   projCashflow m@(Mortgage (OriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted _) ) asOfDay assumps
     = CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr]
 
-  projCashflow (ScheduleMortgageFlow flows) asOfDay assumps
+  projCashflow (ScheduleMortgageFlow beg_date flows) asOfDay assumps
     = CF.CashFlowFrame $ projectScheduleFlow
                              []
                              1.0
@@ -431,15 +429,13 @@ instance Asset Mortgage  where
                              (recovery_lag,recovery_rate) -- `debug` ("PPY Rate for cf table"++show ppy_rates)
 
        where
-        beg_bal = (CF.mflowPrincipal (head flows) + CF.mflowBalance (head flows))
-        (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps [] [] 0 0 -- `debug` ("Assumpt"++ show assumps)
+        beg_bal =  CF.mflowBegBalance $ head flows
+        (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (beg_date:cf_dates) assumps [] [] 0 0 -- `debug` ("Assumpt"++ show assumps)
         curve_dates_length =  recovery_lag + length flows
         temp_p = Lib.Monthly -- TODO to fix this hard code 
-        cf_dates = (map CF.tsDate flows) ++ (genDates
-                                              (CF.tsDate (last flows))
-                                              temp_p
-                                              recovery_lag)
-        last_pay_date = previousDate (head cf_dates) temp_p -- `debug` ("CF Dates"++show(cf_dates))
+        cf_dates = (map CF.tsDate flows) ++ (genDates (CF.tsDate (last flows)) temp_p recovery_lag)
+
+        -- last_pay_date = previousDate (head cf_dates) temp_p -- `debug` ("CF Dates"++show(cf_dates))
 
 _calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow pmt last_bal bals ps is [] = (bals,ps,is)
@@ -571,9 +567,9 @@ runPool2 (Pool as (Just cf) asof _) [] = [cf]
 runPool2 (Pool as (Just (CF.CashFlowFrame mfs)) asof _) assumps
    =
     let
-      smf = ScheduleMortgageFlow mfs
+      smf = ScheduleMortgageFlow asof mfs
     in
-    [ projCashflow smf asof assumps] -- `debug` ("MFS"++show(mfs))
+    [ projCashflow smf asof assumps]  `debug` ("MFS"++show([ projCashflow smf asof assumps]))
 runPool2 (Pool as _ asof _) [] = map (\x -> calcCashflow x asof) as
 runPool2 (Pool as _ asof _) assumps = map (\x -> projCashflow x asof assumps) as
 
@@ -591,9 +587,9 @@ projPoolCFs pool as (Regular cutoffDay p) = CF.CashFlowFrame $ CF.aggTsByDates r
        rightCfs = case mRightCfs of
                      Just (CF.CashFlowFrame txns) -> txns
                      Nothing -> []
-       (mLeftCfs,mRightCfs) = CF.splitCashFlowFrameByDate aggCf cutoffDay
-       aggCf = aggPool poolCfs
-       poolCfs = runPool2 pool as
+       (mLeftCfs,mRightCfs) = CF.splitCashFlowFrameByDate aggCf cutoffDay `debug` ("pool aggCF"++ show aggCf)
+       aggCf = aggPool poolCfs `debug` ("pool CF"++ show poolCfs)
+       poolCfs = runPool2 pool as 
 
 getRateAssumption :: [A.AssumptionBuilder] -> Index -> Maybe A.AssumptionBuilder
 getRateAssumption assumps idx

@@ -131,11 +131,11 @@ testPre d t p =
   case p of
     Types.And p1 p2 -> (testPre d t p1) && (testPre d t p1)
     Or p1 p2 -> (testPre d t p1) || (testPre d t p1)
-    IfZero s  -> (queryDeal t s) == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
-    IfGT s  amt -> (queryDeal t s) > amt
-    IfGET s  amt -> (queryDeal t s) >= amt
-    IfLT s  amt -> (queryDeal t s) < amt
-    IfLET s  amt -> (queryDeal t s) <= amt
+    IfZero s  -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
+    IfGT s  amt -> queryDeal t s > amt
+    IfGET s  amt -> queryDeal t s >= amt
+    IfLT s  amt -> queryDeal t s < amt
+    IfLET s  amt -> queryDeal t s <= amt
     IfAfterDate _d -> d > _d
     IfBeforeDate _d -> d < _d
     IfAfterOnDate _d -> d >= _d
@@ -855,7 +855,7 @@ setFutureCF t cf =
 
 populateDealDates :: DateDesp -> (Date,Date,[ActionOnDate],[ActionOnDate],Date)
 populateDealDates (CustomDates _cutoff _ps _closing _bs) 
-  = (actionDate (head _ps)
+  = (_cutoff  --actionDate (head _ps)
      ,actionDate (head _bs)
      ,_ps
      ,_bs
@@ -876,7 +876,7 @@ getInits t mAssumps =
     (allActionDates
     ,pCollectionCfAfterCutoff
     ,rateCurves
-    ,callOptions)
+    ,callOptions)  -- `debug` ("Pool Flow to Deal"++show pCollectionCfAfterCutoff)
   where
     assumps = fromMaybe [] mAssumps
     
@@ -914,33 +914,31 @@ getInits t mAssumps =
                        Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` show (P.runPool2 (pool t) assumps) --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
-    poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf --  `debug` ("projected & aggred pool cf"++show(poolCf))
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates) -- `debug` ("poolCf "++show(poolCfTs)++">>"++show(actionDates pActionDates) ) -- `debug` ("pool cf ts"++show(poolCfTs))
+    poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf -- `debug` ("filter with start date"++show(startDate))
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates)  `debug`  (("poolCf "++ show poolCfTs) ++ ">>" ++ (show pActionDates))
     -- t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions Nothing assumps -- `debug` ("Assump"++show(assumps))
 
 queryDealRate :: P.Asset a => (TestDeal a) -> DealStats -> Micro
 queryDealRate t s =
-  case s of
-    BondFactor ->
-        fromRational $ (toRational (queryDeal t CurrentBondBalance)) / (toRational (queryDeal t OriginalBondBalance))
+  fromRational $ 
+    case s of
+      BondFactor ->
+           (toRational (queryDeal t CurrentBondBalance)) / (toRational (queryDeal t OriginalBondBalance))
 
-    PoolFactor ->
-        fromRational $
+      PoolFactor ->
            (toRational (queryDeal t CurrentPoolBalance))  / (toRational (queryDeal t OriginalPoolBalance))
 
-    FutureCurrentPoolFactor asOfDay ->
-        fromRational $
+      FutureCurrentPoolFactor asOfDay ->
            (toRational (queryDeal t FutureCurrentPoolBalance)) / (toRational (queryDeal t OriginalPoolBalance) )
-    
-    CumulativePoolDefaultedRate ->
-        let 
-          originPoolBal = (toRational (queryDeal t OriginalPoolBalance) ) -- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
-          cumuPoolDefBal = (toRational (queryDeal t CumulativePoolDefaultedBalance)) -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
-        in 
-          fromRational $ cumuPoolDefBal / originPoolBal -- `debug` (show (toRational (queryDeal t OriginalPoolBalance) ))
-     
+      
+      CumulativePoolDefaultedRate ->
+          let 
+            originPoolBal = (toRational (queryDeal t OriginalPoolBalance) ) -- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
+            cumuPoolDefBal = (toRational (queryDeal t CumulativePoolDefaultedBalance)) -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
+          in 
+            cumuPoolDefBal / originPoolBal -- `debug` (show (toRational (queryDeal t OriginalPoolBalance) ))
 
 
 queryDeal :: P.Asset a => (TestDeal a) -> DealStats -> Balance

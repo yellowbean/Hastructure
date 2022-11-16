@@ -1,6 +1,5 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
-
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mkCashFlowFrame,mkColDay,mkColNum,mkColBal,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
@@ -278,17 +277,21 @@ tsDateLET td (MortgageFlow3 d _ _ _ _ _ _ _ _ _ _ _) = d <= td
 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates trs ds =
-  map (\(x,y) -> sumTsCF x y) (zip (reduceFn [] ds trs) ds)
+  map 
+    (\(x,_d) -> sumTsCF x _d) 
+    (filter 
+      (\(y,__d) -> not (null y))
+      (zip (reduceFn [] ds trs) ds)) -- `debug` ("Final agg >> "++ show (reduceFn [] ds trs) )
   where
     reduceFn accum _ [] =  accum  -- `debug` ("Returning->"++show(accum))
     reduceFn accum (cutoffDay:[]) _trs =
       accum ++ [(filter (\x -> tsDate(x) <= cutoffDay) _trs)]
     reduceFn accum (cutoffDay:cutoffDays) _trs =
       case newAcc of
-        [] -> reduceFn accum cutoffDays _trs
+        [] -> reduceFn (accum++[[]]) cutoffDays _trs     --  `debug` ("Adding empty")
         newFlow -> reduceFn (accum++[newAcc]) cutoffDays rest --  `debug` ("Adding "++show(newAcc)++" cutoffDay "++show(cutoffDay))
       where
-        (newAcc,rest) = L.partition (tsDateLET cutoffDay) _trs
+        (newAcc,rest) = L.partition (tsDateLET cutoffDay) _trs -- `debug` ("Spliting"++show cutoffDay++"From>>"++show _trs )
 
 
 mflowPrincipal :: TsRow -> Centi

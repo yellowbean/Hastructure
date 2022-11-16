@@ -4,10 +4,8 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
---{-# LANGUAGE DeriveAnyClass     #-}
 {-# LANGUAGE DerivingStrategies     #-}
---{-# LANGUAGE ScopedTypeVariables #-}
--- {-# LANGUAGE LiberalTypeSynonyms     #-}
+
 module Main where
 
 import Data.Aeson hiding (json)
@@ -49,24 +47,11 @@ data RunDealReq assetType = RunDealReq {
 instance FromJSON assetType => FromJSON (RunDealReq assetType)
 instance ToJSON assetType => ToJSON (RunDealReq assetType)
 
- -- $(deriveJSON defaultOptions ''RunDealReq)
-
 data ReqType = MortgageDeal (RunDealReq P.Mortgage)
              | LoanDeal (RunDealReq P.Loan)
              deriving (Show)
 
 $(deriveJSON defaultOptions ''ReqType)
-
-
---getAssump :: ReqType -> Maybe AP.AssumptionInput
---getAssump (MortgageDeal r) = (assump r)
---getAssump (LoanDeal r) = (assump r)
---
---data RunPoolReq = RunPoolReq {
---  pool :: P.Pool P.Mortgage
---  ,poolAggRule :: P.AggregationRule
---  ,poolAssump :: Maybe [AP.AssumptionBuilder]
---}
 
 data App = App
 
@@ -75,20 +60,19 @@ mkYesod "App" [parseRoutes|
  /version VersionR GET OPTIONS
 |]
  
- -- /run_pool RunPoolR POST OPTIONS
+-- /run/#Text RunR POST OPTIONS
 
 instance Yesod App where
   yesodMiddleware = defaultYesodMiddleware
 
-optionsRunDealR :: Handler String 
-optionsRunDealR = do
+optionsRunR :: Handler String 
+optionsRunR = do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "OPTIONS"
   return "Good"
 
-postRunDealR :: Handler Value
-postRunDealR =  do
-  -- runReq <- requireCheckJsonBody  -- :: Handler ReqType
+postRunR :: Text -> Handler Value
+postRunR assetType = do
   (RunDealReq d a p) <- requireCheckJsonBody :: Handler (RunDealReq P.Mortgage)
   case a of
     Just (AP.Single aps) -> returnJson $
@@ -116,21 +100,41 @@ postRunDealR =  do
              apsm
 
 
---optionsRunPoolR :: Handler String
---optionsRunPoolR = do
---  addHeader "Access-Control-Allow-Origin" "*"
---  addHeader "Access-Control-Allow-Methods" "OPTIONS"
---  return "Good"
---
---postRunPoolR :: Handler Value -- D.TestDeal
---postRunPoolR =  do
---  runReq <- requireCheckJsonBody :: Handler RunPoolReq
---  returnJson $
---     P.projPoolCFs
---        (pool runReq)
---        (fromMaybe [] (poolAssump runReq))
---        (poolAggRule runReq)
---
+optionsRunDealR :: Handler String 
+optionsRunDealR = do
+  addHeader "Access-Control-Allow-Origin" "*"
+  addHeader "Access-Control-Allow-Methods" "OPTIONS"
+  return "Good"
+
+postRunDealR :: Handler Value
+postRunDealR =  do
+  (RunDealReq d a p) <- requireCheckJsonBody :: Handler (RunDealReq P.Mortgage)
+  case a of
+    Just (AP.Single aps) -> returnJson $
+                               D.runDeal 
+                                d 
+                                 D.DealPoolFlowPricing 
+                                 (Just aps) 
+                                 p
+
+    Nothing -> returnJson $
+                 D.runDeal 
+                   d 
+                   D.DealPoolFlowPricing 
+                   Nothing 
+                   p
+
+    Just (AP.Multiple apsm) -> 
+        returnJson $
+          Map.map 
+            (\x -> D.runDeal 
+                     d 
+                     D.DealPoolFlowPricing 
+                     (Just x) 
+                     p)
+             apsm
+
+
 getVersionR :: Handler String
 getVersionR =  do
   addHeader "Access-Control-Allow-Origin" "*"
@@ -164,10 +168,3 @@ main =
                                     , corsRequestHeaders = simpleHeaders })
             app
 
-
--- $(deriveJSON defaultOptions ''(RunDealReq P.Mortgage))
--- $(deriveJSON defaultOptions ''(RunDealReq a))
--- $(deriveJSON defaultOptions ''(RunDealReq2 a))
--- $(deriveJSON defaultOptions ''(RunDealReq P.ConsumerCredit))
--- $(deriveJSON defaultOptions ''(RunDealReq2 P.Mortgage))
--- $(deriveJSON defaultOptions ''RunPoolReq )
