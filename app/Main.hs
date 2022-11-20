@@ -38,20 +38,17 @@ import Network.Wai.Middleware.Cors
 import Debug.Trace
 debug = flip trace
 
-data RunDealReq assetType = RunDealReq {
-  deal :: D.TestDeal assetType
-  ,assump :: Maybe AP.AssumptionInput
-  ,bondPricing :: Maybe AP.BondPricingInput
-} deriving (Show, Generic)
+data DealType = MDeal (D.TestDeal P.Mortgage)
+              | LDeal (D.TestDeal P.Loan)
 
-instance FromJSON assetType => FromJSON (RunDealReq assetType)
-instance ToJSON assetType => ToJSON (RunDealReq assetType)
+$(deriveJSON defaultOptions ''DealType)
 
-data ReqType = MortgageDeal (RunDealReq P.Mortgage)
-             | LoanDeal (RunDealReq P.Loan)
-             deriving (Show)
+data RunDealReq = RunDealReq {
+   deal :: DealType
+  ,asusmp :: Maybe AP.AssumptionInput
+  ,bondPricing :: Maybe AP.BondPricingInput}
 
-$(deriveJSON defaultOptions ''ReqType)
+$(deriveJSON defaultOptions ''RunDealReq)
 
 data App = App
 
@@ -60,45 +57,8 @@ mkYesod "App" [parseRoutes|
  /version VersionR GET OPTIONS
 |]
  
--- /run/#Text RunR POST OPTIONS
-
 instance Yesod App where
   yesodMiddleware = defaultYesodMiddleware
-
-optionsRunR :: Handler String 
-optionsRunR = do
-  addHeader "Access-Control-Allow-Origin" "*"
-  addHeader "Access-Control-Allow-Methods" "OPTIONS"
-  return "Good"
-
-postRunR :: Text -> Handler Value
-postRunR assetType = do
-  (RunDealReq d a p) <- requireCheckJsonBody :: Handler (RunDealReq P.Mortgage)
-  case a of
-    Just (AP.Single aps) -> returnJson $
-                               D.runDeal 
-                                d 
-                                 D.DealPoolFlowPricing 
-                                 (Just aps) 
-                                 p
-
-    Nothing -> returnJson $
-                 D.runDeal 
-                   d 
-                   D.DealPoolFlowPricing 
-                   Nothing 
-                   p
-
-    Just (AP.Multiple apsm) -> 
-        returnJson $
-          Map.map 
-            (\x -> D.runDeal 
-                     d 
-                     D.DealPoolFlowPricing 
-                     (Just x) 
-                     p)
-             apsm
-
 
 optionsRunDealR :: Handler String 
 optionsRunDealR = do
@@ -107,32 +67,17 @@ optionsRunDealR = do
   return "Good"
 
 postRunDealR :: Handler Value
-postRunDealR =  do
-  (RunDealReq d a p) <- requireCheckJsonBody :: Handler (RunDealReq P.Mortgage)
-  case a of
-    Just (AP.Single aps) -> returnJson $
-                               D.runDeal 
-                                d 
-                                 D.DealPoolFlowPricing 
-                                 (Just aps) 
-                                 p
-
-    Nothing -> returnJson $
-                 D.runDeal 
-                   d 
-                   D.DealPoolFlowPricing 
-                   Nothing 
-                   p
-
-    Just (AP.Multiple apsm) -> 
-        returnJson $
-          Map.map 
-            (\x -> D.runDeal 
-                     d 
-                     D.DealPoolFlowPricing 
-                     (Just x) 
-                     p)
-             apsm
+postRunDealR = do
+  req <- requireCheckJsonBody  :: Handler RunDealReq 
+  case req of
+    RunDealReq (MDeal d) a p -> foo d a p
+    RunDealReq (LDeal d) a p -> foo d a p
+  where 
+    foo d a p =
+      case a of 
+        Just (AP.Single aps) -> returnJson $ D.runDeal d D.DealPoolFlowPricing (Just aps) p
+        Nothing ->  returnJson $  D.runDeal d D.DealPoolFlowPricing Nothing p
+        Just (AP.Multiple apsm) -> returnJson $ Map.map (\x -> D.runDeal d D.DealPoolFlowPricing (Just x) p) apsm
 
 
 getVersionR :: Handler String
@@ -148,8 +93,7 @@ optionsVersionR = do
   return "Good"
 
 
-data Config = Config { port :: Int}
-            deriving  (Show,Generic)
+data Config = Config { port :: Int} deriving (Show,Generic)
 instance FromJSON Config
 
 main :: IO ()
