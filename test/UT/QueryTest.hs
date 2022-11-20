@@ -22,8 +22,8 @@ queryTest =
                         , MortgageFlow (toDate "20220301") 100 20 15 0 0 0 0 0.01 
                         , MortgageFlow (toDate "20220401") 100 20 15 0 0 0 0 0.01 
                         ]
-    opool = (pool DT.td)
-    t = DT.td { pool = opool { futureCf = Just a } }                    
+    opool = (pool DT.td2)
+    t = DT.td2 { pool = opool { futureCf = Just a } }                    
     
   in 
     testGroup "" $ 

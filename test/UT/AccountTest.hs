@@ -13,7 +13,7 @@ import qualified Cashflow as CF
 
 import qualified Data.Time as T
 import qualified Data.Map as Map
-import UT.DealTest (td)
+import UT.DealTest (td2)
 
 intTests =
   let 
@@ -74,7 +74,7 @@ reserveAccTest =
                ,CF.MortgageFlow (toDate "20220801") 110 20 10 0 0 0 0 0
                ,CF.MortgageFlow (toDate "20220901") 90 20 10 0 0 0 0 0
                ,CF.MortgageFlow (toDate "20221001") 70 20 10 0 0 0 0 0]
-    ttd = (setFutureCF td testCFs) {accounts = accMap}
+    ttd = (setFutureCF td2 testCFs) {accounts = accMap}
   in 
     testGroup "Test On Reserve Acc"
      [

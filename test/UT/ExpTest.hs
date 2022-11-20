@@ -31,10 +31,10 @@ expTests =  testGroup "Expense Tests"
         "test date"
         [100.0, 0.0, 110.0, 150.0]
         (map feeDue 
-             [(D.calcDueFee DT.td _calcDate f1)
-              ,(D.calcDueFee DT.td _calcDate2 f1)
-              ,(D.calcDueFee DT.td _calcDate3 f2)
-              ,(D.calcDueFee DT.td _calcDate3 f1)])
+             [(D.calcDueFee DT.td2 _calcDate f1)
+              ,(D.calcDueFee DT.td2 _calcDate2 f1)
+              ,(D.calcDueFee DT.td2 _calcDate3 f2)
+              ,(D.calcDueFee DT.td2 _calcDate3 f1)])
     ,
     let
      tsPoints = [(L.TsPoint (L.toDate "20220101") 10.0)
@@ -53,10 +53,10 @@ expTests =  testGroup "Expense Tests"
     in
       testCase "test on Custom Fee Type" $
       assertEqual "calc Due Fee" [f1_ , f2_ , f3_ , _f1WithDue]
-                                 [D.calcDueFee DT.td _calcDate f1
-                                 ,D.calcDueFee DT.td _calcDate2 f1
-                                 ,D.calcDueFee DT.td _calcDate3 f1
-                                 ,D.calcDueFee DT.td _calcDate f1WithDue
+                                 [D.calcDueFee DT.td2 _calcDate f1
+                                 ,D.calcDueFee DT.td2 _calcDate2 f1
+                                 ,D.calcDueFee DT.td2 _calcDate3 f1
+                                 ,D.calcDueFee DT.td2 _calcDate f1WithDue
                                  ]
 
   ]

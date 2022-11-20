@@ -1,4 +1,4 @@
-module UT.AssetTest(mortgageTests,mortgageCalcTests)
+module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests)
 where
 
 import Test.Tasty
@@ -35,8 +35,7 @@ mortgageCalcTests = testGroup "Mortgage Calc Test"
   [
     testCase "Calc Pmt" $
         assertEqual "PMT 01"
-           154.15 --TODO not tie out with googlesheet 154.155613009
-                  --DUETO calcPmt is returning a balance which rounds to 2 decimalj  
+           154.15 
            (P.calcPmt 1200 0.12 24)
   ]
 
@@ -65,16 +64,30 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
         trs = CF.getTsCashFlowFrame tm2cf_00
      in
         assertEqual "Empty for principal"
-                    -- [0.0, asDay, 1]
                     (0.0, asDay, 1)
                     ((CF.mflowPrincipal (head trs))
                     ,(CF.mflowDate (head trs))
                     ,(length trs))
-
-     --testCase "Even Principal Type of Mortgage proj with assumption" $
-     --let
-     --   tm1cf_00 = P.projCashflow tm1
-     --   trs = CF.getTsCashFlowFrame tm1cf_00
-     --in
-     --   assertEqual "first row" 10.0  (CF.mflowPrincipal (head trs)) -- `debug` ("result"++show(tmcf_00))
   ]
+
+loanTests = 
+    let 
+      loan1 =  P.PersonalLoan 
+                 (P.LoanOriginalInfo 180 (P.Fix 0.08) 36 L.Monthly (L.toDate "20200101") P.I_P) 
+                 120
+                 0.06
+                 24
+                 P.Current
+
+      loan1Cf = P.calcCashflow loan1 (L.toDate "20200615")
+    in 
+      testGroup "Loan cashflow Tests" [ 
+       testCase "Loan 1" $
+           assertEqual "project period"
+             24 
+             (CF.sizeCashFlowFrame loan1Cf)
+       ,testCase "Last Principal Amount" $
+           assertEqual ""
+            (Just (CF.LoanFlow (L.toDate "20220601") 0 120 0 0 0 0 0 0.06))
+            (CF.cfAt loan1Cf 23)
+      ]

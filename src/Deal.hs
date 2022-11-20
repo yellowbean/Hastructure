@@ -5,7 +5,7 @@
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
             ,setFutureCF
-            ,calcTargetAmount) where
+            ,calcTargetAmount,td) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -914,8 +914,8 @@ getInits t mAssumps =
                        Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ P.runPool2 (pool t) assumps -- `debug` show (P.runPool2 (pool t) assumps) --  `debug` ("Init Pools"++show(pool t)) -- `debug` ("Assets Agged pool Cf->"++show(pool t))
-    poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf -- `debug` ("filter with start date"++show(startDate))
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates)  `debug`  (("poolCf "++ show poolCfTs) ++ ">>" ++ (show pActionDates))
+    poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool flow>>"++show poolCf)
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) ++ ">>" ++ (show pActionDates))
     -- t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions Nothing assumps -- `debug` ("Assump"++show(assumps))

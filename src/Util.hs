@@ -3,7 +3,7 @@
 module Util
     (mulBR,mulBIR,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern 
-    ,genSerialDatesTill,subDates,getTsDates      
+    ,genSerialDatesTill,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate
     ,multiplyTs,zipTs,getTsVals
     )
@@ -292,13 +292,7 @@ getTsDates (IRateCurve tps) =  map tsPointDate tps
 getTsDates (FloatCurve tps) =  map tsPointDate tps
 getTsDates (PricingCurve tps) =  map tsPointDate tps
 getTsDates (BalanceCurve tps) =  map tsPointDate tps
---subTs :: Ts -> RangeType -> Date -> Date -> Ts 
---subTs rt ts = 
---    case rt of 
---      II -> 
---      EI -> 
---      IE -> 
---      EE -> 
+
 
 subDates :: RangeType -> Date -> Date -> [Date] -> [Date]
 subDates rt sd ed ds 
@@ -307,6 +301,25 @@ subDates rt sd ed ds
       EI -> filter (\x -> x > sd && x <= ed ) ds
       IE -> filter (\x -> x >= sd && x < ed ) ds
       EE -> filter (\x -> x > sd && x < ed ) ds
+
+data SliceType = SliceAfter Date 
+               | SliceOnAfter Date 
+               | SliceAfterKeepPrevious Date
+               | SliceOnAfterKeepPrevious Date
+
+sliceDates :: SliceType -> [Date] -> [Date] 
+sliceDates st ds =
+    case st of 
+      SliceAfter d -> filter (> d) ds
+      SliceOnAfter d -> filter (>= d) ds
+      SliceAfterKeepPrevious d -> 
+          case findIndex (> d) ds of
+            Just idx -> snd $ splitAt (pred idx) ds
+            Nothing -> [] 
+      SliceOnAfterKeepPrevious d -> 
+          case findIndex (>= d) ds of
+            Just idx -> snd $ splitAt (pred idx) ds
+            Nothing -> [] 
 
 calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
 calcIntRate start_date end_date int_rate day_count =
@@ -347,5 +360,3 @@ projDatesByPattern dp sd ed
               DayOfMonth _ -> cdm + 1
     in 
       genSerialDates dp sd (fromInteger num)
-
-

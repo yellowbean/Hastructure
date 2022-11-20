@@ -1,4 +1,4 @@
-module UT.DealTest(td,waterfallTests,queryTests,triggerTests)
+module UT.DealTest(td2,waterfallTests,queryTests,triggerTests)
 
 where
 
@@ -22,7 +22,7 @@ import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
 
-td = TestDeal {
+td2 = TestDeal {
   D.name = "test deal1"
   ,D.status = Amortizing
   ,D.dates = PatternInterval $ 
@@ -129,7 +129,7 @@ td = TestDeal {
 waterfallTests =  testGroup "Waterfall Tests"
   [
     let
-     afterAction = D.performAction (toDate "20220301") td $ (Nothing, W.PayPrinBy (W.RemainBalPct 0.05) "General" "B")
+     afterAction = D.performAction (toDate "20220301") td2 $ (Nothing, W.PayPrinBy (W.RemainBalPct 0.05) "General" "B")
      afterBnd = (D.bonds afterAction) Map.! "B"
      afterBndA = (D.bonds afterAction) Map.! "A"
      afterAcc = (D.accounts afterAction) Map.! "General"
@@ -141,7 +141,7 @@ waterfallTests =  testGroup "Waterfall Tests"
 queryTests =  testGroup "deal stat query Tests"
   [
     let
-     currentDefBal = D.queryDeal td CurrentPoolDefaultedBalance
+     currentDefBal = D.queryDeal td2 CurrentPoolDefaultedBalance
     in
      testCase "query current assets in defaulted status" $
      assertEqual "should be 200" 200 currentDefBal
@@ -170,7 +170,7 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      fdeal = run2 td (Just poolflows) (Just ads) Nothing Nothing 
+      fdeal = run2 td2 (Just poolflows) (Just ads) Nothing Nothing 
     in 
       testCase "deal becomes revolving" $
       assertEqual "revoving" 
