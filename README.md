@@ -17,7 +17,7 @@
   * Student Loan
   * Auto Loan
   * Rentals
-  * Corp Loan
+  * Corp Loan :heavy_check_mark:
 * Pool Assumptions
   * Mortgage (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
 * Multiple Waterfalls

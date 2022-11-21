@@ -186,7 +186,7 @@ projectLoanFlow :: [CF.TsRow] -> Balance -> Date -> Dates
 projectLoanFlow trs _bal _last_date (_pdate:_pdates) 
                 (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec_vector@(_rec_amt:_rec_amts) _loss_vector@(_loss_amt:_loss_amts) (_rate:_rates) (recovery_lag,recovery_rate) 
                 p pt
-  | _bal > 0.01 = projectLoanFlow
+  | length _pdates >= recovery_lag = projectLoanFlow
                   (trs++[tr])
                   _end_bal
                   _pdate
@@ -198,21 +198,21 @@ projectLoanFlow trs _bal _last_date (_pdate:_pdates)
                   _rates
                   (recovery_lag,recovery_rate)
                   p
-                  pt
+                  pt  -- `debug` ("bal"++show _bal++"payment dates" ++ show _pdates ++  "Reocvery vector length"++ show (length _current_rec))
                 where
                _remain_terms = 1 + max 0 ((length _pdates) - recovery_lag)
-               _new_default = mulBR _bal _def_rate  `debug` ("REMAIN TERM>"++ show _remain_terms)
+               _new_default = mulBR _bal _def_rate  -- `debug` ("REMAIN TERM>"++ show _remain_terms)
                _new_bal_after_default = _bal - _new_default
                _new_prepay = mulBR _new_bal_after_default _ppy_rate
                _new_bal_after_ppy = _new_bal_after_default - _new_prepay
                _int_rate = calcIntRate _last_date _pdate _rate DC_ACT_360 
-               _new_int = mulBI _new_bal_after_ppy _int_rate `debug` ("Balance"++show(_new_bal_after_ppy)++"Rate>>"++show _int_rate )
+               _new_int = mulBI _new_bal_after_ppy _int_rate -- `debug` ("Balance"++show(_new_bal_after_ppy)++"Rate>>"++show _int_rate )
                _pmt = calcPmt _new_bal_after_ppy _int_rate _remain_terms 
                _new_prin = case pt of 
-                             I_P -> case _pdates of 
-                                      [] -> _new_bal_after_ppy
+                             I_P -> case _remain_terms of 
+                                      1 -> _new_bal_after_ppy
                                       _ -> 0
-                             ScheduleRepayment _ts -> -1 `debug` ("REmain terms>>>"++ show _remain_terms)
+                             ScheduleRepayment _ts -> -1  --`debug` ("REmain terms>>>"++ show _remain_terms)
 
                _new_rec = mulBR _new_default recovery_rate
                _new_loss = mulBR _new_default (1 - recovery_rate)
@@ -224,11 +224,11 @@ projectLoanFlow trs _bal _last_date (_pdate:_pdates)
                tr = CF.LoanFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default (head _current_rec) (head _current_loss) _rate
 
 projectLoanFlow trs _b _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _ _lag_rate _p _pt
- = projectLoanFlow (trs++[tr]) _b _pdate _pdates [] [] _rec_amts _loss_amts [0.0] _lag_rate _p _pt
+ = projectLoanFlow (trs++[tr]) _b _pdate _pdates [] [] _rec_amts _loss_amts [0.0] _lag_rate _p _pt  `debug` (">>> in recovery & Loss"++"pdates>"++show (length _pdates)++"rec>"++ show (length _rec_amts))
   where
     tr = CF.LoanFlow _pdate _b 0 0 0 0 _rec_amt _loss_amt 0.0
 
-projectLoanFlow trs _ last_bal [] _ _ [] [] _ _ _ _ = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
+projectLoanFlow trs _ _ [] _ _ [] [] _ _ _ _ = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
 
 projectMortgageFlow :: [CF.TsRow] -> Balance -> Date -> Dates -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [IRate] -> (Int,Rate) -> Period -> AmortPlan -> [CF.TsRow]
 projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec_vector@(_rec_amt:_rec_amts) _loss_vector@(_loss_amt:_loss_amts) (_rate:_rates) (recovery_lag,recovery_rate) p pt
@@ -543,9 +543,7 @@ instance Asset Loan where
                             p
                             prinPayType -- `debug` ("ppy rate"++show ppy_rates)
     where
-      last_pay_date:cf_dates = take (succ rt) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates pl 0
-      -- cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) (getPaymentDates pl recovery_lag) --  `debug` ("CF Dates"++show(recovery_lag))
-      -- last_pay_date = previousDate (head cf_dates) p -- `debug` ("RT->"++show rt++" cf-dates "++show cf_dates)
+      last_pay_date:cf_dates = take ((succ rt) + recovery_lag) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates pl recovery_lag
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
       rate_vector = case or of
                       Fix r ->  replicate cf_dates_length cr   --calcIntRateCurve DC_ACT_360 r (last_pay_date:cf_dates) -- replicate cf_dates_length cr
