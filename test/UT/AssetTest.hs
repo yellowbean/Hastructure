@@ -78,8 +78,9 @@ loanTests =
                  0.06
                  24
                  P.Current
-
-      loan1Cf = P.calcCashflow loan1 (L.toDate "20200615")
+      asofDate = (L.toDate "20200615")
+      loan1Cf = P.calcCashflow loan1 asofDate
+      loan2Cf = P.projCashflow loan1 asofDate []
     in 
       testGroup "Loan cashflow Tests" [ 
        testCase "Loan 1" $
@@ -88,6 +89,10 @@ loanTests =
              (CF.sizeCashFlowFrame loan1Cf)
        ,testCase "Last Principal Amount" $
            assertEqual ""
-            (Just (CF.LoanFlow (L.toDate "20220601") 0 120 0 0 0 0 0 0.06))
+            (Just (CF.LoanFlow (L.toDate "20220601") 0 120 0.61 0 0 0 0 0.06))
             (CF.cfAt loan1Cf 23)
-      ]
+       ,testCase "calcCashflow == projCashflow when assump = []" $
+           assertEqual ""
+           loan1Cf
+           loan2Cf
+     ]

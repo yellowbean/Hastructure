@@ -58,35 +58,36 @@ type Prepayments = [Prepayment]
 type Recoveries = [Recovery]
 type Rates = [Rate]
 
-data ColType = ColNum Centi | ColDate Date | ColBal Centi | ColRate IRate
-    deriving (Show)
+data ColType = ColNum Centi 
+             | ColDate Date 
+             | ColBal Centi 
+             | ColRate IRate
+             deriving (Show)
 
 data TsRow = CashFlow Date Amount
-           |BondFlow Date Balance Principal Interest
-           |MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
-           |MortgageFlow2 Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate
-           |MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss IRate
-           |LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
-           deriving(Show)
+           | BondFlow Date Balance Principal Interest
+           | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
+           | MortgageFlow2 Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate
+           | MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss IRate
+           | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
+           deriving(Show,Eq,Ord)
 
-instance Ord TsRow where
-  compare (CashFlow d1 _) (CashFlow d2 _) = compare d1 d2
-  compare (BondFlow d1 _ _ _) (BondFlow d2 _ _ _) = compare d1 d2
-  compare (MortgageFlow d1 _ _ _ _ _ _ _ _) (MortgageFlow d2 _ _ _ _ _ _ _ _) = compare d1 d2
-  compare (MortgageFlow2 d1 _ _ _ _ _ _ _ _ _) (MortgageFlow2 d2 _ _ _ _ _ _ _ _ _) = compare d1 d2
-  compare (MortgageFlow3 d1 _ _ _ _ _ _ _ _ _ _ _) (MortgageFlow3 d2 _ _ _ _ _ _ _ _ _ _ _) = compare d1 d2
-  compare (LoanFlow d1 _ _ _ _ _ _ _ _) (LoanFlow d2 _ _ _ _ _ _ _ _) = compare d1 d2
+-- instance Ord TsRow where
+--  compare tr1 tr2 = compare (tsDate tr1) (tsDate tr2)
+--
+-- instance Eq TsRow where
+--  tr1 == tr2 = (tsDate tr1) == (tsDate tr2)
 
-instance Eq TsRow where
-  (CashFlow d1 _) == (CashFlow d2 _) = d1 == d2
-  (BondFlow d1 _ _ _) == (BondFlow d2 _ _ _) = d1 == d2
-  (MortgageFlow d1 _ _ _ _ _ _ _ _) == (MortgageFlow d2 _ _ _ _ _ _ _ _) = d1 == d2
-  (MortgageFlow2 d1 _ _ _ _ _ _ _ _ _) == (MortgageFlow2 d2 _ _ _ _ _ _ _ _ _) = d1 == d2
-  (MortgageFlow3 d1 _ _ _ _ _ _ _ _ _ _ _) == (MortgageFlow3 d2 _ _ _ _ _ _ _ _ _ _ _) = d1 == d2
-  (LoanFlow d1 _ _ _ _ _ _ _ _) == (LoanFlow d2 _ _ _ _ _ _ _ _) = d1 == d2
+instance TimeSeries TsRow where 
+    cmp tr1 tr2 = compare (tsDate tr1) (tsDate tr2)
+    sameDate tr1 tr2 = (tsDate tr1) == (tsDate tr2)
+   -- before tr1 tr2 = (tsDate tr1) < (tsDate tr2)
+   -- onBefore tr1 tr2 = (tsDate tr1) <= (tsDate tr2)
+   -- after tr1 tr2 = (tsDate tr1) > (tsDate tr2)
+   -- onAfter tr1 tr2 = (tsDate tr1) >= (tsDate tr2)
 
 data CashFlowFrame = CashFlowFrame [TsRow]
-              deriving (Show)
+              deriving (Show,Eq)
 
 mkRow :: [ColType] -> TsRow
 mkRow (ColDate d:ColBal b:ColNum prin:ColNum i:ColNum pre:ColBal def_b:ColNum rec:ColNum los:ColRate rat:[])
@@ -253,7 +254,7 @@ tsSetDate (LoanFlow _ a b c d e f g h) x = (LoanFlow x a b c d e f g h)
 reduceTs :: [TsRow] -> TsRow -> [TsRow]
 reduceTs [] _tr = [_tr]
 reduceTs (tr:trs) _tr =
-  if tr == _tr
+  if (sameDate tr _tr)
   then (addTs tr _tr):trs
   else _tr:tr:trs
 
@@ -261,7 +262,7 @@ combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combine (CashFlowFrame rs1) (CashFlowFrame rs2) =
     CashFlowFrame $  foldl reduceTs [] sorted_cff
     where cff = rs1++rs2
-          sorted_cff = L.sort cff
+          sorted_cff = L.sortOn tsDate cff
 
 tsDateLT :: Date -> TsRow  -> Bool
 tsDateLT td (CashFlow d _) = d < td

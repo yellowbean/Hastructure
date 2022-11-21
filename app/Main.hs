@@ -45,7 +45,7 @@ $(deriveJSON defaultOptions ''DealType)
 
 data RunDealReq = RunDealReq {
    deal :: DealType
-  ,asusmp :: Maybe AP.AssumptionInput
+  ,assump :: Maybe AP.AssumptionInput
   ,bondPricing :: Maybe AP.BondPricingInput}
 
 $(deriveJSON defaultOptions ''RunDealReq)
@@ -69,14 +69,14 @@ optionsRunDealR = do
 postRunDealR :: Handler Value
 postRunDealR = do
   req <- requireCheckJsonBody  :: Handler RunDealReq 
-  case req of
-    RunDealReq (MDeal d) a p -> foo d a p
-    RunDealReq (LDeal d) a p -> foo d a p
+  case (deal req) of
+    MDeal d -> foo d (assump req) (bondPricing req)
+    LDeal d -> foo d (assump req) (bondPricing req)
   where 
     foo d a p =
       case a of 
-        Just (AP.Single aps) -> returnJson $ D.runDeal d D.DealPoolFlowPricing (Just aps) p
-        Nothing ->  returnJson $  D.runDeal d D.DealPoolFlowPricing Nothing p
+        Just (AP.Single aps) -> returnJson $ D.runDeal d D.DealPoolFlowPricing (Just aps) p  `debug` ("In Single"++ show aps)
+        Nothing ->  returnJson $  D.runDeal d D.DealPoolFlowPricing Nothing p   `debug` ("In Nothing")
         Just (AP.Multiple apsm) -> returnJson $ Map.map (\x -> D.runDeal d D.DealPoolFlowPricing (Just x) p) apsm
 
 
@@ -84,7 +84,7 @@ getVersionR :: Handler String
 getVersionR =  do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "GET"
-  return "{\"version\":\"0.3.2\"}"
+  return "{\"version\":\"0.4.2\"}"
 
 optionsVersionR :: Handler String 
 optionsVersionR = do

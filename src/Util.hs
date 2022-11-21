@@ -4,7 +4,7 @@ module Util
     (mulBR,mulBIR,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern 
     ,genSerialDatesTill,subDates,getTsDates,sliceDates,SliceType(..)      
-    ,calcInt,calcIntRate
+    ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals
     )
     where
@@ -327,6 +327,11 @@ calcIntRate start_date end_date int_rate day_count =
     yf = yearCountFraction day_count start_date end_date
   in 
     int_rate * (fromRational yf)
+
+calcIntRateCurve :: DayCount -> IRate -> [Date] -> [IRate]
+calcIntRateCurve dc r ds 
+  = [ calcIntRate sd ed r dc |  (sd,ed) <- zip (init ds) (tail ds) ]
+
 
 calcInt :: Balance -> Date -> Date -> IRate -> DayCount -> Amount
 calcInt bal start_date end_date int_rate day_count =

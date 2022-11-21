@@ -205,8 +205,9 @@ projectLoanFlow trs _bal _last_date (_pdate:_pdates)
                _new_bal_after_default = _bal - _new_default
                _new_prepay = mulBR _new_bal_after_default _ppy_rate
                _new_bal_after_ppy = _new_bal_after_default - _new_prepay
-               _new_int = mulBI _new_bal_after_ppy (periodRateFromAnnualRate p _rate)  -- `debug` ("Balance"++show(_new_bal_after_ppy))
-               _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms 
+               _int_rate = calcIntRate _last_date _pdate _rate DC_ACT_360 
+               _new_int = mulBI _new_bal_after_ppy _int_rate `debug` ("Balance"++show(_new_bal_after_ppy)++"Rate>>"++show _int_rate )
+               _pmt = calcPmt _new_bal_after_ppy _int_rate _remain_terms 
                _new_prin = case pt of 
                              I_P -> case _pdates of 
                                       [] -> _new_bal_after_ppy
@@ -491,7 +492,6 @@ instance Asset Loan where
    where
       orate = getOriginRate pl
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
-      -- cf_dates = take _term $ filter (> asOfDay)  $ getPaymentDates pl 0
       cf_dates = take (succ _term) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates pl 0
       l = (length cf_dates) - 1
       (b_flow,prin_flow,int_flow) = case ptype of
@@ -541,13 +541,14 @@ instance Asset Loan where
                             rate_vector
                             (recovery_lag,recovery_rate)
                             p
-                            prinPayType -- `debug` ("rrate"++show recovery_rate++"rlag"++show recovery_lag) -- `debug` ("Payment dates=>"++show(cf_dates))
+                            prinPayType -- `debug` ("ppy rate"++show ppy_rates)
     where
-      cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) (getPaymentDates pl recovery_lag) --  `debug` ("CF Dates"++show(recovery_lag))
-      last_pay_date = previousDate (head cf_dates) p -- `debug` ("RT->"++show rt++" cf-dates "++show cf_dates)
-      cf_dates_length = length cf_dates --  `debug` ("CF dates=>"++show(cf_dates))
+      last_pay_date:cf_dates = take (succ rt) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates pl 0
+      -- cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) (getPaymentDates pl recovery_lag) --  `debug` ("CF Dates"++show(recovery_lag))
+      -- last_pay_date = previousDate (head cf_dates) p -- `debug` ("RT->"++show rt++" cf-dates "++show cf_dates)
+      cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
       rate_vector = case or of
-                      Fix r ->  replicate cf_dates_length r
+                      Fix r ->  replicate cf_dates_length cr   --calcIntRateCurve DC_ACT_360 r (last_pay_date:cf_dates) -- replicate cf_dates_length cr
                       Floater idx sprd _orate p mfloor ->
                               case getRateAssumption assumps idx of
                                 Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates (mkRateTs ps) cf_dates
@@ -568,7 +569,8 @@ runPool2 (Pool as (Just (CF.CashFlowFrame mfs)) asof _) assumps
     where 
       smf = ScheduleMortgageFlow asof mfs
 runPool2 (Pool as _ asof _) [] = map (\x -> calcCashflow x asof) as -- `debug` ("RUNPOOL"++ show (map (\x -> calcCashflow x asof) as ))
-runPool2 (Pool as _ asof _) assumps = map (\x -> projCashflow x asof assumps) as
+runPool2 (Pool as _ asof _) assumps 
+  = map (\x -> projCashflow x asof assumps) as --  `debug` ("Assumping->" ++ show assumps)
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))

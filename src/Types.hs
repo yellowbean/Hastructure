@@ -12,7 +12,7 @@ module Types
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
   ,RangeType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
-  ,Date,Dates
+  ,Date,Dates,TimeSeries(..)
   ,EndType,ResultComponent(..))
   where
 
@@ -30,7 +30,6 @@ import Data.Aeson.Types
 import Data.Fixed
 import Data.Ix
 
-
 type BondName = String
 type BondNames = [String]
 type FeeName = String
@@ -44,7 +43,6 @@ type Rate = Rational
 
 type Date = Time.Day
 type Dates = [Time.Day]
-
 
 -- http://www.deltaquants.com/day-count-conventions
 data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Basis
@@ -264,17 +262,6 @@ data ResultComponent = CallAt Date
                   | BondOutstandingInt String Balance Balance -- when deal ends
                   deriving (Show)
 
---instance Eq TxnComponent where 
---    (Account s1) == (Account s2) = s1 ==  s2
---    (Bond s1) == (Bond s2) = s1 ==  s2
---    (Expense s1) == (Expense s2) = s1 == s2
---
---
---instance Ord TxnComponent where 
---    compare (Account s1) (Account s2) = compare s1 s2
---    compare (Bond s1) (Bond s2) = compare s1 s2
---    compare (Expense s1) (Expense s2) = compare s1 s2
-
 data EndType = IN | EX
               deriving (Show)
 
@@ -315,6 +302,15 @@ data TriggerEffect = DealStatusTo DealStatus
                    | AddTrigger Trigger 
                    | TriggerEffects [TriggerEffect]
                    deriving (Show,Eq)
+
+class TimeSeries ts where 
+    cmp :: ts -> ts -> Ordering
+    sameDate :: ts -> ts -> Bool
+   -- before :: ts -> ts -> Bool
+   -- onBefore :: ts -> ts -> Bool
+   -- after :: ts -> ts -> Bool
+   -- onAfter :: ts -> ts -> Bool
+
 
 
 $(deriveJSON defaultOptions ''Pre)
