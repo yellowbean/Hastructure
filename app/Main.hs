@@ -84,7 +84,7 @@ getVersionR :: Handler String
 getVersionR =  do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "GET"
-  return "{\"version\":\"0.3.2\"}"
+  return "{\"version\":\"0.4.0\"}"
 
 optionsVersionR :: Handler String 
 optionsVersionR = do
