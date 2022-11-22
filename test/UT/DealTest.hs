@@ -83,7 +83,7 @@ td2 = TestDeal {
                          ]
            )
   ,D.pool = P.Pool {P.assets=[P.Mortgage
-                                         P.OriginalInfo{
+                                         P.MortgageOriginalInfo{
                                            P.originBalance=4000
                                            ,P.originRate=P.Fix 0.085
                                            ,P.originTerm=60
@@ -95,7 +95,7 @@ td2 = TestDeal {
                                          60
                                          P.Current
                                 ,P.Mortgage
-                                   P.OriginalInfo{
+                                   P.MortgageOriginalInfo{
                                      P.originBalance=4000
                                      ,P.originRate=P.Fix 0.085
                                      ,P.originTerm=60
