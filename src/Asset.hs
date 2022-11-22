@@ -23,6 +23,7 @@ import qualified Assumptions as A
 import qualified Data.Map as Map
 import Data.List
 import Data.Maybe
+import Data.Ratio
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -97,6 +98,7 @@ data RateType = Fix IRate
 data AmortPlan = Level   -- for mortgage
                | Even    -- for mortgage
                | I_P     -- interest only and principal due at last payment
+               | F_P     -- fee based 
                | ScheduleRepayment Ts-- custom principal follow
                deriving (Show)
 
@@ -480,11 +482,22 @@ calc_p_i_flow_i_p bal dates r
     where
       size =  length dates
       flow_size = pred $ length $ tail dates
-
       period_rs = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
       _ints = [  mulBI bal _r | _r <- period_rs ]
       _bals = (replicate flow_size bal ) ++ [ 0 ]
       _prins = (replicate flow_size 0 ) ++ [ bal ]
+
+calc_p_i_flow_f_p :: Balance -> Balance -> Amount -> Dates -> Period -> IRate -> ([Balance],CF.Principals,CF.Interests)
+calc_p_i_flow_f_p ob cb amt ds p r 
+  = (_bals, _prins,_fees)
+    where 
+      size = length ds
+      _prins = replicate size amt
+      _period_fee = case p of 
+                      Monthly -> mulBI ob (r/12)
+      _bals = tail $ scanl (-) cb _prins
+      _fees = replicate size _period_fee
+
 
 instance Asset Loan where
   calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ ) asOfDay =
@@ -498,6 +511,7 @@ instance Asset Loan where
                                      Level -> calc_p_i_flow _bal pmt cf_dates _rate
                                      Even  -> calc_p_i_flow_even (_bal / fromIntegral _term) _bal cf_dates _rate
                                      I_P   -> calc_p_i_flow_i_p _bal cf_dates _rate
+                                     F_P   -> calc_p_i_flow_f_p ob _bal (divideBI _bal _term) cf_dates p _rate
       _cf =  CF.CashFlowFrame $ zipWith9
                          CF.LoanFlow
                            (tail cf_dates)

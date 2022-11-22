@@ -5,7 +5,7 @@ module Util
     ,getValByDate,getValByDates,projDatesByPattern 
     ,genSerialDatesTill,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
-    ,multiplyTs,zipTs,getTsVals
+    ,multiplyTs,zipTs,getTsVals,divideBI
     )
     where
 import qualified Data.Time as T
@@ -26,10 +26,14 @@ import Debug.Trace
 debug = flip trace
 
 mulBR :: Balance -> Rate -> Centi
-mulBR b r = fromRational $ toRational b * r --`debug` ("b "++show(b)++"r "++show(r)++" = "++show(b * (fromRational r)))
+mulBR b r = fromRational $ toRational b * r 
 
 mulBIR :: Balance -> IRate -> Centi
 mulBIR b r = fromRational $ (toRational b) * (toRational r)
+
+divideBI :: Balance -> Int -> Balance
+divideBI b i = fromRational $ (toRational b) / (toRational i)
+
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
