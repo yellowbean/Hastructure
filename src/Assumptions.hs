@@ -2,9 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
-                    ,AssumptionInput(..))
-
- where
+                    ,AssumptionInput(..),AssumptionLists(..))
+where
 
 import Call as C
 import Lib (IRate,Rate,Index(..),Ts(..),TsPoint(..),toDate)
@@ -16,7 +15,6 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Types
 import qualified Data.Time as T
-
 import Data.Fixed
 import Data.Ratio
 import Debug.Trace

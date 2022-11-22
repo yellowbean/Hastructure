@@ -50,15 +50,43 @@ data RunDealReq = RunDealReq {
 
 $(deriveJSON defaultOptions ''RunDealReq)
 
+data PoolType = MPool (P.Pool P.Mortgage)
+              | LPool (P.Pool P.Loan)
+              deriving(Show)
+
+$(deriveJSON defaultOptions ''PoolType)
+
+data RunPoolReq = RunPoolReq {
+   pool :: PoolType
+  ,pAssump :: Maybe AP.AssumptionLists
+} deriving(Show)
+
+$(deriveJSON defaultOptions ''RunPoolReq)
+
 data App = App
 
 mkYesod "App" [parseRoutes|
  /run_deal RunDealR POST OPTIONS
+ /run_pool RunPoolR POST OPTIONS
  /version VersionR GET OPTIONS
 |]
  
 instance Yesod App where
   yesodMiddleware = defaultYesodMiddleware
+
+optionsRunPoolR :: Handler String 
+optionsRunPoolR = do
+  addHeader "Access-Control-Allow-Origin" "*"
+  addHeader "Access-Control-Allow-Methods" "OPTIONS"
+  return "Good"
+
+postRunPoolR :: Handler Value
+postRunPoolR = do
+  req <- requireCheckJsonBody  :: Handler RunPoolReq 
+  returnJson $ 
+      case pool req of 
+        MPool p -> P.aggPool $ P.runPool2 p $ fromMaybe [] (pAssump req)
+        LPool p -> P.aggPool $ P.runPool2 p $ fromMaybe [] (pAssump req)
 
 optionsRunDealR :: Handler String 
 optionsRunDealR = do
@@ -84,7 +112,7 @@ getVersionR :: Handler String
 getVersionR =  do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "GET"
-  return "{\"version\":\"0.4.0.1\"}"
+  return "{\"version\":\"0.4.0\"}"
 
 optionsVersionR :: Handler String 
 optionsVersionR = do
