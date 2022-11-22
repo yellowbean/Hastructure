@@ -14,15 +14,15 @@ import Debug.Trace
 debug = flip trace
 
 tm = P.Mortgage
-     (P.OriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Level)
+     (P.MortgageOriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Level)
      8000 0.08 19 P.Current
 
 tm1 = P.Mortgage
-     (P.OriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
+     (P.MortgageOriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
      240 0.08 19 P.Current
 
 tm2 = P.Mortgage
-     (P.OriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
+     (P.MortgageOriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
      240 0.08 19 (P.Defaulted Nothing)
 
 asOfDate = L.toDate "20210605"
