@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
-                    ,AssumptionInput(..),AssumptionLists(..))
+                    ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR)
 where
 
 import Call as C
@@ -58,6 +58,24 @@ data BondPricingInput = DiscountCurve T.Day Ts
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
   = toRational $ 1 - (fromRational (1-annualRate)) ** ((fromIntegral days) / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
+
+
+getCDR :: AssumptionLists -> Maybe Rate
+getCDR [] = Nothing
+getCDR (ap:aps) = 
+    case ap of 
+      DefaultCDR r -> Just r 
+      _ -> getCDR aps
+
+getCPR :: AssumptionLists -> Maybe Rate
+getCPR [] = Nothing
+getCPR (ap:aps) = 
+    case ap of 
+      PrepaymentCPR r -> Just r 
+      _ -> getCPR aps
+
+
+
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)

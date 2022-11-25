@@ -5,7 +5,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowDefault,mflowLoss,mflowDate
-                ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate
+                ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate,getDatesCashFlowFrame
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
@@ -81,6 +81,7 @@ data TsRow = CashFlow Date Amount
 instance TimeSeries TsRow where 
     cmp tr1 tr2 = compare (tsDate tr1) (tsDate tr2)
     sameDate tr1 tr2 = (tsDate tr1) == (tsDate tr2)
+   --  getDates tr = [tsDate tr]
    -- before tr1 tr2 = (tsDate tr1) < (tsDate tr2)
    -- onBefore tr1 tr2 = (tsDate tr1) <= (tsDate tr2)
    -- after tr1 tr2 = (tsDate tr1) > (tsDate tr2)
@@ -101,6 +102,9 @@ sizeCashFlowFrame (CashFlowFrame ts) = length ts
 
 getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
 getTsCashFlowFrame (CashFlowFrame ts) = ts
+
+getDatesCashFlowFrame :: CashFlowFrame -> [Date]
+getDatesCashFlowFrame cff =  map tsDate $ getTsCashFlowFrame cff
 
 removeTsCashFlowFrameByDate :: CashFlowFrame -> Date -> Maybe CashFlowFrame
 removeTsCashFlowFrameByDate (CashFlowFrame trs) d =
@@ -241,7 +245,6 @@ tsDefaultBal (MortgageFlow _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (MortgageFlow2 _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _) = x
-
 
 tsSetDate :: TsRow -> Date ->TsRow
 tsSetDate (CashFlow _ a) x  = (CashFlow x a)

@@ -306,6 +306,7 @@ data TriggerEffect = DealStatusTo DealStatus
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
     sameDate :: ts -> ts -> Bool
+   -- getDates :: ts -> [Date]
    -- before :: ts -> ts -> Bool
    -- onBefore :: ts -> ts -> Bool
    -- after :: ts -> ts -> Bool
