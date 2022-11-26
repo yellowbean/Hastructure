@@ -37,10 +37,10 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | DefaultFactors Ts
                 | Recovery (Rate,Int)
                 | InterestRateConstant Index IRate
-                | InterestRateCurve Index [(T.Day,IRate)] -- Deprecating
+                | InterestRateCurve Index [(Date,IRate)] -- Deprecating
                 | InterestRateCurve2 Index Ts
                 | CallWhen [C.CallOption]
-                | StopRunBy T.Day
+                | StopRunBy Date
                 -- To be implement
                 | PoolHairCut PoolSource Rate
                 | PrepaymentDistribution Float [Float] -- total default rate, distribution pct

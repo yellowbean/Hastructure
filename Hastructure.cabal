@@ -28,6 +28,9 @@ library
   exposed-modules:
       Accounts
       Asset
+      AssetClass.Installment
+      AssetClass.Loan
+      AssetClass.Mortgage
       Assumptions
       Call
       Cashflow

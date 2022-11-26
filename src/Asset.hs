@@ -1,15 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
-
 {-# LANGUAGE TemplateHaskell #-}
 module Asset (Mortgage(..),Loan(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,calcCashflow,getCurrentBal,getOriginBal,runPool2
        ,RateType(..),projCashflow,AmortPlan(..)
        ,Status(..),isDefaulted,IssuanceFields(..)
-       ,Asset,projPoolCFs,AggregationRule
+       ,Asset(..),projPoolCFs,AggregationRule
        ,getIssuanceField,calcPmt
 ) where
 
-import Data.Time (Day)
 import qualified Data.Time as T
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
@@ -18,6 +16,7 @@ import Lib (Period(..),Dates,Date,genDates
            ,Balance,Rate,IRate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate
            ,nextDate,Amount,getIntervalDays,zipWith9,mkTs,periodsBetween,Floor,Rate
            ,mulBI,mkRateTs)
+
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
 import qualified Data.Map as Map
@@ -34,11 +33,6 @@ import Data.Fixed
 import Util
 import Debug.Trace
 debug = flip trace
-
-type PrepaymentRate = Rate
-type DefaultRate = Rate
-type RecoveryRate = Rate
-type RemainTerms = Int
 
 
 class Asset a where
@@ -113,7 +107,7 @@ data OriginalInfo = MortgageOriginalInfo {
     ,originRate :: RateType
     ,originTerm :: Int
     ,period :: Period
-    ,startDate :: Day
+    ,startDate :: Date
     ,prinType :: AmortPlan
     } 
   | LoanOriginalInfo {
@@ -121,7 +115,7 @@ data OriginalInfo = MortgageOriginalInfo {
     ,originRate :: RateType
     ,originTerm :: Int
     ,period :: Period
-    ,startDate :: Day
+    ,startDate :: Date
     ,prinType :: AmortPlan
     } deriving (Show)
  
@@ -132,7 +126,8 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms Status
 
 data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
-            deriving (Show)
+          deriving (Show)
+
 
 buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int)
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
@@ -202,12 +197,12 @@ projectLoanFlow trs _bal _last_date (_pdate:_pdates)
                 where
                _remain_terms = 1 + max 0 ((length _pdates) - recovery_lag)
                _new_default = mulBR _bal _def_rate  --  `debug` ("REMAIN TERM>"++ show _remain_terms)
-               _new_bal_after_default = _bal - _new_default `debug` ("DEF AMT"++ show _bal ++"D R"++ show _def_rate)
+               _new_bal_after_default = _bal - _new_default -- `debug` ("DEF AMT"++ show _bal ++"D R"++ show _def_rate)
                _new_prepay = mulBR _new_bal_after_default _ppy_rate
                _new_bal_after_ppy = _new_bal_after_default - _new_prepay
                _int_rate = calcIntRate _last_date _pdate _rate DC_ACT_360 
                _new_int = case pt of 
-                            F_P -> 0.0 -- mulBIR _int_rate 
+                            F_P -> 0
                             _ -> mulBI _new_bal_after_ppy _int_rate -- `debug` ("Balance"++show(_new_bal_after_ppy)++"Rate>>"++show _int_rate )
                _pmt = calcPmt _new_bal_after_ppy _int_rate _remain_terms 
                _new_prin = case pt of 
@@ -360,7 +355,7 @@ instance Asset Mortgage  where
     where
       orate = getOriginRate m
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
-      cf_dates = take _term $ filter (\x -> x >= d) $ getPaymentDates m 0
+      cf_dates = take _term $ filter (>= d) $ getPaymentDates m 0
       last_pay_date = previousDate (head cf_dates) p
       l = length cf_dates
 
@@ -488,17 +483,6 @@ calc_p_i_flow_i_p bal dates r
       _bals = (replicate flow_size bal ) ++ [ 0 ]
       _prins = (replicate flow_size 0 ) ++ [ bal ]
 
-calc_p_i_flow_f_p :: Balance -> Balance -> Amount -> Dates -> Period -> IRate -> ([Balance],CF.Principals,CF.Interests)
-calc_p_i_flow_f_p ob cb amt ds p r 
-  = (_bals, _prins,_fees)
-    where 
-      size = length ds
-      _prins = replicate size amt
-      _period_fee = case p of 
-                      Monthly -> mulBI ob (r/12)
-      _bals = tail $ scanl (-) cb _prins
-      _fees = replicate size _period_fee
-
 
 instance Asset Loan where
   calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) _bal _rate _term _ ) asOfDay = _cf 
@@ -511,7 +495,6 @@ instance Asset Loan where
                                      Level -> calc_p_i_flow _bal pmt cf_dates _rate
                                      Even  -> calc_p_i_flow_even (_bal / fromIntegral _term) _bal cf_dates _rate
                                      I_P   -> calc_p_i_flow_i_p _bal cf_dates _rate
-                                     F_P   -> calc_p_i_flow_f_p ob _bal (divideBI _bal _term) cf_dates p _rate
       _cf =  CF.CashFlowFrame $ zipWith9
                          CF.LoanFlow
                            (tail cf_dates)
@@ -549,7 +532,7 @@ instance Asset Loan where
                             last_pay_date
                             cf_dates
                             adjusted_def_rates
-                            adjusted_ppy_rates
+                            ppy_rates
                             (replicate cf_dates_length 0.0)
                             (replicate cf_dates_length 0.0)
                             rate_vector
@@ -571,18 +554,18 @@ instance Asset Loan where
       sum_cf = sum schedule_cf
       pdates = (CF.getDatesCashFlowFrame schedule_flow)
       cdr = fromMaybe 0.0 $ A.getCDR assumps
-      cpr = fromMaybe 0.0 $ A.getCPR assumps
+      -- cpr = fromMaybe 0.0 $ A.getCPR assumps
       proj_years = yearCountFraction DC_ACT_365F last_pay_date (last pdates)
       lifetime_default_pct = toRational $ proj_years * cdr 
-      lifetime_prepayment_pct = toRational $ proj_years * cpr `debug` ("TOTAL DEF AMT"++show lifetime_default_pct)
+      -- lifetime_prepayment_pct = toRational $ proj_years * cpr -- `debug` ("TOTAL DEF AMT"++show lifetime_default_pct)
       cf_factor = map (\x ->  (toRational x)  / (toRational sum_cf)) schedule_cf
-      (_,_,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
+      (ppy_rates,_,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0)
                                (replicate cf_dates_length 0.0) 
                                0
                                0
       adjusted_def_rates = map (\x -> (toRational x) * lifetime_default_pct) cf_factor `debug` ("Factors"++ show cf_factor ++ "SUM UP"++ show (sum cf_factor))
-      adjusted_ppy_rates = map (\x -> (toRational x) * lifetime_prepayment_pct) cf_factor
+      -- adjusted_ppy_rates = map (\x -> (toRational x) * lifetime_prepayment_pct) cf_factor
 
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt Current) asOfDay assumps =
     CF.CashFlowFrame $ projectLoanFlow
@@ -597,7 +580,7 @@ instance Asset Loan where
                             rate_vector
                             (recovery_lag,recovery_rate)
                             p
-                            prinPayType -- `debug` ("ppy rate"++show ppy_rates)
+                            prinPayType  -- `debug` ("rate"++show rate_vector)
     where
       last_pay_date:cf_dates = take ((succ rt) + recovery_lag) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates pl recovery_lag
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)

@@ -1,7 +1,7 @@
 --{-# LANGUAGE OverloadedStrings #-}
 --{-# LANGUAGE TemplateHaskell #-}
 
-module Asset.Mort(Mortgage)
+module AssetClass.Mortgage
   where
 
 import qualified Data.Time as T

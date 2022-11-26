@@ -13,7 +13,8 @@ module Types
   ,RangeType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
   ,Date,Dates,TimeSeries(..)
-  ,EndType,ResultComponent(..))
+  ,EndType,ResultComponent(..)
+  ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms)
   where
 
 import qualified Data.Text as T
@@ -43,6 +44,12 @@ type Rate = Rational
 
 type Date = Time.Day
 type Dates = [Time.Day]
+
+type PrepaymentRate = Rate
+type DefaultRate = Rate
+type RecoveryRate = Rate
+type RemainTerms = Int
+
 
 -- http://www.deltaquants.com/day-count-conventions
 data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Basis

@@ -1,8 +1,7 @@
 --{-# LANGUAGE OverloadedStrings #-}
 --{-# LANGUAGE TemplateHaskell #-}
 
-module Asset.Loan(Loan)
-  where
+module AssetClass.Loan where
 
 import qualified Data.Time as T
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
@@ -19,10 +18,5 @@ import Data.Aeson.Types
 import Debug.Trace
 debug = flip trace
 
-data LoanType = Bullet
-              | IntBy
-
-
-data Loan = Loan Ast.OriginalInfo LoanType Balance Rate RemainTerms Status
 
 -- instance Asset Loan where

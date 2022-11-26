@@ -15,6 +15,7 @@ import Data.Text        (Text, pack)
 import Data.Yaml as Y
 import qualified Deal as D
 import qualified Asset as P
+import qualified AssetClass.Installment as AC_Installment
 import qualified Assumptions as AP
 
 import qualified Data.ByteString.Lazy.Char8 as C8
@@ -40,6 +41,7 @@ debug = flip trace
 
 data DealType = MDeal (D.TestDeal P.Mortgage)
               | LDeal (D.TestDeal P.Loan)
+              | IDeal (D.TestDeal AC_Installment.Installment)
 
 $(deriveJSON defaultOptions ''DealType)
 
@@ -52,6 +54,7 @@ $(deriveJSON defaultOptions ''RunDealReq)
 
 data PoolType = MPool (P.Pool P.Mortgage)
               | LPool (P.Pool P.Loan)
+              | IPool (P.Pool AC_Installment.Installment)
               deriving(Show)
 
 $(deriveJSON defaultOptions ''PoolType)
@@ -87,6 +90,7 @@ postRunPoolR = do
       case pool req of 
         MPool p -> P.aggPool $ P.runPool2 p $ fromMaybe [] (pAssump req)
         LPool p -> P.aggPool $ P.runPool2 p $ fromMaybe [] (pAssump req)
+        IPool p -> P.aggPool $ P.runPool2 p $ fromMaybe [] (pAssump req)
 
 optionsRunDealR :: Handler String 
 optionsRunDealR = do
@@ -100,6 +104,7 @@ postRunDealR = do
   case (deal req) of
     MDeal d -> foo d (assump req) (bondPricing req)
     LDeal d -> foo d (assump req) (bondPricing req)
+    IDeal d -> foo d (assump req) (bondPricing req)
   where 
     foo d a p =
       case a of 

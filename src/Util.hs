@@ -34,7 +34,6 @@ mulBIR b r = fromRational $ (toRational b) * (toRational r)
 divideBI :: Balance -> Int -> Balance
 divideBI b i = fromRational $ (toRational b) / (toRational i)
 
-
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
 zipLeftover xs     []     = xs
@@ -128,8 +127,6 @@ yearCountFraction dc sd ed
                         num = toRational (_eday - _sday) + 30*_gapMonth + 360*_diffYears
                       in 
                         num / 360
-      -- _ -> 0.08333 `debug` ("DCCC->"++ show dc)                  
-      
       -- https://www.iso20022.org/15022/uhb/mt565-16-field-22f.htm
 
     where 
