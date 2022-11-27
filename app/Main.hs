@@ -13,9 +13,11 @@ import GHC.Generics
 import Data.Monoid      ((<>))
 import Data.Text        (Text, pack)
 import Data.Yaml as Y
+import qualified Data.List as L
 import qualified Deal as D
 import qualified Asset as P
 import qualified AssetClass.Installment as AC_Installment
+import qualified AssetClass.Mortgage as AC_Mortgage
 import qualified Assumptions as AP
 
 import qualified Data.ByteString.Lazy.Char8 as C8
@@ -39,7 +41,7 @@ import Network.Wai.Middleware.Cors
 import Debug.Trace
 debug = flip trace
 
-data DealType = MDeal (D.TestDeal P.Mortgage)
+data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
               | LDeal (D.TestDeal P.Loan)
               | IDeal (D.TestDeal AC_Installment.Installment)
 
@@ -52,7 +54,7 @@ data RunDealReq = RunDealReq {
 
 $(deriveJSON defaultOptions ''RunDealReq)
 
-data PoolType = MPool (P.Pool P.Mortgage)
+data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
               | LPool (P.Pool P.Loan)
               | IPool (P.Pool AC_Installment.Installment)
               deriving(Show)
@@ -114,10 +116,14 @@ postRunDealR = do
 
 
 getVersionR :: Handler String
-getVersionR =  do
-  addHeader "Access-Control-Allow-Origin" "*"
-  addHeader "Access-Control-Allow-Methods" "GET"
-  return "{\"version\":\"0.5.3\"}"
+getVersionR =  let 
+                 _v = "0.5.7"
+                 v =  "{\"version\":\" "++v++" \"}"
+               in 
+                 do
+                   addHeader "Access-Control-Allow-Origin" "*"
+                   addHeader "Access-Control-Allow-Methods" "GET"
+                   return v
 
 optionsVersionR :: Handler String 
 optionsVersionR = do

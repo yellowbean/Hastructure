@@ -8,6 +8,7 @@ import Deal
 
 import qualified Accounts as A
 import qualified Asset as P
+import qualified AssetClass.Mortgage as ACM
 import qualified Expense as F
 import qualified Deal as D
 import qualified Liability as L
@@ -82,7 +83,7 @@ td2 = TestDeal {
                                ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = P.Pool {P.assets=[P.Mortgage
+  ,D.pool = P.Pool {P.assets=[ACM.Mortgage
                                          P.MortgageOriginalInfo{
                                            P.originBalance=4000
                                            ,P.originRate=P.Fix 0.085
@@ -94,7 +95,7 @@ td2 = TestDeal {
                                          0.085
                                          60
                                          P.Current
-                                ,P.Mortgage
+                                ,ACM.Mortgage
                                    P.MortgageOriginalInfo{
                                      P.originBalance=4000
                                      ,P.originRate=P.Fix 0.085

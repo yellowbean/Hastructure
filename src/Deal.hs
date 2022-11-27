@@ -15,6 +15,7 @@ import qualified CreditEnhancement as CE
 import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
+import qualified AssetClass.Mortgage as ACM
 import qualified Call as C
 import Stmt
 import Lib
@@ -1392,7 +1393,7 @@ td = TestDeal {
                              ,L.bndStmt=Nothing})
                          ]
            )
-  ,pool = P.Pool {P.assets=[P.Mortgage
+  ,pool = P.Pool {P.assets=[ACM.Mortgage
                                          P.MortgageOriginalInfo{
                                            P.originBalance=4000
                                            ,P.originRate=P.Fix 0.085

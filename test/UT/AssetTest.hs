@@ -7,21 +7,22 @@ import Test.Tasty.HUnit
 import qualified Data.Time as T
 import qualified Lib as L
 import qualified Asset as P
+import qualified AssetClass.Mortgage as ACM
 import qualified Assumptions as A
 import qualified Cashflow as CF
 
 import Debug.Trace
 debug = flip trace
 
-tm = P.Mortgage
+tm = ACM.Mortgage
      (P.MortgageOriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Level)
      8000 0.08 19 P.Current
 
-tm1 = P.Mortgage
+tm1 = ACM.Mortgage
      (P.MortgageOriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
      240 0.08 19 P.Current
 
-tm2 = P.Mortgage
+tm2 = ACM.Mortgage
      (P.MortgageOriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
      240 0.08 19 (P.Defaulted Nothing)
 
@@ -35,7 +36,7 @@ mortgageCalcTests = testGroup "Mortgage Calc Test"
   [
     testCase "Calc Pmt" $
         assertEqual "PMT 01"
-           154.15 
+           154.15
            (P.calcPmt 1200 0.12 24)
   ]
 

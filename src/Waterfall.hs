@@ -19,7 +19,8 @@ import Data.Hashable
 import Data.Fixed
 
 import Accounts (Account)
-import Asset (Mortgage, Pool)
+import Asset (Pool)
+import AssetClass.Mortgage(Mortgage)
 import Expense
 import Liability
 import Types
