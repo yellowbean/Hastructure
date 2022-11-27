@@ -18,6 +18,7 @@ import qualified Deal as D
 import qualified Asset as P
 import qualified AssetClass.Installment as AC_Installment
 import qualified AssetClass.Mortgage as AC_Mortgage
+import qualified AssetClass.Loan as AC_Loan
 import qualified Assumptions as AP
 
 import qualified Data.ByteString.Lazy.Char8 as C8
@@ -42,7 +43,7 @@ import Debug.Trace
 debug = flip trace
 
 data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
-              | LDeal (D.TestDeal P.Loan)
+              | LDeal (D.TestDeal AC_Loan.Loan)
               | IDeal (D.TestDeal AC_Installment.Installment)
 
 $(deriveJSON defaultOptions ''DealType)
@@ -55,7 +56,7 @@ data RunDealReq = RunDealReq {
 $(deriveJSON defaultOptions ''RunDealReq)
 
 data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
-              | LPool (P.Pool P.Loan)
+              | LPool (P.Pool AC_Loan.Loan)
               | IPool (P.Pool AC_Installment.Installment)
               deriving(Show)
 

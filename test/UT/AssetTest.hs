@@ -8,6 +8,7 @@ import qualified Data.Time as T
 import qualified Lib as L
 import qualified Asset as P
 import qualified AssetClass.Mortgage as ACM
+import qualified AssetClass.Loan as ACL
 import qualified Assumptions as A
 import qualified Cashflow as CF
 
@@ -73,7 +74,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
 
 loanTests = 
     let 
-      loan1 =  P.PersonalLoan 
+      loan1 =  ACL.PersonalLoan
                  (P.LoanOriginalInfo 180 (P.Fix 0.08) 36 L.Monthly (L.toDate "20200101") P.I_P) 
                  120
                  0.06
