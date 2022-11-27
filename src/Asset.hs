@@ -6,6 +6,7 @@ module Asset (Mortgage(..),Loan(..),Pool(..),OriginalInfo(..),calc_p_i_flow
        ,Status(..),isDefaulted,IssuanceFields(..)
        ,Asset(..),projPoolCFs,AggregationRule
        ,getIssuanceField,calcPmt
+       ,buildAssumptionRate
 ) where
 
 import qualified Data.Time as T
@@ -78,11 +79,6 @@ calcPmt bal periodRate periods =
      pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
    in
      mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
-
-replace :: [a] -> Int -> a -> [a]
-replace xs i e = case splitAt i xs of
-   (before, _:after) -> before ++ e: after
-   _ -> xs
 
 data RateType = Fix IRate
               | Floater Index Spread IRate Period (Maybe Floor)

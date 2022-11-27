@@ -6,6 +6,7 @@ module Util
     ,genSerialDatesTill,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI
+    ,replace
     )
     where
 import qualified Data.Time as T
@@ -366,3 +367,11 @@ projDatesByPattern dp sd ed
               DayOfMonth _ -> cdm + 1
     in 
       genSerialDates dp sd (fromInteger num)
+
+
+replace :: [a] -> Int -> a -> [a]
+replace xs i e = case splitAt i xs of
+   (before, _:after) -> before ++ e: after
+   _ -> xs
+
+
