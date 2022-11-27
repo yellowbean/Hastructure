@@ -108,8 +108,8 @@ postRunDealR = do
   where 
     foo d a p =
       case a of 
-        Just (AP.Single aps) -> returnJson $ D.runDeal d D.DealPoolFlowPricing (Just aps) p  `debug` ("In Single"++ show aps)
-        Nothing ->  returnJson $  D.runDeal d D.DealPoolFlowPricing Nothing p   `debug` ("In Nothing")
+        Just (AP.Single aps) -> returnJson $ D.runDeal d D.DealPoolFlowPricing (Just aps) p--   `debug` ("In Single"++ show aps)
+        Nothing ->  returnJson $  D.runDeal d D.DealPoolFlowPricing Nothing p   -- `debug` ("In Nothing")
         Just (AP.Multiple apsm) -> returnJson $ Map.map (\x -> D.runDeal d D.DealPoolFlowPricing (Just x) p) apsm
 
 
@@ -117,7 +117,7 @@ getVersionR :: Handler String
 getVersionR =  do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "GET"
-  return "{\"version\":\"0.5.1\"}"
+  return "{\"version\":\"0.5.2\"}"
 
 optionsVersionR :: Handler String 
 optionsVersionR = do
