@@ -124,8 +124,7 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
           deriving (Show)
 
-
-buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int)
+buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int) -- prepay rates,default rates,
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
        A.DefaultConstant r ->
            buildAssumptionRate pDates assumps _ppy_rates (replicate cf_dates_length r) _recovery_rate _recovery_lag
@@ -162,7 +161,20 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
                                               _ppy_rates
                                               new_def_rates
                                               _recovery_rate _recovery_lag
-       -- A.PrepaymentCPRCurve vs ->  buildAssumptionRate pDates assumps vs _def_rates _recovery_rate _recovery_lag
+
+       A.PrepaymentVec vs ->  
+           let 
+             _new_ppy = paddingDefault 0.0 vs (pred (length pDates))
+             new_ppy = zipWith A.toPeriodRateByInterval _new_ppy (getIntervalDays pDates)
+           in 
+             buildAssumptionRate pDates assumps new_ppy _def_rates _recovery_rate _recovery_lag
+
+       A.DefaultVec vs ->  
+           let 
+             _new_def = paddingDefault 0.0 vs (pred (length pDates))
+             new_def = zipWith A.toPeriodRateByInterval _new_def (getIntervalDays pDates)
+           in 
+             buildAssumptionRate pDates assumps _ppy_rates new_def _recovery_rate _recovery_lag
 
        _ -> buildAssumptionRate pDates assumps _ppy_rates _def_rates _recovery_rate _recovery_lag
    where

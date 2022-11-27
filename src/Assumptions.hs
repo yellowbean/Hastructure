@@ -20,7 +20,6 @@ import Data.Ratio
 import Debug.Trace
 debug = flip trace
 
-
 type AssumptionLists = [AssumptionBuilder]
 
 data AssumptionInput = Single AssumptionLists
@@ -30,10 +29,14 @@ data AssumptionInput = Single AssumptionLists
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 -- | MortgageByRate ([Float],[Float])
                 | PrepaymentConstant Rate
+                | PrepaymentCurve Ts
+                | PrepaymentVec [Rate]
                 | PrepaymentCPR Rate
                 | PrepaymentFactors Ts
                 | DefaultConstant Rate
+                | DefaultCurve Ts
                 | DefaultCDR Rate
+                | DefaultVec [Rate]
                 | DefaultFactors Ts
                 | Recovery (Rate,Int)
                 | InterestRateConstant Index IRate
@@ -50,15 +53,12 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | EvenRecoveryOnDefault Float Int
                 deriving (Show)
 
--- getAssumption :: [AssumptionBuilder] -> AssumptionBuilder
-
 data BondPricingInput = DiscountCurve T.Day Ts
                 deriving (Show)
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
   = toRational $ 1 - (fromRational (1-annualRate)) ** ((fromIntegral days) / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
-
 
 getCDR :: AssumptionLists -> Maybe Rate
 getCDR [] = Nothing
@@ -73,9 +73,6 @@ getCPR (ap:aps) =
     case ap of 
       PrepaymentCPR r -> Just r 
       _ -> getCPR aps
-
-
-
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)

@@ -6,7 +6,7 @@ module Util
     ,genSerialDatesTill,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI
-    ,replace
+    ,replace,paddingDefault
     )
     where
 import qualified Data.Time as T
@@ -374,4 +374,9 @@ replace xs i e = case splitAt i xs of
    (before, _:after) -> before ++ e: after
    _ -> xs
 
-
+paddingDefault :: a -> [a] -> Int -> [a]
+paddingDefault x xs s 
+  =  if (length xs) > s then 
+        take s xs
+     else
+        xs++(replicate (s - (length xs)) x)

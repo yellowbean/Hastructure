@@ -1,5 +1,5 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
-                  ,tsTest,ts2Test,dateVectorPatternTest)--,daycountTests3,daycountTests4)
+                  ,tsTest,ts2Test,dateVectorPatternTest,paddingTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -303,9 +303,6 @@ ts2Test =
         getValByDate testThresholdCurve (toDate "20220310")
   ]
 
-
-
-
 dateVectorPatternTest = 
   let 
     a = 1
@@ -314,5 +311,21 @@ dateVectorPatternTest =
     [ testCase "" $
         assertEqual "LeapYear&Month End"
           [(toDate "20240229"), (toDate "20240331")]
-          (genSerialDates MonthEnd (toDate "20240215") 2)
-    ]                          
+          (genSerialDates MonthEnd (toDate "20240215") 2)]                          
+
+paddingTest = 
+    let 
+      a = [1,2,3]
+    in 
+      testGroup "padding"
+      [ testCase "" $
+          assertEqual "padding+"
+          [1,2,3,0]
+          (paddingDefault 0 a 4)
+       ,testCase "" $
+          assertEqual "padding-"
+          [1,2]
+          (paddingDefault 0 a 2)
+      ]
+
+

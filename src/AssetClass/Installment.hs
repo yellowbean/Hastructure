@@ -131,7 +131,7 @@ instance Asset Installment where
   getPaymentDates (Installment (LoanOriginalInfo _ _ ot p sd _) _ _ _) extra 
     = genDates sd p (ot+extra)
 
-  projCashflow inst@(Installment (LoanOriginalInfo ob or ot p _ _) cb rt _) asOfDay assumps
+  projCashflow inst@(Installment (LoanOriginalInfo ob or ot p _ _) cb rt Current) asOfDay assumps
     = CF.CashFlowFrame $ projectInstallmentFlow 
                            []
                            (ob,pmt,fee_per_period)
@@ -158,5 +158,7 @@ instance Asset Installment where
                                                               0
                                                               0
 
+  projCashflow inst@(Installment _ _ _ (Defaulted _)) asOfDay assumps
+    = CF.CashFlowFrame $ []  -- TODO defaulted asset may have recoveries
 
 $(deriveJSON defaultOptions ''Installment)
