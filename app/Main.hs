@@ -124,7 +124,7 @@ postRunDealR = do
 
 getVersionR :: Handler String
 getVersionR =  let 
-                 _v = "0.5.7"
+                 _v = "0.5.8"
                  v =  "{\"version\":\" "++_v++" \"}"
                in 
                  do
