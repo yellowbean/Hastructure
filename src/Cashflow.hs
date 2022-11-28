@@ -72,23 +72,13 @@ data TsRow = CashFlow Date Amount
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
            deriving(Show,Eq,Ord)
 
--- instance Ord TsRow where
---  compare tr1 tr2 = compare (tsDate tr1) (tsDate tr2)
---
--- instance Eq TsRow where
---  tr1 == tr2 = (tsDate tr1) == (tsDate tr2)
 
 instance TimeSeries TsRow where 
     cmp tr1 tr2 = compare (tsDate tr1) (tsDate tr2)
     sameDate tr1 tr2 = (tsDate tr1) == (tsDate tr2)
-   --  getDates tr = [tsDate tr]
-   -- before tr1 tr2 = (tsDate tr1) < (tsDate tr2)
-   -- onBefore tr1 tr2 = (tsDate tr1) <= (tsDate tr2)
-   -- after tr1 tr2 = (tsDate tr1) > (tsDate tr2)
-   -- onAfter tr1 tr2 = (tsDate tr1) >= (tsDate tr2)
 
 data CashFlowFrame = CashFlowFrame [TsRow]
-              deriving (Show,Eq)
+                   deriving (Show,Eq)
 
 mkRow :: [ColType] -> TsRow
 mkRow (ColDate d:ColBal b:ColNum prin:ColNum i:ColNum pre:ColBal def_b:ColNum rec:ColNum los:ColRate rat:[])

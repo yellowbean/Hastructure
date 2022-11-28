@@ -38,7 +38,6 @@ import Util
 import Debug.Trace
 debug = flip trace
 
-
 class Asset a where
   calcCashflow :: a -> Date -> CF.CashFlowFrame
   getCurrentBal :: a -> Balance
@@ -59,7 +58,6 @@ instance FromJSONKey IssuanceFields where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
 
-
 data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
                    ,asOfDate :: Date
@@ -71,7 +69,6 @@ getIssuanceField p _if
   = case issuanceStat p of
       Just m -> Map.findWithDefault 0.0 _if m
       Nothing -> 0.0
-
 
 calcPmt :: Balance -> IRate -> Int -> Amount
 calcPmt bal periodRate periods =
@@ -115,7 +112,6 @@ data OriginalInfo = MortgageOriginalInfo {
     ,startDate :: Date
     ,prinType :: AmortPlan
     } deriving (Show)
- 
 
 buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int) -- prepay rates,default rates,
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
@@ -175,8 +171,6 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
 
 buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag = (_ppy_rates,_def_rates,_recovery_rate,_recovery_lag)
 
-        -- last_pay_date = previousDate (head cf_dates) temp_p -- `debug` ("CF Dates"++show(cf_dates))
-
 _calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow pmt last_bal bals ps is [] = (bals,ps,is)
 _calc_p_i_flow pmt last_bal bals ps is (r:rs)
@@ -223,10 +217,9 @@ calc_p_i_flow_i_p bal dates r
       _bals = (replicate flow_size bal ) ++ [ 0 ]
       _prins = (replicate flow_size 0 ) ++ [ bal ]
 
-
--- runPool2 :: Asset a => (Pool a) -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
 runPool2 :: Asset a => (Pool a) -> Maybe A.ApplyAssumptionType -> [CF.CashFlowFrame]
 runPool2 (Pool as (Just cf) asof _) Nothing = [cf]
+runPool2 (Pool as (Just cf) asof _) (Just (A.PoolLevel [])) = [cf]
 runPool2 (Pool as _ asof _) Nothing = map (\x -> calcCashflow x asof) as  `debug` ("RUNPOOL")
 runPool2 (Pool as _ asof _) (Just applyAssumpType)
   = case applyAssumpType of
@@ -239,6 +232,7 @@ runPool2 (Pool as _ asof _) (Just applyAssumpType)
            zipWith (\x a -> projCashflow x asof a) as _assumps
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
+aggPool [] = undefined `debug` ("EMpty cashflow from assets")
 aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))
 
 data AggregationRule = Regular Date Period

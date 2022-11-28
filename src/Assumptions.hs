@@ -84,8 +84,6 @@ splitAssumptions (a:aps) (dealAssump,assetAssump)
 
 splitAssumptions [] r = r
 
-
-
 getCDR :: AssumptionLists -> Maybe Rate
 getCDR [] = Nothing
 getCDR (ap:aps) = 

@@ -674,7 +674,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls
         case calls of
           Just callOpts ->
               if testCalls dRunWithTrigger1 d callOpts then 
-                prepareDeal $ foldl (performAction d) dRunWithTrigger1 cleanUpActions `debug` ("Called ! "++ show d)
+                prepareDeal $ foldl (performAction d) dRunWithTrigger1 cleanUpActions -- `debug` ("Called ! "++ show d)
               else
                 run2 dRunWithTrigger1 poolFlow (Just ads) rates calls  -- `debug` ("Not called "++ show d )
           Nothing ->
@@ -795,7 +795,7 @@ runDeal t er assumps bpi =
     -- DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
     (ads,pcf,rcurves,calls) = getInits t assumps -- `debug` ("cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
-    finalDeal = run2 (removePoolCf t) (Just pcf) (Just ads) (Just rcurves) calls   `debug` ("calls"++ show calls)-- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
+    finalDeal = run2 (removePoolCf t) (Just pcf) (Just ads) (Just rcurves) calls  -- `debug` ("PCF -> "++ show pcf)-- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
@@ -888,7 +888,7 @@ getInits t mAssumps = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,cal
     _feeAccrueDates = F.buildFeeAccrueAction (Map.elems (fees t)) _farEnoughDate []
     feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates
                                            , _d <- feeAccureDates ]
-    --liquidation facitliy 
+    --liquidation facility
     liqResetDates = case liqProvider t of 
                       Nothing -> []
                       Just mLiqProvider -> 
@@ -913,10 +913,9 @@ getInits t mAssumps = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,cal
                          filter (\x -> actionDate x < d) _actionDates
                        Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
-    poolCf = P.aggPool $ P.runPool2 (pool t) mAssumps -- (Just (AP.PoolLevel assumps))  -- `debug` ("incoming assump->>>"++show assumps)
-    poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool flow>>"++show poolCf)
+    poolCf = P.aggPool $ P.runPool2 (pool t) mAssumps -- `debug` ("POOL->"++ show mAssumps)
+    poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool flow>>"++show poolCf)
     pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) ++ ">>" ++ (show pActionDates))
-    -- t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
     rateCurves = buildRateCurves [] dealAssumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions Nothing dealAssumps -- `debug` ("Assump"++show(assumps))
 
