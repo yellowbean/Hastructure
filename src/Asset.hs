@@ -224,15 +224,19 @@ calc_p_i_flow_i_p bal dates r
       _prins = (replicate flow_size 0 ) ++ [ bal ]
 
 
-
-
-
-
-runPool2 :: Asset a => (Pool a) -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
-runPool2 (Pool as (Just cf) asof _) [] = [cf]
-runPool2 (Pool as _ asof _) [] = map (\x -> calcCashflow x asof) as -- `debug` ("RUNPOOL"++ show (map (\x -> calcCashflow x asof) as ))
-runPool2 (Pool as _ asof _) assumps 
-  = map (\x -> projCashflow x asof assumps) as --  `debug` ("Assumping->" ++ show assumps)
+-- runPool2 :: Asset a => (Pool a) -> [A.AssumptionBuilder]-> [CF.CashFlowFrame]
+runPool2 :: Asset a => (Pool a) -> Maybe A.ApplyAssumptionType -> [CF.CashFlowFrame]
+runPool2 (Pool as (Just cf) asof _) Nothing = [cf]
+runPool2 (Pool as _ asof _) Nothing = map (\x -> calcCashflow x asof) as  `debug` ("RUNPOOL")
+runPool2 (Pool as _ asof _) (Just applyAssumpType)
+  = case applyAssumpType of
+       A.PoolLevel assumps -> map (\x -> projCashflow x asof assumps) as  `debug` (">> Single Pool")
+       A.ByIndex idxAssumps _ ->
+         let
+           numAssets = length as
+           _assumps = map (A.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] `debug` ("Num assets"++ show numAssets)
+         in
+           zipWith (\x a -> projCashflow x asof a) as _assumps
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))

@@ -2,13 +2,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
-                    ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR)
+                    ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR,ApplyAssumptionType(..)
+                    ,lookupAssumptionByIdx,splitAssumptions)
 where
 
 import Call as C
 import Lib (IRate,Rate,Index(..),Ts(..),TsPoint(..),toDate)
 import qualified Data.Map as Map 
 import Data.List
+import qualified Data.Set as Set
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -22,8 +24,20 @@ debug = flip trace
 
 type AssumptionLists = [AssumptionBuilder]
 
-data AssumptionInput = Single AssumptionLists
-                     | Multiple (Map.Map String AssumptionLists)
+type StratificationByIdx = ([Int],AssumptionLists)
+
+lookupAssumptionByIdx :: [StratificationByIdx] -> Int -> AssumptionLists
+lookupAssumptionByIdx sbi i
+  = case find (\(indxs,_) -> (Set.member i  (Set.fromList indxs)) ) sbi of
+        Just (_, aps ) ->  aps
+        Nothing -> []
+
+data ApplyAssumptionType = PoolLevel AssumptionLists
+                         | ByIndex [StratificationByIdx] AssumptionLists
+                         deriving (Show)
+
+data AssumptionInput = Single ApplyAssumptionType
+                     | Multiple (Map.Map String ApplyAssumptionType)
                      deriving (Show)
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
@@ -39,18 +53,15 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | DefaultVec [Rate]
                 | DefaultFactors Ts
                 | Recovery (Rate,Int)
+                | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
+                | PrepaymentByAging [(Int,Float)]
+                | EvenRecoveryOnDefault Float Int
                 | InterestRateConstant Index IRate
                 | InterestRateCurve Index [(Date,IRate)] -- Deprecating
                 | InterestRateCurve2 Index Ts
                 | CallWhen [C.CallOption]
                 | StopRunBy Date
-                -- To be implement
                 | PoolHairCut PoolSource Rate
-                | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
-                -- | DefaultDistribution Float [Float] -- total default rate, distribution pct
-                -- | LinearTo Int Float
-                | PrepaymentByAging [(Int,Float)]
-                | EvenRecoveryOnDefault Float Int
                 deriving (Show)
 
 data BondPricingInput = DiscountCurve T.Day Ts
@@ -59,6 +70,21 @@ data BondPricingInput = DiscountCurve T.Day Ts
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
   = toRational $ 1 - (fromRational (1-annualRate)) ** ((fromIntegral days) / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
+
+splitAssumptions :: [AssumptionBuilder] -> ([AssumptionBuilder],[AssumptionBuilder]) -> ([AssumptionBuilder],[AssumptionBuilder])
+splitAssumptions (a:aps) (dealAssump,assetAssump)
+ = case a of
+     InterestRateConstant _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+     InterestRateCurve _ _  -> splitAssumptions aps (a:dealAssump,assetAssump)
+     InterestRateCurve2 _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+     CallWhen _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+     StopRunBy _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+     PoolHairCut _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+     _  -> splitAssumptions aps (dealAssump,a:assetAssump)
+
+splitAssumptions [] r = r
+
+
 
 getCDR :: AssumptionLists -> Maybe Rate
 getCDR [] = Nothing
@@ -77,3 +103,4 @@ getCPR (ap:aps) =
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)
 $(deriveJSON defaultOptions ''AssumptionInput)
+$(deriveJSON defaultOptions ''ApplyAssumptionType)

@@ -785,7 +785,7 @@ data ExpectReturn = DealStatus
 priceBonds :: (TestDeal a) -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (\b -> L.priceBond d dc b) (bonds t)
 
-runDeal :: P.Asset a => (TestDeal a) -> ExpectReturn -> Maybe [AP.AssumptionBuilder] -> Maybe AP.BondPricingInput
+runDeal :: P.Asset a => (TestDeal a) -> ExpectReturn -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput
         -> ((TestDeal a),Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 runDeal t er assumps bpi =
   case er of
@@ -871,15 +871,14 @@ populateDealDates (PatternInterval _m)
       (firstPayDate,dp2,ed2) = _m Map.! FirstPayDate 
     
 
-getInits :: P.Asset a => (TestDeal a) -> Maybe [AP.AssumptionBuilder] -> 
+getInits :: P.Asset a => (TestDeal a) -> Maybe AP.ApplyAssumptionType ->
     ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption])
-getInits t mAssumps =
-    (allActionDates
-    ,pCollectionCfAfterCutoff
-    ,rateCurves
-    ,callOptions)  -- `debug` ("Pool Flow to Deal"++show pCollectionCfAfterCutoff)
+getInits t mAssumps = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,callOptions)  -- `debug` ("Pool Flow to Deal"++show pCollectionCfAfterCutoff)
   where
-    assumps = fromMaybe [] mAssumps
+    dealAssumps = case mAssumps of
+                    Just (AP.PoolLevel _aps) -> fst $ AP.splitAssumptions _aps ([],[])
+                    Just (AP.ByIndex _ _aps) -> _aps
+                    Nothing -> []
     
     (startDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)   
     intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate [] -- `debug` (show (startDate,firstPayDate,pActionDates,bActionDates,endDate))
@@ -902,7 +901,7 @@ getInits t mAssumps =
                  (\case
                    (AP.StopRunBy d) -> True
                    _ -> False)
-                 assumps --  `debug` (">>Assumps"++show(assumps))
+                 dealAssumps --  `debug` (">>Assumps"++show(assumps))
 
     _actionDates = sort $ bActionDates ++ 
                           pActionDates ++ 
@@ -914,12 +913,12 @@ getInits t mAssumps =
                          filter (\x -> actionDate x < d) _actionDates
                        Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
-    poolCf = P.aggPool $ P.runPool2 (pool t) assumps  -- `debug` ("incoming assump->>>"++show assumps)
+    poolCf = P.aggPool $ P.runPool2 (pool t) mAssumps -- (Just (AP.PoolLevel assumps))  -- `debug` ("incoming assump->>>"++show assumps)
     poolCfTs = filter (\txn -> CF.tsDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool flow>>"++show poolCf)
     pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) ++ ">>" ++ (show pActionDates))
     -- t_with_cf  = setFutureCF t pCollectionCfAfterCutoff --  `debug` ("aggedCf:->>"++show(pCollectionCfAfterCutoff))
-    rateCurves = buildRateCurves [] assumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
-    callOptions = buildCallOptions Nothing assumps -- `debug` ("Assump"++show(assumps))
+    rateCurves = buildRateCurves [] dealAssumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
+    callOptions = buildCallOptions Nothing dealAssumps -- `debug` ("Assump"++show(assumps))
 
 queryDealRate :: P.Asset a => (TestDeal a) -> DealStats -> Micro
 queryDealRate t s =

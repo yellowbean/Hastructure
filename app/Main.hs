@@ -64,7 +64,7 @@ $(deriveJSON defaultOptions ''PoolType)
 
 data RunPoolReq = RunPoolReq {
    pool :: PoolType
-  ,pAssump :: Maybe AP.AssumptionLists
+  ,pAssump :: Maybe AP.ApplyAssumptionType
 } deriving(Show)
 
 $(deriveJSON defaultOptions ''RunPoolReq)
@@ -91,9 +91,9 @@ postRunPoolR = do
   req <- requireCheckJsonBody  :: Handler RunPoolReq 
   returnJson $ 
       case pool req of 
-        MPool p -> P.aggPool $ P.runPool2 p $ fromMaybe [] (pAssump req)
-        LPool p -> P.aggPool $ P.runPool2 p $ fromMaybe [] (pAssump req)
-        IPool p -> P.aggPool $ P.runPool2 p $ fromMaybe [] (pAssump req)
+        MPool p -> P.aggPool $ P.runPool2 p $ (pAssump req)
+        LPool p -> P.aggPool $ P.runPool2 p $ (pAssump req)
+        IPool p -> P.aggPool $ P.runPool2 p $ (pAssump req)
 
 optionsRunDealR :: Handler String 
 optionsRunDealR = do
@@ -111,15 +111,21 @@ postRunDealR = do
   where 
     foo d a p =
       case a of 
-        Just (AP.Single aps) -> returnJson $ D.runDeal d D.DealPoolFlowPricing (Just aps) p--   `debug` ("In Single"++ show aps)
-        Nothing ->  returnJson $  D.runDeal d D.DealPoolFlowPricing Nothing p   -- `debug` ("In Nothing")
-        Just (AP.Multiple apsm) -> returnJson $ Map.map (\x -> D.runDeal d D.DealPoolFlowPricing (Just x) p) apsm
+        Just (AP.Single aps) ->
+          returnJson $
+            D.runDeal d D.DealPoolFlowPricing (Just aps) p--   `debug` ("In Single"++ show aps)
+        Nothing ->
+          returnJson $
+            D.runDeal d D.DealPoolFlowPricing Nothing p   -- `debug` ("In Nothing")
+        Just (AP.Multiple apsm) ->
+          returnJson $
+            Map.map (\x -> D.runDeal d D.DealPoolFlowPricing (Just x) p) apsm
 
 
 getVersionR :: Handler String
 getVersionR =  let 
                  _v = "0.5.7"
-                 v =  "{\"version\":\" "++v++" \"}"
+                 v =  "{\"version\":\" "++_v++" \"}"
                in 
                  do
                    addHeader "Access-Control-Allow-Origin" "*"
