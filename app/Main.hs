@@ -125,12 +125,11 @@ postRunDealR = do
 getVersionR :: Handler String
 getVersionR =  let 
                  _v = "0.5.9"
-                 v =  "{\"version\":\" "++_v++" \"}"
-               in 
+               in
                  do
                    addHeader "Access-Control-Allow-Origin" "*"
                    addHeader "Access-Control-Allow-Methods" "GET"
-                   return v
+                   return $ "{\"version\":\" "++_v++" \"}"
 
 optionsVersionR :: Handler String 
 optionsVersionR = do
