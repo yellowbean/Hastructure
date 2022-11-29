@@ -1,0 +1,19 @@
+{
+  "update": "20221129",
+  "records": [
+    {
+      "version": "a0.5.10",
+      "date": "20221129",
+      "changes": [
+        "normalized cf projection on installment type",
+        "Remove debug & format",
+        "expose assumption on asset level",
+        "seperate Loan from Asset.hs",
+        "sperate mortgage from asset.hs",
+        "expose prepayment/default curve assumption",
+        "add stress on installment type",
+        "expose Installment type"
+      ]
+    }
+  ]
+}
