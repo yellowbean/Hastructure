@@ -2,7 +2,7 @@
 
 module Util
     (mulBR,mulBIR,lastN,yearCountFraction,genSerialDates
-    ,getValByDate,getValByDates,projDatesByPattern 
+    ,getValByDate,getValByDates,projDatesByPattern
     ,genSerialDatesTill,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI
@@ -140,7 +140,6 @@ yearCountFraction dc sd ed
                          (m==2) && d == 29
                        else 
                          (m==2) && d == 28
-
       sameYear = syear == eyear
       has_leap_day 
         = case (sameYear,sLeap,eLeap) of                   
@@ -156,7 +155,6 @@ yearCountFraction dc sd ed
       _gapMonth = (toInteger (emonth - smonth)) % 1
       sDaysTillYearEnd = succ $ T.diffDays (T.fromGregorian syear 12 31) sd
       eDaysAfterYearBeg = T.diffDays ed (T.fromGregorian eyear 1 1)
-      --_diffDays = fromIntegral $ T.diffDays ed sd
       _diffDays = toInteger $ T.diffDays ed sd
       sLeap = T.isLeapYear syear
       eLeap = T.isLeapYear eyear
@@ -198,7 +196,6 @@ genSerialDates dp sd num
                                                         , monthRange <- [1..12]]
                 where 
                   yrs = fromIntegral $ div num 12 + 1                   
-       -- DayOfWeek -> [] 
       where 
         quarterEnds = [(3,31),(6,30),(9,30),(12,31)]
         monthEnds y = 
@@ -229,9 +226,6 @@ genSerialDatesTill sd ptn ed
 
 tsPointVal :: TsPoint a -> a 
 tsPointVal (TsPoint d v) = v
-
-tsPointDate :: TsPoint a -> Date
-tsPointDate (TsPoint d _) = d
 
 getValByDate :: Ts -> Date -> Rational
 getValByDate (BalanceCurve dps) d 
@@ -278,8 +272,8 @@ getValByDate (PricingCurve dps) d
               toRational $ _lv + (vdistance * leftDistance) / distance 
               -- `debug` ("D "++ show _lv++">>"++ show vdistance++">>"++ show leftDistance++">>"++ show distance)
     where 
-      fday = tsPointDate $ head dps
-      lday = tsPointDate $ last dps
+      fday = getDate $ head dps
+      lday = getDate $ last dps
 
 
 getValByDates :: Ts -> [Date] -> [Rational]
@@ -288,13 +282,11 @@ getValByDates rc ds = map (getValByDate rc) ds
 getTsVals :: Ts -> [Rational]
 getTsVals (FloatCurve ts) = [ v | (TsPoint d v) <- ts ]
 
-
 getTsDates :: Ts -> [Date]
-getTsDates (IRateCurve tps) =  map tsPointDate tps
-getTsDates (FloatCurve tps) =  map tsPointDate tps
-getTsDates (PricingCurve tps) =  map tsPointDate tps
-getTsDates (BalanceCurve tps) =  map tsPointDate tps
-
+getTsDates (IRateCurve tps) =  map getDate tps
+getTsDates (FloatCurve tps) =  map getDate tps
+getTsDates (PricingCurve tps) =  map getDate tps
+getTsDates (BalanceCurve tps) =  map getDate tps
 
 subDates :: RangeType -> Date -> Date -> [Date] -> [Date]
 subDates rt sd ed ds 
@@ -334,7 +326,6 @@ calcIntRateCurve :: DayCount -> IRate -> [Date] -> [IRate]
 calcIntRateCurve dc r ds 
   = [ calcIntRate sd ed r dc |  (sd,ed) <- zip (init ds) (tail ds) ]
 
-
 calcInt :: Balance -> Date -> Date -> IRate -> DayCount -> Amount
 calcInt bal start_date end_date int_rate day_count =
   let 
@@ -342,18 +333,16 @@ calcInt bal start_date end_date int_rate day_count =
   in 
     mulBR bal (yfactor * (toRational int_rate)) 
 
-
 zipTs :: [Date] -> [Rational] -> Ts 
 zipTs ds rs 
   = FloatCurve [ TsPoint d r | (d,r) <- (zip ds rs) ]
-
 
 multiplyTs :: Ts -> Ts -> Ts
 multiplyTs (FloatCurve ts1) ts2
   = FloatCurve [(TsPoint d (v * (getValByDate ts2 d))) | (TsPoint d v) <- ts1 ] 
 
-projDatesByPattern :: DatePattern -> Date -> Date -> Dates
-projDatesByPattern dp sd ed 
+projDatesByPattern :: DatePattern -> Date -> Date -> Dates   --TODO to be replace by generateDateSeries
+projDatesByPattern dp sd ed
   = let 
       (T.CalendarDiffDays cdm cdd) = T.diffGregorianDurationClip ed sd
       num = case dp of
@@ -368,7 +357,6 @@ projDatesByPattern dp sd ed
     in 
       genSerialDates dp sd (fromInteger num)
 
-
 replace :: [a] -> Int -> a -> [a]
 replace xs i e = case splitAt i xs of
    (before, _:after) -> before ++ e: after
@@ -376,7 +364,5 @@ replace xs i e = case splitAt i xs of
 
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 
-  =  if (length xs) > s then 
-        take s xs
-     else
-        xs++(replicate (s - (length xs)) x)
+  | (length xs) > s = take s xs
+  | otherwise = xs++(replicate (s - (length xs)) x)

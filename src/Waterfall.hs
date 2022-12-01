@@ -33,6 +33,7 @@ import qualified CreditEnhancement as CE
 data ActionWhen = EndOfPoolCollection
                 | DistributionDay DealStatus
                 | CleanUp
+                | ClosingDay
                 deriving (Show,Ord,Eq,Generic,Read)
 
 instance ToJSONKey ActionWhen where
@@ -43,11 +44,9 @@ instance FromJSONKey ActionWhen where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
-
 data Satisfy = Source
              | Target
              deriving (Show)
-
 
 data Limit = DuePct L.Balance  --
             | DueCapAmt L.Balance  -- due fee
@@ -81,15 +80,10 @@ data Action = Transfer AccountName AccountName
              | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
              deriving (Show)
 
---type DistributionSeq = [Action]
 type DistributionSeq = [(Maybe L.Pre, Action)]
 
---data DistributionSeq = DistSeq [Action]
---                     | DistSeqPre [(Maybe Pre,Action)]
---                     deriving (Show)
-
 data CollectionRule = Collect PoolSource AccountName
-                    deriving (Show)
+                     deriving (Show)
 
 
 $(deriveJSON defaultOptions ''Action)

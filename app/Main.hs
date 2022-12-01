@@ -90,10 +90,10 @@ postRunPoolR :: Handler Value
 postRunPoolR = do
   req <- requireCheckJsonBody  :: Handler RunPoolReq 
   returnJson $ 
-      case pool req of 
-        MPool p -> P.aggPool $ P.runPool2 p $ (pAssump req)
-        LPool p -> P.aggPool $ P.runPool2 p $ (pAssump req)
-        IPool p -> P.aggPool $ P.runPool2 p $ (pAssump req)
+      case req of
+        RunPoolReq (MPool p) ma -> P.aggPool $ P.runPool2 p ma
+        RunPoolReq (LPool p) ma -> P.aggPool $ P.runPool2 p ma
+        RunPoolReq (IPool p) ma -> P.aggPool $ P.runPool2 p ma
 
 optionsRunDealR :: Handler String 
 optionsRunDealR = do
@@ -104,23 +104,22 @@ optionsRunDealR = do
 postRunDealR :: Handler Value
 postRunDealR = do
   req <- requireCheckJsonBody  :: Handler RunDealReq 
-  case (deal req) of
-    MDeal d -> foo d (assump req) (bondPricing req)
-    LDeal d -> foo d (assump req) (bondPricing req)
-    IDeal d -> foo d (assump req) (bondPricing req)
+  case req of
+    RunDealReq (MDeal d) a p -> run d a p
+    RunDealReq (LDeal d) a p -> run d a p
+    RunDealReq (IDeal d) a p -> run d a p
   where 
-    foo d a p =
+    run d a p =
       case a of 
         Just (AP.Single aps) ->
           returnJson $
-            D.runDeal d D.DealPoolFlowPricing (Just aps) p--   `debug` ("In Single"++ show aps)
+            D.runDeal d D.DealPoolFlowPricing (Just aps) p
         Nothing ->
           returnJson $
-            D.runDeal d D.DealPoolFlowPricing Nothing p   -- `debug` ("In Nothing")
+            D.runDeal d D.DealPoolFlowPricing Nothing p
         Just (AP.Multiple apsm) ->
           returnJson $
             Map.map (\x -> D.runDeal d D.DealPoolFlowPricing (Just x) p) apsm
-
 
 getVersionR :: Handler String
 getVersionR =  let 
@@ -136,7 +135,6 @@ optionsVersionR = do
   addHeader "Access-Control-Allow-Origin" "*"
   addHeader "Access-Control-Allow-Methods" "OPTIONS"
   return "Good"
-
 
 data Config = Config { port :: Int} deriving (Show,Generic)
 instance FromJSON Config
@@ -156,4 +154,3 @@ main =
                                     , corsMethods = ["OPTIONS", "GET", "PUT", "POST"]
                                     , corsRequestHeaders = simpleHeaders })
             app
-

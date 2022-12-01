@@ -15,11 +15,9 @@ import Data.Aeson.TH
 import Data.Fixed
 
 import qualified Data.Time as T
-import Lib (Date,Balance,Rate,Spread,Index(..),Dates
-           ,Period(..),Ts(..)
+import Lib (Index(..),Period(..),Ts(..)
            ,TsPoint(..)
-           ,toDate,pv2,daysBetween,Amount
-           ,Period,Floor,Cap,IRate,mulBI
+           ,toDate,pv2,daysBetween,mulBI
            ,getIntervalFactors)
 
 import Util

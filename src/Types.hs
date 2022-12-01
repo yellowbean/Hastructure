@@ -12,9 +12,10 @@ module Types
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
   ,RangeType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
-  ,Date,Dates,TimeSeries(..)
+  ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
+  ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss
   ,EndType,ResultComponent(..)
-  ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms)
+  ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment)
   where
 
 import qualified Data.Text as T
@@ -39,11 +40,26 @@ type AccName = String
 type AccountName = String
 type AccNames = [String]
 type Balance = Centi
-type IRate = Micro
-type Rate = Rational 
 
 type Date = Time.Day
 type Dates = [Time.Day]
+type Rate = Rational  -- general Rate like pool factor
+type IRate = Micro    -- Interest Rate Type
+type Spread = Micro
+type Amount = Centi
+type Comment = String
+type StartDate = Time.Day
+type EndDate = Time.Day
+type LastIntPayDate = Time.Day
+type Floor = Micro
+type Principal = Centi
+type Interest = Centi
+type Default = Centi
+type Loss = Centi
+type Cash = Centi
+type Recovery = Centi
+type Prepayment = Centi
+type Cap = Micro
 
 type PrepaymentRate = Rate
 type DefaultRate = Rate
@@ -114,14 +130,10 @@ opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 
 instance ToJSONKey DateType where
-  -- toJSONKey = toJSONKeyText (T.pack . show)
   toJSONKey = genericToJSONKey opts
 
 instance FromJSONKey DateType where
   fromJSONKey = genericFromJSONKey opts
-  --fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-  --  Just k -> pure k
-  --  Nothing -> fail ("Invalid key: " ++ show t)
 
 data OverrideType = CustomActionOnDates [ActionOnDate]
                     deriving (Show)
@@ -230,6 +242,14 @@ data FormulaType = ABCD
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read)
 
+instance TimeSeries (TsPoint a) where 
+    getDate (TsPoint d a) = d
+    sameDate (TsPoint d1 a1) (TsPoint d2 a2) = d1 == d2
+    cmp t1 t2 = compare (getDate t1) (getDate t2)
+
+instance Ord a => Ord (TsPoint a) where
+  compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
+
 data Ts = FloatCurve [TsPoint Rational]
         | BoolCurve [TsPoint Bool]
         | BalanceCurve [TsPoint Balance]
@@ -240,9 +260,6 @@ data Ts = FloatCurve [TsPoint Rational]
         | PricingCurve [TsPoint Rational] 
         deriving (Show,Eq,Ord,Read)
 
-instance Ord a => Ord (TsPoint a) where
-  compare (TsPoint d1 tv1) (TsPoint d2 tv2)
-    = compare d1 d2
 
 data WhenTrigger = EndCollection
                  | EndCollectionWF
@@ -313,13 +330,7 @@ data TriggerEffect = DealStatusTo DealStatus
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
     sameDate :: ts -> ts -> Bool
-   -- getDates :: ts -> [Date]
-   -- before :: ts -> ts -> Bool
-   -- onBefore :: ts -> ts -> Bool
-   -- after :: ts -> ts -> Bool
-   -- onAfter :: ts -> ts -> Bool
-
-
+    getDate :: ts -> Date
 
 $(deriveJSON defaultOptions ''Pre)
 $(deriveJSON defaultOptions ''DealStats)

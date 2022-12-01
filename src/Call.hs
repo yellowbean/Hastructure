@@ -5,7 +5,8 @@ module Call(CallOption(..),LiquidationMethod(..))
  where
 
 import qualified Data.Time as T
-import Lib(Balance,Rate,Date,IRate)
+import Lib
+import Types
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -27,7 +28,6 @@ data CallOption = PoolBalance Balance
                 | Or [CallOption] 
                 | PoolPv Balance  -- Call when PV of pool fall below
                 deriving (Show)
-
 
 $(deriveJSON defaultOptions ''CallOption)
 $(deriveJSON defaultOptions ''LiquidationMethod)

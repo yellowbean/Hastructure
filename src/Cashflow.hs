@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
-                ,mkCashFlowFrame,mkColDay,mkColNum,mkColBal,combine
+                ,mkCashFlowFrame,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowDefault,mflowLoss,mflowDate
@@ -10,14 +10,14 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
                 ,tsTotalCash,Date -- ,PersonalLoanFlow
-                ,getTxnAsOf,tsDateLT,tsDate,getTxnLatestAsOf,getTxnAfter
+                ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
                 ,getTxnBetween,getTxnBetween2
                 ,mflowWeightAverageBalance,appendCashFlow
                 ,TsRow(..),cfAt) where
 
 import Data.Time (Day)
 import Data.Fixed
-import Lib (weightedBy,toDate,IRate,getIntervalFactors)
+import Lib (weightedBy,toDate,getIntervalFactors)
 import Util (mulBR)
 import Types
 import qualified Data.Map as Map
@@ -34,20 +34,12 @@ import Text.Printf
 import Debug.Trace
 debug = flip trace
 
-type Interest = Centi
-type Principal = Centi
--- type Balance = Centi
-type Amount = Centi
-type Prepayment = Centi
-type Recovery = Centi
 type Delinquent = Centi
 type Delinquent30 = Centi
 type Delinquent60 = Centi
 type Delinquent90 = Centi
 type Delinquent120 = Centi
-type Default = Centi
-type Loss = Centi
-type Rate = Rational
+
 -- type Date = T.Day
 
 type Amounts = [Float]
@@ -74,8 +66,14 @@ data TsRow = CashFlow Date Amount
 
 
 instance TimeSeries TsRow where 
-    cmp tr1 tr2 = compare (tsDate tr1) (tsDate tr2)
-    sameDate tr1 tr2 = (tsDate tr1) == (tsDate tr2)
+    cmp tr1 tr2 = compare (getDate tr1) (getDate tr2)
+    sameDate tr1 tr2 = (getDate tr1) == (getDate tr2)
+    getDate (CashFlow x _) = x
+    getDate (BondFlow x  _ _ _) = x
+    getDate (MortgageFlow x _ _ _ _ _ _ _ _) = x
+    getDate (MortgageFlow2 x _ _ _ _ _ _ _ _ _) = x
+    getDate (MortgageFlow3 x _ _ _ _ _ _ _ _ _ _ _) = x
+    getDate (LoanFlow x _ _ _ _ _ _ _ _) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
                    deriving (Show,Eq)
@@ -94,12 +92,12 @@ getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
 getTsCashFlowFrame (CashFlowFrame ts) = ts
 
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
-getDatesCashFlowFrame cff =  map tsDate $ getTsCashFlowFrame cff
+getDatesCashFlowFrame cff =  map getDate $ getTsCashFlowFrame cff
 
 removeTsCashFlowFrameByDate :: CashFlowFrame -> Date -> Maybe CashFlowFrame
 removeTsCashFlowFrameByDate (CashFlowFrame trs) d =
   let
-    r = filter (\x -> tsDate x /= d) trs
+    r = filter (\x -> getDate x /= d) trs
   in
     if null r then
       Nothing
@@ -115,7 +113,7 @@ cfAt (CashFlowFrame trs) idx =
 
 getSingleTsCashFlowFrame :: CashFlowFrame -> Date -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame trs) d
-  = head $ filter (\x -> tsDate x == d) trs
+  = head $ filter (\x -> getDate x == d) trs
 
 getEarlierTsCashFlowFrame :: CashFlowFrame -> Date -> Maybe TsRow
 getEarlierTsCashFlowFrame (CashFlowFrame trs) d
@@ -154,33 +152,24 @@ splitCashFlowFrameByDate (CashFlowFrame txns) d
 
 
 getTxnAsOf :: CashFlowFrame -> Date -> [TsRow]
-getTxnAsOf (CashFlowFrame txn) d = filter (\x -> tsDate x < d) txn
+getTxnAsOf (CashFlowFrame txn) d = filter (\x -> getDate x < d) txn
 
 getTxnAfter :: CashFlowFrame -> Date -> [TsRow]
-getTxnAfter (CashFlowFrame txn) d = filter (\x -> tsDate x >= d) txn
+getTxnAfter (CashFlowFrame txn) d = filter (\x -> getDate x >= d) txn
 
 getTxnBetween :: CashFlowFrame -> Date -> Date -> [TsRow]
 getTxnBetween (CashFlowFrame txn) sd ed
-  =  filter (\x -> ((tsDate x) >= sd) && ((tsDate x) < ed)) txn
+  =  filter (\x -> ((getDate x) >= sd) && ((getDate x) < ed)) txn
 
 getTxnBetween2 :: CashFlowFrame -> RangeType -> Date -> Date -> [TsRow]
 getTxnBetween2 (CashFlowFrame txn) rt sd ed
   =  case rt of 
-       II -> filter (\x -> (tsDate x >= sd) && (tsDate x <= ed)) txn
-       IE -> filter (\x -> (tsDate x >= sd) && (tsDate x < ed)) txn
-       EI -> filter (\x -> (tsDate x > sd) && (tsDate x <= ed)) txn
+       II -> filter (\x -> (getDate x >= sd) && (getDate x <= ed)) txn
+       IE -> filter (\x -> (getDate x >= sd) && (getDate x < ed)) txn
+       EI -> filter (\x -> (getDate x > sd) && (getDate x <= ed)) txn
 
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
-getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> tsDate x <= d) $ reverse txn
-
-mkColDay :: [Date] -> [ColType]
-mkColDay ds = [ ColDate _d | _d <- ds ]
-
-mkColNum :: [Centi] -> [ColType]
-mkColNum ds = [ ColNum _d | _d <- ds ]
-
-mkColBal :: [Centi] -> [ColType]
-mkColBal ds = [ ColBal _d | _d <- ds ]
+getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> getDate x <= d) $ reverse txn
 
 addTs :: TsRow -> TsRow -> TsRow
 addTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))
@@ -212,14 +201,6 @@ sumTs trs d = tsSetDate (foldr1 addTs trs) d
 sumTsCF :: [TsRow] -> Date -> TsRow
 sumTsCF trs d = tsSetDate (foldr1 addTsCF trs) d
 
-tsDate :: TsRow -> Date
-tsDate (CashFlow x _) = x
-tsDate (BondFlow x  _ _ _) = x
-tsDate (MortgageFlow x _ _ _ _ _ _ _ _) = x
-tsDate (MortgageFlow2 x _ _ _ _ _ _ _ _ _) = x
-tsDate (MortgageFlow3 x _ _ _ _ _ _ _ _ _ _ _) = x
-tsDate (LoanFlow x _ _ _ _ _ _ _ _) = x
-
 tsTotalCash :: TsRow -> Balance
 tsTotalCash (CashFlow _ x) = x
 tsTotalCash (BondFlow _ _ a b) = a + b
@@ -237,25 +218,24 @@ tsDefaultBal (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _) = x
 
 tsSetDate :: TsRow -> Date ->TsRow
-tsSetDate (CashFlow _ a) x  = (CashFlow x a)
-tsSetDate (BondFlow _ a b c) x = (BondFlow x a b c)
-tsSetDate (MortgageFlow _ a b c d e f g h) x = (MortgageFlow x a b c d e f g h)
-tsSetDate (MortgageFlow2 _ a b c d e f g h i) x = (MortgageFlow2 x a b c d e f g h i)
-tsSetDate (MortgageFlow3 _ a b c d e f g h i j k) x = (MortgageFlow3 x a b c d e f g h i j k)
-tsSetDate (LoanFlow _ a b c d e f g h) x = (LoanFlow x a b c d e f g h)
+tsSetDate (CashFlow _ a) x  = CashFlow x a
+tsSetDate (BondFlow _ a b c) x = BondFlow x a b c
+tsSetDate (MortgageFlow _ a b c d e f g h) x = MortgageFlow x a b c d e f g h
+tsSetDate (MortgageFlow2 _ a b c d e f g h i) x = MortgageFlow2 x a b c d e f g h i
+tsSetDate (MortgageFlow3 _ a b c d e f g h i j k) x = MortgageFlow3 x a b c d e f g h i j k
+tsSetDate (LoanFlow _ a b c d e f g h) x = LoanFlow x a b c d e f g h
 
 reduceTs :: [TsRow] -> TsRow -> [TsRow]
 reduceTs [] _tr = [_tr]
-reduceTs (tr:trs) _tr =
-  if (sameDate tr _tr)
-  then (addTs tr _tr):trs
-  else _tr:tr:trs
+reduceTs (tr:trs) _tr 
+  | sameDate tr _tr = (addTs tr _tr):trs
+  | otherwise =  _tr:tr:trs
 
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combine (CashFlowFrame rs1) (CashFlowFrame rs2) =
     CashFlowFrame $  foldl reduceTs [] sorted_cff
     where cff = rs1++rs2
-          sorted_cff = L.sortOn tsDate cff
+          sorted_cff = L.sortOn getDate cff
 
 tsDateLT :: Date -> TsRow  -> Bool
 tsDateLT td (CashFlow d _) = d < td
@@ -283,7 +263,7 @@ aggTsByDates trs ds =
   where
     reduceFn accum _ [] =  accum  -- `debug` ("Returning->"++show(accum))
     reduceFn accum (cutoffDay:[]) _trs =
-      accum ++ [(filter (\x -> tsDate(x) <= cutoffDay) _trs)]
+      accum ++ [(filter (\x -> getDate(x) <= cutoffDay) _trs)]
     reduceFn accum (cutoffDay:cutoffDays) _trs =
       case newAcc of
         [] -> reduceFn (accum++[[]]) cutoffDays _trs     --  `debug` ("Adding empty")

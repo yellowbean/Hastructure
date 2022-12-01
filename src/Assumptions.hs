@@ -7,7 +7,7 @@ module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInt
 where
 
 import Call as C
-import Lib (IRate,Rate,Index(..),Ts(..),TsPoint(..),toDate)
+import Lib (Index(..),Ts(..),TsPoint(..),toDate)
 import qualified Data.Map as Map 
 import Data.List
 import qualified Data.Set as Set

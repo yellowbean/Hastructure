@@ -26,6 +26,8 @@ def extractMsg(commits):
             continue
         if re.match(r"bump\sversion",_r):
             continue
+        if _r.startswith("DEVOPS") or _r.startswith("REFACTOR"):
+            continue
         yield _r.rstrip("\n")
 
 def cleanUpfile(_input,_newInput):

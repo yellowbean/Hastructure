@@ -14,9 +14,9 @@ import qualified Data.Time as T
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
-import Lib (Period(..),Dates,Date,genDates
-           ,Balance,Rate,IRate,Ts(..),Spread,Index(..),periodRateFromAnnualRate,previousDate,toDate
-           ,nextDate,Amount,getIntervalDays,zipWith9,mkTs,periodsBetween,Floor,Rate
+import Lib (Period(..),genDates
+           ,Ts(..),Index(..),periodRateFromAnnualRate,previousDate,toDate
+           ,nextDate,getIntervalDays,zipWith9,mkTs,periodsBetween
            ,mulBI,mkRateTs)
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)

@@ -6,16 +6,11 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
                 ,InterestInfo(..),buildEarnIntAction,)
     where
 import qualified Data.Time as T
-import Lib (Period(Monthly),Rate,Date,Amount,Balance,Dates,StartDate,EndDate,LastIntPayDate
-           ,Balance
-           ,paySeqLiabilitiesAmt,IRate,mulBI
-           ,getIntervalFactors)
 import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getTxnDate
             ,TxnComment(..),QueryByComment(..),getTxnComment,getTxnAmt,weightAvgBalanceByDates)
 import Types
 import Lib
 import Util
--- import IntrestRate
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -68,14 +63,14 @@ depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed
                             Just (Statement _txns) ->
                               let 
                                 _accrue_txns = sliceTxns _txns lastCollectDate ed
-                                _bals = (map getTxnBegBalance _accrue_txns) ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
+                                _bals = map getTxnBegBalance _accrue_txns ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
                                 _ds = map getTxnDate _accrue_txns
                                 _dfs = getIntervalFactors $ [lastCollectDate] ++ _ds ++ [ed]
                               in
                                 mulBI (sum $ zipWith mulBR _bals _dfs) r  
 
             newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
-            new_txn = (AccTxn ed newBal accrued_int BankInt)
+            new_txn = AccTxn ed newBal accrued_int BankInt
             new_stmt = appendStmt stmt new_txn
 
 depositIntByCurve :: Account -> Ts -> Date -> Account
@@ -90,7 +85,9 @@ depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectD
                             Nothing -> 
                                 let  
                                   curve_ds = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
-                                  curve_vs = map (\x -> toRational (getValByDate rc x) + toRational spd) $ (init curve_ds)
+                                  curve_vs = map 
+                                               (\x -> toRational (getValByDate rc x) + toRational spd)
+                                               (init curve_ds)
                                   ds_factor = getIntervalFactors curve_ds
                                   weightInt = sum $ zipWith (*) curve_vs ds_factor --  `debug` ("ds"++show curve_ds++"vs"++show curve_vs++"factors"++show ds_factor)
                                 in 
@@ -98,13 +95,15 @@ depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectD
                             Just (Statement _txns) ->
                               let 
                                 curve_ds = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
-                                curve_vs = map (\x -> toRational (getValByDate rc x) + toRational spd) $ (init curve_ds)
+                                curve_vs = map 
+                                             (\x -> toRational (getValByDate rc x) + toRational spd)
+                                             (init curve_ds)
                                 bals = weightAvgBalanceByDates curve_ds _txns
                               in
                                 sum $ zipWith mulBR bals curve_vs -- `debug` ("cds"++show curve_ds++"vs"++ show curve_vs++"bs"++show bals)
 
             newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
-            new_txn = (AccTxn ed newBal accrued_int BankInt)
+            new_txn = AccTxn ed newBal accrued_int BankInt
             new_stmt = appendStmt stmt new_txn
 
 
@@ -114,8 +113,8 @@ transfer source_acc@(Account s_bal san _ _ s_stmt)
          amount
          d
          target_acc@(Account t_bal tan _ _ t_stmt)
-  = (source_acc {accBalance = new_s_bal, accStmt = (Just source_newStmt)}
-    ,target_acc {accBalance = new_t_bal, accStmt = (Just target_newStmt)})
+  = (source_acc {accBalance = new_s_bal, accStmt = Just source_newStmt}
+    ,target_acc {accBalance = new_t_bal, accStmt = Just target_newStmt})
   where
     new_s_bal = s_bal - amount
     new_t_bal = t_bal + amount
@@ -145,22 +144,10 @@ supportPay all_accs@(acc:accs) d amt (m1,m2) =
 instance QueryByComment Account where 
     queryStmt (Account _ _ _ _ Nothing) tc = []
     queryStmt (Account _ _ _ _ (Just (Statement txns))) tc
-      = filter (\x -> (getTxnComment x) == tc) txns
+      = filter (\x -> getTxnComment x == tc) txns
 
     queryTxnAmt a tc 
       = sum $ map getTxnAmt $ queryStmt a tc
-
---queryStmt :: Account -> TxnComment -> Balance
---queryStmt (Account _ _ _ _ Nothing) tc = 0
---queryStmt (Account _ _ _ _ (Just (Statement txns))) tc
---  =  foldr (\(AccTxn _ _amt _ _tc ) accum -> 
---             (if (_tc ==  tc) then
---               (accum + _amt)
---             else 
---               accum))
---           0
---           txns
---      -- $ filter (\x -> (getTxnComment x)==tc) txns
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)

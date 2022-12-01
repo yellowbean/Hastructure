@@ -6,7 +6,6 @@ module AssetClass.Mortgage
   where
 
 import qualified Data.Time as T
-
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
 import Asset
@@ -105,7 +104,7 @@ projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) 
 
        _end_bal = max 0 $ _after_bal - _schedule_prin
 
-       tr = CF.MortgageFlow (CF.tsDate flow) _end_bal _schedule_prin _schedule_int _ppy_amt _def_amt (head _rec_vector) (head _loss_vector) 0.0
+       tr = CF.MortgageFlow (CF.getDate flow) _end_bal _schedule_prin _schedule_int _ppy_amt _def_amt (head _rec_vector) (head _loss_vector) 0.0
 
 projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,recovery_rate)
   = projectScheduleFlow
@@ -120,7 +119,7 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
       (recovery_lag - 1,recovery_rate) --  `debug` ("===>B")
    where
       remain_length = length rs
-      last_date = CF.tsDate (last trs)
+      last_date = CF.getDate (last trs)
       flow_date = nextDate last_date Lib.Monthly
       tr = CF.MortgageFlow
              flow_date
@@ -234,7 +233,7 @@ instance Asset Mortgage  where
         (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (beg_date:cf_dates) assumps [] [] 0 0 -- `debug` ("Assumpt"++ show assumps)
         curve_dates_length =  recovery_lag + length flows
         temp_p = Lib.Monthly -- TODO to fix this hard code
-        cf_dates = (map CF.tsDate flows) ++ (genDates (CF.tsDate (last flows)) temp_p recovery_lag)
+        cf_dates = (map CF.getDate flows) ++ (genDates (CF.getDate (last flows)) temp_p recovery_lag)
 
 
 

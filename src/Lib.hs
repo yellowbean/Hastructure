@@ -4,7 +4,7 @@
 
 module Lib
     (Amount,Rate,Dates,Period(..),Balance
-    ,genDates,StartDate,EndDate,LastIntPayDate,daysBetween
+    ,genDates,StartDate,EndDate,daysBetween
     ,Spread,Index(..),Date
     ,paySeqLiabilities,prorataFactors
     ,afterNPeriod,Ts(..),periodsBetween
@@ -17,7 +17,6 @@ module Lib
     ,zipWith8,zipWith9, pv2, monthsOfPeriod
     ,weightedBy, mkTs, DealStatus(..)
     ,mulBI,mkRateTs,Pre(..)
-    ,Interest,Principal,IRate,Cash,Comment
     ) where
 
 import qualified Data.Time as T
@@ -36,25 +35,6 @@ import Data.Fixed
 import Types
 import Debug.Trace
 debug = flip trace
-
-
-type Rate = Rational  -- general Rate like pool factor
-type IRate = Micro    -- Interest Rate Type
-type Spread = Micro
--- type Balance = Centi
-type Amount = Centi
-type Comment = String
--- type Dates = [Date]
--- type Date = T.Day
-type StartDate = T.Day
-type EndDate = T.Day
-type LastIntPayDate = T.Day
-type Floor = Micro
-type Principal = Centi
-type Interest = Centi
-type Cash = Centi
-type Cap = Micro
-
 
 data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
 

@@ -12,22 +12,19 @@ module Stmt
   )
   where
 
-import Lib (Date,Balance,Amount,Interest,Principal,IRate,Cash,Comment
-            ,toDate,getIntervalFactors)
+import Lib (toDate,getIntervalFactors)
 import Util (mulBR)
 import Types 
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Aeson hiding (json)
--- import Text.Regex.TDFA
 import Text.Regex.Base
 import Text.Regex.PCRE
 import Data.Fixed
 import Data.List
 import Data.Maybe
 import GHC.Generics
--- import Text.RawString.QQ
 import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Map as M
@@ -171,12 +168,6 @@ class QueryByComment a where
 data Statement = Statement [Txn]
         deriving (Show,Eq)
 
---instance TsList Statement where
---  subByRange s@(Statement txns) Nothing Nothing = s
---  subByRange s@(Statement txns) Nothing (Just ed) =
---  subByRange s@(Statement txns) (Just sd) Nothing =
---  subByRange s@(Statement txns) (Just sd) (Just ed) =
-
 appendStmt :: Maybe Statement -> Txn -> Statement
 appendStmt (Just stmt@(Statement txns)) txn = Statement (txns++[txn])
 appendStmt Nothing txn = Statement [txn]
@@ -207,4 +198,3 @@ instance Eq Txn where
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)
--- $(deriveJSON defaultOptions ''TxnComment)

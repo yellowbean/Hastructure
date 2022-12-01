@@ -49,7 +49,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
      assertEqual "total size of cf" 19 (CF.sizeCashFlowFrame tmcf_00) -- `debug` ("result"++show(tmcf_00))
      ,
      testCase "first Date" $
-     assertEqual "first date" (L.toDate "20210701")  (CF.tsDate (head trs)) -- `debug` ("result"++show(tmcf_00))
+     assertEqual "first date" (L.toDate "20210701")  (CF.getDate (head trs)) -- `debug` ("result"++show(tmcf_00))
      --assertEqual "total size of cf" 19 19
      ,
      testCase "Even Principal Type of Mortgage" $
