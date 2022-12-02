@@ -311,7 +311,12 @@ dateVectorPatternTest =
     [ testCase "" $
         assertEqual "LeapYear&Month End"
           [(toDate "20240229"), (toDate "20240331")]
-          (genSerialDates MonthEnd (toDate "20240215") 2)]                          
+          (genSerialDates MonthEnd (toDate "20240215") 2)
+    , testCase "" $
+        assertEqual "till test"
+        [(toDate "20220131"),(toDate "20220228")]
+        (genSerialDatesTill (toDate "20220101") MonthEnd (toDate "20220315"))
+    ]                          
 
 paddingTest = 
     let 

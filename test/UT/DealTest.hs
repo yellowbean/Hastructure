@@ -1,4 +1,4 @@
-module UT.DealTest(td2,waterfallTests,queryTests,triggerTests)
+module UT.DealTest(td2,waterfallTests,queryTests,triggerTests,dateTests)
 
 where
 
@@ -179,3 +179,24 @@ triggerTests = testGroup "Trigger Tests"
         (status fdeal)
   ]
 
+dateTests = 
+  let 
+   a = PatternA 
+        (toDate "20220601") 
+        (toDate "20220610") 
+        (toDate "20220715") 
+        (toDate "20220901") 
+        MonthEnd 
+        (DayOfMonth 10)
+  in 
+   testGroup "Deal Tests" 
+   [ testCase "Dates pattern" $
+     assertEqual  ""
+    ((toDate "20220601")
+     ,(toDate "20220715")
+     ,[PoolCollection (toDate "20220630") "",PoolCollection (toDate "20220731") "",PoolCollection (toDate "20220831") ""]
+     ,[RunWaterfall (toDate "20220715") "",RunWaterfall (toDate "20220810") ""]
+     ,(toDate "20220901") )
+     (populateDealDates a)
+   ]
+   

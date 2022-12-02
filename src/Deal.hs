@@ -4,7 +4,7 @@
 
 module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
-            ,setFutureCF
+            ,setFutureCF,populateDealDates
             ,calcTargetAmount,td) where
 
 import qualified Accounts as A
@@ -121,7 +121,7 @@ instance DealDates DateDesp where
          sd
   
   getFirstPayDate (CustomDates _ pActions _ bActions )
-    = actionDate $ head bActions
+    = getDate $ head bActions
   
   getFirstPayDate (FixInterval _m _p1 _p2)  
     = _m Map.! FirstPayDate
@@ -646,7 +646,7 @@ run2 t@TestDeal{status=Ended} _ _ _ _ = prepareDeal t `debug` "Deal Ended"
 run2 t _ (Just []) _ _   = prepareDeal t   `debug` "End with Empty ActionOnDate"
 run2 t poolFlow (Just (ad:ads)) rates calls
   | isNothing poolFlow && (queryDeal t  AllAccBalance == 0) 
-     = prepareDeal $ foldl (performAction (actionDate ad)) t cleanUpActions `debug` "End with pool flow and bond balance"-- `debug` ("Deal end with bal =0 ")
+     = prepareDeal $ foldl (performAction (getDate ad)) t cleanUpActions `debug` "End with pool flow and bond balance"-- `debug` ("Deal end with bal =0 ")
   | otherwise
   = case ad of
       PoolCollection d _ ->
@@ -850,10 +850,10 @@ setFutureCF t cf =
 populateDealDates :: DateDesp -> (Date,Date,[ActionOnDate],[ActionOnDate],Date)
 populateDealDates (CustomDates _cutoff _ps _closing _bs) 
   = (_cutoff  
-     ,actionDate (head _bs)
+     ,getDate (head _bs)
      ,_ps
      ,_bs
-     ,(actionDate (max (last _ps) (last _bs))))
+     ,(getDate (max (last _ps) (last _bs))))
 
 populateDealDates (PatternInterval _m) 
   = (cutoffDate,firstPayDate,pa,ba,max ed1 ed2) -- `debug` ("PA>>>"++ show pa)
@@ -862,6 +862,12 @@ populateDealDates (PatternInterval _m)
       (firstPayDate,dp2,ed2) = _m Map.! FirstPayDate 
       pa = [ PoolCollection _d "" | _d <- genSerialDatesTill cutoffDate dp1 ed1 ]
       ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill firstPayDate dp2 ed2 ]
+
+populateDealDates (PatternA cutoff closing nextPay ed dp1 dp2)
+  = (cutoff, nextPay, poolCollectionDates, bndPayDates, ed)
+    where
+     poolCollectionDates = [ PoolCollection _d "" | _d <- genSerialDatesTill2 EE closing dp1 ed ]
+     bndPayDates = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE nextPay dp2 ed ]
 
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType ->
@@ -903,7 +909,7 @@ getInits t mAssumps = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,cal
                           liqResetDates   -- `debug` (">>pactionDates"++show iAccIntDates)
     allActionDates = case stopDate of
                        Just (AP.StopRunBy d) ->
-                         filter (\x -> actionDate x < d) _actionDates
+                         filter (\x -> getDate x < d) _actionDates
                        Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ P.runPool2 (pool t) mAssumps -- `debug` ("POOL->"++ show mAssumps)

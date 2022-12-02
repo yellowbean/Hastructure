@@ -3,7 +3,7 @@
 module Util
     (mulBR,mulBIR,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern
-    ,genSerialDatesTill,subDates,getTsDates,sliceDates,SliceType(..)      
+    ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI
     ,replace,paddingDefault
@@ -208,7 +208,7 @@ genSerialDates dp sd num
 
 genSerialDatesTill:: Date -> DatePattern -> Date -> Dates 
 genSerialDatesTill sd ptn ed 
-  = genSerialDates ptn sd (fromInteger (succ num))  --`debug` ("Num"++show num)
+  = filter (< ed) $ genSerialDates ptn sd (fromInteger (succ num))  --`debug` ("Num"++show num)
     where 
       (sy,sm,sday) = T.toGregorian sd 
       (ey,em,eday) = T.toGregorian ed 
@@ -223,6 +223,18 @@ genSerialDatesTill sd ptn ed
               MonthDayOfYear _m _d -> div cdM 12 -- T.MonthOfYear T.DayOfMonth
               DayOfMonth _d -> cdM -- T.DayOfMonth 
               -- DayOfWeek Int -> -- T.DayOfWeek 
+
+genSerialDatesTill2 :: RangeType -> Date -> DatePattern -> Date -> Dates
+genSerialDatesTill2 rt sd dp ed 
+  = case rt of 
+      II -> sd:_r ++ [ed]
+      EI -> _r  ++ [ed]
+      IE -> sd:_r 
+      EE -> _r 
+    where 
+      _r = genSerialDatesTill sd dp ed 
+
+
 
 tsPointVal :: TsPoint a -> a 
 tsPointVal (TsPoint d v) = v
