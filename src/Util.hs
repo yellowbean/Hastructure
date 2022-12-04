@@ -229,11 +229,13 @@ genSerialDatesTill2 rt sd dp ed
   = case rt of 
       II -> sd:_r ++ [ed]
       EI -> _r  ++ [ed]
-      IE -> sd:_r 
+      IE -> if (head _r)==sd then 
+              _r 
+            else
+              sd:_r
       EE -> _r 
     where 
       _r = genSerialDatesTill sd dp ed 
-
 
 
 tsPointVal :: TsPoint a -> a 
@@ -346,8 +348,7 @@ calcInt bal start_date end_date int_rate day_count =
     mulBR bal (yfactor * (toRational int_rate)) 
 
 zipTs :: [Date] -> [Rational] -> Ts 
-zipTs ds rs 
-  = FloatCurve [ TsPoint d r | (d,r) <- (zip ds rs) ]
+zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- (zip ds rs) ]
 
 multiplyTs :: Ts -> Ts -> Ts
 multiplyTs (FloatCurve ts1) ts2
@@ -371,8 +372,8 @@ projDatesByPattern dp sd ed
 
 replace :: [a] -> Int -> a -> [a]
 replace xs i e = case splitAt i xs of
-   (before, _:after) -> before ++ e: after
-   _ -> xs
+                   (before, _:after) -> before ++ e: after
+                   _ -> xs
 
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 

@@ -38,7 +38,7 @@ import Util
 import Debug.Trace
 debug = flip trace
 
-class Asset a where
+class Show a => Asset a where
   calcCashflow :: a -> Date -> CF.CashFlowFrame
   getCurrentBal :: a -> Balance
   getOriginBal :: a -> Balance

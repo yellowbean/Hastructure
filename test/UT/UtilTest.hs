@@ -316,6 +316,10 @@ dateVectorPatternTest =
         assertEqual "till test"
         [(toDate "20220131"),(toDate "20220228")]
         (genSerialDatesTill (toDate "20220101") MonthEnd (toDate "20220315"))
+    , testCase "First Date in Pattern" $
+        assertEqual ""
+         [(toDate "20220630"),(toDate "20220731"),(toDate "20220831")]
+         (genSerialDatesTill2 IE (toDate "20220630") MonthEnd (toDate "20220901"))
     ]                          
 
 paddingTest = 

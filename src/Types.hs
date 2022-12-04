@@ -91,24 +91,32 @@ data DateType = ClosingDate
               deriving (Show,Ord,Eq,Generic,Read)
 
 data Period = Daily 
-              | Weekly 
-              | Monthly 
-              | Quarterly 
-              | SemiAnnually 
-              | Annually
-              deriving (Show,Eq)
+            | Weekly 
+            | Monthly 
+            | Quarterly 
+            | SemiAnnually 
+            | Annually
+            deriving (Show,Eq)
+
+type DateVector = (Date, DatePattern)
 
 data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
+                        --  cutoff pool       closing bond payment dates 
               | CustomDates Date [ActionOnDate] Date [ActionOnDate]
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
-              | PatternA Date Date Date Date DatePattern DatePattern 
+              --cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
+              | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
+              --             cutoff mRevolving closing dp1-pool-pay dp2-bond-pay
+              | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
               deriving (Show,Eq)
 
 data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
+                  | ChangeDealStatusTo Date DealStatus
                   | AccrueFee Date FeeName
                   | ResetLiqProvider Date String
                   | PoolCollection Date String
                   | RunWaterfall Date String
+                  | DealClosed Date 
                   deriving (Show,Generic,Read)
 
 instance TimeSeries ActionOnDate where
@@ -117,6 +125,8 @@ instance TimeSeries ActionOnDate where
     getDate (PoolCollection d _) = d
     getDate (EarnAccInt d _) = d
     getDate (AccrueFee d _) = d
+    getDate (DealClosed d ) = d
+    getDate (ChangeDealStatusTo d _ ) = d
     cmp ad1 ad2 = compare (getDate ad1) (getDate ad2)
     sameDate ad1 ad2 = (getDate ad1) == (getDate ad2)
 
@@ -146,6 +156,7 @@ data DealStatus = DealAccelerated (Maybe Date)
                 | Amortizing
                 | Revolving
                 | Ended
+                | PreClosing
                 deriving (Show,Ord,Eq,Read)
 
 data CustomDataType = CustomConstant Rational 
