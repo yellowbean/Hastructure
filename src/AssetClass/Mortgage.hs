@@ -226,7 +226,8 @@ instance Asset Mortgage  where
                              ppy_rates
                              (replicate curve_dates_length 0.0)
                              (replicate curve_dates_length 0.0)
-                             (recovery_lag,recovery_rate) -- `debug` ("PPY Rate for cf table"++show ppy_rates)
+                             (recovery_lag,recovery_rate)  
+                             -- `debug` ("PPY Rate for cf table"++show ppy_rates++"DEF"++show def_rates)
 
        where
         beg_bal =  CF.mflowBegBalance $ head flows
@@ -236,9 +237,5 @@ instance Asset Mortgage  where
         cf_dates = (map CF.getDate flows) ++ (genDates (CF.getDate (last flows)) temp_p recovery_lag)
 
 
-
-
-runPool2 (Pool as (Just (CF.CashFlowFrame mfs)) asof _) assumps
-   = [ projCashflow (ScheduleMortgageFlow asof mfs) asof assumps] --  `debug` ("MFS"++show([ projCashflow smf asof assumps]))
 
 $(deriveJSON defaultOptions ''Mortgage)

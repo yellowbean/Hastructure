@@ -12,8 +12,9 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 
-data LiquidationMethod = BalanceFactor Rate Rate -- by performing & default
+data LiquidationMethod = BalanceFactor Rate Rate -- by performing & default balace
                        | BalanceFactor2 Rate Rate Rate -- by performing/delinq/default factor
+                       | DefaultedBalance Rate  -- only liquidate defaulted balance
                        | PV IRate IRate -- discount factor, recovery on default
                        | Custom Rate -- custom amount
                        deriving (Show)

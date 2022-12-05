@@ -24,6 +24,7 @@ import AssetClass.Mortgage(Mortgage)
 import Expense
 import Liability
 import Types
+import Revolving
 import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
@@ -73,6 +74,7 @@ data Action = Transfer AccountName AccountName
             | TransferReserve Satisfy AccountName AccountName 
             | LiquidatePool C.LiquidationMethod AccountName
             | RunTrigger (Maybe [Trigger])
+            | BuyAsset (Maybe Limit) AssetPricingMethod AccountName
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
             | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
             | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName

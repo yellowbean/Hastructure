@@ -40,6 +40,7 @@ library
       InterestRate
       Liability
       Lib
+      Revolving
       Stmt
       Types
       Util

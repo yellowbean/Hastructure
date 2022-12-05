@@ -1,8 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 module Asset (Pool(..),OriginalInfo(..),calc_p_i_flow
-       ,aggPool,runPool2
-       ,RateType(..),AmortPlan(..)
+       ,aggPool,RateType(..),AmortPlan(..)
        ,Status(..),IssuanceFields(..)
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
@@ -21,7 +20,6 @@ import Lib (Period(..),genDates
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
-
 
 import qualified Data.Map as Map
 import Data.List
@@ -169,7 +167,13 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
    where
      cf_dates_length = length pDates
 
-buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag = (_ppy_rates,_def_rates,_recovery_rate,_recovery_lag)
+buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag 
+  = (paddingDefault 0.0 _ppy_rates stressSize
+     ,paddingDefault 0.0 _def_rates stressSize
+     ,_recovery_rate
+     ,_recovery_lag)
+   where 
+     stressSize = (pred (length pDates))
 
 _calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow pmt last_bal bals ps is [] = (bals,ps,is)
@@ -217,38 +221,12 @@ calc_p_i_flow_i_p bal dates r
       _bals = (replicate flow_size bal ) ++ [ 0 ]
       _prins = (replicate flow_size 0 ) ++ [ bal ]
 
-runPool2 :: Asset a => (Pool a) -> Maybe A.ApplyAssumptionType -> [CF.CashFlowFrame]
-runPool2 (Pool as (Just cf) asof _) Nothing = [cf]
-runPool2 (Pool as (Just cf) asof _) (Just (A.PoolLevel [])) = [cf]
-runPool2 (Pool as _ asof _) Nothing = map (\x -> calcCashflow x asof) as  `debug` ("RUNPOOL")
-runPool2 (Pool as _ asof _) (Just applyAssumpType)
-  = case applyAssumpType of
-       A.PoolLevel assumps -> map (\x -> projCashflow x asof assumps) as  `debug` (">> Single Pool")
-       A.ByIndex idxAssumps _ ->
-         let
-           numAssets = length as
-           _assumps = map (A.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] `debug` ("Num assets"++ show numAssets)
-         in
-           zipWith (\x a -> projCashflow x asof a) as _assumps
-
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
-aggPool [] = undefined `debug` ("EMpty cashflow from assets")
+aggPool [] = undefined `debug` ("Empty cashflow from assets")
 aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]
-
---projPoolCFs :: Pool Mortgage -> [A.AssumptionBuilder] -> AggregationRule -> CF.CashFlowFrame
---projPoolCFs pool as (Regular cutoffDay p) = CF.CashFlowFrame $ CF.aggTsByDates rightCfs intervals
---     where
---       intervals = genDates cutoffDay p $ fromIntegral periodsInRange
---       periodsInRange = (periodsBetween cutoffDay (CF.tsDate (last rightCfs)) p) + 1
---       rightCfs = case mRightCfs of
---                     Just (CF.CashFlowFrame txns) -> txns
---                     Nothing -> []
---       (mLeftCfs,mRightCfs) = CF.splitCashFlowFrameByDate aggCf cutoffDay -- `debug` ("pool aggCF"++ show aggCf)
---       poolCfs = runPool2 pool as
---       aggCf = aggPool poolCfs  -- `debug` ("pool CF"++ show poolCfs)
 
 getRateAssumption :: [A.AssumptionBuilder] -> Index -> Maybe A.AssumptionBuilder
 getRateAssumption assumps idx
