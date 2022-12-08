@@ -8,13 +8,13 @@ module Types
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
-  ,actionDate,actionDates,DateDesp(..),Period(..)
+  ,actionDates,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
   ,RangeType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss
-  ,EndType,ResultComponent(..)
+  ,ResultComponent(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment)
   where
 
@@ -91,40 +91,53 @@ data DateType = ClosingDate
               deriving (Show,Ord,Eq,Generic,Read)
 
 data Period = Daily 
-              | Weekly 
-              | Monthly 
-              | Quarterly 
-              | SemiAnnually 
-              | Annually
-              deriving (Show,Eq)
+            | Weekly 
+            | Monthly 
+            | Quarterly 
+            | SemiAnnually 
+            | Annually
+            deriving (Show,Eq)
+
+type DateVector = (Date, DatePattern)
 
 data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
+                        --  cutoff pool       closing bond payment dates 
               | CustomDates Date [ActionOnDate] Date [ActionOnDate]
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
+              --cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
+              | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
+              --             cutoff mRevolving closing dp1-pool-pay dp2-bond-pay
+              | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
               deriving (Show,Eq)
 
 data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
+                  | ChangeDealStatusTo Date DealStatus
                   | AccrueFee Date FeeName
                   | ResetLiqProvider Date String
                   | PoolCollection Date String
                   | RunWaterfall Date String
+                  | DealClosed Date 
                   deriving (Show,Generic,Read)
 
-actionDate :: ActionOnDate -> Date
-actionDate (RunWaterfall d _) = d
-actionDate (ResetLiqProvider d _) = d
-actionDate (PoolCollection d _) = d
-actionDate (EarnAccInt d _) = d
-actionDate (AccrueFee d _) = d
+instance TimeSeries ActionOnDate where
+    getDate (RunWaterfall d _) = d
+    getDate (ResetLiqProvider d _) = d
+    getDate (PoolCollection d _) = d
+    getDate (EarnAccInt d _) = d
+    getDate (AccrueFee d _) = d
+    getDate (DealClosed d ) = d
+    getDate (ChangeDealStatusTo d _ ) = d
+    cmp ad1 ad2 = compare (getDate ad1) (getDate ad2)
+    sameDate ad1 ad2 = (getDate ad1) == (getDate ad2)
 
 actionDates :: [ActionOnDate] -> Dates 
-actionDates = map actionDate
+actionDates = map getDate
 
 instance Ord ActionOnDate where
-  compare a1 a2 = compare (actionDate a1) (actionDate a2)
+  compare a1 a2 = compare (getDate a1) (getDate a2)
 
 instance Eq ActionOnDate where
-  a1 == a2 = (actionDate a1) == (actionDate a2)
+  a1 == a2 = (getDate a1) == (getDate a2)
 
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }
@@ -143,6 +156,7 @@ data DealStatus = DealAccelerated (Maybe Date)
                 | Amortizing
                 | Revolving
                 | Ended
+                | PreClosing
                 deriving (Show,Ord,Eq,Read)
 
 data CustomDataType = CustomConstant Rational 
@@ -285,9 +299,6 @@ data ResultComponent = CallAt Date
                   | BondOutstanding String Balance Balance -- when deal ends
                   | BondOutstandingInt String Balance Balance -- when deal ends
                   deriving (Show)
-
-data EndType = IN | EX
-              deriving (Show)
 
 data Threshold = Below
                | EqBelow

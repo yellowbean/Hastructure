@@ -24,6 +24,7 @@ import AssetClass.Mortgage(Mortgage)
 import Expense
 import Liability
 import Types
+import Revolving
 import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
@@ -33,7 +34,7 @@ import qualified CreditEnhancement as CE
 data ActionWhen = EndOfPoolCollection
                 | DistributionDay DealStatus
                 | CleanUp
-                | ClosingDay
+                | OnClosingDay
                 deriving (Show,Ord,Eq,Generic,Read)
 
 instance ToJSONKey ActionWhen where
@@ -49,36 +50,37 @@ data Satisfy = Source
              deriving (Show)
 
 data Limit = DuePct L.Balance  --
-            | DueCapAmt L.Balance  -- due fee
-            | RemainBalPct L.Rate -- pay till remain balance equals to a percentage of `stats`
-            | KeepBalAmt DealStats -- pay till a certain amount remains in an account
-            | Multiple Limit Float -- factor of a limit:w
-            | Formula FormulaType
-            | DS DealStats
-            deriving (Show)
+           | DueCapAmt L.Balance  -- due fee
+           | RemainBalPct L.Rate -- pay till remain balance equals to a percentage of `stats`
+           | KeepBalAmt DealStats -- pay till a certain amount remains in an account
+           | Multiple Limit Float -- factor of a limit:w
+           | Formula FormulaType
+           | DS DealStats
+           deriving (Show)
 
 data Action = Transfer AccountName AccountName 
-             | TransferBy Limit AccountName AccountName
-             | CalcFee [FeeName]
-             | CalcBondInt [BondName]
-             | PayFee [AccountName] [FeeName]
-             | PayFeeBy Limit [AccountName] [FeeName]
-             | PayFeeResidual (Maybe Limit) AccountName FeeName
-             | PayInt AccountName [BondName]
-             | PayPrin AccountName [BondName]
-             | PayPrinResidual AccountName [BondName]
-             | PayPrinBy Limit AccountName BondName
-             | PayTillYield AccountName [BondName]
-             | PayResidual (Maybe Limit) AccountName BondName
-             | TransferReserve Satisfy AccountName AccountName 
-             | LiquidatePool C.LiquidationMethod AccountName
-             | RunTrigger (Maybe [Trigger])
-             | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
-             | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
-             | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
-             | LiqRepay (Maybe Limit) AccountName CE.LiquidityProviderName 
-             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
-             deriving (Show)
+            | TransferBy Limit AccountName AccountName
+            | CalcFee [FeeName]
+            | CalcBondInt [BondName]
+            | PayFee [AccountName] [FeeName]
+            | PayFeeBy Limit [AccountName] [FeeName]
+            | PayFeeResidual (Maybe Limit) AccountName FeeName
+            | PayInt AccountName [BondName]
+            | PayPrin AccountName [BondName]
+            | PayPrinResidual AccountName [BondName]
+            | PayPrinBy Limit AccountName BondName
+            | PayTillYield AccountName [BondName]
+            | PayResidual (Maybe Limit) AccountName BondName
+            | TransferReserve Satisfy AccountName AccountName 
+            | LiquidatePool C.LiquidationMethod AccountName
+            | RunTrigger (Maybe [Trigger])
+            | BuyAsset (Maybe Limit) AssetPricingMethod AccountName
+            | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
+            | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
+            | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
+            | LiqRepay (Maybe Limit) AccountName CE.LiquidityProviderName 
+            | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
+            deriving (Show)
 
 type DistributionSeq = [(Maybe L.Pre, Action)]
 

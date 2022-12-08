@@ -2,9 +2,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Deal (TestDeal(..),run2,getInits,runDeal,ExpectReturn(..)
+module Deal (TestDeal(..),run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
-            ,setFutureCF
+            ,setFutureCF,populateDealDates
             ,calcTargetAmount,td) where
 
 import qualified Accounts as A
@@ -42,7 +42,6 @@ import Debug.Trace
 debug = flip trace
 
 _startDate = T.fromGregorian 1970 1 1
-_farEnoughDate = T.fromGregorian 2080 1 1
 
 class SPV a where
   getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
@@ -108,11 +107,13 @@ instance DealDates DateDesp where
       in 
          sd
          
-  getClosingDate (CustomDates _ pActions cd bActions )
-    = cd
+  getClosingDate (CustomDates _ _ cd _) = cd
 
-  getClosingDate (FixInterval _m _p1 _p2)  
-    = _m Map.! ClosingDate
+  getClosingDate (FixInterval _m _p1 _p2) = _m Map.! ClosingDate
+
+  getClosingDate (PreClosingDates _ x _ _ _ _) = x
+
+  getClosingDate (CurrentDates (_,cd) _ _ _ _ ) = cd
 
   getFirstPayDate (PatternInterval _m) 
     = let 
@@ -120,12 +121,15 @@ instance DealDates DateDesp where
       in 
          sd
   
-  getFirstPayDate (CustomDates _ pActions _ bActions )
-    = actionDate $ head bActions
+  getFirstPayDate (CustomDates _ _ _ bActions )
+    = getDate $ head bActions
   
   getFirstPayDate (FixInterval _m _p1 _p2)  
     = _m Map.! FirstPayDate
-
+  
+  getFirstPayDate (PreClosingDates _ _ _ _ _ (fp,_)) = fp
+  
+  getFirstPayDate (CurrentDates _ _ _ _ (cpay,_)) = cpay
 
 testPre :: P.Asset a => Date -> TestDeal a ->  Pre -> Bool
 testPre d t p =
@@ -646,7 +650,7 @@ run2 t@TestDeal{status=Ended} _ _ _ _ = prepareDeal t `debug` "Deal Ended"
 run2 t _ (Just []) _ _   = prepareDeal t   `debug` "End with Empty ActionOnDate"
 run2 t poolFlow (Just (ad:ads)) rates calls
   | isNothing poolFlow && (queryDeal t  AllAccBalance == 0) 
-     = prepareDeal $ foldl (performAction (actionDate ad)) t cleanUpActions `debug` "End with pool flow and bond balance"-- `debug` ("Deal end with bal =0 ")
+     = prepareDeal $ foldl (performAction (getDate ad)) t cleanUpActions `debug` "End with pool flow and bond balance"-- `debug` ("Deal end with bal =0 ")
   | otherwise
   = case ad of
       PoolCollection d _ ->
@@ -704,9 +708,8 @@ run2 t poolFlow (Just (ad:ads)) rates calls
       AccrueFee d feeName -> 
         let 
           newFeeMap = Map.adjust (calcDueFee t d) feeName (fees t)
-          dAfterFeeAccrued = t {fees=newFeeMap}
-        in 
-          run2 dAfterFeeAccrued poolFlow (Just ads) rates calls
+        in
+          run2 (t{fees=newFeeMap}) poolFlow (Just ads) rates calls
 
       ResetLiqProvider d liqName -> 
         case (liqProvider t) of 
@@ -714,12 +717,18 @@ run2 t poolFlow (Just (ad:ads)) rates calls
           (Just mLiqProvider) 
             -> let 
                  newLiqMap = Map.adjust (updateLiqProvider t d) liqName mLiqProvider
-                 dAfterResetLiq = t {liqProvider =Just newLiqMap}
-               in   
-                 run2 dAfterResetLiq poolFlow (Just ads) rates calls
-            
+               in
+                run2 (t{liqProvider =Just newLiqMap}) poolFlow (Just ads) rates calls
+      DealClosed d ->
+          let 
+            w = Map.findWithDefault [] W.OnClosingDay (waterfall t) 
+            newDeal = foldl (performAction d) t w `debug` ("ClosingDay Action:"++show w)
+          in 
+            run2 newDeal poolFlow (Just ads) rates calls
+      ChangeDealStatusTo d s -> 
+          run2 (t{status=s}) poolFlow (Just ads) rates calls
       where
-        cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
+        cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)   `debug` ("Running AD"++show(ad))
 
 
 run2 t Nothing Nothing Nothing Nothing
@@ -787,8 +796,8 @@ runDeal t er assumps bpi =
     DealPoolFlowPricing -> (finalDeal, Just pcf, Just (getRunResult finalDeal), bndPricing) -- `debug` ("with pricing"++show(bndPricing))
     -- DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
-    (ads,pcf,rcurves,calls) = getInits t assumps -- `debug` ("cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
-    finalDeal = run2 (removePoolCf t) (Just pcf) (Just ads) (Just rcurves) calls  -- `debug` ("PCF -> "++ show pcf)-- `debug` ("Init Actions"++show(sort ads)) -- ++"pool flows"++show(pcf)) -- `debug` (">>ADS==>> "++show(ads))
+    (ads,pcf,rcurves,calls) = getInits t assumps  `debug` ("Init Deal"++show (name t)++">> cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
+    finalDeal = run2 (removePoolCf t) (Just pcf) (Just ads) (Just rcurves) calls  -- `debug` ("Action >>"++show ads)
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
@@ -847,38 +856,87 @@ setFutureCF t cf =
     _pool = pool t
     newPool = _pool {P.futureCf = Just cf}
 
-populateDealDates :: DateDesp -> (Date,Date,[ActionOnDate],[ActionOnDate],Date)
-populateDealDates (CustomDates _cutoff _ps _closing _bs) 
-  = (_cutoff  
-     ,actionDate (head _bs)
-     ,_ps
-     ,_bs
-     ,(actionDate (max (last _ps) (last _bs))))
+populateDealDates :: DateDesp -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
+populateDealDates (CustomDates cutoff pa closing ba) 
+  = (cutoff  
+    ,closing
+    ,getDate (head ba)
+    ,pa
+    ,ba
+    ,(getDate (max (last pa) (last ba))))
 
 populateDealDates (PatternInterval _m) 
-  = (cutoffDate,firstPayDate,pa,ba,max ed1 ed2) -- `debug` ("PA>>>"++ show pa)
+  = (cutoff,closing,nextPay,pa,ba,max ed1 ed2) -- `debug` ("PA>>>"++ show pa)
     where 
-      (cutoffDate,dp1,ed1) = _m Map.! CutoffDate
-      (firstPayDate,dp2,ed2) = _m Map.! FirstPayDate 
-      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill cutoffDate dp1 ed1 ]
-      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill firstPayDate dp2 ed2 ]
+      (cutoff,dp1,ed1) = _m Map.! CutoffDate
+      (nextPay,dp2,ed2) = _m Map.! FirstPayDate 
+      (closing,_,_) = _m Map.! ClosingDate
+      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill cutoff dp1 ed1 ]
+      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill nextPay dp2 ed2 ]
+
+populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp))
+  = (cutoff,closing,firstPay,pa,ba,end) -- `debug` ("POOL A"++show pa) 
+    where 
+      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE firstCollect poolDp end ]
+      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE firstPay bondDp end ]
+
+populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollect,poolDp) (nextPay,bondDp))
+  = (lastCollect, lastPay,head futurePayDates, pa, ba, end) 
+    where 
+      futurePayDates = genSerialDatesTill2 IE nextPay bondDp end 
+      ba = [ RunWaterfall _d "" | _d <- futurePayDates]
+      futureCollectDates = genSerialDatesTill2 IE nextCollect poolDp end 
+      pa = [ PoolCollection _d "" | _d <- futureCollectDates]
+
+calcDealStageDate :: DateDesp -> [(Date,DealStatus)]
+calcDealStageDate (PreClosingDates _ closing Nothing endDate _ _) 
+  = [(closing,Amortizing),(endDate,Ended)]
+calcDealStageDate (PreClosingDates _ closing (Just revolvingEndDate) endDate _ _) 
+  = [(closing,Revolving),(revolvingEndDate,Amortizing),(endDate,Ended)]
+calcDealStageDate (CurrentDates _ Nothing endDate _ _) 
+  = [(endDate,Ended)]
+calcDealStageDate (CurrentDates _ (Just revolvingEndDate) endDate _ _) 
+  = [(revolvingEndDate,Amortizing),(endDate,Ended)]
+calcDealStageDate _ = []
+
+
+runPool2 :: P.Asset a => (P.Pool a) -> Maybe AP.ApplyAssumptionType -> [CF.CashFlowFrame]
+runPool2 (P.Pool [] (Just cf) asof _) Nothing = [cf]
+runPool2 (P.Pool [] (Just cf) asof _) (Just (AP.PoolLevel [])) = [cf]
+runPool2 (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel assumps)) 
+  = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn) asof assumps) ] `debug` ("PROJ in schedule flow")
+runPool2 (P.Pool as _ asof _) Nothing = map (\x -> P.calcCashflow x asof) as  `debug` ("RUNPOOL")
+runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
+  = case applyAssumpType of
+       AP.PoolLevel assumps -> 
+           map (\x -> P.projCashflow x asof assumps) as  `debug` (">> Single Pool")
+       AP.ByIndex idxAssumps _ ->
+         let
+           numAssets = length as
+           _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] `debug` ("Num assets"++ show numAssets)
+         in
+           zipWith (\x a -> P.projCashflow x asof a) as _assumps
+
 
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType ->
     ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption])
-getInits t mAssumps = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,callOptions)  -- `debug` ("Pool Flow to Deal"++show pCollectionCfAfterCutoff)
+getInits t mAssumps 
+  = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,callOptions) -- `debug` ("Acton Dates"++ show allActionDates)
   where
     dealAssumps = case mAssumps of
                     Just (AP.PoolLevel _aps) -> fst $ AP.splitAssumptions _aps ([],[])
                     Just (AP.ByIndex _ _aps) -> _aps
                     Nothing -> []
     
-    (startDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)   
-    intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) _farEnoughDate [] -- `debug` (show (startDate,firstPayDate,pActionDates,bActionDates,endDate))
+    (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)
+    dealStatusDates = calcDealStageDate (dates t) 
+    dealStageDates = [ ChangeDealStatusTo d s | (d,s) <- dealStatusDates ]
+    intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) endDate [] -- `debug` (show (startDate,firstPayDate,pActionDates,bActionDates,endDate))
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
                                            , _d <- accIntDates ] -- `debug` ("PoolactionDates"++show  pActionDates)
     --fee accrue dates 
-    _feeAccrueDates = F.buildFeeAccrueAction (Map.elems (fees t)) _farEnoughDate []
+    _feeAccrueDates = F.buildFeeAccrueAction (Map.elems (fees t)) endDate []
     feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates
                                            , _d <- feeAccureDates ]
     --liquidation facility
@@ -886,7 +944,7 @@ getInits t mAssumps = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,cal
                       Nothing -> []
                       Just mLiqProvider -> 
                           let 
-                            _liqResetDates = CE.buildLiqResetAction (Map.elems mLiqProvider) _farEnoughDate []                    
+                            _liqResetDates = CE.buildLiqResetAction (Map.elems mLiqProvider) endDate []                    
                           in 
                             [ ResetLiqProvider _d _liqName |(_liqName,__liqResetDates) <- _liqResetDates
                                                           , _d <- __liqResetDates ]
@@ -896,19 +954,23 @@ getInits t mAssumps = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,cal
                    _ -> False)
                  dealAssumps 
     
-    _actionDates = sort $ bActionDates ++ 
-                          pActionDates ++ 
-                          iAccIntDates ++ 
-                          feeAccrueDates ++
-                          liqResetDates   -- `debug` (">>pactionDates"++show iAccIntDates)
+    _actionDates = let 
+                     a = bActionDates ++ pActionDates ++ iAccIntDates ++ feeAccrueDates ++ liqResetDates ++ dealStageDates
+                   in
+                     case (dates t) of 
+                       (PreClosingDates _ _ _ _ _ _) -> sort $ (DealClosed closingDate):a 
+                       _ -> sort a
+                      
     allActionDates = case stopDate of
                        Just (AP.StopRunBy d) ->
-                         filter (\x -> actionDate x < d) _actionDates
+                         filter (\x -> getDate x < d) _actionDates
                        Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
-    poolCf = P.aggPool $ P.runPool2 (pool t) mAssumps -- `debug` ("POOL->"++ show mAssumps)
-    poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool flow>>"++show poolCf)
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) ++ ">>" ++ (show pActionDates))
+    poolCf = P.aggPool $ runPool2 (pool t) mAssumps 
+     `debug` ("ASSUMP=>"++ show mAssumps)
+     -- `debug` ("POOL->"++ show (pool t))
+    poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool Cf in pool>>"++show poolCf)
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates)   `debug`  (("poolCf "++ show poolCfTs) )
     rateCurves = buildRateCurves [] dealAssumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
     callOptions = buildCallOptions Nothing dealAssumps -- `debug` ("Assump"++show(assumps))
 

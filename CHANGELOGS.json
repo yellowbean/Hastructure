@@ -1,6 +1,14 @@
 {
-  "update": "20221129",
+  "update": "20221205",
   "records": [
+    {
+      "version": "a0.6.0",
+      "date": "20221205",
+      "changes": [
+        "Seperate Deal Dates by \"PreClosing\" and \"Ongoing\"",
+        "add new date pattern"
+      ]
+    },
     {
       "version": "a0.5.10",
       "date": "20221129",

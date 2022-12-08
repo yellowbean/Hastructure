@@ -50,7 +50,7 @@ echo "<PUBLISH> Done ! "
 
 # Generate change log file 
 echo "<CHANGE LOG> Update Change Log "
-python generate_chagnelogs.py CHANGELOGS.json $2
+python generate_chagnelogs.py CHANGELOGS.json $1$2
 echo "<CHANGE LOG> Upload Change Log "
 scp CHANGELOGS.json root@simplicity.vip:/root/absbox.org/CHANGELOGS.json
 

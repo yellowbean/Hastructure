@@ -91,9 +91,9 @@ postRunPoolR = do
   req <- requireCheckJsonBody  :: Handler RunPoolReq 
   returnJson $ 
       case req of
-        RunPoolReq (MPool p) ma -> P.aggPool $ P.runPool2 p ma
-        RunPoolReq (LPool p) ma -> P.aggPool $ P.runPool2 p ma
-        RunPoolReq (IPool p) ma -> P.aggPool $ P.runPool2 p ma
+        RunPoolReq (MPool p) ma -> P.aggPool $ D.runPool2 p ma
+        RunPoolReq (LPool p) ma -> P.aggPool $ D.runPool2 p ma
+        RunPoolReq (IPool p) ma -> P.aggPool $ D.runPool2 p ma
 
 optionsRunDealR :: Handler String 
 optionsRunDealR = do
@@ -123,7 +123,7 @@ postRunDealR = do
 
 getVersionR :: Handler String
 getVersionR =  let 
-                 _v = "0.5.10"
+                 _v = "0.6.0"
                in
                  do
                    addHeader "Access-Control-Allow-Origin" "*"

@@ -62,6 +62,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | CallWhen [C.CallOption]
                 | StopRunBy Date
                 | PoolHairCut PoolSource Rate
+                | AvailableAssets 
                 deriving (Show)
 
 data BondPricingInput = DiscountCurve T.Day Ts

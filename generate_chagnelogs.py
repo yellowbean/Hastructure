@@ -57,8 +57,8 @@ def updateLogs(_input,st):
     with open(f"{_input}_new",'w') as newfile:
         json.dump(r, newfile, indent=2)
         
-    cleanUpfile(_input,f"{_input}_new")
+    cleanUpfile(_input, f"{_input}_new")
 	
 if __name__=='__main__':
-	_,logfileName,startTag = sys.argv
-	updateLogs(logfileName,startTag)
+	_, logfileName, startTag = sys.argv
+	updateLogs(logfileName, startTag)
