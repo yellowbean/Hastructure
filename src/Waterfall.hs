@@ -72,9 +72,9 @@ data Action = Transfer AccountName AccountName
             | PayTillYield AccountName [BondName]
             | PayResidual (Maybe Limit) AccountName BondName
             | TransferReserve Satisfy AccountName AccountName 
-            | LiquidatePool C.LiquidationMethod AccountName
+            | LiquidatePool LiquidationMethod AccountName
             | RunTrigger (Maybe [Trigger])
-            | BuyAsset (Maybe Limit) AssetPricingMethod AccountName
+            | BuyAsset (Maybe Limit) LiquidationMethod AccountName
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
             | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
             | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName

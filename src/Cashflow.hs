@@ -186,8 +186,8 @@ addTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1) (LoanFlow _ b2 p2 i2 prep
 addTsCF :: TsRow -> TsRow -> TsRow
 addTsCF (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))
 addTsCF (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = (BondFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) )
-addTsCF (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2)
-  = (MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (map toRational [rat1,rat2]))) )
+addTsCF (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1) (MortgageFlow d2 b2 p2 i2 prep2 def2 rec2 los2 rat2)
+  = (MortgageFlow d2 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (map toRational [rat1,rat2]))) ) -- `debug` ("Adding"++show [d1,d2])
 addTsCF (MortgageFlow2 d1 b1 p1 i1 prep1 del1 def1 rec1 los1 rat1) (MortgageFlow2 _ b2 p2 i2 prep2 del2 def2 rec2 los2 rat2)
   = (MortgageFlow2 d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (del1 + del2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (map toRational [rat1,rat2]) )))
 addTsCF (MortgageFlow3 d1 b1 p1 i1 prep1 del13 del16 del19 def1 rec1 los1 rat1) (MortgageFlow3 _ b2 p2 i2 prep2 del23 del26 del29 def2 rec2 los2 rat2)
@@ -199,7 +199,7 @@ sumTs :: [TsRow] -> Date -> TsRow
 sumTs trs d = tsSetDate (foldr1 addTs trs) d
 
 sumTsCF :: [TsRow] -> Date -> TsRow
-sumTsCF trs d = tsSetDate (foldr1 addTsCF trs) d
+sumTsCF trs d = tsSetDate (foldl1 addTsCF trs) d -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
 
 tsTotalCash :: TsRow -> Balance
 tsTotalCash (CashFlow _ x) = x
@@ -233,9 +233,9 @@ reduceTs (tr:trs) _tr
 
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combine (CashFlowFrame rs1) (CashFlowFrame rs2) =
-    CashFlowFrame $  foldl reduceTs [] sorted_cff
+    CashFlowFrame $  foldl reduceTs [] sorted_cff `debug` ("BEFORE SORT"++ show sorted_cff)
     where cff = rs1++rs2
-          sorted_cff = L.sortOn getDate cff
+          sorted_cff = L.sortOn getDate cff `debug` ("BEFORE sort"++ show cff)
 
 tsDateLT :: Date -> TsRow  -> Bool
 tsDateLT td (CashFlow d _) = d < td

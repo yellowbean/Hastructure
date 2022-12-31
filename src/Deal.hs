@@ -21,8 +21,7 @@ import Stmt
 import Lib
 import Util
 import Types
-import Stmt (TxnComment(..),Statement(..),Txn,getTxns,getTxnAmt,getTxnDate,getTxnComment
-            ,queryTxnAmt)
+import Revolving
 
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -211,8 +210,7 @@ performAction d t@TestDeal{accounts=accMap} (Nothing, W.TransferReserve meetAcc 
 performAction d t@TestDeal{fees=feeMap} (Nothing, W.PayFee ans fns) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
-    accSet = S.fromList ans
-    accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
+    accMap = getAccountByName t (Just ans)
 
     feesToPay = map (feeMap Map.!) fns
     feeDueAmts = map F.feeDue feesToPay  
@@ -238,11 +236,8 @@ performAction d t@TestDeal{fees=feeMap} (Nothing, W.PayFee ans fns) =
 performAction d t@TestDeal{fees=feeMap} (Nothing, W.PayFeeBy limit ans fns) =
   t {accounts = accMapUpdated, fees = feeMapUpdated}
   where
-    accSet = S.fromList ans
-    accMap = Map.filterWithKey (\k _ -> S.member k accSet) (accounts t)
-
+    accMap = getAccountByName t (Just ans)
     feesToPay = map (feeMap Map.!) fns
-    -- feesWithDue = map (calcDueFee t d) feesToPay
     feeDueAmts = case limit of
                   (W.DuePct pct) -> map (\x -> pct * (F.feeDue x) ) feesToPay
                   (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesToPay
@@ -306,8 +301,6 @@ performAction d t@TestDeal{fees=feeMap,accounts=accMap} (Nothing, W.PayFeeResidu
                    Just (W.DuePct pct) ->  pct * availBal
                    Just (W.DueCapAmt cap) ->  min cap availBal
                    Nothing -> availBal
-
-
     accMapAfterPay = Map.adjust (A.draw paidOutAmt d (PayFeeYield feeName)) an accMap
     feeMapAfterPay = Map.adjust (F.payFee d paidOutAmt) feeName feeMap
 
@@ -391,29 +384,19 @@ performAction d t@TestDeal{accounts=accMap} (Nothing, W.LiquidatePool lm an) =
     liqAmt = calcLiquidationAmount lm (pool t) d
     accMapAfterLiq = Map.adjust (A.deposit liqAmt d (LiquidationProceeds liqAmt)) an accMap
 
-performAction d t (Nothing, W.CalcFee fns) 
-  = t {fees = newFeeMap }
+performAction d t@TestDeal{fees=feeMap} (Nothing, W.CalcFee fns) 
+  = t {fees = Map.union newFeeMap feeMap }
   where 
-    fset = S.fromList fns
-    newFeeMap = Map.mapWithKey
-                  (\fn _f ->
-                    if S.member fn fset then 
-                      calcDueFee t d _f 
-                    else
-                      _f)
-                  (fees t)
+    newFeeMap = Map.map
+                  (calcDueFee t d) $
+                  getFeeByName t (Just fns)
 
-performAction d t (Nothing, W.CalcBondInt bns) 
-  = t {bonds = newBondMap }
+performAction d t@TestDeal{bonds=bndMap} (Nothing, W.CalcBondInt bns) 
+  = t {bonds = Map.union newBondMap bndMap}
   where 
-    bset = S.fromList bns
-    newBondMap = Map.mapWithKey
-                  (\bn _b ->
-                    if S.member bn bset then 
-                      calcDueInt t d _b 
-                    else
-                      _b)
-                  (bonds t)
+    newBondMap = Map.map 
+                  (calcDueInt t d) $
+                  getBondByName t (Just bns)
 
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqSupport limit pName an)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)
@@ -542,9 +525,6 @@ testCall t d opt =
        C.PoolBalance x -> queryDeal t FutureCurrentPoolBalance < x
        C.BondBalance x -> queryDeal t CurrentBondBalance < x
        C.PoolFactor x ->  queryDealRate t (FutureCurrentPoolFactor d) < fromRational x -- `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
-                        -- _factor  < (fromRational x)  `debug` ("Test on Pool Factor: "++show((pool t))++" v-> "++show(_factor))
-                        -- where
-                        --   _factor = (queryDeal t (FutureCurrentPoolBalance d)) / (queryDeal t OriginalPoolBalance)
        C.BondFactor x ->  queryDealRate t BondFactor < fromRational x
        C.OnDate x -> x == d 
        C.AfterDate x -> d > x
@@ -712,7 +692,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls
           run2 (t{fees=newFeeMap}) poolFlow (Just ads) rates calls
 
       ResetLiqProvider d liqName -> 
-        case (liqProvider t) of 
+        case liqProvider t of 
           Nothing -> run2 t poolFlow (Just ads) rates calls
           (Just mLiqProvider) 
             -> let 
@@ -739,11 +719,11 @@ run2 t Nothing Nothing Nothing Nothing
 run2 t Nothing _ _ _ = prepareDeal t -- `debug` ("End with Pool CF2")
 
 
-calcLiquidationAmount :: C.LiquidationMethod -> (P.Pool a) -> Date -> Amount
+calcLiquidationAmount :: LiquidationMethod -> P.Pool a -> Date -> Amount
 calcLiquidationAmount alm pool d 
   = case alm of 
-      C.BalanceFactor currentFactor defaultFactor ->
-          case (P.futureCf pool) of 
+      BalanceFactor currentFactor defaultFactor ->
+          case P.futureCf pool of 
             Nothing -> 0  -- `debug` ("No futureCF")
             Just _futureCf ->
                 let 
@@ -757,8 +737,8 @@ calcLiquidationAmount alm pool d
                         (mulBR (CF.mflowBalance _ts) currentFactor) + (mulBR currentDefaulBal defaultFactor) 
                         -- `debug` ("LIQ:"++show poolInflow)
 
-      C.PV discountRate recoveryPct ->
-          case (P.futureCf pool) of
+      PV discountRate recoveryPct ->
+          case P.futureCf pool of
             Nothing -> 0 
             Just _futureCf ->
                 let 
@@ -769,7 +749,7 @@ calcLiquidationAmount alm pool d
                 in 
                   pvCf + mulBI currentDefaulBal recoveryPct
 
-liquidatePool :: C.LiquidationMethod -> T.Day -> String -> TestDeal a -> TestDeal a
+liquidatePool :: LiquidationMethod -> T.Day -> String -> TestDeal a -> TestDeal a
 liquidatePool lq d accName t =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
@@ -839,13 +819,13 @@ buildCallOptions rs [] =  rs
 appendCollectedCF :: TestDeal a -> Maybe CF.CashFlowFrame -> TestDeal a
 appendCollectedCF t Nothing = t
 appendCollectedCF t@(TestDeal { pool = mpool }) (Just cf@(CF.CashFlowFrame _trs))
-  = case (P.futureCf mpool) of 
+  = case P.futureCf mpool of 
       Nothing -> t {pool = mpool {P.futureCf = Just cf}}
       Just _p -> t {pool = mpool {P.futureCf = Just (CF.appendCashFlow _p _trs)}}
 
 removePoolCf :: TestDeal a -> TestDeal a
 removePoolCf t@(TestDeal {pool = _pool})
-  = case (P.futureCf _pool) of 
+  = case P.futureCf _pool of 
       Nothing -> t 
       Just _cf -> t {pool = _pool {P.futureCf = Nothing}}
 
@@ -904,12 +884,12 @@ runPool2 :: P.Asset a => (P.Pool a) -> Maybe AP.ApplyAssumptionType -> [CF.CashF
 runPool2 (P.Pool [] (Just cf) asof _) Nothing = [cf]
 runPool2 (P.Pool [] (Just cf) asof _) (Just (AP.PoolLevel [])) = [cf]
 runPool2 (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel assumps)) 
-  = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn) asof assumps) ] `debug` ("PROJ in schedule flow")
-runPool2 (P.Pool as _ asof _) Nothing = map (\x -> P.calcCashflow x asof) as  `debug` ("RUNPOOL")
+  = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn) asof assumps) ] -- `debug` ("PROJ in schedule flow")
+runPool2 (P.Pool as _ asof _) Nothing = map (\x -> P.calcCashflow x asof) as -- `debug` ("RUNPOOL")
 runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
   = case applyAssumpType of
        AP.PoolLevel assumps -> 
-           map (\x -> P.projCashflow x asof assumps) as  `debug` (">> Single Pool")
+           map (\x -> P.projCashflow x asof assumps) as  -- `debug` (">> Single Pool")
        AP.ByIndex idxAssumps _ ->
          let
            numAssets = length as
@@ -922,7 +902,7 @@ runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType ->
     ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption])
 getInits t mAssumps 
-  = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,callOptions) -- `debug` ("Acton Dates"++ show allActionDates)
+  = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,callOptions) -- `debug` ("Pool after AggbyDates"++show pCollectionCfAfterCutoff) -- `debug` ("Acton Dates"++ show allActionDates)
   where
     dealAssumps = case mAssumps of
                     Just (AP.PoolLevel _aps) -> fst $ AP.splitAssumptions _aps ([],[])
@@ -957,7 +937,7 @@ getInits t mAssumps
     _actionDates = let 
                      a = bActionDates ++ pActionDates ++ iAccIntDates ++ feeAccrueDates ++ liqResetDates ++ dealStageDates
                    in
-                     case (dates t) of 
+                     case dates t of 
                        (PreClosingDates _ _ _ _ _ _) -> sort $ (DealClosed closingDate):a 
                        _ -> sort a
                       
@@ -966,12 +946,11 @@ getInits t mAssumps
                          filter (\x -> getDate x < d) _actionDates
                        Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
-    poolCf = P.aggPool $ runPool2 (pool t) mAssumps 
-     `debug` ("ASSUMP=>"++ show mAssumps)
+    poolCf = P.aggPool $ runPool2 (pool t) mAssumps -- `debug` ("ASSUMP=>"++ show mAssumps)
      -- `debug` ("POOL->"++ show (pool t))
-    poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool Cf in pool>>"++show poolCf)
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $  CF.aggTsByDates poolCfTs (actionDates pActionDates)   `debug`  (("poolCf "++ show poolCfTs) )
-    rateCurves = buildRateCurves [] dealAssumps   -- [RateCurve LIBOR6M (FloatCurve [(TsPoint (T.fromGregorian 2022 1 1) 0.01)])]
+    poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf)
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (actionDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
+    rateCurves = buildRateCurves [] dealAssumps  
     callOptions = buildCallOptions Nothing dealAssumps -- `debug` ("Assump"++show(assumps))
 
 queryDealRate :: P.Asset a => TestDeal a -> DealStats -> Micro
@@ -979,18 +958,18 @@ queryDealRate t s =
   fromRational $ 
     case s of
       BondFactor ->
-           (toRational (queryDeal t CurrentBondBalance)) / (toRational (queryDeal t OriginalBondBalance))
+           toRational (queryDeal t CurrentBondBalance) / toRational (queryDeal t OriginalBondBalance)
 
       PoolFactor ->
-           (toRational (queryDeal t CurrentPoolBalance))  / (toRational (queryDeal t OriginalPoolBalance))
+           toRational (queryDeal t CurrentPoolBalance)  / toRational (queryDeal t OriginalPoolBalance)
 
       FutureCurrentPoolFactor asOfDay ->
-           (toRational (queryDeal t FutureCurrentPoolBalance)) / (toRational (queryDeal t OriginalPoolBalance) )
+           toRational (queryDeal t FutureCurrentPoolBalance) / toRational (queryDeal t OriginalPoolBalance)
       
       CumulativePoolDefaultedRate ->
           let 
-            originPoolBal = (toRational (queryDeal t OriginalPoolBalance) ) -- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
-            cumuPoolDefBal = (toRational (queryDeal t CumulativePoolDefaultedBalance)) -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
+            originPoolBal = toRational (queryDeal t OriginalPoolBalance) -- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
+            cumuPoolDefBal = toRational (queryDeal t CumulativePoolDefaultedBalance) -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
           in 
             cumuPoolDefBal / originPoolBal -- `debug` (show (toRational (queryDeal t OriginalPoolBalance) ))
 
@@ -999,18 +978,18 @@ queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t s =
   case s of
     CurrentBondBalance ->
-       Map.foldr (\x acc -> ((L.bndBalance x) + acc)) 0.0 (bonds t)
+       Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 (bonds t)
     OriginalBondBalance ->
-       Map.foldr (\x acc -> (L.originBalance (L.bndOriginInfo x)) + acc) 0.0 (bonds t)
+       Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 (bonds t)
     CurrentPoolBalance ->
-       foldl (\acc x -> (acc + (P.getCurrentBal x))) 0.0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
+       foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
     CurrentPoolDefaultedBalance ->
-       foldl (\acc x -> (acc + (P.getCurrentBal x)))
+       foldl (\acc x -> acc + P.getCurrentBal x)
              0.0 $
-             filter (\a-> P.isDefaulted a ) (P.assets (pool t))
+             filter P.isDefaulted (P.assets (pool t))
     OriginalPoolBalance ->
        -- foldl (\acc x -> (acc + (P.getOriginBal x))) 0.0 (P.assets (pool t))
-       case (P.issuanceStat (pool t)) of
+       case P.issuanceStat (pool t) of
          Just m -> Map.findWithDefault (-1) P.IssuanceBalance m -- `debug` (">>>>"++show(m))
          Nothing -> (-1) -- `debug` ("Pool Stat"++show(pool t))
 
@@ -1029,7 +1008,7 @@ queryDeal t s =
           (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
 
     FutureCurrentPoolBalance ->
-       case (P.futureCf (pool t)) of 
+       case P.futureCf (pool t) of 
          Nothing -> 0.0
          Just (CF.CashFlowFrame trs) -> CF.mflowBalance $ last trs
 
@@ -1051,7 +1030,7 @@ queryDeal t s =
                         CollectedPrepayment -> CF.mflowPrepayment
                         CollectedRecoveries -> CF.mflowRecovery)    
                       subflow  -- `debug` ("SDED"++ show fromDay ++ show asOfDay ++"Pool Collection Histroy"++show subflow)
-        subflow = case (P.futureCf (pool t)) of
+        subflow = case P.futureCf (pool t) of
                     Nothing ->  []
                     Just _futureCf -> 
                         if fromDay == asOfDay then 
@@ -1061,33 +1040,32 @@ queryDeal t s =
 
     CumulativePoolDefaultedBalance ->
         let
-          futureDefaults = case (P.futureCf (pool t)) of
+          futureDefaults = case P.futureCf (pool t) of
                              Just (CF.CashFlowFrame _historyTxn) 
                                 -> foldr 
-                                     (\r a -> (CF.tsDefaultBal r) + a) 
+                                     (\r a -> CF.tsDefaultBal r + a) 
                                      0 
                                      _historyTxn
-                             Nothing -> 0.0 `debug` ("Geting future defaults"++show futureDefaults)
+                             Nothing -> 0.0  -- `debug` ("Geting future defaults"++show futureDefaults)
           currentDefaults = queryDeal t CurrentPoolDefaultedBalance
         in
           futureDefaults + currentDefaults
 
     CurrentBondBalanceOf bns ->
        let
-          bnSet = S.fromList bns
-          bSubMap = Map.filterWithKey (\bn b -> (S.member bn bnSet)) (bonds t)
+          bSubMap = getBondByName t (Just bns) -- Map.filterWithKey (\bn b -> (S.member bn bnSet)) (bonds t)
        in
           sum $ map L.bndBalance $ Map.elems bSubMap
 
     BondsIntPaidAt d bns ->
        let
-          bSubMap =  (getBondByName t (Just bns))   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
+          bSubMap =  getBondByName t (Just bns)   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
           stmts = map L.bndStmt $ Map.elems bSubMap
           ex s = case s of
                    Nothing -> 0
                    Just (Statement txns) 
                      -> sum $ map getTxnAmt $
-                          filter (\y -> case (getTxnComment y) of 
+                          filter (\y -> case getTxnComment y of 
                                           (PayInt _ _) -> True
                                           _ -> False)   $
                           filter (\x -> d == getTxnDate x) txns
@@ -1096,13 +1074,13 @@ queryDeal t s =
 
     BondsPrinPaidAt d bns ->
        let
-          bSubMap =  (getBondByName t (Just bns))   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
+          bSubMap =  getBondByName t (Just bns)   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
           stmts = map L.bndStmt $ Map.elems bSubMap
           ex s = case s of
                    Nothing -> 0
                    Just (Statement txns) 
                      -> sum $ map getTxnAmt $
-                          filter (\y -> case (getTxnComment y) of 
+                          filter (\y -> case getTxnComment y of 
                                           (PayPrin _ _) -> True
                                           _ -> False)   $
                           filter (\x -> d == getTxnDate x) txns
@@ -1119,8 +1097,9 @@ queryDeal t s =
 
     FeesPaidAt d fns ->
        let
-          fnSet = S.fromList fns
-          fSubMap = Map.filterWithKey (\fn f -> (S.member fn fnSet)) (fees t)
+          -- fnSet = S.fromList fns
+          -- fSubMap = Map.filterWithKey (\fn f -> (S.member fn fnSet)) (fees t)
+          fSubMap = getFeeByName t (Just fns)
           stmts = map F.feeStmt $ Map.elems fSubMap
           ex s = case s of
                    Nothing -> 0
@@ -1130,22 +1109,25 @@ queryDeal t s =
 
     CurrentDueBondInt bns ->
         let
-           bnSet = S.fromList bns
-           bSubMap = Map.filterWithKey (\bn b -> (S.member bn bnSet)) (bonds t)
+           -- bnSet = S.fromList bns
+           -- bSubMap = Map.filterWithKey (\bn b -> (S.member bn bnSet)) (bonds t)
+           bSubMap =  getBondByName t (Just bns)   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
         in
            sum $ map L.bndDueInt $ Map.elems bSubMap
 
     CurrentDueFee fns ->
         let
-           fnSet = S.fromList fns
-           fSubMap = Map.filterWithKey (\fn f -> (S.member fn fnSet)) (fees t)
+           -- fnSet = S.fromList fns
+           -- fSubMap = Map.filterWithKey (\fn f -> (S.member fn fnSet)) (fees t)
+           fSubMap = getFeeByName t (Just fns)
         in
            sum $ map F.feeDue $ Map.elems fSubMap
+
     Sum _s ->
         sum $ map (queryDeal t) _s
 
     Substract (ds:dss) -> 
-        (queryDeal t ds) - (queryDeal t (Sum dss)) -- `debug` ("SS->"++show (queryDeal t ds)++"SS2->"++ show (queryDeal t (Sum dss)))
+        queryDeal t ds - queryDeal t (Sum dss) -- `debug` ("SS->"++show (queryDeal t ds)++"SS2->"++ show (queryDeal t (Sum dss)))
 
     Constant n -> fromRational n
 
@@ -1155,10 +1137,10 @@ queryDeal t s =
     Min ds1 ds2 ->
         min (queryDeal t ds1) (queryDeal t ds2) -- `debug` ("MIN->"++ show (queryDeal t ds1)++"|"++ show (queryDeal t ds2)++show ds2)
 
-    Divide ds1 ds2 -> (queryDeal t ds1) / (queryDeal t ds2)
+    Divide ds1 ds2 -> queryDeal t ds1 / queryDeal t ds2
 
     CustomData s d ->
-        case (custom t) of 
+        case custom t of 
           Nothing -> 0 
           Just mCustom ->
               case mCustom Map.! s of 
@@ -1459,7 +1441,7 @@ td = TestDeal {
                                  ,(Nothing, W.TransferReserve W.Target  "General" "General")
                                  ,(Nothing, W.PayInt "General" ["A"])
                                  ,(Nothing, W.PayPrin "General" ["A"])])
-                               ,(W.CleanUp, [(Nothing, W.LiquidatePool (C.BalanceFactor 1.0 0.2) "A")])]
+                               ,(W.CleanUp, [(Nothing, W.LiquidatePool (BalanceFactor 1.0 0.2) "A")])]
  ,collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
  ,call = Just [C.PoolFactor 0.08]

@@ -28,7 +28,7 @@ type StratificationByIdx = ([Int],AssumptionLists)
 
 lookupAssumptionByIdx :: [StratificationByIdx] -> Int -> AssumptionLists
 lookupAssumptionByIdx sbi i
-  = case find (\(indxs,_) -> (Set.member i  (Set.fromList indxs)) ) sbi of
+  = case find (\(indxs,_) -> Set.member i  (Set.fromList indxs) ) sbi of
         Just (_, aps ) ->  aps
         Nothing -> []
 
@@ -66,11 +66,11 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 deriving (Show)
 
 data BondPricingInput = DiscountCurve T.Day Ts
-                deriving (Show)
+                      deriving (Show)
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
-  = toRational $ 1 - (fromRational (1-annualRate)) ** ((fromIntegral days) / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
+  = toRational $ 1 - fromRational (1-annualRate) ** (fromIntegral days / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
 
 splitAssumptions :: [AssumptionBuilder] -> ([AssumptionBuilder],[AssumptionBuilder]) -> ([AssumptionBuilder],[AssumptionBuilder])
 splitAssumptions (a:aps) (dealAssump,assetAssump)

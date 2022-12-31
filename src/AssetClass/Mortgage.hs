@@ -37,7 +37,7 @@ projectMortgageFlow trs _bal _last_date (_pdate:_pdates) (_def_rate:_def_rates) 
                   _rates
                   (recovery_lag,recovery_rate)
                   p
-                  pt
+                  pt -- `debug` ("New Rate"++ show _rates)
                 where
                _remain_terms = 1 + max 0 ((length _pdates) - recovery_lag) -- `debug` ("IN mortgage flow"++ show _remain_terms)
                _new_default = mulBR _bal _def_rate

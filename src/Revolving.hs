@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Revolving
-  (AssetPricingMethod(..))
+  (LiquidationMethod(..))
   where
 
 import GHC.Generics
@@ -16,10 +16,15 @@ import Data.Aeson.Types
 import Data.Hashable
 import Data.Fixed
 import Types
+import Asset
 
-data AssetPricingMethod = BalanceFactor Rate
-                        | PVFactor Rate
-                        deriving(Show)
+data LiquidationMethod = BalanceFactor Rate Rate -- by performing & default balace
+                       | BalanceFactor2 Rate Rate Rate -- by performing/delinq/default factor
+                       | DefaultedBalance Rate  -- only liquidate defaulted balance
+                       | PV IRate IRate -- discount factor, recovery on default
+                       | Custom Rate -- custom amount
+                       deriving (Show)
 
 
-$(deriveJSON defaultOptions ''AssetPricingMethod)
+
+$(deriveJSON defaultOptions ''LiquidationMethod)

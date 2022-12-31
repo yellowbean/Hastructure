@@ -222,8 +222,8 @@ calc_p_i_flow_i_p bal dates r
       _prins = (replicate flow_size 0 ) ++ [ bal ]
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
-aggPool [] = undefined `debug` ("Empty cashflow from assets")
-aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))
+aggPool [] = undefined -- `debug` ("Empty cashflow from assets")
+aggPool xs = foldr1 CF.combine xs --  `debug` ("XS"++show(xs))
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]
@@ -235,6 +235,8 @@ getRateAssumption assumps idx
              A.InterestRateCurve _idx vs -> idx == _idx 
              A.InterestRateConstant _idx v -> idx == _idx
              _ -> False) assumps
+
+
 
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''OriginalInfo)

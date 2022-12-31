@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Call(CallOption(..),LiquidationMethod(..))
+module Call(CallOption(..))
  where
 
 import qualified Data.Time as T
@@ -11,13 +11,6 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
-
-data LiquidationMethod = BalanceFactor Rate Rate -- by performing & default balace
-                       | BalanceFactor2 Rate Rate Rate -- by performing/delinq/default factor
-                       | DefaultedBalance Rate  -- only liquidate defaulted balance
-                       | PV IRate IRate -- discount factor, recovery on default
-                       | Custom Rate -- custom amount
-                       deriving (Show)
 
 data CallOption = PoolBalance Balance
                 | BondBalance Balance
@@ -31,4 +24,3 @@ data CallOption = PoolBalance Balance
                 deriving (Show)
 
 $(deriveJSON defaultOptions ''CallOption)
-$(deriveJSON defaultOptions ''LiquidationMethod)

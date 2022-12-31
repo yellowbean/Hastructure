@@ -128,7 +128,7 @@ instance TimeSeries ActionOnDate where
     getDate (DealClosed d ) = d
     getDate (ChangeDealStatusTo d _ ) = d
     cmp ad1 ad2 = compare (getDate ad1) (getDate ad2)
-    sameDate ad1 ad2 = (getDate ad1) == (getDate ad2)
+    sameDate ad1 ad2 = getDate ad1 == getDate ad2
 
 actionDates :: [ActionOnDate] -> Dates 
 actionDates = map getDate
@@ -137,7 +137,7 @@ instance Ord ActionOnDate where
   compare a1 a2 = compare (getDate a1) (getDate a2)
 
 instance Eq ActionOnDate where
-  a1 == a2 = (getDate a1) == (getDate a2)
+  a1 == a2 = getDate a1 == getDate a2
 
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }
