@@ -776,7 +776,7 @@ runDeal t er assumps bpi =
     DealPoolFlowPricing -> (finalDeal, Just pcf, Just (getRunResult finalDeal), bndPricing) -- `debug` ("with pricing"++show(bndPricing))
     -- DealTxns -> (finalDeal, Just pcf, Just (extractExecutionTxns finalDeal ),Nothing)
   where
-    (ads,pcf,rcurves,calls) = getInits t assumps  `debug` ("Init Deal"++show (name t)++">> cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
+    (ads,pcf,rcurves,calls) = getInits t assumps  -- `debug` ("Init Deal"++show (name t)++">> cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
     finalDeal = run2 (removePoolCf t) (Just pcf) (Just ads) (Just rcurves) calls  -- `debug` ("Action >>"++show ads)
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
@@ -888,23 +888,26 @@ runPool2 (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel as
 runPool2 (P.Pool as _ asof _) Nothing = map (\x -> P.calcCashflow x asof) as -- `debug` ("RUNPOOL")
 runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
   = case applyAssumpType of
+       AP.PoolLevel [] -> 
+           map (\x -> P.calcCashflow x asof) as 
+           --map (\x -> P.projCashflow x asof assumps) as  -- `debug` (">> Single Pool")
        AP.PoolLevel assumps -> 
            map (\x -> P.projCashflow x asof assumps) as  -- `debug` (">> Single Pool")
        AP.ByIndex idxAssumps _ ->
          let
            numAssets = length as
-           _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] `debug` ("Num assets"++ show numAssets)
+           _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
          in
            zipWith (\x a -> P.projCashflow x asof a) as _assumps
-
 
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType ->
     ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption])
 getInits t mAssumps 
-  = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,callOptions) -- `debug` ("Pool after AggbyDates"++show pCollectionCfAfterCutoff) -- `debug` ("Acton Dates"++ show allActionDates)
+  = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,callOptions)  `debug` ("Assump"++ show mAssumps)
   where
     dealAssumps = case mAssumps of
+                    Just (AP.PoolLevel []) -> []
                     Just (AP.PoolLevel _aps) -> fst $ AP.splitAssumptions _aps ([],[])
                     Just (AP.ByIndex _ _aps) -> _aps
                     Nothing -> []
@@ -947,7 +950,6 @@ getInits t mAssumps
                        Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ runPool2 (pool t) mAssumps -- `debug` ("ASSUMP=>"++ show mAssumps)
-     -- `debug` ("POOL->"++ show (pool t))
     poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf)
     pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (actionDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
     rateCurves = buildRateCurves [] dealAssumps  
