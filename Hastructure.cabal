@@ -29,6 +29,7 @@ library
       Accounts
       Asset
       AssetClass.Installment
+      AssetClass.Lease
       AssetClass.Loan
       AssetClass.Mortgage
       Assumptions

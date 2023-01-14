@@ -28,6 +28,7 @@ tests :: TestTree
 tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.mortgageCalcTests
                            ,AT.loanTests
+                           ,AT.leaseTests
                            ,CFT.cfTests
                            ,BT.pricingTests
                            ,LT.curveTests

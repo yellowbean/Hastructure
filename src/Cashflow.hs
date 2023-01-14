@@ -62,6 +62,7 @@ data TsRow = CashFlow Date Amount
            | MortgageFlow2 Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate
            | MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss IRate
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
+           | LeaseFlow Date Rental
            deriving(Show,Eq,Ord)
 
 
@@ -74,6 +75,7 @@ instance TimeSeries TsRow where
     getDate (MortgageFlow2 x _ _ _ _ _ _ _ _ _) = x
     getDate (MortgageFlow3 x _ _ _ _ _ _ _ _ _ _ _) = x
     getDate (LoanFlow x _ _ _ _ _ _ _ _) = x
+    getDate (LeaseFlow x _ ) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
                    deriving (Show,Eq)
@@ -208,6 +210,7 @@ tsTotalCash (MortgageFlow x _ _ a b c _ e _) = a + b + c + e
 tsTotalCash (MortgageFlow2 x _ _ a b c _ _ e _) = a + b + c + e
 tsTotalCash (MortgageFlow3 x _ _ a b c _ _ _ _ e _) = a + b + c + e
 tsTotalCash (LoanFlow _ _ a b c _ e _ _) =  a + b + c + e
+tsTotalCash (LeaseFlow _ a) =  a
 
 tsDefaultBal :: TsRow -> Balance
 tsDefaultBal (CashFlow _ _) = 0
@@ -244,6 +247,7 @@ tsDateLT td (MortgageFlow d _ _ _ _ _ _ _ _) = d < td
 tsDateLT td (MortgageFlow2 d _ _ _ _ _ _ _ _ _) = d < td
 tsDateLT td (MortgageFlow3 d _ _ _ _ _ _ _ _ _ _ _) = d < td
 tsDateLT td (LoanFlow d _ _ _ _ _ _ _ _) = d < td
+tsDateLT td (LeaseFlow d _ ) = d < td
 
 tsDateLET :: Date -> TsRow  -> Bool
 tsDateLET td (CashFlow d _) = d <= td
@@ -252,6 +256,7 @@ tsDateLET td (MortgageFlow d _ _ _ _ _ _ _ _) = d <= td
 tsDateLET td (MortgageFlow2 d _ _ _ _ _ _ _ _ _) = d <= td
 tsDateLET td (MortgageFlow3 d _ _ _ _ _ _ _ _ _ _ _) = d <= td
 tsDateLET td (LoanFlow d _ _ _ _ _ _ _ _) = d <= td
+tsDateLET td (LeaseFlow d _ ) = d <= td
 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates trs ds =
@@ -336,6 +341,7 @@ mflowDate (MortgageFlow x _ _ _ _ _ _ _ _) = x
 mflowDate (MortgageFlow2 x _ _ _ _ _ _ _ _ _) = x
 mflowDate (MortgageFlow3 x _ _ _ _ _ _ _ _ _ _ _) = x
 mflowDate (LoanFlow x _ _ _ _ _ _ _ _) = x
+mflowDate (LeaseFlow x _ ) = x
 
 
 mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance

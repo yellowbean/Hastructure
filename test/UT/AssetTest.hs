@@ -1,14 +1,17 @@
-module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests)
+module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests)
 where
 
 import Test.Tasty
 import Test.Tasty.HUnit
+
+import Types
 
 import qualified Data.Time as T
 import qualified Lib as L
 import qualified Asset as P
 import qualified AssetClass.Mortgage as ACM
 import qualified AssetClass.Loan as ACL
+import qualified AssetClass.Lease as ACR
 import qualified Assumptions as A
 import qualified Cashflow as CF
 
@@ -98,3 +101,24 @@ loanTests =
            loan1Cf
            loan2Cf
      ]
+
+leaseTests = 
+    let 
+      lease1 = ACR.RegularLease
+                (ACR.LeaseInfo (L.toDate "20230101") 12 MonthEnd)
+                100
+                12
+      asofDate = (L.toDate "20230615")
+      cf1 = P.calcCashflow lease1 asofDate 
+                
+    in 
+      testGroup "Regular Lease Test" [
+        testCase "1 year Regular Lease sum of rentals" $
+            assertEqual "total rental"
+                700
+                (sum $ map CF.tsTotalCash (CF.getTsCashFlowFrame cf1))
+        ,testCase "1 year Regular Lease first pay date" $
+            assertEqual "total rental"
+                (L.toDate "20230630")
+                (head (CF.getDatesCashFlowFrame cf1))
+      ]

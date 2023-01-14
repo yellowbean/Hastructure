@@ -13,7 +13,7 @@ module Types
   ,RangeType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
-  ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss
+  ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment)
   where
@@ -59,6 +59,7 @@ type Loss = Centi
 type Cash = Centi
 type Recovery = Centi
 type Prepayment = Centi
+type Rental = Centi
 type Cap = Micro
 
 type PrepaymentRate = Rate
@@ -173,6 +174,7 @@ data DatePattern = MonthEnd
                  | YearFirst
                  | MonthDayOfYear Int Int  -- T.MonthOfYear T.DayOfMonth
                  | DayOfMonth Int -- T.DayOfMonth 
+                 | SemiAnnual (Int, Int) (Int, Int)
                  | CustomDate [Dates]
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq)
