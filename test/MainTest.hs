@@ -29,6 +29,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.mortgageCalcTests
                            ,AT.loanTests
                            ,AT.leaseTests
+                           ,AT.leaseFunTests
                            ,CFT.cfTests
                            ,BT.pricingTests
                            ,LT.curveTests
@@ -49,6 +50,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.ts2Test
                            ,UtilT.dateVectorPatternTest
                            ,UtilT.paddingTest
+                           ,UtilT.dateSliceTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest

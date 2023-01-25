@@ -19,6 +19,7 @@ import qualified Asset as P
 import qualified AssetClass.Installment as AC_Installment
 import qualified AssetClass.Mortgage as AC_Mortgage
 import qualified AssetClass.Loan as AC_Loan
+import qualified AssetClass.Lease as AC_Lease
 import qualified Assumptions as AP
 
 import qualified Data.ByteString.Lazy.Char8 as C8
@@ -45,6 +46,7 @@ debug = flip trace
 data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
               | LDeal (D.TestDeal AC_Loan.Loan)
               | IDeal (D.TestDeal AC_Installment.Installment)
+              | RDeal (D.TestDeal AC_Lease.Lease)
 
 $(deriveJSON defaultOptions ''DealType)
 
@@ -58,6 +60,7 @@ $(deriveJSON defaultOptions ''RunDealReq)
 data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
               | LPool (P.Pool AC_Loan.Loan)
               | IPool (P.Pool AC_Installment.Installment)
+              | RPool (P.Pool AC_Lease.Lease)
               deriving(Show)
 
 $(deriveJSON defaultOptions ''PoolType)
@@ -94,6 +97,7 @@ postRunPoolR = do
         RunPoolReq (MPool p) ma -> P.aggPool $ D.runPool2 p ma
         RunPoolReq (LPool p) ma -> P.aggPool $ D.runPool2 p ma
         RunPoolReq (IPool p) ma -> P.aggPool $ D.runPool2 p ma
+        RunPoolReq (RPool p) ma -> P.aggPool $ D.runPool2 p ma
 
 optionsRunDealR :: Handler String 
 optionsRunDealR = do

@@ -1,4 +1,4 @@
-module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests)
+module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,leaseFunTests)
 where
 
 import Test.Tasty
@@ -102,14 +102,39 @@ loanTests =
            loan2Cf
      ]
 
+leaseFunTests = 
+    let 
+      a = 0 
+      rentals = ACR.accrueRentals 
+                    [((L.toDate "20230201"),0.05)
+                     ,((L.toDate "20230215"),0.06)
+                     ,((L.toDate "20230301"),0.07)]
+                    [(L.toDate "20230301")]
+                    (L.toDate "20230201")
+                    []
+                    []
+    in 
+      testGroup "Lease Function Test" [
+        testCase "Rental Accural Function" $
+          assertEqual "A"
+              [1.82] -- 14 days of 0.06, 14 days of 0.07
+              rentals
+      ]
+
+
 leaseTests = 
     let 
       lease1 = ACR.RegularLease
-                (ACR.LeaseInfo (L.toDate "20230101") 12 MonthEnd)
-                100
+                (ACR.LeaseInfo (L.toDate "20230101") 12 MonthEnd 100)
                 12
       asofDate = (L.toDate "20230615")
       cf1 = P.calcCashflow lease1 asofDate 
+
+      lease2 = ACR.StepUpLease
+                (ACR.LeaseInfo (L.toDate "20230601") 12 MonthEnd 1)
+                (ACR.FlatRate MonthEnd 0.02)
+                10
+      cf2 = P.calcCashflow lease2 asofDate 
                 
     in 
       testGroup "Regular Lease Test" [
@@ -121,4 +146,12 @@ leaseTests =
             assertEqual "total rental"
                 (L.toDate "20230630")
                 (head (CF.getDatesCashFlowFrame cf1))
+        ,testCase "1 year Stepup lease" $
+            assertEqual "first rental step up at Month 1"
+                (CF.LeaseFlow (L.toDate "20230630") 29)
+                (head (CF.getTsCashFlowFrame cf2))
+        ,testCase "1 year Stepup lease" $
+            assertEqual "first rental step up at Month 2"
+                (CF.LeaseFlow (L.toDate "20230731") 31.62)
+                ((CF.getTsCashFlowFrame cf2)!!1)
       ]

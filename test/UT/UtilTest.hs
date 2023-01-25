@@ -1,5 +1,5 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
-                  ,tsTest,ts2Test,dateVectorPatternTest,paddingTest)--,daycountTests3,daycountTests4)
+                  ,tsTest,ts2Test,dateVectorPatternTest,paddingTest,dateSliceTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -336,5 +336,21 @@ paddingTest =
           [1,2]
           (paddingDefault 0 a 2)
       ]
+
+dateSliceTest = 
+    let 
+        ds = [(toDate "20230101"),(toDate "20230201"),(toDate "20230301")]
+    in 
+        testGroup "slice dates"
+        [ testCase "sliceAfterkeepPrevious" $ 
+            assertEqual ""
+            ds
+            (sliceDates (SliceAfterKeepPrevious (toDate "20230115")) ds)
+        , testCase "sliceAfterkeepPrevious" $ 
+            assertEqual ""
+            (tail ds)
+            (sliceDates (SliceAfterKeepPrevious (toDate "20230215")) ds)
+        ]
+
 
 
