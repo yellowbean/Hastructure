@@ -95,9 +95,9 @@ instance Asset Lease where
                    let 
                      a_dates = genSerialDatesTill2 II sd _dp accrueEndsAt
                      lastAccD:accrueDates = sliceDates (SliceAfterKeepPrevious d) a_dates
-                     factors = scanl (*) 1.0 $ [ (_r + 1)  | _r <- _rs]
-                     dailyRates =  drop ((length a_dates) - (length accrueDates) - 1) $ [ mulBR dr f | f <- factors ] -- `debug` (">>LAD"++show lastAccD++">>"++show accrueDates)]
-                     accruePeriods = zip accrueDates dailyRates -- `debug` ("LastACD"++ show lastAccD)
+                     factors = scanl (*) 1.0 $ [ (_r + 1)  | _r <- _rs] 
+                     dailyRates =  drop ((length a_dates) - (length accrueDates) - 1) $ [ mulBR dr f | f <- factors ]
+                     accruePeriods = zip accrueDates $ paddingDefault dr dailyRates (length accrueDates)
                    in 
                      accrueRentals accruePeriods cf_dates lastAccD [] [] -- `debug` ("AP->"++show accruePeriods)
 
