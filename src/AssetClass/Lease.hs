@@ -35,7 +35,6 @@ data LeaseInfo = LeaseInfo {
 
 data LeaseStepUp = FlatRate DatePattern Rate
                  | ByRateCurve DatePattern [Rate]
-                 | ByAmtCurve Ts
     deriving (Show)
 
 
@@ -78,17 +77,30 @@ instance Asset Lease where
     calcCashflow l@(StepUpLease (LeaseInfo sd ot dp dr) lsu rt) d =
         CF.CashFlowFrame $ zipWith CF.LeaseFlow cf_dates pmts
       where 
-        cf_dates =  filter (> d) $ genSerialDates dp sd ot
+        p_dates = genSerialDates dp sd ot
+        cf_dates =  filter (> d) p_dates
         accrueEndsAt = last cf_dates
         pmts = case lsu of 
                  (FlatRate _dp _r) ->
                    let 
-                     lastAccD:accrueDates = sliceDates (SliceAfterKeepPrevious d) $ genSerialDatesTill2 II sd _dp accrueEndsAt
-                     dailyRates = [ mulBR dr ((toRational (1+_r))^^x) | x <- [0..(length accrueDates)]] -- `debug` (">>LAD"++show lastAccD++">>"++show accrueDates)]
+                     a_dates = genSerialDatesTill2 II sd _dp accrueEndsAt
+                     lastAccD:accrueDates = sliceDates (SliceAfterKeepPrevious d) a_dates
+                     lengthFutureAccD = length accrueDates
+                     lengthAccD= length a_dates
+                     dailyRates = [ mulBR dr ((toRational (1+_r))^^x) | x <- [(lengthAccD - lengthFutureAccD - 1)..lengthAccD]] -- `debug` (">>LAD"++show lastAccD++">>"++show accrueDates)]
                      accruePeriods = zip accrueDates dailyRates 
                    in  
                      accrueRentals accruePeriods cf_dates lastAccD [] [] -- `debug` ("Acc P>>"++show accruePeriods++">> pay dates"++show cf_dates)
-                 (ByRateCurve _dp _rs) -> []
+                 (ByRateCurve _dp _rs) -> 
+                   let 
+                     a_dates = genSerialDatesTill2 II sd _dp accrueEndsAt
+                     lastAccD:accrueDates = sliceDates (SliceAfterKeepPrevious d) a_dates
+                     factors = scanl (*) 1.0 $ [ (_r + 1)  | _r <- _rs]
+                     dailyRates =  drop ((length a_dates) - (length accrueDates) - 1) $ [ mulBR dr f | f <- factors ] -- `debug` (">>LAD"++show lastAccD++">>"++show accrueDates)]
+                     accruePeriods = zip accrueDates dailyRates -- `debug` ("LastACD"++ show lastAccD)
+                   in 
+                     accrueRentals accruePeriods cf_dates lastAccD [] [] -- `debug` ("AP->"++show accruePeriods)
+
 
 $(deriveJSON defaultOptions ''LeaseInfo)
 $(deriveJSON defaultOptions ''LeaseStepUp)

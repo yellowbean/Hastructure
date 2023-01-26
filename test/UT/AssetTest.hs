@@ -135,7 +135,12 @@ leaseTests =
                 (ACR.FlatRate MonthEnd 0.02)
                 10
       cf2 = P.calcCashflow lease2 asofDate 
-                
+      
+      lease3 = ACR.StepUpLease
+                (ACR.LeaseInfo (L.toDate "20230401") 4 MonthEnd 1)
+                (ACR.ByRateCurve MonthEnd [0.02,0.04,0.05,0.06])
+                10
+      cf3 = P.calcCashflow lease3 asofDate
     in 
       testGroup "Regular Lease Test" [
         testCase "1 year Regular Lease sum of rentals" $
@@ -154,4 +159,13 @@ leaseTests =
             assertEqual "first rental step up at Month 2"
                 (CF.LeaseFlow (L.toDate "20230731") 31.62)
                 ((CF.getTsCashFlowFrame cf2)!!1)
+
+        ,testCase "1 year Stepup Curve lease" $
+            assertEqual "first rental step up at Month 1"
+                (CF.LeaseFlow (L.toDate "20230630") 31.8)
+                (head (CF.getTsCashFlowFrame cf3))
+        ,testCase "1 year Stepup Curve lease" $
+            assertEqual "first rental step up at Month 2"
+                (CF.LeaseFlow (L.toDate "20230731") 34.41)
+                ((CF.getTsCashFlowFrame cf3)!!1)
       ]
