@@ -63,6 +63,13 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | StopRunBy Date
                 | PoolHairCut PoolSource Rate
                 | AvailableAssets 
+                -- Lease Assumption 
+                | LeaseProjectionEnd Date
+                | LeaseBaseAnnualRate Rate
+                | LeaseBaseCurve Ts
+                | LeaseGapDays Int
+                | LeaseGapDaysByAmount [(Float,Int)] Int
+
                 deriving (Show)
 
 data BondPricingInput = DiscountCurve T.Day Ts

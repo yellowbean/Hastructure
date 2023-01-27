@@ -125,7 +125,7 @@ leaseFunTests =
 leaseTests = 
     let 
       lease1 = ACR.RegularLease
-                (ACR.LeaseInfo (L.toDate "20230101") 12 MonthEnd 100)
+                (ACR.LeaseInfo (L.toDate "20230101") 12 MonthEnd 1)
                 12
       asofDate = (L.toDate "20230615")
       cf1 = P.calcCashflow lease1 asofDate 
@@ -141,11 +141,16 @@ leaseTests =
                 (ACR.ByRateCurve MonthEnd [0.02,0.04,0.05,0.06])
                 10
       cf3 = P.calcCashflow lease3 asofDate
+
+      cf4 = P.projCashflow 
+                lease1 
+                asofDate 
+                [A.LeaseGapDays 45, A.LeaseProjectionEnd (L.toDate "20260601")]
     in 
       testGroup "Regular Lease Test" [
         testCase "1 year Regular Lease sum of rentals" $
             assertEqual "total rental"
-                700
+                214
                 (sum $ map CF.tsTotalCash (CF.getTsCashFlowFrame cf1))
         ,testCase "1 year Regular Lease first pay date" $
             assertEqual "total rental"
@@ -168,4 +173,9 @@ leaseTests =
             assertEqual "first rental step up at Month 2"
                 (CF.LeaseFlow (L.toDate "20230731") 34.41)
                 ((CF.getTsCashFlowFrame cf3)!!1)
+        ,testCase "Lease with Assumptions" $ 
+            assertEqual "Month Gap=2"
+            (CF.LeaseFlow (L.toDate "20270331") 31)
+            (last (CF.getTsCashFlowFrame cf4) )
+
       ]

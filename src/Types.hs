@@ -15,7 +15,8 @@ module Types
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..)
-  ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment)
+  ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
+  ,Table(..),lookupTable,LookupType)
   where
 
 import qualified Data.Text as T
@@ -31,6 +32,8 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Fixed
 import Data.Ix
+
+import Data.List
 
 type BondName = String
 type BondNames = [String]
@@ -344,6 +347,27 @@ class TimeSeries ts where
     cmp :: ts -> ts -> Ordering
     sameDate :: ts -> ts -> Bool
     getDate :: ts -> Date
+
+data LookupType = Upward 
+                | Downward
+                | UpwardInclude
+                | DownwardInclude
+
+data Table a b = ThresholdTable [(a,b)]
+
+lookupTable :: Ord a => Table a b -> LookupType -> a -> b -> b
+lookupTable (ThresholdTable rows) lkupType lkupVal notFound
+  =  case findIndex (lkUpFunc lkupVal) rs of 
+       Nothing -> notFound
+       Just i -> snd $ rows!!i
+     where 
+         rs = map fst rows
+         lkUpFunc = case lkupType of 
+                      Upward  ->  (>)
+                      UpwardInclude -> (>=)
+                      Downward  -> (<)
+                      DownwardInclude -> (<=)
+
 
 $(deriveJSON defaultOptions ''Pre)
 $(deriveJSON defaultOptions ''DealStats)

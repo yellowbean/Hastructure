@@ -52,8 +52,6 @@ data Index = LPR5Y
             deriving (Show,Eq)
 -- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
 
-
-
 annualRateToPeriodRate :: Period -> Float -> Float
 annualRateToPeriodRate p annualRate =
     1 - (1 - annualRate ) ** n
@@ -69,8 +67,6 @@ periodRateFromAnnualRate Annually annual_rate  = annual_rate
 periodRateFromAnnualRate Monthly annual_rate  = annual_rate / 12
 periodRateFromAnnualRate Quarterly annual_rate  = annual_rate / 4
 periodRateFromAnnualRate SemiAnnually annual_rate  = annual_rate / 2
-
-
 
 addD :: Date -> T.CalendarDiffDays -> Date
 addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
@@ -106,7 +102,7 @@ getIntervalDays ds
 
 getIntervalFactors :: [Date] -> [Rate]
 getIntervalFactors ds
-  = map (\x -> (toRational x) / 365) (getIntervalDays ds) -- `debug` ("Interval Days"++show(ds))
+  = map (\x -> toRational x / 365) (getIntervalDays ds) -- `debug` ("Interval Days"++show(ds))
 
 previousDate :: T.Day -> Period -> T.Day
 previousDate start_day p

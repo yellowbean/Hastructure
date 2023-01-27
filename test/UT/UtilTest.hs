@@ -1,5 +1,6 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
-                  ,tsTest,ts2Test,dateVectorPatternTest,paddingTest,dateSliceTest)--,daycountTests3,daycountTests4)
+                  ,tsTest,ts2Test,dateVectorPatternTest,paddingTest,dateSliceTest
+                  ,capTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -351,6 +352,21 @@ dateSliceTest =
             (tail ds)
             (sliceDates (SliceAfterKeepPrevious (toDate "20230215")) ds)
         ]
+
+capTest = 
+    let 
+      a = [1,2,3,4]
+    in 
+      testGroup "Cap Test"
+      [ testCase "Cap with 2" $ 
+        assertEqual "Cap with 2" 
+        [1,2,2,2]
+        (capWith a 2)
+      ,testCase "No Cap" $ 
+        assertEqual "No Cap" 
+        [1,2,3,4]
+        (capWith a 5)
+      ]
 
 
 

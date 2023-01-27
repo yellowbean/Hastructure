@@ -5,8 +5,8 @@ module Util
     ,getValByDate,getValByDates,projDatesByPattern
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
-    ,multiplyTs,zipTs,getTsVals,divideBI
-    ,replace,paddingDefault
+    ,multiplyTs,zipTs,getTsVals,divideBI,mulIR
+    ,replace,paddingDefault, capWith
     )
     where
 import qualified Data.Time as T
@@ -34,6 +34,9 @@ mulBIR b r = fromRational $ (toRational b) * (toRational r)
 
 divideBI :: Balance -> Int -> Balance
 divideBI b i = fromRational $ (toRational b) / (toRational i)
+
+mulIR :: Int -> Rational -> Rational
+mulIR i r = (toRational i) * r 
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
@@ -379,3 +382,9 @@ paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 
   | (length xs) > s = take s xs
   | otherwise = xs++(replicate (s - (length xs)) x)
+
+capWith :: Ord a => [a] -> a -> [a]
+capWith xs cap = [ if x > cap then 
+                    cap
+                   else 
+                    x | x <- xs ]

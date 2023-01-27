@@ -12,7 +12,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsTotalCash,Date -- ,PersonalLoanFlow
                 ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
                 ,getTxnBetween,getTxnBetween2
-                ,mflowWeightAverageBalance,appendCashFlow
+                ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,TsRow(..),cfAt) where
 
 import Data.Time (Day)
@@ -64,7 +64,6 @@ data TsRow = CashFlow Date Amount
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
            | LeaseFlow Date Rental
            deriving(Show,Eq,Ord)
-
 
 instance TimeSeries TsRow where 
     cmp tr1 tr2 = compare (getDate tr1) (getDate tr2)
@@ -356,6 +355,11 @@ mflowWeightAverageBalance sd ed trs
 appendCashFlow :: CashFlowFrame -> [TsRow] -> CashFlowFrame
 appendCashFlow (CashFlowFrame _tsr) tsr 
   = CashFlowFrame $ _tsr ++ tsr
+
+combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
+combineCashFlow cf1 (CashFlowFrame txn) 
+  = appendCashFlow cf1 txn
+
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)
