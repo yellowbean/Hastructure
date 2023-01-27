@@ -7,22 +7,25 @@
 * :bricks: A building block engine to model cashflows of structured product
 * :car: In-house and white-label friendly 
 * :snake: [Python wrapper](https://github.com/yellowbean/PyABS) on the way   
+
 ### Features
 * Integration
   * Built-in REST API services :heavy_check_mark:
     * Language independent, can be integrated to various programming language stack.
+    * Public server status -> [here](https://absbox.org)
   * Docker Support :heavy_check_mark:
 * Asset class coverage
   * Mortgage  :heavy_check_mark:
   * Student Loan
   * Auto Loan
-  * Rentals
+  * Rentals :heavy_check_mark:
   * Corp Loan :heavy_check_mark:
   * Consumer Installment :heavy_check_mark:
 * Pool Assumptions
   * Mortgage (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
   * Installment (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
   * Corp Loan (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
+  * Rentals (Gaps between leases,Rental Curve Assumption) :heavy_check_mark:
 * Multiple Waterfalls
   * User defined waterfalls and supported any point of time during the running cycle
     * Waterfall at Distribution Day :heavy_check_mark:
