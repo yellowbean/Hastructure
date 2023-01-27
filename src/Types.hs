@@ -16,7 +16,7 @@ module Types
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
-  ,Table(..),lookupTable,LookupType)
+  ,Table(..),lookupTable,LookupType,epocDate)
   where
 
 import qualified Data.Text as T
@@ -122,6 +122,9 @@ data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
                   | RunWaterfall Date String
                   | DealClosed Date 
                   deriving (Show,Generic,Read)
+
+epocDate = Time.fromGregorian 1970 1 1
+
 
 instance TimeSeries ActionOnDate where
     getDate (RunWaterfall d _) = d

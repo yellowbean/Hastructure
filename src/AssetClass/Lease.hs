@@ -78,22 +78,24 @@ type RentChangeCurve = Ts
 type TermChangeRate = Rate
 type DayGap = Int
 
-nextLease :: Lease -> (RentChangeRate, RentChangeCurve, TermChangeRate, DayGap) -> (Lease, Date)
-nextLease l@(RegularLease (LeaseInfo sd ot dp pmt) rt) (rc,_,tc,gd) 
+nextLease :: Lease -> (RentChangeCurve, TermChangeRate, DayGap) -> (Lease, Date)
+nextLease l@(RegularLease (LeaseInfo sd ot dp dr) rt) (rcCurve,tc,gd) 
   = (RegularLease (LeaseInfo nextStartDate nextOriginTerm dp nextPmt) rt,nextEndDate) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
     where 
         leaseEndDate = last $ genSerialDates dp sd ot 
         nextStartDate = T.addDays (toInteger gd) leaseEndDate
         nextOriginTerm = round $ mulIR ot (1+tc) 
         nextEndDate = last $ genSerialDates dp nextStartDate (fromIntegral nextOriginTerm)
-        nextPmt = mulBR pmt (1 + rc)
+        yearsBetween = yearCountFraction DC_ACT_365F sd nextStartDate
+        currentRateOnCurve = getValByDate rcCurve nextStartDate
+        nextPmt = dr + mulBR dr currentRateOnCurve*(fromRational yearsBetween)
 
-nextLeaseTill :: Lease -> (RentChangeRate, RentChangeCurve, TermChangeRate, DayGap) -> Date -> Date -> [Lease] -> [Lease]
-nextLeaseTill l (rc,rsc,tc,mg) lastDate ed accum 
+nextLeaseTill :: Lease -> (RentChangeCurve, TermChangeRate, DayGap) -> Date -> Date -> [Lease] -> [Lease]
+nextLeaseTill l (rsc,tc,mg) lastDate ed accum 
   | lastDate >= ed = accum 
-  | otherwise = nextLeaseTill new_lease (rc,rsc,tc,mg) new_lastDate ed (accum++[new_lease])
+  | otherwise = nextLeaseTill new_lease (rsc,tc,mg) new_lastDate ed (accum++[new_lease])
                 where 
-                 (new_lease,new_lastDate) = nextLease l (rc,rsc,tc,mg) 
+                 (new_lease,new_lastDate) = nextLease l (rsc,tc,mg) 
 
 extractAssump :: [AP.AssumptionBuilder] -> (Rate,Ts,([(Float,Int)],Int),DayGap,Date)-> (Rate,Ts,([(Float,Int)],Int),DayGap,Date)
 extractAssump [] r = r
@@ -148,10 +150,15 @@ instance Asset Lease where
         foldl CF.combineCashFlow currentCf newCfs 
       where 
         currentCf = calcCashflow l asOfDay
-        (rc,rcCurve,mgTbl,mg,ed) = extractAssump assumps (0.0,mkTs [(toDate "19700101",0.0)],([(0.0,0)],0),0,toDate("19700101"))
+        -- (rc,rcCurve,mgTbl,mg,ed) = extractAssump assumps (0.0,mkTs [(toDate "19700101",0.0)],([(0.0,0)],0),0,toDate("19700101"))
+        (rc,rcCurve,mgTbl,mg,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,toDate("19700101"))
         pdates = getPaymentDates l 0
-        newLeases = nextLeaseTill l (rc,rcCurve,0.0,mg) (last pdates) ed [] 
-        newCfs = [ calcCashflow l asOfDay | l <- newLeases ] -- `debug` ("new leases"++ show newLeases++ "MGap"++ show mg)
+        rcCurveToUse = if isTsEmpty rcCurve then 
+                         mkTs [(epocDate,rc),(ed,rc)]
+                       else 
+                         rcCurve
+        newLeases = nextLeaseTill l (rcCurveToUse,0.0,mg) (last pdates) ed [] 
+        newCfs = [ calcCashflow l asOfDay | l <- newLeases ]  `debug` ("new leases"++ show newLeases++ "MGap"++ show mg)
         -- projected contract 
 
 

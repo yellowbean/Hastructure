@@ -15,7 +15,7 @@ module Lib
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
     ,zipWith8,zipWith9, pv2, monthsOfPeriod
-    ,weightedBy, mkTs, DealStatus(..)
+    ,weightedBy, mkTs, DealStatus(..),isTsEmpty
     ,mulBI,mkRateTs,Pre(..)
     ) where
 
@@ -176,7 +176,11 @@ data RateAssumption = RateCurve Index Ts
                     deriving (Show)
 
 mkTs :: [(Date,Rational)] -> Ts
+mkTs [] = FloatCurve []
 mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
+
+isTsEmpty :: Ts -> Bool
+isTsEmpty (FloatCurve []) = True
 
 mkRateTs :: [(Date,IRate)] -> Ts
 mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
