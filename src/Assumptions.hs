@@ -68,7 +68,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | LeaseBaseAnnualRate Rate
                 | LeaseBaseCurve Ts
                 | LeaseGapDays Int
-                | LeaseGapDaysByAmount [(Float,Int)] Int
+                | LeaseGapDaysByAmount [(Amount,Int)] Int
 
                 deriving (Show)
 

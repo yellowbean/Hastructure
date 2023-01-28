@@ -146,6 +146,10 @@ leaseTests =
                 lease1 
                 asofDate 
                 [A.LeaseGapDays 45, A.LeaseProjectionEnd (L.toDate "20260601")]
+      cf5 =  P.projCashflow lease1 asofDate 
+            [A.LeaseGapDays 5
+            ,A.LeaseGapDaysByAmount [(0.5,12),(1,22),(2,62),(3,82)] 92
+            ,A.LeaseProjectionEnd (L.toDate "20240601")]
     in 
       testGroup "Regular Lease Test" [
         testCase "1 year Regular Lease sum of rentals" $
@@ -177,5 +181,12 @@ leaseTests =
             assertEqual "Month Gap=2"
             (CF.LeaseFlow (L.toDate "20270331") 31)
             (last (CF.getTsCashFlowFrame cf4) )
-
+        ,testCase "Lease with Assumptions" $ 
+            assertEqual "Month Gap by Table : New Lease at period 0"
+            (CF.LeaseFlow (L.toDate "20240131") 9)
+            ((CF.getTsCashFlowFrame cf5)!!7)
+        ,testCase "Lease with Assumptions" $ 
+            assertEqual "Month Gap by Table : New Lease at period 1"
+            (CF.LeaseFlow (L.toDate "20240229") 29)
+            ((CF.getTsCashFlowFrame cf5)!!8)
       ]

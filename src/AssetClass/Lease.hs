@@ -46,12 +46,6 @@ type LastAccuredDate = Date
 type DailyRate = Balance
 type AccuralPeriod = (Date,DailyRate)
 
--- buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int) -- 
--- buildAssumptionRate re
---
--- buildAssumption ::  
-
-
 
 accrueRentals :: [AccuralPeriod] -> [Date] -> LastAccuredDate -> [Amount] -> [Amount] -> [Amount]
 accrueRentals _ [] _ _ payAmts = payAmts
@@ -83,7 +77,7 @@ nextLease l@(RegularLease (LeaseInfo sd ot dp dr) rt) (rcCurve,tc,gd)
   = (RegularLease (LeaseInfo nextStartDate nextOriginTerm dp nextPmt) rt,nextEndDate) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
     where 
         leaseEndDate = last $ genSerialDates dp sd ot 
-        nextStartDate = T.addDays (toInteger gd) leaseEndDate
+        nextStartDate = T.addDays (toInteger gd) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
         nextOriginTerm = round $ mulIR ot (1+tc) 
         nextEndDate = last $ genSerialDates dp nextStartDate (fromIntegral nextOriginTerm)
         yearsBetween = yearCountFraction DC_ACT_365F sd nextStartDate
@@ -97,7 +91,7 @@ nextLeaseTill l (rsc,tc,mg) lastDate ed accum
                 where 
                  (new_lease,new_lastDate) = nextLease l (rsc,tc,mg) 
 
-extractAssump :: [AP.AssumptionBuilder] -> (Rate,Ts,([(Float,Int)],Int),DayGap,Date)-> (Rate,Ts,([(Float,Int)],Int),DayGap,Date)
+extractAssump :: [AP.AssumptionBuilder] -> (Rate,Ts,([(Amount,Int)],Int),DayGap,Date)-> (Rate,Ts,([(Amount,Int)],Int),DayGap,Date)
 extractAssump [] r = r
 extractAssump (ap:aps) (a,b,c,d,e) 
   = case ap of 
@@ -107,14 +101,23 @@ extractAssump (ap:aps) (a,b,c,d,e)
       (AP.LeaseBaseCurve ts) -> extractAssump aps (a,ts,c,d,e)
       (AP.LeaseGapDaysByAmount tbl rest) -> extractAssump aps (a,b,(tbl,rest),d,e)
 
+getGapDaysByBalance :: Lease -> ([(Amount,Int)],Int) -> Int 
+getGapDaysByBalance l tbl@(rows,defaultVal) = 
+    let 
+        tbl = ThresholdTable rows 
+        pmt = case l of 
+                (RegularLease (LeaseInfo _ _ _ dr) _) -> dr
+                (StepUpLease (LeaseInfo _ _ _ dr) _ _) -> dr
+    in 
+        lookupTable tbl DownwardInclude pmt defaultVal
+
 instance Asset Lease where 
     calcCashflow l@(RegularLease (LeaseInfo sd ot dp dr) rt) d =
-        CF.CashFlowFrame $ zipWith CF.LeaseFlow (tail cf_dates) pmts 
+        CF.CashFlowFrame $ zipWith CF.LeaseFlow (tail cf_dates) pmts -- `debug` ("CF Dates"++ show cf_dates++"PMTS->"++ show pmts)
       where 
-        cf_dates = sliceDates (SliceAfterKeepPrevious d) $ genSerialDates dp sd ot
-        daysBetween = getIntervalDays cf_dates
-        -- pmts = map (* dr) daysBetween
-        pmts = [ (fromRational ((toRational dr) * (toRational ds))) | ds <- daysBetween] 
+        cf_dates = sliceDates (SliceAfterKeepPrevious d) $ [sd]++genSerialDates dp sd ot 
+        daysBetween = getIntervalDays cf_dates -- `debug` (">>>>>> genSerialDates"++ show (genSerialDates dp sd ot))
+        pmts = [ (fromRational ((toRational dr) * (toRational ds))) | ds <- daysBetween] -- `debug` (">>>> Days between"++ show daysBetween)  --TODO to be simplified 
 
     calcCashflow l@(StepUpLease (LeaseInfo sd ot dp dr) lsu rt) d =
         CF.CashFlowFrame $ zipWith CF.LeaseFlow cf_dates pmts
@@ -147,18 +150,18 @@ instance Asset Lease where
         = genSerialDates dp sd ot 
 
     projCashflow l@(RegularLease (LeaseInfo sd ot dp pmt) rt) asOfDay assumps = 
-        foldl CF.combineCashFlow currentCf newCfs 
+        foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
       where 
         currentCf = calcCashflow l asOfDay
-        -- (rc,rcCurve,mgTbl,mg,ed) = extractAssump assumps (0.0,mkTs [(toDate "19700101",0.0)],([(0.0,0)],0),0,toDate("19700101"))
-        (rc,rcCurve,mgTbl,mg,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,toDate("19700101"))
+        (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,epocDate)
         pdates = getPaymentDates l 0
         rcCurveToUse = if isTsEmpty rcCurve then 
                          mkTs [(epocDate,rc),(ed,rc)]
                        else 
                          rcCurve
-        newLeases = nextLeaseTill l (rcCurveToUse,0.0,mg) (last pdates) ed [] 
-        newCfs = [ calcCashflow l asOfDay | l <- newLeases ]  `debug` ("new leases"++ show newLeases++ "MGap"++ show mg)
+        gapDaysFromTbl = getGapDaysByBalance l mgTbl 
+        newLeases = nextLeaseTill l (rcCurveToUse,0.0,max gapDays gapDaysFromTbl) (last pdates) ed [] 
+        newCfs = [ calcCashflow l asOfDay | l <- newLeases ]  -- `debug` ("new leases"++ show newLeases++ "MGap"++ show (gapDays,gapDaysFromTbl))
         -- projected contract 
 
 

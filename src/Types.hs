@@ -16,7 +16,7 @@ module Types
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
-  ,Table(..),lookupTable,LookupType,epocDate)
+  ,Table(..),lookupTable,LookupType(..),epocDate)
   where
 
 import qualified Data.Text as T

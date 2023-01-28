@@ -116,7 +116,7 @@ yearCountFraction dc sd ed
                                     else
                                       eday    
                                     -- `debug` ("German eof end "++ show (endOfFeb eyear emonth eday)++show eyear++show emonth++show eday)
-                            num = toRational (_eday - _sday) + 30*_gapMonth + 360*_diffYears `debug` ("German"++show(_sday)++"<>"++show _eday)
+                            num = toRational (_eday - _sday) + 30*_gapMonth + 360*_diffYears -- `debug` ("German"++show(_sday)++"<>"++show _eday)
                           in 
                             num / 360
       DC_30_360_US -> let
