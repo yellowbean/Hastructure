@@ -111,19 +111,32 @@ getGapDaysByBalance l tbl@(rows,defaultVal) =
     in 
         lookupTable tbl DownwardInclude pmt defaultVal
 
+projectCfDates :: DatePattern -> Date -> Int -> [Date]
+projectCfDates dp sd ot
+  = let  
+        cf_dates_proj = genSerialDates dp sd ot
+    in 
+        if head cf_dates_proj == sd then 
+            genSerialDates dp sd (succ ot)
+        else
+            [sd]++cf_dates_proj
+
 instance Asset Lease where 
     calcCashflow l@(RegularLease (LeaseInfo sd ot dp dr) rt) d =
         CF.CashFlowFrame $ zipWith CF.LeaseFlow (tail cf_dates) pmts -- `debug` ("CF Dates"++ show cf_dates++"PMTS->"++ show pmts)
       where 
-        cf_dates = sliceDates (SliceAfterKeepPrevious d) $ [sd]++genSerialDates dp sd ot 
+        -- cf_dates = sliceDates (SliceAfterKeepPrevious d) $ [sd]++genSerialDates dp sd ot 
+        cf_dates = sliceDates (SliceAfterKeepPrevious d) $ projectCfDates dp sd ot
         daysBetween = getIntervalDays cf_dates -- `debug` (">>>>>> genSerialDates"++ show (genSerialDates dp sd ot))
         pmts = [ (fromRational ((toRational dr) * (toRational ds))) | ds <- daysBetween] -- `debug` (">>>> Days between"++ show daysBetween)  --TODO to be simplified 
 
     calcCashflow l@(StepUpLease (LeaseInfo sd ot dp dr) lsu rt) d =
         CF.CashFlowFrame $ zipWith CF.LeaseFlow cf_dates pmts
       where 
-        p_dates = genSerialDates dp sd ot
-        cf_dates =  filter (> d) p_dates
+        -- p_dates = genSerialDates dp sd ot
+        p_dates = projectCfDates dp sd ot 
+        -- cf_dates =  filter (> d) p_dates `debug` ("P dates"++ show p_dates)
+        last_pay_date:cf_dates =  sliceDates (SliceAfterKeepPrevious d) p_dates `debug` ("P dates"++ show p_dates)
         accrueEndsAt = last cf_dates
         pmts = case lsu of 
                  (FlatRate _dp _r) ->

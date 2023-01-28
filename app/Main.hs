@@ -112,6 +112,7 @@ postRunDealR = do
     RunDealReq (MDeal d) a p -> run d a p
     RunDealReq (LDeal d) a p -> run d a p
     RunDealReq (IDeal d) a p -> run d a p
+    RunDealReq (RDeal d) a p -> run d a p
   where 
     run d a p =
       case a of 
