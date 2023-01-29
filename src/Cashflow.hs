@@ -4,6 +4,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mkCashFlowFrame,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
+                ,mflowRental
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate,getDatesCashFlowFrame
                 ,getEarlierTsCashFlowFrame
@@ -334,6 +335,9 @@ mflowRate (MortgageFlow _ _ _ _ _ _ _ _ x) = x
 mflowRate (MortgageFlow2 _ _ _ _ _ _ _ _ _ x) = x
 mflowRate (MortgageFlow3 _ _ _ _ _ _ _ _ _ _ _ x) = x
 mflowRate (LoanFlow _ _ _ _ _ _ _ _ x) = x
+
+mflowRental :: TsRow -> Amount
+mflowRental (LeaseFlow _ x ) = x
 
 mflowDate :: TsRow -> Date
 mflowDate (MortgageFlow x _ _ _ _ _ _ _ _) = x

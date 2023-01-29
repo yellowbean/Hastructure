@@ -1369,7 +1369,7 @@ depositPoolInflow rules d (Just (CF.CashFlowFrame txn)) amap =
           (W.Collect W.CollectedPrincipal _)  -> CF.mflowPrincipal ts
           (W.Collect W.CollectedRecoveries _) -> CF.mflowRecovery ts
           (W.Collect W.CollectedPrepayment _) -> CF.mflowPrepayment ts
-
+          (W.Collect W.CollectedRental _) -> CF.mflowRental ts
 
 $(deriveJSON defaultOptions ''ExpectReturn)
 
