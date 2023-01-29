@@ -81,8 +81,8 @@ nextLease :: Lease -> (RentChangeCurve, TermChangeRate, DayGap) -> (Lease, Date)
 nextLease l@(RegularLease (LeaseInfo sd ot dp dr) rt) (rcCurve,tc,gd) 
   = (RegularLease (LeaseInfo nextStartDate nextOriginTerm dp nextPmt) rt,nextEndDate) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
     where 
-        leaseEndDate = last $ genSerialDates dp sd ot 
-        nextStartDate = T.addDays (toInteger gd) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
+        leaseEndDate = last $ projectCfDates dp sd ot 
+        nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
         nextOriginTerm = round $ mulIR ot (1+tc) 
         nextEndDate = last $ genSerialDates dp nextStartDate (fromIntegral nextOriginTerm)
         yearsBetween = yearCountFraction DC_ACT_365F sd nextStartDate
@@ -90,10 +90,10 @@ nextLease l@(RegularLease (LeaseInfo sd ot dp dr) rt) (rcCurve,tc,gd)
         nextPmt = dr + mulBR dr currentRateOnCurve*(fromRational yearsBetween)
 
 nextLease l@(StepUpLease (LeaseInfo sd ot dp dr) lsteupInfo rt) (rcCurve,tc,gd) 
-  = (StepUpLease (LeaseInfo nextStartDate nextOriginTerm dp nextPmt) lsteupInfo rt,nextEndDate) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
+  = (StepUpLease (LeaseInfo nextStartDate nextOriginTerm dp nextPmt) lsteupInfo rt,nextEndDate) --  `debug` ("leaseEndDate>>"++show leaseEndDate++">>>"++show (succ (toInteger gd)))
     where 
-        leaseEndDate = last $ genSerialDates dp sd ot 
-        nextStartDate = T.addDays (toInteger gd) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
+        leaseEndDate = last $ projectCfDates dp sd ot 
+        nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
         nextOriginTerm = round $ mulIR ot (1+tc) 
         nextEndDate = last $ genSerialDates dp nextStartDate (fromIntegral nextOriginTerm)
         yearsBetween = yearCountFraction DC_ACT_365F sd nextStartDate
@@ -153,7 +153,7 @@ instance Asset Lease where
         -- p_dates = genSerialDates dp sd ot
         p_dates = projectCfDates dp sd ot 
         -- cf_dates =  filter (> d) p_dates `debug` ("P dates"++ show p_dates)
-        last_pay_date:cf_dates =  sliceDates (SliceAfterKeepPrevious d) p_dates `debug` ("P dates"++ show p_dates)
+        last_pay_date:cf_dates =  sliceDates (SliceAfterKeepPrevious d) p_dates -- `debug` ("P dates"++ show p_dates)
         accrueEndsAt = last cf_dates
         pmts = case lsu of 
                  (FlatRate _dp _r) ->
@@ -165,7 +165,7 @@ instance Asset Lease where
                      dailyRates = [ mulBR dr ((toRational (1+_r))^^x) | x <- [(lengthAccD - lengthFutureAccD - 1)..lengthAccD]] -- `debug` (">>LAD"++show lastAccD++">>"++show accrueDates)]
                      accruePeriods = zip accrueDates dailyRates 
                    in  
-                     accrueRentals accruePeriods cf_dates last_pay_date [] []  `debug` ("Acc P>>"++show accruePeriods++">>last acc day"++show lastAccD++">> pay dates"++show cf_dates)
+                     accrueRentals accruePeriods cf_dates last_pay_date [] []  -- `debug` ("Acc P>>"++show accruePeriods++">>last acc day"++show lastAccD++">> pay dates"++show cf_dates)
                  (ByRateCurve _dp _rs) -> 
                    let 
                      a_dates = genSerialDatesTill2 II sd _dp accrueEndsAt
@@ -194,7 +194,7 @@ instance Asset Lease where
                          rcCurve
         gapDaysFromTbl = getGapDaysByBalance l mgTbl 
         newLeases = nextLeaseTill l (rcCurveToUse,0.0,max gapDays gapDaysFromTbl) (last pdates) ed [] 
-        newCfs = [ calcCashflow l asOfDay | l <- newLeases ]  -- `debug` ("new leases"++ show newLeases++ "MGap"++ show (gapDays,gapDaysFromTbl))
+        newCfs = [ calcCashflow l asOfDay | l <- newLeases ] -- `debug` ("new leases"++ show newLeases++ "MGap"++ show (gapDays,gapDaysFromTbl))
 
 
 $(deriveJSON defaultOptions ''LeaseInfo)
