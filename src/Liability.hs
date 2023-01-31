@@ -96,7 +96,7 @@ payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt _ dueIntDate lpay
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndDueInt=new_due, bndStmt=Just new_stmt}
+  = bnd {bndDueInt=new_due, bndStmt=Just new_stmt, bndLastIntPay = Just d}
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn] (Just new_due)))
