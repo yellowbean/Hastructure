@@ -229,6 +229,7 @@ tsSetDate (MortgageFlow _ a b c d e f g h) x = MortgageFlow x a b c d e f g h
 tsSetDate (MortgageFlow2 _ a b c d e f g h i) x = MortgageFlow2 x a b c d e f g h i
 tsSetDate (MortgageFlow3 _ a b c d e f g h i j k) x = MortgageFlow3 x a b c d e f g h i j k
 tsSetDate (LoanFlow _ a b c d e f g h) x = LoanFlow x a b c d e f g h
+tsSetDate (LeaseFlow _ a) x = LeaseFlow x a
 
 reduceTs :: [TsRow] -> TsRow -> [TsRow]
 reduceTs [] _tr = [_tr]

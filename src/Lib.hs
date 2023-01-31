@@ -181,6 +181,8 @@ mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
 
 isTsEmpty :: Ts -> Bool
 isTsEmpty (FloatCurve []) = True
+isTsEmpty (RatioCurve []) = True
+isTsEmpty _ = False
 
 mkRateTs :: [(Date,IRate)] -> Ts
 mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
