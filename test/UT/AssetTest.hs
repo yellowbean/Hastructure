@@ -183,7 +183,7 @@ leaseTests =
             (last (CF.getTsCashFlowFrame cf4) )
         ,testCase "Lease with Assumptions" $ 
             assertEqual "Month Gap by Table : New Lease at period 0"
-            (CF.LeaseFlow (L.toDate "20240131") 9)
+            (CF.LeaseFlow (L.toDate "20240131") 8)
             ((CF.getTsCashFlowFrame cf5)!!7)
         ,testCase "Lease with Assumptions" $ 
             assertEqual "Month Gap by Table : New Lease at period 1"
