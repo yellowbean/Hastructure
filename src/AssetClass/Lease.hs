@@ -117,6 +117,7 @@ extractAssump (ap:aps) (a,b,c,d,e)
       (AP.LeaseBaseAnnualRate r) -> extractAssump aps (r,b,c,d,e)
       (AP.LeaseBaseCurve ts) -> extractAssump aps (a,ts,c,d,e)
       (AP.LeaseGapDaysByAmount tbl rest) -> extractAssump aps (a,b,(tbl,rest),d,e)
+      _ -> extractAssump aps (a,b,c,d,e)
 
 getGapDaysByBalance :: Lease -> ([(Amount,Int)],Int) -> Int 
 getGapDaysByBalance l tbl@(rows,defaultVal) = 
@@ -187,7 +188,7 @@ instance Asset Lease where
       where 
         currentCf = calcCashflow l asOfDay
         (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,epocDate)
-        pdates = getPaymentDates l 0
+        pdates = getPaymentDates l 0  -- `debug` ("RCURVE"++show rcCurve)
         rcCurveToUse = if isTsEmpty rcCurve then 
                          mkTs [(epocDate,rc),(ed,rc)]
                        else 

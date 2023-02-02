@@ -242,10 +242,10 @@ zipWith9 _ _ _ _ _ _ _ _ _ _ = []
 
 pv2 :: IRate -> Date -> Date -> Amount -> Amount
 pv2 discount_rate today d amt =
-    mulBI amt $ 1/denominator
+    mulBI amt $ 1/denominator -- `debug` ("days between->"++show d ++show today++">>>"++show distance )
   where
     denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
-    distance =  daysBetween d today
+    distance =  daysBetween today d 
 
 floatToFixed :: HasResolution a => Float -> Fixed a
 floatToFixed x = y where
