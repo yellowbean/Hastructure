@@ -4,7 +4,7 @@
 
 module Lib
     (Amount,Rate,Dates,Period(..),Balance
-    ,genDates,StartDate,EndDate,daysBetween
+    ,genDates,StartDate,EndDate,daysBetween,daysBetweenI
     ,Spread,Index(..),Date
     ,paySeqLiabilities,prorataFactors
     ,afterNPeriod,Ts(..),periodsBetween
@@ -14,9 +14,9 @@ module Lib
     ,toDate
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
-    ,zipWith8,zipWith9, pv2, monthsOfPeriod
+    ,zipWith8,zipWith9, monthsOfPeriod
     ,weightedBy, mkTs, DealStatus(..),isTsEmpty
-    ,mulBI,mkRateTs,Pre(..)
+    ,mkRateTs,Pre(..)
     ) where
 
 import qualified Data.Time as T
@@ -70,9 +70,6 @@ periodRateFromAnnualRate SemiAnnually annual_rate  = annual_rate / 2
 
 addD :: Date -> T.CalendarDiffDays -> Date
 addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
-
-mulBI :: Balance -> IRate -> Amount
-mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
 
 genDates :: Date -> Period -> Int -> [Date]
 genDates start_day p n =
@@ -240,13 +237,6 @@ zipWith9 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js)
                    =  z a b c d e f g h j : zipWith9 z as bs cs ds es fs gs hs js
 zipWith9 _ _ _ _ _ _ _ _ _ _ = []
 
-pv2 :: IRate -> Date -> Date -> Amount -> Amount
-pv2 discount_rate today d amt =
-    mulBI amt $ 1/denominator -- `debug` ("days between->"++show d ++show today++">>>"++show distance )
-  where
-    denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
-    distance =  daysBetween today d 
-
 floatToFixed :: HasResolution a => Float -> Fixed a
 floatToFixed x = y where
   y = MkFixed (round (fromInteger (resolution y) * x))
@@ -256,7 +246,9 @@ weightedBy ws vs = (sum $ zipWith (*) vs $ _ws ) / (sum _ws)
                   where 
                       _ws = map toRational ws
 
-
-daysBetween :: Date -> Date -> Integer
+daysBetween :: Date -> Date -> Integer -- start date , end date
 daysBetween sd ed = (fromIntegral (T.diffDays ed sd))
+
+daysBetweenI :: Date -> Date -> Int 
+daysBetweenI sd ed = fromInteger $ T.diffDays ed sd
 

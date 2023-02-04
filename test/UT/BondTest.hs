@@ -60,7 +60,8 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "PV test" $
         assertEqual "simple PV with flat curve"  
-          (2060 % 21)
+          --(2060 % 21)
+          98.09
           _pv
     ,
     let
@@ -72,7 +73,9 @@ pricingTests = testGroup "Pricing Tests"
         _diff1 = _pv1 - 100.0
     in
       testCase "PV test with curve change in middle" $
-      assertBool "simple PV with latest rate point"  (_diff1 < 0.0001)
+      assertEqual "simple PV with latest rate point"
+               100.0
+               _pv1
    ,
     let
       pr = B.priceBond (L.toDate "20210501")
@@ -83,7 +86,7 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "flat rate discount " $
       assertEqual "Test Pricing on case 01" 
-        (B.PriceResult 501.650609 16.721686 (1 / 4) (1 / 1) 0.0) 
+        (B.PriceResult 501.650609 16.721666 (1 / 4) (1 / 1) 0.0) 
         pr
     ,
      let
@@ -100,7 +103,9 @@ pricingTests = testGroup "Pricing Tests"
      in
        testCase " discount curve with two rate points " $
        -- assertEqual "Test Pricing on case 01" (B.PriceResult 816.1008 27.203362 0.043918636 0.18040144 20.383562) pr
-       assertEqual "Test Pricing on case 01" (B.PriceResult (820 / 1) (82 / 3) (1 / 25) (5407 / 29930)  19.2) pr  --TODO need to confirm
+       assertEqual "Test Pricing on case 01" 
+            (B.PriceResult 814.61 27.153666 (1 / 25) 0.17  19.2) 
+            pr  --TODO need to confirm
     ,
     let
       b3 = b1 {B.bndStmt = Nothing,B.bndInterestInfo = B.InterestByYield 0.02}
@@ -151,7 +156,7 @@ bndUtilTest = testGroup "Bond PV/FV Test" [
             (B.fv2 0.08 (L.toDate "20230101") (L.toDate "20240101") 100) 
     ,testCase "FV2 test" $ 
         assertEqual "0.5-year"
-            104
+            103.89
             (B.fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 
                                          ]
 

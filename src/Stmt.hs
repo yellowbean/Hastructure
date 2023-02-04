@@ -30,7 +30,7 @@ import qualified Data.Text as T
 import qualified Data.Map as M
 
 data TxnComment = PayInt [BondName] (Maybe Balance)
-                | PayYield BondName
+                | PayYield BondName (Maybe Balance)
                 | PayPrin [BondName] (Maybe Balance)
                 | PayFee FeeName Balance
                 | SeqPayFee [FeeName] 
@@ -49,7 +49,7 @@ data TxnComment = PayInt [BondName] (Maybe Balance)
 
 instance ToJSON TxnComment where 
   toJSON (PayInt bns mb) = String $ T.pack $ "<PayInt:"++ show bns ++ ","++ show mb ++ ">"
-  toJSON (PayYield bn) = String $ T.pack $ "<PayYield:"++ bn++">"
+  toJSON (PayYield bn db) = String $ T.pack $ "<PayYield:"++ bn++","++show db++">"
   toJSON (PayPrin bns mb) =  String $ T.pack $ "<PayPrin:"++ show bns ++ ","++ show mb ++ ">"
   toJSON (PayFee fn b) =  String $ T.pack $ "<PayFee:" ++ fn ++ ","++ show b ++ ">"
   toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++show fns++">"

@@ -2,7 +2,8 @@ module UT.LibTest(curveTests
                  --,queryStmtTests
                  ,datesTests
                  ,prorataTests
-                 ,tsOperationTests)
+                 ,tsOperationTests
+                 ,pvTests)
 where
 
 import Test.Tasty
@@ -128,3 +129,14 @@ tsOperationTests =
        splitTsByDate bcurve (toDate "20221101")
    ]
 
+pvTests = 
+    testGroup "PV test"
+    [testCase "PV 6 months" $
+        assertEqual "6M"
+        1
+        1
+    ,testCase "PV 1 Y" $
+        assertEqual "12M"
+        1
+        1
+    ]

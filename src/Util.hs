@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Util
-    (mulBR,mulBIR,lastN,yearCountFraction,genSerialDates
+    (mulBR,mulBIR,mulBI,mulBInt,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR
-    ,replace,paddingDefault, capWith
+    ,replace,paddingDefault, capWith, pv2
     )
     where
 import qualified Data.Time as T
@@ -32,11 +33,17 @@ mulBR b r = fromRational $ toRational b * r
 mulBIR :: Balance -> IRate -> Centi
 mulBIR b r = fromRational $ (toRational b) * (toRational r)
 
-divideBI :: Balance -> Int -> Balance
-divideBI b i = fromRational $ (toRational b) / (toRational i)
-
 mulIR :: Int -> Rational -> Rational
 mulIR i r = (toRational i) * r 
+
+mulBInt :: Balance -> Int -> Rational 
+mulBInt b i = (toRational b) * (toRational i)
+
+mulBI :: Balance -> IRate -> Amount
+mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
+
+divideBI :: Balance -> Int -> Balance
+divideBI b i = fromRational $ (toRational b) / (toRational i)
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
@@ -388,3 +395,12 @@ capWith xs cap = [ if x > cap then
                     cap
                    else 
                     x | x <- xs ]
+
+pv2 :: IRate -> Date -> Date -> Amount -> Amount
+pv2 discount_rate today d amt =
+    mulBI amt $ 1/denominator -- `debug` ("days between->"++show d ++show today++">>>"++show distance )
+  where
+    denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
+    distance =  daysBetween today d 
+
+
