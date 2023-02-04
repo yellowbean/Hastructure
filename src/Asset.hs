@@ -16,7 +16,7 @@ import Text.Read (readMaybe)
 import Lib (Period(..),genDates
            ,Ts(..),Index(..),periodRateFromAnnualRate,previousDate,toDate
            ,nextDate,getIntervalDays,zipWith9,mkTs,periodsBetween
-           ,mulBI,mkRateTs)
+           ,mkRateTs)
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
@@ -174,6 +174,9 @@ buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag
      ,_recovery_lag)
    where 
      stressSize = (pred (length pDates))
+
+
+
 
 _calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow pmt last_bal bals ps is [] = (bals,ps,is)

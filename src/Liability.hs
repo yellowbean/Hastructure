@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
   ,payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,weightAverageBalance)
+  ,weightAverageBalance,fv2)
   where
 
 import Language.Haskell.TH
@@ -17,8 +18,8 @@ import Data.Fixed
 import qualified Data.Time as T
 import Lib (Index(..),Period(..),Ts(..)
            ,TsPoint(..)
-           ,toDate,pv2,daysBetween,mulBI
-           ,getIntervalFactors)
+           ,toDate,daysBetween
+           ,getIntervalFactors,daysBetweenI)
 
 import Util
 import Types
@@ -91,9 +92,10 @@ consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
-  = bnd { bndStmt = Just new_stmt }
+  = bnd { bndDueInt=new_due, bndStmt = Just new_stmt}
   where
-    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
+    new_due = dueInt - amt
+    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn (Just new_due)))
 
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDueInt=new_due, bndStmt=Just new_stmt, bndLastIntPay = Just d}
@@ -109,7 +111,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt
     new_due = duePrin - amt
     new_stmt = S.appendStmt stmt (S.BondTxn d new_bal 0 amt 0 amt (S.PayPrin [bn] (Just new_due)))
 
-type Valuation = Micro
+type Valuation = Centi
 type PerFace = Micro
 type WAL = Centi
 type Duration = Micro
@@ -121,38 +123,35 @@ data YieldResult = Yield
 data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest -- valuation,wal,accu,duration
                    deriving (Show,Eq)
 
-pv :: Ts -> Date -> Date -> Amount -> Rational
+pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc@(PricingCurve _) today d amt = 
-   toRational (amt) * (1 / discount_factor) -- `debug` ("DF:"++show discount_factor)
+   realToFrac $ (realToFrac amt) * (1 / factor) -- `debug` ("DF:"++show discount_factor)
   where
-   distance = daysBetween today d
+   distance::Double =  fromIntegral $ daysBetween today d
    discount_rate = fromRational $ getValByDate pc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
-   discount_factor = (1+discount_rate) ^^ (div distance 365)  -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
+   factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)  -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
    -- discount_factor = (1+discount_rate) ** (fromRational $ (yearCountFraction DC_ACT_ACT today d))
 
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
 fv2 discount_rate today futureDay amt =
-    mulBI amt ((1+discount_rate) ^^ (fromInteger (div distance 365)))
+    -- mulBI (realToFrac amt) factor 
+    realToFrac $ (realToFrac amt) * factor 
+    --mulBI amt ((1+discount_rate) ** (distance / 365))
   where
-    distance = daysBetween today futureDay
+    factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)
+    distance::Double = fromIntegral $ daysBetween today futureDay
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
   = PriceResult
      presentValue
      (fromRational (100*(toRational presentValue)/(toRational obal)))
-     ((foldr (\x acc ->
-               (acc + ((fromIntegral (T.diffDays (S.getTxnDate x) d))*(S.getTxnPrincipal x)/365)))
-             0
-             futureCf)  / cutoffBalance)
-     (fromRational (foldr (\x acc ->
-               (((fromIntegral (T.diffDays (S.getTxnDate x) d))/365) * ((pv rc d (S.getTxnDate x)  (S.getTxnAmt x)) / (toRational presentValue))) + acc)
-            0
-            futureCf))  -- `debug` ("Cutoff balance"++show(cutoffBalance))
+     (realToFrac wal)
+     (realToFrac duration)
      accruedInt
      where
        futureCf = filter (\x -> (S.getTxnDate x) > d) txns
-       presentValue = fromRational $ foldr (\x acc -> acc + (pv rc d (S.getTxnDate x) (S.getTxnAmt x)) ) 0 futureCf
+       presentValue = foldr (\x acc -> acc + (pv rc d (S.getTxnDate x) (S.getTxnAmt x)) ) 0 futureCf
        cutoffBalance = case (S.getTxnAsOf txns d) of
                           Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                      where
@@ -173,6 +172,19 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayD
                                 leftTxn = last leftTxns
                               in
                                 (S.getTxnDate leftTxn,S.getTxnBalance leftTxn)
+       wal =  ((foldr 
+                 (\x acc ->
+                   (acc + ((fromIntegral (daysBetween d (S.getTxnDate x)))*(S.getTxnPrincipal x)/365)))
+                   0.0
+                   futureCf) / cutoffBalance)
+       duration = (foldr (\x acc ->
+                           (mulBR  
+                             ((pv rc d (S.getTxnDate x) (S.getTxnAmt x)) / presentValue) 
+                             --((daysBetween d (S.getTxnDate x))/365)
+                             (yearCountFraction DC_ACT_365F d (S.getTxnDate x)))
+                           + acc)
+                    0
+                    futureCf)
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0
 
@@ -203,10 +215,11 @@ calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 
 backoutDueIntByYield :: Date -> Bond -> Balance
 backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield y) currentBalance  _ _ _ _ _ _ _ stmt)
-  = (fv2 y odate d pv0) - obal
+  -- = obal_fv - fvs `debug` ("FVS->"++show fvs++"FV of Obal"++show (fv2 y odate d obal)++"y"++show y++"odate"++show odate++"d"++ show d++"obal"++show obal)
+  = proj_fv - fvs - currentBalance -- `debug` ("Date"++ show d ++"FV->"++show proj_fv++">>"++show fvs++">>cb"++show currentBalance)
     where
-     pv0 = obal - pvs
-     pvs = sum $ [ pv2 y odate (fst cf) (snd cf)  | cf <- cashflows ]
+     proj_fv = fv2 y odate d obal 
+     fvs = sum $ [ fv2 y d (fst cf) (snd cf)  | cf <- cashflows ]
      cashflows = case stmt of
                    Just (S.Statement txns) -> [ ((S.getTxnDate txn),(S.getTxnAmt txn))  | txn <- txns ]
                    Nothing -> []
