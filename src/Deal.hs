@@ -290,7 +290,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (Nothing, W.PayResidual
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     availBal = A.accBalance $ accMap Map.! an
-    accMapAfterPay = Map.adjust (A.draw availBal d (PayYield bndName)) an accMap
+    accMapAfterPay = Map.adjust (A.draw availBal d (PayYield bndName Nothing)) an accMap
     bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
 
 performAction d t@TestDeal{fees=feeMap,accounts=accMap} (Nothing, W.PayFeeResidual limit an feeName) =
@@ -702,13 +702,13 @@ run2 t poolFlow (Just (ad:ads)) rates calls
       DealClosed d ->
           let 
             w = Map.findWithDefault [] W.OnClosingDay (waterfall t) 
-            newDeal = foldl (performAction d) t w `debug` ("ClosingDay Action:"++show w)
+            newDeal = foldl (performAction d) t w -- `debug` ("ClosingDay Action:"++show w)
           in 
             run2 newDeal poolFlow (Just ads) rates calls
       ChangeDealStatusTo d s -> 
           run2 (t{status=s}) poolFlow (Just ads) rates calls
       where
-        cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)   `debug` ("Running AD"++show(ad))
+        cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  -- `debug` ("Running AD"++show(ad))
 
 
 run2 t Nothing Nothing Nothing Nothing
@@ -1250,14 +1250,14 @@ calcDueInt t calc_date b@(L.Bond _ _ _ _ _ _ _ _ _ Nothing _ _ _)
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ _ _ lstIntPay _ _) 
   = b {L.bndDueInt = 0 }
 
-calcDueInt t calc_date b@(L.Bond bn _ bo (L.InterestByYield y) bond_bal _ _ int_due _ _ lstIntPay _ mStmt)
-  = b {L.bndDueInt = newDue + int_due }
+calcDueInt t calc_date b@(L.Bond bn L.Equity bo (L.InterestByYield y) bond_bal _ _ int_due _ _ lstIntPay _ mStmt)
+  = b {L.bndDueInt = newDue }  -- `debug` ("Yield Due Int >>"++ show bn++">> new due"++ show newDue++">> old due"++ show int_due )
   where
   newDue = L.backoutDueIntByYield calc_date b
 
 calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due _ (Just int_due_date) lstIntPay _ _) 
   | calc_date == int_due_date = b
-  | otherwise = b {L.bndDueInt = (new_due_int+int_due),L.bndDueIntDate = Just calc_date }   -- `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
+  | otherwise = b {L.bndDueInt = (new_due_int+int_due),L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
               where
                 lastIntPayDay = case lstIntPay of
                                   Just pd -> pd
