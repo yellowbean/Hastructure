@@ -140,7 +140,7 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms Status
               deriving (Show)
 
 instance Asset Mortgage  where
-  calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _) d =
+  calcCashflow m@(Mortgage (MortgageOriginalInfo ob (Fix or) ot p sd ptype)  _bal _rate _term _) d =
       CF.CashFlowFrame $ zipWith9
                             CF.MortgageFlow
                               cf_dates
@@ -151,7 +151,7 @@ instance Asset Mortgage  where
                               (replicate l 0.0)
                               (replicate l 0.0)
                               (replicate l 0.0)
-                              (replicate l 0.0) -- `debug` ("cfdates->"++show(cf_dates)++"final bals =>"++show(b_flow))
+                              (replicate l or)  -- `debug` ("cfdates->"++show cf_dates++"final bals =>"++show b_flow++"Printflow"++show prin_flow)
     where
       orate = getOriginRate m
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
@@ -160,8 +160,16 @@ instance Asset Mortgage  where
       l = length cf_dates
 
       (b_flow,prin_flow,int_flow) = case ptype of
-                                     Level -> calc_p_i_flow _bal pmt ([last_pay_date]++cf_dates) _rate
-                                     Even ->  calc_p_i_flow_even (_bal / fromIntegral _term) _bal ([last_pay_date]++cf_dates) _rate -- `debug` show(calc_p_i_flow_even (_bal / fromIntegral _term) _bal ([last_pay_date]++cf_dates) _rate)
+                                     Level -> calc_p_i_flow 
+                                                _bal 
+                                                pmt 
+                                                ([last_pay_date]++cf_dates) 
+                                                _rate
+                                     Even ->  calc_p_i_flow_even 
+                                                (_bal / fromIntegral _term) 
+                                                _bal 
+                                                ([last_pay_date]++cf_dates) 
+                                                _rate  -- `debug` ("in Even term "++show _term)
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows)  d = CF.CashFlowFrame flows
 
@@ -194,11 +202,11 @@ instance Asset Mortgage  where
                             rate_vector
                             (recovery_lag,recovery_rate)
                             p
-                            prinPayType -- `debug` ("rrate"++show recovery_rate++"rlag"++show recovery_lag) -- `debug` ("Payment dates=>"++show(cf_dates))
+                            prinPayType 
     where
       cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) (getPaymentDates m recovery_lag) --  `debug` ("CF Dates"++show(recovery_lag))
-      last_pay_date = previousDate (head cf_dates) p -- `debug` ("RT->"++show rt++" cf-dates "++show cf_dates)
-      cf_dates_length = length cf_dates --  `debug` ("CF dates=>"++show(cf_dates))
+      last_pay_date = previousDate (head cf_dates) p 
+      cf_dates_length = length cf_dates 
       rate_vector = case or of
                       Fix r ->  replicate cf_dates_length r
                       Floater idx sprd _orate p mfloor ->

@@ -242,9 +242,13 @@ floatToFixed x = y where
   y = MkFixed (round (fromInteger (resolution y) * x))
 
 weightedBy :: [Centi] -> [Rational] -> Rational
-weightedBy ws vs = (sum $ zipWith (*) vs $ _ws ) / (sum _ws)
+weightedBy ws vs = if sum_weights == 0 then 
+                     0
+                   else
+                     (sum $ zipWith (*) vs $ _ws ) / sum_weights
                   where 
                       _ws = map toRational ws
+                      sum_weights = sum _ws
 
 daysBetween :: Date -> Date -> Integer -- start date , end date
 daysBetween sd ed = (fromIntegral (T.diffDays ed sd))
