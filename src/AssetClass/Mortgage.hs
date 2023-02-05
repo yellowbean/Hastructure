@@ -140,7 +140,7 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms Status
               deriving (Show)
 
 instance Asset Mortgage  where
-  calcCashflow m@(Mortgage (MortgageOriginalInfo ob (Fix or) ot p sd ptype)  _bal _rate _term _) d =
+  calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _) d =
       CF.CashFlowFrame $ zipWith9
                             CF.MortgageFlow
                               cf_dates
@@ -151,13 +151,16 @@ instance Asset Mortgage  where
                               (replicate l 0.0)
                               (replicate l 0.0)
                               (replicate l 0.0)
-                              (replicate l or)  -- `debug` ("cfdates->"++show cf_dates++"final bals =>"++show b_flow++"Printflow"++show prin_flow)
+                              rate_used
     where
       orate = getOriginRate m
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
       cf_dates = take _term $ filter (>= d) $ getPaymentDates m 0
       last_pay_date = previousDate (head cf_dates) p
       l = length cf_dates
+      rate_used = case or of
+                    Fix _r -> replicate l _r
+                    Floater _ _ _ _ _ -> replicate l _rate
 
       (b_flow,prin_flow,int_flow) = case ptype of
                                      Level -> calc_p_i_flow 
