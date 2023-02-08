@@ -40,8 +40,6 @@ import Data.Aeson.Types
 import Debug.Trace
 debug = flip trace
 
-_startDate = T.fromGregorian 1970 1 1
-
 class SPV a where
   getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
   getBondBegBal :: a -> String -> Balance
@@ -53,6 +51,7 @@ class SPV a where
 class DealDates a where 
   getClosingDate :: a -> Date
   getFirstPayDate :: a -> Date
+
 
 data TestDeal a = TestDeal {
   name :: String
@@ -497,8 +496,8 @@ applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ _ _ )
   = case rr of 
       L.ByInterval p mStartDate ->
           let 
-            _startDate = fromMaybe (L.originDate oi) mStartDate
-            diff = T.diffGregorianDurationClip _startDate d
+            epocDate = fromMaybe (L.originDate oi) mStartDate
+            diff = T.diffGregorianDurationClip epocDate d
           in
             0 == mod (T.cdMonths diff) (fromIntegral (monthsOfPeriod p))
       L.MonthOfYear monthIndex ->
@@ -888,7 +887,7 @@ runPool2 (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel as
 runPool2 (P.Pool as _ asof _) Nothing = map (\x -> P.calcCashflow x asof) as -- `debug` ("RUNPOOL")
 runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
   = case applyAssumpType of
-       AP.PoolLevel [] -> map (\x -> P.calcCashflow x asof) as 
+       AP.PoolLevel [] -> map (\x -> P.calcCashflow x asof) as  -- `debug` ("In Run pool"++show as)
        AP.PoolLevel assumps -> map (\x -> P.projCashflow x asof assumps) as  -- `debug` (">> Single Pool")
        AP.ByIndex idxAssumps _ ->
          let

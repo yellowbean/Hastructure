@@ -239,9 +239,9 @@ reduceTs (tr:trs) _tr
 
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combine (CashFlowFrame rs1) (CashFlowFrame rs2) =
-    CashFlowFrame $  foldl reduceTs [] sorted_cff -- `debug` ("BEFORE SORT"++ show sorted_cff)
+    CashFlowFrame $  foldl reduceTs [] sorted_cff --  `debug` ("In Combine")
     where cff = rs1++rs2
-          sorted_cff = L.sortOn getDate cff -- `debug` ("BEFORE sort"++ show cff)
+          sorted_cff = L.sortOn getDate cff  -- `debug` ("BEFORE sort"++ show cff)
 
 tsDateLT :: Date -> TsRow  -> Bool
 tsDateLT td (CashFlow d _) = d < td

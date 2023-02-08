@@ -226,7 +226,7 @@ calc_p_i_flow_i_p bal dates r
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool [] = undefined -- `debug` ("Empty cashflow from assets")
-aggPool xs = foldr1 CF.combine xs --  `debug` ("XS"++show(xs))
+aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]

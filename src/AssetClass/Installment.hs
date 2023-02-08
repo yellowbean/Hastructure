@@ -102,37 +102,33 @@ instance Asset Installment where
     = CF.CashFlowFrame $ zipWith9
                           CF.LoanFlow
                             cf_dates
-                            schedule_balances
+                            stressed_bal_flow
                             prin_flow
                             int_flow
                             (replicate rt 0.0)
                             (replicate rt 0.0)
                             (replicate rt 0.0)
                             (replicate rt 0.0)
-                            (replicate rt orate)
+                            (replicate rt orate) 
       where 
-        cf_dates = filter (> asOfDay) $ sd:getPaymentDates inst 0
-        cf_dates_length = length cf_dates
-        rt = (length cf_dates)
-        schedule_balances = lastN rt $ scanl (-) ob (replicate ot cpmt)
-
-        current_schedule_bal = schedule_balances !! (ot - rt)
-
-        opmt = divideBI ob ot
+        cf_dates = filter (> asOfDay) $ sd:getPaymentDates inst 0 
+        cf_dates_length = length cf_dates 
+        rt = length cf_dates
+        opmt = divideBI ob ot  
+        schedule_balances = scanl (-) ob (replicate ot opmt)
+        current_schedule_bal =  schedule_balances !! (ot - rt)  -- `debug` ("Schedule Balance->"++show schedule_balances)
+        
         ofee = mulBIR ob (getOriginRate inst)
+
+        factor =  cb / current_schedule_bal 
+        cpmt = opmt * factor -- `debug` ("Current B"++show cb++">> schedule bal"++ show current_schedule_bal)
+        cfee = ofee * factor 
+        
         orate = getOriginRate inst
 
-        cpmt = opmt * cb / current_schedule_bal
-        cfee = ofee * cb / current_schedule_bal
+        stressed_bal_flow = map (* factor)  $ lastN rt schedule_balances
         prin_flow = replicate rt cpmt 
-        int_flow =  replicate rt cfee 
-
-       -- cf_dates = take (succ ot) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates inst 0
-       -- l = pred (length cf_dates)
-       -- pmt = divideBI ob ot
-       -- schedule_bal = fromRational $ (toRational ob) * (toRational ((length cf_dates) % ot))
-       -- (b_flow,prin_flow,int_flow) = case ptype of 
-       --                                 F_P -> calc_p_i_flow_f_p ob cb schedule_bal pmt cf_dates p orate
+        int_flow =  replicate rt cfee
 
   getCurrentBal (Installment _ b _ ) = b
   
@@ -166,16 +162,12 @@ instance Asset Installment where
                            p 
       where 
 
-          -- (_,_cf_dates) = splitAt (pred (ot-rt)) $ getPaymentDates inst recovery_lag
           last_pay_date:cf_dates = sliceDates (SliceAfterKeepPrevious asOfDay) $ sd:getPaymentDates inst recovery_lag
           cf_dates_length = length cf_dates  -- `debug` ("Dates->>"++show cf_dates)
-          rt = (length cf_dates) - recovery_lag -- `debug` ("CF Length"++ show (length cf_dates))
-          -- cf_dates = filter (> asOfDay) $ getPaymentDates inst recovery_lag
+          rt = length cf_dates - recovery_lag -- `debug` ("CF Length"++ show (length cf_dates))
+          opmt = divideBI ob ot
           schedule_balances = scanl (-) ob (replicate ot opmt)
           current_schedule_bal = schedule_balances !! (ot - rt) -- `debug` ("RT->"++show rt)
-
-          --opmt = divideBI ob ot
-          opmt = divideBI ob ot
           ofee = mulBIR ob (getOriginRate inst)
           orate = getOriginRate inst
 

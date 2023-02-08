@@ -346,10 +346,16 @@ data TriggerEffect = DealStatusTo DealStatus
                    | TriggerEffects [TriggerEffect]
                    deriving (Show,Eq)
 
+data SplitType = EqToLeft
+               | EqToRight
+               | EqToLeftKeepOne
+               | EqToLeftKeepOnes
+
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
     sameDate :: ts -> ts -> Bool
     getDate :: ts -> Date
+    splitByDate :: [ts] -> Date -> SplitType -> ([ts],[ts])
 
 data LookupType = Upward 
                 | Downward

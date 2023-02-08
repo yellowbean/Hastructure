@@ -66,11 +66,11 @@ accrueRentals ad@((accrueD,dr):accrueDs) pd@(payD:payDs) lastAccrueD accAmts pay
                       payDs
                       accrueD 
                       [] 
-                      (payAmts++[(sum (_accAmt:accAmts))])
+                      (payAmts++[sum (_accAmt:accAmts)])
   |otherwise =  let 
                   _accAmt = ((fromRational (toRational (daysBetween lastAccrueD payD))) * dr)
                 in 
-                  accrueRentals ad payDs payD [] (payAmts++[(sum accAmts)+_accAmt])
+                  accrueRentals ad payDs payD [] (payAmts++[sum accAmts+_accAmt])
 
 type RentChangeRate = Rate
 type RentChangeCurve = Ts
