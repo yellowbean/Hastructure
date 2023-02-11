@@ -14,7 +14,7 @@ module Types
   ,Balance,DealStats(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
-  ,ResultComponent(..)
+  ,ResultComponent(..),SplitType(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
   ,Table(..),lookupTable,LookupType(..),epocDate)
   where
@@ -346,16 +346,16 @@ data TriggerEffect = DealStatusTo DealStatus
                    | TriggerEffects [TriggerEffect]
                    deriving (Show,Eq)
 
-data SplitType = EqToLeft
-               | EqToRight
+data SplitType = EqToLeft   -- if equal, the element belongs to left
+               | EqToRight  -- if equal, the element belongs to right
                | EqToLeftKeepOne
                | EqToLeftKeepOnes
+               deriving (Show,Eq)
 
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
     sameDate :: ts -> ts -> Bool
     getDate :: ts -> Date
-    splitByDate :: [ts] -> Date -> SplitType -> ([ts],[ts])
 
 data LookupType = Upward 
                 | Downward

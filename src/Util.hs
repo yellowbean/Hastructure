@@ -7,7 +7,7 @@ module Util
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR
-    ,replace,paddingDefault, capWith, pv2
+    ,replace,paddingDefault, capWith, pv2, splitByDate, rangeBy
     )
     where
 import qualified Data.Time as T
@@ -404,3 +404,24 @@ pv2 discount_rate today d amt =
     distance =  daysBetween today d 
 
 
+splitByDate :: TimeSeries a => [a] -> Date -> SplitType -> ([a],[a])
+splitByDate xs d st 
+  = case st of 
+      EqToLeft ->  span (\x -> (getDate x) <= d) xs
+      EqToRight -> span (\x -> (getDate x) < d) xs
+      EqToLeftKeepOne -> 
+          case findIndex (\x -> (getDate x) >= d ) xs of 
+            Just idx -> splitAt (pred idx) xs -- `debug` ("split with "++show (pred idx)++">>"++show (length xs))
+            Nothing -> (xs,[])
+     -- EqToLeftKeepOnes -> 
+     --     case findIndices (\x -> (getDate x) <= d) xs of
+     --       [] -> (xs,[])
+     --       inds -> 
+rangeBy :: TimeSeries a => [a] -> Date -> Date -> RangeType -> [a]
+rangeBy xs sd ed rt = 
+    case rt of 
+      II -> filter (\x -> (getDate x >= sd) && (getDate x <= ed)) xs
+      IE -> filter (\x -> (getDate x >= sd) && (getDate x < ed)) xs
+      EI -> filter (\x -> (getDate x > sd) && (getDate x <= ed)) xs
+      EE -> filter (\x -> (getDate x > sd) && (getDate x < ed)) xs
+    

@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
-                ,mkCashFlowFrame,combine
+                ,combine
                 ,sizeCashFlowFrame, aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental
@@ -19,7 +19,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
 import Data.Time (Day)
 import Data.Fixed
 import Lib (weightedBy,toDate,getIntervalFactors)
-import Util (mulBR)
+import Util (mulBR,splitByDate)
 import Types
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -80,13 +80,6 @@ instance TimeSeries TsRow where
 data CashFlowFrame = CashFlowFrame [TsRow]
                    deriving (Show,Eq)
 
-mkRow :: [ColType] -> TsRow
-mkRow (ColDate d:ColBal b:ColNum prin:ColNum i:ColNum pre:ColBal def_b:ColNum rec:ColNum los:ColRate rat:[])
-  = MortgageFlow d b prin i pre def_b rec los rat
-
-mkCashFlowFrame :: [[ColType]] -> CashFlowFrame
-mkCashFlowFrame xss = CashFlowFrame $ map mkRow xss
-
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame ts) = length ts
 
@@ -141,17 +134,12 @@ getAllAfterCashFlowFrame cf@(CashFlowFrame trx) d
        [] -> Nothing
        _ -> Just (CashFlowFrame txn)
 
-splitCashFlowFrameByDate :: CashFlowFrame -> Date -> (Maybe CashFlowFrame, Maybe CashFlowFrame)
-splitCashFlowFrameByDate (CashFlowFrame txns) d
-  = let
-      p = L.partition (tsDateLET d) txns
-    in
-      case p of
-        ([], []) -> (Nothing,Nothing)
-        ([], _r) -> (Nothing, Just (CashFlowFrame _r))
-        (_l, []) -> (Just (CashFlowFrame _l), Nothing)
-        (_l, _r) -> (Just (CashFlowFrame _l), Just (CashFlowFrame _r)) --  `debug` (show(p))
-
+splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
+splitCashFlowFrameByDate (CashFlowFrame txns) d st
+  = let 
+      (ls,rs) = splitByDate txns d st
+    in 
+      (CashFlowFrame ls,CashFlowFrame rs)
 
 getTxnAsOf :: CashFlowFrame -> Date -> [TsRow]
 getTxnAsOf (CashFlowFrame txn) d = filter (\x -> getDate x < d) txn

@@ -1,4 +1,4 @@
-module UT.CashflowTest(cfTests)
+module UT.CashflowTest(cfTests,tsSplitTests)
 where
 
 import Test.Tasty
@@ -9,6 +9,8 @@ import qualified Lib as L
 import qualified Asset as P
 import qualified Assumptions as A
 import qualified Cashflow as CF
+import Types
+import Util
 
 import Debug.Trace
 debug = flip trace
@@ -72,3 +74,71 @@ cfTests = testGroup "Cashflow Utils"
        Nothing
        findLatestCf3
     ]
+
+
+tsSplitTests = 
+    let 
+      cf1 = CF.CashFlow (L.toDate "20230101") 100
+      cf2 = CF.CashFlow (L.toDate "20230201") 100
+      cf3 = CF.CashFlow (L.toDate "20230301") 100
+      cf4 = CF.CashFlow (L.toDate "20230401") 100
+      ts1 = [cf1,cf2,cf3,cf4]
+      ts2 = [cf1,cf2,cf2,cf3,cf4]
+      cff = CF.CashFlowFrame [cf1,cf2,cf3,cf4]
+    in 
+      testGroup "Slice Time Series" 
+      [ testCase "Cashflow" $
+          assertEqual "by middle left"
+          ([cf1,cf2],[cf3,cf4]) $
+          splitByDate ts1 (L.toDate "20230215") EqToLeft
+        ,testCase "Cashflow" $
+          assertEqual "on left" 
+          ([cf1,cf2,cf3],[cf4]) $
+          splitByDate ts1 (L.toDate "20230301") EqToLeft
+        ,testCase "Cashflow" $
+          assertEqual "on right"
+          ([cf1,cf2],[cf3,cf4]) $
+          splitByDate ts1 (L.toDate "20230301") EqToRight
+        ,testCase "Cashflow" $
+          assertEqual "by middle right"
+          ([cf1],[cf2, cf3,cf4]) $
+          splitByDate ts1 (L.toDate "20230110") EqToRight
+        ,testCase "Cashflow" $
+          assertEqual "Keep previous one"
+          ([cf1],[cf2, cf3,cf4]) $
+          splitByDate ts1 (L.toDate "20230210") EqToLeftKeepOne
+        ,testCase "Cashflow" $
+          assertEqual "Keep previous one"
+          ([],[cf1,cf2, cf3,cf4]) $
+          splitByDate ts1 (L.toDate "20230201") EqToLeftKeepOne
+        ,testCase "CashflowFrame" $ 
+          assertEqual "Slice on Cashflow Frame"
+          (CF.CashFlowFrame [cf1,cf2],CF.CashFlowFrame [cf3,cf4]) $
+          CF.splitCashFlowFrameByDate cff (L.toDate "20230215") EqToLeft
+        ,testCase "CashflowFrame" $ 
+          assertEqual "Slice on Cashflow Frame"
+          (CF.CashFlowFrame [cf1,cf2,cf3],CF.CashFlowFrame [cf4]) $
+          CF.splitCashFlowFrameByDate cff (L.toDate "20230301") EqToLeft
+        ,testCase "Range of Ts" $
+          assertEqual "get subset of Ts between two dates"
+          [cf2, cf3,cf4] $
+          rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") II
+        ,testCase "Range of Ts" $
+          assertEqual "get subset of Ts between two dates"
+          [cf3,cf4] $
+          rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") EI
+        ,testCase "Range of Ts" $
+          assertEqual "get subset of Ts between two dates"
+          [cf2, cf3] $
+          rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") IE
+        ,testCase "Range of Ts" $
+          assertEqual "get subset of Ts between two dates"
+          [cf3] $
+          rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") EE
+       -- ,testCase "Cashflow" $
+       --   assertEqual "Keep previous ones"
+       --   ([cf1],[cf2, cf2, cf3,cf4]) $
+       --   splitByDate ts2 (L.toDate "20230210") EqToLeftKeepOnes
+      ]
+
+

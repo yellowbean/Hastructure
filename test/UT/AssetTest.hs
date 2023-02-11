@@ -1,4 +1,4 @@
-module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,leaseFunTests)
+module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,leaseFunTests,installmentTest)
 where
 
 import Test.Tasty
@@ -12,6 +12,7 @@ import qualified Asset as P
 import qualified AssetClass.Mortgage as ACM
 import qualified AssetClass.Loan as ACL
 import qualified AssetClass.Lease as ACR
+import qualified AssetClass.Installment as ACI
 import qualified Assumptions as A
 import qualified Cashflow as CF
 
@@ -189,4 +190,51 @@ leaseTests =
             assertEqual "Month Gap by Table : New Lease at period 1"
             (CF.LeaseFlow (L.toDate "20240229") 29)
             ((CF.getTsCashFlowFrame cf5)!!8)
+      ]
+
+installmentTest = 
+    let 
+      loan1 =  ACI.Installment
+                 (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+                 1000 P.Current
+      asofDate1 = (L.toDate "20220115")
+      loan1Cf = P.calcCashflow loan1 asofDate1
+
+      loan2 =  ACI.Installment
+                 (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+                 500 P.Current
+      loan2Cf = P.calcCashflow loan2 asofDate1
+
+      asofDate2 = (L.toDate "20220815")
+      loan3 =  ACI.Installment
+                 (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+                 416.69 P.Current
+      loan3Cf = P.calcCashflow loan3 asofDate2
+
+      loan4 =  ACI.Installment
+                 (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+                 208.35 P.Current
+      loan4Cf = P.calcCashflow loan4 asofDate2
+    in 
+      testGroup "Installment cashflow Tests" [ 
+       testCase "Loan 1" $
+           assertEqual "project period size"
+             12 
+             (CF.sizeCashFlowFrame loan1Cf)
+      ,testCase "Loan 1 (on schedule)" $
+           assertEqual "Balance/Principal/Int at period 1"
+             (Just (CF.LoanFlow (L.toDate "20220201") 916.67 83.33 10 0 0 0 0 0.01))
+             (CF.cfAt loan1Cf 0)
+      ,testCase "Stressed Loan 1" $
+           assertEqual "Balance/Principal/Int at period 1"
+             (Just (CF.LoanFlow (L.toDate "20220201") 458.33 41.66 5 0 0 0 0 0.01))
+             (CF.cfAt loan2Cf 0)
+      ,testCase "Loan 2 with aging(on schedule)" $
+           assertEqual "Balance/Principal/Int at period 1"
+             (Just (CF.LoanFlow (L.toDate "20220901") 333.36 83.33 10 0 0 0 0 0.01))
+             (CF.cfAt loan3Cf 0)
+      ,testCase "Stress Loan 2 with aging" $
+           assertEqual "Balance/Principal/Int at period 1"
+             (Just (CF.LoanFlow (L.toDate "20220901") 166.68 41.66 5 0 0 0 0 0.01))
+             (CF.cfAt loan4Cf 0)
       ]
