@@ -128,7 +128,7 @@ postRunDealR = do
 
 getVersionR :: Handler String
 getVersionR =  let 
-                 _v = "0.8.6"
+                 _v = "0.8.7"
                in
                  do
                    addHeader "Access-Control-Allow-Origin" "*"
