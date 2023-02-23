@@ -136,6 +136,7 @@ instance TimeSeries ActionOnDate where
     getDate (ChangeDealStatusTo d _ ) = d
     cmp ad1 ad2 = compare (getDate ad1) (getDate ad2)
     sameDate ad1 ad2 = getDate ad1 == getDate ad2
+    getDates ads = map getDate ads
 
 actionDates :: [ActionOnDate] -> Dates 
 actionDates = map getDate
@@ -268,6 +269,7 @@ instance TimeSeries (TsPoint a) where
     getDate (TsPoint d a) = d
     sameDate (TsPoint d1 a1) (TsPoint d2 a2) = d1 == d2
     cmp t1 t2 = compare (getDate t1) (getDate t2)
+    getDates tps = map getDate tps
 
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
@@ -356,6 +358,7 @@ class TimeSeries ts where
     cmp :: ts -> ts -> Ordering
     sameDate :: ts -> ts -> Bool
     getDate :: ts -> Date
+    getDates :: [ts] -> [Date]
 
 data LookupType = Upward 
                 | Downward

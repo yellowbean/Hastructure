@@ -40,6 +40,7 @@ import Data.Aeson.Types
 import Debug.Trace
 debug = flip trace
 
+
 class SPV a where
   getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
   getBondBegBal :: a -> String -> Balance
@@ -52,6 +53,8 @@ class DealDates a where
   getClosingDate :: a -> Date
   getFirstPayDate :: a -> Date
 
+
+-- data PoolType = P.Pool | MultAsset 
 
 data TestDeal a = TestDeal {
   name :: String
@@ -901,7 +904,7 @@ runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType ->
     ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption])
 getInits t mAssumps 
-  = (allActionDates ,pCollectionCfAfterCutoff ,rateCurves ,callOptions)  `debug` ("Assump"++ show mAssumps)
+  = (allActionDates, pCollectionCfAfterCutoff, rateCurves, callOptions)  -- `debug` ("Assump"++ show mAssumps)
   where
     dealAssumps = case mAssumps of
                     Just (AP.PoolLevel []) -> []

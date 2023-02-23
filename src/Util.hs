@@ -2,11 +2,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Util
-    (mulBR,mulBIR,mulBI,mulBInt,lastN,yearCountFraction,genSerialDates
+    (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
-    ,multiplyTs,zipTs,getTsVals,divideBI,mulIR
+    ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, splitByDate, rangeBy
     )
     where
@@ -38,6 +38,10 @@ mulIR i r = (toRational i) * r
 
 mulBInt :: Balance -> Int -> Rational 
 mulBInt b i = (toRational b) * (toRational i)
+
+mulBInteger :: Balance -> Integer -> Rational 
+mulBInteger b i = mulBInt b (fromInteger i)
+
 
 mulBI :: Balance -> IRate -> Amount
 mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
@@ -403,6 +407,8 @@ pv2 discount_rate today d amt =
     denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
     distance =  daysBetween today d 
 
+daysInterval :: [Date] -> [Integer]
+daysInterval ds = zipWith daysBetween (init ds) (tail ds)
 
 splitByDate :: TimeSeries a => [a] -> Date -> SplitType -> ([a],[a])
 splitByDate xs d st 
@@ -413,6 +419,11 @@ splitByDate xs d st
           case findIndex (\x -> (getDate x) >= d ) xs of 
             Just idx -> splitAt (pred idx) xs -- `debug` ("split with "++show (pred idx)++">>"++show (length xs))
             Nothing -> (xs,[])
+     -- EqToRightKeepOne -> 
+     --     case findIndex (\x -> (getDate x) >= d ) xs of 
+     --       Just idx -> splitAt (pred idx) xs -- `debug` ("split with "++show (pred idx)++">>"++show (length xs))
+     --       Nothing -> (xs,[])
+
      -- EqToLeftKeepOnes -> 
      --     case findIndices (\x -> (getDate x) <= d) xs of
      --       [] -> (xs,[])
