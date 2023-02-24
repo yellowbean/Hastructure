@@ -86,7 +86,7 @@ depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectD
                                 let  
                                   curve_ds = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
                                   curve_vs = map 
-                                               (\x -> toRational (getValByDate rc x) + toRational spd)
+                                               (\x -> toRational (getValByDate rc Exc x) + toRational spd)
                                                (init curve_ds)
                                   ds_factor = getIntervalFactors curve_ds
                                   weightInt = sum $ zipWith (*) curve_vs ds_factor --  `debug` ("ds"++show curve_ds++"vs"++show curve_vs++"factors"++show ds_factor)
@@ -96,7 +96,7 @@ depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectD
                               let 
                                 curve_ds = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
                                 curve_vs = map 
-                                             (\x -> toRational (getValByDate rc x) + toRational spd)
+                                             (\x -> toRational (getValByDate rc Exc x) + toRational spd)
                                              (init curve_ds)
                                 bals = weightAvgBalanceByDates curve_ds _txns
                               in

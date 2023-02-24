@@ -132,7 +132,7 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
        A.PrepaymentFactors _ts -> 
            let
              ppy_ts = zipTs pDates _ppy_rates
-             new_prepayment_rates = getTsVals $ multiplyTs ppy_ts _ts 
+             new_prepayment_rates = getTsVals $ multiplyTs Exc ppy_ts _ts 
            in                   
              buildAssumptionRate pDates assumps 
                                               new_prepayment_rates
@@ -142,7 +142,7 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
        A.DefaultFactors _ts -> 
            let
              def_ts = zipTs pDates _def_rates
-             new_def_rates = getTsVals $ multiplyTs def_ts _ts 
+             new_def_rates = getTsVals $ multiplyTs Exc def_ts _ts 
            in                   
              buildAssumptionRate pDates assumps 
                                               _ppy_rates
@@ -226,7 +226,7 @@ calc_p_i_flow_i_p bal dates r
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool [] = undefined -- `debug` ("Empty cashflow from assets")
-aggPool xs = foldr1 CF.combine xs  -- `debug` ("XS"++show(xs))
+aggPool xs = foldr1 CF.combine xs   -- `debug` ("XS"++show(xs))
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]

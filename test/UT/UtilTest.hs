@@ -247,34 +247,38 @@ tsTest =
     testCase "" $
       assertEqual "left most" 
         [0,100,80,60] $
-        getValByDates testTs [(toDate "20061201")
-                             ,(toDate "20061211")
-                             ,(toDate "20070301")
-                             ,(toDate "20081201")]
+        getValByDates testTs Exc [(toDate "20061201")
+                                 ,(toDate "20061211")
+                                 ,(toDate "20070301")
+                                 ,(toDate "20081201")]
 
     ,testCase "FactorCurveClosed" $                         
       assertEqual "leftNotFound as 1"
         1.0 $
         getValByDate 
           (FactorCurveClosed tps ed)
+          Exc
           (toDate "20060601")
     ,testCase "FactorCurveClosed" $                         
       assertEqual "in middle"
         80 $
         getValByDate 
           (FactorCurveClosed tps ed)
+          Exc
           (toDate "20070202")          
     ,testCase "FactorCurveClosed" $                         
       assertEqual "right after last dps"
         60 $
         getValByDate 
           (FactorCurveClosed tps ed)
+          Exc
           (toDate "20081221") 
     ,testCase "FactorCurveClosed" $                         
       assertEqual "After end date"
         1.0 $
         getValByDate 
           (FactorCurveClosed tps ed)
+          Exc
           (toDate "20090601")
   ]
 
@@ -289,19 +293,19 @@ ts2Test =
     testCase "" $
       assertEqual "left most" 
         (1 % 100) $
-        getValByDate testThresholdCurve (toDate "20211201")
+        getValByDate testThresholdCurve Inc (toDate "20211201")
     ,testCase "" $
       assertEqual "on first-ts" 
         (1 % 100) $
-        getValByDate testThresholdCurve (toDate "20220101")
+        getValByDate testThresholdCurve Inc (toDate "20220101")
     ,testCase "" $
       assertEqual "after first-ts" 
         (2 % 100) $
-        getValByDate testThresholdCurve (toDate "20220110")
+        getValByDate testThresholdCurve Inc (toDate "20220110")
     ,testCase "" $
       assertEqual "Right most" 
         (3 % 100) $
-        getValByDate testThresholdCurve (toDate "20220310")
+        getValByDate testThresholdCurve Inc (toDate "20220310")
   ]
 
 dateVectorPatternTest = 

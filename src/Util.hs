@@ -255,29 +255,48 @@ genSerialDatesTill2 rt sd dp ed
 tsPointVal :: TsPoint a -> a 
 tsPointVal (TsPoint d v) = v
 
-getValByDate :: Ts -> Date -> Rational
-getValByDate (BalanceCurve dps) d 
-  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+getValByDate :: Ts -> CutoffType -> Date -> Rational
+
+getValByDate (LeftBalanceCurve dps) ct d
+  = case find (\(TsPoint _d _) -> (cmpFun ct) _d d) (reverse dps) of 
+      Just (TsPoint _d v) -> toRational v
+      Nothing -> 0
+    where 
+      cmpFun Inc = (<=)
+      cmpFun Exc = (<)
+
+getValByDate (BalanceCurve dps) Exc d
+  = case find (\(TsPoint _d _) -> d > _d) (reverse dps)  of 
       Just (TsPoint _d v) -> toRational v
       Nothing -> 0
 
-getValByDate (FloatCurve dps) d 
-  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+getValByDate (BalanceCurve dps) Inc d
+  = case find (\(TsPoint _d _) -> d >= _d) (reverse dps)  of 
+      Just (TsPoint _d v) -> toRational v
+      Nothing -> 0
+
+getValByDate (FloatCurve dps) Exc d
+  = case find (\(TsPoint _d _) -> d > _d) (reverse dps)  of 
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
-getValByDate (IRateCurve dps) d
-  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of
+getValByDate (IRateCurve dps) Exc d
+  = case find (\(TsPoint _d _) -> d > _d) (reverse dps)  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
-getValByDate (ThresholdCurve dps) d
-  = case find (\(TsPoint _d _) -> ( d <= _d )) dps  of
+getValByDate (ThresholdCurve dps) Inc d
+  = case find (\(TsPoint _d _) -> d <= _d) dps  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
-      Nothing -> tsPointVal $ last dps
+      Nothing -> tsPointVal $ last dps --`debug` ("Not found in gvbd")
 
-getValByDate (FactorCurveClosed dps ed) d 
-  = case find (\(TsPoint _d _) -> ( d > _d )) (reverse dps)  of 
+getValByDate (ThresholdCurve dps) Exc d
+  = case find (\(TsPoint _d _) -> d < _d) dps  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> tsPointVal $ last dps --`debug` ("Not found in gvbd")
+
+getValByDate (FactorCurveClosed dps ed) Exc d
+  = case find (\(TsPoint _d _) -> d > _d) (reverse dps)  of 
       Just found@(TsPoint _found_d _found_v) -> 
         if d >= ed then 
           1.0
@@ -285,7 +304,7 @@ getValByDate (FactorCurveClosed dps ed) d
           _found_v
       Nothing -> 1.0
 
-getValByDate (PricingCurve dps) d 
+getValByDate (PricingCurve dps) _ d
   = case (d>=lday,d<=fday) of 
       (True,_) -> tsPointVal $ last dps
       (_,True) -> tsPointVal $ head dps
@@ -304,8 +323,9 @@ getValByDate (PricingCurve dps) d
       lday = getDate $ last dps
 
 
-getValByDates :: Ts -> [Date] -> [Rational]
-getValByDates rc ds = map (getValByDate rc) ds
+getValByDates :: Ts -> CutoffType -> [Date] -> [Rational]
+-- getValByDates rc ds = map (getValByDate rc) ds
+getValByDates rc ct = map (getValByDate rc ct)
 
 getTsVals :: Ts -> [Rational]
 getTsVals (FloatCurve ts) = [ v | (TsPoint d v) <- ts ]
@@ -364,9 +384,9 @@ calcInt bal start_date end_date int_rate day_count =
 zipTs :: [Date] -> [Rational] -> Ts 
 zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- (zip ds rs) ]
 
-multiplyTs :: Ts -> Ts -> Ts
-multiplyTs (FloatCurve ts1) ts2
-  = FloatCurve [(TsPoint d (v * (getValByDate ts2 d))) | (TsPoint d v) <- ts1 ] 
+multiplyTs :: CutoffType -> Ts -> Ts -> Ts
+multiplyTs ct (FloatCurve ts1) ts2
+  = FloatCurve [(TsPoint d (v * (getValByDate ts2 ct d))) | (TsPoint d v) <- ts1 ] 
 
 projDatesByPattern :: DatePattern -> Date -> Date -> Dates   --TODO to be replace by generateDateSeries
 projDatesByPattern dp sd ed
@@ -431,8 +451,10 @@ splitByDate xs d st
 rangeBy :: TimeSeries a => [a] -> Date -> Date -> RangeType -> [a]
 rangeBy xs sd ed rt = 
     case rt of 
-      II -> filter (\x -> (getDate x >= sd) && (getDate x <= ed)) xs
+      II -> filter (\x -> (getDate x >= sd) && (getDate x <= ed)) xs  -- `debug` ("in rangeBy II")
       IE -> filter (\x -> (getDate x >= sd) && (getDate x < ed)) xs
       EI -> filter (\x -> (getDate x > sd) && (getDate x <= ed)) xs
       EE -> filter (\x -> (getDate x > sd) && (getDate x < ed)) xs
     
+debugLine :: Show a => [a] -> String 
+debugLine xs = ""

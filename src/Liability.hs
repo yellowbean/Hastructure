@@ -128,7 +128,7 @@ pv pc@(PricingCurve _) today d amt =
    realToFrac $ (realToFrac amt) * (1 / factor) -- `debug` ("DF:"++show discount_factor)
   where
    distance::Double =  fromIntegral $ daysBetween today d
-   discount_rate = fromRational $ getValByDate pc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
+   discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
    factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)  -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
    -- discount_factor = (1+discount_rate) ** (fromRational $ (yearCountFraction DC_ACT_ACT today d))
 

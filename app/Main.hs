@@ -94,10 +94,10 @@ postRunPoolR = do
   req <- requireCheckJsonBody  :: Handler RunPoolReq 
   returnJson $ 
       case req of
-        RunPoolReq (MPool p) ma -> P.aggPool $ D.runPool2 p ma
-        RunPoolReq (LPool p) ma -> P.aggPool $ D.runPool2 p ma
-        RunPoolReq (IPool p) ma -> P.aggPool $ D.runPool2 p ma
-        RunPoolReq (RPool p) ma -> P.aggPool $ D.runPool2 p ma
+        RunPoolReq (MPool p) ma -> P.aggPool $ D.runPool2 p ma  -- Mortgage
+        RunPoolReq (LPool p) ma -> P.aggPool $ D.runPool2 p ma  -- Loan
+        RunPoolReq (IPool p) ma -> P.aggPool $ D.runPool2 p ma  -- Installment
+        RunPoolReq (RPool p) ma -> P.aggPool $ D.runPool2 p ma  -- Rental 
 
 optionsRunDealR :: Handler String 
 optionsRunDealR = do

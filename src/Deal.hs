@@ -488,7 +488,7 @@ applyFloatRate (L.Floater idx spd p dc mf mc) d ras
       (Nothing,Just c) -> min c _rate
     where
       idx_rate = case ra of 
-        Just (RateCurve _idx _ts) -> fromRational $ getValByDate _ts d
+        Just (RateCurve _idx _ts) -> fromRational $ getValByDate _ts Exc d
         Just (RateFlat _idx _r) ->   _r
         Nothing -> 0.0
       ra = getRateAssumptionByIndex ras idx
@@ -550,19 +550,19 @@ testTrigger t d trigger =
     (ThresholdBal EqBelow ds v) -> queryDeal t (patchDateToStats d ds) <= v -- `debug` ("<= Above "++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
     (ThresholdBal Above ds v) -> queryDeal t (patchDateToStats d ds) > v  --  `debug` ("> Above "++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
     (ThresholdBal EqAbove ds v) -> queryDeal t (patchDateToStats d ds) >= v -- `debug` (">= Above "++show (queryDeal t (patchDateToStats d ds))++"||"++ show v)
-    (ThresholdBalCurve Below ds ts ) -> queryDeal t (patchDateToStats d ds) < fromRational (getValByDate ts d)
-    (ThresholdBalCurve EqBelow ds ts ) -> queryDeal t (patchDateToStats d ds) <= fromRational (getValByDate ts d)
-    (ThresholdBalCurve Above ds ts ) -> queryDeal t (patchDateToStats d ds) > fromRational (getValByDate ts d)
-    (ThresholdBalCurve EqAbove ds ts ) -> queryDeal t (patchDateToStats d ds) >= fromRational (getValByDate ts d)
+    (ThresholdBalCurve Below ds ts ) -> queryDeal t (patchDateToStats d ds) < fromRational (getValByDate ts Exc d)
+    (ThresholdBalCurve EqBelow ds ts ) -> queryDeal t (patchDateToStats d ds) <= fromRational (getValByDate ts Exc d)
+    (ThresholdBalCurve Above ds ts ) -> queryDeal t (patchDateToStats d ds) > fromRational (getValByDate ts Exc d)
+    (ThresholdBalCurve EqAbove ds ts ) -> queryDeal t (patchDateToStats d ds) >= fromRational (getValByDate ts Exc d)
     -- query rate
     (ThresholdRate Below ds v ) -> queryDealRate t (patchDateToStats d ds) < v
     (ThresholdRate EqBelow ds v ) -> queryDealRate t (patchDateToStats d ds) <= v
     (ThresholdRate Above ds v) -> queryDealRate t (patchDateToStats d ds) > v  
     (ThresholdRate EqAbove ds v ) -> queryDealRate t (patchDateToStats d ds) >= v
-    (ThresholdRateCurve Below ds ts ) -> queryDealRate t (patchDateToStats d ds) < fromRational (getValByDate ts d)
-    (ThresholdRateCurve EqBelow ds ts ) -> queryDealRate t (patchDateToStats d ds) <= fromRational (getValByDate ts d)
-    (ThresholdRateCurve Above ds ts ) -> queryDealRate t (patchDateToStats d ds) > fromRational (getValByDate ts d)  -- `debug` ("> Above "++ show (queryDealRate t (patchDateToStats d ds))++"|"++ show (getValByDate ts d) ++"|"++show "DATE"++show d)
-    (ThresholdRateCurve EqAbove ds ts ) -> queryDealRate t (patchDateToStats d ds) >= fromRational (getValByDate ts d)
+    (ThresholdRateCurve Below ds ts ) -> queryDealRate t (patchDateToStats d ds) < fromRational (getValByDate ts Exc d)
+    (ThresholdRateCurve EqBelow ds ts ) -> queryDealRate t (patchDateToStats d ds) <= fromRational (getValByDate ts Exc d)
+    (ThresholdRateCurve Above ds ts ) -> queryDealRate t (patchDateToStats d ds) > fromRational (getValByDate ts Exc d)  -- `debug` ("> Above "++ show (queryDealRate t (patchDateToStats d ds))++"|"++ show (getValByDate ts d) ++"|"++show "DATE"++show d)
+    (ThresholdRateCurve EqAbove ds ts ) -> queryDealRate t (patchDateToStats d ds) >= fromRational (getValByDate ts Exc d)
     
     (PassMaturityDate bn) -> let 
                                 b = bonds t Map.! bn
@@ -888,7 +888,7 @@ runPool2 (P.Pool [] (Just cf) asof _) Nothing = [cf]
 runPool2 (P.Pool [] (Just cf) asof _) (Just (AP.PoolLevel [])) = [cf]
 runPool2 (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel assumps)) 
   = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn) asof assumps) ] -- `debug` ("PROJ in schedule flow")
-runPool2 (P.Pool as _ asof _) Nothing = map (\x -> P.calcCashflow x asof) as -- `debug` ("RUNPOOL")
+runPool2 (P.Pool as _ asof _) Nothing = map (\x -> P.calcCashflow x asof) as `debug` ("RUNPOOL-> calc cashflow")
 runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
   = case applyAssumpType of
        AP.PoolLevel [] -> map (\x -> P.calcCashflow x asof) as  -- `debug` ("In Run pool"++show as)
@@ -947,9 +947,9 @@ getInits t mAssumps
     allActionDates = case stopDate of
                        Just (AP.StopRunBy d) ->
                          filter (\x -> getDate x < d) _actionDates
-                       Nothing ->  _actionDates   -- `debug` (">>action dates done"++show(_actionDates))
+                       Nothing ->  _actionDates   `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
 
-    poolCf = P.aggPool $ runPool2 (pool t) mAssumps  -- `debug` ("agg pool flow")
+    poolCf = P.aggPool $ runPool2 (pool t) mAssumps  `debug` ("agg pool flow")
     poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool Cf in pool>>"++show poolCf)
     pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (actionDates pActionDates)  `debug`  (("poolCf "++ show poolCfTs) )
     rateCurves = buildRateCurves [] dealAssumps  

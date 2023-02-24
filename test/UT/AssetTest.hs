@@ -107,7 +107,7 @@ leaseFunTests =
     let 
       a = 0 
       rentals = ACR.accrueRentals 
-                    (ThresholdCurve
+                    (LeftBalanceCurve
                       [TsPoint  (L.toDate "20230201") 0.05
                        ,TsPoint (L.toDate "20230215") 0.06
                        ,TsPoint (L.toDate "20230301") 0.07])
@@ -168,14 +168,14 @@ leaseTests =
             assertEqual "first date of regular lease"
                 (L.toDate "20230630")
                 (head (CF.getDatesCashFlowFrame cf1))
+        ,testCase "1 year Stepup lease first pay" $
+            assertEqual "first pay"
+                (CF.LeaseFlow (L.toDate "20230630") 377.76 29)
+                (head (CF.getTsCashFlowFrame cf2))
         ,testCase "1 year Stepup lease" $
             assertEqual "total rental"
                 406.76
                 (sum $ map CF.tsTotalCash (CF.getTsCashFlowFrame cf2))
-        ,testCase "1 year Stepup lease" $
-            assertEqual "first rental step up at Month 1"
-                (CF.LeaseFlow (L.toDate "20230630") 377.76 29)
-                (head (CF.getTsCashFlowFrame cf2))
         ,testCase "1 year Stepup lease" $
             assertEqual "first rental step up at Month 2"
                 (CF.LeaseFlow (L.toDate "20230731") 346.14 31.62)

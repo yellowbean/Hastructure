@@ -214,7 +214,7 @@ instance Asset Mortgage  where
                       Fix r ->  replicate cf_dates_length r
                       Floater idx sprd _orate p mfloor ->
                               case getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates (mkRateTs ps) cf_dates
+                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates (mkRateTs ps) Exc cf_dates
                                 Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
                                 Nothing -> replicate cf_dates_length 0.0
 

@@ -10,7 +10,7 @@ module Types
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
   ,actionDates,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
-  ,RangeType(..),FormulaType(..),CustomDataType(..)
+  ,RangeType(..),CutoffType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
@@ -277,6 +277,7 @@ instance Ord a => Ord (TsPoint a) where
 data Ts = FloatCurve [TsPoint Rational]
         | BoolCurve [TsPoint Bool]
         | BalanceCurve [TsPoint Balance]
+        | LeftBalanceCurve [TsPoint Balance]
         | RatioCurve [TsPoint Rational]
         | ThresholdCurve [TsPoint Rational]
         | IRateCurve [TsPoint IRate]
@@ -301,7 +302,7 @@ instance FromJSONKey WhenTrigger where
 
 
 data RangeType = II | IE | EI | EE
-
+data CutoffType = Inc | Exc
 
 data ResultComponent = CallAt Date
                   | DealStatusChangeTo Date DealStatus

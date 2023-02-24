@@ -57,21 +57,21 @@ instance TimeSeries AccrualPeriod where
     getDates xs = map getDate xs
 
 accrueRentalBetween :: Date -> Date -> Ts -> Amount
-accrueRentalBetween sd ed rc@(ThresholdCurve tps)
+accrueRentalBetween sd ed rc@(LeftBalanceCurve tps)
   = fromRational $ sum $ zipWith (*) ints vs -- `debug` ("ds from range"++show sd++show ed++">>ints"++show ints++">>"++show vs)
    where 
-     ds = getDates $ rangeBy tps sd ed II 
-     vs = init $ getValByDates rc ds 
-     ints = map fromIntegral $ daysInterval ds -- `debug` ("ds value ->"++show ds)
+     ds = [sd]++(getDates $ rangeBy tps sd ed EE)++[ed]   `debug` ("in ds with rc->"++show rc++">>"++show tps++">>"++show sd++">>"++show ed)
+     vs = init $ getValByDates rc Inc ds  
+     ints = map fromIntegral $ daysInterval ds  `debug` ("ds value ->"++show ds++"->>"++show vs)
 
 accrueRentals :: Ts -> [Date] -> LastAccuredDate -> [Amount] -> [Amount]
 accrueRentals _ [] _ payAmts = payAmts
-accrueRentals rc@(ThresholdCurve tps) pd@(payD:payDs) accrueCutoff payAmts
+accrueRentals rc@(LeftBalanceCurve tps) pd@(payD:payDs) accrueCutoff payAmts
   = accrueRentals
       rc
       payDs
       payD
-      (payAmts ++ [accrueRentalBetween accrueCutoff payD rc])
+      (payAmts ++ [accrueRentalBetween accrueCutoff payD rc])  `debug` ("ACCRENTALS"++ show accrueCutoff++">>"++show payD++"rc+"++ show rc)
 
 type RentChangeRate = Rate
 type RentChangeCurve = Ts
@@ -87,7 +87,7 @@ nextLease l@(RegularLease (LeaseInfo sd ot dp dr) bal rt _) (rcCurve,tc,gd)
         nextOriginTerm = round $ mulIR ot (1+tc) 
         nextEndDate = last $ genSerialDates dp nextStartDate (fromIntegral nextOriginTerm)
         yearsBetween = yearCountFraction DC_ACT_365F sd nextStartDate
-        currentRateOnCurve = getValByDate rcCurve nextStartDate
+        currentRateOnCurve = getValByDate rcCurve Exc nextStartDate
         nextDailyRate = dr + mulBR dr currentRateOnCurve*(fromRational yearsBetween)
         newBal =  fromRational $ mulBInteger nextDailyRate $ daysBetween nextStartDate nextEndDate
 
@@ -99,7 +99,7 @@ nextLease l@(StepUpLease (LeaseInfo sd ot dp dr) lsteupInfo bal rt _) (rcCurve,t
         nextOriginTerm = round $ mulIR ot (1+tc) 
         nextEndDate = last $ genSerialDates dp nextStartDate (fromIntegral nextOriginTerm)
         yearsBetween = yearCountFraction DC_ACT_365F sd nextStartDate
-        currentRateOnCurve = getValByDate rcCurve nextStartDate
+        currentRateOnCurve = getValByDate rcCurve Exc nextStartDate
         nextDailyRate = dr + mulBR dr currentRateOnCurve*(fromRational yearsBetween)
         newBal = -1
 
@@ -150,40 +150,37 @@ patchBalance (RegularLease (LeaseInfo sd ot dp dr) bal rt st)
       pmts = [ fromRational (mulBInt dr ds) | ds <- getIntervalDays cf_dates ]
       new_bal = sum pmts -- `debug` ("cf_date" ++ show cf_dates)
     in
-      ((RegularLease (LeaseInfo sd ot dp dr) new_bal rt st), pmts)
+      (RegularLease (LeaseInfo sd ot dp dr) new_bal rt st, pmts)
 
 patchBalance (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st)
   = let 
       p_dates = projectCfDates dp sd ot 
       cf_dates = lastN (succ rt) $ projectCfDates dp sd ot
       last_pay_date = head cf_dates
-      next_pay_date = cf_dates!!1
-      accrueEndsAt = last cf_dates
+      next_pay_date = head $ tail cf_dates
+      accrueEndsAt = last cf_dates -- `debug` ("0-0")
       pmts = case lsu of 
                (FlatRate _dp _r) ->
                  let 
-                   a_dates = genSerialDatesTill2 II sd _dp accrueEndsAt
+                   a_dates = genSerialDatesTill2 II sd _dp accrueEndsAt -- `debug` ("0-1")
                    accrueDates = sliceDates (SliceOnAfterKeepPrevious next_pay_date) a_dates
                    lengthFutureAccD = length accrueDates
                    lengthAccD = length a_dates
-                   -- dailyRates = [ mulBR dr ((toRational (1+_r))^^x) | x <- [(lengthAccD - lengthFutureAccD - 1)..lengthAccD]] `debug` ("accd length"++show lengthAccD++"futureAccd"++show lengthFutureAccD)
                    dailyRates = [ (mulBR dr ((toRational (1+_r))^^x)) | x <- [(lengthAccD - lengthFutureAccD)..lengthAccD]] -- `debug` ("accd length"++show lengthAccD++"futureAccd"++show lengthFutureAccD)
-                   rate_curve = ThresholdCurve [ TsPoint d (toRational v) | (d,v) <- zip accrueDates dailyRates ]
+                   rate_curve = LeftBalanceCurve [ TsPoint d v | (d,v) <- zip accrueDates dailyRates ]
                  in  
-                   --accrueRentals :: Ts -> [Date] -> LastAccuredDate -> [Amount] -> [Amount]
-                   accrueRentals rate_curve (tail cf_dates) last_pay_date [] -- `debug` ("Using curve"++show rate_curve)
+                   accrueRentals rate_curve (tail cf_dates) last_pay_date []  -- `debug` (">>>> rentals")-- `debug` ("Using curve"++show rate_curve)
                (ByRateCurve _dp _rs) -> 
                  let 
                    a_dates = genSerialDatesTill2 II sd _dp accrueEndsAt
-                   --lastAccD:accrueDates = sliceDates (SliceAfterKeepPrevious next_pay_date) a_dates
                    accrueDates = sliceDates (SliceOnAfterKeepPrevious next_pay_date) a_dates
-                   factors = scanl (*) 1.0 $ [ (_r + 1)  | _r <- _rs] `debug` ("Slice acc dates"++ show a_dates++">>"++show next_pay_date) 
+                   factors = scanl (*) 1.0 $ [ _r + 1  | _r <- _rs] -- `debug` ("Slice acc dates"++ show a_dates++">>"++show next_pay_date) 
                    dailyRatesCurve = [ mulBR dr f | f <- factors ]
                    dailyRates =  paddingDefault (last dailyRatesCurve) dailyRatesCurve (length accrueDates) `debug` (">>>>ACCRUEDATES"++show accrueDates)
-                   rate_curve = ThresholdCurve [ TsPoint d (toRational v) | (d,v) <- zip accrueDates dailyRates ]
+                   rate_curve = LeftBalanceCurve [ TsPoint d v | (d,v) <- zip accrueDates dailyRates ]
                  in 
                    accrueRentals rate_curve (tail cf_dates) last_pay_date [] -- `debug` ("Using curve->"++show rate_curve++">>"++ show last_pay_date)
-      new_bal = sum pmts  `debug` ("Patch balance pmts"++ show pmts)
+      new_bal = sum pmts  -- `debug` ("Patch balance pmts"++ show pmts)
     in 
       (StepUpLease (LeaseInfo sd ot dp dr) lsu new_bal rt st,pmts)
 
@@ -192,7 +189,7 @@ instance Asset Lease where
     calcCashflow l@(RegularLease _ _ _ _) d =
         CF.CashFlowFrame flows  -- `debug` ("FLows for regular"++show flows)
       where 
-        ((RegularLease (LeaseInfo sd ot dp dr) bal rt st),pmts) = patchBalance l
+        (RegularLease (LeaseInfo sd ot dp dr) bal rt st,pmts) = patchBalance l
         cf_dates = lastN (succ rt) $ projectCfDates dp sd ot
         daysBetween = getIntervalDays cf_dates -- `debug` (">>>>>> genSerialDates"++ show cf_dates)
         bals = tail $ scanl (-) bal pmts -- `debug` ("PMTS for regular"++show pmts)
@@ -202,16 +199,16 @@ instance Asset Lease where
                       EqToRight
 
     calcCashflow l@(StepUpLease _ _ _ _ _) d =
-        CF.CashFlowFrame flows
+        CF.CashFlowFrame flows `debug` ("5_01"++show flows)
       where 
-        ((StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st),pmts) = patchBalance l
-        p_dates = projectCfDates dp sd ot 
-        cf_dates = lastN (succ rt) p_dates  -- `debug` ("P dates"++ show p_dates)
-        bals = tail $ scanl (-) bal pmts -- `debug` ("PMTS->"++ show pmts) 
+        (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st,pmts) = patchBalance l `debug` ("1")
+        p_dates = projectCfDates dp sd ot `debug` ("2")
+        cf_dates = lastN (succ rt) p_dates `debug` ("3")   -- `debug` ("P dates"++ show p_dates)
+        bals = tail $ scanl (-) bal pmts `debug` ("4"++show pmts)     -- `debug` ("PMTS->"++ show pmts) 
         (_,flows) = splitByDate 
                       (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
                       d
-                      EqToRight
+                      EqToRight `debug` ("5"++show bals++">>"++show pmts)
 
     getPaymentDates l@(RegularLease (LeaseInfo sd ot dp _) _ rt _) _
         = genSerialDates dp sd ot 
@@ -222,16 +219,16 @@ instance Asset Lease where
     projCashflow l asOfDay assumps = 
         foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
       where 
-        currentCf = calcCashflow l asOfDay
-        (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,epocDate)
-        pdates = getPaymentDates l 0  -- `debug` ("RCURVE"++show rcCurve)
+        currentCf = calcCashflow l asOfDay `debug` ("6")
+        (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,epocDate) `debug` ("7")
+        pdates = getPaymentDates l 0   `debug` ("8")-- `debug` ("RCURVE"++show rcCurve)
         rcCurveToUse = if isTsEmpty rcCurve then 
                          mkTs [(epocDate,rc),(ed,rc)]
                        else 
                          rcCurve
-        gapDaysFromTbl = getGapDaysByBalance l mgTbl 
-        newLeases = nextLeaseTill l (rcCurveToUse,0.0,max gapDays gapDaysFromTbl) (last pdates) ed [] 
-        newCfs = [ calcCashflow l asOfDay | l <- newLeases ] -- `debug` ("new leases"++ show newLeases++ "MGap"++ show (gapDays,gapDaysFromTbl))
+        gapDaysFromTbl = getGapDaysByBalance l mgTbl  `debug` ("9")
+        newLeases = nextLeaseTill l (rcCurveToUse,0.0,max gapDays gapDaysFromTbl) (last pdates) ed []  `debug` ("10")
+        newCfs = [ calcCashflow l asOfDay | l <- newLeases ]  `debug` ("11")-- `debug` ("new leases"++ show newLeases++ "MGap"++ show (gapDays,gapDaysFromTbl))
 
     getCurrentBal l = case l of 
                         StepUpLease _ _ bal _ _ -> bal

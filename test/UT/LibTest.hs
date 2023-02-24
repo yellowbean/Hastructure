@@ -11,6 +11,7 @@ import Test.Tasty.HUnit
 
 import qualified Data.Time as T
 import Lib
+import Types
 import Util
 import Stmt
 import Data.Ratio
@@ -19,10 +20,10 @@ curveTests =
     let
      _ts = (FloatCurve [TsPoint (toDate "20210101") 0.01
                          ,TsPoint (toDate "20230101") 0.02])
-     _r1 = getValByDate _ts (toDate "20201231")
-     _r2 = getValByDate _ts (toDate "20210201")
-     _r3 = getValByDate _ts (toDate "20230102")
-     _r4 = getValByDate _ts (toDate "20231231")
+     _r1 = getValByDate _ts Exc (toDate "20201231")
+     _r2 = getValByDate _ts Exc (toDate "20210201")
+     _r3 = getValByDate _ts Exc (toDate "20230102")
+     _r4 = getValByDate _ts Exc (toDate "20231231")
 
      _priceTs = (PricingCurve
                   [TsPoint (toDate "20210101") 0.01
@@ -37,15 +38,15 @@ curveTests =
     ,testCase "Pricing Curve Test1" $
       assertEqual "left"
         0.01
-        (getValByDate _priceTs (toDate "20201231"))
+        (getValByDate _priceTs Exc (toDate "20201231"))
     ,testCase "Pricing Curve Test2" $
       assertEqual "Right"
         0.02
-        (getValByDate _priceTs (toDate "20210121"))
+        (getValByDate _priceTs Exc (toDate "20210121"))
     ,testCase "Pricing Curve Test3" $
       assertEqual "Mid"
         (13 % 900)
-        (getValByDate _priceTs (toDate "20210105"))
+        (getValByDate _priceTs Exc (toDate "20210105"))
   ]
 
 --queryStmtTests = testGroup "queryStmtTest"
