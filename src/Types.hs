@@ -16,7 +16,7 @@ module Types
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..),SplitType(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
-  ,Table(..),lookupTable,LookupType(..),epocDate)
+  ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum)
   where
 
 import qualified Data.Text as T
@@ -70,6 +70,8 @@ type DefaultRate = Rate
 type RecoveryRate = Rate
 type RemainTerms = Int
 
+
+type BorrowerNum = Int
 
 -- http://www.deltaquants.com/day-count-conventions
 data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Basis
@@ -203,6 +205,7 @@ data DealStats =  CurrentBondBalance
                | CumulativePoolDefaultedRate
                | OriginalBondBalance
                | OriginalPoolBalance
+               | CurrentPoolBorrowerNum
                | BondFactor
                | PoolFactor
                | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
@@ -217,6 +220,7 @@ data DealStats =  CurrentBondBalance
                | FutureCurrentBondBalance Date
                | FutureCurrentBondFactor Date
                | FutureCurrentPoolFactor Date
+               | FutureCurrentPoolBorrowerNum Date
                | FutureOriginalPoolBalance
                | CurrentBondBalanceOf [String]
                | BondIntPaidAt Date String

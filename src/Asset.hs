@@ -44,6 +44,8 @@ class Show a => Asset a where
   isDefaulted :: a -> Bool
   getPaymentDates :: a -> Int -> [Date]
   projCashflow :: a -> Date -> [A.AssumptionBuilder] -> CF.CashFlowFrame
+  getBorrowerNum :: a -> Int
+  {-# MINIMAL calcCashflow #-}
 
 data IssuanceFields = IssuanceBalance
                     deriving (Show,Ord,Eq,Read)

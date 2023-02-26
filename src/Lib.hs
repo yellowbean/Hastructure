@@ -14,7 +14,7 @@ module Lib
     ,toDate
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
-    ,zipWith8,zipWith9, monthsOfPeriod
+    ,zipWith8,zipWith9,zipWith10, monthsOfPeriod
     ,weightedBy, mkTs, DealStatus(..),isTsEmpty
     ,mkRateTs,Pre(..)
     ) where
@@ -236,6 +236,12 @@ zipWith9 :: (a->b->c->d->e->f->g->h->i->j) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]-
 zipWith9 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js)
                    =  z a b c d e f g h j : zipWith9 z as bs cs ds es fs gs hs js
 zipWith9 _ _ _ _ _ _ _ _ _ _ = []
+
+zipWith10 :: (a->b->c->d->e->f->g->h->i->j->k) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]->[k]
+zipWith10 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks)
+                   =  z a b c d e f g h j k: zipWith10 z as bs cs ds es fs gs hs js ks
+zipWith10 _ _ _ _ _ _ _ _ _ _ _ = []
+
 
 floatToFixed :: HasResolution a => Float -> Fixed a
 floatToFixed x = y where

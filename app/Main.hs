@@ -8,7 +8,7 @@
 
 module Main where
 
-import Data.Aeson hiding (json)
+import Data.Aeson hiding ( json )
 import GHC.Generics
 import Data.Monoid      ((<>))
 import Data.Text        (Text, pack)
@@ -28,7 +28,6 @@ import qualified Data.ByteString.Char8 as BS
 
 import qualified Data.Map as Map 
 
-import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Maybe
 import Data.Aeson.TH
@@ -45,8 +44,8 @@ debug = flip trace
 
 data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
               | LDeal (D.TestDeal AC_Loan.Loan)
-              | IDeal (D.TestDeal AC_Installment.Installment)
-              | RDeal (D.TestDeal AC_Lease.Lease)
+              | IDeal (D.TestDeal AC_Installment.Installment) 
+              | RDeal (D.TestDeal AC_Lease.Lease) 
 
 $(deriveJSON defaultOptions ''DealType)
 
@@ -109,8 +108,8 @@ postRunDealR :: Handler Value
 postRunDealR = do
   req <- requireCheckJsonBody  :: Handler RunDealReq 
   case req of
-    RunDealReq (MDeal d) a p -> run d a p
-    RunDealReq (LDeal d) a p -> run d a p
+    RunDealReq (MDeal d) a p -> run d a p -- `debug` "Off"
+    RunDealReq (LDeal d) a p -> run d a p -- `debug` "One"
     RunDealReq (IDeal d) a p -> run d a p
     RunDealReq (RDeal d) a p -> run d a p
   where 

@@ -21,15 +21,21 @@ debug = flip trace
 
 tm = ACM.Mortgage
      (P.MortgageOriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Level)
-     8000 0.08 19 P.Current
+     8000 0.08 19 
+     Nothing
+     P.Current
 
 tm1 = ACM.Mortgage
      (P.MortgageOriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
-     240 0.08 19 P.Current
+     240 0.08 19 
+     Nothing
+     P.Current
 
 tm2 = ACM.Mortgage
      (P.MortgageOriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
-     240 0.08 19 (P.Defaulted Nothing)
+     240 0.08 19 
+     Nothing 
+     (P.Defaulted Nothing)
 
 asOfDate = L.toDate "20210605"
 tmcf_00 = P.projCashflow tm asOfDate []

@@ -94,6 +94,7 @@ td2 = TestDeal {
                                          4000
                                          0.085
                                          60
+                                         Nothing
                                          P.Current
                                 ,ACM.Mortgage
                                    P.MortgageOriginalInfo{
@@ -106,6 +107,7 @@ td2 = TestDeal {
                                    200
                                    0.085
                                    60
+                                   Nothing
                                    (P.Defaulted Nothing)
                                  ]
                  ,P.futureCf=Nothing
@@ -152,12 +154,12 @@ triggerTests = testGroup "Trigger Tests"
   [ let 
       setup = 0 
       poolflows = CF.CashFlowFrame $
-                     [CF.MortgageFlow (toDate "20220201") 800 100 20 0 0 0 0 0.08
-                     ,CF.MortgageFlow (toDate "20220301") 700 100 20 0 0 0 0 0.08
-                     ,CF.MortgageFlow (toDate "20220401") 600 100 20 0 0 0 0 0.08
-                     ,CF.MortgageFlow (toDate "20220501") 500 100 20 0 0 0 0 0.08
-                     ,CF.MortgageFlow (toDate "20220601") 400 100 20 0 0 0 0 0.08
-                     ,CF.MortgageFlow (toDate "20220701") 300 100 20 0 0 0 0 0.08
+                     [CF.MortgageFlow (toDate "20220201") 800 100 20 0 0 0 0 0.08 Nothing
+                     ,CF.MortgageFlow (toDate "20220301") 700 100 20 0 0 0 0 0.08 Nothing
+                     ,CF.MortgageFlow (toDate "20220401") 600 100 20 0 0 0 0 0.08 Nothing 
+                     ,CF.MortgageFlow (toDate "20220501") 500 100 20 0 0 0 0 0.08 Nothing
+                     ,CF.MortgageFlow (toDate "20220601") 400 100 20 0 0 0 0 0.08 Nothing
+                     ,CF.MortgageFlow (toDate "20220701") 300 100 20 0 0 0 0 0.08 Nothing
                      ]
       ads = [PoolCollection (toDate "20220201") "" 
              ,RunWaterfall  (toDate "20220225") ""

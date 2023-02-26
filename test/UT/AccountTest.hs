@@ -69,11 +69,11 @@ reserveAccTest =
     acc2 = Account 150 "A2" Nothing (Just (FixReserve 210)) Nothing
     accMap = Map.fromList [("A1",acc1),("A2",acc2)]
     testCFs = CF.CashFlowFrame $
-               [CF.MortgageFlow (toDate "20220601") 150 20 10 0 0 0 0 0
-               ,CF.MortgageFlow (toDate "20220701") 130 20 10 0 0 0 0 0
-               ,CF.MortgageFlow (toDate "20220801") 110 20 10 0 0 0 0 0
-               ,CF.MortgageFlow (toDate "20220901") 90 20 10 0 0 0 0 0
-               ,CF.MortgageFlow (toDate "20221001") 70 20 10 0 0 0 0 0]
+               [CF.MortgageFlow (toDate "20220601") 150 20 10 0 0 0 0 0 Nothing
+               ,CF.MortgageFlow (toDate "20220701") 130 20 10 0 0 0 0 0 Nothing
+               ,CF.MortgageFlow (toDate "20220801") 110 20 10 0 0 0 0 0 Nothing
+               ,CF.MortgageFlow (toDate "20220901") 90 20 10 0 0 0 0 0 Nothing
+               ,CF.MortgageFlow (toDate "20221001") 70 20 10 0 0 0 0 0 Nothing]
     ttd = (setFutureCF td2 testCFs) {accounts = accMap}
   in 
     testGroup "Test On Reserve Acc"

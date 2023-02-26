@@ -995,6 +995,9 @@ queryDeal t s =
          Just m -> Map.findWithDefault (-1) P.IssuanceBalance m -- `debug` (">>>>"++show(m))
          Nothing -> (-1) -- `debug` ("Pool Stat"++show(pool t))
 
+    CurrentPoolBorrowerNum ->
+       fromRational $ toRational $ foldl (\acc x -> acc + P.getBorrowerNum x) 0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
+ 
     AllAccBalance ->
         sum $ map A.accBalance $ Map.elems (accounts t) -- `debug` ("Summing acc balance")
     
@@ -1431,7 +1434,9 @@ td = TestDeal {
                                          4000
                                          0.085
                                          60
-                                         P.Current]
+                                         Nothing
+                                         P.Current
+                                         ]
                  ,P.futureCf=Nothing
                  ,P.asOfDate=T.fromGregorian 2022 1 1
                  ,P.issuanceStat= Just (Map.fromList [(P.IssuanceBalance,4000)])

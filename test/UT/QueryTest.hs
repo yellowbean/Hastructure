@@ -17,14 +17,13 @@ import Types
 
 queryTest = 
   let 
-    a = CashFlowFrame $ [ MortgageFlow (toDate "20220101") 100 20 15 0 0 0 0 0.01 
-                        , MortgageFlow (toDate "20220201") 100 20 15 0 0 0 0 0.01 
-                        , MortgageFlow (toDate "20220301") 100 20 15 0 0 0 0 0.01 
-                        , MortgageFlow (toDate "20220401") 100 20 15 0 0 0 0 0.01 
+    a = CashFlowFrame $ [ MortgageFlow (toDate "20220101") 100 20 15 0 0 0 0 0.01 Nothing 
+                        , MortgageFlow (toDate "20220201") 100 20 15 0 0 0 0 0.01 Nothing 
+                        , MortgageFlow (toDate "20220301") 100 20 15 0 0 0 0 0.01 Nothing 
+                        , MortgageFlow (toDate "20220401") 100 20 15 0 0 0 0 0.01 Nothing 
                         ]
     opool = (pool DT.td2)
     t = DT.td2 { pool = opool { futureCf = Just a } }                    
-    
   in 
     testGroup "" $ 
       [
