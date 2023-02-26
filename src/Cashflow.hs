@@ -9,6 +9,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate,getDatesCashFlowFrame
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
+                ,mflowBorrowerNum
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
                 ,tsTotalCash,Date -- ,PersonalLoanFlow
                 ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
@@ -352,6 +353,7 @@ mflowDate (LeaseFlow x _ _ ) = x
 
 mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 mflowBorrowerNum (MortgageFlow _ _ _ _ _ _ _ _ _ x) = x
+mflowBorrowerNum _ = undefined
 
 mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs

@@ -947,9 +947,9 @@ getInits t mAssumps
     allActionDates = case stopDate of
                        Just (AP.StopRunBy d) ->
                          filter (\x -> getDate x < d) _actionDates
-                       Nothing ->  _actionDates   `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
+                       Nothing ->  _actionDates   -- `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
 
-    poolCf = P.aggPool $ runPool2 (pool t) mAssumps  `debug` ("agg pool flow")
+    poolCf = P.aggPool $ runPool2 (pool t) mAssumps  -- `debug` ("agg pool flow")
     poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool Cf in pool>>"++show poolCf)
     pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (actionDates pActionDates)  `debug`  (("poolCf "++ show poolCfTs) )
     rateCurves = buildRateCurves [] dealAssumps  
@@ -975,6 +975,17 @@ queryDealRate t s =
           in 
             cumuPoolDefBal / originPoolBal -- `debug` (show (toRational (queryDeal t OriginalPoolBalance) ))
 
+queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Int 
+queryDealInt t s = 
+  case s of 
+    FutureCurrentPoolBorrowerNum d ->
+      case P.futureCf (pool t) of 
+        Nothing -> 0
+        Just (CF.CashFlowFrame trs) -> 
+            let 
+              (_cf,_) = splitByDate trs d EqToLeft
+            in 
+              fromMaybe 0 $ CF.mflowBorrowerNum $ last _cf
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t s =
@@ -990,11 +1001,9 @@ queryDeal t s =
              0.0 $
              filter P.isDefaulted (P.assets (pool t))
     OriginalPoolBalance ->
-       -- foldl (\acc x -> (acc + (P.getOriginBal x))) 0.0 (P.assets (pool t))
        case P.issuanceStat (pool t) of
          Just m -> Map.findWithDefault (-1) P.IssuanceBalance m -- `debug` (">>>>"++show(m))
          Nothing -> (-1) -- `debug` ("Pool Stat"++show(pool t))
-
     CurrentPoolBorrowerNum ->
        fromRational $ toRational $ foldl (\acc x -> acc + P.getBorrowerNum x) 0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
  
@@ -1016,6 +1025,8 @@ queryDeal t s =
        case P.futureCf (pool t) of 
          Nothing -> 0.0
          Just (CF.CashFlowFrame trs) -> CF.mflowBalance $ last trs
+
+
 
     FutureCurrentPoolBegBalance asOfDay ->
          case _poolSnapshot of
@@ -1239,6 +1250,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   | otherwise = f { F.feeDue = (fd+(amt*(fromIntegral (periodGap - 1)))) , F.feeDueDate = Just calcDay } -- `debug` ("Gap->"++show(fromIntegral periodGap))
   where
     periodGap =  length $ projDatesByPattern p _fdDay calcDay
+
 
 updateLiqProvider :: (TestDeal a) -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@(CE.LiqFacility _ (CE.ReplenishSupport _ b) (Just curBal) _ curCredit stmt) -- refresh available balance

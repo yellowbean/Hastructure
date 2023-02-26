@@ -115,8 +115,8 @@ instance Asset Installment where
         cf_dates_length = length cf_dates 
         rt = length cf_dates
         opmt = divideBI ob ot  
-        schedule_balances = scanl (-) ob (replicate ot opmt)
-        current_schedule_bal =  schedule_balances !! (ot - rt)  -- `debug` ("Schedule Balance->"++show schedule_balances)
+        schedule_balances = scanl (-) ob (replicate ot opmt) -- `debug` (show ot++">>"++show rt)
+        current_schedule_bal =  schedule_balances !! (ot - rt)   
         
         ofee = mulBIR ob (getOriginRate inst)
 
