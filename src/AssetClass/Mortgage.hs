@@ -145,7 +145,7 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               deriving (Show)
 
 instance Asset Mortgage  where
-  calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _ _) d =
+  calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _mbn _) d =
       CF.CashFlowFrame $ zipWith10
                             CF.MortgageFlow
                               cf_dates
@@ -157,7 +157,8 @@ instance Asset Mortgage  where
                               (replicate l 0.0)
                               (replicate l 0.0)
                               rate_used
-                              (replicate l Nothing)
+                              --(replicate l Nothing)
+                              bnflow
     where
       orate = getOriginRate m
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
@@ -178,7 +179,9 @@ instance Asset Mortgage  where
                                                 (_bal / fromIntegral _term) 
                                                 _bal 
                                                 ([last_pay_date]++cf_dates) 
-                                                _rate  -- `debug` ("in Even term "++show _term)
+                                                _rate  
+      bnflow = [ (\y -> (fromInteger (round ((toRational y) * (toRational (b / _bal)))))) <$> _mbn  | b <- b_flow ]
+--      _new_mbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows)  d = CF.CashFlowFrame flows
 

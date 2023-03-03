@@ -950,8 +950,8 @@ getInits t mAssumps
                        Nothing ->  _actionDates   -- `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ runPool2 (pool t) mAssumps  -- `debug` ("agg pool flow")
-    poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool Cf in pool>>"++show poolCf)
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (actionDates pActionDates)  `debug`  (("poolCf "++ show poolCfTs) )
+    poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf)
+    pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (actionDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
     rateCurves = buildRateCurves [] dealAssumps  
     callOptions = buildCallOptions Nothing dealAssumps -- `debug` ("Assump"++show(assumps))
 
@@ -975,8 +975,8 @@ queryDealRate t s =
           in 
             cumuPoolDefBal / originPoolBal -- `debug` (show (toRational (queryDeal t OriginalPoolBalance) ))
 
-queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Int 
-queryDealInt t s = 
+queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
+queryDealInt t s d = 
   case s of 
     FutureCurrentPoolBorrowerNum d ->
       case P.futureCf (pool t) of 
@@ -1251,6 +1251,23 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd (Just _fdDay) fa _ _)
   where
     periodGap =  length $ projDatesByPattern p _fdDay calcDay
 
+calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd Nothing fa lpd _)
+  | calcDay >= fs = calcDueFee t calcDay f {F.feeDueDate = Just fs }
+  | otherwise = f 
+
+calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd (Just _fdDay) fa lpd _)
+  | _fdDay == calcDay = f 
+  | periodGap == 0 = f 
+  | otherwise = f { F.feeDue = fd+newFeeDueAmt , F.feeDueDate = Just calcDay } 
+  where 
+    dueDates = projDatesByPattern p _fdDay (pred calcDay)
+    --dueDates = genSerialDatesTill2 EE (pred _fdDay) p (succ calcDay)
+    periodGap = length dueDates  -- `debug` ("Due Dates"++ show dueDates)
+    baseCount = queryDealInt t (patchDateToStats calcDay s) calcDay
+    newFeeDueAmt = fromRational $ mulBInt amt $ baseCount * periodGap -- `debug` ("amt"++show amt++">>"++show baseCount++">>"++show periodGap)
+
+
+
 
 updateLiqProvider :: (TestDeal a) -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@(CE.LiqFacility _ (CE.ReplenishSupport _ b) (Just curBal) _ curCredit stmt) -- refresh available balance
@@ -1348,6 +1365,7 @@ patchDateToStats d t
          Max d1 d2 -> Max (patchDateToStats d d1) (patchDateToStats d d2)
          Factor _ds r -> Factor (patchDateToStats d _ds) r
          UseCustomData n -> CustomData n d
+         CurrentPoolBorrowerNum -> FutureCurrentPoolBorrowerNum d
          _ -> t
 
 calcTargetAmount :: P.Asset a => TestDeal a -> Date -> A.Account -> Balance

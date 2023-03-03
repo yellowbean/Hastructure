@@ -25,6 +25,7 @@ data FeeType = AnnualRateFee DealStats Rate
              | PctFee DealStats Rate
              | FixFee Balance
              | RecurFee DatePattern Balance
+             | NumFee DatePattern DealStats Amount
              | FeeFlow Ts
              deriving (Show,Eq)
 

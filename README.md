@@ -37,7 +37,6 @@
 * Accounts
   * Reserve Account  :heavy_check_mark:
   * Bank Account (with interest) :heavy_check_mark:
-  * Pay a single fee with a list of Accounts :heavy_check_mark:
 * Bonds/Tranches
   * Float Index rate :heavy_check_mark:
   * Sequential :heavy_check_mark:
@@ -58,6 +57,7 @@
   * Pool Interest pct :heavy_check_mark:
   * Fix Amount Fees  :heavy_check_mark:
   * Custom Fee Flow :heavy_check_mark:
+  * Number Type Fee of a deal :heavy_check_mark:
 * Liquidity Provider 
   * line of credit/ Unlimit support  :heavy_check_mark:
 * Trigger 
@@ -68,7 +68,7 @@
 * Scenario Analysis
   * Running multiple scenarios :heavy_check_mark:
 * Formula Support 
-  * User is able to using var of deal ( Pool Balance,Account balance .. ) to construct formula.
+  * User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc. :heavy_check_mark:
 * Misc
   * Support user define pay dates & pool collection dates :heavy_check_mark:
 

@@ -218,7 +218,6 @@ genSerialDates dp sd num
           else
             [(1,31),(2,28),(3,31),(4,30),(5,31),(6,30),(7,31),(8,31),(9,30),(10,31),(11,30),(12,31)]
         (_y,_m,_d) = T.toGregorian sd  
-        yearBegin = T.fromGregorian _y 1 1
 
 genSerialDatesTill:: Date -> DatePattern -> Date -> Dates 
 genSerialDatesTill sd ptn ed 
@@ -240,16 +239,24 @@ genSerialDatesTill sd ptn ed
 
 genSerialDatesTill2 :: RangeType -> Date -> DatePattern -> Date -> Dates
 genSerialDatesTill2 rt sd dp ed 
-  = case rt of 
-      II -> sd:_r ++ [ed]
-      EI -> _r  ++ [ed]
-      IE -> if (head _r)==sd then 
-              _r 
-            else
-              sd:_r
-      EE -> _r 
+  = case (rt,(head _r)==sd) of 
+      (II,True) -> _r ++ [ed]
+      (II,False)-> sd:_r ++ [ed] 
+      (EI,True) -> tail _r ++ [ed]
+      (EI,False) -> _r ++ [ed]
+      (IE,True) -> _r 
+      (IE,False) -> sd:_r 
+      (EE,True) -> tail _r 
+      (EE,False) -> _r 
+      
+      --EI -> _r  ++ [ed]
+      --IE -> if (head _r)==sd then 
+      --        _r 
+      --      else
+      --        sd:_r
+      --EE -> _r 
     where 
-      _r = genSerialDatesTill sd dp ed 
+      _r = genSerialDatesTill sd dp ed -- maybe sd in _r, but not ed in _r
 
 
 tsPointVal :: TsPoint a -> a 
