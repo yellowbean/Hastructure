@@ -219,24 +219,32 @@ installmentTest =
     let 
       loan1 =  ACI.Installment
                  (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
-                 1000 P.Current
+                 1000 
+                 12 
+                 P.Current
       asofDate1 = (L.toDate "20220115")
       loan1Cf = P.calcCashflow loan1 asofDate1
 
       loan2 =  ACI.Installment
                  (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
-                 500 P.Current
+                 500 
+                 12
+                 P.Current
       loan2Cf = P.calcCashflow loan2 asofDate1
 
       asofDate2 = (L.toDate "20220815")
       loan3 =  ACI.Installment
                  (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
-                 416.69 P.Current
+                 416.69 
+                 5
+                 P.Current
       loan3Cf = P.calcCashflow loan3 asofDate2
 
       loan4 =  ACI.Installment
                  (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
-                 208.35 P.Current
+                 208.35 
+                 5
+                 P.Current
       loan4Cf = P.calcCashflow loan4 asofDate2
     in 
       testGroup "Installment cashflow Tests" [ 

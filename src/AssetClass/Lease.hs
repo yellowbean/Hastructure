@@ -60,9 +60,9 @@ accrueRentalBetween :: Date -> Date -> Ts -> Amount
 accrueRentalBetween sd ed rc@(LeftBalanceCurve tps)
   = fromRational $ sum $ zipWith (*) ints vs -- `debug` ("ds from range"++show sd++show ed++">>ints"++show ints++">>"++show vs)
    where 
-     ds = [sd]++(getDates $ rangeBy tps sd ed EE)++[ed]   `debug` ("in ds with rc->"++show rc++">>"++show tps++">>"++show sd++">>"++show ed)
+     ds = [sd]++(getDates $ rangeBy tps sd ed EE)++[ed]  -- `debug` ("in ds with rc->"++show rc++">>"++show tps++">>"++show sd++">>"++show ed)
      vs = init $ getValByDates rc Inc ds  
-     ints = map fromIntegral $ daysInterval ds  `debug` ("ds value ->"++show ds++"->>"++show vs)
+     ints = map fromIntegral $ daysInterval ds -- `debug` ("ds value ->"++show ds++"->>"++show vs)
 
 accrueRentals :: Ts -> [Date] -> LastAccuredDate -> [Amount] -> [Amount]
 accrueRentals _ [] _ payAmts = payAmts
@@ -71,7 +71,7 @@ accrueRentals rc@(LeftBalanceCurve tps) pd@(payD:payDs) accrueCutoff payAmts
       rc
       payDs
       payD
-      (payAmts ++ [accrueRentalBetween accrueCutoff payD rc])  `debug` ("ACCRENTALS"++ show accrueCutoff++">>"++show payD++"rc+"++ show rc)
+      (payAmts ++ [accrueRentalBetween accrueCutoff payD rc]) -- `debug` ("ACCRENTALS"++ show accrueCutoff++">>"++show payD++"rc+"++ show rc)
 
 type RentChangeRate = Rate
 type RentChangeCurve = Ts

@@ -372,6 +372,5 @@ combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combineCashFlow cf1 (CashFlowFrame txn) 
   = appendCashFlow cf1 txn
 
-
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)
