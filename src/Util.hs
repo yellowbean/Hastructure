@@ -8,6 +8,7 @@ module Util
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, splitByDate, rangeBy
+    ,shiftTsByAmt
     )
     where
 import qualified Data.Time as T
@@ -465,3 +466,10 @@ rangeBy xs sd ed rt =
     
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
+
+shiftTsByAmt :: Ts -> Rational -> Ts 
+shiftTsByAmt (IRateCurve  tps) delta 
+  = IRateCurve $ [ TsPoint d ((fromRational delta)+v) | TsPoint d v <- tps ]
+
+shiftTsByAmt _ts delta = _ts
+

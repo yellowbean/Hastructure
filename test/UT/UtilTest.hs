@@ -1,5 +1,5 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
-                  ,tsTest,ts2Test,dateVectorPatternTest,paddingTest,dateSliceTest
+                  ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
                   ,capTest)--,daycountTests3,daycountTests4)
 where
 
@@ -372,3 +372,13 @@ capTest =
         (capWith a 5)
       ]
 
+ts3Test = 
+  let 
+    ts1 = IRateCurve [TsPoint (toDate "20230301") 0.03,TsPoint (toDate "20230301") 0.05]
+  in 
+    testGroup "curve update test"
+    [ testCase "shift curve" $ 
+      assertEqual "Shift RateCurve by 0.01"
+      (IRateCurve [TsPoint (toDate "20230301") 0.04,TsPoint (toDate "20230301") 0.06]) $
+      (shiftTsByAmt ts1 0.01)
+    ]

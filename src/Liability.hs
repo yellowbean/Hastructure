@@ -7,7 +7,7 @@ module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
   ,payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,weightAverageBalance,fv2)
+  ,weightAverageBalance,fv2,calcZspread)
   where
 
 import Language.Haskell.TH
@@ -124,13 +124,12 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest --
                    deriving (Show,Eq)
 
 pv :: Ts -> Date -> Date -> Amount -> Amount
-pv pc@(PricingCurve _) today d amt = 
+pv pc today d amt = 
    realToFrac $ (realToFrac amt) * (1 / factor) -- `debug` ("DF:"++show discount_factor)
   where
    distance::Double =  fromIntegral $ daysBetween today d
    discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
-   factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)  -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
-   -- discount_factor = (1+discount_rate) ** (fromRational $ (yearCountFraction DC_ACT_ACT today d))
+   factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)   -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
 
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
 fv2 discount_rate today futureDay amt =
@@ -236,6 +235,27 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ _ stmt)
                 Nothing -> []
                 Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 
+
+calcZspread :: (Balance,Date) -> (Balance,Rational) -> Maybe S.Statement -> Ts -> Spread
+calcZspread _ _ Nothing _ = 0
+
+calcZspread (tradePrice,priceDay) (trialPrice,spd) (Just (S.Statement txns)) riskFreeCurve = 
+    let 
+      (_,futureTxns) = splitByDate txns priceDay EqToRight
+      cashflow = map S.getTxnAmt futureTxns
+      ds = map S.getTxnDate futureTxns
+      pvCurve = shiftTsByAmt riskFreeCurve spd
+      pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ]
+      newPrice = sum pvs -- `debug` ("PVS->>"++ show pvs)
+      newSpd = if newPrice > tradePrice then 
+                 spd * 1.015
+               else 
+                 spd * 0.985
+    in 
+      if abs(newPrice - tradePrice) <= 0.001 then 
+         fromRational spd -- `debug` ("trail price"++show (fromRational spd))
+      else
+        calcZspread (tradePrice,priceDay) (newPrice, newSpd) (Just (S.Statement txns)) riskFreeCurve
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

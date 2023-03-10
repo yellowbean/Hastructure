@@ -199,16 +199,16 @@ instance Asset Lease where
                       EqToRight
 
     calcCashflow l@(StepUpLease _ _ _ _ _) d =
-        CF.CashFlowFrame flows `debug` ("5_01"++show flows)
+        CF.CashFlowFrame flows -- `debug` ("5_01"++show flows)
       where 
         (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st,pmts) = patchBalance l `debug` ("1")
-        p_dates = projectCfDates dp sd ot `debug` ("2")
-        cf_dates = lastN (succ rt) p_dates `debug` ("3")   -- `debug` ("P dates"++ show p_dates)
-        bals = tail $ scanl (-) bal pmts `debug` ("4"++show pmts)     -- `debug` ("PMTS->"++ show pmts) 
+        p_dates = projectCfDates dp sd ot -- `debug` ("2")
+        cf_dates = lastN (succ rt) p_dates -- `debug` ("3")   -- `debug` ("P dates"++ show p_dates)
+        bals = tail $ scanl (-) bal pmts -- `debug` ("4"++show pmts)     -- `debug` ("PMTS->"++ show pmts) 
         (_,flows) = splitByDate 
                       (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
                       d
-                      EqToRight `debug` ("5"++show bals++">>"++show pmts)
+                      EqToRight -- `debug` ("5"++show bals++">>"++show pmts)
 
     getPaymentDates l@(RegularLease (LeaseInfo sd ot dp _) _ rt _) _
         = genSerialDates dp sd ot 

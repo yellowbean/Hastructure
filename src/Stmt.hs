@@ -196,5 +196,16 @@ instance Eq Txn where
   (BondTxn d1 _ _ _ _ _ _ ) == (BondTxn d2 _ _ _ _ _ _ )
     = d1 == d2
 
+instance TimeSeries Txn where 
+  cmp tr1 tr2 = compare (getDate tr1) (getDate tr2)
+  sameDate tr1 tr2 = (getDate tr1) == (getDate tr2)
+  getDate (BondTxn t _ _ _ _ _ _ ) = t
+  getDate (AccTxn t _ _ _ ) = t
+  getDate (ExpTxn t _ _ _ _ ) = t
+  getDate (SupportTxn t _ _ _ _) = t
+  getDates txns = map getDate txns
+
+
+
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)

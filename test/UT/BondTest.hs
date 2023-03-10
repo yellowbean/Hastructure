@@ -12,6 +12,7 @@ import qualified Stmt  as S
 import qualified Asset as P
 import qualified Assumptions as A
 import qualified Cashflow as CF
+import Util
 import Types
 import Data.Ratio
 
@@ -126,6 +127,19 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "pay int to 2 bonds" $
       assertEqual "pay int" 2400  $ B.bndBalance (B.payPrin pday 600 b5)
+    ,
+    let 
+      b6 = b1
+      pday = L.toDate "20220301" -- `debug` ("stmt>>>>>"++ show (B.bndStmt b6))
+      rateCurve = IRateCurve [TsPoint (L.toDate "20220201") 0.03 ,TsPoint (L.toDate "20220401") 0.04]
+      --rateCurve = IRateCurve [TsPoint (L.toDate "20220201") 0.03::IRate]
+    in 
+      testCase "Z spread test" $
+      assertEqual "Z spread test 01" 
+      0.085796
+      (B.calcZspread  (500.0,pday) (103.0,0.01) (B.bndStmt b6) rateCurve)
+      --(B.calcZspread  (500.0,pday) (103.0,1/100) Nothing rateCurve)
+
   ]
 
 bndTests = testGroup "Float Bond Tests" [
@@ -159,4 +173,3 @@ bndUtilTest = testGroup "Bond PV/FV Test" [
             103.89
             (B.fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 
                                          ]
-
