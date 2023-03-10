@@ -121,7 +121,8 @@ type IRR = Rational
 data YieldResult = Yield
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest -- valuation,wal,accu,duration
-                   deriving (Show,Eq)
+                 | ZSpread Spread
+                 deriving (Show,Eq)
 
 pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc today d amt = 
@@ -236,10 +237,12 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ _ stmt)
                 Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 
 
-calcZspread :: (Balance,Date) -> (Balance,Rational) -> Maybe S.Statement -> Ts -> Spread
-calcZspread _ _ Nothing _ = 0
+calcZspread :: (Balance,Date) -> Int -> (Balance,Rational) -> Maybe S.Statement -> Ts -> Spread
+calcZspread _ _ _ Nothing _ = 0
 
-calcZspread (tradePrice,priceDay) (trialPrice,spd) (Just (S.Statement txns)) riskFreeCurve = 
+calcZspread (tradePrice,priceDay) count (trialPrice,spd) (Just (S.Statement txns)) riskFreeCurve  
+  | count >= 10000 = fromRational spd
+  | otherwise =
     let 
       (_,futureTxns) = splitByDate txns priceDay EqToRight
       cashflow = map S.getTxnAmt futureTxns
@@ -247,15 +250,26 @@ calcZspread (tradePrice,priceDay) (trialPrice,spd) (Just (S.Statement txns)) ris
       pvCurve = shiftTsByAmt riskFreeCurve spd
       pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ]
       newPrice = sum pvs -- `debug` ("PVS->>"++ show pvs)
-      newSpd = if newPrice > tradePrice then 
-                 spd * 1.015
+      newSpd_ = if newPrice > tradePrice then 
+                 if spd>0 then 
+                    spd * 1.005
+                 else
+                    spd * 0.995
                else 
-                 spd * 0.985
+                 if spd>0 then 
+                    spd * 0.995
+                 else
+                    spd * 1.005
+
+      newSpd = if newSpd_ <= 0.00001 && newSpd_>0 then 
+                 newSpd_ * (-1)
+               else
+                 newSpd_
     in 
-      if abs(newPrice - tradePrice) <= 0.001 then 
+      if abs(newPrice - tradePrice) <= 0.0001 then 
          fromRational spd -- `debug` ("trail price"++show (fromRational spd))
       else
-        calcZspread (tradePrice,priceDay) (newPrice, newSpd) (Just (S.Statement txns)) riskFreeCurve
+        calcZspread (tradePrice,priceDay) (succ count) (newPrice, newSpd) (Just (S.Statement txns)) riskFreeCurve -- `debug` ("Run with newprice"++show newPrice++"Count->"++show count ) 
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

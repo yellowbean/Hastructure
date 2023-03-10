@@ -53,7 +53,6 @@ class DealDates a where
   getClosingDate :: a -> Date
   getFirstPayDate :: a -> Date
 
-
 -- data PoolType = P.Pool | MultAsset 
 
 data TestDeal a = TestDeal {
@@ -769,6 +768,17 @@ data ExpectReturn = DealStatus
 
 priceBonds :: TestDeal a -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (bonds t)
+
+priceBonds t (AP.RunZSpread curve bond_prices) 
+  = Map.mapWithKey 
+      (\bn (pd,price)-> L.ZSpread $
+                           L.calcZspread 
+                             (price,pd) 
+                             0
+                             (100,0.02) 
+                             (L.bndStmt ((bonds t)Map.!bn))
+                             curve)
+      bond_prices
 
 runDeal :: P.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput
         -> (TestDeal a,Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))

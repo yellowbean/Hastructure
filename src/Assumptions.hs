@@ -72,7 +72,8 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
 
                 deriving (Show)
 
-data BondPricingInput = DiscountCurve T.Day Ts
+data BondPricingInput = DiscountCurve Date Ts
+                      | RunZSpread Ts (Map.Map BondName (Date,Balance))
                       deriving (Show)
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
