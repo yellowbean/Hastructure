@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
 
-    runs-on: self-hosted
+    runs-on: buildjet-64vcpu-ubuntu-2004
 
     steps:
     - uses: actions/checkout@v3
