@@ -61,7 +61,6 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "PV test" $
         assertEqual "simple PV with flat curve"  
-          --(2060 % 21)
           98.09
           _pv
     ,
@@ -87,7 +86,7 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "flat rate discount " $
       assertEqual "Test Pricing on case 01" 
-        (B.PriceResult 501.650609 16.721666 (1 / 4) (1 / 1) 0.0) 
+        (B.PriceResult 501.650609 16.721666 (1 / 4) (1 / 1) 1.94 0.0) 
         pr
     ,
      let
@@ -103,9 +102,8 @@ pricingTests = testGroup "Pricing Tests"
                         b2
      in
        testCase " discount curve with two rate points " $
-       -- assertEqual "Test Pricing on case 01" (B.PriceResult 816.1008 27.203362 0.043918636 0.18040144 20.383562) pr
        assertEqual "Test Pricing on case 01" 
-            (B.PriceResult 814.61 27.153666 (1 / 25) 0.17  19.2) 
+            (B.PriceResult 814.61 27.153666 (1 / 25) 0.17 0.20 19.2) 
             pr  --TODO need to confirm
     ,
     let
@@ -136,8 +134,8 @@ pricingTests = testGroup "Pricing Tests"
     in 
       testCase "Z spread test" $
       assertEqual "Z spread test 01" 
-      0.085796
-      (B.calcZspread  (500.0,pday) (103.0,0.01) (B.bndStmt b6) rateCurve)
+      0.085795
+      (B.calcZspread  (500.0,pday) 0 (103.0,0.01) (B.bndStmt b6) rateCurve)
       --(B.calcZspread  (500.0,pday) (103.0,1/100) Nothing rateCurve)
 
   ]

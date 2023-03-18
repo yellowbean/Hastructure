@@ -176,7 +176,7 @@ patchBalance (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st)
                    accrueDates = sliceDates (SliceOnAfterKeepPrevious next_pay_date) a_dates
                    factors = scanl (*) 1.0 $ [ _r + 1  | _r <- _rs] -- `debug` ("Slice acc dates"++ show a_dates++">>"++show next_pay_date) 
                    dailyRatesCurve = [ mulBR dr f | f <- factors ]
-                   dailyRates =  paddingDefault (last dailyRatesCurve) dailyRatesCurve (length accrueDates) `debug` (">>>>ACCRUEDATES"++show accrueDates)
+                   dailyRates =  paddingDefault (last dailyRatesCurve) dailyRatesCurve (length accrueDates)-- `debug` (">>>>ACCRUEDATES"++show accrueDates)
                    rate_curve = LeftBalanceCurve [ TsPoint d v | (d,v) <- zip accrueDates dailyRates ]
                  in 
                    accrueRentals rate_curve (tail cf_dates) last_pay_date [] -- `debug` ("Using curve->"++show rate_curve++">>"++ show last_pay_date)
@@ -219,16 +219,16 @@ instance Asset Lease where
     projCashflow l asOfDay assumps = 
         foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
       where 
-        currentCf = calcCashflow l asOfDay `debug` ("6")
-        (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,epocDate) `debug` ("7")
-        pdates = getPaymentDates l 0   `debug` ("8")-- `debug` ("RCURVE"++show rcCurve)
+        currentCf = calcCashflow l asOfDay-- `debug` ("6")
+        (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,epocDate)-- `debug` ("7")
+        pdates = getPaymentDates l 0  -- `debug` ("8")-- `debug` ("RCURVE"++show rcCurve)
         rcCurveToUse = if isTsEmpty rcCurve then 
                          mkTs [(epocDate,rc),(ed,rc)]
                        else 
                          rcCurve
-        gapDaysFromTbl = getGapDaysByBalance l mgTbl  `debug` ("9")
-        newLeases = nextLeaseTill l (rcCurveToUse,0.0,max gapDays gapDaysFromTbl) (last pdates) ed []  `debug` ("10")
-        newCfs = [ calcCashflow l asOfDay | l <- newLeases ]  `debug` ("11")-- `debug` ("new leases"++ show newLeases++ "MGap"++ show (gapDays,gapDaysFromTbl))
+        gapDaysFromTbl = getGapDaysByBalance l mgTbl--  `debug` ("9")
+        newLeases = nextLeaseTill l (rcCurveToUse,0.0,max gapDays gapDaysFromTbl) (last pdates) ed [] -- `debug` ("10")
+        newCfs = [ calcCashflow l asOfDay | l <- newLeases ]--  `debug` ("11")-- `debug` ("new leases"++ show newLeases++ "MGap"++ show (gapDays,gapDaysFromTbl))
 
     getCurrentBal l = case l of 
                         StepUpLease _ _ bal _ _ -> bal
