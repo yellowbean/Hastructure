@@ -9,7 +9,7 @@ jobs:
 
   build:
 
-    runs-on: buildjet-64vcpu-ubuntu-2004
+    runs-on: latest-ubuntu
 
     steps:
       -
