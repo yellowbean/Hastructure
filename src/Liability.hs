@@ -115,22 +115,23 @@ type Valuation = Centi
 type PerFace = Micro
 type WAL = Centi
 type Duration = Micro
+type Convexity = Micro
 type Yield = Micro
 type AccruedInterest = Centi
 type IRR = Rational
 data YieldResult = Yield
 
-data PriceResult = PriceResult Valuation PerFace WAL Duration AccruedInterest -- valuation,wal,accu,duration
-                 | ZSpread Spread
+data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
+                 | ZSpread Spread 
                  deriving (Show,Eq)
 
 pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc today d amt = 
-   realToFrac $ (realToFrac amt) * (1 / factor) -- `debug` ("DF:"++show discount_factor)
+   realToFrac $ (realToFrac amt) * (1 / factor) -- `debug` ("DF:"++show factor++" PV AMT"++show amt)
   where
    distance::Double =  fromIntegral $ daysBetween today d
    discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
-   factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)   -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
+   factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)  -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
 
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
 fv2 discount_rate today futureDay amt =
@@ -148,10 +149,11 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayD
      (fromRational (100*(toRational presentValue)/(toRational obal)))
      (realToFrac wal)
      (realToFrac duration)
-     accruedInt
+     (realToFrac convexity)
+     accruedInt `debug` ("Convexity->"++ show convexity)
      where
        futureCf = filter (\x -> (S.getTxnDate x) > d) txns
-       presentValue = foldr (\x acc -> acc + (pv rc d (S.getTxnDate x) (S.getTxnAmt x)) ) 0 futureCf
+       presentValue = foldr (\x acc -> acc + (pv rc d (S.getTxnDate x) (S.getTxnAmt x))) 0 futureCf
        cutoffBalance = case (S.getTxnAsOf txns d) of
                           Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                      where
@@ -180,13 +182,27 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayD
        duration = (foldr (\x acc ->
                            (mulBR  
                              ((pv rc d (S.getTxnDate x) (S.getTxnAmt x)) / presentValue) 
-                             --((daysBetween d (S.getTxnDate x))/365)
                              (yearCountFraction DC_ACT_365F d (S.getTxnDate x)))
                            + acc)
                     0
                     futureCf)
+       convexity = let 
+                     b = (foldr (\x acc ->
+                                         let 
+                                            _t = yearCountFraction DC_ACT_365F d (S.getTxnDate x) -- `debug` ("calc _T"++show d++">>"++show (S.getTxnDate x))
+                                            _t2 = _t * _t + _t -- `debug` ("T->"++show _t)
+                                            _cash_date = S.getTxnDate x
+                                            _yield = getValByDate rc Exc _cash_date
+                                            _y = (1+ _yield) * (1+ _yield) -- `debug` ("yield->"++ show _yield++"By date"++show d)
+                                            _x = ((mulBR  (pv rc d _cash_date (S.getTxnAmt x)) _t2) / (fromRational _y)) -- `debug` ("PV:->"++show (pv rc d (S.getTxnDate x) (S.getTxnAmt x))++"Y->"++ show _y++"T2-->"++ show _t2)
+                                         in 
+                                            _x + acc) 
+                                 0
+                                 futureCf)
+                   in 
+                     b/presentValue  -- `debug` ("B->"++show b++"PV"++show presentValue)
 
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
 
 
 _calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
@@ -235,7 +251,6 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ _ stmt)
      txns =  case S.sliceStmt (bndStmt _b) sd ed of
                 Nothing -> []
                 Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
-
 
 calcZspread :: (Balance,Date) -> Int -> (Balance,Rational) -> Maybe S.Statement -> Ts -> Spread
 calcZspread _ _ _ Nothing _ = 0

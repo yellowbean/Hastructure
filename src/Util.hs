@@ -320,12 +320,12 @@ getValByDate (PricingCurve dps) _ d
               rindex = fromMaybe 0 $findIndex (\(TsPoint _dl _) -> ( _dl > d )) dps
               rdp@(TsPoint _dr _rv) = dps!!rindex 
               ldp@(TsPoint _dl _lv) = dps!!(pred rindex)
-              leftDistance = toRational $ daysBetween _dl d  -- `debug` ("LEFT"++show leftDistance)
-              distance = toRational $ daysBetween _dl _dr -- `debug` ("DIST"++show distance)
+              leftDistance = toRational $ daysBetween _dl d  -- `debug` ("LEFT"++show d)
+              distance = toRational $ daysBetween _dl _dr  -- `debug` ("TOTAL Horizion"++show _dl++show _dr)
               vdistance =  _rv - _lv -- ("DIST")
             in 
               toRational $ _lv + (vdistance * leftDistance) / distance 
-              -- `debug` ("D "++ show _lv++">>"++ show vdistance++">>"++ show leftDistance++">>"++ show distance)
+ --              `debug` ("PricingCurve get Val: D "++ show _lv++">>"++ show vdistance++">>"++ show leftDistance++">>"++ show distance)
     where 
       fday = getDate $ head dps
       lday = getDate $ last dps
