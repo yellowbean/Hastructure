@@ -309,8 +309,7 @@ data RangeType = II | IE | EI | EE
 data CutoffType = Inc | Exc
 
 data ResultComponent = CallAt Date
-                  | DealStatusChangeTo Date DealStatus
-                  -- | BondIntShortfall Date String Balance  -- when deal ends
+                  | DealStatusChangeTo Date DealStatus DealStatus
                   | BondOutstanding String Balance Balance -- when deal ends
                   | BondOutstandingInt String Balance Balance -- when deal ends
                   deriving (Show)
