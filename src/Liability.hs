@@ -150,7 +150,7 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayD
      (realToFrac wal)
      (realToFrac duration)
      (realToFrac convexity)
-     accruedInt `debug` ("Convexity->"++ show convexity)
+     accruedInt -- `debug` ("Convexity->"++ show convexity)
      where
        futureCf = filter (\x -> (S.getTxnDate x) > d) txns
        presentValue = foldr (\x acc -> acc + (pv rc d (S.getTxnDate x) (S.getTxnAmt x))) 0 futureCf
@@ -158,7 +158,7 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayD
                           Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                      where
                                       fstTxn = head txns
-                          Just _txn -> S.getTxnBalance _txn  --`debug` ("Found"++show(_txn))
+                          Just _txn -> S.getTxnBalance _txn  `debug` ("presentValue"++show presentValue)
        accruedInt = case _t of
                       Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * (mulBI leftBal cr)
                       Just _ -> 0  -- `debug` ("all txn"++show(_t))-- `debug` ("l day, right"++show(leftPayDay)++show(d)++show(T.diffDays leftPayDay d))
@@ -178,14 +178,14 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayD
                  (\x acc ->
                    (acc + ((fromIntegral (daysBetween d (S.getTxnDate x)))*(S.getTxnPrincipal x)/365)))
                    0.0
-                   futureCf) / cutoffBalance)
+                   futureCf) / cutoffBalance)  
        duration = (foldr (\x acc ->
                            (mulBR  
                              ((pv rc d (S.getTxnDate x) (S.getTxnAmt x)) / presentValue) 
                              (yearCountFraction DC_ACT_365F d (S.getTxnDate x)))
                            + acc)
                     0
-                    futureCf)
+                    futureCf)  `debug` ("WAL-->"++show wal) 
        convexity = let 
                      b = (foldr (\x acc ->
                                          let 
@@ -200,7 +200,7 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayD
                                  0
                                  futureCf)
                    in 
-                     b/presentValue  -- `debug` ("B->"++show b++"PV"++show presentValue)
+                     b/presentValue `debug` ("Duration->"++show duration) -- `debug` ("B->"++show b++"PV"++show presentValue)
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
 
