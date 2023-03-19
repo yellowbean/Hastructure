@@ -556,7 +556,7 @@ testTrigger t d trigger =
     -- query rate
     (ThresholdRate Below ds v ) -> queryDealRate t (patchDateToStats d ds) < v
     (ThresholdRate EqBelow ds v ) -> queryDealRate t (patchDateToStats d ds) <= v
-    (ThresholdRate Above ds v) -> queryDealRate t (patchDateToStats d ds) > v  -- `debug` ("Running test Trigger" ++ show (queryDealRate t (patchDateToStats d ds))++">>"++show v)
+    (ThresholdRate Above ds v) -> queryDealRate t (patchDateToStats d ds) > v  -- `debug` ("Running test Trigger" ++ show (patchDateToStats d ds)++">>"++show ds)
     (ThresholdRate EqAbove ds v ) -> queryDealRate t (patchDateToStats d ds) >= v
     (ThresholdRateCurve Below ds ts ) -> queryDealRate t (patchDateToStats d ds) < fromRational (getValByDate ts Exc d)
     (ThresholdRateCurve EqBelow ds ts ) -> queryDealRate t (patchDateToStats d ds) <= fromRational (getValByDate ts Exc d)
@@ -577,6 +577,7 @@ testTrigger t d trigger =
     (AnyTrigger tgs) -> any (testTrigger t d) tgs
 
     Always b -> b
+    _  -> error ("Should not happend in deal query"++show trigger)
 
 
 testTriggers :: P.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
@@ -599,7 +600,7 @@ runEffects t d te
                             (fees t)
         in 
           t {fees = newFeeMap}  
-      _ -> t `debug` ("Shouldn't happen")
+      _ -> error $ "Failed to match"++show te
 
 
 runTriggers :: P.Asset a => TestDeal a -> Date -> [(Trigger,TriggerEffect)] -> (TestDeal a,[ResultComponent])
@@ -791,7 +792,7 @@ runDeal t er assumps bpi =
   case er of
     DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
-    DealPoolFlowPricing -> (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  `debug` ("logs"++show(logs))
+    DealPoolFlowPricing -> (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  -- `debug` ("logs"++show(logs))
   where
     (ads,pcf,rcurves,calls) = getInits t assumps  -- `debug` ("Init Deal"++show (name t)++">> cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
     (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls []  -- `debug` ("Action >>"++show ads)
@@ -983,8 +984,8 @@ queryDealRate t s =
       
       CumulativePoolDefaultedRate ->
           let 
-            originPoolBal = toRational (queryDeal t OriginalPoolBalance) -- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
-            cumuPoolDefBal = toRational (queryDeal t CumulativePoolDefaultedBalance) -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
+            originPoolBal = toRational (queryDeal t OriginalPoolBalance) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
+            cumuPoolDefBal = toRational (queryDeal t CumulativePoolDefaultedBalance) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
           in 
             cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
 
@@ -1001,7 +1002,7 @@ queryDealInt t s d =
               fromMaybe 0 $ CF.mflowBorrowerNum $ last _cf
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
-queryDeal t s =
+queryDeal t s = 
   case s of
     CurrentBondBalance ->
        Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 (bonds t)
@@ -1038,8 +1039,6 @@ queryDeal t s =
        case P.futureCf (pool t) of 
          Nothing -> 0.0
          Just (CF.CashFlowFrame trs) -> CF.mflowBalance $ last trs
-
-
 
     FutureCurrentPoolBegBalance asOfDay ->
          case _poolSnapshot of
@@ -1176,6 +1175,8 @@ queryDeal t s =
                 CustomConstant v -> fromRational v 
                 CustomCurve cv -> (getValOnByDate cv d)
                 CustomDS ds -> (queryDeal t (patchDateToStats d ds ))
+
+    _ -> 0.0 `debug` ("Failed to match"++ show s)
 
 getPoolFlows :: TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t sd ed rt =
