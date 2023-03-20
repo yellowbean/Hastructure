@@ -136,11 +136,13 @@ testPre d t p =
   case p of
     Types.And p1 p2 -> testPre d t p1 && testPre d t p1
     Or p1 p2 -> testPre d t p1 || testPre d t p1
-    IfZero s  -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
-    IfGT s  amt -> queryDeal t s > amt
-    IfGET s  amt -> queryDeal t s >= amt
-    IfLT s  amt -> queryDeal t s < amt
-    IfLET s  amt -> queryDeal t s <= amt
+    IfZero s -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
+    IfGT s amt -> queryDeal t s > amt
+    IfGET s amt -> queryDeal t s >= amt
+    IfLT s amt -> queryDeal t s < amt
+    IfLET s amt -> queryDeal t s <= amt
+    IfEqInt s amt -> queryDealInt t s == amt
+    IfEqBal s amt -> queryDeal t s == amt
     IfAfterDate _d -> d > _d
     IfBeforeDate _d -> d < _d
     IfAfterOnDate _d -> d >= _d
