@@ -292,7 +292,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (Nothing, W.PayResidual
   where
     availBal = A.accBalance $ accMap Map.! an
     accMapAfterPay = Map.adjust (A.draw availBal d (PayYield bndName Nothing)) an accMap
-    bndMapAfterPay = Map.adjust (L.payInt d availBal) bndName bndMap
+    bndMapAfterPay = Map.adjust (L.payYield d availBal) bndName bndMap
 
 performAction d t@TestDeal{fees=feeMap,accounts=accMap} (Nothing, W.PayFeeResidual limit an feeName) =
   t {accounts = accMapAfterPay, fees = feeMapAfterPay}

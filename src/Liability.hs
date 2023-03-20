@@ -7,7 +7,7 @@ module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
   ,payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,weightAverageBalance,fv2,calcZspread)
+  ,weightAverageBalance,fv2,calcZspread,payYield)
   where
 
 import Language.Haskell.TH
@@ -102,6 +102,12 @@ payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt 
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn] (Just new_due)))
+
+payYield :: Date -> Amount -> Bond -> Bond 
+payYield d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
+  = bnd {bndStmt=Just new_stmt}
+  where
+    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn Nothing))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
