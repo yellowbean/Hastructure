@@ -131,7 +131,7 @@ instance DealDates DateDesp where
   
   getFirstPayDate (CurrentDates _ _ _ _ (cpay,_)) = cpay
 
-testPre :: P.Asset a => Date -> TestDeal a ->  Pre -> Bool
+testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Bool
 testPre d t p =
   case p of
     Types.And p1 p2 -> testPre d t p1 && testPre d t p1
@@ -141,7 +141,7 @@ testPre d t p =
     IfGET s amt -> queryDeal t s >= amt
     IfLT s amt -> queryDeal t s < amt
     IfLET s amt -> queryDeal t s <= amt
-    IfEqInt s amt -> queryDealInt t s == amt
+    IfEqInt s amt -> queryDealInt t s d == amt
     IfEqBal s amt -> queryDeal t s == amt
     IfAfterDate _d -> d > _d
     IfBeforeDate _d -> d < _d

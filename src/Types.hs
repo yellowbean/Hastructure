@@ -256,6 +256,8 @@ data Pre = And Pre Pre
          | IfGET DealStats Centi
          | IfLT DealStats Centi
          | IfLET DealStats Centi
+         | IfEqInt DealStats Int
+         | IfEqBal DealStats Balance
          | IfDealStatus DealStatus
          | IfAfterDate Date
          | IfBeforeDate Date
