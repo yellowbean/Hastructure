@@ -214,6 +214,7 @@ data DealStats =  CurrentBondBalance
                | AllAccBalance
                | AccBalance [String]
                | ReserveAccGap [String] 
+               | MonthsBeforeMaturity BondName
                | ReserveAccGapAt Date [String] 
                | FutureCurrentPoolBalance
                | FutureCurrentPoolBegBalance Date

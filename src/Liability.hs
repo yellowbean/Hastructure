@@ -69,7 +69,7 @@ data Bond = Bond {
   ,bndRate :: IRate
   ,bndDuePrin :: Balance
   ,bndDueInt :: Balance
-  ,bndMaturiyDate :: Maybe Date
+  ,bndMaturityDate :: Maybe Date
   ,bndDueIntDate :: Maybe Date
   ,bndLastIntPay :: Maybe Date
   ,bndLastPrinPay :: Maybe Date

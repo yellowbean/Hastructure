@@ -566,7 +566,7 @@ testTrigger t d trigger =
     (PassMaturityDate bn) -> let 
                                 b = bonds t Map.! bn
                              in 
-                                case L.bndMaturiyDate b of 
+                                case L.bndMaturityDate b of 
                                   Nothing -> False
                                   Just _d -> L.bndBalance b > 0 && ( d >= _d ) 
     
@@ -1000,6 +1000,11 @@ queryDealInt t s d =
               (_cf,_) = splitByDate trs d EqToLeft
             in 
               fromMaybe 0 $ CF.mflowBorrowerNum $ last _cf
+
+    MonthsBeforeMaturity bn -> 
+        case L.bndMaturityDate $ (bonds t) Map.! bn  of 
+          Nothing -> error "Should not happend"
+          Just md -> fromInteger $ T.cdMonths $ T.diffGregorianDurationClip md d
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t s = 
@@ -1462,7 +1467,7 @@ td = TestDeal {
                              ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0
                              ,L.bndDueInt=0.0
-                             ,L.bndMaturiyDate=Nothing
+                             ,L.bndMaturityDate=Nothing
                              ,L.bndDueIntDate=Nothing
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
