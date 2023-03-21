@@ -46,6 +46,7 @@ data OriginalInfo = OriginalInfo {
   originBalance::Balance
   ,originDate::Date
   ,originRate::Rate
+  ,maturityDate :: Maybe Date
 } deriving (Show)
 
 type SinkFundSchedule = Ts
@@ -69,7 +70,6 @@ data Bond = Bond {
   ,bndRate :: IRate
   ,bndDuePrin :: Balance
   ,bndDueInt :: Balance
-  ,bndMaturityDate :: Maybe Date
   ,bndDueIntDate :: Maybe Date
   ,bndLastIntPay :: Maybe Date
   ,bndLastPrinPay :: Maybe Date
@@ -91,26 +91,26 @@ consolStmt b@Bond{bndStmt = Just (S.Statement (txn:txns))}
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
 payInt :: Date -> Amount -> Bond -> Bond
-payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
+payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd { bndDueInt=new_due, bndStmt = Just new_stmt}
   where
     new_due = dueInt - amt
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn (Just new_due)))
 
-payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
+payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDueInt=new_due, bndStmt=Just new_stmt, bndLastIntPay = Just d}
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn] (Just new_due)))
 
 payYield :: Date -> Amount -> Bond -> Bond 
-payYield d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
+payYield d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndStmt=Just new_stmt}
   where
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn Nothing))
 
 payPrin :: Date -> Amount -> Bond -> Bond
-payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt _ dueIntDate lpayInt lpayPrin stmt)
+payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDuePrin =new_due, bndBalance = new_bal , bndStmt=Just new_stmt}
   where
     new_bal = bal - amt
@@ -149,7 +149,7 @@ fv2 discount_rate today futureDay amt =
     distance::Double = fromIntegral $ daysBetween today futureDay
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
+priceBond d rc b@(Bond _ _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
   = PriceResult
      presentValue
      (fromRational (100*(toRational presentValue)/(toRational obal)))
@@ -208,7 +208,7 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _) _ bal cr _ _ _ _ lastIntPayD
                    in 
                      b/presentValue -- `debug` ("Duration->"++show duration) -- `debug` ("B->"++show b++"PV"++show presentValue)
 
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
 
 
 _calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
@@ -227,8 +227,8 @@ _calcIRR amt initIrr today (BalanceCurve cashflows)
                    initIrr * 0.99
 
 calcBondYield :: Date -> Balance ->  Bond -> Rate
-calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
-calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
+calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
+calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
  =  _calcIRR cost 0.05 d (BalanceCurve cashflows)
    where
      cashflows = [ TsPoint (S.getTxnDate txn) (S.getTxnAmt txn)  | txn <- txns ]
@@ -236,7 +236,7 @@ calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
 
 
 backoutDueIntByYield :: Date -> Bond -> Balance
-backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield y) currentBalance  _ _ _ _ _ _ _ stmt)
+backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYield y) currentBalance  _ _ _ _ _ _ stmt)
   -- = obal_fv - fvs `debug` ("FVS->"++show fvs++"FV of Obal"++show (fv2 y odate d obal)++"y"++show y++"odate"++show odate++"d"++ show d++"obal"++show obal)
   = proj_fv - fvs - currentBalance -- `debug` ("Date"++ show d ++"FV->"++show proj_fv++">>"++show fvs++">>cb"++show currentBalance)
     where
@@ -247,7 +247,7 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _) (InterestByYield 
                    Nothing -> []
 
 weightAverageBalance :: Date -> Date -> Bond -> Balance
-weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ _ stmt)
+weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
   = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
     where
      _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]

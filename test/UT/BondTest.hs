@@ -24,7 +24,8 @@ b1 = B.Bond{B.bndName="A"
             ,B.bndOriginInfo= B.OriginalInfo{
                                B.originBalance=3000
                                ,B.originDate= (T.fromGregorian 2022 1 1)
-                               ,B.originRate= 0.08}
+                               ,B.originRate= 0.08
+                               ,B.maturityDate = Nothing}
             ,B.bndInterestInfo= B.Fix 0.08 DC_ACT_365F
             ,B.bndBalance=3000
             ,B.bndRate=0.08
@@ -39,7 +40,8 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndOriginInfo= B.OriginalInfo{
                                B.originBalance=3000
                                ,B.originDate= (T.fromGregorian 2022 1 1)
-                               ,B.originRate= 0.08}
+                               ,B.originRate= 0.08
+                               ,B.maturityDate = Nothing}
             ,B.bndInterestInfo= B.Floater L.LPR5Y 0.015 (B.MonthOfYear 1) DC_ACT_365F Nothing Nothing
             ,B.bndBalance=3000
             ,B.bndRate=0.08

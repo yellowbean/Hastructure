@@ -140,6 +140,8 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
 projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
 
 
+data MortgageInsurance = MortgageInsurance Rate
+
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow]
               deriving (Show)

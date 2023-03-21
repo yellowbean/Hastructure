@@ -54,7 +54,8 @@ td2 = TestDeal {
                              ,L.bndOriginInfo= L.OriginalInfo{
                                                 L.originBalance=3000
                                                 ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08}
+                                                ,L.originRate= 0.08
+                                                ,L.maturityDate = Nothing}
                              ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
                              ,L.bndBalance=3000
                              ,L.bndRate=0.08
@@ -71,7 +72,8 @@ td2 = TestDeal {
                                ,L.bndOriginInfo= L.OriginalInfo{
                                                   L.originBalance=3000
                                                   ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                  ,L.originRate= 0.08}
+                                                  ,L.originRate= 0.08
+                                                  ,L.maturityDate = Nothing}
                                ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
                                ,L.bndBalance=500
                                ,L.bndRate=0.08
@@ -122,6 +124,7 @@ td2 = TestDeal {
    ])]
  ,D.collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
+ ,D.custom = Nothing
  ,D.call = Nothing
  ,D.triggers = Just $
                 Map.fromList $

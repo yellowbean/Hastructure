@@ -214,7 +214,7 @@ data DealStats =  CurrentBondBalance
                | AllAccBalance
                | AccBalance [String]
                | ReserveAccGap [String] 
-               | MonthsBeforeMaturity BondName
+               | MonthsTillMaturity BondName
                | ReserveAccGapAt Date [String] 
                | FutureCurrentPoolBalance
                | FutureCurrentPoolBegBalance Date
@@ -256,6 +256,10 @@ data Pre = And Pre Pre
          | IfGET DealStats Centi
          | IfLT DealStats Centi
          | IfLET DealStats Centi
+         | IfGTInt DealStats Int
+         | IfGETInt DealStats Int
+         | IfLTInt DealStats Int
+         | IfLETInt DealStats Int
          | IfEqInt DealStats Int
          | IfEqBal DealStats Balance
          | IfDealStatus DealStatus
