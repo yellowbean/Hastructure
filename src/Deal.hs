@@ -721,6 +721,12 @@ run2 t poolFlow (Just (ad:ads)) rates calls log
                run2 newDeal poolFlow (Just ads) rates calls log
          ChangeDealStatusTo d s -> 
              run2 (t{status=s}) poolFlow (Just ads) rates calls log
+
+         InspectDS d ds -> 
+             let 
+               newlog = InspectBal d ds $ queryDeal t (patchDateToStats d ds)
+             in 
+               run2 t poolFlow (Just ads) rates calls  $ log++[newlog] 
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  -- `debug` ("Running AD"++show(ad))
 
@@ -951,6 +957,21 @@ getInits t mAssumps
                           in 
                             [ ResetLiqProvider _d _liqName |(_liqName,__liqResetDates) <- _liqResetDates
                                                           , _d <- __liqResetDates ]
+    --inspect dates 
+    inspectDates = let 
+                     m_inspect_vars = find (\case
+                                           (AP.InspectOn _ ) -> True
+                                           _ -> False)
+                                         dealAssumps 
+                   in
+                     case m_inspect_vars of 
+                       Just (AP.InspectOn inspect_vars) ->
+                           let 
+                             _int = [[ InspectDS _d ds | _d <- genSerialDatesTill2 II startDate dp endDate]  | (dp,ds) <- inspect_vars ]
+                           in 
+                             foldr (++) [] _int
+                       Nothing -> []  -- `debug` ("M inspect"++show dealAssumps)
+                     
     stopDate = find 
                  (\case
                    (AP.StopRunBy d) -> True
@@ -958,7 +979,9 @@ getInits t mAssumps
                  dealAssumps 
     
     _actionDates = let 
-                     a = bActionDates ++ pActionDates ++ iAccIntDates ++ feeAccrueDates ++ liqResetDates ++ dealStageDates
+                     -- a = bActionDates ++ pActionDates ++ iAccIntDates ++ feeAccrueDates ++ liqResetDates ++ dealStageDates ++ inspectDates
+                     a = foldr (++) [] [bActionDates,pActionDates,iAccIntDates
+                                        ,feeAccrueDates,liqResetDates,dealStageDates,inspectDates] -- `debug` ("inspect Dates"++show inspectDates)
                    in
                      case dates t of 
                        (PreClosingDates _ _ _ _ _ _) -> sort $ (DealClosed closingDate):a 

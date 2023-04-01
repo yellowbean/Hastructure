@@ -60,7 +60,6 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | InterestRateCurve Index [(Date,IRate)] -- Deprecating
                 | InterestRateCurve2 Index Ts
                 | CallWhen [C.CallOption]
-                | StopRunBy Date
                 | PoolHairCut PoolSource Rate
                 | AvailableAssets 
                 -- Lease Assumption 
@@ -69,7 +68,9 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | LeaseBaseCurve Ts
                 | LeaseGapDays Int
                 | LeaseGapDaysByAmount [(Amount,Int)] Int
-
+                -- Debug 
+                | StopRunBy Date
+                | InspectOn [(DatePattern,DealStats)]
                 deriving (Show)
 
 data BondPricingInput = DiscountCurve Date Ts
@@ -88,6 +89,7 @@ splitAssumptions (a:aps) (dealAssump,assetAssump)
      InterestRateCurve2 _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      CallWhen _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      StopRunBy _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+     InspectOn _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      PoolHairCut _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      _  -> splitAssumptions aps (dealAssump,a:assetAssump)
 

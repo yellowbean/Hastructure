@@ -123,6 +123,7 @@ data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
                   | PoolCollection Date String
                   | RunWaterfall Date String
                   | DealClosed Date 
+                  | InspectDS Date DealStats
                   deriving (Show,Generic,Read)
 
 epocDate = Time.fromGregorian 1970 1 1
@@ -136,6 +137,7 @@ instance TimeSeries ActionOnDate where
     getDate (AccrueFee d _) = d
     getDate (DealClosed d ) = d
     getDate (ChangeDealStatusTo d _ ) = d
+    getDate (InspectDS d _ ) = d
     cmp ad1 ad2 = compare (getDate ad1) (getDate ad2)
     sameDate ad1 ad2 = getDate ad1 == getDate ad2
     getDates ads = map getDate ads
@@ -319,6 +321,9 @@ data ResultComponent = CallAt Date
                   | DealStatusChangeTo Date DealStatus DealStatus
                   | BondOutstanding String Balance Balance -- when deal ends
                   | BondOutstandingInt String Balance Balance -- when deal ends
+                  | InspectBal Date DealStats Balance
+                  | InspectInt Date DealStats Int
+                  | InspectRate Date DealStats Rate
                   deriving (Show)
 
 data Threshold = Below
