@@ -3,9 +3,9 @@
 
 # Hastructure
 * :dollar: A structured finance cashflow engine written in Haskell 
-* :coffee: Easy integration with Java/C#/C++/JavaScript/Python
-* :bricks: A building block engine to model cashflows of structured product
-* :car: In-house and white-label friendly 
+* :coffee: Easy integration with Java/C#/C++/JavaScript/Python with RESTful interface and Docker image ready
+* :bricks: A building block engine to model cashflows of structured product, all the formula and variables are exposed.
+* :car: In-house and white-label friendly.
 * :snake: [Python wrapper](https://github.com/yellowbean/PyABS) on the way   
 
 ### Features
