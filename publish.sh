@@ -44,8 +44,22 @@ fi
 
 echo "<PUBLISH> Pushing Tag"
 git push --tag
+
+if [ $? -ne 0 ]
+then
+  echo "<PUBLISH> Failed to push Tag"
+  exit 5
+fi
+
 echo "<PUBLISH> Pushing "
 git push
+
+if [ $? -ne 0 ]
+then
+  echo "<PUBLISH> Failed to push Tag"
+  exit 6
+fi
+
 echo "<PUBLISH> Done ! "
 
 # Generate change log file 
