@@ -1,0 +1,160 @@
+{
+  "update": "20230320",
+  "records": [
+    {
+      "version": "a0.9.2",
+      "date": "20230318",
+      "changes": [
+        "Expose Convexity on Bond Pricing",
+        "update build runner",
+        "update build server"
+      ]
+    },
+    {
+      "version": "a0.9.1",
+      "date": "20230311",
+      "changes": [
+        "BUGFIX:enable negative static spread"
+      ]
+    },
+    {
+      "version": "a0.9.0",
+      "date": "20230310",
+      "changes": [
+        "Expose Z Spread calculation on bonds",
+        "add remain terms for Installment type",
+        "add Fee type that incur by factor of `Count` data in deal",
+        "Add borrower count on deal query function"
+      ]
+    },
+    {
+      "version": "a0.8.9",
+      "date": "20230227",
+      "changes": [
+        "Expose BorrowerNumber in Mortgage Flow"
+      ]
+    },
+    {
+      "version": "a0.8.8",
+      "date": "20230225",
+      "changes": [
+        "Add a generic BalanceCurve type as well as INC/EXC on cutoff date"
+      ]
+    },
+    {
+      "version": "a0.8.7",
+      "date": "20230224",
+      "changes": [
+        "Expose Balance on Lease Contract",
+        "add split/range util to cashflow"
+      ]
+    },
+    {
+      "version": "a0.8.6",
+      "date": "20230208",
+      "changes": [
+        "BUGFIX: Installment calcCashflow"
+      ]
+    },
+    {
+      "version": "a0.8.5",
+      "date": "20230206",
+      "changes": [
+        "ENHANCE: Use fix rate/current rate for calcCashflow for mortgage"
+      ]
+    },
+    {
+      "version": "a0.8.4",
+      "date": "20230206",
+      "changes": [
+        "BUGFIX=> make WAC -> 0 if balance is 0 when combine CFs"
+      ]
+    },
+    {
+      "version": "a0.8.3",
+      "date": "20230205",
+      "changes": [
+        "house keep on util functions",
+        "PV/FV fun refactor",
+        "add new due on PayYield action comment",
+        "add FV test",
+        "ENHANCE: enable lease type deal",
+        "FIXUT: fix lease contract overlap in rollover",
+        "BUGFIX:add last int pay date",
+        "BUGFIX: using projectCFDates to project payment dates of lease"
+      ]
+    },
+    {
+      "version": "a0.8.1",
+      "date": "20230129",
+      "changes": [
+        "Align payment amount with accure amount for stepup lease"
+      ]
+    },
+    {
+      "version": "a0.8.0",
+      "date": "20230129",
+      "changes": [
+        "BUGFIX: align project payment dates for lease contract",
+        "expose DayGap base on Amount Table",
+        "convert constant rental change rate to rental curve",
+        "update README",
+        "add Lease project assumption",
+        "padding default lease increase rate  when increase rate is shorter than accrue dates",
+        "add custom rate for step up lease asset",
+        "Add StepUp Leasing"
+      ]
+    },
+    {
+      "version": "a0.7.0",
+      "date": "20230114",
+      "changes": [
+        "Add RegularLeaseType"
+      ]
+    },
+    {
+      "version": "a0.6.2",
+      "date": "20230102",
+      "changes": [
+        "ENHANCE: enable support for empty assumption"
+      ]
+    },
+    {
+      "version": "a0.6.1",
+      "date": "20221231",
+      "changes": [
+        "Merge remote-tracking branch 'origin/master'"
+      ]
+    },
+    {
+      "version": "v0.6.1",
+      "date": "20221231",
+      "changes": [
+        "Fix: period 0 rate bug",
+        "BUGFIX: Fix error throw by missing stress input in assumption"
+      ]
+    },
+    {
+      "version": "a0.6.0",
+      "date": "20221205",
+      "changes": [
+        "Seperate Deal Dates by \"PreClosing\" and \"Ongoing\"",
+        "add new date pattern"
+      ]
+    },
+    {
+      "version": "a0.5.10",
+      "date": "20221129",
+      "changes": [
+        "normalized cf projection on installment type",
+        "Remove debug & format",
+        "expose assumption on asset level",
+        "seperate Loan from Asset.hs",
+        "sperate mortgage from asset.hs",
+        "expose prepayment/default curve assumption",
+        "add stress on installment type",
+        "expose Installment type"
+      ]
+    }
+  ]
+}
