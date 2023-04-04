@@ -186,7 +186,9 @@ data DatePattern = MonthEnd
                  | MonthDayOfYear Int Int  -- T.MonthOfYear T.DayOfMonth
                  | DayOfMonth Int -- T.DayOfMonth 
                  | SemiAnnual (Int, Int) (Int, Int)
-                 | CustomDate [Dates]
+                 | CustomDate [Date]
+                 | DaysInYear [(Int, Int)]
+                 | AllDatePattern [DatePattern]
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq)
 
