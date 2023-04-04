@@ -333,6 +333,14 @@ dateVectorPatternTest =
         assertEqual "Include both ends"
          [(toDate "20200630"), (toDate "20230202"),(toDate "20230909"), (toDate "20230910")]
          (genSerialDatesTill2 II (toDate "20200630") (CustomDate [toDate "20230202", toDate "20230909"] ) (toDate "20230910"))
+    , testCase "Mutiple Date Pattern" $
+        assertEqual ""
+         [(toDate "20230909"), (toDate "20230919")]
+         (genSerialDatesTill2 EE 
+            (toDate "20200630") 
+            (AllDatePattern
+              [(CustomDate [toDate "20230909"]),(CustomDate [toDate "20230919"])])
+            (toDate "20230930"))
     ]                          
 
 paddingTest = 
