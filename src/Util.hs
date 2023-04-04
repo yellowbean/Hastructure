@@ -211,6 +211,7 @@ genSerialDates dp sd num
                                                         , monthRange <- [1..12]]
                 where 
                   yrs = fromIntegral $ div num 12 + 1                   
+        CustomDate ds -> ds
       where 
         quarterEnds = [(3,31),(6,30),(9,30),(12,31)]
         monthEnds y = 
@@ -236,6 +237,7 @@ genSerialDatesTill sd ptn ed
               YearFirst->  div cdM 12
               MonthDayOfYear _m _d -> div cdM 12 -- T.MonthOfYear T.DayOfMonth
               DayOfMonth _d -> cdM -- T.DayOfMonth 
+              CustomDate ds -> 2 + (toInteger $ length ds)
               -- DayOfWeek Int -> -- T.DayOfWeek 
 
 genSerialDatesTill2 :: RangeType -> Date -> DatePattern -> Date -> Dates
@@ -257,7 +259,9 @@ genSerialDatesTill2 rt sd dp ed
       --        sd:_r
       --EE -> _r 
     where 
-      _r = genSerialDatesTill sd dp ed -- maybe sd in _r, but not ed in _r
+      _r = case dp of 
+             AllDatePattern dps -> foldr (++) [] [ genSerialDatesTill sd _dp ed | _dp <- dps ]
+             _ -> genSerialDatesTill sd dp ed -- maybe sd in _r, but not ed in _r
 
 
 tsPointVal :: TsPoint a -> a 
