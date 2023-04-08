@@ -5,8 +5,8 @@
 
 module Stmt
   (Statement(..),Txn(..)
-   ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnDate,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
-   ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance
+   ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
+   ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,sliceTxns,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance
   )
@@ -29,6 +29,9 @@ import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Map as M
 
+import Debug.Trace
+debug = flip trace
+
 data TxnComment = PayInt [BondName] (Maybe Balance)
                 | PayYield BondName (Maybe Balance)
                 | PayPrin [BondName] (Maybe Balance)
@@ -39,6 +42,7 @@ data TxnComment = PayInt [BondName] (Maybe Balance)
                 | PoolInflow PoolSource
                 | LiquidationProceeds Balance
                 | LiquidationSupport String
+                | LiquidationSupportInt 
                 | BankInt
                 | Empty 
                 | Tag String
@@ -63,6 +67,7 @@ instance ToJSON TxnComment where
   toJSON Empty =  String $ T.pack $ "" 
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
   toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
+  toJSON LiquidationSupportInt =  String $ T.pack $ "<SupportInt:>" 
 
 -- instance FromJSON TxnComment
 
@@ -85,10 +90,10 @@ parseTxn t = case tagName of
                                        
 
 data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
-          | AccTxn Date Balance Amount TxnComment
-          | ExpTxn Date Balance Amount Balance TxnComment
-          | SupportTxn Date (Maybe Balance) Amount Balance TxnComment
-          deriving (Show)
+         | AccTxn Date Balance Amount TxnComment
+         | ExpTxn Date Balance Amount Balance TxnComment
+         | SupportTxn Date (Maybe Balance) Amount Balance TxnComment
+         deriving (Show)
 
 getTxnComment :: Txn -> TxnComment
 getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
@@ -96,22 +101,16 @@ getTxnComment (AccTxn _ _ _ t ) = t
 getTxnComment (ExpTxn _ _ _ _ t ) = t
 getTxnComment (SupportTxn _ _ _ _ t ) = t
 
-getTxnDate :: Txn -> Date
-getTxnDate (BondTxn t _ _ _ _ _ _ ) = t
-getTxnDate (AccTxn t _ _ _ ) = t
-getTxnDate (ExpTxn t _ _ _ _ ) = t
-getTxnDate (SupportTxn t _ _ _ _) = t
-
 getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
 getTxnBalance (AccTxn _ t _ _ ) = t
 getTxnBalance (ExpTxn _ t _ _ _ ) = t
--- getTxnBalance (SupportTxn _ t _ _ _ ) = t
+getTxnBalance (SupportTxn _ _ _ t _ ) = t
 
 getTxnBegBalance :: Txn -> Balance
 getTxnBegBalance (BondTxn _ t _ p _ _ _ ) = t + p
 getTxnBegBalance (AccTxn _ b a _ ) = b - a
--- getTxnBegBalance (SupportTxn _ b a _ _ ) = b + a
+getTxnBegBalance (SupportTxn _ _ a b _ ) = b - a
 
 getTxnPrincipal :: Txn -> Balance
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
@@ -123,7 +122,7 @@ getTxnAmt (ExpTxn _ _ t _ _ ) = t
 getTxnAmt (SupportTxn _ _ t _ _) = t
 
 getTxnAsOf :: [Txn] -> Date -> Maybe Txn
-getTxnAsOf txns d = find (\x -> (getTxnDate x) <= d) $ reverse txns
+getTxnAsOf txns d = find (\x -> (getDate x) <= d) $ reverse txns
 
 emptyTxn :: Txn -> Date -> Txn
 emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 Empty )
@@ -132,33 +131,34 @@ emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
 emptyTxn (SupportTxn _ _ _ _ _) d = (SupportTxn d Nothing 0 0 Empty )
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
-getTxnByDate ts d = find (\x -> (d == (getTxnDate x))) ts
+getTxnByDate ts d = find (\x -> (d == (getDate x))) ts
 
 sliceStmt :: Maybe Statement -> Date -> Date -> Maybe Statement
 sliceStmt Nothing sd ed  = Nothing
 sliceStmt (Just (Statement txns)) sd ed 
   = Just $ Statement $ filter 
-                  (\x -> ((getTxnDate x) >= sd) && ((getTxnDate x) <= ed)) txns 
+                  (\x -> ((getDate x) >= sd) && ((getDate x) <= ed)) txns 
 
 sliceTxns :: [Txn] -> Date -> Date -> [Txn]
 sliceTxns txns sd ed 
-  = filter (\x -> (getTxnDate x)>=sd && (getTxnDate x)<ed) txns
+  = filter (\x -> (getDate x)>=sd && (getDate x)<ed) txns
 
 
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 
-  = map (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) intervals
+  = map (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) intervals -- `debug` ("interval"++ show intervals++ show txns)
   where 
-      intervals = zip (init ds) (tail ds)
+      intervals = zip (init ds) (tail ds) 
+
 
 weightAvgBalance :: Date -> Date -> [Txn] -> Balance -- txn has to be between sd & ed
 weightAvgBalance sd ed txns 
-  = sum $ zipWith mulBR bals dsFactor
+  = sum $ zipWith mulBR bals dsFactor -- `debug` ("WavgBalace "++show bals++show dsFactor)
   where 
       _txns = sliceTxns txns sd ed
       bals = (map getTxnBegBalance _txns) ++ [getTxnBalance (last _txns)]
-      ds = [sd]++(map getTxnDate _txns)++[ed]
-      dsFactor = getIntervalFactors ds
+      ds = [sd]++(map getDate _txns)++[ed] 
+      dsFactor = getIntervalFactors ds  -- `debug` ("DS>>>"++show ds)
 
 class QueryByComment a where 
     queryStmt :: a -> TxnComment -> [Txn]
@@ -182,7 +182,7 @@ getTxns (Just (Statement txn)) = txn
 
 groupTxns :: Maybe Statement -> M.Map Date [Txn]
 groupTxns (Just (Statement txns))
-  = M.fromAscListWith (++) $ [(getTxnDate txn,[txn]) | txn <- txns]
+  = M.fromAscListWith (++) $ [(getDate txn,[txn]) | txn <- txns]
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 m1) (BondTxn d2 b2 i2 p2 r2 c2 m2)
@@ -197,14 +197,10 @@ instance Eq Txn where
     = d1 == d2
 
 instance TimeSeries Txn where 
-  cmp tr1 tr2 = compare (getDate tr1) (getDate tr2)
-  sameDate tr1 tr2 = (getDate tr1) == (getDate tr2)
   getDate (BondTxn t _ _ _ _ _ _ ) = t
   getDate (AccTxn t _ _ _ ) = t
   getDate (ExpTxn t _ _ _ _ ) = t
   getDate (SupportTxn t _ _ _ _) = t
-  getDates txns = map getDate txns
-
 
 
 $(deriveJSON defaultOptions ''Txn)

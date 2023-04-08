@@ -12,7 +12,7 @@ homepage:       https://github.com/yellowbean/Hastructure#readme
 bug-reports:    https://github.com/yellowbean/Hastructure/issues
 author:         Xiaoyu
 maintainer:     always.zhang@gmail.com
-copyright:      2022 Xiaoyu, Zhang
+copyright:      2023 Xiaoyu, Zhang
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -71,6 +71,7 @@ library
 executable Hastructure-exe
   main-is: Main.hs
   other-modules:
+      Server
       Paths_Hastructure
   hs-source-dirs:
       app
@@ -80,15 +81,18 @@ executable Hastructure-exe
     , aeson
     , aeson-pretty
     , base
+    , base-compat
     , bytestring
     , containers
     , hashable
     , http-types
     , lens
+    , mtl
     , regex-base
     , regex-pcre
     , regex-tdfa
     , scientific
+    , servant-server
     , template-haskell
     , text
     , time

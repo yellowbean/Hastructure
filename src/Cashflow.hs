@@ -68,8 +68,6 @@ data TsRow = CashFlow Date Amount
            deriving(Show,Eq,Ord)
 
 instance TimeSeries TsRow where 
-    cmp tr1 tr2 = compare (getDate tr1) (getDate tr2)
-    sameDate tr1 tr2 = (getDate tr1) == (getDate tr2)
     getDate (CashFlow x _) = x
     getDate (BondFlow x  _ _ _) = x
     getDate (MortgageFlow x _ _ _ _ _ _ _ _ _ ) = x
@@ -77,7 +75,6 @@ instance TimeSeries TsRow where
     getDate (MortgageFlow3 x _ _ _ _ _ _ _ _ _ _ _) = x
     getDate (LoanFlow x _ _ _ _ _ _ _ _) = x
     getDate (LeaseFlow x _ _ ) = x
-    getDates txns = map getDate txns
 
 data CashFlowFrame = CashFlowFrame [TsRow]
                    deriving (Show,Eq)

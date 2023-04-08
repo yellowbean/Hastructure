@@ -5,7 +5,7 @@
 
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction
-  ,LiquidityProviderName,draw,repay
+  ,LiquidityProviderName,draw,repay,LiqSupportRate(..)
   )
   where
 
@@ -25,8 +25,14 @@ import Stmt
 type LiquidityProviderName = String
 
 data LiqSupportType = ReplenishSupport DatePattern Balance
-                    | FixSupport 
+                    | FixSupport
+                    | ByPct DatePattern DealStats Rate
                     | UnLimit
+                    deriving(Show)
+
+type LastAccDate =  Date 
+data LiqSupportRate = FixRate DatePattern Rate LastAccDate
+                    | Dummy 
                     deriving(Show)
 
 data LiqFacility = LiqFacility {
@@ -35,6 +41,7 @@ data LiqFacility = LiqFacility {
     ,liqBalance :: Maybe Balance  -- available balance to support. Nothing -> unlimit 
     ,liqCredit :: Balance  -- total support balance 
     ,liqStart :: Date
+    ,liqRate :: Maybe LiqSupportRate
     ,liqStmt :: Maybe Statement
 } deriving (Show)
 
@@ -43,7 +50,12 @@ buildLiqResetAction :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, D
 buildLiqResetAction [] ed r = r
 buildLiqResetAction (liqProvider:liqProviders) ed r = 
   case liqProvider of 
-    (LiqFacility lqName (ReplenishSupport dp bal) _ _ ss stmt)
+    (LiqFacility lqName (ReplenishSupport dp bal) _ _ ss _ stmt)
+      -> buildLiqResetAction
+           liqProviders
+           ed
+           [(lqName, projDatesByPattern dp ss ed)]++r
+    (LiqFacility lqName (ByPct dp ds pct) _ _ ss _ stmt)
       -> buildLiqResetAction
            liqProviders
            ed
@@ -51,26 +63,31 @@ buildLiqResetAction (liqProvider:liqProviders) ed r =
     _ -> buildLiqResetAction liqProviders ed r
 
 draw :: Balance -> Date -> LiqFacility -> LiqFacility
-draw  bal d liq@LiqFacility{ liqBalance = liqBal
+draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqStmt = mStmt
                             ,liqCredit = accCredit} 
   = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = Just newStmt}
     where 
         newBal = case liqBal of 
-                   Just availBal -> Just (availBal - bal)
+                   Just availBal -> Just (availBal - amt)
                    Nothing -> Nothing
-        newCredit = accCredit+bal
+        newCredit = accCredit + amt
         newStmt = appendStmt 
                     mStmt
-                    (SupportTxn d newBal bal newCredit Empty)
+                    (SupportTxn d newBal amt newCredit Empty)
 
 repay :: Balance -> Date -> LiqFacility -> LiqFacility
-repay bal d liq@LiqFacility{liqBalance = liqBal, liqStmt = mStmt ,liqCredit = accCredit} 
-  = liq { liqCredit = newCredit,liqStmt = Just newStmt}
+repay bal d liq@LiqFacility{liqBalance = liqBal, liqStmt = mStmt ,liqCredit = accCredit, liqType = lt} 
+  = liq { liqBalance = newBal,  liqCredit = newCredit,liqStmt = Just newStmt}
     where 
         newCredit = accCredit - bal
+        newBal = case lt of 
+                   UnLimit  ->  Nothing
+                   _ -> (+ bal) <$> liqBal 
+
         newStmt = appendStmt mStmt (SupportTxn d liqBal (negate bal) newCredit Empty)
 
 
 $(deriveJSON defaultOptions ''LiqSupportType)
+$(deriveJSON defaultOptions ''LiqSupportRate)
 $(deriveJSON defaultOptions ''LiqFacility)

@@ -6,7 +6,7 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
                 ,InterestInfo(..),buildEarnIntAction,)
     where
 import qualified Data.Time as T
-import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getTxnDate
+import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getDate
             ,TxnComment(..),QueryByComment(..),getTxnComment,getTxnAmt,weightAvgBalanceByDates)
 import Types
 import Lib
@@ -64,7 +64,7 @@ depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed
                               let 
                                 _accrue_txns = sliceTxns _txns lastCollectDate ed
                                 _bals = map getTxnBegBalance _accrue_txns ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
-                                _ds = map getTxnDate _accrue_txns
+                                _ds = getDates _accrue_txns
                                 _dfs = getIntervalFactors $ [lastCollectDate] ++ _ds ++ [ed]
                               in
                                 mulBI (sum $ zipWith mulBR _bals _dfs) r  

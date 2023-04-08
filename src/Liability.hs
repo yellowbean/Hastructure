@@ -158,8 +158,8 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayD
      (realToFrac convexity)
      accruedInt -- `debug` ("Convexity->"++ show convexity)
      where
-       futureCf = filter (\x -> (S.getTxnDate x) > d) txns
-       presentValue = foldr (\x acc -> acc + (pv rc d (S.getTxnDate x) (S.getTxnAmt x))) 0 futureCf
+       futureCf = filter (\x -> (S.getDate x) > d) txns
+       presentValue = foldr (\x acc -> acc + (pv rc d (S.getDate x) (S.getTxnAmt x))) 0 futureCf
        cutoffBalance = case (S.getTxnAsOf txns d) of
                           Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                      where
@@ -169,8 +169,8 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayD
                       Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * (mulBI leftBal cr)
                       Just _ -> 0  -- `debug` ("all txn"++show(_t))-- `debug` ("l day, right"++show(leftPayDay)++show(d)++show(T.diffDays leftPayDay d))
                     where
-                      _t = find (\x -> (S.getTxnDate x) == d) txns
-                      leftTxns = takeWhile (\txn -> (S.getTxnDate txn) < d) txns
+                      _t = find (\x -> (S.getDate x) == d) txns
+                      leftTxns = takeWhile (\txn -> (S.getDate txn) < d) txns
                       (leftPayDay,leftBal) =
                         case leftTxns of
                           [] -> case lastIntPayDay of
@@ -179,25 +179,25 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayD
                           _ -> let
                                 leftTxn = last leftTxns
                               in
-                                (S.getTxnDate leftTxn,S.getTxnBalance leftTxn)
+                                (S.getDate leftTxn,S.getTxnBalance leftTxn)
        wal =  ((foldr 
                  (\x acc ->
-                   (acc + ((fromIntegral (daysBetween d (S.getTxnDate x)))*(S.getTxnPrincipal x)/365)))
+                   (acc + ((fromIntegral (daysBetween d (S.getDate x)))*(S.getTxnPrincipal x)/365)))
                    0.0
                    futureCf) / cutoffBalance)  
        duration = (foldr (\x acc ->
                            (mulBR  
-                             ((pv rc d (S.getTxnDate x) (S.getTxnAmt x)) / presentValue) 
-                             (yearCountFraction DC_ACT_365F d (S.getTxnDate x)))
+                             ((pv rc d (S.getDate x) (S.getTxnAmt x)) / presentValue) 
+                             (yearCountFraction DC_ACT_365F d (S.getDate x)))
                            + acc)
                     0
                     futureCf)  -- `debug` ("WAL-->"++show wal) 
        convexity = let 
                      b = (foldr (\x acc ->
                                          let 
-                                            _t = yearCountFraction DC_ACT_365F d (S.getTxnDate x) -- `debug` ("calc _T"++show d++">>"++show (S.getTxnDate x))
+                                            _t = yearCountFraction DC_ACT_365F d (S.getDate x) -- `debug` ("calc _T"++show d++">>"++show (S.getTxnDate x))
                                             _t2 = _t * _t + _t -- `debug` ("T->"++show _t)
-                                            _cash_date = S.getTxnDate x
+                                            _cash_date = S.getDate x
                                             _yield = getValByDate rc Exc _cash_date
                                             _y = (1+ _yield) * (1+ _yield) -- `debug` ("yield->"++ show _yield++"By date"++show d)
                                             _x = ((mulBR  (pv rc d _cash_date (S.getTxnAmt x)) _t2) / (fromRational _y)) -- `debug` ("PV:->"++show (pv rc d (S.getTxnDate x) (S.getTxnAmt x))++"Y->"++ show _y++"T2-->"++ show _t2)
@@ -231,7 +231,7 @@ calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
  =  _calcIRR cost 0.05 d (BalanceCurve cashflows)
    where
-     cashflows = [ TsPoint (S.getTxnDate txn) (S.getTxnAmt txn)  | txn <- txns ]
+     cashflows = [ TsPoint (S.getDate txn) (S.getTxnAmt txn)  | txn <- txns ]
 
 
 
@@ -243,7 +243,7 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYiel
      proj_fv = fv2 y odate d obal 
      fvs = sum $ [ fv2 y d (fst cf) (snd cf)  | cf <- cashflows ]
      cashflows = case stmt of
-                   Just (S.Statement txns) -> [ ((S.getTxnDate txn),(S.getTxnAmt txn))  | txn <- txns ]
+                   Just (S.Statement txns) -> [ ((S.getDate txn),(S.getTxnAmt txn))  | txn <- txns ]
                    Nothing -> []
 
 weightAverageBalance :: Date -> Date -> Bond -> Balance
@@ -252,7 +252,7 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
     where
      _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
      _bals = [currentBalance] ++ map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
-     _ds = map S.getTxnDate txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
+     _ds = S.getDates txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
      _b = consolStmt b   
      txns =  case S.sliceStmt (bndStmt _b) sd ed of
                 Nothing -> []
@@ -267,7 +267,7 @@ calcZspread (tradePrice,priceDay) count (trialPrice,spd) (Just (S.Statement txns
     let 
       (_,futureTxns) = splitByDate txns priceDay EqToRight
       cashflow = map S.getTxnAmt futureTxns
-      ds = map S.getTxnDate futureTxns
+      ds = map S.getDate futureTxns
       pvCurve = shiftTsByAmt riskFreeCurve spd
       pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ]
       newPrice = sum pvs -- `debug` ("PVS->>"++ show pvs)

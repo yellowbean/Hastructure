@@ -1,4 +1,4 @@
-module UT.DealTest(td2,waterfallTests,queryTests,triggerTests,dateTests)
+module UT.DealTest(td2,waterfallTests,queryTests,triggerTests,dateTests,liqProviderTest)
 
 where
 
@@ -7,6 +7,7 @@ import Test.Tasty.HUnit
 import Deal
 
 import qualified Accounts as A
+import qualified Stmt as S
 import qualified Asset as P
 import qualified AssetClass.Mortgage as ACM
 import qualified Expense as F
@@ -16,6 +17,7 @@ import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified Call as C
+import qualified CreditEnhancement as CE
 import Lib
 import Types
 
@@ -126,6 +128,16 @@ td2 = TestDeal {
              ,W.Collect W.CollectedPrincipal "General"]
  ,D.custom = Nothing
  ,D.call = Nothing
+ ,D.liqProvider = Just $ Map.fromList $
+                    [("Liq1",CE.LiqFacility 
+                                "" 
+                                CE.FixSupport
+                                (Just 100)
+                                50
+                                (toDate "20220201")
+                                (Just (CE.FixRate MonthEnd 0.05 (toDate "20220201")))
+                                (Just (S.Statement [S.SupportTxn (toDate "20220215") (Just 110) 10 40 S.Empty 
+                                                    ,S.SupportTxn (toDate "20220315") (Just 100) 10 50 S.Empty])))]
  ,D.triggers = Just $
                 Map.fromList $
                   [(BeginDistributionWF,[(AfterDate (toDate "20220501"),DealStatusTo Revolving)])]
@@ -203,4 +215,23 @@ dateTests =
      ,(toDate "20220901") )
      (populateDealDates a)
    ]
-   
+  
+liqProviderTest = 
+  let 
+    liq1 = CE.LiqFacility "" 
+                       CE.FixSupport
+                       (Just 100)
+                       90
+                       (toDate "20220201")
+                       (Just (CE.FixRate MonthEnd 0.05 (toDate "20220201")))
+                       (Just (S.Statement 
+                               [S.SupportTxn (toDate "20220215") (Just 110) 40 40 S.Empty
+                               ,S.SupportTxn (toDate "20220315") (Just 100) 50 90 S.Empty
+                               ]))
+  in 
+    testGroup "Liq provider test" 
+      [testCase "Liq Provider Int test" $
+          assertEqual ""
+           93
+           (CE.liqCredit $ D.accrueLiqProvider td2 (toDate "20221101") liq1)
+      ]
