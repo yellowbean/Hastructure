@@ -71,7 +71,7 @@ draw  amt d liq@LiqFacility{ liqBalance = liqBal
         newBal = case liqBal of 
                    Just availBal -> Just (availBal - amt)
                    Nothing -> Nothing
-        newCredit = accCredit+amt
+        newCredit = accCredit + amt
         newStmt = appendStmt 
                     mStmt
                     (SupportTxn d newBal amt newCredit Empty)
