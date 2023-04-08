@@ -52,9 +52,6 @@ data AccrualPeriod = AccrualPeriod Date DailyRate
 
 instance TimeSeries AccrualPeriod where 
     getDate (AccrualPeriod d _) = d
-    cmp (AccrualPeriod d1 _) (AccrualPeriod d2 _) = compare d1 d2
-    sameDate (AccrualPeriod d1 _) (AccrualPeriod d2 _) = d1 == d2
-    getDates xs = map getDate xs
 
 accrueRentalBetween :: Date -> Date -> Ts -> Amount
 accrueRentalBetween sd ed rc@(LeftBalanceCurve tps)

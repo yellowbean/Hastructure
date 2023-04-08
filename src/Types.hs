@@ -8,7 +8,7 @@ module Types
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
-  ,actionDates,DateDesp(..),Period(..)
+  ,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
   ,RangeType(..),CutoffType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..)
@@ -138,12 +138,7 @@ instance TimeSeries ActionOnDate where
     getDate (DealClosed d ) = d
     getDate (ChangeDealStatusTo d _ ) = d
     getDate (InspectDS d _ ) = d
-    cmp ad1 ad2 = compare (getDate ad1) (getDate ad2)
-    sameDate ad1 ad2 = getDate ad1 == getDate ad2
-    getDates ads = map getDate ads
 
-actionDates :: [ActionOnDate] -> Dates 
-actionDates = map getDate
 
 instance Ord ActionOnDate where
   compare a1 a2 = compare (getDate a1) (getDate a2)
@@ -283,8 +278,6 @@ data TsPoint a = TsPoint Date a
 instance TimeSeries (TsPoint a) where 
     getDate (TsPoint d a) = d
     sameDate (TsPoint d1 a1) (TsPoint d2 a2) = d1 == d2
-    cmp t1 t2 = compare (getDate t1) (getDate t2)
-    getDates tps = map getDate tps
 
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
@@ -374,9 +367,15 @@ data SplitType = EqToLeft   -- if equal, the element belongs to left
 
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
+    cmp t1 t2 = compare (getDate t1) (getDate t2)
     sameDate :: ts -> ts -> Bool
+    sameDate t1 t2 =  (getDate t1) ==  (getDate t2)
     getDate :: ts -> Date
     getDates :: [ts] -> [Date]
+    getDates ts = [ getDate t | t <- ts ]
+    filterByDate :: [ts] -> Date -> [ts]
+    filterByDate ts d = filter (\x -> getDate x == d ) ts
+    
 
 data LookupType = Upward 
                 | Downward

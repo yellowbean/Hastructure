@@ -80,6 +80,7 @@ data Action = Transfer AccountName AccountName
             | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
             | LiqRepay (Maybe Limit) AccountName CE.LiquidityProviderName 
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
+            | LiqAccrue CE.LiquidityProviderName 
             deriving (Show)
 
 type DistributionSeq = [(Maybe L.Pre, Action)]
