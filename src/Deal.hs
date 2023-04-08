@@ -1361,7 +1361,7 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit _ mRate stmt)
                         in 
                           sum $ ((flip mulBR) r) <$> bals
       newBal = curCredit + accureInt
-      newStmt = appendStmt stmt $ SupportTxn d mCurBal accureInt newBal Empty
+      newStmt = appendStmt stmt $ SupportTxn d mCurBal accureInt newBal LiquidationSupportInt
       newRate = case mRate of 
                   Nothing -> Nothing
                   Just (CE.FixRate _x _y _z) -> Just $ CE.FixRate _x _y d

@@ -42,6 +42,7 @@ data TxnComment = PayInt [BondName] (Maybe Balance)
                 | PoolInflow PoolSource
                 | LiquidationProceeds Balance
                 | LiquidationSupport String
+                | LiquidationSupportInt 
                 | BankInt
                 | Empty 
                 | Tag String
@@ -66,6 +67,7 @@ instance ToJSON TxnComment where
   toJSON Empty =  String $ T.pack $ "" 
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
   toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
+  toJSON LiquidationSupportInt =  String $ T.pack $ "<SupportInt:>" 
 
 -- instance FromJSON TxnComment
 

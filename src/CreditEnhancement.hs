@@ -25,7 +25,7 @@ import Stmt
 type LiquidityProviderName = String
 
 data LiqSupportType = ReplenishSupport DatePattern Balance
-                    | FixSupport 
+                    | FixSupport
                     | ByPct DatePattern DealStats Rate
                     | UnLimit
                     deriving(Show)
@@ -77,10 +77,14 @@ draw  amt d liq@LiqFacility{ liqBalance = liqBal
                     (SupportTxn d newBal amt newCredit Empty)
 
 repay :: Balance -> Date -> LiqFacility -> LiqFacility
-repay bal d liq@LiqFacility{liqBalance = liqBal, liqStmt = mStmt ,liqCredit = accCredit} 
-  = liq { liqCredit = newCredit,liqStmt = Just newStmt}
+repay bal d liq@LiqFacility{liqBalance = liqBal, liqStmt = mStmt ,liqCredit = accCredit, liqType = lt} 
+  = liq { liqBalance = newBal,  liqCredit = newCredit,liqStmt = Just newStmt}
     where 
         newCredit = accCredit - bal
+        newBal = case lt of 
+                   UnLimit  ->  Nothing
+                   _ -> (+ bal) <$> liqBal 
+
         newStmt = appendStmt mStmt (SupportTxn d liqBal (negate bal) newCredit Empty)
 
 
