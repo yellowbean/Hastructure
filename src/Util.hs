@@ -477,3 +477,7 @@ shiftTsByAmt (IRateCurve  tps) delta
 
 shiftTsByAmt _ts delta = _ts
 
+
+assert :: Bool -> a -> String -> a
+assert False x msg = error msg
+assert _     x _ = x

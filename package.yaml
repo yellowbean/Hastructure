@@ -35,6 +35,8 @@ dependencies:
 - regex-pcre
 - vector
 - wai
+- servant
+- servant-server
 
 library:
   source-dirs: src
@@ -65,6 +67,11 @@ executables:
     - scientific
     - servant-server
     - mtl
+    - servant
+    - servant-server
+    - lucid
+    - string-conversions
+    - attoparsec
     # - jsonschema-gen
     # - timeseries
 

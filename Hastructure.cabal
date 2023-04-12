@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -61,6 +61,8 @@ library
     , regex-base
     , regex-pcre
     , regex-tdfa
+    , servant
+    , servant-server
     , template-haskell
     , text
     , time
@@ -80,6 +82,7 @@ executable Hastructure-exe
       Hastructure
     , aeson
     , aeson-pretty
+    , attoparsec
     , base
     , base-compat
     , bytestring
@@ -87,12 +90,15 @@ executable Hastructure-exe
     , hashable
     , http-types
     , lens
+    , lucid
     , mtl
     , regex-base
     , regex-pcre
     , regex-tdfa
     , scientific
+    , servant
     , servant-server
+    , string-conversions
     , template-haskell
     , text
     , time
@@ -136,6 +142,8 @@ test-suite Hastructure-test
     , regex-base
     , regex-pcre
     , regex-tdfa
+    , servant
+    , servant-server
     , tasty
     , tasty-golden
     , tasty-hspec
