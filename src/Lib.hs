@@ -49,6 +49,10 @@ data Index = LPR5Y
             | SOFR3M
             | SOFR6M
             | SOFR1Y
+            | EURIBOR1M
+            | EURIBOR3M
+            | EURIBOR6M
+            | EURIBOR12M
             deriving (Show,Eq)
 -- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
 

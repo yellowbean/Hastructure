@@ -69,12 +69,6 @@ data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
               deriving(Show)
 $(deriveJSON defaultOptions ''PoolType)
 
-data RunPoolReq = RunPoolReq {
-   pool :: PoolType
-  ,pAssump :: Maybe AP.ApplyAssumptionType
-} deriving(Show)
-$(deriveJSON defaultOptions ''RunPoolReq)
-
 data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
               | LDeal (D.TestDeal AC_Loan.Loan)
               | IDeal (D.TestDeal AC_Installment.Installment) 
@@ -102,16 +96,28 @@ wrapRun (LDeal d) mAssump mPricing = let
 				     in 
                                     	(LDeal _d,_pflow,_rs,_p)
 
+wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> [CF.CashFlowFrame]
+wrapRunPool pt assump = case pt of 
+                          MPool p -> D.runPool2 p assump
+                          LPool p -> D.runPool2 p assump
+                          IPool p -> D.runPool2 p assump
+                          RPool p -> D.runPool2 p assump
+
 
 type ScenarioName = String
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
 	 	|MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
 		|MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
 
+data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType)
+		| MultiScenarioRunPoolReq PoolType (Map.Map ScenarioName AP.ApplyAssumptionType)
+
 $(deriveJSON defaultOptions ''RunDealReq)
+$(deriveJSON defaultOptions ''RunPoolReq)
 
 type EngineAPI = "version"  :> Get '[JSON] Version
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] [CF.CashFlowFrame]
+            :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName [CF.CashFlowFrame])
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
@@ -120,18 +126,16 @@ type EngineAPI = "version"  :> Get '[JSON] Version
 server1 :: Server EngineAPI
 server1 =  showVersion
       :<|> runPool
+      :<|> runPoolScenarios
       :<|> runDeal
       :<|> runDealScenarios
       :<|> runMultiDeals
     where 
         showVersion = return version1
-        runPool (RunPoolReq pt passumption) 
-          = return $ 
-              case pt of 
-                MPool p -> D.runPool2 p passumption
-                LPool p -> D.runPool2 p passumption
-                IPool p -> D.runPool2 p passumption
-                RPool p -> D.runPool2 p passumption
+        runPool (SingleRunPoolReq pt passumption) 
+          = return $ wrapRunPool pt passumption
+	runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) 
+	  = return $ Map.map (\singleAssump -> wrapRunPool pt (Just singleAssump)) mAssumps
         runDeal (SingleRunReq dt assump pricing) = return $ wrapRun dt assump pricing
 	runDealScenarios (MultiScenarioRunReq dt mAssumps pricing) 
 		= return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
