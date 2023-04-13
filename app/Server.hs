@@ -135,7 +135,7 @@ server1 =  showVersion
         runPool (SingleRunPoolReq pt passumption) 
           = return $ wrapRunPool pt passumption
 	runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) 
-	  = return $ Map.map (\singleAssump -> wrapRunPool pt (Just singleAssump)) mAssumps
+	  = return $ Map.map (wrapRunPool pt . Just) mAssumps
         runDeal (SingleRunReq dt assump pricing) = return $ wrapRun dt assump pricing
 	runDealScenarios (MultiScenarioRunReq dt mAssumps pricing) 
 		= return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
@@ -148,10 +148,6 @@ engineAPI = Proxy
 
 app1 :: Application
 app1 = serve engineAPI server1
--- type RunAPI = "run" :> QueryParam "type" RunType :> Post '[JSON] []
--- data RunType = Single | Multiple 
--- data RunObject = RunPool | RunDeal
-
 
 main :: IO ()
-main = run 8082  app1
+main = run 8082 app1

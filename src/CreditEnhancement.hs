@@ -6,6 +6,7 @@
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction
   ,LiquidityProviderName,draw,repay,LiqSupportRate(..)
+  ,RateSwap(..),LiqRepayType(..)
   )
   where
 
@@ -39,9 +40,12 @@ data LiqFacility = LiqFacility {
     liqName :: String 
     ,liqType :: LiqSupportType 
     ,liqBalance :: Maybe Balance  -- available balance to support. Nothing -> unlimit 
-    ,liqCredit :: Balance  -- total support balance 
+    ,liqCredit :: Balance  -- total support balance supported
     ,liqStart :: Date
+    ,liqDueInt :: Maybe Balance
+    ,liqDuePremium :: Maybe Balance
     ,liqRate :: Maybe LiqSupportRate
+    ,liqPremium :: Maybe LiqSupportRate
     ,liqStmt :: Maybe Statement
 } deriving (Show)
 
@@ -50,12 +54,12 @@ buildLiqResetAction :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, D
 buildLiqResetAction [] ed r = r
 buildLiqResetAction (liqProvider:liqProviders) ed r = 
   case liqProvider of 
-    (LiqFacility lqName (ReplenishSupport dp bal) _ _ ss _ stmt)
+    (LiqFacility lqName (ReplenishSupport dp bal) _ _ ss _ _ _ _ stmt)
       -> buildLiqResetAction
            liqProviders
            ed
            [(lqName, projDatesByPattern dp ss ed)]++r
-    (LiqFacility lqName (ByPct dp ds pct) _ _ ss _ stmt)
+    (LiqFacility lqName (ByPct dp ds pct) _ _ ss _ _ _ _ stmt)
       -> buildLiqResetAction
            liqProviders
            ed
@@ -65,7 +69,9 @@ buildLiqResetAction (liqProvider:liqProviders) ed r =
 draw :: Balance -> Date -> LiqFacility -> LiqFacility
 draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqStmt = mStmt
-                            ,liqCredit = accCredit} 
+                            ,liqCredit = accCredit
+                            ,liqDueInt = dueInt 
+                            ,liqDuePremium = duePremium} 
   = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = Just newStmt}
     where 
         newBal = case liqBal of 
@@ -74,18 +80,43 @@ draw  amt d liq@LiqFacility{ liqBalance = liqBal
         newCredit = accCredit + amt
         newStmt = appendStmt 
                     mStmt
-                    (SupportTxn d newBal amt newCredit Empty)
+                    (SupportTxn d newBal amt newCredit dueInt duePremium Empty)
 
-repay :: Balance -> Date -> LiqFacility -> LiqFacility
-repay bal d liq@LiqFacility{liqBalance = liqBal, liqStmt = mStmt ,liqCredit = accCredit, liqType = lt} 
-  = liq { liqBalance = newBal,  liqCredit = newCredit,liqStmt = Just newStmt}
+
+data LiqRepayType = LiqBal 
+                  | LiqPremium 
+                  | LiqInt 
+                  deriving (Show)
+                  
+
+repay :: Amount -> Date -> LiqRepayType -> LiqFacility -> LiqFacility
+repay bal d pt liq@LiqFacility{liqBalance = liqBal
+                              ,liqStmt = mStmt 
+                              ,liqCredit = credit
+                              ,liqDueInt = liqDueInt
+                              ,liqDuePremium = liqDuePremium
+                              ,liqType = lt} 
+  = liq {liqBalance = newBal
+         ,liqCredit = newCredit
+         ,liqDueInt = newIntDue
+         ,liqDuePremium = newDuePremium
+         ,liqStmt = Just newStmt}
     where 
-        newCredit = accCredit - bal
-        newBal = case lt of 
-                   UnLimit  ->  Nothing
-                   _ -> (+ bal) <$> liqBal 
+      (newBal,newCredit,newIntDue,newDuePremium) = 
+        case pt of 
+          LiqBal -> ( (+ bal) <$> liqBal, credit - bal,liqDueInt,liqDuePremium )
+          LiqPremium -> ( liqBal, credit , liqDueInt, (\x->x-bal)  <$> liqDuePremium )
+          LiqInt -> (liqBal, credit , (\x->x-bal)  <$> liqDueInt , liqDuePremium )
 
-        newStmt = appendStmt mStmt (SupportTxn d liqBal (negate bal) newCredit Empty)
+      newStmt = appendStmt mStmt (SupportTxn d liqBal bal newCredit newIntDue newDuePremium Empty)
+
+
+data RateSwap = RateSwap Rate Balance
+              | Dummy2 
+              deriving(Show)
+
+$(deriveJSON defaultOptions ''RateSwap)
+$(deriveJSON defaultOptions ''LiqRepayType)
 
 
 $(deriveJSON defaultOptions ''LiqSupportType)

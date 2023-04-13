@@ -84,33 +84,35 @@ parseTxn t = case tagName of
                   return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
   where 
       pat = "<(\\S+):(\\S+)>"::String
-      sr = ((T.unpack t) =~ pat)::[[String]]
+      sr = (T.unpack t =~ pat)::[[String]]
       tagName =  head sr!!1::String
       contents = head sr!!2::String
-                                       
+
+type DueInt = Maybe Balance
+type DuePremium =  Maybe Balance
 
 data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
          | AccTxn Date Balance Amount TxnComment
          | ExpTxn Date Balance Amount Balance TxnComment
-         | SupportTxn Date (Maybe Balance) Amount Balance TxnComment
+         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment
          deriving (Show)
 
 getTxnComment :: Txn -> TxnComment
 getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
 getTxnComment (AccTxn _ _ _ t ) = t
 getTxnComment (ExpTxn _ _ _ _ t ) = t
-getTxnComment (SupportTxn _ _ _ _ t ) = t
+getTxnComment (SupportTxn _ _ _ _ _ _ t ) = t
 
 getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
 getTxnBalance (AccTxn _ t _ _ ) = t
 getTxnBalance (ExpTxn _ t _ _ _ ) = t
-getTxnBalance (SupportTxn _ _ _ t _ ) = t
+getTxnBalance (SupportTxn _ _ _ t _ _ _ ) = t -- credit offered
 
 getTxnBegBalance :: Txn -> Balance
 getTxnBegBalance (BondTxn _ t _ p _ _ _ ) = t + p
 getTxnBegBalance (AccTxn _ b a _ ) = b - a
-getTxnBegBalance (SupportTxn _ _ a b _ ) = b - a
+getTxnBegBalance (SupportTxn _ _ a b _ _ _) = b - a
 
 getTxnPrincipal :: Txn -> Balance
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
@@ -119,16 +121,16 @@ getTxnAmt :: Txn -> Balance
 getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t
 getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
-getTxnAmt (SupportTxn _ _ t _ _) = t
+getTxnAmt (SupportTxn _ _ t _ _ _ _) = t
 
 getTxnAsOf :: [Txn] -> Date -> Maybe Txn
-getTxnAsOf txns d = find (\x -> (getDate x) <= d) $ reverse txns
+getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
 
 emptyTxn :: Txn -> Date -> Txn
 emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 Empty )
 emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 Empty )
 emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
-emptyTxn (SupportTxn _ _ _ _ _) d = (SupportTxn d Nothing 0 0 Empty )
+emptyTxn (SupportTxn _ _ _ _ _ _ _) d = (SupportTxn d Nothing 0 0 Nothing Nothing Empty)
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getDate x))) ts
@@ -144,12 +146,13 @@ sliceTxns txns sd ed
   = filter (\x -> (getDate x)>=sd && (getDate x)<ed) txns
 
 
+
+
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 
   = map (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) intervals -- `debug` ("interval"++ show intervals++ show txns)
   where 
       intervals = zip (init ds) (tail ds) 
-
 
 weightAvgBalance :: Date -> Date -> [Txn] -> Balance -- txn has to be between sd & ed
 weightAvgBalance sd ed txns 
@@ -200,7 +203,7 @@ instance TimeSeries Txn where
   getDate (BondTxn t _ _ _ _ _ _ ) = t
   getDate (AccTxn t _ _ _ ) = t
   getDate (ExpTxn t _ _ _ _ ) = t
-  getDate (SupportTxn t _ _ _ _) = t
+  getDate (SupportTxn t _ _ _ _ _ _) = t
 
 
 $(deriveJSON defaultOptions ''Txn)

@@ -29,8 +29,8 @@ import qualified Data.Set as S
 import qualified Control.Lens as LS
 import Data.List
 import Data.Fixed
-import Data.Maybe
 import Data.Time.Clock
+import Data.Maybe
 import Data.Aeson hiding (json)
 import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
@@ -67,6 +67,7 @@ data TestDeal a = TestDeal {
   ,collects :: [W.CollectionRule]
   ,call :: Maybe [C.CallOption]
   ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
+  ,rateSwap :: Maybe (Map.Map String CE.RateSwap)
   ,custom:: Maybe (Map.Map String CustomDataType)
   ,triggers :: Maybe (Map.Map WhenTrigger [(Trigger,TriggerEffect)])
   ,overrides :: Maybe [OverrideType]
@@ -452,7 +453,7 @@ performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (Nothin
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
 
-performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqRepay limit an pName)
+performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqRepay limit rpt an pName)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap }
   where 
       liqDue = CE.liqCredit $ _liqProvider Map.! pName
@@ -460,7 +461,7 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothi
                       Nothing -> min liqDue $ A.accBalance $ accs Map.! an
                       _ -> 0 -- to be implement
       newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs
-      newLiqMap = Map.adjust (CE.repay transferAmt d ) pName _liqProvider 
+      newLiqMap = Map.adjust (CE.repay transferAmt d rpt ) pName _liqProvider 
 
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothing, W.LiqYield limit an pName)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap }
@@ -469,7 +470,7 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (Nothi
                       Nothing -> A.accBalance $ accs Map.! an
                       _ -> 0 -- to be implement
       newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs
-      newLiqMap = Map.adjust (CE.repay transferAmt d ) pName _liqProvider 
+      newLiqMap = Map.adjust (CE.repay transferAmt d CE.LiqBal ) pName _liqProvider 
 
 performAction d t@TestDeal{liqProvider = Just _liqProvider} (Nothing, W.LiqAccrue n)
   = t {liqProvider = Just updatedLiqProvider}
@@ -548,9 +549,10 @@ testCalls t d [] = False  -- `debug` ("Empty call optns")
 testCalls t d opts = any (testCall t d) opts  -- `debug` ("testing call options"++ show opts)
 
 queryTrigger :: P.Asset a => TestDeal a -> WhenTrigger -> [(Trigger,TriggerEffect)]
-queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ Nothing _) wt = []
-queryTrigger (TestDeal _ _ _ _ _ _ _ _ _ _ _ _ (Just trgsM) _) wt 
-  =  Map.findWithDefault [] wt trgsM 
+queryTrigger t@TestDeal{ triggers = trgs } wt 
+  = case trgs of 
+      Nothing -> []
+      Just _trgs -> Map.findWithDefault [] wt _trgs
 
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
 testTrigger t d trigger = 
@@ -971,11 +973,7 @@ getInits t mAssumps
                                          dealAssumps 
                    in
                      case m_inspect_vars of 
-                       Just (AP.InspectOn inspect_vars) ->
-                           let 
-                             _int = [[ InspectDS _d ds | _d <- genSerialDatesTill2 II startDate dp endDate]  | (dp,ds) <- inspect_vars ]
-                           in 
-                             foldr (++) [] _int
+                       Just (AP.InspectOn inspect_vars) -> concat [[ InspectDS _d ds | _d <- genSerialDatesTill2 II startDate dp endDate]  | (dp,ds) <- inspect_vars ]
                        Nothing -> []  -- `debug` ("M inspect"++show dealAssumps)
                      
     stopDate = find 
@@ -1331,8 +1329,8 @@ calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd (Just _fdDay) fa lpd _
 
 
 updateLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
-updateLiqProvider t d liq@(CE.LiqFacility _ liqType (Just curBal) curCredit _ mRate stmt) -- refresh available balance
-  = liq { CE.liqBalance = newBalance}
+updateLiqProvider t d liq@(CE.LiqFacility _ liqType (Just curBal) curCredit _ _ _ mRate mPRate stmt) -- refresh available balance
+  = liq { CE.liqBalance = newBalance }
     where 
       newBalance = case liqType of 
                      CE.ReplenishSupport _ b -> Just (max b curBal)
@@ -1342,29 +1340,50 @@ updateLiqProvider t d liq@(CE.LiqFacility _ liqType (Just curBal) curCredit _ mR
 updateLiqProvider _ _ liq = liq
 
 accrueLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
-accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit sd mRate Nothing)
+accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit sd di dp mRate mPRate Nothing)
   = accrueLiqProvider t d $ liq{CE.liqStmt = Just defaultStmt} 
    where 
-       defaultStmt = Statement [SupportTxn sd mCurBal 0 curCredit Empty]
+       defaultStmt = Statement [SupportTxn sd mCurBal 0 curCredit di dp Empty]
 
-accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit _ mRate stmt)
+accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit sd dueInt dueFee mRate mPRate stmt)
   = liq { CE.liqCredit = newBal
          ,CE.liqStmt = Just newStmt
+         ,CE.liqDueInt = newDueInt
+         ,CE.liqDuePremium = newDueFee
+         ,CE.liqPremium = newPRate
          ,CE.liqRate = newRate} -- `debug` ("Accure liq"++ show liq)
     where 
       accureInt = case mRate of 
                     Nothing -> 0
                     Just (CE.FixRate _ r lastAccDate) -> 
-                        let 
-                          txns = getTxns stmt
-                          bals = weightAvgBalanceByDates [lastAccDate,d] txns
-                        in 
-                          sum $ ((flip mulBR) r) <$> bals
-      newBal = curCredit + accureInt
-      newStmt = appendStmt stmt $ SupportTxn d mCurBal accureInt newBal LiquidationSupportInt
+                      let 
+                        bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns stmt
+                      in 
+                        sum $ ((flip mulBR) r) <$> bals
+      accureFee = case mPRate of
+                    Nothing -> 0 
+                    Just (CE.FixRate _ r lastAccDate) -> 
+                      let 
+                        (_,_unAccTxns) = splitByDate (getTxns stmt) lastAccDate EqToLeftKeepOne
+                        accBals = getUnusedBal <$> _unAccTxns
+                        _ds = getDate <$> _unAccTxns
+                        _avgBal = calcWeigthBalanceByDates accBals (_ds++[d])
+                      in 
+                        mulBR _avgBal r
+                        
+      getUnusedBal (SupportTxn _ b _ _ _ _ _ ) = fromMaybe 0 b 
+      
+      newDueFee = (accureFee +) <$> dueFee 
+      newDueInt = (accureInt +) <$> dueInt
+      newBal = curCredit + accureInt + accureFee
+      newStmt = appendStmt stmt $ SupportTxn d mCurBal (accureInt + accureFee) newBal newDueInt newDueFee LiquidationSupportInt
+      
       newRate = case mRate of 
                   Nothing -> Nothing
-                  Just (CE.FixRate _x _y _z) -> Just $ CE.FixRate _x _y d
+                  Just (CE.FixRate _x _y _) -> Just $ CE.FixRate _x _y d
+      newPRate = case mPRate of 
+                  Nothing -> Nothing
+                  Just (CE.FixRate _x _y _) -> Just $ CE.FixRate _x _y d
 
 
 calcDueInt :: P.Asset a => TestDeal a -> Date -> L.Bond -> L.Bond

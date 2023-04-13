@@ -8,7 +8,7 @@ module Util
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, splitByDate, rangeBy
-    ,shiftTsByAmt
+    ,shiftTsByAmt,calcWeigthBalanceByDates
     )
     where
 import qualified Data.Time as T
@@ -478,6 +478,17 @@ shiftTsByAmt (IRateCurve  tps) delta
 shiftTsByAmt _ts delta = _ts
 
 
-assert :: Bool -> a -> String -> a
-assert False x msg = error msg
-assert _     x _ = x
+assert1 :: Bool -> a -> String -> a
+assert1 False x msg = error msg
+assert1 _     x _ = x
+
+calcWeigthBalanceByDates :: [Balance] -> [Date] -> Balance 
+calcWeigthBalanceByDates bals ds 
+  = assert1
+      (succ bs_length == ds_length) 
+      (sum $ zipWith mulBR bals weights)
+      "calcWeigthBalanceByDates: bs and ds should be same length"
+      where 
+        bs_length = length bals 
+        ds_length = length ds
+        weights = getIntervalFactors ds
