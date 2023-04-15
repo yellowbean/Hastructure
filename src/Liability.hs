@@ -16,10 +16,8 @@ import Data.Aeson.TH
 import Data.Fixed
 
 import qualified Data.Time as T
-import Lib (Index(..),Period(..),Ts(..)
-           ,TsPoint(..)
-           ,toDate,daysBetween
-           ,getIntervalFactors,daysBetweenI)
+import Lib (Period(..),Ts(..) ,TsPoint(..)
+           ,toDate,daysBetween ,getIntervalFactors,daysBetweenI)
 
 import Util
 import Types

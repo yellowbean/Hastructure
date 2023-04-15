@@ -14,7 +14,7 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
 import Lib (Period(..),genDates
-           ,Ts(..),Index(..),periodRateFromAnnualRate,previousDate,toDate
+           ,Ts(..),periodRateFromAnnualRate,previousDate,toDate
            ,nextDate,getIntervalDays,zipWith9,mkTs,periodsBetween
            ,mkRateTs)
 

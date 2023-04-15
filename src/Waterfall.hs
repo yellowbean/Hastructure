@@ -81,6 +81,9 @@ data Action = Transfer AccountName AccountName
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName 
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
             | LiqAccrue CE.LiquidityProviderName 
+            | SwapAccrue CeName
+            | SwapReceive AccountName CeName
+            | SwapPay AccountName CeName
             deriving (Show)
 
 type DistributionSeq = [(Maybe L.Pre, Action)]

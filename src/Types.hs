@@ -11,10 +11,11 @@ module Types
   ,DateDesp(..),Period(..)
   ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
   ,RangeType(..),CutoffType(..),FormulaType(..),CustomDataType(..)
-  ,Balance,DealStats(..)
+  ,Balance,DealStats(..),Index(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..),SplitType(..)
+  ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum)
   where
@@ -42,6 +43,7 @@ type FeeNames = [String]
 type AccName = String
 type AccountName = String
 type AccNames = [String]
+type CeName = String
 type Balance = Centi
 
 type Date = Time.Day
@@ -65,6 +67,8 @@ type Prepayment = Centi
 type Rental = Centi
 type Cap = Micro
 
+
+
 type PrepaymentRate = Rate
 type DefaultRate = Rate
 type RecoveryRate = Rate
@@ -73,6 +77,26 @@ type RemainTerms = Int
 
 type BorrowerNum = Int
 
+data Index = LPR5Y
+            | LPR1Y
+            | LIBOR1M
+            | LIBOR3M
+            | LIBOR6M
+            | LIBOR1Y
+            | PRIME
+            | SOFR1M
+            | SOFR3M
+            | SOFR6M
+            | SOFR1Y
+            | EURIBOR1M
+            | EURIBOR3M
+            | EURIBOR6M
+            | EURIBOR12M
+            deriving (Show,Eq)
+
+type Floater = (Index,Spread)
+
+epocDate = Time.fromGregorian 1970 1 1
 -- http://www.deltaquants.com/day-count-conventions
 data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Basis
               | DC_30Ep_360 -- 30E+/360
@@ -124,9 +148,8 @@ data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
                   | RunWaterfall Date String
                   | DealClosed Date 
                   | InspectDS Date DealStats
+                  | ResetIRSwapRate Date String
                   deriving (Show,Generic,Read)
-
-epocDate = Time.fromGregorian 1970 1 1
 
 
 instance TimeSeries ActionOnDate where
@@ -397,7 +420,13 @@ lookupTable (ThresholdTable rows) lkupType lkupVal notFound
                       Downward  -> (<)
                       DownwardInclude -> (<=)
 
+data RateAssumption = RateCurve Index Ts
+                    | RateFlat Index IRate
+                    deriving (Show)
 
+
+
+$(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
 $(deriveJSON defaultOptions ''DealStats)
 $(deriveJSON defaultOptions ''DealStatus)

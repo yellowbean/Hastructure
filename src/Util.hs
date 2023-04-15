@@ -492,3 +492,6 @@ calcWeigthBalanceByDates bals ds
         bs_length = length bals 
         ds_length = length ds
         weights = getIntervalFactors ds
+
+
+

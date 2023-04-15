@@ -3,11 +3,12 @@
 
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
                     ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR,ApplyAssumptionType(..)
-                    ,lookupAssumptionByIdx,splitAssumptions)
+                    ,lookupAssumptionByIdx,splitAssumptions,lookupRate)
 where
 
 import Call as C
-import Lib (Index(..),Ts(..),TsPoint(..),toDate)
+import Lib (Ts(..),TsPoint(..),toDate)
+import Util
 import qualified Data.Map as Map 
 import Data.List
 import qualified Data.Set as Set
@@ -19,6 +20,7 @@ import Types
 import qualified Data.Time as T
 import Data.Fixed
 import Data.Ratio
+
 import Debug.Trace
 debug = flip trace
 
@@ -108,6 +110,20 @@ getCPR (ap:aps) =
     case ap of 
       PrepaymentCPR r -> Just r 
       _ -> getCPR aps
+
+getIndexFromRateAssumption :: RateAssumption -> Index 
+getIndexFromRateAssumption (RateCurve idx _) = idx
+getIndexFromRateAssumption (RateFlat idx _) = idx
+
+lookupRate :: [RateAssumption] -> Floater -> Date -> IRate 
+lookupRate rAssumps (index,spd) d
+  = case find (\x -> (getIndexFromRateAssumption x) == index ) rAssumps of 
+      Just (RateCurve _ ts) -> spd + (fromRational (getValByDate ts Inc d))
+      Just (RateFlat _ r) -> r + spd
+      Nothing -> error $ "Failed to find Index "++show index
+
+
+
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)
 $(deriveJSON defaultOptions ''BondPricingInput)

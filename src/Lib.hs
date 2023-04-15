@@ -5,12 +5,12 @@
 module Lib
     (Amount,Rate,Dates,Period(..),Balance
     ,genDates,StartDate,EndDate,daysBetween,daysBetweenI
-    ,Spread,Index(..),Date
+    ,Spread,Date
     ,paySeqLiabilities,prorataFactors
     ,afterNPeriod,Ts(..),periodsBetween
     ,periodRateFromAnnualRate
     ,previousDate,inSamePeriod
-    ,Floor,Cap,TsPoint(..),RateAssumption(..)
+    ,Floor,Cap,TsPoint(..)
     ,toDate
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
@@ -38,22 +38,6 @@ debug = flip trace
 
 data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
 
-data Index = LPR5Y
-            | LPR1Y
-            | LIBOR1M
-            | LIBOR3M
-            | LIBOR6M
-            | LIBOR1Y
-            | PRIME
-            | SOFR1M
-            | SOFR3M
-            | SOFR6M
-            | SOFR1Y
-            | EURIBOR1M
-            | EURIBOR3M
-            | EURIBOR6M
-            | EURIBOR12M
-            deriving (Show,Eq)
 -- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
 
 annualRateToPeriodRate :: Period -> Float -> Float
@@ -172,10 +156,6 @@ periodsBetween t1 t2 p
     _diff = T.cdMonths $ T.diffGregorianDurationClip t1 t2
 
 
-data RateAssumption = RateCurve Index Ts
-                    | RateFlat Index IRate
-                    deriving (Show)
-
 mkTs :: [(Date,Rational)] -> Ts
 mkTs [] = FloatCurve []
 mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
@@ -226,9 +206,6 @@ inSamePeriod t1 t2 p
     where
       (y1,m1,d1) = T.toGregorian t1
       (y2,m2,d2) = T.toGregorian t2
-
-
-$(deriveJSON defaultOptions ''Index)
 
 
 zipWith8 :: (a->b->c->d->e->f->g->h->i) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]

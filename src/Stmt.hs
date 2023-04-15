@@ -42,12 +42,16 @@ data TxnComment = PayInt [BondName] (Maybe Balance)
                 | PoolInflow PoolSource
                 | LiquidationProceeds Balance
                 | LiquidationSupport String
-                | LiquidationSupportInt 
+                | LiquidationDraw
+                | LiquidationRepay
+                | LiquidationSupportInt Balance Balance
                 | BankInt
                 | Empty 
                 | Tag String
                 | UsingDS DealStats
                 | UsingFormula FormulaType
+                | SwapAccure
+                | SwapSettle
                 | TxnComments [TxnComment]
                 deriving (Eq,Show,Generic)
 
@@ -67,7 +71,11 @@ instance ToJSON TxnComment where
   toJSON Empty =  String $ T.pack $ "" 
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
   toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
-  toJSON LiquidationSupportInt =  String $ T.pack $ "<SupportInt:>" 
+  toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
+  toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
+  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
+  toJSON SwapAccure = String $ T.pack $ "<Accure:>"
+  toJSON SwapSettle = String $ T.pack $ "<Settle:>"
 
 -- instance FromJSON TxnComment
 
@@ -95,6 +103,7 @@ data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
          | AccTxn Date Balance Amount TxnComment
          | ExpTxn Date Balance Amount Balance TxnComment
          | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment
+         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment
          deriving (Show)
 
 getTxnComment :: Txn -> TxnComment
@@ -102,6 +111,7 @@ getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
 getTxnComment (AccTxn _ _ _ t ) = t
 getTxnComment (ExpTxn _ _ _ _ t ) = t
 getTxnComment (SupportTxn _ _ _ _ _ _ t ) = t
+getTxnComment (IrsTxn _ _ _ _ _ _ t ) = t
 
 getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
@@ -122,6 +132,7 @@ getTxnAmt (BondTxn _ _ _ _ _ t _ ) = t
 getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
 getTxnAmt (SupportTxn _ _ t _ _ _ _) = t
+getTxnAmt (IrsTxn _ _ t _ _ _ _ ) = t
 
 getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
@@ -131,6 +142,7 @@ emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 Empty )
 emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 Empty )
 emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
 emptyTxn (SupportTxn _ _ _ _ _ _ _) d = (SupportTxn d Nothing 0 0 Nothing Nothing Empty)
+emptyTxn (IrsTxn _ _ _ _ _ _ _) d = IrsTxn d 0 0 0 0 0 Empty
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getDate x))) ts
@@ -144,9 +156,6 @@ sliceStmt (Just (Statement txns)) sd ed
 sliceTxns :: [Txn] -> Date -> Date -> [Txn]
 sliceTxns txns sd ed 
   = filter (\x -> (getDate x)>=sd && (getDate x)<ed) txns
-
-
-
 
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 
@@ -204,6 +213,7 @@ instance TimeSeries Txn where
   getDate (AccTxn t _ _ _ ) = t
   getDate (ExpTxn t _ _ _ _ ) = t
   getDate (SupportTxn t _ _ _ _ _ _) = t
+  getDate (IrsTxn t _ _ _ _ _ _) = t
 
 
 $(deriveJSON defaultOptions ''Txn)

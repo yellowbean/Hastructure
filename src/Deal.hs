@@ -31,6 +31,7 @@ import Data.List
 import Data.Fixed
 import Data.Time.Clock
 import Data.Maybe
+import Data.Either
 import Data.Aeson hiding (json)
 import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
@@ -68,6 +69,7 @@ data TestDeal a = TestDeal {
   ,call :: Maybe [C.CallOption]
   ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
   ,rateSwap :: Maybe (Map.Map String CE.RateSwap)
+  ,currencySwap :: Maybe (Map.Map String CE.CurrencySwap)
   ,custom:: Maybe (Map.Map String CustomDataType)
   ,triggers :: Maybe (Map.Map WhenTrigger [(Trigger,TriggerEffect)])
   ,overrides :: Maybe [OverrideType]
@@ -271,7 +273,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (Nothing, W.PayInt an b
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
     acc = accMap Map.! an
-
     availBal = A.accBalance acc
     bndsToPay = map (bndMap Map.!) bnds
     bndsWithDue = filter (\x -> L.bndDueInt x > 0) $ map (calcDueInt t d) bndsToPay
@@ -477,6 +478,27 @@ performAction d t@TestDeal{liqProvider = Just _liqProvider} (Nothing, W.LiqAccru
     where 
       updatedLiqProvider = Map.adjust (accrueLiqProvider t d ) n _liqProvider
 
+performAction d t@TestDeal{rateSwap = Just rtSwap } (Nothing, W.SwapAccrue sName)
+  = t { rateSwap = Just newRtSwap }
+    where 
+        newRtSwap = Map.adjust (CE.accrueIRS d) sName rtSwap
+
+performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (Nothing, W.SwapReceive accName sName)
+  = t { rateSwap = Just newRtSwap, accounts = newAccMap }
+    where 
+        receiveAmt = fromLeft 0 $ CE.netCash $ rtSwap Map.! sName
+        newRtSwap = Map.adjust (CE.receiveIRS d) sName rtSwap
+        newAccMap = Map.adjust (A.deposit receiveAmt d SwapSettle) accName accsMap
+
+performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (Nothing, W.SwapPay accName sName)
+  = t { rateSwap = Just newRtSwap, accounts = newAccMap }
+    where 
+        payoutAmt = fromRight 0 $ CE.netCash $ rtSwap Map.! sName
+        availBal = A.accBalance $  accsMap Map.! accName
+        amtToPay = min payoutAmt availBal 
+        newRtSwap = Map.adjust (CE.payoutIRS d amtToPay) sName rtSwap
+        newAccMap = Map.adjust (A.draw amtToPay d SwapSettle) accName accsMap
+
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
@@ -489,8 +511,7 @@ getRateAssumptionByIndex ras idx
         (RateFlat _idx _rval) -> (_idx==idx))
       ras
 
-
-applyFloatRate :: L.InterestInfo -> T.Day -> [RateAssumption] -> IRate
+applyFloatRate :: L.InterestInfo -> Date -> [RateAssumption] -> IRate
 applyFloatRate (L.Floater idx spd p dc mf mc) d ras
   = case (mf,mc) of
       (Nothing,Nothing) -> _rate
@@ -505,7 +526,7 @@ applyFloatRate (L.Floater idx spd p dc mf mc) d ras
       ra = getRateAssumptionByIndex ras idx
       _rate = idx_rate + spd
 
-applicableAdjust :: T.Day -> L.Bond -> Bool
+applicableAdjust :: Date -> L.Bond -> Bool
 applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ _ )
   = case rr of 
       L.ByInterval p mStartDate ->
@@ -523,7 +544,7 @@ applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ _ )
 applicableAdjust d (L.Bond _ _ oi (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
 applicableAdjust d (L.Bond _ _ oi (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
 
-setBndsNextIntRate :: TestDeal a -> T.Day -> Maybe [RateAssumption] -> TestDeal a
+setBndsNextIntRate :: TestDeal a -> Date -> Maybe [RateAssumption] -> TestDeal a
 setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
     where 
         floatBonds = filter (applicableAdjust d) $ Map.elems (bonds t)
@@ -532,7 +553,26 @@ setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
 
 setBndsNextIntRate t d Nothing = t 
 
-testCall :: P.Asset a => TestDeal a -> T.Day -> C.CallOption -> Bool 
+updateRateSwapRate :: [RateAssumption] -> Date -> CE.RateSwap -> CE.RateSwap
+updateRateSwapRate rAssumps d rs@CE.RateSwap{ CE.rsType = rt } 
+  = rs {CE.payingRate = pRate, CE.receivingRate = rRate }
+  where 
+      (pRate,rRate) = case rt of 
+                     CE.FloatingToFloating flter1 flter2 -> (getRate flter1,getRate flter2)
+                     CE.FloatingToFixed flter r -> (getRate flter, r)
+                     CE.FixedToFloating r flter -> (r , getRate flter)
+
+      getRate x = AP.lookupRate rAssumps x d
+
+setIrSwapRate :: TestDeal a -> Date -> Maybe [RateAssumption] -> TestDeal a
+setIrSwapRate t@TestDeal{ rateSwap = Just rtSwap } d (Just ras) 
+  = t { rateSwap = Just newRtSwap }
+    where 
+      newRtSwap = Map.map (updateRateSwapRate ras d)  rtSwap
+
+setIrSwapRate t d Nothing = t 
+
+testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
 testCall t d opt = 
     case opt of 
        C.PoolBalance x -> queryDeal t FutureCurrentPoolBalance < x
@@ -727,8 +767,16 @@ run2 t poolFlow (Just (ad:ads)) rates calls log
                newDeal = foldl (performAction d) t w -- `debug` ("ClosingDay Action:"++show w)
              in 
                run2 newDeal poolFlow (Just ads) rates calls log
+
          ChangeDealStatusTo d s -> 
              run2 (t{status=s}) poolFlow (Just ads) rates calls log
+
+         ResetIRSwapRate d sn -> 
+             let
+               _rates = fromMaybe [] rates
+               newRateSwap = (Map.adjust (updateRateSwapRate _rates d) sn)  <$>  (rateSwap t)
+             in 
+               run2 (t{rateSwap = newRateSwap}) poolFlow (Just ads) rates calls log
 
          InspectDS d ds -> 
              let 
@@ -975,6 +1023,15 @@ getInits t mAssumps
                      case m_inspect_vars of 
                        Just (AP.InspectOn inspect_vars) -> concat [[ InspectDS _d ds | _d <- genSerialDatesTill2 II startDate dp endDate]  | (dp,ds) <- inspect_vars ]
                        Nothing -> []  -- `debug` ("M inspect"++show dealAssumps)
+
+    irSwapRateDates = case rateSwap t of
+                        Nothing -> []
+                        Just rsm -> Map.elems $ Map.mapWithKey 
+                                                 (\k x -> let 
+                                                           resetDs = (genSerialDatesTill2 IE startDate (CE.settleDates x) endDate)
+                                                          in 
+                                                           ((flip ResetIRSwapRate) k) <$> resetDs)
+                                                 rsm
                      
     stopDate = find 
                  (\case
@@ -984,8 +1041,9 @@ getInits t mAssumps
     
     _actionDates = let 
                      -- a = bActionDates ++ pActionDates ++ iAccIntDates ++ feeAccrueDates ++ liqResetDates ++ dealStageDates ++ inspectDates
-                     a = foldr (++) [] [bActionDates,pActionDates,iAccIntDates
-                                        ,feeAccrueDates,liqResetDates,dealStageDates,inspectDates] -- `debug` ("inspect Dates"++show inspectDates)
+                     a = concat [bActionDates,pActionDates,iAccIntDates
+                                ,feeAccrueDates,liqResetDates,dealStageDates
+                                ,concat irSwapRateDates,inspectDates] -- `debug` ("inspect Dates"++show inspectDates)
                    in
                      case dates t of 
                        (PreClosingDates _ _ _ _ _ _) -> sort $ (DealClosed closingDate):a 
@@ -1355,35 +1413,47 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit sd dueInt dueFee
     where 
       accureInt = case mRate of 
                     Nothing -> 0
-                    Just (CE.FixRate _ r lastAccDate) -> 
+                    Just (CE.FixRate _ r mLastAccDate) -> 
                       let 
+                        lastAccDate = case mLastAccDate of 
+                                        Just _accDate -> _accDate 
+                                        Nothing -> sd
                         bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns stmt
                       in 
                         sum $ ((flip mulBR) r) <$> bals
       accureFee = case mPRate of
                     Nothing -> 0 
-                    Just (CE.FixRate _ r lastAccDate) -> 
+                    Just (CE.FixRate _ r mLastAccDate) -> 
                       let 
+                        lastAccDate = case mLastAccDate of 
+                                        Just _accDate -> _accDate 
+                                        Nothing -> sd
                         (_,_unAccTxns) = splitByDate (getTxns stmt) lastAccDate EqToLeftKeepOne
-                        accBals = getUnusedBal <$> _unAccTxns
-                        _ds = getDate <$> _unAccTxns
+                        accBals = getUnusedBal <$> _unAccTxns 
+                        _ds = [lastAccDate] ++ (tail $ getDate <$> _unAccTxns)
                         _avgBal = calcWeigthBalanceByDates accBals (_ds++[d])
                       in 
-                        mulBR _avgBal r
+                        mulBR _avgBal r  
                         
       getUnusedBal (SupportTxn _ b _ _ _ _ _ ) = fromMaybe 0 b 
       
-      newDueFee = (accureFee +) <$> dueFee 
-      newDueInt = (accureInt +) <$> dueInt
+      newDueFee = Just $ accureFee + fromMaybe 0 dueFee 
+      newDueInt = Just $ accureInt + fromMaybe 0 dueInt
       newBal = curCredit + accureInt + accureFee
-      newStmt = appendStmt stmt $ SupportTxn d mCurBal (accureInt + accureFee) newBal newDueInt newDueFee LiquidationSupportInt
+      newStmt = appendStmt stmt $ SupportTxn d 
+                                             mCurBal 
+                                             (accureInt + accureFee) 
+                                             newBal 
+                                             newDueInt 
+                                             newDueFee 
+                                             (LiquidationSupportInt accureInt accureFee)
       
       newRate = case mRate of 
                   Nothing -> Nothing
-                  Just (CE.FixRate _x _y _) -> Just $ CE.FixRate _x _y d
+                  Just (CE.FixRate _x _y _) -> Just $ CE.FixRate _x _y (Just d)
       newPRate = case mPRate of 
                   Nothing -> Nothing
-                  Just (CE.FixRate _x _y _) -> Just $ CE.FixRate _x _y d
+                  Just (CE.FixRate _x _y _) -> Just $ CE.FixRate _x _y (Just d)
 
 
 calcDueInt :: P.Asset a => TestDeal a -> Date -> L.Bond -> L.Bond
