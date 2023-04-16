@@ -486,15 +486,15 @@ performAction d t@TestDeal{rateSwap = Just rtSwap } (Nothing, W.SwapAccrue sName
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (Nothing, W.SwapReceive accName sName)
   = t { rateSwap = Just newRtSwap, accounts = newAccMap }
     where 
-        receiveAmt = fromLeft 0 $ CE.netCash $ rtSwap Map.! sName
+        receiveAmt = CE.netCash $ rtSwap Map.! sName
         newRtSwap = Map.adjust (CE.receiveIRS d) sName rtSwap
         newAccMap = Map.adjust (A.deposit receiveAmt d SwapSettle) accName accsMap
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (Nothing, W.SwapPay accName sName)
   = t { rateSwap = Just newRtSwap, accounts = newAccMap }
     where 
-        payoutAmt = fromRight 0 $ CE.netCash $ rtSwap Map.! sName
-        availBal = A.accBalance $  accsMap Map.! accName
+        payoutAmt = negate $ CE.netCash $ rtSwap Map.! sName
+        availBal = A.accBalance $ accsMap Map.! accName
         amtToPay = min payoutAmt availBal 
         newRtSwap = Map.adjust (CE.payoutIRS d amtToPay) sName rtSwap
         newAccMap = Map.adjust (A.draw amtToPay d SwapSettle) accName accsMap
@@ -561,16 +561,13 @@ updateRateSwapRate rAssumps d rs@CE.RateSwap{ CE.rsType = rt }
                      CE.FloatingToFloating flter1 flter2 -> (getRate flter1,getRate flter2)
                      CE.FloatingToFixed flter r -> (getRate flter, r)
                      CE.FixedToFloating r flter -> (r , getRate flter)
-
       getRate x = AP.lookupRate rAssumps x d
 
-setIrSwapRate :: TestDeal a -> Date -> Maybe [RateAssumption] -> TestDeal a
-setIrSwapRate t@TestDeal{ rateSwap = Just rtSwap } d (Just ras) 
-  = t { rateSwap = Just newRtSwap }
-    where 
-      newRtSwap = Map.map (updateRateSwapRate ras d)  rtSwap
-
-setIrSwapRate t d Nothing = t 
+updateRateSwapBal :: P.Asset a => TestDeal a -> Date -> CE.RateSwap -> CE.RateSwap
+updateRateSwapBal t d rs@CE.RateSwap{ CE.notional = base }
+  =  case base of 
+       CE.Fixed _ -> rs 
+       CE.Base ds -> rs { CE.refBalance = (queryDeal t (patchDateToStats d ds)) }
 
 testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
 testCall t d opt = 
@@ -774,9 +771,10 @@ run2 t poolFlow (Just (ad:ads)) rates calls log
          ResetIRSwapRate d sn -> 
              let
                _rates = fromMaybe [] rates
-               newRateSwap = (Map.adjust (updateRateSwapRate _rates d) sn)  <$>  (rateSwap t)
+               newRateSwap_rate = (Map.adjust (updateRateSwapRate _rates d) sn)  <$>  (rateSwap t)
+               newRateSwap_bal = Map.adjust (updateRateSwapBal t d) sn <$> newRateSwap_rate
              in 
-               run2 (t{rateSwap = newRateSwap}) poolFlow (Just ads) rates calls log
+               run2 (t{rateSwap = newRateSwap_bal}) poolFlow (Just ads) rates calls log
 
          InspectDS d ds -> 
              let 

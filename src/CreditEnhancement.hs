@@ -7,7 +7,7 @@ module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction
   ,LiquidityProviderName,draw,repay,LiqSupportRate(..)
   ,RateSwap(..),LiqRepayType(..),CurrencySwap(..)
-  ,RateSwapType(..)
+  ,RateSwapType(..),RateSwapBase(..)
   ,accrueIRS,payoutIRS,receiveIRS
   )
   where
@@ -124,7 +124,6 @@ data RateSwapType = FloatingToFloating Floater Floater   -- Paying Floating rate
 
 type ReceiveAmount = Balance
 type PayoutAmount = Balance
-type NetCash = Either ReceiveAmount PayoutAmount
 
 data RateSwapBase = Fixed Balance
                   | Base DealStats
@@ -138,7 +137,7 @@ data RateSwap = RateSwap {rsType :: RateSwapType
                          ,receivingRate :: IRate
                          ,refBalance :: Balance
                          ,lastStlDate :: Maybe Date
-                         ,netCash :: NetCash
+                         ,netCash :: Balance
                          ,stmt :: Maybe Statement}
                          deriving(Show)
               
@@ -156,32 +155,27 @@ accrueIRS d rs@RateSwap{refBalance = face
           rateDiff =  receiveRate - payRate 
           yearFactor = fromRational $ (yearCountFraction DC_ACT_365 accureStartDate d)
           newNetAmount = mulBIR (face * yearFactor) $ rateDiff 
-          currentNetAmount = case netCash of 
-                              Left l -> l 
-                              Right r -> negate r 
-          cumNetAmt = currentNetAmount + newNetAmount
-          newNet = if cumNetAmt > 0 then
-                     Left cumNetAmt
-                   else 
-                     Right cumNetAmt
-          newTxn = IrsTxn d face newNetAmount payRate receiveRate cumNetAmt SwapAccure
+          newNet = netCash + newNetAmount
+          newTxn = IrsTxn d face newNetAmount payRate receiveRate newNet SwapAccure
           newStmt = case stmt of 
                       Nothing -> Just $ Statement [newTxn]
                       Just (Statement txns) -> Just $ Statement $ txns++[newTxn]
 
 receiveIRS :: Date -> RateSwap -> RateSwap 
-receiveIRS d rs@RateSwap{netCash = Left receiveAmt, stmt = stmt} 
-  =  rs { netCash = Left 0 }
-    where 
-      newTxn = IrsTxn d 0 receiveAmt 0 0 0 SwapSettle
+receiveIRS d rs@RateSwap{netCash = receiveAmt, stmt = stmt} 
+  | receiveAmt > 0 = rs { netCash = 0 }
+  | otherwise = rs
+     where 
+       newTxn = IrsTxn d 0 receiveAmt 0 0 0 SwapSettle
 
 payoutIRS :: Date -> Amount -> RateSwap -> RateSwap 
-payoutIRS d amt rs@RateSwap{netCash = Right payoutAmt, stmt = stmt} 
-  =  rs { netCash = Right outstanding }
-    where 
-      actualAmt = min amt payoutAmt  --TODO need to add a check here
-      outstanding = payoutAmt - amt
-      newTxn = IrsTxn d 0 actualAmt 0 0 0 SwapSettle
+payoutIRS d amt rs@RateSwap{netCash = payoutAmt, stmt = stmt} 
+  | payoutAmt < 0  =  rs { netCash = outstanding }
+  | otherwise = rs
+     where 
+       actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
+       outstanding = (negate payoutAmt) - amt
+       newTxn = IrsTxn d 0 actualAmt 0 0 0 SwapSettle
 
 
 data CurrencySwap = CurrencySwap Rate Balance
