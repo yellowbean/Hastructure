@@ -130,27 +130,27 @@ data RateSwapBase = Fixed Balance
                   deriving(Show)
 
 data RateSwap = RateSwap {rsType :: RateSwapType
-                         ,settleDates :: SettleDates
-                         ,notional :: RateSwapBase
-                         ,startDate :: StartDate
-                         ,payingRate :: IRate
-                         ,receivingRate :: IRate
-                         ,refBalance :: Balance
-                         ,lastStlDate :: Maybe Date
-                         ,netCash :: Balance
-                         ,stmt :: Maybe Statement}
+                         ,rsSettleDates :: SettleDates
+                         ,rsNotional :: RateSwapBase
+                         ,rsStartDate :: StartDate
+                         ,rsPayingRate :: IRate
+                         ,rsReceivingRate :: IRate
+                         ,rsRefBalance :: Balance
+                         ,rsLastStlDate :: Maybe Date
+                         ,rsNetCash :: Balance
+                         ,rsStmt :: Maybe Statement}
                          deriving(Show)
               
 accrueIRS :: Date -> RateSwap -> RateSwap
-accrueIRS d rs@RateSwap{refBalance = face
-                      , payingRate=payRate
-                      , receivingRate =receiveRate
-                      , netCash = netCash
-                      , stmt = stmt}
-  =  rs {netCash = newNet , lastStlDate = Just d, stmt = newStmt }
+accrueIRS d rs@RateSwap{rsRefBalance = face
+                      , rsPayingRate=payRate
+                      , rsReceivingRate =receiveRate
+                      , rsNetCash = netCash
+                      , rsStmt = stmt}
+  =  rs {rsNetCash = newNet , rsLastStlDate = Just d, rsStmt = newStmt }
       where 
-          accureStartDate =  case lastStlDate rs of 
-                               Nothing ->  startDate rs 
+          accureStartDate =  case rsLastStlDate rs of 
+                               Nothing ->  rsStartDate rs 
                                Just lsd -> lsd
           rateDiff =  receiveRate - payRate 
           yearFactor = fromRational $ (yearCountFraction DC_ACT_365 accureStartDate d)
@@ -162,15 +162,15 @@ accrueIRS d rs@RateSwap{refBalance = face
                       Just (Statement txns) -> Just $ Statement $ txns++[newTxn]
 
 receiveIRS :: Date -> RateSwap -> RateSwap 
-receiveIRS d rs@RateSwap{netCash = receiveAmt, stmt = stmt} 
-  | receiveAmt > 0 = rs { netCash = 0 }
+receiveIRS d rs@RateSwap{rsNetCash = receiveAmt, rsStmt = stmt} 
+  | receiveAmt > 0 = rs { rsNetCash = 0 }
   | otherwise = rs
      where 
        newTxn = IrsTxn d 0 receiveAmt 0 0 0 SwapSettle
 
 payoutIRS :: Date -> Amount -> RateSwap -> RateSwap 
-payoutIRS d amt rs@RateSwap{netCash = payoutAmt, stmt = stmt} 
-  | payoutAmt < 0  =  rs { netCash = outstanding }
+payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt} 
+  | payoutAmt < 0  =  rs { rsNetCash = outstanding }
   | otherwise = rs
      where 
        actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here

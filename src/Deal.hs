@@ -486,14 +486,14 @@ performAction d t@TestDeal{rateSwap = Just rtSwap } (Nothing, W.SwapAccrue sName
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (Nothing, W.SwapReceive accName sName)
   = t { rateSwap = Just newRtSwap, accounts = newAccMap }
     where 
-        receiveAmt = CE.netCash $ rtSwap Map.! sName
+        receiveAmt = CE.rsNetCash $ rtSwap Map.! sName
         newRtSwap = Map.adjust (CE.receiveIRS d) sName rtSwap
         newAccMap = Map.adjust (A.deposit receiveAmt d SwapSettle) accName accsMap
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (Nothing, W.SwapPay accName sName)
   = t { rateSwap = Just newRtSwap, accounts = newAccMap }
     where 
-        payoutAmt = negate $ CE.netCash $ rtSwap Map.! sName
+        payoutAmt = negate $ CE.rsNetCash $ rtSwap Map.! sName
         availBal = A.accBalance $ accsMap Map.! accName
         amtToPay = min payoutAmt availBal 
         newRtSwap = Map.adjust (CE.payoutIRS d amtToPay) sName rtSwap
@@ -555,7 +555,7 @@ setBndsNextIntRate t d Nothing = t
 
 updateRateSwapRate :: [RateAssumption] -> Date -> CE.RateSwap -> CE.RateSwap
 updateRateSwapRate rAssumps d rs@CE.RateSwap{ CE.rsType = rt } 
-  = rs {CE.payingRate = pRate, CE.receivingRate = rRate }
+  = rs {CE.rsPayingRate = pRate, CE.rsReceivingRate = rRate }
   where 
       (pRate,rRate) = case rt of 
                      CE.FloatingToFloating flter1 flter2 -> (getRate flter1,getRate flter2)
@@ -564,10 +564,10 @@ updateRateSwapRate rAssumps d rs@CE.RateSwap{ CE.rsType = rt }
       getRate x = AP.lookupRate rAssumps x d
 
 updateRateSwapBal :: P.Asset a => TestDeal a -> Date -> CE.RateSwap -> CE.RateSwap
-updateRateSwapBal t d rs@CE.RateSwap{ CE.notional = base }
+updateRateSwapBal t d rs@CE.RateSwap{ CE.rsNotional = base }
   =  case base of 
        CE.Fixed _ -> rs 
-       CE.Base ds -> rs { CE.refBalance = (queryDeal t (patchDateToStats d ds)) }
+       CE.Base ds -> rs { CE.rsRefBalance = (queryDeal t (patchDateToStats d ds)) }
 
 testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
 testCall t d opt = 
@@ -1026,7 +1026,7 @@ getInits t mAssumps
                         Nothing -> []
                         Just rsm -> Map.elems $ Map.mapWithKey 
                                                  (\k x -> let 
-                                                           resetDs = (genSerialDatesTill2 IE startDate (CE.settleDates x) endDate)
+                                                           resetDs = (genSerialDatesTill2 IE startDate (CE.rsSettleDates x) endDate)
                                                           in 
                                                            ((flip ResetIRSwapRate) k) <$> resetDs)
                                                  rsm

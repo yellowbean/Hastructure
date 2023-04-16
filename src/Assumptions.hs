@@ -55,6 +55,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | DefaultVec [Rate]
                 | DefaultFactors Ts
                 | Recovery (Rate,Int)
+                | RecoveryCurve ([Rate],Int)
                 | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
                 | PrepaymentByAging [(Int,Float)]
                 | EvenRecoveryOnDefault Float Int

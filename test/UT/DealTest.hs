@@ -135,9 +135,12 @@ td2 = TestDeal {
                                 (Just 100)
                                 50
                                 (toDate "20220201")
-                                (Just (CE.FixRate MonthEnd 0.05 (toDate "20220201")))
-                                (Just (S.Statement [S.SupportTxn (toDate "20220215") (Just 110) 10 40 S.Empty 
-                                                    ,S.SupportTxn (toDate "20220315") (Just 100) 10 50 S.Empty])))]
+                                Nothing
+                                Nothing
+                                (Just (CE.FixRate MonthEnd 0.05 (Just (toDate "20220201"))))
+                                Nothing
+                                (Just (S.Statement [S.SupportTxn (toDate "20220215") (Just 110) 10 40 (Just 0) (Just 0) S.Empty 
+                                                    ,S.SupportTxn (toDate "20220315") (Just 100) 10 50 (Just 0) (Just 0) S.Empty])))]
  ,D.triggers = Just $
                 Map.fromList $
                   [(BeginDistributionWF,[(AfterDate (toDate "20220501"),DealStatusTo Revolving)])]
@@ -223,10 +226,13 @@ liqProviderTest =
                        (Just 100)
                        90
                        (toDate "20220201")
-                       (Just (CE.FixRate MonthEnd 0.05 (toDate "20220201")))
+                       Nothing 
+                       Nothing
+                       (Just (CE.FixRate MonthEnd 0.05 (Just (toDate "20220201"))))
+                       Nothing
                        (Just (S.Statement 
-                               [S.SupportTxn (toDate "20220215") (Just 110) 40 40 S.Empty
-                               ,S.SupportTxn (toDate "20220315") (Just 100) 50 90 S.Empty
+                               [S.SupportTxn (toDate "20220215") (Just 110) 40 40 (Just 0) (Just 0) S.Empty
+                               ,S.SupportTxn (toDate "20220315") (Just 100) 50 90 (Just 0) (Just 0) S.Empty
                                ]))
   in 
     testGroup "Liq provider test" 
