@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
                     ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR,ApplyAssumptionType(..)
@@ -21,6 +22,8 @@ import qualified Data.Time as T
 import Data.Fixed
 import Data.Ratio
 
+import GHC.Generics
+
 import Debug.Trace
 debug = flip trace
 
@@ -36,11 +39,11 @@ lookupAssumptionByIdx sbi i
 
 data ApplyAssumptionType = PoolLevel AssumptionLists
                          | ByIndex [StratificationByIdx] AssumptionLists
-                         deriving (Show)
+                         deriving (Show,Generic)
 
 data AssumptionInput = Single ApplyAssumptionType
                      | Multiple (Map.Map String ApplyAssumptionType)
-                     deriving (Show)
+                     deriving (Show,Generic)
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 -- | MortgageByRate ([Float],[Float])
@@ -78,7 +81,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
 
 data BondPricingInput = DiscountCurve Date Ts
                       | RunZSpread Ts (Map.Map BondName (Date,Balance))
-                      deriving (Show)
+                      deriving (Show,Generic)
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days

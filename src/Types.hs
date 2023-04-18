@@ -296,7 +296,7 @@ data FormulaType = ABCD
                  deriving (Show,Eq)
 
 data TsPoint a = TsPoint Date a
-                deriving (Show,Eq,Read)
+                deriving (Show,Eq,Read,Generic)
 
 instance TimeSeries (TsPoint a) where 
     getDate (TsPoint d a) = d
@@ -314,7 +314,7 @@ data Ts = FloatCurve [TsPoint Rational]
         | IRateCurve [TsPoint IRate]
         | FactorCurveClosed [TsPoint Rational] Date
         | PricingCurve [TsPoint Rational] 
-        deriving (Show,Eq,Ord,Read)
+        deriving (Show,Eq,Ord,Read,Generic)
 
 
 data WhenTrigger = EndCollection

@@ -39,6 +39,7 @@ library
       Deal
       Expense
       InterestRate
+      JSchema
       Liability
       Lib
       Revolving
@@ -97,6 +98,7 @@ executable Hastructure-exe
     , regex-tdfa
     , scientific
     , servant
+    , servant-openapi3
     , servant-server
     , string-conversions
     , template-haskell

@@ -66,9 +66,9 @@ executables:
     - yaml
     - scientific
     - servant-server
+    - servant-openapi3
     - mtl
     - servant
-    - servant-server
     - lucid
     - string-conversions
     - attoparsec

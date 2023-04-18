@@ -12,11 +12,15 @@ module Server where
 
 import Prelude ()
 import Prelude.Compat
+import System.Environment
 
 import Control.Monad.Except
 import Control.Monad.Reader
+import Control.Lens
 import Data.Aeson
 import Data.Aeson.Types
+import Data.Aeson.TH
+import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Attoparsec.ByteString
 import Data.ByteString (ByteString)
 import Data.List
@@ -25,21 +29,17 @@ import qualified Data.Map as Map
 import Data.String.Conversions
 import Data.Time.Calendar
 import GHC.Generics
+import qualified Data.ByteString.Lazy.Char8 as BL8
 import Lucid
--- import Network.HTTP.Media ((//), (/:))
 import Network.Wai
 import Network.Wai.Handler.Warp
-import Servant
--- import System.Directory
--- import Text.Blaze
--- import Text.Blaze.Html.Renderer.Utf8
-import Servant.Types.SourceT (source)
 import qualified Data.Aeson.Parser
--- import qualified Text.Blaze.Html
 import Language.Haskell.TH
-import Data.Maybe
-import Data.Aeson.TH
-import Data.Aeson.Types
+
+import Data.OpenApi hiding(Server) 
+import Servant.OpenApi
+import Servant
+import Servant.Types.SourceT (source)
 
 import Types 
 import qualified Deal as D
@@ -58,21 +58,30 @@ data Version = Version
   } deriving (Eq, Show, Generic)
 
 $(deriveJSON defaultOptions ''Version)
+instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.12.0"
+version1 = Version "0.13.0"
 
 data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
               | LPool (P.Pool AC_Loan.Loan)
               | IPool (P.Pool AC_Installment.Installment)
               | RPool (P.Pool AC_Lease.Lease)
-              deriving(Show)
+              deriving(Show, Generic)
+
+instance ToSchema PoolType
 $(deriveJSON defaultOptions ''PoolType)
 
 data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
               | LDeal (D.TestDeal AC_Loan.Loan)
               | IDeal (D.TestDeal AC_Installment.Installment) 
               | RDeal (D.TestDeal AC_Lease.Lease) 
+              deriving(Show, Generic)
+
+instance ToParamSchema DealType
+instance ToSchema AP.ApplyAssumptionType
+instance ToSchema AP.BondPricingInput
+instance ToSchema DealType
 
 $(deriveJSON defaultOptions ''DealType)
 
@@ -108,10 +117,14 @@ type ScenarioName = String
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
 	 	|MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
 		|MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
+              deriving(Show, Generic)
 
+instance ToSchema RunDealReq
 data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType)
 		| MultiScenarioRunPoolReq PoolType (Map.Map ScenarioName AP.ApplyAssumptionType)
+              deriving(Show, Generic)
 
+instance ToSchema RunPoolReq
 $(deriveJSON defaultOptions ''RunDealReq)
 $(deriveJSON defaultOptions ''RunPoolReq)
 
@@ -143,11 +156,38 @@ server1 =  showVersion
 		= return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
                 
 
+
+
 engineAPI :: Proxy EngineAPI
 engineAPI = Proxy
 
 app1 :: Application
 app1 = serve engineAPI server1
 
+-- Swagger API
+type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
+type API = SwaggerAPI :<|> EngineAPI
+
+-- todo swagger 
+todoSwagger :: OpenApi
+todoSwagger = toOpenApi engineAPI
+  & info.title .~ "todo API"
+  & info.description ?~ "api descript"
+  & info.license ?~ ("MIT")
+
+
+
+server2 :: Server API
+server2 = return todoSwagger :<|> error "not implemented"
+
+app2 :: Application
+app2 = serve (Proxy :: Proxy API) server2
+
+writeSwaggerJSON :: IO ()
+writeSwaggerJSON = BL8.writeFile "swagger.json" (encodePretty todoSwagger)
+
+
+
 main :: IO ()
-main = run 8082 app1
+-- main = run 8010 app1
+main = run 8010 app2
