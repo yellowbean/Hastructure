@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
@@ -28,24 +29,26 @@ import qualified Stmt as S
 import Data.List (findIndex,zip6,find)
 import qualified Cashflow as CF
 
+import GHC.Generics
+
 import Debug.Trace
 debug = flip trace
 
 data RateReset = ByInterval Period (Maybe Date) -- period, maybe a start day
                | MonthOfYear  Int  -- month index, 0 => Janaury
-               deriving (Show)
+               deriving (Show,Generic)
 
 data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount 
                   | InterestByYield IRate
-                  deriving (Show)
+                  deriving (Show,Generic)
 
 data OriginalInfo = OriginalInfo {
   originBalance::Balance
   ,originDate::Date
   ,originRate::Rate
   ,maturityDate :: Maybe Date
-} deriving (Show)
+} deriving (Show,Generic)
 
 type SinkFundSchedule = Ts
 type PlannedAmorSchedule = Ts
@@ -57,7 +60,7 @@ data BondType = Sequential
               | Lockout Date
               | Z
               | Equity
-              deriving (Show)
+              deriving (Show,Generic)
 
 data Bond = Bond {
   bndName :: String
@@ -72,7 +75,7 @@ data Bond = Bond {
   ,bndLastIntPay :: Maybe Date
   ,bndLastPrinPay :: Maybe Date
   ,bndStmt :: Maybe S.Statement
-} deriving (Show)
+} deriving (Show,Generic)
 
 consolTxn :: [S.Txn] -> S.Txn -> [S.Txn]
 consolTxn (txn:txns) txn0
@@ -127,7 +130,7 @@ data YieldResult = Yield
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
                  | ZSpread Spread 
-                 deriving (Show,Eq)
+                 deriving (Show,Eq,Generic)
 
 pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc today d amt = 

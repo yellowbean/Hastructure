@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
+
 
 module AssetClass.Mortgage
   (Mortgage(..),)
@@ -17,6 +19,7 @@ import qualified Data.Map as Map
 import Data.List
 import Data.Ratio
 import Data.Maybe
+import GHC.Generics
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -144,7 +147,7 @@ data MortgageInsurance = MortgageInsurance Rate
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow]
-              deriving (Show)
+              deriving (Show,Generic)
 
 instance Asset Mortgage  where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _mbn _) d =

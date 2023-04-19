@@ -23,7 +23,7 @@ data LiquidationMethod = BalanceFactor Rate Rate -- by performing & default bala
                        | DefaultedBalance Rate  -- only liquidate defaulted balance
                        | PV IRate IRate -- discount factor, recovery on default
                        | Custom Rate -- custom amount
-                       deriving (Show)
+                       deriving (Show,Generic)
 
 
 

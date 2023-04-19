@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
+
 module Asset (Pool(..),OriginalInfo(..),calc_p_i_flow
        ,aggPool,RateType(..),AmortPlan(..)
        ,Status(..),IssuanceFields(..)
@@ -27,6 +29,7 @@ import Data.Maybe
 import Data.Ratio
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
+import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Types hiding (Current)
@@ -48,7 +51,7 @@ class Show a => Asset a where
   {-# MINIMAL calcCashflow #-}
 
 data IssuanceFields = IssuanceBalance
-                    deriving (Show,Ord,Eq,Read)
+                    deriving (Show,Ord,Eq,Read,Generic)
 
 instance ToJSONKey IssuanceFields where
   toJSONKey = toJSONKeyText (Text.pack . show)
@@ -62,7 +65,7 @@ data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
                    ,asOfDate :: Date
                    ,issuanceStat :: Maybe (Map.Map IssuanceFields Centi)}
-                    deriving (Show)
+                    deriving (Show,Generic)
 
 getIssuanceField :: Pool a -> IssuanceFields -> Centi
 getIssuanceField p _if
@@ -82,20 +85,20 @@ calcPmt bal periodRate periods =
 data RateType = Fix IRate
               | Floater Index Spread IRate Period (Maybe Floor)
               -- index, spread, initial-rate reset interval,floor
-              deriving (Show)
+              deriving (Show,Generic)
 
 data AmortPlan = Level   -- for mortgage
                | Even    -- for mortgage
                | I_P     -- interest only and principal due at last payment
                | F_P     -- fee based 
                | ScheduleRepayment Ts-- custom principal follow
-               deriving (Show)
+               deriving (Show,Generic)
 
 data Status = Current
             | Defaulted (Maybe Date)
             -- | Delinquency (Maybe Int)
             -- | Extended (Maybe T.Day)
-            deriving (Show)
+            deriving (Show,Generic)
 
 data OriginalInfo = MortgageOriginalInfo {
     originBalance :: Centi
@@ -111,7 +114,7 @@ data OriginalInfo = MortgageOriginalInfo {
     ,period :: Period
     ,startDate :: Date
     ,prinType :: AmortPlan
-    } deriving (Show)
+    } deriving (Show,Generic)
 
 buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int) -- prepay rates,default rates,
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of

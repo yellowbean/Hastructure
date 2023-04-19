@@ -104,7 +104,7 @@ data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
          | ExpTxn Date Balance Amount Balance TxnComment
          | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment
          | IrsTxn Date Balance Amount IRate IRate Balance TxnComment
-         deriving (Show)
+         deriving (Show, Generic)
 
 getTxnComment :: Txn -> TxnComment
 getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
@@ -178,7 +178,7 @@ class QueryByComment a where
 
 
 data Statement = Statement [Txn]
-        deriving (Show,Eq)
+        deriving (Show,Eq,Generic)
 
 appendStmt :: Maybe Statement -> Txn -> Statement
 appendStmt (Just stmt@(Statement txns)) txn = Statement (txns++[txn])

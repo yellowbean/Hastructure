@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE DeriveGeneric       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine
@@ -28,6 +29,7 @@ import qualified Data.List as L
 
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
+import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
 
@@ -65,7 +67,7 @@ data TsRow = CashFlow Date Amount
            | MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss IRate
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
            | LeaseFlow Date Balance Rental
-           deriving(Show,Eq,Ord)
+           deriving(Show,Eq,Ord,Generic)
 
 instance TimeSeries TsRow where 
     getDate (CashFlow x _) = x
@@ -77,7 +79,7 @@ instance TimeSeries TsRow where
     getDate (LeaseFlow x _ _ ) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
-                   deriving (Show,Eq)
+                   deriving (Show,Eq,Generic)
 
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame ts) = length ts

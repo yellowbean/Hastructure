@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Expense (Fee(..),FeeType(..),payFee
                ,buildFeeAccrueAction)
@@ -16,6 +17,7 @@ import qualified Data.Text
 import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
 import           Data.Aeson.Types
+import GHC.Generics
 
 import Data.Fixed
 import Types
@@ -27,7 +29,7 @@ data FeeType = AnnualRateFee DealStats Rate
              | RecurFee DatePattern Balance
              | NumFee DatePattern DealStats Amount
              | FeeFlow Ts
-             deriving (Show,Eq)
+             deriving (Show,Eq, Generic)
 
 data Fee = Fee {
   feeName :: String
@@ -38,7 +40,7 @@ data Fee = Fee {
   ,feeArrears :: Balance
   ,feeLastPaidDay :: Maybe Date
   ,feeStmt :: Maybe Statement
-} deriving (Show,Eq)
+} deriving (Show,Eq, Generic)
 
 payFee :: Date -> Amount -> Fee -> Fee
 payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =

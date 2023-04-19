@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Call(CallOption(..))
  where
@@ -11,6 +12,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import GHC.Generics
 
 data CallOption = PoolBalance Balance
                 | BondBalance Balance
@@ -21,6 +23,6 @@ data CallOption = PoolBalance Balance
                 | And [CallOption] 
                 | Or [CallOption] 
                 | PoolPv Balance  -- Call when PV of pool fall below
-                deriving (Show)
+                deriving (Show,Generic)
 
 $(deriveJSON defaultOptions ''CallOption)

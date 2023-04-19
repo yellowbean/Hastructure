@@ -24,19 +24,23 @@ import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Attoparsec.ByteString
 import Data.ByteString (ByteString)
 import Data.List
+import Data.Proxy
+--import Data.Swagger
 import Data.Maybe
+import Data.OpenApi hiding (Server)
 import qualified Data.Map as Map
 import Data.String.Conversions
 import Data.Time.Calendar
 import GHC.Generics
+import GHC.Real
 import qualified Data.ByteString.Lazy.Char8 as BL8
-import Lucid
+import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
-import Data.OpenApi hiding(Server) 
+--import Data.OpenApi hiding(Server) 
 import Servant.OpenApi
 import Servant
 import Servant.Types.SourceT (source)
@@ -44,17 +48,27 @@ import Servant.Types.SourceT (source)
 import Types 
 import qualified Deal as D
 import qualified Asset as P
+import qualified Expense as F
 import qualified AssetClass.Installment as AC_Installment
 import qualified AssetClass.Mortgage as AC_Mortgage
 import qualified AssetClass.Loan as AC_Loan
 import qualified AssetClass.Lease as AC_Lease
 import qualified Assumptions as AP
 import qualified Cashflow as CF
+import qualified Accounts as A
+import qualified Revolving 
 import qualified Liability as L
+import qualified Call as C
+import qualified CreditEnhancement as CE
+import qualified Waterfall as W
+import qualified Stmt as Stmt
 
+
+import Debug.Trace
+debug = flip Debug.Trace.trace
 
 data Version = Version 
-  { version :: String 
+  { _version :: String 
   } deriving (Eq, Show, Generic)
 
 $(deriveJSON defaultOptions ''Version)
@@ -71,6 +85,10 @@ data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
 
 instance ToSchema PoolType
 $(deriveJSON defaultOptions ''PoolType)
+instance ToSchema (P.Pool AC_Mortgage.Mortgage)
+instance ToSchema (P.Pool AC_Loan.Loan)
+instance ToSchema (P.Pool AC_Installment.Installment)
+instance ToSchema (P.Pool AC_Lease.Lease)
 
 data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
               | LDeal (D.TestDeal AC_Loan.Loan)
@@ -78,12 +96,100 @@ data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
               | RDeal (D.TestDeal AC_Lease.Lease) 
               deriving(Show, Generic)
 
-instance ToParamSchema DealType
+
+instance ToSchema Ts
+instance ToSchema ResultComponent
+instance ToSchema CF.CashFlowFrame
 instance ToSchema AP.ApplyAssumptionType
 instance ToSchema AP.BondPricingInput
-instance ToSchema DealType
+instance ToSchema L.PriceResult
 
+instance ToSchema DealType
 $(deriveJSON defaultOptions ''DealType)
+
+instance ToSchema AC_Mortgage.Mortgage
+instance ToSchema AC_Loan.Loan
+instance ToSchema AC_Installment.Installment
+instance ToSchema AC_Lease.Lease
+
+instance ToSchema (D.TestDeal AC_Mortgage.Mortgage)
+instance ToSchema (D.TestDeal AC_Loan.Loan)
+instance ToSchema AC_Lease.LeaseInfo 
+instance ToSchema AC_Lease.LeaseStepUp 
+instance ToSchema AC_Lease.AccrualPeriod
+instance ToSchema (D.TestDeal AC_Installment.Installment)
+instance ToSchema DateDesp
+instance ToSchema DateType
+instance ToSchema A.Account
+instance ToSchema A.InterestInfo
+instance ToSchema A.ReserveAmount
+instance ToSchema F.Fee
+instance ToSchema F.FeeType
+instance ToSchema L.Bond
+instance ToSchema L.BondType
+instance ToSchema L.OriginalInfo
+instance ToSchema L.InterestInfo
+instance ToSchema L.RateReset
+instance ToSchema Pre
+instance ToSchema W.ActionWhen
+instance ToSchema W.Action
+instance ToSchema W.CollectionRule
+instance ToSchema W.Limit
+instance ToSchema W.Satisfy
+instance ToSchema C.CallOption
+instance ToSchema CE.LiqFacility
+instance ToSchema CE.RateSwap
+instance ToSchema CE.RateSwapType
+instance ToSchema CE.RateSwapBase
+instance ToSchema CE.CurrencySwap
+instance ToSchema CE.LiqSupportType
+instance ToSchema CE.LiqSupportRate
+instance ToSchema CE.LiqRepayType
+instance ToSchema CustomDataType
+instance ToSchema WhenTrigger
+instance ToSchema Trigger
+instance ToSchema TriggerEffect
+instance ToSchema OverrideType
+instance ToSchema ActionOnDate
+instance ToSchema DealStats
+instance ToSchema Period
+instance ToSchema DayCount
+instance ToSchema (D.TestDeal AC_Lease.Lease)
+instance ToSchema DealStatus
+instance ToSchema DatePattern
+instance ToSchema Types.Index
+instance ToSchema Stmt.Statement
+instance ToSchema Stmt.Txn
+instance ToSchema Stmt.TxnComment
+instance ToSchema FormulaType
+instance ToSchema AP.AssumptionBuilder
+instance ToSchema CF.TsRow
+instance ToSchema (TsPoint Balance)
+instance ToSchema (TsPoint IRate)
+instance ToSchema (TsPoint Rational)
+instance ToSchema (TsPoint Bool)
+instance ToSchema Revolving.LiquidationMethod
+instance ToSchema P.Status
+instance ToSchema P.OriginalInfo
+instance ToSchema P.RateType
+instance ToSchema P.AmortPlan
+instance ToSchema P.IssuanceFields
+
+--instance ToSchema (Ratio Integer)
+--instance ToSchema (Ratio Integer) where 
+--  declareNamedSchema _ = do 
+--      integerSchema <- declareSchemaRef (Proxy :: Proxy Integer)
+--      return $ NamedSchema (Just "RatioInteger") $ mempty 
+--        & type_ ?~ OpenApiObject 
+--        & properties .~ 
+--            [ ("numerator", integerSchema)
+--            , ("denomiator", integerSchema)]
+--        & required .~ ["numerator","denominator"]
+instance ToSchema (Ratio Integer) where 
+  declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
+
+instance ToSchema PoolSource
+instance ToSchema Threshold
 
 type RunResp = (DealType , Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
@@ -144,16 +250,17 @@ server1 =  showVersion
       :<|> runDealScenarios
       :<|> runMultiDeals
     where 
-        showVersion = return version1
+        showVersion = return version1 `debug` ("Hit version")
         runPool (SingleRunPoolReq pt passumption) 
           = return $ wrapRunPool pt passumption
-	runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) 
-	  = return $ Map.map (wrapRunPool pt . Just) mAssumps
-        runDeal (SingleRunReq dt assump pricing) = return $ wrapRun dt assump pricing
-	runDealScenarios (MultiScenarioRunReq dt mAssumps pricing) 
-		= return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
-	runMultiDeals (MultiDealRunReq mDts assump pricing) 
-		= return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
+      	runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) 
+      	  = return $ Map.map (wrapRunPool pt . Just) mAssumps
+        runDeal (SingleRunReq dt assump pricing) 
+          = return $ wrapRun dt assump pricing
+      	runDealScenarios (MultiScenarioRunReq dt mAssumps pricing) 
+      		= return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
+      	runMultiDeals (MultiDealRunReq mDts assump pricing) 
+      		= return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
                 
 
 
@@ -161,8 +268,8 @@ server1 =  showVersion
 engineAPI :: Proxy EngineAPI
 engineAPI = Proxy
 
-app1 :: Application
-app1 = serve engineAPI server1
+-- app1 :: Application
+-- app1 = serve engineAPI server1
 
 -- Swagger API
 type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
@@ -170,12 +277,19 @@ type API = SwaggerAPI :<|> EngineAPI
 
 -- todo swagger 
 todoSwagger :: OpenApi
-todoSwagger = toOpenApi engineAPI
+todoSwagger = toOpenApi engineAPI `debug` ("Hit")
   & info.title .~ "todo API"
+  & info.version .~ "1.0"
   & info.description ?~ "api descript"
   & info.license ?~ ("MIT")
 
-
+-- todo swagger 
+--todoSwagger2 :: Swagger
+--todoSwagger2 = toSwagger engineAPI `debug` ("Hit")
+--  & info.title .~ "todo API"
+--  & info.version .~ "1.0"
+--  & info.description ?~ "api descript"
+--  & info.license ?~ ("MIT")
 
 server2 :: Server API
 server2 = return todoSwagger :<|> error "not implemented"
@@ -190,4 +304,6 @@ writeSwaggerJSON = BL8.writeFile "swagger.json" (encodePretty todoSwagger)
 
 main :: IO ()
 -- main = run 8010 app1
-main = run 8010 app2
+main = do 
+  putStrLn "running on port"
+  run 8010 $ serve (Proxy :: Proxy API) server2

@@ -74,7 +74,6 @@ type DefaultRate = Rate
 type RecoveryRate = Rate
 type RemainTerms = Int
 
-
 type BorrowerNum = Int
 
 data Index = LPR5Y
@@ -92,7 +91,7 @@ data Index = LPR5Y
             | EURIBOR3M
             | EURIBOR6M
             | EURIBOR12M
-            deriving (Show,Eq)
+            deriving (Show,Eq,Generic)
 
 type Floater = (Index,Spread)
 
@@ -110,7 +109,7 @@ data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Bas
               | DC_30_360_ISDA --  IDSA
               | DC_30_360_German --  Gernman
               | DC_30_360_US --  30/360 US Municipal , Bond basis
-              deriving (Show)
+              deriving (Show,Generic)
 
 data DateType = ClosingDate
               | CutoffDate
@@ -126,7 +125,7 @@ data Period = Daily
             | Quarterly 
             | SemiAnnually 
             | Annually
-            deriving (Show,Eq)
+            deriving (Show,Eq, Generic)
 
 type DateVector = (Date, DatePattern)
 
@@ -138,7 +137,7 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
               --             cutoff mRevolving closing dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
-              deriving (Show,Eq)
+              deriving (Show,Eq, Generic)
 
 data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus
@@ -179,7 +178,7 @@ instance FromJSONKey DateType where
   fromJSONKey = genericFromJSONKey opts
 
 data OverrideType = CustomActionOnDates [ActionOnDate]
-                    deriving (Show)
+                    deriving (Show,Generic)
 
 data DealStatus = DealAccelerated (Maybe Date)
                 | DealDefaulted (Maybe Date)
@@ -187,12 +186,12 @@ data DealStatus = DealAccelerated (Maybe Date)
                 | Revolving
                 | Ended
                 | PreClosing
-                deriving (Show,Ord,Eq,Read)
+                deriving (Show,Ord,Eq,Read, Generic)
 
 data CustomDataType = CustomConstant Rational 
                     | CustomCurve    Ts 
                     | CustomDS       DealStats
-                    deriving (Show,Ord,Eq,Read)
+                    deriving (Show,Ord,Eq,Read,Generic)
 
 data DatePattern = MonthEnd
                  | QuarterEnd
@@ -208,7 +207,7 @@ data DatePattern = MonthEnd
                  | DaysInYear [(Int, Int)]
                  | AllDatePattern [DatePattern]
                  -- | DayOfWeek Int -- T.DayOfWeek
-                 deriving (Show,Eq)
+                 deriving (Show,Eq, Generic)
 
 data PoolSource = CollectedInterest
                 | CollectedPrincipal
@@ -216,7 +215,7 @@ data PoolSource = CollectedInterest
                 | CollectedPrepayment
                 | CollectedRental
                 | CollectedFee
-                deriving (Show,Ord,Read,Eq)
+                deriving (Show,Ord,Read,Eq, Generic)
 
 
 data DealStats =  CurrentBondBalance
@@ -269,7 +268,7 @@ data DealStats =  CurrentBondBalance
                | Divide DealStats DealStats
                | Constant Rational
                | CustomData String Date
-               deriving (Show,Eq,Ord,Read)
+               deriving (Show,Eq,Ord,Read,Generic)
 
 data Pre = And Pre Pre
          | Or Pre Pre
@@ -289,11 +288,11 @@ data Pre = And Pre Pre
          | IfBeforeDate Date
          | IfAfterOnDate Date
          | IfBeforeOnDate Date
-         deriving (Show)
+         deriving (Show,Generic)
 
 data FormulaType = ABCD
                  | Other
-                 deriving (Show,Eq)
+                 deriving (Show,Eq,Generic)
 
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read,Generic)
@@ -342,7 +341,7 @@ data ResultComponent = CallAt Date
                   | InspectBal Date DealStats Balance
                   | InspectInt Date DealStats Int
                   | InspectRate Date DealStats Rate
-                  deriving (Show)
+                  deriving (Show, Generic)
 
 data Threshold = Below
                | EqBelow
@@ -380,13 +379,13 @@ data TriggerEffect = DealStatusTo DealStatus
                    | DoAccrueFee FeeNames
                    | AddTrigger Trigger 
                    | TriggerEffects [TriggerEffect]
-                   deriving (Show,Eq)
+                   deriving (Show, Eq, Generic)
 
 data SplitType = EqToLeft   -- if equal, the element belongs to left
                | EqToRight  -- if equal, the element belongs to right
                | EqToLeftKeepOne
                | EqToLeftKeepOnes
-               deriving (Show,Eq)
+               deriving (Show, Eq, Generic)
 
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
@@ -422,7 +421,7 @@ lookupTable (ThresholdTable rows) lkupType lkupVal notFound
 
 data RateAssumption = RateCurve Index Ts
                     | RateFlat Index IRate
-                    deriving (Show)
+                    deriving (Show,Generic)
 
 
 

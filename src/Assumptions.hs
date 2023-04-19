@@ -77,7 +77,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 -- Debug 
                 | StopRunBy Date
                 | InspectOn [(DatePattern,DealStats)]
-                deriving (Show)
+                deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts
                       | RunZSpread Ts (Map.Map BondName (Date,Balance))

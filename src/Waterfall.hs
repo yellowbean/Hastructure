@@ -17,6 +17,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Hashable
 import Data.Fixed
+import GHC.Generics
 
 import Accounts (Account)
 import Asset (Pool)
@@ -47,7 +48,7 @@ instance FromJSONKey ActionWhen where
 
 data Satisfy = Source
              | Target
-             deriving (Show)
+             deriving (Show,Generic)
 
 data Limit = DuePct L.Balance  --
            | DueCapAmt L.Balance  -- due fee
@@ -56,7 +57,7 @@ data Limit = DuePct L.Balance  --
            | Multiple Limit Float -- factor of a limit:w
            | Formula FormulaType
            | DS DealStats
-           deriving (Show)
+           deriving (Show,Generic)
 
 data Action = Transfer AccountName AccountName 
             | TransferBy Limit AccountName AccountName
@@ -84,12 +85,12 @@ data Action = Transfer AccountName AccountName
             | SwapAccrue CeName
             | SwapReceive AccountName CeName
             | SwapPay AccountName CeName
-            deriving (Show)
+            deriving (Show,Generic)
 
 type DistributionSeq = [(Maybe L.Pre, Action)]
 
 data CollectionRule = Collect PoolSource AccountName
-                     deriving (Show)
+                     deriving (Show,Generic)
 
 
 $(deriveJSON defaultOptions ''Action)

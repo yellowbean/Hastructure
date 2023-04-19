@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
 module Deal (TestDeal(..),run2,runPool2,getInits,runDeal,ExpectReturn(..)
@@ -37,6 +38,7 @@ import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import GHC.Generics
 
 import Debug.Trace
 debug = flip trace
@@ -73,7 +75,7 @@ data TestDeal a = TestDeal {
   ,custom:: Maybe (Map.Map String CustomDataType)
   ,triggers :: Maybe (Map.Map WhenTrigger [(Trigger,TriggerEffect)])
   ,overrides :: Maybe [OverrideType]
-} deriving (Show)
+} deriving (Show,Generic)
 
 instance SPV (TestDeal a) where
   getBondByName t bns
@@ -836,7 +838,7 @@ data ExpectReturn = DealStatus
                   | DealPoolFlowPricing
                   | DealTxns
                   | ExecutionSummary
-                  deriving (Show)
+                  deriving (Show,Generic)
 
 priceBonds :: TestDeal a -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (bonds t)
