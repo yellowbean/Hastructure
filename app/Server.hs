@@ -24,6 +24,7 @@ import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Attoparsec.ByteString
 import Data.ByteString (ByteString)
 import Data.List
+import Data.Map
 import Data.Proxy
 --import Data.Swagger
 import Data.Maybe
@@ -227,8 +228,8 @@ data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) (Maybe AP
 
 instance ToSchema RunDealReq
 data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType)
-		| MultiScenarioRunPoolReq PoolType (Map.Map ScenarioName AP.ApplyAssumptionType)
-              deriving(Show, Generic)
+		            | MultiScenarioRunPoolReq PoolType (Map.Map ScenarioName AP.ApplyAssumptionType)
+                deriving(Show, Generic)
 
 instance ToSchema RunPoolReq
 $(deriveJSON defaultOptions ''RunDealReq)
@@ -242,26 +243,26 @@ type EngineAPI = "version"  :> Get '[JSON] Version
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
 
 
-server1 :: Server EngineAPI
-server1 =  showVersion
-      :<|> runPool
-      :<|> runPoolScenarios
-      :<|> runDeal
-      :<|> runDealScenarios
-      :<|> runMultiDeals
-    where 
-        showVersion = return version1 `debug` ("Hit version")
-        runPool (SingleRunPoolReq pt passumption) 
-          = return $ wrapRunPool pt passumption
-      	runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) 
-      	  = return $ Map.map (wrapRunPool pt . Just) mAssumps
-        runDeal (SingleRunReq dt assump pricing) 
-          = return $ wrapRun dt assump pricing
-      	runDealScenarios (MultiScenarioRunReq dt mAssumps pricing) 
-      		= return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
-      	runMultiDeals (MultiDealRunReq mDts assump pricing) 
-      		= return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
-                
+--server1 :: Server EngineAPI
+--server1 =  showVersion
+--      :<|> runPool
+--      :<|> runPoolScenarios
+--      :<|> runDeal
+--      :<|> runDealScenarios
+--      :<|> runMultiDeals
+--    where 
+--        showVersion = return version1 
+--        runPool (SingleRunPoolReq pt passumption) 
+--          = return $ wrapRunPool pt passumption
+--      	runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) 
+--      	  = return $ Map.map (wrapRunPool pt . Just) mAssumps
+--        runDeal (SingleRunReq dt assump pricing) 
+--          = return $ wrapRun dt assump pricing
+--      	runDealScenarios (MultiScenarioRunReq dt mAssumps pricing) 
+--      		= return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
+--      	runMultiDeals (MultiDealRunReq mDts assump pricing) 
+--      		= return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
+--                
 
 
 
@@ -277,7 +278,7 @@ type API = SwaggerAPI :<|> EngineAPI
 
 -- todo swagger 
 todoSwagger :: OpenApi
-todoSwagger = toOpenApi engineAPI `debug` ("Hit")
+todoSwagger = toOpenApi engineAPI 
   & info.title .~ "todo API"
   & info.version .~ "1.0"
   & info.description ?~ "api descript"
@@ -292,10 +293,28 @@ todoSwagger = toOpenApi engineAPI `debug` ("Hit")
 --  & info.license ?~ ("MIT")
 
 server2 :: Server API
-server2 = return todoSwagger :<|> error "not implemented"
+server2 = return todoSwagger 
+      :<|> showVersion -- (Version "0.13.0")--  showVersion
+      :<|> runPool
+      :<|> runPoolScenarios
+      :<|> runDeal
+      :<|> runDealScenarios
+     -- :<|> runMultiDeals
+      :<|> error "not implemented"
+        where 
+          showVersion = return version1 
+          runPool (SingleRunPoolReq pt passumption) = return $ wrapRunPool pt passumption
+        	runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) = return $ Map.map (\assump -> wrapRunPool pt (Just assump)) mAssumps
+          runDeal (SingleRunReq dt assump pricing) = return $ wrapRun dt assump pricing
+       -- 	runDealScenarios (MultiScenarioRunReq dt mAssumps pricing) 
+       -- 		= return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
+       -- 	runMultiDeals (MultiDealRunReq mDts assump pricing) 
+       -- 		= return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
+                
 
-app2 :: Application
-app2 = serve (Proxy :: Proxy API) server2
+
+--app2 :: Application
+--app2 = serve (Proxy :: Proxy API) server2
 
 writeSwaggerJSON :: IO ()
 writeSwaggerJSON = BL8.writeFile "swagger.json" (encodePretty todoSwagger)
