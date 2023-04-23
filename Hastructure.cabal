@@ -47,6 +47,7 @@ library
       Types
       Util
       Waterfall
+      Triggers
   other-modules:
       Paths_Hastructure
   hs-source-dirs:

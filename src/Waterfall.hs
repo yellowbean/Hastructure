@@ -26,6 +26,7 @@ import Expense
 import Liability
 import Types
 import Revolving
+import Triggers
 import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
@@ -90,7 +91,8 @@ data Action = Transfer AccountName AccountName
 type DistributionSeq = [(Maybe L.Pre, Action)]
 
 data CollectionRule = Collect PoolSource AccountName
-                     deriving (Show,Generic)
+                    | CollectByPct PoolSource [(Rate,AccountName)]
+                    deriving (Show,Generic)
 
 
 $(deriveJSON defaultOptions ''Action)

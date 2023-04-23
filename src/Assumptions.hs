@@ -28,7 +28,6 @@ import Debug.Trace
 debug = flip trace
 
 type AssumptionLists = [AssumptionBuilder]
-
 type StratificationByIdx = ([Int],AssumptionLists)
 
 lookupAssumptionByIdx :: [StratificationByIdx] -> Int -> AssumptionLists
@@ -125,8 +124,6 @@ lookupRate rAssumps (index,spd) d
       Just (RateCurve _ ts) -> spd + (fromRational (getValByDate ts Inc d))
       Just (RateFlat _ r) -> r + spd
       Nothing -> error $ "Failed to find Index "++show index
-
-
 
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)

@@ -8,10 +8,10 @@ module Types
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
-  ,DateDesp(..),Period(..)
-  ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
+  ,DateDesp(..),Period(..), Threshold(..)
   ,RangeType(..),CutoffType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..),Index(..)
+  ,DealCycle(..),Cmp(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..),SplitType(..)
@@ -67,13 +67,10 @@ type Prepayment = Centi
 type Rental = Centi
 type Cap = Micro
 
-
-
 type PrepaymentRate = Rate
 type DefaultRate = Rate
 type RecoveryRate = Rate
 type RemainTerms = Int
-
 type BorrowerNum = Int
 
 data Index = LPR5Y
@@ -188,6 +185,21 @@ data DealStatus = DealAccelerated (Maybe Date)
                 | PreClosing
                 deriving (Show,Ord,Eq,Read, Generic)
 
+data DealCycle = EndCollection
+               | EndCollectionWF
+               | BeginDistributionWF
+               | EndDistributionWF
+               deriving (Show,Ord,Eq,Read, Generic)
+
+instance ToJSONKey DealCycle where
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey DealCycle where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+ 
+
 data CustomDataType = CustomConstant Rational 
                     | CustomCurve    Ts 
                     | CustomDS       DealStats
@@ -270,25 +282,29 @@ data DealStats =  CurrentBondBalance
                | CustomData String Date
                deriving (Show,Eq,Ord,Read,Generic)
 
-data Pre = And Pre Pre
-         | Or Pre Pre
-         | IfZero DealStats
-         | IfGT DealStats Centi
-         | IfGET DealStats Centi
-         | IfLT DealStats Centi
-         | IfLET DealStats Centi
-         | IfGTInt DealStats Int
-         | IfGETInt DealStats Int
-         | IfLTInt DealStats Int
-         | IfLETInt DealStats Int
-         | IfEqInt DealStats Int
-         | IfEqBal DealStats Balance
+
+data Cmp = G 
+         | GE
+         | L
+         | LE
+         | E
+         deriving (Show,Generic,Eq)
+
+
+data Pre = IfZero DealStats
+         | If Cmp DealStats Balance
+         | IfRate Cmp DealStats Micro
+         | IfInt Cmp DealStats Int
+         | IfDate Cmp Date
+         | IfCurve Cmp DealStats Ts
+         | IfRateCurve Cmp DealStats Ts
+         | IfIntCurve Cmp DealStats Ts
+         -- | IfRateCurve DealStats Cmp Ts
          | IfDealStatus DealStatus
-         | IfAfterDate Date
-         | IfBeforeDate Date
-         | IfAfterOnDate Date
-         | IfBeforeOnDate Date
-         deriving (Show,Generic)
+         | Always Bool
+         | Any [Pre]
+         | All [Pre]
+         deriving (Show,Generic,Eq)
 
 data FormulaType = ABCD
                  | Other
@@ -299,7 +315,6 @@ data TsPoint a = TsPoint Date a
 
 instance TimeSeries (TsPoint a) where 
     getDate (TsPoint d a) = d
-    sameDate (TsPoint d1 a1) (TsPoint d2 a2) = d1 == d2
 
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
@@ -316,19 +331,6 @@ data Ts = FloatCurve [TsPoint Rational]
         deriving (Show,Eq,Ord,Read,Generic)
 
 
-data WhenTrigger = EndCollection
-                 | EndCollectionWF
-                 | BeginDistributionWF
-                 | EndDistributionWF
-                 deriving (Show,Eq,Ord,Read,Generic)
-
-instance ToJSONKey WhenTrigger where
-  toJSONKey = toJSONKeyText (T.pack . show)
-
-instance FromJSONKey WhenTrigger where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
 
 
 data RangeType = II | IE | EI | EE
@@ -354,32 +356,6 @@ instance ToJSONKey Threshold where
 instance FromJSONKey Threshold where
   fromJSONKey = genericFromJSONKey opts
 
-data Trigger = ThresholdBal Threshold DealStats Balance
-             | ThresholdBalCurve Threshold DealStats Ts
-             | ThresholdRate Threshold DealStats Micro
-             | ThresholdRateCurve Threshold DealStats Ts
-             | AfterDate Date
-             | AfterOnDate Date
-             | OnDates [Dates]
-             | PassMaturityDate BondName  -- a bond remain oustanding after mature date
-             | AllTrigger [Trigger]
-             | AnyTrigger [Trigger]
-             | Always  Bool
-             deriving (Show,Eq,Ord,Read,Generic)
-
-instance ToJSONKey Trigger where
-  toJSONKey = toJSONKeyText (T.pack . show)
-instance FromJSONKey Trigger where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
-
-
-data TriggerEffect = DealStatusTo DealStatus
-                   | DoAccrueFee FeeNames
-                   | AddTrigger Trigger 
-                   | TriggerEffects [TriggerEffect]
-                   deriving (Show, Eq, Generic)
 
 data SplitType = EqToLeft   -- if equal, the element belongs to left
                | EqToRight  -- if equal, the element belongs to right
@@ -397,7 +373,12 @@ class TimeSeries ts where
     getDates ts = [ getDate t | t <- ts ]
     filterByDate :: [ts] -> Date -> [ts]
     filterByDate ts d = filter (\x -> getDate x == d ) ts
-    
+
+class Liable lb where 
+  getDue :: lb -> Balance
+  getLastPaidDate :: lb -> Date 
+
+
 
 data LookupType = Upward 
                 | Downward
@@ -437,12 +418,11 @@ $(deriveJSON defaultOptions ''ActionOnDate)
 $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Threshold)
-$(deriveJSON defaultOptions ''Trigger)
-$(deriveJSON defaultOptions ''TriggerEffect)
-$(deriveJSON defaultOptions ''WhenTrigger)
 $(deriveJSON defaultOptions ''DateDesp)
 $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''CustomDataType)
 $(deriveJSON defaultOptions ''ResultComponent)
+$(deriveJSON defaultOptions ''DealCycle)
+$(deriveJSON defaultOptions ''Cmp)
