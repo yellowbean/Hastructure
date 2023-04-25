@@ -39,7 +39,6 @@ library
       Deal
       Expense
       InterestRate
-      JSchema
       Liability
       Lib
       Revolving
@@ -79,7 +78,6 @@ library
 executable Hastructure-exe
   main-is: Main.hs
   other-modules:
-      Server
       Paths_Hastructure
   hs-source-dirs:
       app

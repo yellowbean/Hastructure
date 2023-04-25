@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE OverloadedStrings #-}
-module Server where 
+module Main where 
 
 import Prelude ()
 import Prelude.Compat

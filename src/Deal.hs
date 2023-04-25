@@ -637,10 +637,7 @@ runTriggers t@TestDeal{status=oldStatus} d _trgs =
                t
                triggeredEffects 
     newStatus = status newDeal 
-    newLogs = if newStatus /= oldStatus then 
-                [DealStatusChangeTo d oldStatus newStatus] 
-              else 
-                []  
+    newLogs = [DealStatusChangeTo d oldStatus newStatus |  newStatus /= oldStatus] 
 
   
 runCall :: P.Asset a => Date -> [C.CallOption] -> TestDeal a -> TestDeal a
@@ -655,7 +652,7 @@ runCall d opts t
 run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run2 t@TestDeal{status=Ended} _ _ _ _ log = (prepareDeal t,log) `debug` "Deal Ended"
 run2 t _ (Just []) _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
-run2 t poolFlow (Just (ad:ads)) rates calls log
+run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad:ads)) rates calls log
   | (CF.sizeCashFlowFrame poolFlow == 0) && (queryDeal t  AllAccBalance == 0) 
      = (prepareDeal (foldl (performAction (getDate ad)) t cleanUpActions),log)
   | otherwise
@@ -663,8 +660,8 @@ run2 t poolFlow (Just (ad:ads)) rates calls log
          PoolCollection d _ ->
              if CF.sizeCashFlowFrame poolFlow > 0 then
                let 
-                 (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate poolFlow d  EqToLeft
-                 accs = depositPoolInflow (collects t) d collected_flow (accounts t) -- `debug` ("Splitting:"++show(d)++"|||"++show(collected_flow))--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
+                 (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate poolFlow d EqToLeft
+                 accs = depositPoolInflow (collects t) d collected_flow accMap -- `debug` ("Splitting:"++show(d)++"|||"++show(collected_flow))--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
                  dAfterDeposit = (appendCollectedCF t collected_flow) {accounts=accs}  -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
                  (dRunWithTrigger0,newLogs0) = runTriggers dAfterDeposit d $ queryTrigger dAfterDeposit EndCollection
                  waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
@@ -679,7 +676,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls log
            case calls of
              Just callOpts ->
                  if testCalls dRunWithTrigger1 d callOpts then 
-                   ((prepareDeal (foldl (performAction d) dRunWithTrigger1 cleanUpActions)), log) -- `debug` ("Called ! "++ show d)
+                   (prepareDeal (foldl (performAction d) dRunWithTrigger1 cleanUpActions), log) -- `debug` ("Called ! "++ show d)
                  else
                    run2 dRunWithTrigger1 poolFlow (Just ads) rates calls newLogs -- `debug` ("Not called "++ show d )
              Nothing ->
@@ -709,14 +706,14 @@ run2 t poolFlow (Just (ad:ads)) rates calls log
                                         Nothing -> a -- `debug` ("error..."++show accName)
                                         Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d  ) -- `debug` ("int acc"++show accName)
                         accName  
-                        (accounts t)
+                        accMap
              dAfterInt = t {accounts = newAcc} 
            in 
              run2 dAfterInt poolFlow (Just ads) rates calls log
          
          AccrueFee d feeName -> 
            let 
-             newFeeMap = Map.adjust (calcDueFee t d) feeName (fees t)
+             newFeeMap = Map.adjust (calcDueFee t d) feeName feeMap
            in
              run2 (t{fees=newFeeMap}) poolFlow (Just ads) rates calls log
    
@@ -742,7 +739,7 @@ run2 t poolFlow (Just (ad:ads)) rates calls log
          ResetIRSwapRate d sn -> 
              let
                _rates = fromMaybe [] rates
-               newRateSwap_rate = (Map.adjust (updateRateSwapRate _rates d) sn)  <$>  (rateSwap t)
+               newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn  <$>  (rateSwap t)
                newRateSwap_bal = Map.adjust (updateRateSwapBal t d) sn <$> newRateSwap_rate
              in 
                run2 (t{rateSwap = newRateSwap_bal}) poolFlow (Just ads) rates calls log
@@ -884,11 +881,10 @@ removePoolCf t@(TestDeal {pool = _pool})
       Just _cf -> t {pool = _pool {P.futureCf = Nothing}}
 
 setFutureCF :: TestDeal a-> CF.CashFlowFrame -> TestDeal a
-setFutureCF t cf = 
+setFutureCF t@TestDeal{ pool = mpool} cf = 
     t {pool = newPool}
     where 
-    _pool = pool t
-    newPool = _pool {P.futureCf = Just cf}
+    newPool = mpool {P.futureCf = Just cf}
 
 populateDealDates :: DateDesp -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
 populateDealDates (CustomDates cutoff pa closing ba) 
@@ -1275,6 +1271,14 @@ calcDayToPoolDate t calcDay
   = CF.mflowDate $ last pFlows -- `debug` ("calDayToPoolDate"++show calcDay ++">>>>>"++show pFlows)
     where 
       pFlows = getPoolFlows t Nothing (Just calcDay) EI  -- II here is not being used
+
+--calcDueFeeAmount :: P.Asset a => (TestDeal a) -> Date -> F.Fee -> Balance
+--calcDueFeeAmount t calcDay f@(F.Fee fn _ fs fd fdDay fa _ _)
+--  | calcDay <= fs = 0 
+--  | otherwise = calcDueFeeAmount t calcDay f 
+--
+--calcDueFeeAmount t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay _ _ _) = fd
+--
 
 calcDueFee :: P.Asset a => (TestDeal a) -> Date -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay fa _ _)

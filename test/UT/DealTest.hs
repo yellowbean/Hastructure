@@ -18,6 +18,7 @@ import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified Call as C
 import qualified CreditEnhancement as CE
+import qualified Triggers as Trg
 import Lib
 import Types
 
@@ -143,7 +144,10 @@ td2 = TestDeal {
                                                     ,S.SupportTxn (toDate "20220315") (Just 100) 10 50 (Just 0) (Just 0) S.Empty])))]
  ,D.triggers = Just $
                 Map.fromList $
-                  [(BeginDistributionWF,[(AfterDate (toDate "20220501"),DealStatusTo Revolving)])]
+                  [(BeginDistributionWF,[ Trg.Trigger{Trg.trgCondition = IfDate G (toDate "20220501")
+                                                     ,Trg.trgEffects = Trg.DealStatusTo Revolving
+                                                     ,Trg.trgStatus = False 
+                                                     ,Trg.trgCurable = False }])]
  ,D.overrides = Nothing
 }
 
