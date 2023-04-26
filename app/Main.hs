@@ -81,7 +81,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.14.0"
+version1 = Version "0.14.1"
 
 data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
               | LPool (P.Pool AC_Loan.Loan)
@@ -266,7 +266,7 @@ todoSwagger = toOpenApi engineAPI
 
 server2 :: Server API
 server2 = return todoSwagger 
-      :<|> showVersion -- (Version "0.14.0")--  showVersion
+      :<|> showVersion -- (Version "0.14.1")--  showVersion
       :<|> runPool
       :<|> runPoolScenarios
       :<|> runDeal
