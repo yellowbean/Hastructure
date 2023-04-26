@@ -295,10 +295,10 @@ data Pre = IfZero DealStats
          | If Cmp DealStats Balance
          | IfRate Cmp DealStats Micro
          | IfInt Cmp DealStats Int
-         | IfDate Cmp Date
          | IfCurve Cmp DealStats Ts
          | IfRateCurve Cmp DealStats Ts
          | IfIntCurve Cmp DealStats Ts
+         | IfDate Cmp Date
          -- | IfRateCurve DealStats Cmp Ts
          | IfDealStatus DealStatus
          | Always Bool
