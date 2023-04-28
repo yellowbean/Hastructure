@@ -8,10 +8,10 @@ module Types
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
-  ,DateDesp(..),Period(..)
-  ,WhenTrigger(..),Trigger(..),Threshold(..),TriggerEffect(..)
+  ,DateDesp(..),Period(..), Threshold(..)
   ,RangeType(..),CutoffType(..),FormulaType(..),CustomDataType(..)
   ,Balance,DealStats(..),Index(..)
+  ,DealCycle(..),Cmp(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..),SplitType(..)
@@ -67,14 +67,10 @@ type Prepayment = Centi
 type Rental = Centi
 type Cap = Micro
 
-
-
 type PrepaymentRate = Rate
 type DefaultRate = Rate
 type RecoveryRate = Rate
 type RemainTerms = Int
-
-
 type BorrowerNum = Int
 
 data Index = LPR5Y
@@ -92,7 +88,7 @@ data Index = LPR5Y
             | EURIBOR3M
             | EURIBOR6M
             | EURIBOR12M
-            deriving (Show,Eq)
+            deriving (Show,Eq,Generic)
 
 type Floater = (Index,Spread)
 
@@ -110,7 +106,7 @@ data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Bas
               | DC_30_360_ISDA --  IDSA
               | DC_30_360_German --  Gernman
               | DC_30_360_US --  30/360 US Municipal , Bond basis
-              deriving (Show)
+              deriving (Show,Generic)
 
 data DateType = ClosingDate
               | CutoffDate
@@ -126,7 +122,7 @@ data Period = Daily
             | Quarterly 
             | SemiAnnually 
             | Annually
-            deriving (Show,Eq)
+            deriving (Show,Eq, Generic)
 
 type DateVector = (Date, DatePattern)
 
@@ -138,7 +134,7 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
               --             cutoff mRevolving closing dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
-              deriving (Show,Eq)
+              deriving (Show,Eq, Generic)
 
 data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus
@@ -179,7 +175,7 @@ instance FromJSONKey DateType where
   fromJSONKey = genericFromJSONKey opts
 
 data OverrideType = CustomActionOnDates [ActionOnDate]
-                    deriving (Show)
+                    deriving (Show,Generic)
 
 data DealStatus = DealAccelerated (Maybe Date)
                 | DealDefaulted (Maybe Date)
@@ -187,12 +183,27 @@ data DealStatus = DealAccelerated (Maybe Date)
                 | Revolving
                 | Ended
                 | PreClosing
-                deriving (Show,Ord,Eq,Read)
+                deriving (Show,Ord,Eq,Read, Generic)
+
+data DealCycle = EndCollection
+               | EndCollectionWF
+               | BeginDistributionWF
+               | EndDistributionWF
+               deriving (Show,Ord,Eq,Read, Generic)
+
+instance ToJSONKey DealCycle where
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey DealCycle where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+ 
 
 data CustomDataType = CustomConstant Rational 
                     | CustomCurve    Ts 
                     | CustomDS       DealStats
-                    deriving (Show,Ord,Eq,Read)
+                    deriving (Show,Ord,Eq,Read,Generic)
 
 data DatePattern = MonthEnd
                  | QuarterEnd
@@ -208,7 +219,7 @@ data DatePattern = MonthEnd
                  | DaysInYear [(Int, Int)]
                  | AllDatePattern [DatePattern]
                  -- | DayOfWeek Int -- T.DayOfWeek
-                 deriving (Show,Eq)
+                 deriving (Show,Eq, Generic)
 
 data PoolSource = CollectedInterest
                 | CollectedPrincipal
@@ -216,7 +227,7 @@ data PoolSource = CollectedInterest
                 | CollectedPrepayment
                 | CollectedRental
                 | CollectedFee
-                deriving (Show,Ord,Read,Eq)
+                deriving (Show,Ord,Read,Eq, Generic)
 
 
 data DealStats =  CurrentBondBalance
@@ -269,38 +280,41 @@ data DealStats =  CurrentBondBalance
                | Divide DealStats DealStats
                | Constant Rational
                | CustomData String Date
-               deriving (Show,Eq,Ord,Read)
+               deriving (Show,Eq,Ord,Read,Generic)
 
-data Pre = And Pre Pre
-         | Or Pre Pre
-         | IfZero DealStats
-         | IfGT DealStats Centi
-         | IfGET DealStats Centi
-         | IfLT DealStats Centi
-         | IfLET DealStats Centi
-         | IfGTInt DealStats Int
-         | IfGETInt DealStats Int
-         | IfLTInt DealStats Int
-         | IfLETInt DealStats Int
-         | IfEqInt DealStats Int
-         | IfEqBal DealStats Balance
+
+data Cmp = G 
+         | GE
+         | L
+         | LE
+         | E
+         deriving (Show,Generic,Eq)
+
+
+data Pre = IfZero DealStats
+         | If Cmp DealStats Balance
+         | IfRate Cmp DealStats Micro
+         | IfInt Cmp DealStats Int
+         | IfCurve Cmp DealStats Ts
+         | IfRateCurve Cmp DealStats Ts
+         | IfIntCurve Cmp DealStats Ts
+         | IfDate Cmp Date
+         -- | IfRateCurve DealStats Cmp Ts
          | IfDealStatus DealStatus
-         | IfAfterDate Date
-         | IfBeforeDate Date
-         | IfAfterOnDate Date
-         | IfBeforeOnDate Date
-         deriving (Show)
+         | Always Bool
+         | Any [Pre]
+         | All [Pre]
+         deriving (Show,Generic,Eq)
 
 data FormulaType = ABCD
                  | Other
-                 deriving (Show,Eq)
+                 deriving (Show,Eq,Generic)
 
 data TsPoint a = TsPoint Date a
-                deriving (Show,Eq,Read)
+                deriving (Show,Eq,Read,Generic)
 
 instance TimeSeries (TsPoint a) where 
     getDate (TsPoint d a) = d
-    sameDate (TsPoint d1 a1) (TsPoint d2 a2) = d1 == d2
 
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
@@ -314,22 +328,9 @@ data Ts = FloatCurve [TsPoint Rational]
         | IRateCurve [TsPoint IRate]
         | FactorCurveClosed [TsPoint Rational] Date
         | PricingCurve [TsPoint Rational] 
-        deriving (Show,Eq,Ord,Read)
+        deriving (Show,Eq,Ord,Read,Generic)
 
 
-data WhenTrigger = EndCollection
-                 | EndCollectionWF
-                 | BeginDistributionWF
-                 | EndDistributionWF
-                 deriving (Show,Eq,Ord,Read,Generic)
-
-instance ToJSONKey WhenTrigger where
-  toJSONKey = toJSONKeyText (T.pack . show)
-
-instance FromJSONKey WhenTrigger where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
 
 
 data RangeType = II | IE | EI | EE
@@ -342,7 +343,7 @@ data ResultComponent = CallAt Date
                   | InspectBal Date DealStats Balance
                   | InspectInt Date DealStats Int
                   | InspectRate Date DealStats Rate
-                  deriving (Show)
+                  deriving (Show, Generic)
 
 data Threshold = Below
                | EqBelow
@@ -355,38 +356,12 @@ instance ToJSONKey Threshold where
 instance FromJSONKey Threshold where
   fromJSONKey = genericFromJSONKey opts
 
-data Trigger = ThresholdBal Threshold DealStats Balance
-             | ThresholdBalCurve Threshold DealStats Ts
-             | ThresholdRate Threshold DealStats Micro
-             | ThresholdRateCurve Threshold DealStats Ts
-             | AfterDate Date
-             | AfterOnDate Date
-             | OnDates [Dates]
-             | PassMaturityDate BondName  -- a bond remain oustanding after mature date
-             | AllTrigger [Trigger]
-             | AnyTrigger [Trigger]
-             | Always  Bool
-             deriving (Show,Eq,Ord,Read,Generic)
-
-instance ToJSONKey Trigger where
-  toJSONKey = toJSONKeyText (T.pack . show)
-instance FromJSONKey Trigger where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
-
-
-data TriggerEffect = DealStatusTo DealStatus
-                   | DoAccrueFee FeeNames
-                   | AddTrigger Trigger 
-                   | TriggerEffects [TriggerEffect]
-                   deriving (Show,Eq)
 
 data SplitType = EqToLeft   -- if equal, the element belongs to left
                | EqToRight  -- if equal, the element belongs to right
                | EqToLeftKeepOne
                | EqToLeftKeepOnes
-               deriving (Show,Eq)
+               deriving (Show, Eq, Generic)
 
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
@@ -398,7 +373,12 @@ class TimeSeries ts where
     getDates ts = [ getDate t | t <- ts ]
     filterByDate :: [ts] -> Date -> [ts]
     filterByDate ts d = filter (\x -> getDate x == d ) ts
-    
+
+class Liable lb where 
+  getDue :: lb -> Balance
+  getLastPaidDate :: lb -> Date 
+
+
 
 data LookupType = Upward 
                 | Downward
@@ -422,7 +402,7 @@ lookupTable (ThresholdTable rows) lkupType lkupVal notFound
 
 data RateAssumption = RateCurve Index Ts
                     | RateFlat Index IRate
-                    deriving (Show)
+                    deriving (Show,Generic)
 
 
 
@@ -438,12 +418,11 @@ $(deriveJSON defaultOptions ''ActionOnDate)
 $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Threshold)
-$(deriveJSON defaultOptions ''Trigger)
-$(deriveJSON defaultOptions ''TriggerEffect)
-$(deriveJSON defaultOptions ''WhenTrigger)
 $(deriveJSON defaultOptions ''DateDesp)
 $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''CustomDataType)
 $(deriveJSON defaultOptions ''ResultComponent)
+$(deriveJSON defaultOptions ''DealCycle)
+$(deriveJSON defaultOptions ''Cmp)

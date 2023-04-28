@@ -493,5 +493,6 @@ calcWeigthBalanceByDates bals ds
         ds_length = length ds
         weights = getIntervalFactors ds
 
-
+testSumToOne :: [Rate] -> Bool
+testSumToOne rs = sum rs == 1.0
 

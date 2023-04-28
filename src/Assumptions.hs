@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
                     ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR,ApplyAssumptionType(..)
@@ -21,11 +22,12 @@ import qualified Data.Time as T
 import Data.Fixed
 import Data.Ratio
 
+import GHC.Generics
+
 import Debug.Trace
 debug = flip trace
 
 type AssumptionLists = [AssumptionBuilder]
-
 type StratificationByIdx = ([Int],AssumptionLists)
 
 lookupAssumptionByIdx :: [StratificationByIdx] -> Int -> AssumptionLists
@@ -36,11 +38,11 @@ lookupAssumptionByIdx sbi i
 
 data ApplyAssumptionType = PoolLevel AssumptionLists
                          | ByIndex [StratificationByIdx] AssumptionLists
-                         deriving (Show)
+                         deriving (Show,Generic)
 
 data AssumptionInput = Single ApplyAssumptionType
                      | Multiple (Map.Map String ApplyAssumptionType)
-                     deriving (Show)
+                     deriving (Show,Generic)
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 -- | MortgageByRate ([Float],[Float])
@@ -55,7 +57,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | DefaultVec [Rate]
                 | DefaultFactors Ts
                 | Recovery (Rate,Int)
-                | RecoveryCurve ([Rate],Int)
+                | RecoveryDistribution (Rate,[Rate])
                 | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
                 | PrepaymentByAging [(Int,Float)]
                 | EvenRecoveryOnDefault Float Int
@@ -74,11 +76,11 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 -- Debug 
                 | StopRunBy Date
                 | InspectOn [(DatePattern,DealStats)]
-                deriving (Show)
+                deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts
                       | RunZSpread Ts (Map.Map BondName (Date,Balance))
-                      deriving (Show)
+                      deriving (Show,Generic)
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
@@ -122,8 +124,6 @@ lookupRate rAssumps (index,spd) d
       Just (RateCurve _ ts) -> spd + (fromRational (getValByDate ts Inc d))
       Just (RateFlat _ r) -> r + spd
       Nothing -> error $ "Failed to find Index "++show index
-
-
 
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)

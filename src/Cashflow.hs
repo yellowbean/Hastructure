@@ -1,4 +1,5 @@
 {-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE DeriveGeneric       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine
@@ -15,6 +16,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
                 ,getTxnBetween,getTxnBetween2
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
+                ,addFlowBalance
                 ,TsRow(..),cfAt) where
 
 import Data.Time (Day)
@@ -28,6 +30,7 @@ import qualified Data.List as L
 
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
+import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
 
@@ -42,10 +45,7 @@ type Delinquent60 = Centi
 type Delinquent90 = Centi
 type Delinquent120 = Centi
 
--- type Date = T.Day
-
 type Amounts = [Float]
--- type Balances = [Balance]
 type Principals = [Principal]
 type Interests = [Interest]
 type Prepayments = [Prepayment]
@@ -65,7 +65,7 @@ data TsRow = CashFlow Date Amount
            | MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss IRate
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
            | LeaseFlow Date Balance Rental
-           deriving(Show,Eq,Ord)
+           deriving(Show,Eq,Ord,Generic)
 
 instance TimeSeries TsRow where 
     getDate (CashFlow x _) = x
@@ -77,7 +77,7 @@ instance TimeSeries TsRow where
     getDate (LeaseFlow x _ _ ) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
-                   deriving (Show,Eq)
+                   deriving (Show,Eq,Generic)
 
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame ts) = length ts
@@ -235,10 +235,28 @@ reduceTs (tr:trs) _tr
   | otherwise =  _tr:tr:trs
 
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
-combine (CashFlowFrame rs1) (CashFlowFrame rs2) =
-    CashFlowFrame $  foldl reduceTs [] sorted_cff --  `debug` ("In Combine")
-    where cff = rs1++rs2
-          sorted_cff = L.sortOn getDate cff  -- `debug` ("BEFORE sort"++ show cff)
+combine (CashFlowFrame rs1) (CashFlowFrame rs2)
+  | fdRs1 == fdRs2 = CashFlowFrame $ foldl reduceTs [] $ L.sortOn getDate $ rs1++rs2
+  | otherwise = CashFlowFrame $  foldl reduceTs [] sorted_cff --  `debug` ("In Combine")
+       where 
+          firstDateOfCfs r =  getDate $ head r
+          (fdRs1,fdRs2) = (firstDateOfCfs rs1,firstDateOfCfs rs2)
+          (splitTs,splitDate) = if fdRs1 > fdRs2 then 
+                                (rs2,fdRs1)
+                              else 
+                                (rs1,fdRs2)
+          (ts_patch,ts_keep) = splitByDate splitTs splitDate EqToRight
+          patch_bal = if fdRs1 > fdRs2 then 
+                         mflowBegBalance $ head rs1
+                      else 
+                         mflowBegBalance $ head rs2
+          ts_patched = [ addFlowBalance patch_bal y | y <- ts_patch ] -- `debug` ("patch bal"++ show patch_bal)
+          
+          cff = if fdRs1 > fdRs2 then 
+                   ts_keep ++ ts_patched ++ rs1 
+                else 
+                   ts_keep ++ ts_patched ++ rs2 
+          sorted_cff = L.sortOn getDate cff  -- `debug` ("ts to patch"++ show ts_patch)
 
 tsDateLT :: Date -> TsRow  -> Bool
 tsDateLT td (CashFlow d _) = d < td
@@ -318,6 +336,14 @@ mflowBalance (MortgageFlow2 _ x _ _ _ _ _ _ _ _) = x
 mflowBalance (MortgageFlow3 _ x _ _ _ _ _ _ _ _ _ _) = x
 mflowBalance (LoanFlow _ x _ _ _ _ _ _ _) = x
 mflowBalance (LeaseFlow _ x _ ) = x
+
+addFlowBalance :: Balance -> TsRow -> TsRow 
+addFlowBalance b (MortgageFlow a x c d e f g i j k) = (MortgageFlow a (x+b) c d e f g i j k)
+addFlowBalance b (MortgageFlow2 a x c d e f g i j k) = (MortgageFlow2 a (x+b) c d e f g i j k)
+addFlowBalance b (MortgageFlow3 a x c d e f g i j k l m) = (MortgageFlow3 a (x+b) c d e f g i j k l m)
+addFlowBalance b (LoanFlow a x c d e f g i j) = (LoanFlow a (x+b) c d e f g i j)
+addFlowBalance b (LeaseFlow a x c ) = (LeaseFlow a (x+b) c )
+
 
 mflowBegBalance :: TsRow -> Balance
 mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _ _) = x + p + ppy + def

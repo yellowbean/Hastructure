@@ -38,7 +38,6 @@ cfTests = testGroup "Cashflow Utils"
      assertEqual "which bal is 100"
        (CF.MortgageFlow (L.toDate "20220110") 100 10 10 0 0 0 0 0 Nothing)
        (head aggTs1)
-
    ,testCase "Cashflow Aggregation Sum up" $
      assertEqual "Test Sum up" 1 (length aggTs2)
    ,testCase "Cashflow Aggregation agg correct amount" $
@@ -111,14 +110,6 @@ tsSplitTests =
           assertEqual "Keep previous one"
           ([],[cf1,cf2, cf3,cf4]) $
           splitByDate ts1 (L.toDate "20230201") EqToLeftKeepOne
-        --,testCase "Cashflow" $
-        --  assertEqual "Keep previous one(Equal toRight)"
-        --  ([cf1],[cf2,cf3,cf4]) $
-        --  splitByDate ts1 (L.toDate "20230301") EqToRightKeepOne
-        --,testCase "Cashflow" $
-        --  assertEqual "Keep previous one(Equal toRight) in middle"
-        --  ([cf1,cf2],[cf3,cf4]) $
-        --  splitByDate ts1 (L.toDate "20230215") EqToRightKeepOne
         ,testCase "CashflowFrame" $ 
           assertEqual "Slice on Cashflow Frame"
           (CF.CashFlowFrame [cf1,cf2],CF.CashFlowFrame [cf3,cf4]) $
@@ -149,4 +140,15 @@ tsSplitTests =
        --   splitByDate ts2 (L.toDate "20230210") EqToLeftKeepOnes
       ]
 
-
+--cashAggTest = [
+--    testGroup "Test on Combine Cashflow Frame"  $ [
+--        testCase "" $ 
+--            assertEqual "A"
+--            1
+--            1 
+--        ,testCase "1"
+--            assertEqual "B" 
+--            1
+--            1 
+--        ]          
+--    ]

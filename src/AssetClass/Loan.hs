@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.Loan where
 
@@ -17,6 +18,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import GHC.Generics
 
 import Debug.Trace
 debug = flip trace
@@ -78,7 +80,7 @@ projectLoanFlow trs _ _ [] _ _ [] [] _ _ _ _ = trs -- `debug` ("===>C") --  `deb
 
 data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
-          deriving (Show)
+          deriving (Show,Generic)
 
 instance Asset Loan where
   calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) _bal _rate _term _ ) asOfDay = _cf

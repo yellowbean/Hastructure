@@ -46,6 +46,7 @@ library
       Types
       Util
       Waterfall
+      Triggers
   other-modules:
       Paths_Hastructure
   hs-source-dirs:
@@ -68,12 +69,15 @@ library
     , time
     , vector
     , wai
+    , openapi3
+    , servant-openapi3
+    , swagger2
+    , servant-swagger
   default-language: Haskell2010
 
 executable Hastructure-exe
   main-is: Main.hs
   other-modules:
-      Server
       Paths_Hastructure
   hs-source-dirs:
       app
@@ -96,7 +100,9 @@ executable Hastructure-exe
     , regex-pcre
     , regex-tdfa
     , scientific
+    , openapi3
     , servant
+    , servant-openapi3
     , servant-server
     , string-conversions
     , template-haskell
@@ -109,6 +115,8 @@ executable Hastructure-exe
     , warp
     , yaml
     , yesod
+    , swagger2
+
   default-language: Haskell2010
 
 test-suite Hastructure-test

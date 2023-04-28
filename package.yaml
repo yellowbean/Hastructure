@@ -37,6 +37,9 @@ dependencies:
 - wai
 - servant
 - servant-server
+- servant-openapi3
+- openapi3
+- swagger2
 
 library:
   source-dirs: src
@@ -65,10 +68,10 @@ executables:
     - template-haskell
     - yaml
     - scientific
+    - openapi3
     - servant-server
     - mtl
     - servant
-    - servant-server
     - lucid
     - string-conversions
     - attoparsec

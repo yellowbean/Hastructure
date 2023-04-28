@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.Installment 
   (Installment(..))
@@ -13,6 +14,7 @@ import Language.Haskell.TH
 import Data.Maybe
 import Data.Aeson.TH
 import Data.Aeson.Types
+import GHC.Generics
 
 import Asset
 import Types 
@@ -25,7 +27,7 @@ debug = flip trace
 
 data Installment = Installment OriginalInfo Balance RemainTerms Status
                  | Dummy
-     deriving (Show)
+     deriving (Show,Generic)
 
 calc_p_i_flow_f_p :: Balance -> Balance -> Balance -> Amount -> Dates -> Period -> IRate -> ([Balance],CF.Principals,CF.Interests)
 calc_p_i_flow_f_p ob cb sb amt ds p r 

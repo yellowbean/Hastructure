@@ -1,5 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module AssetClass.Lease
   (Lease(..),LeaseInfo(..),accrueRentals,LeaseStepUp(..),AccrualPeriod(..))
@@ -19,6 +22,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import GHC.Generics
 
 import Debug.Trace
 debug = flip trace
@@ -30,18 +34,18 @@ data LeaseInfo = LeaseInfo {
     ,originTerm :: Int 
     ,paymentDates :: DatePattern
     ,originRental :: Amount }
-    deriving (Show)
+    deriving (Show,Generic)
 
 type CapRate = Rate
 
 data LeaseStepUp = FlatRate DatePattern Rate
                  | ByRateCurve DatePattern [Rate]
-    deriving (Show)
+    deriving (Show,Generic)
 
 
 data Lease = RegularLease LeaseInfo Balance Int Status
            | StepUpLease LeaseInfo LeaseStepUp Balance Int Status
-    deriving (Show)
+    deriving (Show,Generic)
 
 type LastAccuredDate = Date
 type DailyRate = Balance
@@ -49,6 +53,7 @@ type AccuralAmount = Balance
 
 -- type AccuralPeriod = (Date,DailyRate)
 data AccrualPeriod = AccrualPeriod Date DailyRate
+                    deriving (Show,Generic)
 
 instance TimeSeries AccrualPeriod where 
     getDate (AccrualPeriod d _) = d

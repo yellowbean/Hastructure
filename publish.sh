@@ -23,7 +23,7 @@ fi
 # updating version on api endpoint
 echo "<PUBLISH> Update Version"
 #echo $rp_cmd
-sed -i "s/v = \".*\"/v = \"$2\"/g"  app/Main.hs
+sed -i "s/Version \".*\"/Version \"$2\"/g"  app/Main.hs
 
 if [ $? -ne 0 ]
 then

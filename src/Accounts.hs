@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
                 ,transfer,depositInt,depositIntByCurve
@@ -15,20 +16,21 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import GHC.Generics
 
 import Debug.Trace
 debug = flip trace
 
 data InterestInfo = BankAccount IRate Date DatePattern
                   | InvestmentAccount Index Spread Date DatePattern
-                  deriving (Show)
+                  deriving (Show, Generic)
 
 data ReserveAmount = PctReserve DealStats Rate
                    | FixReserve Balance
                    | Either Pre ReserveAmount ReserveAmount
                    | Max ReserveAmount ReserveAmount
                    | Min ReserveAmount ReserveAmount
-                   deriving (Show)
+                   deriving (Show, Generic)
 
 data Account = Account {
     accBalance :: Balance
@@ -36,7 +38,7 @@ data Account = Account {
     ,accInterest :: Maybe InterestInfo
     ,accType :: Maybe ReserveAmount
     ,accStmt :: Maybe Statement
-} deriving (Show)
+} deriving (Show, Generic)
 
 
 buildEarnIntAction :: [Account] -> Date -> [(String,Dates)] -> [(String,Dates)]
