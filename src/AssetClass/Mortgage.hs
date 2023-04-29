@@ -145,7 +145,16 @@ projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C")
 
 data MortgageInsurance = MortgageInsurance Rate
 
+type InitPeriod = Int 
+type PeriodicCap = Maybe Spread
+type LifetimeCap = Maybe Spread
+type PaymentCap = Maybe Balance
+
+data ARM = ARM InitPeriod PeriodicCap LifetimeCap PaymentCap
+
+
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
+              -- | AdjustRateMortgage ARM Mortgage 
               | ScheduleMortgageFlow Date [CF.TsRow]
               deriving (Show,Generic)
 

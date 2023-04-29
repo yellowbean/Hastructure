@@ -118,12 +118,12 @@ td2 = TestDeal {
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1}
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
-                                 (Nothing, W.PayFee ["General"] ["Service-Fee"])
-                                 ,(Nothing, W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
-                                 ,(Nothing, W.TransferReserve W.Source  "Reserve" "General")
-                                 ,(Nothing, W.TransferReserve W.Target  "General" "Reserve")
-                                 ,(Nothing, W.PayInt "General" ["A"])
-                                 ,(Nothing, W.PayPrin "General" ["A"])
+                                  (W.PayFee ["General"] ["Service-Fee"])
+                                 ,(W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
+                                 ,(W.TransferReserve W.Source  "Reserve" "General")
+                                 ,(W.TransferReserve W.Target  "General" "Reserve")
+                                 ,(W.PayInt "General" ["A"])
+                                 ,(W.PayPrin "General" ["A"])
    ])]
  ,D.collects = [W.Collect W.CollectedInterest "General"
              ,W.Collect W.CollectedPrincipal "General"]
@@ -154,7 +154,7 @@ td2 = TestDeal {
 waterfallTests =  testGroup "Waterfall Tests"
   [
     let
-     afterAction = D.performAction (toDate "20220301") td2 $ (Nothing, W.PayPrinBy (W.RemainBalPct 0.05) "General" "B")
+     afterAction = D.performAction (toDate "20220301") td2 $ (W.PayPrinBy (W.RemainBalPct 0.05) "General" "B")
      afterBnd = (D.bonds afterAction) Map.! "B"
      afterBndA = (D.bonds afterAction) Map.! "A"
      afterAcc = (D.accounts afterAction) Map.! "General"

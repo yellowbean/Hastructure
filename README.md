@@ -11,7 +11,8 @@
 ### Features
 * Integration
   * Built-in REST API services :heavy_check_mark:
-    * Language independent, can be integrated to various programming language stack.
+    * Language independent, integration friendly.
+    * Swagger -> [here](https://github.com/yellowbean/Hastructure/blob/master/swagger.json)
     * Public server status -> [here](https://absbox.org)
   * Docker Support :heavy_check_mark:
 * Asset class coverage
