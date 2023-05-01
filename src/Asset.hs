@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Asset (Pool(..),OriginalInfo(..),calc_p_i_flow
-       ,aggPool,RateType(..),AmortPlan(..)
+       ,aggPool,AmortPlan(..)
        ,Status(..),IssuanceFields(..)
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
@@ -35,6 +35,7 @@ import Data.Aeson.Types
 import Types hiding (Current)
 import Text.Printf
 import Data.Fixed
+import qualified InterestRate as IR
 import Util
 import Debug.Trace
 debug = flip trace
@@ -82,11 +83,6 @@ calcPmt bal periodRate periods =
    in
      mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
 
-data RateType = Fix IRate
-              | Floater Index Spread IRate Period (Maybe Floor)
-              -- index, spread, initial-rate reset interval,floor
-              deriving (Show,Generic)
-
 data AmortPlan = Level   -- for mortgage
                | Even    -- for mortgage
                | I_P     -- interest only and principal due at last payment
@@ -102,14 +98,14 @@ data Status = Current
 
 data OriginalInfo = MortgageOriginalInfo {
     originBalance :: Centi
-    ,originRate :: RateType
+    ,originRate :: IR.RateType
     ,originTerm :: Int
     ,period :: Period
     ,startDate :: Date
     ,prinType :: AmortPlan }
   | LoanOriginalInfo {
      originBalance :: Centi
-    ,originRate :: RateType
+    ,originRate :: IR.RateType
     ,originTerm :: Int
     ,period :: Period
     ,startDate :: Date
@@ -248,7 +244,6 @@ getRateAssumption assumps idx
 
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''OriginalInfo)
-$(deriveJSON defaultOptions ''RateType)
 $(deriveJSON defaultOptions ''Pool)
 $(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''IssuanceFields)

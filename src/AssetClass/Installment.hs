@@ -17,6 +17,7 @@ import Data.Aeson.Types
 import GHC.Generics
 
 import Asset
+import InterestRate
 import Types 
 import Lib
 import Util

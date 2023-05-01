@@ -17,6 +17,7 @@ import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified Call as C
+import InterestRate
 import qualified CreditEnhancement as CE
 import qualified Triggers as Trg
 import Lib
@@ -91,7 +92,7 @@ td2 = TestDeal {
   ,D.pool = P.Pool {P.assets=[ACM.Mortgage
                                          P.MortgageOriginalInfo{
                                            P.originBalance=4000
-                                           ,P.originRate=P.Fix 0.085
+                                           ,P.originRate=Fix 0.085
                                            ,P.originTerm=60
                                            ,P.period=Monthly
                                            ,P.startDate=(T.fromGregorian 2022 1 1)
@@ -104,7 +105,7 @@ td2 = TestDeal {
                                 ,ACM.Mortgage
                                    P.MortgageOriginalInfo{
                                      P.originBalance=4000
-                                     ,P.originRate=P.Fix 0.085
+                                     ,P.originRate=Fix 0.085
                                      ,P.originTerm=60
                                      ,P.period=Monthly
                                      ,P.startDate=(T.fromGregorian 2022 1 1)

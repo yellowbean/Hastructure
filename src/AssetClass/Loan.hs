@@ -7,6 +7,7 @@ module AssetClass.Loan where
 import qualified Data.Time as T
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
+import InterestRate
 import Asset
 import Lib
 import Util

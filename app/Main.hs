@@ -65,6 +65,7 @@ import qualified Liability as L
 import qualified Call as C
 import qualified CreditEnhancement as CE
 import qualified Waterfall as W
+import qualified InterestRate as IR
 import qualified Stmt
 import qualified Triggers as TRG
 
@@ -114,6 +115,7 @@ instance ToSchema DealType
 $(deriveJSON defaultOptions ''DealType)
 
 instance ToSchema AC_Mortgage.Mortgage
+instance ToSchema IR.ARM
 instance ToSchema AC_Loan.Loan
 instance ToSchema AC_Installment.Installment
 instance ToSchema AC_Lease.Lease
@@ -178,7 +180,7 @@ instance ToSchema (TsPoint Bool)
 instance ToSchema Revolving.LiquidationMethod
 instance ToSchema P.Status
 instance ToSchema P.OriginalInfo
-instance ToSchema P.RateType
+instance ToSchema IR.RateType
 instance ToSchema P.AmortPlan
 instance ToSchema P.IssuanceFields
 

@@ -79,7 +79,16 @@ data Index = LPR5Y
             | LIBOR3M
             | LIBOR6M
             | LIBOR1Y
+            | USTSY1Y
+            | USTSY2Y
+            | USTSY3Y
+            | USTSY5Y
+            | USTSY7Y
+            | USTSY10Y
+            | USTSY20Y
+            | USTSY30Y
             | PRIME
+            | COFI
             | SOFR1M
             | SOFR3M
             | SOFR6M

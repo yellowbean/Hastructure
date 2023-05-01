@@ -16,23 +16,25 @@ import qualified AssetClass.Installment as ACI
 import qualified Assumptions as A
 import qualified Cashflow as CF
 
+import InterestRate
+
 import Debug.Trace
 debug = flip trace
 
 tm = ACM.Mortgage
-     (P.MortgageOriginalInfo 10000 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Level)
+     (P.MortgageOriginalInfo 10000 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Level)
      8000 0.08 19 
      Nothing
      P.Current
 
 tm1 = ACM.Mortgage
-     (P.MortgageOriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
+     (P.MortgageOriginalInfo 240 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
      240 0.08 19 
      Nothing
      P.Current
 
 tm2 = ACM.Mortgage
-     (P.MortgageOriginalInfo 240 (P.Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
+     (P.MortgageOriginalInfo 240 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
      240 0.08 19 
      Nothing 
      (P.Defaulted Nothing)
@@ -85,7 +87,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
 loanTests = 
     let 
       loan1 =  ACL.PersonalLoan
-                 (P.LoanOriginalInfo 180 (P.Fix 0.08) 36 L.Monthly (L.toDate "20200101") P.I_P) 
+                 (P.LoanOriginalInfo 180 (Fix 0.08) 36 L.Monthly (L.toDate "20200101") P.I_P) 
                  120
                  0.06
                  24
@@ -218,7 +220,7 @@ leaseTests =
 installmentTest = 
     let 
       loan1 =  ACI.Installment
-                 (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+                 (P.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
                  1000 
                  12 
                  P.Current
@@ -226,7 +228,7 @@ installmentTest =
       loan1Cf = P.calcCashflow loan1 asofDate1
 
       loan2 =  ACI.Installment
-                 (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+                 (P.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
                  500 
                  12
                  P.Current
@@ -234,14 +236,14 @@ installmentTest =
 
       asofDate2 = (L.toDate "20220815")
       loan3 =  ACI.Installment
-                 (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+                 (P.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
                  416.69 
                  5
                  P.Current
       loan3Cf = P.calcCashflow loan3 asofDate2
 
       loan4 =  ACI.Installment
-                 (P.LoanOriginalInfo 1000 (P.Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+                 (P.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
                  208.35 
                  5
                  P.Current

@@ -18,6 +18,7 @@ import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified AssetClass.Mortgage as ACM
 import qualified Call as C
+import qualified InterestRate as IR
 import Stmt
 import Lib
 import Util
@@ -1639,7 +1640,7 @@ td = TestDeal {
   ,pool = P.Pool {P.assets=[ACM.Mortgage
                                          P.MortgageOriginalInfo{
                                            P.originBalance=4000
-                                           ,P.originRate=P.Fix 0.085
+                                           ,P.originRate=IR.Fix 0.085
                                            ,P.originTerm=60
                                            ,P.period=Monthly
                                            ,P.startDate=(T.fromGregorian 2022 1 1)

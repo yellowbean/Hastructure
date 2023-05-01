@@ -11,7 +11,7 @@ module Lib
     ,periodRateFromAnnualRate
     ,previousDate,inSamePeriod
     ,Floor,Cap,TsPoint(..)
-    ,toDate
+    ,toDate,toDates
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
     ,zipWith8,zipWith9,zipWith10, monthsOfPeriod
@@ -22,7 +22,6 @@ module Lib
 import qualified Data.Time as T
 import qualified Data.Time.Format as TF
 import Data.List
-import Data.Fixed
 -- import qualified Data.Scientific as SCI
 import qualified Data.Map as M
 import Language.Haskell.TH
@@ -195,8 +194,11 @@ sumValTs :: Ts -> Amount
 sumValTs (BalanceCurve ds) = foldr (\(TsPoint _ v) acc -> acc+v ) 0 ds
 
 
-toDate :: String -> T.Day
-toDate s = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d" s
+toDate :: String -> Date
+toDate = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d"
+
+toDates :: [String] -> [Date]
+toDates ds = toDate <$> ds
 
 inSamePeriod :: T.Day -> T.Day -> Period -> Bool
 inSamePeriod t1 t2 p

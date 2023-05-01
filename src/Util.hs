@@ -43,7 +43,6 @@ mulBInt b i = (toRational b) * (toRational i)
 mulBInteger :: Balance -> Integer -> Rational 
 mulBInteger b i = mulBInt b (fromInteger i)
 
-
 mulBI :: Balance -> IRate -> Amount
 mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
 
@@ -297,6 +296,12 @@ getValByDate (IRateCurve dps) Exc d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
+getValByDate (IRateCurve dps) Inc d
+  = case find (\(TsPoint _d _) -> d >= _d) (reverse dps)  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+
 getValByDate (ThresholdCurve dps) Inc d
   = case find (\(TsPoint _d _) -> d <= _d) dps  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
@@ -334,9 +339,13 @@ getValByDate (PricingCurve dps) _ d
       fday = getDate $ head dps
       lday = getDate $ last dps
 
+getIndexRateByDates :: RateAssumption  -> [Date] -> [IRate]
+getIndexRateByDates (RateCurve idx rc) ds = fromRational <$> getValByDates rc Inc ds
+getIndexRateByDates (RateFlat idx r) ds = replicate (length ds) r 
+
+
 
 getValByDates :: Ts -> CutoffType -> [Date] -> [Rational]
--- getValByDates rc ds = map (getValByDate rc) ds
 getValByDates rc ct = map (getValByDate rc ct)
 
 getTsVals :: Ts -> [Rational]
