@@ -3,12 +3,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Asset (Pool(..),OriginalInfo(..),calc_p_i_flow
-       ,aggPool,RateType(..),AmortPlan(..)
+       ,aggPool,AmortPlan(..)
        ,Status(..),IssuanceFields(..)
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
-       ,buildAssumptionRate,getRateAssumption
-       ,calc_p_i_flow_even,calc_p_i_flow_i_p
+       ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
 ) where
 
 import qualified Data.Time as T
@@ -35,6 +34,7 @@ import Data.Aeson.Types
 import Types hiding (Current)
 import Text.Printf
 import Data.Fixed
+import qualified InterestRate as IR
 import Util
 import Debug.Trace
 debug = flip trace
@@ -82,11 +82,6 @@ calcPmt bal periodRate periods =
    in
      mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
 
-data RateType = Fix IRate
-              | Floater Index Spread IRate Period (Maybe Floor)
-              -- index, spread, initial-rate reset interval,floor
-              deriving (Show,Generic)
-
 data AmortPlan = Level   -- for mortgage
                | Even    -- for mortgage
                | I_P     -- interest only and principal due at last payment
@@ -102,14 +97,14 @@ data Status = Current
 
 data OriginalInfo = MortgageOriginalInfo {
     originBalance :: Centi
-    ,originRate :: RateType
+    ,originRate :: IR.RateType
     ,originTerm :: Int
     ,period :: Period
     ,startDate :: Date
     ,prinType :: AmortPlan }
   | LoanOriginalInfo {
      originBalance :: Centi
-    ,originRate :: RateType
+    ,originRate :: IR.RateType
     ,originTerm :: Int
     ,period :: Period
     ,startDate :: Date
@@ -236,19 +231,10 @@ aggPool xs = foldr1 CF.combine xs   -- `debug` ("XS"++show(xs))
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]
 
-getRateAssumption :: [A.AssumptionBuilder] -> Index -> Maybe A.AssumptionBuilder
-getRateAssumption assumps idx
-  = find (\x ->
-            case x of
-             A.InterestRateCurve _idx vs -> idx == _idx 
-             A.InterestRateConstant _idx v -> idx == _idx
-             _ -> False) assumps
-
 
 
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''OriginalInfo)
-$(deriveJSON defaultOptions ''RateType)
 $(deriveJSON defaultOptions ''Pool)
 $(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''IssuanceFields)

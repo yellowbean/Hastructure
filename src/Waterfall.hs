@@ -86,9 +86,10 @@ data Action = Transfer AccountName AccountName
             | SwapAccrue CeName
             | SwapReceive AccountName CeName
             | SwapPay AccountName CeName
+            | ActionWithPre L.Pre [Action]
             deriving (Show,Generic)
 
-type DistributionSeq = [(Maybe L.Pre, Action)]
+type DistributionSeq = [Action]
 
 data CollectionRule = Collect PoolSource AccountName
                     | CollectByPct PoolSource [(Rate,AccountName)]

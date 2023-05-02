@@ -7,6 +7,7 @@ module AssetClass.Loan where
 import qualified Data.Time as T
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
+import InterestRate
 import Asset
 import Lib
 import Util
@@ -143,8 +144,8 @@ instance Asset Loan where
       rate_vector = case or of
                       Fix r ->  replicate cf_dates_length cr   --calcIntRateCurve DC_ACT_360 r (last_pay_date:cf_dates) -- replicate cf_dates_length cr
                       Floater idx sprd _orate p mfloor ->
-                              case getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates (mkRateTs ps) Exc cf_dates
+                              case A.getRateAssumption assumps idx of
+                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates ps Exc cf_dates
                                 Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
                                 Nothing -> replicate cf_dates_length 0.0
       schedule_flow = calcCashflow pl asOfDay
@@ -185,8 +186,8 @@ instance Asset Loan where
       rate_vector = case or of
                       Fix r ->  replicate cf_dates_length cr   --calcIntRateCurve DC_ACT_360 r (last_pay_date:cf_dates) -- replicate cf_dates_length cr
                       Floater idx sprd _orate p mfloor ->
-                              case getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates (mkRateTs ps) Exc cf_dates
+                              case A.getRateAssumption assumps idx of
+                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates ps Exc cf_dates
                                 Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
                                 Nothing -> replicate cf_dates_length 0.0
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps

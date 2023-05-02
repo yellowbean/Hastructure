@@ -42,7 +42,8 @@ dependencies:
 - swagger2
 
 library:
-  source-dirs: src
+  source-dirs: 
+   - src
 
 executables:
   Hastructure-exe:

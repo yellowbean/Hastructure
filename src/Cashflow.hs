@@ -161,8 +161,8 @@ getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> getDate x <= d) $ reverse txn
 
 addTs :: TsRow -> TsRow -> TsRow
-addTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = (CashFlow d1 (a1 + a2))
-addTs (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = (BondFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) )
+addTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = CashFlow d1 (a1 + a2)
+addTs (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = BondFlow d1 (b1 + b2) (p1 + p2) (i1 + i2)
 addTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1) (MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2)
   = let 
       bn = do bn1 <- mbn1

@@ -486,16 +486,15 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
                                         "items": {
                                             "format": "double",
                                             "type": "number"
                                         },
                                         "type": "array"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
                                     }
                                 ],
                                 "maxItems": 2,
@@ -505,7 +504,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "RecoveryCurve"
+                                    "RecoveryDistribution"
                                 ]
                             }
                         },
@@ -650,48 +649,6 @@
                                         "$ref": "#/components/schemas/Index"
                                     },
                                     {
-                                        "items": {
-                                            "items": [
-                                                {
-                                                    "$ref": "#/components/schemas/Day"
-                                                },
-                                                {
-                                                    "multipleOf": 1.0e-6,
-                                                    "type": "number"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "InterestRateCurve"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Index"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/Ts"
                                     }
                                 ],
@@ -702,7 +659,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "InterestRateCurve2"
+                                    "InterestRateCurve"
                                 ]
                             }
                         },
@@ -1040,62 +997,6 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "And"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "Or"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
                                 "$ref": "#/components/schemas/DealStats"
                             },
                             "tag": {
@@ -1116,6 +1017,9 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
@@ -1123,14 +1027,14 @@
                                         "type": "number"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfGT"
+                                    "If"
                                 ]
                             }
                         },
@@ -1145,21 +1049,24 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
+                                        "multipleOf": 1.0e-6,
                                         "type": "number"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfGET"
+                                    "IfRate"
                                 ]
                             }
                         },
@@ -1174,63 +1081,8 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/DealStats"
+                                        "$ref": "#/components/schemas/Cmp"
                                     },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "IfLT"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "IfLET"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
                                     {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
@@ -1240,14 +1092,14 @@
                                         "minimum": -9223372036854775808
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfGTInt"
+                                    "IfInt"
                                 ]
                             }
                         },
@@ -1262,22 +1114,23 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "$ref": "#/components/schemas/Ts"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfGETInt"
+                                    "IfCurve"
                                 ]
                             }
                         },
@@ -1292,22 +1145,23 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "$ref": "#/components/schemas/Ts"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfLTInt"
+                                    "IfRateCurve"
                                 ]
                             }
                         },
@@ -1322,22 +1176,23 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "$ref": "#/components/schemas/Ts"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfLETInt"
+                                    "IfIntCurve"
                                 ]
                             }
                         },
@@ -1352,12 +1207,10 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/DealStats"
+                                        "$ref": "#/components/schemas/Cmp"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "$ref": "#/components/schemas/Day"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -1367,36 +1220,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfEqInt"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "IfEqBal"
+                                    "IfDate"
                                 ]
                             }
                         },
@@ -1427,12 +1251,12 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Day"
+                                "type": "boolean"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfAfterDate"
+                                    "Always"
                                 ]
                             }
                         },
@@ -1445,12 +1269,15 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Day"
+                                "items": {
+                                    "$ref": "#/components/schemas/Pre"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfBeforeDate"
+                                    "Any"
                                 ]
                             }
                         },
@@ -1463,30 +1290,15 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Day"
+                                "items": {
+                                    "$ref": "#/components/schemas/Pre"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "IfAfterOnDate"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "IfBeforeOnDate"
+                                    "All"
                                 ]
                             }
                         },
@@ -1993,17 +1805,7 @@
                         "type": "object",
                         "additionalProperties": {
                             "items": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Action"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/Action"
                             },
                             "type": "array"
                         }
@@ -2042,17 +1844,7 @@
                         "type": "object",
                         "additionalProperties": {
                             "items": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Trigger"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/TriggerEffect"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/Trigger"
                             },
                             "type": "array"
                         }
@@ -2941,6 +2733,37 @@
                                 "type": "string",
                                 "enum": [
                                     "SwapPay"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Pre"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Action"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ActionWithPre"
                                 ]
                             }
                         },
@@ -4126,6 +3949,36 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "EveryNMonth"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/DatePattern"
                                 },
@@ -4363,15 +4216,6 @@
                     "originBalance",
                     "originDate",
                     "originRate"
-                ]
-            },
-            "Threshold": {
-                "type": "string",
-                "enum": [
-                    "Below",
-                    "EqBelow",
-                    "Above",
-                    "EqAbove"
                 ]
             },
             "Pool_Loan": {
@@ -5923,273 +5767,27 @@
                 "type": "object"
             },
             "Trigger": {
-                "oneOf": [
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Threshold"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "ThresholdBal"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
+                "type": "object",
+                "properties": {
+                    "trgCurable": {
+                        "type": "boolean"
                     },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Threshold"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Ts"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "ThresholdBalCurve"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
+                    "trgStatus": {
+                        "type": "boolean"
                     },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Threshold"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "ThresholdRate"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
+                    "trgCondition": {
+                        "$ref": "#/components/schemas/Pre"
                     },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Threshold"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Ts"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "ThresholdRateCurve"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "AfterDate"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "AfterOnDate"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "items": {
-                                        "$ref": "#/components/schemas/Day"
-                                    },
-                                    "type": "array"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "OnDates"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "type": "string"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PassMaturityDate"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/Trigger"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "AllTrigger"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/Trigger"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "AnyTrigger"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "type": "boolean"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "Always"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
+                    "trgEffects": {
+                        "$ref": "#/components/schemas/TriggerEffect"
                     }
-                ],
-                "type": "object"
+                },
+                "required": [
+                    "trgCondition",
+                    "trgEffects",
+                    "trgStatus",
+                    "trgCurable"
+                ]
             },
             "LeaseInfo": {
                 "type": "object",
@@ -6257,6 +5855,55 @@
                                 "type": "string",
                                 "enum": [
                                     "Mortgage"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/OriginalInfo"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ARM"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Status"
+                                    }
+                                ],
+                                "maxItems": 7,
+                                "type": "array",
+                                "minItems": 7
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AdjustRateMortgage"
                                 ]
                             }
                         },
@@ -6373,17 +6020,7 @@
                         "type": "object",
                         "additionalProperties": {
                             "items": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Action"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/Action"
                             },
                             "type": "array"
                         }
@@ -6422,17 +6059,7 @@
                         "type": "object",
                         "additionalProperties": {
                             "items": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Trigger"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/TriggerEffect"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/Trigger"
                             },
                             "type": "array"
                         }
@@ -6506,17 +6133,7 @@
                         "type": "object",
                         "additionalProperties": {
                             "items": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Action"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/Action"
                             },
                             "type": "array"
                         }
@@ -6555,17 +6172,7 @@
                         "type": "object",
                         "additionalProperties": {
                             "items": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Trigger"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/TriggerEffect"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/Trigger"
                             },
                             "type": "array"
                         }
@@ -6595,7 +6202,16 @@
                     "LIBOR3M",
                     "LIBOR6M",
                     "LIBOR1Y",
+                    "USTSY1Y",
+                    "USTSY2Y",
+                    "USTSY3Y",
+                    "USTSY5Y",
+                    "USTSY7Y",
+                    "USTSY10Y",
+                    "USTSY20Y",
+                    "USTSY30Y",
                     "PRIME",
+                    "COFI",
                     "SOFR1M",
                     "SOFR3M",
                     "SOFR6M",
@@ -7304,6 +6920,42 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Index"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Floater2"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -7334,17 +6986,79 @@
                 ]
             },
             "CollectionRule": {
-                "items": [
+                "oneOf": [
                     {
-                        "$ref": "#/components/schemas/PoolSource"
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/PoolSource"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Collect"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     },
                     {
-                        "type": "string"
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/PoolSource"
+                                    },
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CollectByPct"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
-                "maxItems": 2,
-                "type": "array",
-                "minItems": 2
+                "type": "object"
             },
             "InterestInfo": {
                 "oneOf": [
@@ -7495,6 +7209,68 @@
                         "required": [
                             "tag",
                             "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "ARM": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "type": "array",
+                                "minItems": 5
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ARM"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "OtherARM"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
                         ]
                     }
                 ],
@@ -7681,17 +7457,7 @@
                         "type": "object",
                         "additionalProperties": {
                             "items": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Action"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/Action"
                             },
                             "type": "array"
                         }
@@ -7730,17 +7496,7 @@
                         "type": "object",
                         "additionalProperties": {
                             "items": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Trigger"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/TriggerEffect"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/Trigger"
                             },
                             "type": "array"
                         }
@@ -8786,6 +8542,16 @@
                 ],
                 "type": "object"
             },
+            "Cmp": {
+                "type": "string",
+                "enum": [
+                    "G",
+                    "GE",
+                    "L",
+                    "LE",
+                    "E"
+                ]
+            },
             "TsPoint_(Fixed_*_E2)": {
                 "items": [
                     {
@@ -9276,10 +9042,7 @@
                                 "schema": {
                                     "type": "object",
                                     "additionalProperties": {
-                                        "items": {
-                                            "$ref": "#/components/schemas/CashFlowFrame"
-                                        },
-                                        "type": "array"
+                                        "$ref": "#/components/schemas/CashFlowFrame"
                                     }
                                 }
                             }
@@ -9308,10 +9071,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "items": {
-                                        "$ref": "#/components/schemas/CashFlowFrame"
-                                    },
-                                    "type": "array"
+                                    "$ref": "#/components/schemas/CashFlowFrame"
                                 }
                             }
                         },
@@ -9494,11 +9254,11 @@
         }
     },
     "info": {
-        "version": "1.0",
-        "title": "todo API",
+        "version": "0.14.14",
+        "title": "Hastructure API",
         "license": {
-            "name": "MIT"
+            "name": "BSD 3"
         },
-        "description": "api descript"
+        "description": "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
     }
 }

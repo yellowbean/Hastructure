@@ -4,7 +4,8 @@
 
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
                     ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR,ApplyAssumptionType(..)
-                    ,lookupAssumptionByIdx,splitAssumptions,lookupRate)
+                    ,lookupAssumptionByIdx,splitAssumptions,lookupRate
+                    ,getRateAssumption)
 where
 
 import Call as C
@@ -62,8 +63,8 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | PrepaymentByAging [(Int,Float)]
                 | EvenRecoveryOnDefault Float Int
                 | InterestRateConstant Index IRate
-                | InterestRateCurve Index [(Date,IRate)] -- Deprecating
-                | InterestRateCurve2 Index Ts
+                -- | InterestRateCurve Index [(Date,IRate)] -- Deprecating
+                | InterestRateCurve Index Ts
                 | CallWhen [C.CallOption]
                 | PoolHairCut PoolSource Rate
                 | AvailableAssets 
@@ -91,7 +92,6 @@ splitAssumptions (a:aps) (dealAssump,assetAssump)
  = case a of
      InterestRateConstant _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      InterestRateCurve _ _  -> splitAssumptions aps (a:dealAssump,assetAssump)
-     InterestRateCurve2 _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      CallWhen _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      StopRunBy _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      InspectOn _ -> splitAssumptions aps (a:dealAssump,assetAssump)
@@ -124,6 +124,15 @@ lookupRate rAssumps (index,spd) d
       Just (RateCurve _ ts) -> spd + (fromRational (getValByDate ts Inc d))
       Just (RateFlat _ r) -> r + spd
       Nothing -> error $ "Failed to find Index "++show index
+
+getRateAssumption :: [AssumptionBuilder] -> Index -> Maybe AssumptionBuilder
+getRateAssumption assumps idx
+  = find (\x ->
+            case x of
+              InterestRateCurve _idx _ -> idx == _idx 
+              InterestRateConstant _idx _ -> idx == _idx
+              _ -> False) assumps
+
 
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)

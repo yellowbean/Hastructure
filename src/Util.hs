@@ -8,7 +8,7 @@ module Util
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, splitByDate, rangeBy
-    ,shiftTsByAmt,calcWeigthBalanceByDates
+    ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     )
     where
 import qualified Data.Time as T
@@ -42,7 +42,6 @@ mulBInt b i = (toRational b) * (toRational i)
 
 mulBInteger :: Balance -> Integer -> Rational 
 mulBInteger b i = mulBInt b (fromInteger i)
-
 
 mulBI :: Balance -> IRate -> Amount
 mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
@@ -212,6 +211,9 @@ genSerialDates dp sd num
                 where 
                   yrs = fromIntegral $ div num 12 + 1                   
         CustomDate ds -> ds
+        EveryNMonth d n -> 
+                d:[ T.addGregorianDurationClip (T.CalendarDiffDays ((toInteger _n)*(toInteger n)) 0) d | _n <- [1..num] ]
+
       where 
         quarterEnds = [(3,31),(6,30),(9,30),(12,31)]
         monthEnds y = 
@@ -238,6 +240,7 @@ genSerialDatesTill sd ptn ed
               MonthDayOfYear _m _d -> div cdM 12 -- T.MonthOfYear T.DayOfMonth
               DayOfMonth _d -> cdM -- T.DayOfMonth 
               CustomDate ds -> 2 + (toInteger $ length ds)
+              EveryNMonth _d _n -> div cdM (toInteger _n)
               -- DayOfWeek Int -> -- T.DayOfWeek 
 
 genSerialDatesTill2 :: RangeType -> Date -> DatePattern -> Date -> Dates
@@ -251,13 +254,6 @@ genSerialDatesTill2 rt sd dp ed
       (IE,False) -> sd:_r 
       (EE,True) -> tail _r 
       (EE,False) -> _r 
-      
-      --EI -> _r  ++ [ed]
-      --IE -> if (head _r)==sd then 
-      --        _r 
-      --      else
-      --        sd:_r
-      --EE -> _r 
     where 
       _r = case dp of 
              AllDatePattern dps -> foldr (++) [] [ genSerialDatesTill sd _dp ed | _dp <- dps ]
@@ -297,6 +293,12 @@ getValByDate (IRateCurve dps) Exc d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
+getValByDate (IRateCurve dps) Inc d
+  = case find (\(TsPoint _d _) -> d >= _d) (reverse dps)  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+
 getValByDate (ThresholdCurve dps) Inc d
   = case find (\(TsPoint _d _) -> d <= _d) dps  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
@@ -334,9 +336,12 @@ getValByDate (PricingCurve dps) _ d
       fday = getDate $ head dps
       lday = getDate $ last dps
 
+getIndexRateByDates :: RateAssumption  -> [Date] -> [IRate]
+getIndexRateByDates (RateCurve idx rc) ds = fromRational <$> getValByDates rc Inc ds
+getIndexRateByDates (RateFlat idx r) ds = replicate (length ds) r 
+
 
 getValByDates :: Ts -> CutoffType -> [Date] -> [Rational]
--- getValByDates rc ds = map (getValByDate rc) ds
 getValByDates rc ct = map (getValByDate rc ct)
 
 getTsVals :: Ts -> [Rational]
@@ -477,7 +482,6 @@ shiftTsByAmt (IRateCurve  tps) delta
 
 shiftTsByAmt _ts delta = _ts
 
-
 assert1 :: Bool -> a -> String -> a
 assert1 False x msg = error msg
 assert1 _     x _ = x
@@ -495,4 +499,8 @@ calcWeigthBalanceByDates bals ds
 
 testSumToOne :: [Rate] -> Bool
 testSumToOne rs = sum rs == 1.0
+
+
+monthsAfter :: Date -> Integer -> Date
+monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
 
