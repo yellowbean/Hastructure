@@ -241,7 +241,7 @@ instance ToSchema RunPoolReq
 $(deriveJSON defaultOptions ''RunDealReq)
 $(deriveJSON defaultOptions ''RunPoolReq)
 
-type EngineAPI = "version"  :> Get '[JSON] Version
+type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] CF.CashFlowFrame
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName CF.CashFlowFrame)
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
@@ -258,16 +258,16 @@ type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 type API = SwaggerAPI :<|> EngineAPI
 
 -- todo swagger 
-todoSwagger :: OpenApi
-todoSwagger = toOpenApi engineAPI 
+engineSwagger :: OpenApi
+engineSwagger = toOpenApi engineAPI 
   & info.title .~ "Hastructure API"
   & info.version .~  T.pack (_version version1)
-  & info.description ?~ "Hastructure"
+  & info.description ?~ "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
   & info.license ?~ ("BSD 3")
 
 server2 :: Server API
-server2 = return todoSwagger 
-      :<|> showVersion -- (Version "0.14.14")--  showVersion
+server2 = return engineSwagger 
+      :<|> showVersion 
       :<|> runPool
       :<|> runPoolScenarios
       :<|> runDeal
@@ -286,7 +286,7 @@ server2 = return todoSwagger
 
 
 writeSwaggerJSON :: IO ()
-writeSwaggerJSON = BL8.writeFile "swagger.json" (encodePretty todoSwagger)
+writeSwaggerJSON = BL8.writeFile "swagger.json" (encodePretty engineSwagger)
 
 data Config = Config { port :: Int} deriving (Show,Generic)
 instance FromJSON Config
@@ -294,6 +294,7 @@ instance FromJSON Config
 main :: IO ()
 main = 
   do 
+    writeSwaggerJSON
     config <- BS.readFile "config.yml"
     let mc = Y.decodeEither' config :: Either ParseException Config
     let (Config _p) = case mc of

@@ -7,8 +7,7 @@ module Asset (Pool(..),OriginalInfo(..),calc_p_i_flow
        ,Status(..),IssuanceFields(..)
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
-       ,buildAssumptionRate,getRateAssumption
-       ,calc_p_i_flow_even,calc_p_i_flow_i_p
+       ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
 ) where
 
 import qualified Data.Time as T
@@ -231,14 +230,6 @@ aggPool xs = foldr1 CF.combine xs   -- `debug` ("XS"++show(xs))
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]
-
-getRateAssumption :: [A.AssumptionBuilder] -> Index -> Maybe A.AssumptionBuilder
-getRateAssumption assumps idx
-  = find (\x ->
-            case x of
-             A.InterestRateCurve _idx vs -> idx == _idx 
-             A.InterestRateConstant _idx v -> idx == _idx
-             _ -> False) assumps
 
 
 

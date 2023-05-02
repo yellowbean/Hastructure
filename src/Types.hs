@@ -226,6 +226,7 @@ data DatePattern = MonthEnd
                  | SemiAnnual (Int, Int) (Int, Int)
                  | CustomDate [Date]
                  | DaysInYear [(Int, Int)]
+                 | EveryNMonth Date Int
                  | AllDatePattern [DatePattern]
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq, Generic)

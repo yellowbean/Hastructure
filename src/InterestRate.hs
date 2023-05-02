@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module InterestRate
-  (ARM(..),RateType(..),runInterestRate)
+  (ARM(..),RateType(..),runInterestRate2,runInterestRate)
   where
 
 import Language.Haskell.TH
@@ -16,6 +16,7 @@ import GHC.Generics
 
 import Types
 import Util
+import Lib
 
 import Debug.Trace
 debug = flip trace
@@ -39,21 +40,34 @@ data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
          deriving (Show,Generic)
 
 runInterestRate :: ARM -> StartRate -> RateType -> ResetDates -> Ts -> [IRate]
-runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 idx spd initRate dp) resetDates rc
+runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 _ spd _ _) resetDates rc
   = sr:cappedRates
     where 
       fr:rrs = (spd +) . fromRational <$> getValByDates rc Inc resetDates
-      firstRate = min (sr + fromMaybe 0 icap) fr
+      firstRate 
+        | isNothing icap = fr
+        | (sr + fromMaybe 0 icap) <= fr = sr + fromMaybe 0 icap
+        | otherwise = fr
       restRates = tail $
                     scanl 
                       (\lastRate idxRate -> 
-                          min (lastRate + fromMaybe 0 pc) idxRate)
+                          if isNothing pc then 
+                            idxRate
+                          else
+                            if (lastRate + (fromMaybe 0 pc)) <= idxRate then 
+                              lastRate + (fromMaybe 0 pc)
+                            else 
+                              idxRate)
                       firstRate
                       rrs
-      flooredRates =  max (fromMaybe 0 floor) <$> (firstRate:restRates)  `debug` ("reset dates" ++ show (firstRate:restRates))
-      cappedRates = min (fromMaybe 1 lifeCap) <$> flooredRates
+      flooredRates =  max (fromMaybe 0 floor) <$> (firstRate:restRates) -- `debug` ("reset rates" ++ show (firstRate:restRates))
+      cappedRates = min (fromMaybe 1 lifeCap) <$> flooredRates 
 
-      
+runInterestRate2 :: ARM -> (Date,StartRate) -> RateType -> ResetDates -> Ts -> Ts
+runInterestRate2 arm (d,sr) floater resetDates rc
+  = mkRateTs $ zip (d:resetDates) resultRates -- `debug` ("Result Rate"++show resultRates)
+    where 
+     resultRates = runInterestRate arm sr floater resetDates rc 
 
 
 

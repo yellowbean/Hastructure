@@ -28,6 +28,8 @@ import Data.Aeson.Types
 
 import Debug.Trace
 debug = flip trace
+
+
 projectMortgageFlow :: [CF.TsRow] -> Balance -> Maybe Rational -> Date -> Dates -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [IRate] -> (Int,Rate) -> Period -> AmortPlan -> [CF.TsRow]
 projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec_vector@(_rec_amt:_rec_amts) _loss_vector@(_loss_amt:_loss_amts) (_rate:_rates) (recovery_lag,recovery_rate) p pt
   | _bal > 0.01 = projectMortgageFlow
@@ -45,13 +47,13 @@ projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rat
                   p
                   pt -- `debug` ("New Rate"++ show _rates)
                 where
-               _remain_terms = 1 + max 0 ((length _pdates) - recovery_lag) -- `debug` ("IN mortgage flow"++ show _remain_terms)
+               _remain_terms = 1 + max 0 (length _pdates - recovery_lag) -- `debug` ("IN mortgage flow"++ show _remain_terms)
                _new_default = mulBR _bal _def_rate
                _new_bal_after_default = _bal - _new_default
                _new_prepay = mulBR _new_bal_after_default _ppy_rate
                _new_bal_after_ppy = _new_bal_after_default - _new_prepay
                _new_int = mulBI _new_bal_after_ppy (periodRateFromAnnualRate p _rate)  -- `debug` ("Balance"++show(_new_bal_after_ppy))
-               _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms
+               _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms -- `debug` ("pmt->bal"++show _new_bal_after_ppy++"rate"++show _rate++"term"++show _remain_terms)
                _new_prin = case pt of
                               Level -> _pmt - _new_int -- `debug` ("PMT->"++ show _pmt)
                               Even ->  _new_bal_after_ppy / fromIntegral _remain_terms --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
@@ -180,12 +182,12 @@ instance Asset Mortgage  where
                                      Level -> calc_p_i_flow 
                                                 _bal 
                                                 pmt 
-                                                ([last_pay_date]++cf_dates) 
+                                                (last_pay_date:cf_dates) 
                                                 _rate
                                      Even ->  calc_p_i_flow_even 
                                                 (_bal / fromIntegral _term) 
                                                 _bal 
-                                                ([last_pay_date]++cf_dates) 
+                                                (last_pay_date:cf_dates) 
                                                 _rate  
       bnflow = [ (\y -> (fromInteger (round ((toRational y) * (toRational (b / _bal)))))) <$> _mbn  | b <- b_flow ]
 
@@ -205,7 +207,7 @@ instance Asset Mortgage  where
     = case or of
        IR.Fix _r -> _r
        IR.Floater _ _ _r _ Nothing -> _r
-       IR.Floater _ _ _r _ (Just floor) -> max _r floor
+       IR.Floater2 _ _ _r _ -> _r 
 
   getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) extra
     = genDates sd p (ot+ct+extra)
@@ -232,15 +234,14 @@ instance Asset Mortgage  where
                             (recovery_lag,recovery_rate)
                             p
                             prinPayType 
-    where
-      cf_dates = take (rt+recovery_lag) $ filter (> asOfDay) (getPaymentDates m recovery_lag) --  `debug` ("CF Dates"++show(recovery_lag))
-      last_pay_date = previousDate (head cf_dates) p 
+                              where
+      last_pay_date:cf_dates = take (succ rt ) $ sliceDates (SliceOnAfterKeepPrevious asOfDay) $ sd:(getPaymentDates m recovery_lag) 
       cf_dates_length = length cf_dates 
       rate_vector = case or of
                       IR.Fix r ->  replicate cf_dates_length r
                       IR.Floater idx sprd _orate p mfloor ->
-                              case getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates (mkRateTs ps) Exc cf_dates
+                              case A.getRateAssumption assumps idx of
+                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates ps Exc cf_dates
                                 Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
                                 Nothing -> replicate cf_dates_length 0.0
 
@@ -269,26 +270,34 @@ instance Asset Mortgage  where
                             p
                             prinPayType 
     where
-      last_pay_date:cf_dates = sliceDates (SliceOnAfterKeepPrevious asOfDay) (getPaymentDates m recovery_lag)
-      cf_dates_length = length cf_dates 
+      ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
+      passInitPeriod = (ot - rt) >= initPeriod 
+      firstResetDate = monthsAfter sd (toInteger (succ initPeriod))
+
+      last_pay_date:cf_dates = take (succ rt) $ sliceDates (SliceOnAfterKeepPrevious asOfDay) $ sd:(getPaymentDates m recovery_lag) 
       
-      ARM initPeriod initCap periodicCap lifetimeCap rateFloor = arm 
-      rate_vector = case or of
+      cf_dates_length = length cf_dates -- `debug` (" cf dates >>" ++ show (last_pay_date:cf_dates ))
+      rate_curve = case or of
                       IR.Fix r ->  error "ARM should have floater rate"
-                      IR.Floater idx sprd _orate p mfloor ->
-                              case getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) -> map 
-                                                                       (\x -> sprd + (fromRational x)) $
-                                                                       getValByDates (mkRateTs ps) Exc cf_dates
-                                Just (A.InterestRateConstant idx v) ->  map (sprd +) $ replicate cf_dates_length v
-                                Nothing -> error $ "Failed to find index"++ show idx
+                      IR.Floater2 idx sprd initRate dp ->
+                        let 
+                          resetDates = genSerialDatesTill2 IE firstResetDate dp (last cf_dates)
+                          projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
+                        in 
+                          case A.getRateAssumption assumps idx of
+                            Just (A.InterestRateCurve idx curve) -> 
+                              projectFutureActualCurve curve 
+                            Just (A.InterestRateConstant idx v) ->
+                              projectFutureActualCurve (mkRateTs [(last_pay_date,v),(last cf_dates,v)])
+                            Nothing -> error $ "Failed to find index"++ show idx
+
+      rate_vector = fromRational <$> getValByDates rate_curve Inc cf_dates -- `debug` ("RateCurve"++ show rate_curve)
 
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0)
                                (replicate cf_dates_length 0.0)
                                0
                                0
-
 
   projCashflow (ScheduleMortgageFlow beg_date flows) asOfDay assumps
     = CF.CashFlowFrame $ projectScheduleFlow

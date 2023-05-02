@@ -341,6 +341,10 @@ dateVectorPatternTest =
             (AllDatePattern
               [(CustomDate [toDate "20230909"]),(CustomDate [toDate "20230919"])])
             (toDate "20230930"))
+    , testCase "" $
+        assertEqual "Generate Dates by N Month"
+        (toDates ["20220201","20220401","20220601"])
+        (genSerialDatesTill (toDate "20220101") (EveryNMonth (toDate "20220201") 2) (toDate "20220715"))
     ]                          
 
 paddingTest = 

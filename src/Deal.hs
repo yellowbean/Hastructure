@@ -853,10 +853,8 @@ prepareDeal t =
 buildRateCurves :: [RateAssumption]-> [AP.AssumptionBuilder] -> [RateAssumption] 
 buildRateCurves rs (assump:assumps) = 
     case assump of 
-      AP.InterestRateConstant i f -> 
-        buildRateCurves (RateFlat i f:rs) assumps
-      AP.InterestRateCurve i ds ->  -- Index [(T.Day, Float)]
-        buildRateCurves (RateCurve i (dsToTs ds):rs) assumps
+      AP.InterestRateConstant i f -> buildRateCurves (RateFlat i f:rs) assumps
+      AP.InterestRateCurve i ds -> buildRateCurves ((RateCurve i ds):rs) assumps
       _ -> buildRateCurves rs assumps    
     where  
         dsToTs ds = IRateCurve $ map (\(d,f) -> TsPoint d f ) ds

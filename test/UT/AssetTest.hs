@@ -1,4 +1,4 @@
-module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,leaseFunTests,installmentTest)
+module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,leaseFunTests,installmentTest,armTest)
 where
 
 import Test.Tasty
@@ -15,6 +15,7 @@ import qualified AssetClass.Lease as ACR
 import qualified AssetClass.Installment as ACI
 import qualified Assumptions as A
 import qualified Cashflow as CF
+import Types
 
 import InterestRate
 
@@ -271,3 +272,61 @@ installmentTest =
              (Just (CF.LoanFlow (L.toDate "20220901") 166.68 41.66 5 0 0 0 0 0.01))
              (CF.cfAt loan4Cf 0)
       ]
+
+
+armTest = 
+  let 
+    arm1 = ACM.AdjustRateMortgage
+            (P.MortgageOriginalInfo 
+              240 
+              (Floater2 SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20231101") 2))
+              30
+              Monthly
+              (L.toDate "20230501")
+              P.Level)
+            (ARM 6 (Just 0.015) (Just 0.01) (Just 0.09) (Just 0.02) )  
+            240 0.08 19 
+            Nothing 
+            P.Current
+    assump1 = [A.InterestRateCurve 
+                SOFR3M
+                (IRateCurve [TsPoint (L.toDate "20230501") 0.03 
+                            ,TsPoint (L.toDate "20230901") 0.06
+                            ,TsPoint (L.toDate "20231215") 0.07
+                            ,TsPoint (L.toDate "20240315") 0.10
+                            ,TsPoint (L.toDate "20241015") 0.12
+                            ])
+                ]
+    arm1_cf = P.projCashflow arm1 (L.toDate "20230601") assump1
+  in 
+    testGroup "ARM cashflow tests" [
+      testCase "ARM case 1/ cf length" $
+        assertEqual "should be 19"
+        19
+        (CF.sizeCashFlowFrame arm1_cf)
+      ,testCase "ARM case 1" $
+        assertEqual "first rate"
+        (Just (CF.MortgageFlow (L.toDate "20230601") 227.66 12.34 0.6 0 0 0 0 0.03 Nothing ))
+        (CF.cfAt arm1_cf 0)
+      ,testCase "ARM case 1" $
+        assertEqual "first rate"
+        (Just (CF.MortgageFlow (L.toDate "20230701") 215.27 12.39 0.56 0 0 0 0 0.03 Nothing ))
+        (CF.cfAt arm1_cf 1)
+      ,testCase "ARM case 1" $
+        assertEqual "period before first reset"
+        (Just (CF.MortgageFlow (L.toDate "20231101") 165.44 12.50 0.44 0 0 0 0 0.03 Nothing ))
+        (CF.cfAt arm1_cf 5)
+      ,testCase "ARM case 1" $
+        assertEqual "first reset with cap"
+        (Just (CF.MortgageFlow (L.toDate "20231201") 153 12.44 0.62 0 0 0 0 0.045 Nothing ))
+        (CF.cfAt arm1_cf 6)
+      ,testCase "ARM case 1" $
+        assertEqual "reset with periodic cap"
+        (Just (CF.MortgageFlow (L.toDate "20240101") 140.57 12.43 0.7 0 0 0 0 0.055 Nothing ))
+        (CF.cfAt arm1_cf 7)
+      ,testCase "ARM case 1" $
+        assertEqual "life Cap"
+        (Just (CF.MortgageFlow (L.toDate "20241201") 0 13.2 0.09 0 0 0 0 0.09 Nothing ))
+        (CF.cfAt arm1_cf 18)
+
+    ]
