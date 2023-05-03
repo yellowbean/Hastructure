@@ -173,8 +173,7 @@ buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag
      ,_recovery_rate
      ,_recovery_lag)
    where 
-     stressSize = (pred (length pDates))
-
+     stressSize = pred (length pDates)
 
 
 

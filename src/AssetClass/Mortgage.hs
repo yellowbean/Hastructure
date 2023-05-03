@@ -45,7 +45,7 @@ projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rat
                   _rates
                   (recovery_lag,recovery_rate)
                   p
-                  pt -- `debug` ("New Rate"++ show _rates)
+                  pt -- `debug` ("remain terms"++ show _remain_terms++">> new_bal_after_ppy"++ show _new_bal_after_ppy)
                 where
                _remain_terms = 1 + max 0 (length _pdates - recovery_lag) -- `debug` ("IN mortgage flow"++ show _remain_terms)
                _new_default = mulBR _bal _def_rate
@@ -56,7 +56,7 @@ projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rat
                _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms -- `debug` ("pmt->bal"++show _new_bal_after_ppy++"rate"++show _rate++"term"++show _remain_terms)
                _new_prin = case pt of
                               Level -> _pmt - _new_int -- `debug` ("PMT->"++ show _pmt)
-                              Even ->  _new_bal_after_ppy / fromIntegral _remain_terms --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
+                              Even ->  _new_bal_after_ppy / fromIntegral _remain_terms -- `debug` ("Dividing _remain"++show _remain_terms ) --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
 
                _new_rec = mulBR _new_default recovery_rate
                _new_loss = mulBR _new_default (1 - recovery_rate)
@@ -156,23 +156,14 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
 
 instance Asset Mortgage  where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _mbn _) d =
-      CF.CashFlowFrame $ zipWith10
-                            CF.MortgageFlow
-                              cf_dates
-                              b_flow
-                              prin_flow
-                              int_flow
-                              (replicate l 0.0)
-                              (replicate l 0.0)
-                              (replicate l 0.0)
-                              (replicate l 0.0)
-                              rate_used
-                              bnflow
+      let 
+        (_,futureTxns) = splitByDate txns d EqToRight
+      in 
+        CF.CashFlowFrame futureTxns
     where
       orate = getOriginRate m
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
-      cf_dates = take _term $ filter (>= d) $ getPaymentDates m 0
-      last_pay_date = previousDate (head cf_dates) p
+      last_pay_date:cf_dates = lastN (1 + _term) $ sd:getPaymentDates m 0
       l = length cf_dates
       rate_used = case or of
                     IR.Fix _r -> replicate l _r
@@ -190,6 +181,7 @@ instance Asset Mortgage  where
                                                 (last_pay_date:cf_dates) 
                                                 _rate  
       bnflow = [ (\y -> (fromInteger (round ((toRational y) * (toRational (b / _bal)))))) <$> _mbn  | b <- b_flow ]
+      txns = zipWith10 CF.MortgageFlow cf_dates b_flow prin_flow int_flow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) rate_used bnflow
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows)  d = CF.CashFlowFrame flows
 
@@ -210,33 +202,23 @@ instance Asset Mortgage  where
        IR.Floater2 _ _ _r _ -> _r 
 
   getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) extra
-    = genDates sd p (ot+ct+extra)
+    = genDates sd p (ot+extra)
   
   getPaymentDates (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) extra
-    = genDates sd p (ot+ct+extra)
+    = genDates sd p (ot+extra)
 
   isDefaulted (Mortgage _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (AdjustRateMortgage _ _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (Mortgage _ _ _ _ _ _) = False
 
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn Current) asOfDay assumps =
-    CF.CashFlowFrame $ projectMortgageFlow
-                            []
-                            cb
-                            (toRational <$> mbn)
-                            last_pay_date
-                            cf_dates
-                            def_rates
-                            ppy_rates
-                            (replicate cf_dates_length 0.0)
-                            (replicate cf_dates_length 0.0)
-                            rate_vector
-                            (recovery_lag,recovery_rate)
-                            p
-                            prinPayType 
-                              where
-      last_pay_date:cf_dates = take (succ rt ) $ sliceDates (SliceOnAfterKeepPrevious asOfDay) $ sd:(getPaymentDates m recovery_lag) 
-      cf_dates_length = length cf_dates 
+    let 
+      (_,futureTxns) = splitByDate txns asOfDay EqToRight
+    in 
+      CF.CashFlowFrame futureTxns
+    where
+      last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
+      cf_dates_length = length cf_dates `debug` ("Last Pay Date"++ show last_pay_date++"SD"++ show sd++"ot,ct"++show ot++","++show rt)
       rate_vector = case or of
                       IR.Fix r ->  replicate cf_dates_length r
                       IR.Floater idx sprd _orate p mfloor ->
@@ -250,31 +232,22 @@ instance Asset Mortgage  where
                                (replicate cf_dates_length 0.0)
                                0
                                0
+      txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
 
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn (Defaulted _) ) asOfDay assumps
     = CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn]
 
   projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) arm cb cr rt mbn Current) asOfDay assumps =
-    CF.CashFlowFrame $ projectMortgageFlow
-                            []
-                            cb
-                            (toRational <$> mbn)
-                            last_pay_date
-                            cf_dates
-                            def_rates
-                            ppy_rates
-                            (replicate cf_dates_length 0.0)
-                            (replicate cf_dates_length 0.0)
-                            rate_vector
-                            (recovery_lag,recovery_rate)
-                            p
-                            prinPayType 
+    let 
+      (_,futureTxns) = splitByDate txns asOfDay EqToRight
+    in 
+      CF.CashFlowFrame futureTxns
     where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
       firstResetDate = monthsAfter sd (toInteger (succ initPeriod))
 
-      last_pay_date:cf_dates = take (succ rt) $ sliceDates (SliceOnAfterKeepPrevious asOfDay) $ sd:(getPaymentDates m recovery_lag) 
+      last_pay_date:cf_dates = sliceDates (SliceOnAfterKeepPrevious asOfDay)  $ lastN (rt + recovery_lag + 1) $ sd:(getPaymentDates m recovery_lag) 
       
       cf_dates_length = length cf_dates -- `debug` (" cf dates >>" ++ show (last_pay_date:cf_dates ))
       rate_curve = case or of
@@ -298,6 +271,7 @@ instance Asset Mortgage  where
                                (replicate cf_dates_length 0.0)
                                0
                                0
+      txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
 
   projCashflow (ScheduleMortgageFlow beg_date flows) asOfDay assumps
     = CF.CashFlowFrame $ projectScheduleFlow

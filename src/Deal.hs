@@ -165,11 +165,7 @@ testPre d t p =
 
 performAction :: P.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
 performAction d t (W.ActionWithPre _pre actions)
-  | testPre d t _pre = foldl 
-                         (\_d _a ->
-                           (performAction d _d _a))
-                         t
-                         actions 
+  | testPre d t _pre = foldl (performAction d) t actions 
   | otherwise  = t
 
 performAction d t@TestDeal{accounts=accMap} (W.Transfer an1 an2) =
@@ -933,7 +929,7 @@ calcDealStageDate (CurrentDates _ (Just revolvingEndDate) endDate _ _)
 calcDealStageDate _ = []
 
 
-runPool2 :: P.Asset a => (P.Pool a) -> Maybe AP.ApplyAssumptionType -> [CF.CashFlowFrame]
+runPool2 :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> [CF.CashFlowFrame]
 runPool2 (P.Pool [] (Just cf) asof _) Nothing = [cf]
 runPool2 (P.Pool [] (Just cf) asof _) (Just (AP.PoolLevel [])) = [cf]
 runPool2 (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel assumps)) 

@@ -105,8 +105,7 @@ instance Asset Installment where
     = CF.CashFlowFrame flows 
      where 
         -- cf_dates = filter (> asOfDay) $ sd:getPaymentDates inst 0 
-        cf_dates = lastN rt $ sd:getPaymentDates inst 0
-        cf_dates_length = length cf_dates 
+        last_pay_date:cf_dates = lastN (rt+1) $ sd:getPaymentDates inst 0
         opmt = divideBI ob ot  
         schedule_balances = scanl (-) ob (replicate ot opmt) -- `debug` (show ot++">>"++show rt)
         -- current_schedule_bal =  schedule_balances !! (ot - rt)   
@@ -123,17 +122,7 @@ instance Asset Installment where
         stressed_bal_flow = map (* factor)  $ lastN rt schedule_balances
         prin_flow = replicate rt cpmt 
         int_flow =  replicate rt cfee
-        _flows = zipWith9
-                   CF.LoanFlow
-                     cf_dates
-                     stressed_bal_flow
-                     prin_flow
-                     int_flow
-                     (replicate rt 0.0)
-                     (replicate rt 0.0)
-                     (replicate rt 0.0)
-                     (replicate rt 0.0)
-                     (replicate rt orate) 
+        _flows = zipWith9 CF.LoanFlow cf_dates stressed_bal_flow prin_flow int_flow (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt orate) 
         (_,flows) = splitByDate 
                       _flows
                       asOfDay
@@ -161,7 +150,7 @@ instance Asset Installment where
       where 
 
           -- last_pay_date:cf_dates = sliceDates (SliceAfterKeepPrevious asOfDay) $ sd:getPaymentDates inst recovery_lag
-          last_pay_date:cf_dates = lastN (rt + recovery_lag+1) $ sd:getPaymentDates inst recovery_lag
+          last_pay_date:cf_dates = lastN (rt + recovery_lag +1) $ sd:getPaymentDates inst recovery_lag
           cf_dates_length = length cf_dates  -- `debug` ("Dates->>"++show cf_dates)
           rt_with_lag = rt - recovery_lag -- `debug` ("CF Length"++ show (length cf_dates))
           opmt = divideBI ob ot

@@ -84,27 +84,21 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           deriving (Show,Generic)
 
 instance Asset Loan where
-  calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) _bal _rate _term _ ) asOfDay = _cf
+  calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) _bal _rate _term _ ) asOfDay = 
+    let 
+      (_,futureTxns) = splitByDate txns asOfDay EqToRight
+    in 
+      CF.CashFlowFrame futureTxns
    where
       orate = getOriginRate pl
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
-      cf_dates = take (succ _term) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates pl 0
+      cf_dates = lastN (_term + 1) $ sd:(getPaymentDates pl 0)
       l = (length cf_dates) - 1
       (b_flow,prin_flow,int_flow) = case ptype of
                                      Level -> calc_p_i_flow _bal pmt cf_dates _rate
                                      Even  -> calc_p_i_flow_even (_bal / fromIntegral _term) _bal cf_dates _rate
                                      I_P   -> calc_p_i_flow_i_p _bal cf_dates _rate
-      _cf =  CF.CashFlowFrame $ zipWith9
-                         CF.LoanFlow
-                           (tail cf_dates)
-                           b_flow
-                           prin_flow
-                           int_flow
-                           (replicate l 0.0)
-                           (replicate l 0.0)
-                           (replicate l 0.0)
-                           (replicate l 0.0)
-                           (replicate l _rate)  -- `debug` ("prin size "++ show (prin_flow)++ "date size"++ show (length cf_dates )++"int"++show (int_flow)++"ds"++ show (cf_dates))
+      txns =  zipWith9 CF.LoanFlow (tail cf_dates) b_flow prin_flow int_flow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l _rate)  -- `debug` ("prin size "++ show (prin_flow)++ "date size"++ show (length cf_dates )++"int"++show (int_flow)++"ds"++ show (cf_dates))
 
 
   getCurrentBal pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
@@ -122,24 +116,15 @@ instance Asset Loan where
   isDefaulted pl@(PersonalLoan _ _ _ _ _ ) = False
 
   getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd _ ) _bal _rate _term _ )  extra
-    = genDates sd p (ot+_term+extra)
+    = genDates sd p (ot+extra)
 
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt Current) asOfDay assumps =
-    CF.CashFlowFrame $ projectLoanFlow
-                            []
-                            cb
-                            last_pay_date
-                            cf_dates
-                            adjusted_def_rates
-                            ppy_rates
-                            (replicate cf_dates_length 0.0)
-                            (replicate cf_dates_length 0.0)
-                            rate_vector
-                            (recovery_lag,recovery_rate)
-                            p
-                            I_P
+    let 
+      (_,futureTxns) = splitByDate txns asOfDay EqToRight
+    in 
+      CF.CashFlowFrame futureTxns
     where
-      last_pay_date:cf_dates = take ((succ rt) + recovery_lag) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates pl recovery_lag
+      last_pay_date:cf_dates =  lastN (1 + rt + recovery_lag) $ sd:(getPaymentDates pl recovery_lag)
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
       rate_vector = case or of
                       Fix r ->  replicate cf_dates_length cr   --calcIntRateCurve DC_ACT_360 r (last_pay_date:cf_dates) -- replicate cf_dates_length cr
@@ -164,24 +149,17 @@ instance Asset Loan where
                                0
                                0
       adjusted_def_rates = map (\x -> (toRational x) * lifetime_default_pct) cf_factor `debug` ("Factors"++ show cf_factor ++ "SUM UP"++ show (sum cf_factor))
+      txns = projectLoanFlow [] cb last_pay_date cf_dates adjusted_def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p I_P
+      
       -- adjusted_ppy_rates = map (\x -> (toRational x) * lifetime_prepayment_pct) cf_factor
 
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt Current) asOfDay assumps =
-    CF.CashFlowFrame $ projectLoanFlow
-                            []
-                            cb
-                            last_pay_date
-                            cf_dates
-                            def_rates
-                            ppy_rates
-                            (replicate cf_dates_length 0.0)
-                            (replicate cf_dates_length 0.0)
-                            rate_vector
-                            (recovery_lag,recovery_rate)
-                            p
-                            prinPayType  -- `debug` ("rate"++show rate_vector)
+    let 
+      (_,futureTxns) = splitByDate txns asOfDay EqToRight
+    in 
+      CF.CashFlowFrame futureTxns
     where
-      last_pay_date:cf_dates = take ((succ rt) + recovery_lag) $ sliceDates (SliceAfterKeepPrevious asOfDay) $ getPaymentDates pl recovery_lag
+      last_pay_date:cf_dates = lastN (rt + recovery_lag + 1) $ sd:(getPaymentDates pl recovery_lag)
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
       rate_vector = case or of
                       Fix r ->  replicate cf_dates_length cr   --calcIntRateCurve DC_ACT_360 r (last_pay_date:cf_dates) -- replicate cf_dates_length cr
@@ -195,6 +173,7 @@ instance Asset Loan where
                                (replicate cf_dates_length 0.0)
                                0
                                0
+      txns = projectLoanFlow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType  -- `debug` ("rate"++show rate_vector)
 
 
 $(deriveJSON defaultOptions ''Loan)
