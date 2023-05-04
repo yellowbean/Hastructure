@@ -31,15 +31,6 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           
-      -
-        name: Build and push -  version
-        uses: docker/build-push-action@v3
-        with:
-          platforms: linux/amd64
-          push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:${{ steps.meta.outputs.tags }}
-          cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max          
 
       -
         name: Build and push - latest
