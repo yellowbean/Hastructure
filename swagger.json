@@ -857,6 +857,44 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "items": {
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultedRecovery"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "$ref": "#/components/schemas/Day"
                             },
                             "tag": {

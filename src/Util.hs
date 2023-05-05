@@ -450,10 +450,10 @@ daysInterval ds = zipWith daysBetween (init ds) (tail ds)
 splitByDate :: TimeSeries a => [a] -> Date -> SplitType -> ([a],[a])
 splitByDate xs d st 
   = case st of 
-      EqToLeft ->  span (\x -> (getDate x) <= d) xs
-      EqToRight -> span (\x -> (getDate x) < d) xs
+      EqToLeft ->  span (\x -> getDate x <= d) xs
+      EqToRight -> span (\x -> getDate x < d) xs
       EqToLeftKeepOne -> 
-          case findIndex (\x -> (getDate x) >= d ) xs of 
+          case findIndex (\x -> getDate x >= d ) xs of 
             Just idx -> splitAt (pred idx) xs -- `debug` ("split with "++show (pred idx)++">>"++show (length xs))
             Nothing -> (xs,[])
      -- EqToRightKeepOne -> 

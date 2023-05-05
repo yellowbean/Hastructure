@@ -8,6 +8,7 @@ module Asset (Pool(..),OriginalInfo(..),calc_p_i_flow
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
        ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
+       ,calcRecoveriesFromDefault
 ) where
 
 import qualified Data.Time as T
@@ -222,6 +223,14 @@ calc_p_i_flow_i_p bal dates r
       _ints = [  mulBI bal _r | _r <- period_rs ]
       _bals = (replicate flow_size bal ) ++ [ 0 ]
       _prins = (replicate flow_size 0 ) ++ [ bal ]
+
+calcRecoveriesFromDefault :: Balance -> Rate -> [Rate] -> [Amount]
+calcRecoveriesFromDefault bal recoveryRate recoveryTiming
+  = let
+      recoveryAmt = mulBR bal recoveryRate
+    in 
+      (mulBR recoveryAmt ) <$> recoveryTiming
+
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool [] = undefined -- `debug` ("Empty cashflow from assets")

@@ -63,7 +63,6 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | PrepaymentByAging [(Int,Float)]
                 | EvenRecoveryOnDefault Float Int
                 | InterestRateConstant Index IRate
-                -- | InterestRateCurve Index [(Date,IRate)] -- Deprecating
                 | InterestRateCurve Index Ts
                 | CallWhen [C.CallOption]
                 | PoolHairCut PoolSource Rate
@@ -74,6 +73,8 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | LeaseBaseCurve Ts
                 | LeaseGapDays Int
                 | LeaseGapDaysByAmount [(Amount,Int)] Int
+                -- For Defaulted Asset
+                | DefaultedRecovery Rate Int [Rate]
                 -- Debug 
                 | StopRunBy Date
                 | InspectOn [(DatePattern,DealStats)]
