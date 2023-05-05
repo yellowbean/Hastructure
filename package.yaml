@@ -38,6 +38,7 @@ dependencies:
 - servant
 - servant-server
 - servant-openapi3
+- servant-errors
 - openapi3
 - swagger2
 
@@ -76,6 +77,7 @@ executables:
     - lucid
     - string-conversions
     - attoparsec
+    - servant-errors
     # - jsonschema-gen
     # - timeseries
 
