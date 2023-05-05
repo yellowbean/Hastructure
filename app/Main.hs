@@ -41,6 +41,7 @@ import qualified Data.ByteString.Char8 as BS
 import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
+import Network.Wai.Middleware.Servant.Errors (errorMwDefJson, HasErrorBody(..))
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
@@ -300,4 +301,6 @@ main =
     let (Config _p) = case mc of
                         Left exp -> Config 8081
                         Right c -> c
-    run _p $ serve (Proxy :: Proxy API) server2
+    run _p 
+      $ errorMwDefJson
+      $ serve (Proxy :: Proxy API) server2

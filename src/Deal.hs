@@ -1193,7 +1193,7 @@ queryDeal t s =
           stmts = map F.feeStmt $ Map.elems fSubMap
           ex s = case s of
                    Nothing -> 0
-                   Just (Statement txns) -> sum $ map getTxnAmt $ filter (\x ->  d == getDate x) txns
+                   Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) txns
        in
           sum $ map ex stmts
 
@@ -1211,7 +1211,7 @@ queryDeal t s =
            -- fSubMap = Map.filterWithKey (\fn f -> (S.member fn fnSet)) (fees t)
            fSubMap = getFeeByName t (Just fns)
         in
-           sum $ map F.feeDue $ Map.elems fSubMap
+           sum $ F.feeDue <$> Map.elems fSubMap
 
     Sum _s ->
         sum $ map (queryDeal t) _s
