@@ -148,7 +148,7 @@ instance Asset Loan where
                                (replicate cf_dates_length 0.0)
                                0
                                0
-      adjusted_def_rates = map (\x -> (toRational x) * lifetime_default_pct) cf_factor `debug` ("Factors"++ show cf_factor ++ "SUM UP"++ show (sum cf_factor))
+      adjusted_def_rates = map (\x -> (toRational x) * lifetime_default_pct) cf_factor -- `debug` ("Factors"++ show cf_factor ++ "SUM UP"++ show (sum cf_factor))
       txns = projectLoanFlow [] cb last_pay_date cf_dates adjusted_def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p I_P
       
       -- adjusted_ppy_rates = map (\x -> (toRational x) * lifetime_prepayment_pct) cf_factor
@@ -174,6 +174,27 @@ instance Asset Loan where
                                0
                                0
       txns = projectLoanFlow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType  -- `debug` ("rate"++show rate_vector)
+
+  projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted (Just defaultedDate))) asOfDay assumps
+    = case find f assumps of 
+        Nothing -> CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]
+        Just (A.DefaultedRecovery rr lag timing) -> 
+          let 
+            (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+ length timing)
+            beforeRecoveryTxn = [  CF.LoanFlow d cb 0 0 0 0 0 0 cr | d <- cf_dates1 ]
+            recoveries = calcRecoveriesFromDefault cb rr timing
+            bals = scanl (-) cb recoveries
+            _txns = [  CF.LoanFlow d b 0 0 0 0 r 0 cr | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
+            (_, txns) = splitByDate (beforeRecoveryTxn++_txns) asOfDay EqToRight -- `debug` ("AS OF Date"++show asOfDay)
+          in 
+            CF.CashFlowFrame txns
+       where 
+           f x = case x of 
+                   A.DefaultedRecovery _ _ _ ->True 
+                   _ -> False 
+
+  projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted Nothing)) asOfDay assumps
+    = CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]
 
 
 $(deriveJSON defaultOptions ''Loan)
