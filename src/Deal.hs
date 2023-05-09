@@ -141,16 +141,16 @@ instance DealDates DateDesp where
 testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Bool
 testPre d t p =
   case p of
-    Types.All ps -> all (testPre d t) ps
-    Types.Any ps -> any (testPre d t) ps 
+    Types.All pds -> all (testPre d t) pds
+    Types.Any pds -> any (testPre d t) pds 
     IfZero s -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
     
-    If cmp s amt -> (toCmp cmp) (queryDeal t s)  amt
-    IfRate cmp s amt -> (toCmp cmp) (queryDealRate t s) amt
-    IfInt cmp s amt -> (toCmp cmp) (queryDealInt t s d) amt
+    If cmp s amt -> (toCmp cmp) (queryDeal t (ps s))  amt
+    IfRate cmp s amt -> (toCmp cmp) (queryDealRate t (ps s)) amt
+    IfInt cmp s amt -> (toCmp cmp) (queryDealInt t (ps s) d) amt
     IfDate cmp _d -> (toCmp cmp) d _d
-    IfCurve cmp s _ts -> (toCmp cmp) (queryDeal t s) (fromRational (getValByDate _ts Inc d))
-    IfRateCurve cmp s _ts -> (toCmp cmp) (queryDealRate t s) (fromRational (getValByDate _ts Inc d))
+    IfCurve cmp s _ts -> (toCmp cmp) (queryDeal t (ps s)) (fromRational (getValByDate _ts Inc d))
+    IfRateCurve cmp s _ts -> (toCmp cmp) (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))
     -- IfIntCurve cmp s _ts -> (toCmp cmp) (queryDealInt t s d) (getValByDate _ts Inc d)
     IfDealStatus st -> status t == st
     Always b -> b
@@ -161,6 +161,7 @@ testPre d t p =
                   L -> (<)
                   LE -> (<=)
                   E -> (==)
+      ps = patchDateToStats d
 
 
 performAction :: P.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
@@ -543,14 +544,6 @@ applicableAdjust (L.Bond _ _ _ (L.StepUpFix _ _ _ _) _ _ _ _ _ _ _ _ ) = True
 applicableAdjust (L.Bond _ _ _ (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
 applicableAdjust (L.Bond _ _ _ (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
 
---setBndsNextIntRate :: TestDeal a -> Date -> Maybe [RateAssumption] -> TestDeal a
---setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
---    where 
---        floatBonds = filter (applicableAdjust d) $ Map.elems (bonds t)
---        floatBondNames = map L.bndName floatBonds -- `debug` ("Resetting bonds=>"++ show floatBondNames)
---        updatedBonds = foldr (Map.adjust (setBondNewRate d ras)) (bonds t) floatBondNames
---
---setBndsNextIntRate t d Nothing = t 
 
 updateRateSwapRate :: [RateAssumption] -> Date -> CE.RateSwap -> CE.RateSwap
 updateRateSwapRate rAssumps d rs@CE.RateSwap{ CE.rsType = rt } 
@@ -750,7 +743,7 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                              (Just _rates) -> Map.adjustWithKey 
                                               (\k v-> setBondNewRate d _rates v)
                                               bn
-                                              (bonds t)
+                                              (bonds t) -- `debug` ("Reset bond"++show bn)
              in 
                run2 t{bonds = newBndMap} poolFlow (Just ads) rates calls log
 
@@ -831,7 +824,7 @@ runDeal t er assumps bpi =
   case er of
     DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
     DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
-    DealPoolFlowPricing -> (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  -- `debug` ("logs"++show(logs))
+    DealPoolFlowPricing -> (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  `debug` ("Run Deal"++show(name t))
   where
     (ads,pcf,rcurves,calls) = getInits t assumps  -- `debug` ("Init Deal"++show (name t)++">> cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
     (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls []  -- `debug` ("Action >>"++show ads)
@@ -1251,7 +1244,7 @@ queryDeal t s =
                 CustomCurve cv -> (getValOnByDate cv d)
                 CustomDS ds -> (queryDeal t (patchDateToStats d ds ))
 
-    _ -> 0.0 `debug` ("Failed to match"++ show s)
+    _ -> 0.0 `debug` ("Failed to query balance of -> "++ show s)
 
 queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Bool
 queryDealBool t ds = False    --TODO query trigger status ; 

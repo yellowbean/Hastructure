@@ -33,6 +33,7 @@ fi
 
 echo "<PUBLISH> Tagging"
 git add app/Main.hs
+git add swagger.json
 git commit -m "bump version to-> < $2 >"
 git tag -a $1$2 -m "$3"
 
@@ -63,8 +64,9 @@ fi
 echo "<PUBLISH> Done ! "
 
 # Generate change log file 
-echo "<CHANGE LOG> Update Change Log "
-python generate_chagnelogs.py CHANGELOGS.json $1$2
+# echo "<CHANGE LOG> Update Change Log "
+# python generate_changelogs.py CHANGELOGS.json $1$2
 echo "<CHANGE LOG> Upload Change Log "
-scp CHANGELOGS.json root@simplicity.vip:/root/absbox.org/CHANGELOGS.json
+scp ChangeLog.md root@simplicity.vip:/root/absbox.org/ChangeLog.md
+#scp CHANGELOGS.json root@simplicity.vip:/root/absbox.org/CHANGELOGS.json
 
