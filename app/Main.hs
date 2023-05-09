@@ -82,7 +82,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.15.10"
+version1 = Version "0.16.0"
 
 data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
               | LPool (P.Pool AC_Loan.Loan)
