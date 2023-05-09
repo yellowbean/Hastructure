@@ -154,6 +154,7 @@ data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
                   | DealClosed Date 
                   | InspectDS Date DealStats
                   | ResetIRSwapRate Date String
+                  | ResetBondRate Date String
                   deriving (Show,Generic,Read)
 
 
@@ -166,6 +167,8 @@ instance TimeSeries ActionOnDate where
     getDate (DealClosed d ) = d
     getDate (ChangeDealStatusTo d _ ) = d
     getDate (InspectDS d _ ) = d
+    getDate (ResetIRSwapRate d _ ) = d
+    getDate (ResetBondRate d _ ) = d 
 
 
 instance Ord ActionOnDate where
@@ -228,6 +231,7 @@ data DatePattern = MonthEnd
                  | DaysInYear [(Int, Int)]
                  | EveryNMonth Date Int
                  | AllDatePattern [DatePattern]
+                 | StartsExclusive Date DatePattern
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq, Generic)
 

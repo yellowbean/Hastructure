@@ -257,6 +257,7 @@ genSerialDatesTill2 rt sd dp ed
     where 
       _r = case dp of 
              AllDatePattern dps -> foldr (++) [] [ genSerialDatesTill sd _dp ed | _dp <- dps ]
+             StartsExclusive d _dp ->  filter (> d)  $ genSerialDatesTill2 rt sd _dp ed
              _ -> genSerialDatesTill sd dp ed -- maybe sd in _r, but not ed in _r
 
 

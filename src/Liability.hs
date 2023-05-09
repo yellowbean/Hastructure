@@ -8,7 +8,8 @@ module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
   ,payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,weightAverageBalance,fv2,calcZspread,payYield)
+  ,weightAverageBalance,fv2,calcZspread,payYield
+  ,buildRateResetDates)
   where
 
 import Language.Haskell.TH
@@ -34,12 +35,13 @@ import GHC.Generics
 import Debug.Trace
 debug = flip trace
 
-data RateReset = ByInterval Period (Maybe Date) -- period, maybe a start day
-               | MonthOfYear  Int  -- month index, 0 => Janaury
-               deriving (Show,Generic)
+type RateReset = DatePattern 
+type StepUpDates = DatePattern 
+
 
 data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount 
+                  | StepUpFix IRate DayCount StepUpDates Spread
                   | InterestByYield IRate
                   deriving (Show,Generic)
 
@@ -293,9 +295,16 @@ calcZspread (tradePrice,priceDay) count (trialPrice,spd) (Just (S.Statement txns
       else
         calcZspread (tradePrice,priceDay) (succ count) (newPrice, newSpd) (Just (S.Statement txns)) riskFreeCurve -- `debug` ("Run with newprice"++show newPrice++"Count->"++show count ) 
 
+buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
+buildRateResetDates b sd ed 
+ = case bndInterestInfo b of 
+     (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 EE sd dp ed
+     (Floater _ _ dp _ _ _) -> genSerialDatesTill2 EE sd dp ed
+     _ -> []
+
+
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
-$(deriveJSON defaultOptions ''RateReset)
 $(deriveJSON defaultOptions ''PriceResult)

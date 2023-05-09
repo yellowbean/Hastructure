@@ -42,7 +42,7 @@ bfloat = B.Bond{B.bndName="A"
                                ,B.originDate= (T.fromGregorian 2022 1 1)
                                ,B.originRate= 0.08
                                ,B.maturityDate = Nothing}
-            ,B.bndInterestInfo= B.Floater LPR5Y 0.015 (B.MonthOfYear 1) DC_ACT_365F Nothing Nothing
+            ,B.bndInterestInfo= B.Floater LPR5Y 0.015 (MonthDayOfYear 1 1) DC_ACT_365F Nothing Nothing
             ,B.bndBalance=3000
             ,B.bndRate=0.08
             ,B.bndDuePrin=0.0
@@ -144,20 +144,19 @@ pricingTests = testGroup "Pricing Tests"
 
 bndTests = testGroup "Float Bond Tests" [
     let
-       r1 = D.applicableAdjust (L.toDate "20220101") bfloat
-       r2 = D.applicableAdjust (L.toDate "20220301") bfloat
+       r1 = D.applicableAdjust  bfloat
+       r2 = D.applicableAdjust  bfloat
     in
       testCase "Adjust rate by Month of Year " $
       assertEqual "" [True,False] [r1,r2]
     ,
     let 
        bfloatResetInterval = bfloat {B.bndInterestInfo = B.Floater LPR5Y 0.015 
-                                                         (B.ByInterval L.Quarterly 
-                                                           (Just (L.toDate "20220401")))
+                                                         QuarterEnd
                                                          DC_ACT_365F   
                                                          Nothing Nothing}
-       r1 = D.applicableAdjust (L.toDate "20220701") bfloatResetInterval
-       r2 = D.applicableAdjust (L.toDate "20220801") bfloatResetInterval
+       r1 = D.applicableAdjust  bfloatResetInterval
+       r2 = D.applicableAdjust  bfloatResetInterval
     in 
       testCase "Adjust rate by quarter  " $
       assertEqual "" [True,False] [r1,r2]

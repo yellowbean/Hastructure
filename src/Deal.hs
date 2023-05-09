@@ -507,8 +507,12 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapP
         newAccMap = Map.adjust (A.draw amtToPay d SwapSettle) accName accsMap
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
+setBondNewRate d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
+  = b { L.bndRate = currentRate + spd }
+
 setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
+
 
 getRateAssumptionByIndex :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumptionByIndex ras idx
@@ -533,32 +537,20 @@ applyFloatRate (L.Floater idx spd p dc mf mc) d ras
       ra = getRateAssumptionByIndex ras idx
       _rate = idx_rate + spd
 
-applicableAdjust :: Date -> L.Bond -> Bool
-applicableAdjust d (L.Bond _ _ oi (L.Floater _ _ rr _ _ _) _ _ _ _ _ _ _ _ )
-  = case rr of 
-      L.ByInterval p mStartDate ->
-          let 
-            epocDate = fromMaybe (L.originDate oi) mStartDate
-            diff = T.diffGregorianDurationClip epocDate d
-          in
-            0 == mod (T.cdMonths diff) (fromIntegral (monthsOfPeriod p))
-      L.MonthOfYear monthIndex ->
-          let 
-            (_,m,_) = T.toGregorian d
-          in 
-            m == monthIndex
+applicableAdjust :: L.Bond -> Bool
+applicableAdjust (L.Bond _ _ _ (L.Floater _ _ _ _ _ _) _ _ _ _ _ _ _ _ ) = True
+applicableAdjust (L.Bond _ _ _ (L.StepUpFix _ _ _ _) _ _ _ _ _ _ _ _ ) = True
+applicableAdjust (L.Bond _ _ _ (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
+applicableAdjust (L.Bond _ _ _ (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
 
-applicableAdjust d (L.Bond _ _ oi (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
-applicableAdjust d (L.Bond _ _ oi (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
-
-setBndsNextIntRate :: TestDeal a -> Date -> Maybe [RateAssumption] -> TestDeal a
-setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
-    where 
-        floatBonds = filter (applicableAdjust d) $ Map.elems (bonds t)
-        floatBondNames = map L.bndName floatBonds -- `debug` ("Resetting bonds=>"++ show floatBondNames)
-        updatedBonds = foldr (Map.adjust (setBondNewRate d ras)) (bonds t) floatBondNames
-
-setBndsNextIntRate t d Nothing = t 
+--setBndsNextIntRate :: TestDeal a -> Date -> Maybe [RateAssumption] -> TestDeal a
+--setBndsNextIntRate t d (Just ras) = t {bonds = updatedBonds}
+--    where 
+--        floatBonds = filter (applicableAdjust d) $ Map.elems (bonds t)
+--        floatBondNames = map L.bndName floatBonds -- `debug` ("Resetting bonds=>"++ show floatBondNames)
+--        updatedBonds = foldr (Map.adjust (setBondNewRate d ras)) (bonds t) floatBondNames
+--
+--setBndsNextIntRate t d Nothing = t 
 
 updateRateSwapRate :: [RateAssumption] -> Date -> CE.RateSwap -> CE.RateSwap
 updateRateSwapRate rAssumps d rs@CE.RateSwap{ CE.rsType = rt } 
@@ -574,7 +566,7 @@ updateRateSwapBal :: P.Asset a => TestDeal a -> Date -> CE.RateSwap -> CE.RateSw
 updateRateSwapBal t d rs@CE.RateSwap{ CE.rsNotional = base }
   =  case base of 
        CE.Fixed _ -> rs 
-       CE.Base ds -> rs { CE.rsRefBalance = (queryDeal t (patchDateToStats d ds)) }
+       CE.Base ds -> rs { CE.rsRefBalance = queryDeal t (patchDateToStats d ds) }
 
 testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
 testCall t d opt = 
@@ -690,8 +682,8 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                                    (waterfall t)
    
                 dAfterWaterfall = foldl (performAction d) dRunWithTrigger0 waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
-                dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("Running Rate assumption"++show(rates)) -- `debug` ("After Rate Set")
-                (dRunWithTrigger1,newLogs1) = runTriggers dAfterRateSet d $ queryTrigger dAfterRateSet EndDistributionWF  
+                -- dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("Running Rate assumption"++show(rates)) -- `debug` ("After Rate Set")
+                (dRunWithTrigger1,newLogs1) = runTriggers dAfterWaterfall d $ queryTrigger dAfterWaterfall EndDistributionWF  
                 newLogs = log++newLogs0 ++ newLogs1
          EarnAccInt d accName ->
            let 
@@ -750,6 +742,18 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                newlog = InspectBal d ds $ queryDeal t (patchDateToStats d ds)
              in 
                run2 t poolFlow (Just ads) rates calls  $ log++[newlog] 
+         
+         ResetBondRate d bn -> 
+             let 
+               newBndMap = case rates of 
+                             Nothing -> bonds t
+                             (Just _rates) -> Map.adjustWithKey 
+                                              (\k v-> setBondNewRate d _rates v)
+                                              bn
+                                              (bonds t)
+             in 
+               run2 t{bonds = newBndMap} poolFlow (Just ads) rates calls log
+
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  -- `debug` ("Running AD"++show(ad))
 
@@ -980,9 +984,9 @@ getInits t mAssumps
     --inspect dates 
     inspectDates = let 
                      m_inspect_vars = find (\case
-                                           (AP.InspectOn _ ) -> True
-                                           _ -> False)
-                                         dealAssumps 
+                                             (AP.InspectOn _ ) -> True
+                                             _ -> False)
+                                           dealAssumps 
                    in
                      case m_inspect_vars of 
                        Just (AP.InspectOn inspect_vars) -> concat [[ InspectDS _d ds | _d <- genSerialDatesTill2 II startDate dp endDate]  | (dp,ds) <- inspect_vars ]
@@ -996,7 +1000,13 @@ getInits t mAssumps
                                                           in 
                                                            ((flip ResetIRSwapRate) k) <$> resetDs)
                                                  rsm
-                     
+    -- bond rate resets 
+    bndRateResets = let 
+                      rateAdjBnds = Map.filter applicableAdjust $ bonds t
+                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates b startDate endDate) rateAdjBnds
+                    in 
+                      [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate , bdate     <- bdates ]
+
     stopDate = find 
                  (\case
                    (AP.StopRunBy d) -> True
@@ -1004,10 +1014,9 @@ getInits t mAssumps
                  dealAssumps 
     
     _actionDates = let 
-                     -- a = bActionDates ++ pActionDates ++ iAccIntDates ++ feeAccrueDates ++ liqResetDates ++ dealStageDates ++ inspectDates
                      a = concat [bActionDates,pActionDates,iAccIntDates
                                 ,feeAccrueDates,liqResetDates,dealStageDates
-                                ,concat irSwapRateDates,inspectDates] -- `debug` ("inspect Dates"++show inspectDates)
+                                ,concat irSwapRateDates,inspectDates, bndRateResets] -- `debug` ("inspect Dates"++show inspectDates)
                    in
                      case dates t of 
                        (PreClosingDates _ _ _ _ _ _) -> sort $ (DealClosed closingDate):a 
@@ -1245,7 +1254,7 @@ queryDeal t s =
     _ -> 0.0 `debug` ("Failed to match"++ show s)
 
 queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Bool
-queryDealBool t ds = False
+queryDealBool t ds = False    --TODO query trigger status ; 
 
 
 getPoolFlows :: TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
