@@ -17,3 +17,4 @@ app/Main
 Untitled.ipynb
 .gitignore
 .ipynb_checkpoints/Untitled-checkpoint.ipynb
+publish.sh
