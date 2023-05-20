@@ -939,6 +939,24 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DatePattern"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BuildFinancialReport"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -1901,6 +1919,40 @@
                     "pool",
                     "waterfall",
                     "collects"
+                ]
+            },
+            "CashflowReport": {
+                "type": "object",
+                "properties": {
+                    "outflow": {
+                        "items": {
+                            "$ref": "#/components/schemas/BookItem"
+                        },
+                        "type": "array"
+                    },
+                    "net": {
+                        "multipleOf": 1.0e-2,
+                        "type": "number"
+                    },
+                    "endDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "startDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "inflow": {
+                        "items": {
+                            "$ref": "#/components/schemas/BookItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "inflow",
+                    "outflow",
+                    "net",
+                    "startDate",
+                    "endDate"
                 ]
             },
             "Installment": {
@@ -3266,6 +3318,40 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/BalanceSheetReport"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/CashflowReport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FinancialReport"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -3287,21 +3373,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
@@ -3319,18 +3394,7 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "type": "string"
                             },
                             "tag": {
                                 "type": "string",
@@ -3348,21 +3412,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
@@ -3380,18 +3433,7 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "type": "string"
                             },
                             "tag": {
                                 "type": "string",
@@ -3493,10 +3535,6 @@
                     {
                         "type": "object",
                         "properties": {
-                            "contents": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -3505,8 +3543,7 @@
                             }
                         },
                         "required": [
-                            "tag",
-                            "contents"
+                            "tag"
                         ]
                     },
                     {
@@ -3687,7 +3724,21 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "SwapSettle"
+                                    "SwapInSettle"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SwapOutSettle"
                                 ]
                             }
                         },
@@ -4054,6 +4105,71 @@
                                 "type": "string",
                                 "enum": [
                                     "StartsExclusive"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "BookItem": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Item"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/BookItem"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ParentItem"
                                 ]
                             }
                         },
@@ -6866,6 +6982,38 @@
                 ],
                 "type": "object"
             },
+            "BalanceSheetReport": {
+                "type": "object",
+                "properties": {
+                    "reportDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "asset": {
+                        "items": {
+                            "$ref": "#/components/schemas/BookItem"
+                        },
+                        "type": "array"
+                    },
+                    "liability": {
+                        "items": {
+                            "$ref": "#/components/schemas/BookItem"
+                        },
+                        "type": "array"
+                    },
+                    "equity": {
+                        "items": {
+                            "$ref": "#/components/schemas/BookItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "asset",
+                    "liability",
+                    "equity",
+                    "reportDate"
+                ]
+            },
             "RateSwapBase": {
                 "oneOf": [
                     {
@@ -8203,6 +8351,34 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BuildReport"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -9348,7 +9524,7 @@
         }
     },
     "info": {
-        "version": "0.15.10",
+        "version": "0.16.0",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

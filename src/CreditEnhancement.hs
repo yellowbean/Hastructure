@@ -167,7 +167,7 @@ receiveIRS d rs@RateSwap{rsNetCash = receiveAmt, rsStmt = stmt}
   | receiveAmt > 0 = rs { rsNetCash = 0 }
   | otherwise = rs
      where 
-       newTxn = IrsTxn d 0 receiveAmt 0 0 0 SwapSettle
+       newTxn = IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle
 
 payoutIRS :: Date -> Amount -> RateSwap -> RateSwap 
 payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt} 
@@ -176,7 +176,7 @@ payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt}
      where 
        actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
        outstanding = (negate payoutAmt) - amt
-       newTxn = IrsTxn d 0 actualAmt 0 0 0 SwapSettle
+       newTxn = IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle
 
 
 data CurrencySwap = CurrencySwap Rate Balance

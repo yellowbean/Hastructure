@@ -78,6 +78,8 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 -- Debug 
                 | StopRunBy Date
                 | InspectOn [(DatePattern,DealStats)]
+                -- Financial Report
+                | BuildFinancialReport DatePattern
                 deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts
@@ -97,6 +99,7 @@ splitAssumptions (a:aps) (dealAssump,assetAssump)
      StopRunBy _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      InspectOn _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      PoolHairCut _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+     BuildFinancialReport _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      _  -> splitAssumptions aps (dealAssump,a:assetAssump)
 
 splitAssumptions [] r = r

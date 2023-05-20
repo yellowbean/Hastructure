@@ -6,7 +6,7 @@
 module Deal (TestDeal(..),run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
             ,setFutureCF,populateDealDates
-            ,calcTargetAmount,td, updateLiqProvider, accrueLiqProvider) where
+            ,calcTargetAmount, updateLiqProvider, accrueLiqProvider) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -67,7 +67,7 @@ data TestDeal a = TestDeal {
   ,accounts :: Map.Map String A.Account
   ,fees :: Map.Map String F.Fee
   ,bonds :: Map.Map String L.Bond
-  ,pool ::  P.Pool a -- P.Mortgage
+  ,pool ::  P.Pool a 
   ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
   ,collects :: [W.CollectionRule]
   ,call :: Maybe [C.CallOption]
@@ -294,7 +294,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt an bnds) =
     bndsPaid = map (\(l,amt) -> L.payInt d amt l) bndsAmountToBePaid
 
     bndMapUpdated =   Map.union (Map.fromList $ zip bndsNames bndsPaid) bndMap
-    comment = PayInt bnds Nothing
+    comment = PayInt bnds
     accMapAfterPay = Map.adjust 
                        (A.draw actualPaidOut d comment)
                        an
@@ -307,7 +307,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayResidual Nothing 
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     availBal = A.accBalance $ accMap Map.! an
-    accMapAfterPay = Map.adjust (A.draw availBal d (PayYield bndName Nothing)) an accMap
+    accMapAfterPay = Map.adjust (A.draw availBal d (PayYield bndName)) an accMap
     bndMapAfterPay = Map.adjust (L.payYield d availBal) bndName bndMap
 
 performAction d t@TestDeal{fees=feeMap,accounts=accMap} (W.PayFeeResidual limit an feeName) =
@@ -336,7 +336,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (W.RemainB
     actAmount = min availBal $ max dueAmount 0
 
     accMapAfterPay = Map.adjust
-                        (A.draw actAmount d Empty) --TODO
+                        (A.draw actAmount d (PayPrin [bndName])) 
                         an
                         accMap
     bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
@@ -351,7 +351,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (W.DS ds) 
     payAmount = min availBal (queryDeal t patchedDs) -- `debug` ("Query with "++show (patchedDs))
 
     accMapAfterPay = Map.adjust
-                        (A.draw payAmount d (TxnComments [PayPrin [bndName] Nothing,UsingDS ds])) 
+                        (A.draw payAmount d (TxnComments [PayPrin [bndName],UsingDS ds])) 
                         an
                         accMap  -- `debug` ("payOutAmt"++show (queryDeal t patchedDs))
     bndMapAfterPay = Map.adjust 
@@ -376,7 +376,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin an bnds) =
     bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
-    accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds Nothing)) an accMap
+    accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
 performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an bnds) = 
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
@@ -393,13 +393,13 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
-    accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds Nothing)) an accMap
+    accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
 performAction d t@TestDeal{accounts=accMap} (W.LiquidatePool lm an) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets
   where
     liqAmt = calcLiquidationAmount lm (pool t) d
-    accMapAfterLiq = Map.adjust (A.deposit liqAmt d (LiquidationProceeds liqAmt)) an accMap
+    accMapAfterLiq = Map.adjust (A.deposit liqAmt d (LiquidationProceeds)) an accMap
 
 performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns) 
   = t {fees = Map.union newFeeMap feeMap }
@@ -496,7 +496,7 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapR
     where 
         receiveAmt = CE.rsNetCash $ rtSwap Map.! sName
         newRtSwap = Map.adjust (CE.receiveIRS d) sName rtSwap
-        newAccMap = Map.adjust (A.deposit receiveAmt d SwapSettle) accName accsMap
+        newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapPay accName sName)
   = t { rateSwap = Just newRtSwap, accounts = newAccMap }
@@ -505,7 +505,73 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapP
         availBal = A.accBalance $ accsMap Map.! accName
         amtToPay = min payoutAmt availBal 
         newRtSwap = Map.adjust (CE.payoutIRS d amtToPay) sName rtSwap
-        newAccMap = Map.adjust (A.draw amtToPay d SwapSettle) accName accsMap
+        newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
+
+getItemBalance :: BookItem -> Balance
+getItemBalance (Item _ bal) = bal
+getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
+
+                        
+-- data AccountingAdjust = 
+buildBalanceSheet :: P.Asset a => TestDeal a -> Date -> BalanceSheetReport
+buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap } d 
+    = BalanceSheetReport {asset=ast,liability=liab,equity=eqty,reportDate=d}
+    where 
+        ---accured interest
+        ---accured interest
+        accM = [ Item accName accBal | (accName,accBal) <- Map.toList $ Map.map A.accBalance (accounts t) ]
+        (performingBal,dBal,rBal) = case P.futureCf pool of
+                         Nothing -> let 
+                                      _dbal = queryDeal t CurrentPoolDefaultedBalance
+                                      _pbal = (queryDeal t CurrentPoolBalance) - _dbal
+                                    in 
+                                      (_pbal, _dbal, 0)
+                         Just cf@(CF.CashFlowFrame txns) 
+                           -> (CF.mflowBalance (last txns)
+                              ,CF.totalDefault cf
+                              ,negate (CF.totalRecovery cf))
+        
+        poolAst = [ Item "Pool Performing" performingBal
+                  , Item "Pool Defaulted" dBal
+                  , Item "Pool Recovery" rBal]
+        
+        swapToCollect = []
+        ast = accM ++ poolAst ++ swapToCollect
+        --tranches
+        
+        bndM = [ Item bndName bndBal | (bndName,bndBal) <- Map.toList $ Map.map L.bndBalance (bonds t) ]
+        bndAccPayable = [ Item ("Accured Int:"++bndName) bndAccBal | (bndName,bndAccBal) <- Map.toList (Map.map (L.bndDueInt . (calcDueInt t d)) bndMap)]
+        feeToPay = [ Item ("Fee Due:"++feeName) feeDueBal | (feeName,feeDueBal) <- Map.toList (Map.map (F.feeDue . (calcDueFee t d)) feeMap)]
+        liqProviderToPay = []   --TODO
+        swapToPay = [] --TODO
+        liab = bndM ++ bndAccPayable ++ feeToPay ++ liqProviderToPay ++ swapToPay -- `debug` ("ACC BOND"++show bndAccPayable)
+
+        totalAssetBal = sum $ getItemBalance <$> ast  
+        totalDebtBal = sum $ getItemBalance <$> liab
+        eqty = [ Item "Net Asset" (totalAssetBal - totalDebtBal) ]
+
+buildCashReport :: P.Asset a => TestDeal a -> Date -> Date -> CashflowReport
+buildCashReport t@TestDeal{accounts = accs } sd ed 
+  = CashflowReport { inflow = inflowItems
+                   , outflow = outflowItems
+                   , net = cashChange
+                   , startDate = sd
+                   , endDate = ed }
+      where 
+        _txns = concat $ Map.elems $ Map.map getTxns $ Map.map A.accStmt accs
+        txns = rangeBy _txns sd ed EI 
+   
+        inflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Inflow)  txns
+        outflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Outflow) txns
+        
+        inflowM = Map.mapKeys show $ aggByTxnComment inflowTxn Map.empty
+        outflowM = Map.mapKeys show $ aggByTxnComment outflowTxn Map.empty 
+        
+        inflowItems = [ Item k v | (k,v) <- Map.toList inflowM ]
+        outflowItems = [ Item k v | (k,v) <- Map.toList outflowM ]
+        
+        cashChange = sum (Map.elems inflowM) + sum (Map.elems outflowM)
+
 
 setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
@@ -746,6 +812,14 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                                               (bonds t) -- `debug` ("Reset bond"++show bn)
              in 
                run2 t{bonds = newBndMap} poolFlow (Just ads) rates calls log
+         BuildReport sd ed ->
+             let 
+               bsReport = buildBalanceSheet t ed 
+               cashReport = buildCashReport t sd ed 
+               newlog = FinancialReport sd ed bsReport cashReport
+             in 
+               run2 t poolFlow (Just ads) rates calls $ log++[newlog] 
+             
 
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  -- `debug` ("Running AD"++show(ad))
@@ -794,7 +868,7 @@ liquidatePool lq d accName t =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
      proceeds = calcLiquidationAmount lq (pool t) d
-     updateFn = A.deposit proceeds d (LiquidationProceeds proceeds)
+     updateFn = A.deposit proceeds d (LiquidationProceeds)
      accs = accounts t
 
 data ExpectReturn = DealStatus
@@ -826,7 +900,7 @@ runDeal t er assumps bpi =
     DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
     DealPoolFlowPricing -> (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  `debug` ("Run Deal"++show(name t))
   where
-    (ads,pcf,rcurves,calls) = getInits t assumps  -- `debug` ("Init Deal"++show (name t)++">> cf length"++show ( P.futureCf (pool t))) -- ("Init in runDeal")
+    (ads,pcf,rcurves,calls) = getInits t assumps -- `debug` ("Assump in run deal"++ show assumps)
     (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls []  -- `debug` ("Action >>"++show ads)
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
@@ -984,6 +1058,13 @@ getInits t mAssumps
                      case m_inspect_vars of 
                        Just (AP.InspectOn inspect_vars) -> concat [[ InspectDS _d ds | _d <- genSerialDatesTill2 II startDate dp endDate]  | (dp,ds) <- inspect_vars ]
                        Nothing -> []  -- `debug` ("M inspect"++show dealAssumps)
+    financialRptDates = case find (\case (AP.BuildFinancialReport _) -> True) dealAssumps of 
+                            Nothing -> [] -- `debug` ("No report date found -> "++ show dealAssumps)
+                            Just (AP.BuildFinancialReport dp) 
+                              -> let 
+                                   _ds = genSerialDatesTill2 II startDate dp endDate 
+                                   _ds2 = tail _ds
+                                 in [ BuildReport _sd _ed  | (_sd,_ed) <- zip _ds _ds2 ] 
 
     irSwapRateDates = case rateSwap t of
                         Nothing -> []
@@ -1009,7 +1090,7 @@ getInits t mAssumps
     _actionDates = let 
                      a = concat [bActionDates,pActionDates,iAccIntDates
                                 ,feeAccrueDates,liqResetDates,dealStageDates
-                                ,concat irSwapRateDates,inspectDates, bndRateResets] -- `debug` ("inspect Dates"++show inspectDates)
+                                ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] -- `debug` ("rpt Dates"++show financialRptDates)
                    in
                      case dates t of 
                        (PreClosingDates _ _ _ _ _ _) -> sort $ (DealClosed closingDate):a 
@@ -1107,7 +1188,7 @@ queryDeal t s =
     FutureCurrentPoolBegBalance asOfDay ->
          case _poolSnapshot of
             Just ts -> CF.mflowBegBalance ts
-            Nothing -> -0.1
+            Nothing -> error $ "Pool begin balance not found at"++show asOfDay
         where
          _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
          _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
@@ -1158,7 +1239,7 @@ queryDeal t s =
                    Just (Statement txns) 
                      -> sum $ map getTxnAmt $
                           filter (\y -> case getTxnComment y of 
-                                          (PayInt _ _) -> True
+                                          (PayInt _ ) -> True
                                           _ -> False)   $
                           filter (\x -> d == getDate x) txns
        in
@@ -1173,7 +1254,7 @@ queryDeal t s =
                    Just (Statement txns) 
                      -> sum $ map getTxnAmt $
                           filter (\y -> case getTxnComment y of 
-                                          (PayPrin _ _) -> True
+                                          (PayPrin _ ) -> True
                                           _ -> False)   $
                           filter (\x -> d == getDate x) txns
        in
@@ -1243,6 +1324,8 @@ queryDeal t s =
                 CustomConstant v -> fromRational v 
                 CustomCurve cv -> (getValOnByDate cv d)
                 CustomDS ds -> (queryDeal t (patchDateToStats d ds ))
+
+     
 
     _ -> 0.0 `debug` ("Failed to query balance of -> "++ show s)
 
@@ -1389,9 +1472,7 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit sd dueInt dueFee
                     Nothing -> 0
                     Just (CE.FixRate _ r mLastAccDate) -> 
                       let 
-                        lastAccDate = case mLastAccDate of 
-                                        Just _accDate -> _accDate 
-                                        Nothing -> sd
+                        lastAccDate = fromMaybe sd mLastAccDate
                         bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns stmt
                       in 
                         sum $ ((flip mulBR) r) <$> bals
@@ -1399,12 +1480,10 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit sd dueInt dueFee
                     Nothing -> 0 
                     Just (CE.FixRate _ r mLastAccDate) -> 
                       let 
-                        lastAccDate = case mLastAccDate of 
-                                        Just _accDate -> _accDate 
-                                        Nothing -> sd
+                        lastAccDate = fromMaybe sd mLastAccDate
                         (_,_unAccTxns) = splitByDate (getTxns stmt) lastAccDate EqToLeftKeepOne
                         accBals = getUnusedBal <$> _unAccTxns 
-                        _ds = [lastAccDate] ++ (tail $ getDate <$> _unAccTxns)
+                        _ds = lastAccDate : tail (getDate <$> _unAccTxns)
                         _avgBal = calcWeigthBalanceByDates accBals (_ds++[d])
                       in 
                         mulBR _avgBal r  
@@ -1432,7 +1511,10 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ mCurBal curCredit sd dueInt dueFee
 
 calcDueInt :: P.Asset a => TestDeal a -> Date -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond _ _ oi io _ r dp di Nothing _ lastPrinPay _ ) 
-  = calcDueInt t calc_date (b {L.bndDueIntDate = Just (getClosingDate (dates t))})
+ | calc_date <= closingDate = b
+ | otherwise = calcDueInt t calc_date (b {L.bndDueIntDate = Just closingDate })
+   where 
+     closingDate = getClosingDate (dates t)
 
 calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ _ lstIntPay _ _) 
   = b {L.bndDueInt = 0 }
@@ -1444,7 +1526,7 @@ calcDueInt t calc_date b@(L.Bond bn L.Equity bo (L.InterestByYield y) bond_bal _
 
 calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just int_due_date) lstIntPay _ _ ) 
   | calc_date == int_due_date = b
-  | otherwise = b {L.bndDueInt = (new_due_int+int_due),L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
+  | otherwise = b {L.bndDueInt = new_due_int+int_due,L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
               where
                 lastIntPayDay = case lstIntPay of
                                   Just pd -> pd
@@ -1487,7 +1569,7 @@ calcDuePrin t calc_date b@(L.Bond bn (L.PAC_Anchor schedule bns) bo bi bond_bal 
                  bond_bal
 
 calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_arrears _ lstIntPay _ _) =
-  if (all (\x -> (isZbond x)) activeBnds) then
+  if all isZbond activeBnds then
       b {L.bndDuePrin = bond_bal} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   else 
       b {L.bndDuePrin = 0, L.bndBalance = new_bal, L.bndLastIntPay=Just calc_date} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
@@ -1584,101 +1666,3 @@ depositPoolInflow rules d (CF.CashFlowFrame txn) amap =
 
 $(deriveJSON defaultOptions ''ExpectReturn)
 $(deriveJSON defaultOptions ''TestDeal)
-
-
-td = TestDeal {
-  name = "test deal1"
-  ,dates = PatternInterval $
-             Map.fromList [(ClosingDate ,(T.fromGregorian 2022 1 1,MonthFirst,toDate("20300101")))
-                         ,(CutoffDate,(T.fromGregorian 2022 1 1,MonthFirst,toDate("20300101")))
-                         ,(FirstPayDate,(T.fromGregorian 2022 2 25,DayOfMonth 25,toDate("20300101") ))
-                          ]
-  ,status = Amortizing
-  ,accounts = (Map.fromList
-  [("General", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
-  })),
-   ("Reserve", (A.Account { A.accName="General" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
-  }))
-   ,("ReservePCT", (A.Account { A.accName="General" ,A.accBalance=0.0
-   ,A.accType=Just (A.PctReserve (FutureCurrentPoolBalance) 500)
-   , A.accInterest=Nothing ,A.accStmt=Nothing
-  }))
-  ])
-  ,fees = (Map.fromList [("Service-Fee"
-                         ,F.Fee{F.feeName="service-fee"
-                                ,F.feeType = F.FixFee 50
-                                ,F.feeStart = (T.fromGregorian 2022 1 1)
-                                ,F.feeDue = 100
-                                ,F.feeDueDate = Nothing
-                                ,F.feeArrears = 0
-                                ,F.feeLastPaidDay = Nothing
-                                ,F.feeStmt = Nothing})])
-  ,bonds = (Map.fromList [("A"
-                          ,L.Bond{
-                              L.bndName="A"
-                             ,L.bndType=L.Sequential
-                             ,L.bndOriginInfo= L.OriginalInfo{
-                                                L.originBalance=3000
-                                                ,L.originDate= (T.fromGregorian 2022 1 1)
-                                                ,L.originRate= 0.08
-                                                ,L.maturityDate=Nothing}
-                             ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
-                             ,L.bndBalance=3000
-                             ,L.bndRate=0.08
-                             ,L.bndDuePrin=0.0
-                             ,L.bndDueInt=0.0
-                             ,L.bndDueIntDate=Nothing
-                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})
-                         ]
-           )
-  ,pool = P.Pool {P.assets=[ACM.Mortgage
-                                         P.MortgageOriginalInfo{
-                                           P.originBalance=4000
-                                           ,P.originRate=IR.Fix 0.085
-                                           ,P.originTerm=60
-                                           ,P.period=Monthly
-                                           ,P.startDate=(T.fromGregorian 2022 1 1)
-                                           ,P.prinType= P.Level}
-                                         4000
-                                         0.085
-                                         60
-                                         Nothing
-                                         P.Current
-                                         ]
-                 ,P.futureCf=Nothing
-                 ,P.asOfDate=T.fromGregorian 2022 1 1
-                 ,P.issuanceStat= Just (Map.fromList [(P.IssuanceBalance,4000)])
-                 }
-   ,waterfall = Map.fromList [(W.DistributionDay Amortizing, [
-                                  (W.PayFee ["General"] ["Service-Fee"])
-                                 ,(W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
-                                 ,(W.TransferReserve W.Source  "General" "General")
-                                 ,(W.TransferReserve W.Target  "General" "General")
-                                 ,(W.PayInt "General" ["A"])
-                                 ,(W.PayPrin "General" ["A"])])
-                               ,(W.CleanUp, [(W.LiquidatePool (BalanceFactor 1.0 0.2) "A")])]
- ,collects = [W.Collect W.CollectedInterest "General"
-             ,W.Collect W.CollectedPrincipal "General"]
- ,call = Just [C.PoolFactor 0.08]
- ,liqProvider = Nothing
- ,custom = Nothing
- ,triggers = Just $ 
-               Map.fromList $
-                 [(BeginDistributionWF,[Trigger{trgCondition = (IfDate G (toDate "20220301"))
-                                                ,trgEffects = DealStatusTo Revolving
-                                                ,trgStatus = False 
-                                                ,trgCurable = False}])
-                  ,(EndCollection,[Trigger{trgCondition = Always True
-                                           ,trgEffects = DoAccrueFee ["Service-Fee"]
-                                           ,trgStatus = False 
-                                           ,trgCurable =False}])
-                  ,(EndDistributionWF, [])]
-                   
- ,overrides = Just [ CustomActionOnDates 
-                      [RunWaterfall (toDate "20220101") "base"
-                      ,PoolCollection (toDate "20221101") "collection"] ]  
-,rateSwap = Nothing 
-,currencySwap =  Nothing
-}

@@ -14,7 +14,7 @@ module Types
   ,DealCycle(..),Cmp(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
-  ,ResultComponent(..),SplitType(..)
+  ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum)
@@ -155,6 +155,7 @@ data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
                   | InspectDS Date DealStats
                   | ResetIRSwapRate Date String
                   | ResetBondRate Date String
+                  | BuildReport StartDate EndDate
                   deriving (Show,Generic,Read)
 
 
@@ -169,6 +170,7 @@ instance TimeSeries ActionOnDate where
     getDate (InspectDS d _ ) = d
     getDate (ResetIRSwapRate d _ ) = d
     getDate (ResetBondRate d _ ) = d 
+    getDate (BuildReport sd ed) = ed
 
 
 instance Ord ActionOnDate where
@@ -322,7 +324,7 @@ data Pre = IfZero DealStats
 
 data FormulaType = ABCD
                  | Other
-                 deriving (Show,Eq,Generic)
+                 deriving (Show,Ord,Eq,Generic)
 
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read,Generic)
@@ -350,6 +352,28 @@ data Ts = FloatCurve [TsPoint Rational]
 data RangeType = II | IE | EI | EE
 data CutoffType = Inc | Exc
 
+
+data BookItem = Item String Balance 
+              | ParentItem String [BookItem]
+              deriving (Show,Read,Generic)
+
+type BookItems = [BookItem]
+
+data BalanceSheetReport = BalanceSheetReport {
+                        asset :: BookItems
+                        ,liability :: BookItems
+                        ,equity :: BookItems
+                        ,reportDate :: Date}
+                        deriving (Show,Read,Generic)
+ 
+data CashflowReport = CashflowReport {
+                      inflow :: BookItems
+                     ,outflow :: BookItems
+                     ,net :: Balance
+                     ,startDate :: Date 
+                     ,endDate :: Date }
+                deriving (Show,Read,Generic)
+
 data ResultComponent = CallAt Date
                   | DealStatusChangeTo Date DealStatus DealStatus
                   | BondOutstanding String Balance Balance -- when deal ends
@@ -357,6 +381,7 @@ data ResultComponent = CallAt Date
                   | InspectBal Date DealStats Balance
                   | InspectInt Date DealStats Int
                   | InspectRate Date DealStats Rate
+                  | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
                   deriving (Show, Generic)
 
 data Threshold = Below
@@ -391,8 +416,6 @@ class TimeSeries ts where
 class Liable lb where 
   getDue :: lb -> Balance
   getLastPaidDate :: lb -> Date 
-
-
 
 data LookupType = Upward 
                 | Downward
@@ -438,5 +461,8 @@ $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''CustomDataType)
 $(deriveJSON defaultOptions ''ResultComponent)
+$(deriveJSON defaultOptions ''CashflowReport)
+$(deriveJSON defaultOptions ''BookItem)
+$(deriveJSON defaultOptions ''BalanceSheetReport)
 $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''Cmp)

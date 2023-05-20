@@ -9,6 +9,7 @@ module Stmt
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,sliceTxns,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance
+   ,getFlow,FlowDirection(..), aggByTxnComment
   )
   where
 
@@ -25,6 +26,7 @@ import Data.Fixed
 import Data.List
 import Data.Maybe
 import GHC.Generics
+import qualified Data.Set as Set
 import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Map as M
@@ -32,15 +34,15 @@ import qualified Data.Map as M
 import Debug.Trace
 debug = flip trace
 
-data TxnComment = PayInt [BondName] (Maybe Balance)
-                | PayYield BondName (Maybe Balance)
-                | PayPrin [BondName] (Maybe Balance)
-                | PayFee FeeName Balance
+data TxnComment = PayInt [BondName]
+                | PayYield BondName 
+                | PayPrin [BondName] 
+                | PayFee FeeName
                 | SeqPayFee [FeeName] 
                 | PayFeeYield FeeName
                 | Transfer AccName AccName 
                 | PoolInflow PoolSource
-                | LiquidationProceeds Balance
+                | LiquidationProceeds
                 | LiquidationSupport String
                 | LiquidationDraw
                 | LiquidationRepay
@@ -51,20 +53,21 @@ data TxnComment = PayInt [BondName] (Maybe Balance)
                 | UsingDS DealStats
                 | UsingFormula FormulaType
                 | SwapAccure
-                | SwapSettle
+                | SwapInSettle
+                | SwapOutSettle
                 | TxnComments [TxnComment]
-                deriving (Eq,Show,Generic)
+                deriving (Eq, Show, Ord , Generic)
 
 instance ToJSON TxnComment where 
-  toJSON (PayInt bns mb) = String $ T.pack $ "<PayInt:"++ show bns ++ ","++ show mb ++ ">"
-  toJSON (PayYield bn db) = String $ T.pack $ "<PayYield:"++ bn++","++show db++">"
-  toJSON (PayPrin bns mb) =  String $ T.pack $ "<PayPrin:"++ show bns ++ ","++ show mb ++ ">"
-  toJSON (PayFee fn b) =  String $ T.pack $ "<PayFee:" ++ fn ++ ","++ show b ++ ">"
+  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ show bns ++ ">"
+  toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ show bn ++">"
+  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ show bns ++ ">"
+  toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
   toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++show fns++">"
   toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
-  toJSON (LiquidationProceeds b) =  String $ T.pack $ "<Liquidation:"++show b++">"
+  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
   toJSON (UsingFormula fm) =  String $ T.pack $ "<Formula:"++ show fm++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
@@ -75,7 +78,8 @@ instance ToJSON TxnComment where
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
   toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
   toJSON SwapAccure = String $ T.pack $ "<Accure:>"
-  toJSON SwapSettle = String $ T.pack $ "<Settle:>"
+  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
+  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
 
 -- instance FromJSON TxnComment
 
@@ -96,6 +100,35 @@ parseTxn t = case tagName of
       tagName =  head sr!!1::String
       contents = head sr!!2::String
 
+--instance Eq TxnComment where 
+--   PayInt _ == PayInt _  = True
+--   PayYield _ == PayYield _ = True
+--   PayPrin _ _ == PayPrin _ _ = True 
+--   PayFee _ _ == PayFee _ _ = True
+--   SeqPayFee _ == SeqPayFee _ = True
+--   PayFeeYield _ == PayFeeYield _ = True
+--   Transfer _ _ == Transfer _ _ = True
+--   PoolInflow _ == PoolInflow _ = True 
+--   LiquidationProceeds _ == LiquidationProceeds _ = True
+--   LiquidationSupport _ == LiquidationSupport _ = True 
+--   LiquidationSupportInt _ _ == LiquidationSupportInt _ _ = True
+--   Tag _ == Tag _ = True
+--   UsingDS _ == UsingDS _ = True
+--   UsingFormula _ == UsingFormula _ = True 
+--   TxnComments as == TxnComments bs = 
+--     let 
+--      aset = Set.fromList as
+--      bset = Set.fromList bs
+--     in 
+--      aset == bset
+--   LiquidationDraw == LiquidationDraw = True
+--   LiquidationRepay == LiquidationRepay = True
+--   BankInt == BankInt = True
+--   Empty == Empty = True
+--   SwapAccure == SwapAccure = True
+--   SwapInSettle == SwapInSettle = True
+--   SwapOutSettle == SwapOutSettle = True
+
 type DueInt = Maybe Balance
 type DuePremium =  Maybe Balance
 
@@ -106,12 +139,24 @@ data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
          | IrsTxn Date Balance Amount IRate IRate Balance TxnComment
          deriving (Show, Generic)
 
+aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance
+aggByTxnComment [] m = M.map sumTxn m 
+aggByTxnComment (txn:txns) m 
+  | M.member c m = aggByTxnComment txns (M.adjust ([txn] ++) c m)
+  | otherwise = aggByTxnComment txns (M.insert c [txn] m)
+  where 
+    c = getTxnComment txn
+
+sumTxn :: [Txn] -> Balance
+sumTxn txns = sum $ getTxnAmt <$> txns
+
 getTxnComment :: Txn -> TxnComment
 getTxnComment (BondTxn _ _ _ _ _ _ t ) = t
 getTxnComment (AccTxn _ _ _ t ) = t
 getTxnComment (ExpTxn _ _ _ _ t ) = t
 getTxnComment (SupportTxn _ _ _ _ _ _ t ) = t
 getTxnComment (IrsTxn _ _ _ _ _ _ t ) = t
+
 
 getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
@@ -200,9 +245,50 @@ combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 m1) (BondTxn d2 b2 i2 p2 r2 c2 m2)
     = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) (TxnComments [m1,m2])
 
+data FlowDirection = Inflow 
+                   | Outflow
+                   | Interflow
+                   | Noneflow
+                   deriving (Eq,Show,Generic)
+
+getFlow :: TxnComment -> FlowDirection
+getFlow comment =
+    case comment of 
+      PayInt _ -> Outflow
+      PayYield _ -> Outflow
+      PayPrin _ -> Outflow
+      PayFee _ -> Outflow
+      SeqPayFee _ -> Outflow
+      PayFeeYield _ -> Outflow
+      Transfer _ _ -> Interflow 
+      PoolInflow _ -> Inflow
+      LiquidationProceeds -> Inflow
+      LiquidationSupport _ -> Inflow
+      LiquidationDraw -> Noneflow
+      LiquidationRepay -> Outflow
+      LiquidationSupportInt _ _ -> Noneflow
+      BankInt -> Inflow
+      Empty -> Noneflow 
+      Tag _ -> Noneflow
+      UsingDS _ -> Noneflow
+      UsingFormula _ -> Noneflow
+      SwapAccure  -> Noneflow
+      SwapInSettle -> Inflow
+      SwapOutSettle -> Outflow
+      TxnComments cmts -> 
+        let 
+          directionList = getFlow <$> cmts 
+        in 
+          if any (Outflow ==) directionList then
+            Outflow
+          else if any (Inflow ==) directionList then
+            Inflow
+          else
+            Noneflow
+
 instance Ord Txn where
-  compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ )
-    = compare d1 d2
+  compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ ) = compare d1 d2
+  compare (AccTxn d1 _ _ _ ) (AccTxn d2 _ _ _  ) = compare d1 d2
 
 instance Eq Txn where
   (BondTxn d1 _ _ _ _ _ _ ) == (BondTxn d2 _ _ _ _ _ _ )

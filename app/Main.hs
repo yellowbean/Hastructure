@@ -167,6 +167,9 @@ instance ToSchema DealStatus
 instance ToSchema DatePattern
 instance ToSchema Cmp
 instance ToSchema Types.Index
+instance ToSchema Types.BalanceSheetReport
+instance ToSchema Types.CashflowReport
+instance ToSchema Types.BookItem
 instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
 instance ToSchema Stmt.TxnComment

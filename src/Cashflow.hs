@@ -16,7 +16,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
                 ,getTxnBetween,getTxnBetween2
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
-                ,addFlowBalance
+                ,addFlowBalance,totalLoss,totalDefault,totalRecovery
                 ,TsRow(..),cfAt) where
 
 import Data.Time (Day)
@@ -394,6 +394,16 @@ appendCashFlow (CashFlowFrame _tsr) tsr
 combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combineCashFlow cf1 (CashFlowFrame txn) 
   = appendCashFlow cf1 txn
+
+totalLoss :: CashFlowFrame -> Balance
+totalLoss (CashFlowFrame rs) = sum $ mflowLoss <$> rs
+
+totalDefault :: CashFlowFrame -> Balance
+totalDefault (CashFlowFrame rs) = sum $ mflowDefault <$> rs
+
+
+totalRecovery :: CashFlowFrame -> Balance
+totalRecovery (CashFlowFrame rs) = sum $ mflowRecovery <$> rs
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

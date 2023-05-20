@@ -98,19 +98,19 @@ payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt dueIntDate lpayIn
   = bnd { bndDueInt=new_due, bndStmt = Just new_stmt}
   where
     new_due = dueInt - amt
-    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn (Just new_due)))
+    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDueInt=new_due, bndStmt=Just new_stmt, bndLastIntPay = Just d}
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
-    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn] (Just new_due)))
+    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn]))
 
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndStmt=Just new_stmt}
   where
-    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn Nothing))
+    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
@@ -118,7 +118,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt l
   where
     new_bal = bal - amt
     new_due = duePrin - amt
-    new_stmt = S.appendStmt stmt (S.BondTxn d new_bal 0 amt 0 amt (S.PayPrin [bn] (Just new_due)))
+    new_stmt = S.appendStmt stmt (S.BondTxn d new_bal 0 amt 0 amt (S.PayPrin [bn] ))
 
 type Valuation = Centi
 type PerFace = Micro

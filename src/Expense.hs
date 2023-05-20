@@ -51,7 +51,7 @@ payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
    where
     [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd]
     paid = fa + fd - arrearRemain - dueRemain
-    newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn dueRemain))
+    newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn))
 
 buildFeeAccrueAction :: [Fee] -> Date -> [(String,Dates)] -> [(String,Dates)]
 buildFeeAccrueAction [] ed r = r
