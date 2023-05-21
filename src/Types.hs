@@ -203,7 +203,7 @@ data DealCycle = EndCollection
                | EndCollectionWF
                | BeginDistributionWF
                | EndDistributionWF
-               deriving (Show,Ord,Eq,Read, Generic)
+               deriving (Show, Ord, Eq, Read, Generic)
 
 instance ToJSONKey DealCycle where
   toJSONKey = toJSONKeyText (T.pack . show)
@@ -288,6 +288,7 @@ data DealStats =  CurrentBondBalance
                | LastFeePaid [String]
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
+               | TriggersStatusAt DealCycle Int
                | Factor DealStats Rational
                | Max DealStats DealStats
                | Min DealStats DealStats
@@ -315,6 +316,7 @@ data Pre = IfZero DealStats
          | IfRateCurve Cmp DealStats Ts
          | IfIntCurve Cmp DealStats Ts
          | IfDate Cmp Date
+         | IfBool DealStats Bool
          -- | IfRateCurve DealStats Cmp Ts
          | IfDealStatus DealStatus
          | Always Bool
@@ -381,6 +383,7 @@ data ResultComponent = CallAt Date
                   | InspectBal Date DealStats Balance
                   | InspectInt Date DealStats Int
                   | InspectRate Date DealStats Rate
+                  | InspectBool Date DealStats Bool
                   | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
                   deriving (Show, Generic)
 
