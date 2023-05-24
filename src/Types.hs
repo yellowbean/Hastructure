@@ -234,6 +234,8 @@ data DatePattern = MonthEnd
                  | EveryNMonth Date Int
                  | AllDatePattern [DatePattern]
                  | StartsExclusive Date DatePattern
+                 | Exclude DatePattern [DatePattern]
+                 | OffsetBy DatePattern Int
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq, Generic)
 

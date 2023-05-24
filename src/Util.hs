@@ -18,6 +18,7 @@ import Data.Ratio ((%))
 import Data.Ix
 import Data.Maybe
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 import Lib
 import Types
@@ -258,6 +259,13 @@ genSerialDatesTill2 rt sd dp ed
       _r = case dp of 
              AllDatePattern dps -> foldr (++) [] [ genSerialDatesTill sd _dp ed | _dp <- dps ]
              StartsExclusive d _dp ->  filter (> d)  $ genSerialDatesTill2 rt sd _dp ed
+             Exclude _d _dps ->
+                 let 
+                   a = S.fromList $ genSerialDatesTill2 rt sd _d ed
+                   b = S.fromList $ genSerialDatesTill2 rt sd (AllDatePattern _dps) ed
+                 in 
+                   sort $ S.toList $ S.difference a b
+             OffsetBy _dp _n -> [ T.addDays (toInteger _n) _d   | _d <- genSerialDatesTill2 rt sd _dp ed ]
              _ -> genSerialDatesTill sd dp ed -- maybe sd in _r, but not ed in _r
 
 
@@ -504,4 +512,7 @@ testSumToOne rs = sum rs == 1.0
 
 monthsAfter :: Date -> Integer -> Date
 monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
+
+-- daysAfter :: Date -> Integer -> Date 
+-- daysAfter d n = T.addGregorianDurationRollOver (T.CalendarDiffDays 0 n) d
 

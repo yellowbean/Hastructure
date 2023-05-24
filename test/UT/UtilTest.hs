@@ -345,6 +345,22 @@ dateVectorPatternTest =
         assertEqual "Generate Dates by N Month"
         (toDates ["20220201","20220401","20220601"])
         (genSerialDatesTill (toDate "20220101") (EveryNMonth (toDate "20220201") 2) (toDate "20220715"))
+    , testCase "exclude dates" $
+        assertEqual "Exclude Dates "
+         [(toDate "20230909")]
+         (genSerialDatesTill2 EE (toDate "20200630") 
+             (Exclude 
+              (CustomDate [toDate "20230202", toDate "20230909"] )
+              [(CustomDate [toDate "20230202"] )])
+              (toDate "20230910"))
+    , testCase "offset by dates" $
+        assertEqual "offset by dates"
+         [(toDate "20230204"),(toDate "20230911")]
+         (genSerialDatesTill2 EE 
+           (toDate "20200630") 
+           (OffsetBy 
+             (CustomDate [toDate "20230202", toDate "20230909"]) 2)
+           (toDate "20230910"))
     ]                          
 
 paddingTest = 
