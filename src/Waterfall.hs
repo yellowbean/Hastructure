@@ -21,7 +21,7 @@ import GHC.Generics
 
 import Accounts (Account)
 import Asset (Pool)
-import AssetClass.Mortgage(Mortgage)
+-- import AssetClass.Mortgage(Mortgage)
 import Expense
 import Liability
 import Types

@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.Installment 
-  (Installment(..))
+  (projectInstallmentFlow)
   where
 
 import qualified Data.Time as T
@@ -25,12 +25,10 @@ import Lib
 import Util
 import qualified Cashflow as CF
 
+import AssetClass.AssetBase
+
 import Debug.Trace
 debug = flip trace
-
-data Installment = Installment OriginalInfo Balance RemainTerms Status
-                 | Dummy
-     deriving (Show,Generic)
 
 calc_p_i_flow_f_p :: Balance -> Balance -> Balance -> Amount -> Dates -> Period -> IRate -> ([Balance],CF.Principals,CF.Interests)
 calc_p_i_flow_f_p ob cb sb amt ds p r 
@@ -165,11 +163,6 @@ instance Asset Installment where
                                                               (replicate cf_dates_length 0.0) 
                                                               0
                                                               0
-          -- factor =  cb / current_schedule_bal 
-          -- cpmt = opmt * factor -- `debug` ("Current B"++show cb++">> schedule bal"++ show current_schedule_bal)
-          -- cfee = ofee * factor 
-          -- cschedule_balances = (factor * ) <$> schedule_balances
- 
           _flows = projectInstallmentFlow 
                            []
                            (opmt,ofee)
@@ -214,4 +207,3 @@ instance Asset Installment where
         cr = getOriginRate inst
 
 
-$(deriveJSON defaultOptions ''Installment)

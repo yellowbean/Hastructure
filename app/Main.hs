@@ -54,10 +54,11 @@ import Types
 import qualified Deal as D
 import qualified Asset as P
 import qualified Expense as F
-import qualified AssetClass.Installment as AC_Installment
-import qualified AssetClass.Mortgage as AC_Mortgage
-import qualified AssetClass.Loan as AC_Loan
-import qualified AssetClass.Lease as AC_Lease
+-- import qualified AssetClass.Installment as AC_Installment
+-- import qualified AssetClass.Mortgage as AC_Mortgage
+-- import qualified AssetClass.Loan as AC_Loan
+-- import qualified AssetClass.Lease as AC_Lease
+import qualified AssetClass.AssetBase as AB 
 import qualified Assumptions as AP
 import qualified Cashflow as CF
 import qualified Accounts as A
@@ -69,6 +70,7 @@ import qualified Waterfall as W
 import qualified InterestRate as IR
 import qualified Stmt
 import qualified Triggers as TRG
+import qualified Revolving as RV
 
 
 import Debug.Trace
@@ -84,24 +86,25 @@ instance ToSchema Version
 version1 :: Version 
 version1 = Version "0.17.2"
 
-data PoolType = MPool (P.Pool AC_Mortgage.Mortgage)
-              | LPool (P.Pool AC_Loan.Loan)
-              | IPool (P.Pool AC_Installment.Installment)
-              | RPool (P.Pool AC_Lease.Lease)
+data PoolType = MPool (P.Pool AB.Mortgage)
+              | LPool (P.Pool AB.Loan)
+              | IPool (P.Pool AB.Installment)
+              | RPool (P.Pool AB.Lease)
               deriving(Show, Generic)
 
 instance ToSchema PoolType
 $(deriveJSON defaultOptions ''PoolType)
 
-instance ToSchema (P.Pool AC_Mortgage.Mortgage)
-instance ToSchema (P.Pool AC_Loan.Loan)
-instance ToSchema (P.Pool AC_Installment.Installment)
-instance ToSchema (P.Pool AC_Lease.Lease)
 
-data DealType = MDeal (D.TestDeal AC_Mortgage.Mortgage)
-              | LDeal (D.TestDeal AC_Loan.Loan)
-              | IDeal (D.TestDeal AC_Installment.Installment) 
-              | RDeal (D.TestDeal AC_Lease.Lease) 
+instance ToSchema (P.Pool AB.Mortgage)
+instance ToSchema (P.Pool AB.Loan)
+instance ToSchema (P.Pool AB.Installment)
+instance ToSchema (P.Pool AB.Lease)
+
+data DealType = MDeal (D.TestDeal AB.Mortgage)
+              | LDeal (D.TestDeal AB.Loan)
+              | IDeal (D.TestDeal AB.Installment) 
+              | RDeal (D.TestDeal AB.Lease) 
               deriving(Show, Generic)
 
 
@@ -115,18 +118,18 @@ instance ToSchema L.PriceResult
 instance ToSchema DealType
 $(deriveJSON defaultOptions ''DealType)
 
-instance ToSchema AC_Mortgage.Mortgage
+instance ToSchema AB.Mortgage
 instance ToSchema IR.ARM
-instance ToSchema AC_Loan.Loan
-instance ToSchema AC_Installment.Installment
-instance ToSchema AC_Lease.Lease
+instance ToSchema AB.Loan
+instance ToSchema AB.Installment
+instance ToSchema AB.Lease
 
-instance ToSchema (D.TestDeal AC_Mortgage.Mortgage)
-instance ToSchema (D.TestDeal AC_Loan.Loan)
-instance ToSchema AC_Lease.LeaseInfo 
-instance ToSchema AC_Lease.LeaseStepUp 
-instance ToSchema AC_Lease.AccrualPeriod
-instance ToSchema (D.TestDeal AC_Installment.Installment)
+instance ToSchema (D.TestDeal AB.Mortgage)
+instance ToSchema (D.TestDeal AB.Loan)
+instance ToSchema (D.TestDeal AB.Installment)
+instance ToSchema (D.TestDeal AB.Lease)
+instance ToSchema AB.LeaseStepUp 
+instance ToSchema AB.AccrualPeriod
 instance ToSchema DateDesp
 instance ToSchema DateType
 instance ToSchema A.Account
@@ -162,7 +165,6 @@ instance ToSchema ActionOnDate
 instance ToSchema DealStats
 instance ToSchema Period
 instance ToSchema DayCount
-instance ToSchema (D.TestDeal AC_Lease.Lease)
 instance ToSchema DealStatus
 instance ToSchema DatePattern
 instance ToSchema Cmp
@@ -181,11 +183,18 @@ instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
 instance ToSchema Revolving.LiquidationMethod
-instance ToSchema P.Status
-instance ToSchema P.OriginalInfo
+instance ToSchema AB.Status
+instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
-instance ToSchema P.AmortPlan
+instance ToSchema AB.AmortPlan
 instance ToSchema P.IssuanceFields
+instance ToSchema RV.AssetForSale
+instance ToSchema (RV.AssetAvailable AB.Installment)
+instance ToSchema (TsPoint [AB.Installment])
+-- instance ToSchema (RV.AssetF AB.Installment)
+-- instance ToSchema (RV.AssetForSale AB.Loan)
+-- instance ToSchema (RV.AssetForSale AB.Mortgage)
+-- instance ToSchema (RV.AssetForSale AB.Lease)
 
 --instance ToSchema (Ratio Integer)
 --instance ToSchema (Ratio Integer) where 
@@ -206,6 +215,7 @@ instance ToSchema Threshold
 type RunResp = (DealType , Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput -> RunResp
+-- wrapRun (MDeal d) mAssump mPricing = (MDeal d, Nothing , Nothing, Nothing)
 wrapRun (MDeal d) mAssump mPricing = let 
                     (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
                      in 

@@ -23,6 +23,8 @@ import qualified Data.Time as T
 import Data.Fixed
 import Data.Ratio
 
+import Revolving
+
 import GHC.Generics
 
 import Debug.Trace
@@ -66,7 +68,8 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | InterestRateCurve Index Ts
                 | CallWhen [C.CallOption]
                 | PoolHairCut PoolSource Rate
-                | AvailableAssets 
+                -- Revolving
+                | AvailableAssets AssetForSale
                 -- Lease Assumption 
                 | LeaseProjectionEnd Date
                 | LeaseBaseAnnualRate Rate

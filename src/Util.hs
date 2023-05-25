@@ -246,7 +246,7 @@ genSerialDatesTill sd ptn ed
 
 genSerialDatesTill2 :: RangeType -> Date -> DatePattern -> Date -> Dates
 genSerialDatesTill2 rt sd dp ed 
-  = case (rt,(head _r)==sd) of 
+  = case (rt,head _r==sd) of 
       (II,True) -> _r ++ [ed]
       (II,False)-> sd:_r ++ [ed] 
       (EI,True) -> tail _r ++ [ed]
@@ -257,7 +257,7 @@ genSerialDatesTill2 rt sd dp ed
       (EE,False) -> _r 
     where 
       _r = case dp of 
-             AllDatePattern dps -> foldr (++) [] [ genSerialDatesTill sd _dp ed | _dp <- dps ]
+             AllDatePattern dps -> concat [ genSerialDatesTill sd _dp ed | _dp <- dps ]
              StartsExclusive d _dp ->  filter (> d)  $ genSerialDatesTill2 rt sd _dp ed
              Exclude _d _dps ->
                  let 

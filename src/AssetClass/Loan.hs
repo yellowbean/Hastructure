@@ -2,7 +2,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module AssetClass.Loan where
+module AssetClass.Loan 
+  (projectLoanFlow)
+  where
 
 import qualified Data.Time as T
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
@@ -20,6 +22,8 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
+
+import AssetClass.AssetBase
 
 import Debug.Trace
 debug = flip trace
@@ -78,10 +82,6 @@ projectLoanFlow trs _b _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts) (_l
     tr = CF.LoanFlow _pdate _b 0 0 0 0 _rec_amt _loss_amt 0.0
 
 projectLoanFlow trs _ _ [] _ _ [] [] _ _ _ _ = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
-
-data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
-          | DUMMY
-          deriving (Show,Generic)
 
 instance Asset Loan where
   calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) _bal _rate _term _ ) asOfDay = 
@@ -197,4 +197,3 @@ instance Asset Loan where
     = CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]
 
 
-$(deriveJSON defaultOptions ''Loan)

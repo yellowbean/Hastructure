@@ -28,6 +28,7 @@ library
   exposed-modules:
       Accounts
       Asset
+      AssetClass.AssetBase
       AssetClass.Installment
       AssetClass.Lease
       AssetClass.Loan

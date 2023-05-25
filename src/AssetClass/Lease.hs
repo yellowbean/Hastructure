@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module AssetClass.Lease
-  (Lease(..),LeaseInfo(..),accrueRentals,LeaseStepUp(..),AccrualPeriod(..))
+  (Lease(..),accrueRentals,projCashflow)
   where
 
 import qualified Data.Time as T
@@ -24,39 +24,20 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 
+import AssetClass.AssetBase
+
 import Debug.Trace
 debug = flip trace
 
 type PeriodAmount = Balance
-
-data LeaseInfo = LeaseInfo {
-    startDate :: Date
-    ,originTerm :: Int 
-    ,paymentDates :: DatePattern
-    ,originRental :: Amount }
-    deriving (Show,Generic)
-
 type CapRate = Rate
-
-data LeaseStepUp = FlatRate DatePattern Rate
-                 | ByRateCurve DatePattern [Rate]
-    deriving (Show,Generic)
-
-
-data Lease = RegularLease LeaseInfo Balance Int Status
-           | StepUpLease LeaseInfo LeaseStepUp Balance Int Status
-    deriving (Show,Generic)
-
+type RentChangeRate = Rate
+type RentChangeCurve = Ts
+type TermChangeRate = Rate
+type DayGap = Int
 type LastAccuredDate = Date
-type DailyRate = Balance
 type AccuralAmount = Balance
 
--- type AccuralPeriod = (Date,DailyRate)
-data AccrualPeriod = AccrualPeriod Date DailyRate
-                    deriving (Show,Generic)
-
-instance TimeSeries AccrualPeriod where 
-    getDate (AccrualPeriod d _) = d
 
 accrueRentalBetween :: Date -> Date -> Ts -> Amount
 accrueRentalBetween sd ed rc@(LeftBalanceCurve tps)
@@ -74,11 +55,6 @@ accrueRentals rc@(LeftBalanceCurve tps) pd@(payD:payDs) accrueCutoff payAmts
       payDs
       payD
       (payAmts ++ [accrueRentalBetween accrueCutoff payD rc]) -- `debug` ("ACCRENTALS"++ show accrueCutoff++">>"++show payD++"rc+"++ show rc)
-
-type RentChangeRate = Rate
-type RentChangeCurve = Ts
-type TermChangeRate = Rate
-type DayGap = Int
 
 nextLease :: Lease -> (RentChangeCurve, TermChangeRate, DayGap) -> (Lease, Date)
 nextLease l@(RegularLease (LeaseInfo sd ot dp dr) bal rt _) (rcCurve,tc,gd) 
@@ -247,7 +223,7 @@ instance Asset Lease where
     isDefaulted (RegularLease _ _  rt _) = True
 
     getOriginBal l = 
-        let 
+      let 
             _sd = case l of 
                 RegularLease (LeaseInfo sd ot dp dr) bal _ _ -> sd 
                 StepUpLease (LeaseInfo sd ot dp dr) _ bal _ _  -> sd 
@@ -256,6 +232,3 @@ instance Asset Lease where
             CF.mflowBegBalance $ head txns
 
 
-$(deriveJSON defaultOptions ''LeaseInfo)
-$(deriveJSON defaultOptions ''LeaseStepUp)
-$(deriveJSON defaultOptions ''Lease)

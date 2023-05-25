@@ -4,7 +4,7 @@
 
 
 module AssetClass.Mortgage
-  (Mortgage(..))
+  (projectMortgageFlow,projectScheduleFlow)
   where
 
 import qualified Data.Time as T
@@ -25,6 +25,8 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+
+import AssetClass.AssetBase
 
 import Debug.Trace
 debug = flip trace
@@ -145,14 +147,6 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
 
 projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
 
-
-data MortgageInsurance = MortgageInsurance Rate
-
-
-data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
-              | AdjustRateMortgage OriginalInfo ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
-              | ScheduleMortgageFlow Date [CF.TsRow]
-              deriving (Show,Generic)
 
 instance Asset Mortgage  where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _mbn _) d =
@@ -323,4 +317,3 @@ instance Asset Mortgage  where
   getBorrowerNum m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) _ cb cr rt mbn _ ) 
     = fromMaybe 1 mbn
 
-$(deriveJSON defaultOptions ''Mortgage)

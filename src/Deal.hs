@@ -16,7 +16,7 @@ import qualified CreditEnhancement as CE
 import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
-import qualified AssetClass.Mortgage as ACM
+import qualified AssetClass.AssetBase as ACM
 import qualified Call as C
 import qualified InterestRate as IR
 import Stmt
@@ -908,11 +908,8 @@ priceBonds t (AP.RunZSpread curve bond_prices)
 
 runDeal :: P.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput
         -> (TestDeal a,Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
-runDeal t er assumps bpi =
-  case er of
-    DealStatus ->  (finalDeal, Nothing, Nothing, Nothing)
-    DealPoolFlow -> (finalDeal, Just pcf, Nothing, Nothing)
-    DealPoolFlowPricing -> (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  `debug` ("Run Deal"++show(name t))
+runDeal t _ assumps bpi =
+    (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  `debug` ("Run Deal"++show(name t))
   where
     (ads,pcf,rcurves,calls) = getInits t assumps -- `debug` ("Assump in run deal"++ show assumps)
     (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls []  -- `debug` ("Action >>"++show ads)
@@ -1017,8 +1014,7 @@ calcDealStageDate _ = []
 runPool2 :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> [CF.CashFlowFrame]
 runPool2 (P.Pool [] (Just cf) asof _) Nothing = [cf]
 runPool2 (P.Pool [] (Just cf) asof _) (Just (AP.PoolLevel [])) = [cf]
-runPool2 (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel assumps)) 
-  = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn) asof assumps) ] -- `debug` ("PROJ in schedule flow")
+-- runPool2 (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel assumps)) = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn) asof assumps) ] -- `debug` ("PROJ in schedule flow")
 runPool2 (P.Pool as _ asof _) Nothing = map (\x -> P.calcCashflow x asof) as -- `debug` ("RUNPOOL-> calc cashflow")
 runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
   = case applyAssumpType of

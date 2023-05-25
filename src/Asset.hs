@@ -2,9 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Asset (Pool(..),OriginalInfo(..),calc_p_i_flow
-       ,aggPool,AmortPlan(..)
-       ,Status(..),IssuanceFields(..)
+module Asset (Pool(..),calc_p_i_flow
+       ,aggPool,IssuanceFields(..)
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
        ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
@@ -37,6 +36,8 @@ import Text.Printf
 import Data.Fixed
 import qualified InterestRate as IR
 import Util
+
+
 import Debug.Trace
 debug = flip trace
 
@@ -65,7 +66,7 @@ instance FromJSONKey IssuanceFields where
 data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
                    ,asOfDate :: Date
-                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Centi)}
+                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)}
                     deriving (Show,Generic)
 
 getIssuanceField :: Pool a -> IssuanceFields -> Centi
@@ -82,35 +83,6 @@ calcPmt bal periodRate periods =
      pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
    in
      mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
-
-data AmortPlan = Level   -- for mortgage
-               | Even    -- for mortgage
-               | I_P     -- interest only and principal due at last payment
-               | F_P     -- fee based 
-               | ScheduleRepayment Ts-- custom principal follow
-               deriving (Show,Generic)
-
-data Status = Current
-            | Defaulted (Maybe Date)
-            -- | Delinquency (Maybe Int)
-            -- | Extended (Maybe T.Day)
-            deriving (Show,Generic)
-
-data OriginalInfo = MortgageOriginalInfo {
-    originBalance :: Centi
-    ,originRate :: IR.RateType
-    ,originTerm :: Int
-    ,period :: Period
-    ,startDate :: Date
-    ,prinType :: AmortPlan }
-  | LoanOriginalInfo {
-     originBalance :: Centi
-    ,originRate :: IR.RateType
-    ,originTerm :: Int
-    ,period :: Period
-    ,startDate :: Date
-    ,prinType :: AmortPlan
-    } deriving (Show,Generic)
 
 buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int) -- prepay rates,default rates,
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
@@ -241,9 +213,6 @@ data AggregationRule = Regular Date Period
 
 
 
-$(deriveJSON defaultOptions ''Status)
-$(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''Pool)
-$(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''IssuanceFields)
 $(deriveJSON defaultOptions ''AggregationRule)

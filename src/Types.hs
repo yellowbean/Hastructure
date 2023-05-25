@@ -448,6 +448,7 @@ data RateAssumption = RateCurve Index Ts
 
 
 
+
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
 $(deriveJSON defaultOptions ''DealStats)
