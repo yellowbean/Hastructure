@@ -1,6 +1,19 @@
 # Changelog for Hastructure
 
 
+## 0.17.3
+#### 2023-5-
+* NEW "Major" : expose revolving assumption ! 
+
+
+## 0.17.2
+#### 2023-5-24
+* NEW: expose "exclude dates" and "offset by days" <date pattern>
+
+
+## 0.17.1
+#### 2023-5-21
+* NEW: expose trigger status in "Inspect"
 
 ## 0.17.0
 #### 2023-5-21

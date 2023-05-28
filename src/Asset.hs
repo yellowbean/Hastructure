@@ -37,7 +37,6 @@ import Data.Fixed
 import qualified InterestRate as IR
 import Util
 
-
 import Debug.Trace
 debug = flip trace
 
@@ -50,6 +49,8 @@ class Show a => Asset a where
   getPaymentDates :: a -> Int -> [Date]
   projCashflow :: a -> Date -> [A.AssumptionBuilder] -> CF.CashFlowFrame
   getBorrowerNum :: a -> Int
+  splitWith :: a -> [Rate] -> [a]
+  pricing :: a -> Date -> PricingMethod -> [A.AssumptionBuilder] -> Balance
   {-# MINIMAL calcCashflow #-}
 
 data IssuanceFields = IssuanceBalance
@@ -201,7 +202,7 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
   = let
       recoveryAmt = mulBR bal recoveryRate
     in 
-      (mulBR recoveryAmt ) <$> recoveryTiming
+      mulBR recoveryAmt <$> recoveryTiming
 
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame

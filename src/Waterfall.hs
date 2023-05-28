@@ -74,9 +74,8 @@ data Action = Transfer AccountName AccountName
             | PayTillYield AccountName [BondName]
             | PayResidual (Maybe Limit) AccountName BondName
             | TransferReserve Satisfy AccountName AccountName 
-            | LiquidatePool LiquidationMethod AccountName
+            | LiquidatePool PricingMethod AccountName
             | RunTrigger (Maybe [Trigger])
-            | BuyAsset (Maybe Limit) LiquidationMethod AccountName
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
             | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
             | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
@@ -86,6 +85,7 @@ data Action = Transfer AccountName AccountName
             | SwapAccrue CeName
             | SwapReceive AccountName CeName
             | SwapPay AccountName CeName
+            | BuyAsset (Maybe Limit) PricingMethod AccountName
             | ActionWithPre L.Pre [Action]
             deriving (Show,Generic)
 

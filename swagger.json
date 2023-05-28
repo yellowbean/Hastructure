@@ -721,6 +721,22 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetForSale"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AssumptionBuilder"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -729,7 +745,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -1456,6 +1473,87 @@
                 ],
                 "type": "object"
             },
+            "AssetAvailable_Loan": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Loan"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ConstantAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TsPoint_[Loan]"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DynamicAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Loan"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "StaticAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "TsPoint_[Mortgage]": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "items": {
+                            "$ref": "#/components/schemas/Mortgage"
+                        },
+                        "type": "array"
+                    }
+                ],
+                "maxItems": 2,
+                "type": "array",
+                "minItems": 2
+            },
             "TsRow": {
                 "oneOf": [
                     {
@@ -1982,6 +2080,83 @@
                     "startDate",
                     "endDate"
                 ]
+            },
+            "AssetForSale": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/AssetAvailable_Installment"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AssetAvailableInstallment"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/AssetAvailable_Mortgage"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AssetAvailableMortgage"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/AssetAvailable_Lease"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AssetAvailableLease"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/AssetAvailable_Loan"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AssetAvailableLoan"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "Installment": {
                 "oneOf": [
@@ -2535,7 +2710,7 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/LiquidationMethod"
+                                        "$ref": "#/components/schemas/PricingMethod"
                                     },
                                     {
                                         "type": "string"
@@ -2570,37 +2745,6 @@
                                 "type": "string",
                                 "enum": [
                                     "RunTrigger"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Limit"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/LiquidationMethod"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "BuyAsset"
                                 ]
                             }
                         },
@@ -2851,6 +2995,37 @@
                                 "type": "string",
                                 "enum": [
                                     "SwapPay"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PricingMethod"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BuyAsset"
                                 ]
                             }
                         },
@@ -3808,6 +3983,20 @@
                     {
                         "type": "object",
                         "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PurchaseAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
                             "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/TxnComment"
@@ -4164,6 +4353,67 @@
                                 "type": "string",
                                 "enum": [
                                     "StartsExclusive"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/DatePattern"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Exclude"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "OffsetBy"
                                 ]
                             }
                         },
@@ -6060,32 +6310,6 @@
                     "trgCurable"
                 ]
             },
-            "LeaseInfo": {
-                "type": "object",
-                "properties": {
-                    "paymentDates": {
-                        "$ref": "#/components/schemas/DatePattern"
-                    },
-                    "originRental": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
-                    },
-                    "originTerm": {
-                        "maximum": 9223372036854775807,
-                        "type": "integer",
-                        "minimum": -9223372036854775808
-                    },
-                    "startDate": {
-                        "$ref": "#/components/schemas/Day"
-                    }
-                },
-                "required": [
-                    "startDate",
-                    "originTerm",
-                    "paymentDates",
-                    "originRental"
-                ]
-            },
             "Mortgage": {
                 "oneOf": [
                     {
@@ -6357,6 +6581,22 @@
                     "Source",
                     "Target"
                 ]
+            },
+            "TsPoint_[Loan]": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "items": {
+                            "$ref": "#/components/schemas/Loan"
+                        },
+                        "type": "array"
+                    }
+                ],
+                "maxItems": 2,
+                "type": "array",
+                "minItems": 2
             },
             "TestDeal_Installment": {
                 "type": "object",
@@ -6728,6 +6968,22 @@
                     }
                 ],
                 "type": "object"
+            },
+            "TsPoint_[Installment]": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "items": {
+                            "$ref": "#/components/schemas/Installment"
+                        },
+                        "type": "array"
+                    }
+                ],
+                "maxItems": 2,
+                "type": "array",
+                "minItems": 2
             },
             "OverrideType": {
                 "items": {
@@ -7444,6 +7700,71 @@
                 ],
                 "type": "object"
             },
+            "AssetAvailable_Lease": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Lease"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ConstantAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TsPoint_[Lease]"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DynamicAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Lease"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "StaticAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "Lease": {
                 "oneOf": [
                     {
@@ -7452,7 +7773,7 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/LeaseInfo"
+                                        "$ref": "#/components/schemas/OriginalInfo"
                                     },
                                     {
                                         "multipleOf": 1.0e-2,
@@ -7489,7 +7810,7 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/LeaseInfo"
+                                        "$ref": "#/components/schemas/OriginalInfo"
                                     },
                                     {
                                         "$ref": "#/components/schemas/LeaseStepUp"
@@ -7949,6 +8270,159 @@
                 ],
                 "type": "object"
             },
+            "TsPoint_[Lease]": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "items": {
+                            "$ref": "#/components/schemas/Lease"
+                        },
+                        "type": "array"
+                    }
+                ],
+                "maxItems": 2,
+                "type": "array",
+                "minItems": 2
+            },
+            "PricingMethod": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BalanceFactor"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BalanceFactor2"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultedBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PV"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Custom"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "BondType": {
                 "oneOf": [
                     {
@@ -8076,6 +8550,71 @@
                         },
                         "required": [
                             "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "AssetAvailable_Installment": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Installment"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ConstantAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TsPoint_[Installment]"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DynamicAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Installment"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "StaticAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
                         ]
                     }
                 ],
@@ -8934,30 +9473,28 @@
                 "type": "array",
                 "minItems": 2
             },
-            "LiquidationMethod": {
+            "FormulaType": {
+                "type": "string",
+                "enum": [
+                    "ABCD",
+                    "Other"
+                ]
+            },
+            "AssetAvailable_Mortgage": {
                 "oneOf": [
                     {
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "items": {
+                                    "$ref": "#/components/schemas/Mortgage"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "BalanceFactor"
+                                    "ConstantAsset"
                                 ]
                             }
                         },
@@ -8970,28 +9507,12 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
+                                "$ref": "#/components/schemas/TsPoint_[Mortgage]"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "BalanceFactor2"
+                                    "DynamicAsset"
                                 ]
                             }
                         },
@@ -9004,62 +9525,15 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "format": "double",
-                                "type": "number"
+                                "items": {
+                                    "$ref": "#/components/schemas/Mortgage"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "DefaultedBalance"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PV"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "Custom"
+                                    "StaticAsset"
                                 ]
                             }
                         },
@@ -9070,13 +9544,6 @@
                     }
                 ],
                 "type": "object"
-            },
-            "FormulaType": {
-                "type": "string",
-                "enum": [
-                    "ABCD",
-                    "Other"
-                ]
             },
             "CallOption": {
                 "oneOf": [
@@ -9622,7 +10089,7 @@
         }
     },
     "info": {
-        "version": "0.17.0",
+        "version": "0.17.2",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

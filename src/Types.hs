@@ -17,7 +17,8 @@ module Types
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
-  ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum)
+  ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
+  ,PricingMethod(..))
   where
 
 import qualified Data.Text as T
@@ -446,7 +447,12 @@ data RateAssumption = RateCurve Index Ts
                     | RateFlat Index IRate
                     deriving (Show,Generic)
 
-
+data PricingMethod = BalanceFactor Rate Rate -- by performing & default balace
+                   | BalanceFactor2 Rate Rate Rate -- by performing/delinq/default factor
+                   | DefaultedBalance Rate  -- only liquidate defaulted balance
+                   | PV IRate IRate -- discount factor, recovery pct on default
+                   | Custom Rate -- custom amount
+                   deriving (Show,Generic)
 
 
 $(deriveJSON defaultOptions ''Index)
@@ -472,3 +478,4 @@ $(deriveJSON defaultOptions ''BookItem)
 $(deriveJSON defaultOptions ''BalanceSheetReport)
 $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''Cmp)
+$(deriveJSON defaultOptions ''PricingMethod)

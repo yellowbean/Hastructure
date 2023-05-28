@@ -4,8 +4,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Revolving
-  (LiquidationMethod(..),AssetForSale(..),AssetForSale(..)
-  ,AssetAvailable(..))
+  (
+  --,AssetForSale(..)
+  RevolvingPool(..))
   where
 
 import GHC.Generics
@@ -22,22 +23,19 @@ import Types
 import AssetClass.AssetBase
 
 
-data LiquidationMethod = BalanceFactor Rate Rate -- by performing & default balace
-                       | BalanceFactor2 Rate Rate Rate -- by performing/delinq/default factor
-                       | DefaultedBalance Rate  -- only liquidate defaulted balance
-                       | PV IRate IRate -- discount factor, recovery on default
-                       | Custom Rate -- custom amount
-                       deriving (Show,Generic)
 
 
-data AssetAvailable a = ConstantAsset [a]
-                    | RevolvingAsset (TsPoint [a])
-                    deriving (Show,Generic)
 
-data AssetForSale = AFS (AssetAvailable Installment)
-                  | StaticAssetFlow CF.CashFlowFrame
-                  deriving (Show, Generic)
+data RevolvingPool = ConstantAsset [AssetUnion]
+                   | StaticAsset [AssetUnion]
+                   | AssetCurve [TsPoint AssetUnion]
+                   deriving (Show,Generic)
 
-$(deriveJSON defaultOptions ''LiquidationMethod)
-$(deriveJSON defaultOptions ''AssetForSale)
-$(deriveJSON defaultOptions ''AssetAvailable)
+-- data AssetForSale = AssetAvailableInstallment (AssetAvailable Installment)
+--                   | AssetAvailableMortgage (AssetAvailable Mortgage)
+--                   | AssetAvailableLease (AssetAvailable Lease)
+--                   | AssetAvailableLoan (AssetAvailable Loan)
+--                   deriving (Show, Generic)
+
+-- $(deriveJSON defaultOptions ''AssetForSale)
+$(deriveJSON defaultOptions ''RevolvingPool)

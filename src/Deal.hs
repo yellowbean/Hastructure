@@ -165,6 +165,39 @@ testPre d t p =
                   E -> (==)
       ps = patchDateToStats d
 
+data RunContext = RunContext{
+                  runPoolFlow:: CF.CashFlowFrame
+                  ,revolvingAssump:: Maybe (RevolvingPool,[AP.AssumptionBuilder]) }
+
+--data RunContext deal pool asset = RevolvingRunContext 
+-- buyAssetFromPool :: P.Asset a =>  AssetForSale -> Balance -> [a]
+-- buyAssetFromPool afs amt = []
+
+performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext) -> W.Action -> (TestDeal a, RunContext)
+performActionWrap d 
+                  (t@TestDeal{ accounts = accsMap },rc@RunContext{runPoolFlow=pcf
+                                                                  ,revolvingAssump=Just (assetForSale,perfAssumps)}) 
+                  (W.BuyAsset ml pricingMethod accName) 
+   = (t { accounts = newAccMap }, newRc )
+    where 
+      assets = case assetForSale of 
+                 ConstantAsset asts -> asts
+                 StaticAsset asts -> asts
+                 
+                 
+      valuationOnAvailableAssets = sum [ P.pricing ast d pricingMethod perfAssumps  | ast <- assets ]
+      availBal  = A.accBalance $ accsMap Map.! accName
+      purchaseAmt = min availBal valuationOnAvailableAssets
+      purchaseRatio = purchaseAmt / valuationOnAvailableAssets
+
+      
+      newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
+      assetBought = []
+      newBoughtPcf = CF.CashFlowFrame []
+      newPcf = P.aggPool [pcf,newBoughtPcf]
+      newRc = rc {runPoolFlow = newPcf}
+
+performActionWrap d (t,rc) a = (performAction d t a,rc)
 
 performAction :: P.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
 performAction d t (W.ActionWithPre _pre actions)
@@ -194,7 +227,6 @@ performAction d t@TestDeal{accounts=accMap} (W.TransferBy limit an1 an2) =
                                                (negate (queryTxnAmt targetAcc (Transfer an2 an1))) +
                                                (negate (queryTxnAmt sourceAcc (Transfer an1 an2))))
                                           0
-
     transferAmt = min formulaAmount (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
 
     accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
@@ -209,11 +241,7 @@ performAction d t@TestDeal{accounts=accMap} (W.TransferReserve meetAcc sa ta)=
     targetAccBal = A.accBalance targetAcc 
     transferAmt = 
         case meetAcc of 
-             W.Source ->
-                 let 
-                   sourceTarBal = calcTargetAmount t d sourceAcc
-                 in 
-                   max (sourceAccBal - sourceTarBal ) 0
+             W.Source -> max (sourceAccBal - (calcTargetAmount t d sourceAcc) ) 0
              W.Target ->
                  let 
                    targetBal = calcTargetAmount t d targetAcc
@@ -509,6 +537,8 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapP
         newRtSwap = Map.adjust (CE.payoutIRS d amtToPay) sName rtSwap
         newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
 
+-- BuyAsset (Maybe Limit) PricingMethod AccountName
+
 getItemBalance :: BookItem -> Balance
 getItemBalance (Item _ bal) = bal
 getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
@@ -701,120 +731,111 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
                     else 
                        _trg     
                    | (_trg,_flag) <- testTrgsResult ]
-
   
-runCall :: P.Asset a => Date -> [C.CallOption] -> TestDeal a -> TestDeal a
-runCall d opts t 
-  = if testCalls t d opts then 
-      prepareDeal $ foldl (performAction d) t cleanUpActions `debug` ("Called ! "++ show d)
-    else
-      t
-    where
-      cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  --  `debug` ("Running AD"++show(d))
+type RevolvingAssumption = (RevolvingPool, [AP.AssumptionBuilder])
 
-run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> [ResultComponent] -> (TestDeal a,[ResultComponent])
-run2 t@TestDeal{status=Ended} _ _ _ _ log = (prepareDeal t,log) `debug` "Deal Ended"
-run2 t _ (Just []) _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
-run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad:ads)) rates calls log
+run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe RevolvingAssumption-> [ResultComponent] -> (TestDeal a,[ResultComponent])
+run2 t@TestDeal{status=Ended} pcf _ _ _ _ log  = (prepareDeal t,log) `debug` "Deal Ended"
+run2 t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
+run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad:ads)) rates calls rAssump log
   | (CF.sizeCashFlowFrame poolFlow == 0) && (queryDeal t  AllAccBalance == 0) 
      = (prepareDeal (foldl (performAction (getDate ad)) t cleanUpActions),log)
   | otherwise
      = case ad of
          PoolCollection d _ ->
-             if CF.sizeCashFlowFrame poolFlow > 0 then
-               let 
-                 (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate poolFlow d EqToLeft
-                 accs = depositPoolInflow (collects t) d collected_flow accMap -- `debug` ("Splitting:"++show(d)++"|||"++show(collected_flow))--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
-                 dAfterDeposit = (appendCollectedCF t collected_flow) {accounts=accs}  -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
-                 (dRunWithTrigger0,newLogs0) = runTriggers dAfterDeposit d EndCollection
-                 waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
-                 dAfterAction = foldl (performAction d) dRunWithTrigger0 waterfallToExe
-                 (dRunWithTrigger1,newLogs1) = runTriggers dAfterAction d EndCollectionWF -- `debug` ("Running T end of Collection"++show (queryTrigger dAfterAction EndCollectionWF))
-               in 
-                 run2 dRunWithTrigger1 outstanding_flow (Just ads) rates calls (log++newLogs0++newLogs1) -- `debug` ("Logs"++ show d++"is"++ show log++">>"++show newLogs0++show newLogs1)
-             else
-               run2 t (CF.CashFlowFrame []) (Just ads) rates calls log-- `debug` ("pool ends with call"++show calls)
+           if CF.sizeCashFlowFrame poolFlow > 0 then
+             let 
+               (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate poolFlow d EqToLeft
+               accs = depositPoolInflow (collects t) d collected_flow accMap -- `debug` ("Splitting:"++show(d)++"|||"++show(collected_flow))--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
+               dAfterDeposit = (appendCollectedCF t collected_flow) {accounts=accs}  -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
+               (dRunWithTrigger0,newLogs0) = runTriggers dAfterDeposit d EndCollection
+               waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
+               -- (dAfterAction,outstanding_flow2) = foldl (performAction d) (dRunWithTrigger0,outstanding_flow) waterfallToExe
+               (dAfterAction,rc) = foldl (performActionWrap d) (dRunWithTrigger0,RunContext outstanding_flow rAssump ) waterfallToExe
+               (dRunWithTrigger1,newLogs1) = runTriggers dAfterAction d EndCollectionWF -- `debug` ("Running T end of Collection"++show (queryTrigger dAfterAction EndCollectionWF))
+             in 
+               run2 dRunWithTrigger1 (runPoolFlow rc) (Just ads) rates calls rAssump (log++newLogs0++newLogs1) -- `debug` ("Logs"++ show d++"is"++ show log++">>"++show newLogs0++show newLogs1)
+           else
+             run2 t (CF.CashFlowFrame []) (Just ads) rates calls rAssump log-- `debug` ("pool ends with call"++show calls)
    
          RunWaterfall d _ ->
            case calls of
              Just callOpts ->
-                 if testCalls dRunWithTrigger1 d callOpts then 
-                   (prepareDeal (foldl (performAction d) dRunWithTrigger1 cleanUpActions), log) -- `debug` ("Called ! "++ show d)
-                 else
-                   run2 dRunWithTrigger1 poolFlow (Just ads) rates calls newLogs -- `debug` ("Not called "++ show d )
+               if testCalls dRunWithTrigger1 d callOpts then 
+                 let 
+                    dealAfterCleanUp = foldl (performAction d) dRunWithTrigger1 cleanUpActions
+                 in  
+                    (prepareDeal dealAfterCleanUp, log) -- `debug` ("Called ! "++ show d)
+               else
+                 run2 dRunWithTrigger1 (runPoolFlow newRc) (Just ads) rates calls rAssump newLogs -- `debug` ("Not called "++ show d )
              Nothing ->
-                run2 dRunWithTrigger1 poolFlow (Just ads) rates Nothing newLogs -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+               run2 dRunWithTrigger1 (runPoolFlow newRc) (Just ads) rates Nothing rAssump newLogs -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
            where
                 (dRunWithTrigger0,newLogs0) = runTriggers t d BeginDistributionWF
                 waterfallToExe = Map.findWithDefault 
                                    [] 
                                    (W.DistributionDay (status t)) 
                                    (waterfall t)
-   
-                dAfterWaterfall = foldl (performAction d) dRunWithTrigger0 waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
-                -- dAfterRateSet = setBndsNextIntRate dAfterWaterfall d rates  -- `debug` ("Running Rate assumption"++show(rates)) -- `debug` ("After Rate Set")
+                                   
+                runContext = RunContext poolFlow rAssump 
+                (dAfterWaterfall,newRc) = foldl (performActionWrap d) (dRunWithTrigger0,runContext) waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
                 (dRunWithTrigger1,newLogs1) = runTriggers dAfterWaterfall d EndDistributionWF  
                 newLogs = log++newLogs0 ++ newLogs1
          EarnAccInt d accName ->
            let 
              newAcc = Map.adjust 
                         (\a -> case a of
-                                (A.Account _ _ (Just (A.BankAccount _ _ _)) _ _ ) -> 
-                                    (A.depositInt a d)  -- `debug` ("int acc"++show accName)
+                                (A.Account _ _ (Just (A.BankAccount _ _ _)) _ _ ) -> (A.depositInt a d)  -- `debug` ("int acc"++show accName)
                                 (A.Account _ _ (Just (A.InvestmentAccount idx _ _ _)) _ _ ) -> 
-                                    let 
-                                      rc = getRateAssumptionByIndex (fromMaybe [] rates) idx 
-                                    in 
-                                      case rc of
-                                        Nothing -> a -- `debug` ("error..."++show accName)
-                                        Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d  ) -- `debug` ("int acc"++show accName)
+                                  case getRateAssumptionByIndex (fromMaybe [] rates) idx of
+                                    Nothing -> a -- `debug` ("error..."++show accName)
+                                    Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d  ) -- `debug` ("int acc"++show accName)
                         accName  
                         accMap
              dAfterInt = t {accounts = newAcc} 
            in 
-             run2 dAfterInt poolFlow (Just ads) rates calls log
+             run2 dAfterInt poolFlow (Just ads) rates calls rAssump log
          
          AccrueFee d feeName -> 
            let 
              newFeeMap = Map.adjust (calcDueFee t d) feeName feeMap
            in
-             run2 (t{fees=newFeeMap}) poolFlow (Just ads) rates calls log
+             run2 (t{fees=newFeeMap}) poolFlow (Just ads) rates calls rAssump log
    
          ResetLiqProvider d liqName -> 
            case liqProvider t of 
-             Nothing -> run2 t poolFlow (Just ads) rates calls log
+             Nothing -> run2 t poolFlow (Just ads) rates calls rAssump log
              (Just mLiqProvider) 
                -> let 
                     newLiqMap = Map.adjust (updateLiqProvider t d) liqName mLiqProvider
                   in
-                    run2 (t{liqProvider =Just newLiqMap}) poolFlow (Just ads) rates calls log
+                    run2 (t{liqProvider =Just newLiqMap}) poolFlow (Just ads) rates calls rAssump log
 
          DealClosed d ->
-             let 
-               w = Map.findWithDefault [] W.OnClosingDay (waterfall t) 
-               newDeal = foldl (performAction d) t w -- `debug` ("ClosingDay Action:"++show w)
-             in 
-               run2 newDeal poolFlow (Just ads) rates calls log
+           let 
+             w = Map.findWithDefault [] W.OnClosingDay (waterfall t) 
+             newDeal = foldl (performAction d) t w -- `debug` ("ClosingDay Action:"++show w)
+           in 
+             run2 newDeal poolFlow (Just ads) rates calls rAssump log
 
-         ChangeDealStatusTo d s -> 
-             run2 (t{status=s}) poolFlow (Just ads) rates calls log
+         ChangeDealStatusTo d s -> run2 (t{status=s}) poolFlow (Just ads) rates calls rAssump log
 
          ResetIRSwapRate d sn -> 
-             let
-               _rates = fromMaybe [] rates
-               newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn  <$>  (rateSwap t)
-               newRateSwap_bal = Map.adjust (updateRateSwapBal t d) sn <$> newRateSwap_rate
-             in 
-               run2 (t{rateSwap = newRateSwap_bal}) poolFlow (Just ads) rates calls log
+           let
+             _rates = fromMaybe [] rates
+             newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn  <$>  (rateSwap t)
+             newRateSwap_bal = Map.adjust (updateRateSwapBal t d) sn <$> newRateSwap_rate
+           in 
+             run2 (t{rateSwap = newRateSwap_bal}) poolFlow (Just ads) rates calls rAssump log
 
          InspectDS d ds -> 
-             let 
-               newlog = 
-                  case ds of 
-                    TriggersStatusAt dc idx -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
-                    _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds)
-             in 
-               run2 t poolFlow (Just ads) rates calls  $ log++[newlog] -- `debug` ("Add log"++show newlog)
+           let 
+             newlog = 
+                case ds of 
+                  TriggersStatusAt dc idx -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
+                  _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds)
+           in 
+             run2 t poolFlow (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("Add log"++show newlog)
          
          ResetBondRate d bn -> 
              let 
@@ -825,29 +846,31 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                                               bn
                                               (bonds t) -- `debug` ("Reset bond"++show bn)
              in 
-               run2 t{bonds = newBndMap} poolFlow (Just ads) rates calls log
+               run2 t{bonds = newBndMap} poolFlow (Just ads) rates calls rAssump log
          BuildReport sd ed ->
              let 
                bsReport = buildBalanceSheet t ed 
                cashReport = buildCashReport t sd ed 
                newlog = FinancialReport sd ed bsReport cashReport
              in 
-               run2 t poolFlow (Just ads) rates calls $ log++[newlog] 
-             
-
+               run2 t poolFlow (Just ads) rates calls rAssump $ log++[newlog] 
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t)  -- `debug` ("Running AD"++show(ad))
 
 
-run2 t (CF.CashFlowFrame []) Nothing Nothing Nothing log
-  = run2 t pcf (Just ads) Nothing Nothing log
+run2 t (CF.CashFlowFrame []) Nothing Nothing Nothing Nothing log
+  = run2 t pcf (Just ads) Nothing Nothing Nothing log
   where
-    (ads,pcf,rcurves,clls) = getInits t Nothing -- `debug` ("Init Done")
+    (ads,pcf,rcurves,clls,revolveAssump) = getInits t Nothing -- `debug` ("Init Done")
 
-run2 t (CF.CashFlowFrame []) _ _ _ log = (prepareDeal t,log) 
+run2 t (CF.CashFlowFrame []) _ _ _ _ log = (prepareDeal t,log) 
+
+pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
+pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
 
 
-calcLiquidationAmount :: LiquidationMethod -> P.Pool a -> Date -> Amount
+
+calcLiquidationAmount :: PricingMethod -> P.Pool a -> Date -> Amount
 calcLiquidationAmount alm pool d 
   = case alm of 
       BalanceFactor currentFactor defaultFactor ->
@@ -877,7 +900,7 @@ calcLiquidationAmount alm pool d
                 in 
                   pvCf + mulBI currentDefaulBal recoveryPct
 
-liquidatePool :: LiquidationMethod -> T.Day -> String -> TestDeal a -> TestDeal a
+liquidatePool :: PricingMethod -> T.Day -> String -> TestDeal a -> TestDeal a
 liquidatePool lq d accName t =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
@@ -906,13 +929,13 @@ priceBonds t (AP.RunZSpread curve bond_prices)
                              curve)
       bond_prices
 
-runDeal :: P.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput
+runDeal :: P.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> Maybe AP.BondPricingInput
         -> (TestDeal a,Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 runDeal t _ assumps bpi =
     (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  `debug` ("Run Deal"++show(name t))
   where
-    (ads,pcf,rcurves,calls) = getInits t assumps -- `debug` ("Assump in run deal"++ show assumps)
-    (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls []  -- `debug` ("Action >>"++show ads)
+    (ads,pcf,rcurves,calls,revolvingAssump) = getInits t assumps -- `debug` ("Assump in run deal"++ show assumps)
+    (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls revolvingAssump []  -- `debug` ("Action >>"++show ads)
     bndPricing = case bpi of
                    Nothing -> Nothing   -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
@@ -925,8 +948,7 @@ getRunResult t = os_bn_i ++ os_bn_b
     os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
 
 prepareDeal :: TestDeal a -> TestDeal a
-prepareDeal t = 
-    t {bonds = Map.map L.consolStmt (bonds t)} -- `debug` ("Consolidation in preparingw")
+prepareDeal t = t {bonds = Map.map L.consolStmt (bonds t)} -- `debug` ("Consolidation in preparingw")
 
 buildRateCurves :: [RateAssumption]-> [AP.AssumptionBuilder] -> [RateAssumption] 
 buildRateCurves rs (assump:assumps) = 
@@ -937,6 +959,14 @@ buildRateCurves rs (assump:assumps) =
     where  
         dsToTs ds = IRateCurve $ map (\(d,f) -> TsPoint d f ) ds
 buildRateCurves rs [] = rs
+
+getRevolvingCurve :: [AP.AssumptionBuilder] -> Maybe (RevolvingPool,[AP.AssumptionBuilder])
+getRevolvingCurve [] = Nothing
+getRevolvingCurve (assump:assumps) = 
+  case assump of 
+    AP.AvailableAssets afs assumpsForRevolving -> Just (afs, assumpsForRevolving)
+    _ -> getRevolvingCurve assumps
+
 
 buildCallOptions :: Maybe [C.CallOption] -> [AP.AssumptionBuilder] -> Maybe [C.CallOption]
 buildCallOptions rs (assump:assumps) =
@@ -1029,9 +1059,9 @@ runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
 
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType ->
-    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption])
+    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption], Maybe (RevolvingPool,[AP.AssumptionBuilder]))
 getInits t mAssumps 
-  = (allActionDates, pCollectionCfAfterCutoff, rateCurves, callOptions)  -- `debug` ("Assump"++ show mAssumps)
+  = (allActionDates, pCollectionCfAfterCutoff, rateCurves, callOptions, revolvingCurves)  -- `debug` ("Assump"++ show mAssumps)
   where
     dealAssumps = case mAssumps of
                     Just (AP.PoolLevel []) -> []
@@ -1108,14 +1138,15 @@ getInits t mAssumps
                        _ -> sort a
                       
     allActionDates = case stopDate of
-                       Just (AP.StopRunBy d) ->
-                         filter (\x -> getDate x < d) _actionDates
+                       Just (AP.StopRunBy d) -> filter (\x -> getDate x < d) _actionDates
                        Nothing ->  _actionDates   -- `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ runPool2 (pool t) mAssumps  -- `debug` ("agg pool flow")
     poolCfTs = filter (\txn -> CF.getDate txn >= startDate)  $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf)
     pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (getDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
     rateCurves = buildRateCurves [] dealAssumps  
+    revolvingCurves = getRevolvingCurve dealAssumps
+                      
     callOptions = buildCallOptions Nothing dealAssumps -- `debug` ("Assump"++show(assumps))
 
 queryDealRate :: P.Asset a => TestDeal a -> DealStats -> Micro
@@ -1428,7 +1459,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee ds r ) fs fd fdDay fa lpd _)
 calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd _ fa mflpd _)
   = f{ F.feeDue = newFeeDue
       ,F.feeDueDate = Just calcDay
-      ,F.feeType = (F.FeeFlow futureDue)} -- `debug` ("New fee due"++show newFeeDue)
+      ,F.feeType = F.FeeFlow futureDue} -- `debug` ("New fee due"++show newFeeDue)
     where
       (currentNewDue,futureDue) = splitTsByDate ts calcDay
       cumulativeDue = sumValTs currentNewDue

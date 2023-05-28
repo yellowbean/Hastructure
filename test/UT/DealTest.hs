@@ -10,6 +10,7 @@ import qualified Accounts as A
 import qualified Stmt as S
 import qualified Asset as P
 import qualified AssetClass.Mortgage as ACM
+import qualified AssetClass.AssetBase as AB
 import qualified Expense as F
 import qualified Deal as D
 import qualified Liability as L
@@ -89,32 +90,32 @@ td2 = TestDeal {
                                ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = P.Pool {P.assets=[ACM.Mortgage
-                                         P.MortgageOriginalInfo{
-                                           P.originBalance=4000
-                                           ,P.originRate=Fix 0.085
-                                           ,P.originTerm=60
-                                           ,P.period=Monthly
-                                           ,P.startDate=(T.fromGregorian 2022 1 1)
-                                           ,P.prinType= P.Level}
+  ,D.pool = P.Pool {P.assets=[AB.Mortgage
+                                         AB.MortgageOriginalInfo{
+                                           AB.originBalance=4000
+                                           ,AB.originRate=Fix 0.085
+                                           ,AB.originTerm=60
+                                           ,AB.period=Monthly
+                                           ,AB.startDate=(T.fromGregorian 2022 1 1)
+                                           ,AB.prinType= AB.Level}
                                          4000
                                          0.085
                                          60
                                          Nothing
-                                         P.Current
-                                ,ACM.Mortgage
-                                   P.MortgageOriginalInfo{
-                                     P.originBalance=4000
-                                     ,P.originRate=Fix 0.085
-                                     ,P.originTerm=60
-                                     ,P.period=Monthly
-                                     ,P.startDate=(T.fromGregorian 2022 1 1)
-                                     ,P.prinType= P.Level}
+                                         AB.Current
+                                ,AB.Mortgage
+                                   AB.MortgageOriginalInfo{
+                                     AB.originBalance=4000
+                                     ,AB.originRate=Fix 0.085
+                                     ,AB.originTerm=60
+                                     ,AB.period=Monthly
+                                     ,AB.startDate=(T.fromGregorian 2022 1 1)
+                                     ,AB.prinType= AB.Level}
                                    200
                                    0.085
                                    60
                                    Nothing
-                                   (P.Defaulted Nothing)
+                                   (AB.Defaulted Nothing)
                                  ]
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1}

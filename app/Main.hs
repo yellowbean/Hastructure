@@ -54,10 +54,10 @@ import Types
 import qualified Deal as D
 import qualified Asset as P
 import qualified Expense as F
--- import qualified AssetClass.Installment as AC_Installment
--- import qualified AssetClass.Mortgage as AC_Mortgage
--- import qualified AssetClass.Loan as AC_Loan
--- import qualified AssetClass.Lease as AC_Lease
+import qualified AssetClass.Installment 
+import qualified AssetClass.Mortgage 
+import qualified AssetClass.Loan 
+import qualified AssetClass.Lease 
 import qualified AssetClass.AssetBase as AB 
 import qualified Assumptions as AP
 import qualified Cashflow as CF
@@ -182,30 +182,23 @@ instance ToSchema (TsPoint Balance)
 instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
-instance ToSchema Revolving.LiquidationMethod
+instance ToSchema Revolving.PricingMethod
 instance ToSchema AB.Status
 instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
+instance ToSchema AB.AssetUnion
 instance ToSchema P.IssuanceFields
-instance ToSchema RV.AssetForSale
-instance ToSchema (RV.AssetAvailable AB.Installment)
+instance ToSchema RV.AssetAvailable
+--instance ToSchema (RV.AssetAvailable AB.Installment)
+--instance ToSchema (RV.AssetAvailable AB.Loan)
+--instance ToSchema (RV.AssetAvailable AB.Mortgage)
+--instance ToSchema (RV.AssetAvailable AB.Lease)
+instance ToSchema (TsPoint [AB.Loan])
+instance ToSchema (TsPoint [AB.Mortgage])
+instance ToSchema (TsPoint [AB.Lease])
 instance ToSchema (TsPoint [AB.Installment])
--- instance ToSchema (RV.AssetF AB.Installment)
--- instance ToSchema (RV.AssetForSale AB.Loan)
--- instance ToSchema (RV.AssetForSale AB.Mortgage)
--- instance ToSchema (RV.AssetForSale AB.Lease)
 
---instance ToSchema (Ratio Integer)
---instance ToSchema (Ratio Integer) where 
---  declareNamedSchema _ = do 
---      integerSchema <- declareSchemaRef (Proxy :: Proxy Integer)
---      return $ NamedSchema (Just "RatioInteger") $ mempty 
---        & type_ ?~ OpenApiObject 
---        & properties .~ 
---            [ ("numerator", integerSchema)
---            , ("denomiator", integerSchema)]
---        & required .~ ["numerator","denominator"]
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
 

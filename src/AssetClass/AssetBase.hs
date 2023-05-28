@@ -5,7 +5,7 @@
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
   ,LeaseStepUp(..),AccrualPeriod(..)
-  ,AmortPlan(..),Loan(..),Mortgage(..))
+  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..))
   where
 
 import Language.Haskell.TH
@@ -13,6 +13,7 @@ import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Types hiding (Current,startDate,originTerm)
+
 
 import qualified InterestRate as IR
 import qualified Cashflow as CF
@@ -52,17 +53,18 @@ data OriginalInfo = MortgageOriginalInfo {
     ,originRental :: Amount}
     deriving (Show,Generic)
 
+
 data Installment = Installment OriginalInfo Balance RemainTerms Status
                  | Dummy
-     deriving (Show,Generic)
+                 deriving (Show,Generic)
 
 data LeaseStepUp = FlatRate DatePattern Rate
                  | ByRateCurve DatePattern [Rate]
-    deriving (Show,Generic)
+                 deriving (Show,Generic)
 
 data Lease = RegularLease OriginalInfo Balance Int Status
            | StepUpLease OriginalInfo LeaseStepUp Balance Int Status
-    deriving (Show,Generic)
+           deriving (Show,Generic)
 
 data AccrualPeriod = AccrualPeriod Date DailyRate
                     deriving (Show,Generic)
@@ -82,6 +84,13 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | ScheduleMortgageFlow Date [CF.TsRow]
               deriving (Show,Generic)
 
+data AssetUnion = M Mortgage
+                | L Loan
+                | I Installment
+                | LE Lease
+                deriving (Show, Generic)
+
+
 
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''AmortPlan)
@@ -91,3 +100,4 @@ $(deriveJSON defaultOptions ''LeaseStepUp)
 $(deriveJSON defaultOptions ''Mortgage)
 $(deriveJSON defaultOptions ''Loan)
 $(deriveJSON defaultOptions ''Lease)
+$(deriveJSON defaultOptions ''AssetUnion)

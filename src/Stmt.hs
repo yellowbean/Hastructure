@@ -55,6 +55,7 @@ data TxnComment = PayInt [BondName]
                 | SwapAccure
                 | SwapInSettle
                 | SwapOutSettle
+                | PurchaseAsset
                 | TxnComments [TxnComment]
                 deriving (Eq, Show, Ord , Generic)
 

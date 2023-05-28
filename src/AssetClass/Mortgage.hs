@@ -10,7 +10,7 @@ module AssetClass.Mortgage
 import qualified Data.Time as T
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
-import Asset
+import Asset as Ast
 import Types
 import Lib
 import Util
@@ -148,7 +148,7 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
 projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
 
 
-instance Asset Mortgage  where
+instance Ast.Asset Mortgage where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _mbn _) d =
       let 
         (_,futureTxns) = splitByDate txns d EqToRight
@@ -317,3 +317,19 @@ instance Asset Mortgage  where
   getBorrowerNum m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) _ cb cr rt mbn _ ) 
     = fromMaybe 1 mbn
 
+  splitWith (Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn st ) rs 
+    = [ Mortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) (mulBR cb ratio) cr rt mbn st 
+        | ratio <- rs ]
+  
+  splitWith (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) arm cb cr rt mbn st ) rs 
+    = [ AdjustRateMortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) arm (mulBR cb ratio) cr rt mbn st 
+        | ratio <- rs ]
+  
+  pricing 
+    m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn st )
+    d 
+    (BalanceFactor currentFactor defaultedFactor)
+    assumps 
+    = case st of 
+        Current -> mulBR cb currentFactor 
+        Defaulted _ -> mulBR cb defaultedFactor 

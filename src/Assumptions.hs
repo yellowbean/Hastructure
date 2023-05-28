@@ -39,7 +39,7 @@ lookupAssumptionByIdx sbi i
         Just (_, aps ) ->  aps
         Nothing -> []
 
-data ApplyAssumptionType = PoolLevel AssumptionLists
+data ApplyAssumptionType = PoolLevel AssumptionLists 
                          | ByIndex [StratificationByIdx] AssumptionLists
                          deriving (Show,Generic)
 
@@ -69,7 +69,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | CallWhen [C.CallOption]
                 | PoolHairCut PoolSource Rate
                 -- Revolving
-                | AvailableAssets AssetForSale
+                | AvailableAssets RevolvingPool [AssumptionBuilder]
                 -- Lease Assumption 
                 | LeaseProjectionEnd Date
                 | LeaseBaseAnnualRate Rate
@@ -103,6 +103,7 @@ splitAssumptions (a:aps) (dealAssump,assetAssump)
      InspectOn _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      PoolHairCut _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      BuildFinancialReport _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+     AvailableAssets _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      _  -> splitAssumptions aps (dealAssump,a:assetAssump)
 
 splitAssumptions [] r = r
