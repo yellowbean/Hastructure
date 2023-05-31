@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GADTs #-}
 
 module Deal (TestDeal(..),run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
@@ -17,6 +18,10 @@ import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
 import qualified AssetClass.AssetBase as ACM
+import AssetClass.Mortgage
+import AssetClass.Lease
+import AssetClass.Loan
+import AssetClass.Installment
 import qualified Call as C
 import qualified InterestRate as IR
 import Stmt
@@ -165,37 +170,85 @@ testPre d t p =
                   E -> (==)
       ps = patchDateToStats d
 
-data RunContext = RunContext{
+data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
-                  ,revolvingAssump:: Maybe (RevolvingPool,[AP.AssumptionBuilder]) }
+                  ,revolvingAssump:: Maybe (RevolvingPool ,[AP.AssumptionBuilder]) }
 
---data RunContext deal pool asset = RevolvingRunContext 
--- buyAssetFromPool :: P.Asset a =>  AssetForSale -> Balance -> [a]
--- buyAssetFromPool afs amt = []
+priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> [AP.AssumptionBuilder] -> Balance
+priceAssetUnion (ACM.MO m) d pm aps = P.pricing m d pm aps 
+priceAssetUnion (ACM.LO m) d pm aps = P.pricing m d pm aps 
+priceAssetUnion (ACM.IL m) d pm aps = P.pricing m d pm aps 
+priceAssetUnion (ACM.LS m) d pm aps = P.pricing m d pm aps 
 
-performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext) -> W.Action -> (TestDeal a, RunContext)
+splitAssetUnion :: [Rate] -> ACM.AssetUnion -> [ACM.AssetUnion]
+splitAssetUnion rs (ACM.MO m) = [ ACM.MO a | a <- P.splitWith m rs]
+splitAssetUnion rs (ACM.LO m) = [ ACM.LO a | a <- P.splitWith m rs]
+splitAssetUnion rs (ACM.IL m) = [ ACM.IL a | a <- P.splitWith m rs]
+splitAssetUnion rs (ACM.LS m) = [ ACM.LS a | a <- P.splitWith m rs]
+
+-- compressAssetUnion :: Balance -> ACM.AssetUnion -> ACM.AssetUnion
+-- compressAssetUnion bal (ACM.MO m) = ACM.MO $ P.compressBal m bal
+-- compressAssetUnion bal (ACM.LO m) = ACM.LO $ P.compressBal m bal
+-- compressAssetUnion bal (ACM.IL m) = ACM.IL $ P.compressBal m bal
+-- compressAssetUnion bal (ACM.LS m) = ACM.LS $ P.compressBal m bal
+
+
+buyRevolvingPool :: Date -> [Rate] -> RevolvingPool -> ([ACM.AssetUnion],RevolvingPool)
+buyRevolvingPool _ rs rp@(StaticAsset assets) 
+  = let 
+      splitedAssets = (splitAssetUnion rs) <$> assets
+      assetBought = head <$> splitedAssets
+      assetRemains = last <$> splitedAssets 
+    in 
+      (assetBought ,StaticAsset assetRemains)
+
+buyRevolvingPool _ rs rp@(ConstantAsset assets)
+  = let 
+      splitedAssets = (splitAssetUnion rs) <$> assets
+      assetBought = head <$> splitedAssets
+    in 
+      (assetBought ,rp)
+
+buyRevolvingPool d rs rp@(AssetCurve aus)
+  = let
+      assets = lookupAssetAvailable rp d 
+      splitedAssets = (splitAssetUnion rs) <$> assets
+      assetBought = head <$> splitedAssets
+    in 
+      (assetBought, rp)
+
+
+projAssetUnion :: ACM.AssetUnion -> Date -> [AP.AssumptionBuilder] -> CF.CashFlowFrame
+projAssetUnion (ACM.MO ast) d assumps = P.projCashflow ast d assumps
+projAssetUnion (ACM.LO ast) d assumps = P.projCashflow ast d assumps
+projAssetUnion (ACM.IL ast) d assumps = P.projCashflow ast d assumps
+projAssetUnion (ACM.LS ast) d assumps = P.projCashflow ast d assumps
+
+
+performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext a) -> W.Action -> (TestDeal a, RunContext a)
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap },rc@RunContext{runPoolFlow=pcf
                                                                   ,revolvingAssump=Just (assetForSale,perfAssumps)}) 
                   (W.BuyAsset ml pricingMethod accName) 
    = (t { accounts = newAccMap }, newRc )
     where 
-      assets = case assetForSale of 
-                 ConstantAsset asts -> asts
-                 StaticAsset asts -> asts
+      assets = lookupAssetAvailable assetForSale d
                  
-                 
-      valuationOnAvailableAssets = sum [ P.pricing ast d pricingMethod perfAssumps  | ast <- assets ]
+      valuationOnAvailableAssets = sum [ priceAssetUnion ast d pricingMethod perfAssumps  | ast <- assets ]
       availBal  = A.accBalance $ accsMap Map.! accName
       purchaseAmt = min availBal valuationOnAvailableAssets
       purchaseRatio = purchaseAmt / valuationOnAvailableAssets
+      purchaseRatios = toRational <$> [purchaseRatio,1-purchaseRatio]
 
+      (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale
       
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
-      assetBought = []
-      newBoughtPcf = CF.CashFlowFrame []
-      newPcf = P.aggPool [pcf,newBoughtPcf]
-      newRc = rc {runPoolFlow = newPcf}
+      
+      newBoughtPcf = [projAssetUnion ast d perfAssumps | ast <- assetBought ]
+      newPcf = P.aggPool $ [pcf]++newBoughtPcf
+      newRc = rc {runPoolFlow = newPcf
+                 ,revolvingAssump = Just (poolAfterBought,perfAssumps)}
+
 
 performActionWrap d (t,rc) a = (performAction d t a,rc)
 
@@ -732,7 +785,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
                        _trg     
                    | (_trg,_flag) <- testTrgsResult ]
   
-type RevolvingAssumption = (RevolvingPool, [AP.AssumptionBuilder])
+type RevolvingAssumption = (RevolvingPool , [AP.AssumptionBuilder])
 
 run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe RevolvingAssumption-> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run2 t@TestDeal{status=Ended} pcf _ _ _ _ log  = (prepareDeal t,log) `debug` "Deal Ended"
@@ -960,11 +1013,15 @@ buildRateCurves rs (assump:assumps) =
         dsToTs ds = IRateCurve $ map (\(d,f) -> TsPoint d f ) ds
 buildRateCurves rs [] = rs
 
-getRevolvingCurve :: [AP.AssumptionBuilder] -> Maybe (RevolvingPool,[AP.AssumptionBuilder])
+getRevolvingCurve :: [AP.AssumptionBuilder] -> Maybe (RevolvingPool ,[AP.AssumptionBuilder])
 getRevolvingCurve [] = Nothing
 getRevolvingCurve (assump:assumps) = 
   case assump of 
     AP.AvailableAssets afs assumpsForRevolving -> Just (afs, assumpsForRevolving)
+    -- AP.AvailableMortgage afs assumpsForRevolving -> Just (afs, assumpsForRevolving)
+    -- AP.AvailableInstallment afs assumpsForRevolving -> Just (afs, assumpsForRevolving)
+    -- AP.AvailableLoan afs assumpsForRevolving -> Just (afs, assumpsForRevolving)
+    -- AP.AvailableLease afs assumpsForRevolving -> Just (afs, assumpsForRevolving)
     _ -> getRevolvingCurve assumps
 
 
@@ -1059,7 +1116,7 @@ runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
 
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType ->
-    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption], Maybe (RevolvingPool,[AP.AssumptionBuilder]))
+    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption], Maybe (RevolvingPool ,[AP.AssumptionBuilder]))
 getInits t mAssumps 
   = (allActionDates, pCollectionCfAfterCutoff, rateCurves, callOptions, revolvingCurves)  -- `debug` ("Assump"++ show mAssumps)
   where

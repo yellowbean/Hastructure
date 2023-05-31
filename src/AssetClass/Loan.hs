@@ -195,5 +195,10 @@ instance Asset Loan where
 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted Nothing)) asOfDay assumps
     = CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]
-
-
+  
+  pricing m d (BalanceFactor currentFactor defaultedFactor) _ 
+    = case isDefaulted m of 
+        False -> mulBR cb currentFactor 
+        True  -> mulBR cb defaultedFactor 
+      where 
+        cb = getCurrentBal m

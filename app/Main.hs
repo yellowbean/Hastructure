@@ -182,22 +182,16 @@ instance ToSchema (TsPoint Balance)
 instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
-instance ToSchema Revolving.PricingMethod
+-- instance ToSchema Revolving.PricingMethod
 instance ToSchema AB.Status
 instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
 instance ToSchema AB.AssetUnion
 instance ToSchema P.IssuanceFields
-instance ToSchema RV.AssetAvailable
---instance ToSchema (RV.AssetAvailable AB.Installment)
---instance ToSchema (RV.AssetAvailable AB.Loan)
---instance ToSchema (RV.AssetAvailable AB.Mortgage)
---instance ToSchema (RV.AssetAvailable AB.Lease)
-instance ToSchema (TsPoint [AB.Loan])
-instance ToSchema (TsPoint [AB.Mortgage])
-instance ToSchema (TsPoint [AB.Lease])
-instance ToSchema (TsPoint [AB.Installment])
+instance ToSchema PricingMethod
+instance ToSchema RV.RevolvingPool
+instance ToSchema (TsPoint [AB.AssetUnion])
 
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)

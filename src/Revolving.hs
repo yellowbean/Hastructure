@@ -2,11 +2,13 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GADTs #-}
+
 
 module Revolving
-  (
-  --,AssetForSale(..)
-  RevolvingPool(..))
+  ( RevolvingPool(..)
+  , lookupAssetAvailable
+  )
   where
 
 import GHC.Generics
@@ -18,24 +20,26 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Hashable
 import Data.Fixed
+import Data.List
 import Types
 
 import AssetClass.AssetBase
 
 
-
-
-
 data RevolvingPool = ConstantAsset [AssetUnion]
                    | StaticAsset [AssetUnion]
-                   | AssetCurve [TsPoint AssetUnion]
+                   | AssetCurve [TsPoint [AssetUnion]]
                    deriving (Show,Generic)
 
--- data AssetForSale = AssetAvailableInstallment (AssetAvailable Installment)
---                   | AssetAvailableMortgage (AssetAvailable Mortgage)
---                   | AssetAvailableLease (AssetAvailable Lease)
---                   | AssetAvailableLoan (AssetAvailable Loan)
---                   deriving (Show, Generic)
 
--- $(deriveJSON defaultOptions ''AssetForSale)
+lookupAssetAvailable :: RevolvingPool -> Date -> [AssetUnion]
+lookupAssetAvailable (ConstantAsset aus) _ = aus
+lookupAssetAvailable (StaticAsset aus) _ = aus
+lookupAssetAvailable (AssetCurve ausCurve) d 
+  = case find (\(TsPoint _d _) -> d > _d) (reverse ausCurve)  of 
+      Just (TsPoint _d v) -> v
+      Nothing -> [] 
+
+
+
 $(deriveJSON defaultOptions ''RevolvingPool)

@@ -26,7 +26,7 @@ import Data.Ratio
 import Revolving
 
 import GHC.Generics
-
+import AssetClass.AssetBase
 import Debug.Trace
 debug = flip trace
 
@@ -70,6 +70,10 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | PoolHairCut PoolSource Rate
                 -- Revolving
                 | AvailableAssets RevolvingPool [AssumptionBuilder]
+                -- | AvailableMortgage (RevolvingPool2 Mortgage) [AssumptionBuilder]
+                -- | AvailableLease (RevolvingPool2 Lease) [AssumptionBuilder]
+                -- | AvailableLoan (RevolvingPool2 Loan) [AssumptionBuilder]
+                -- | AvailableInstallment (RevolvingPool2 Installment) [AssumptionBuilder]
                 -- Lease Assumption 
                 | LeaseProjectionEnd Date
                 | LeaseBaseAnnualRate Rate
@@ -104,6 +108,10 @@ splitAssumptions (a:aps) (dealAssump,assetAssump)
      PoolHairCut _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      BuildFinancialReport _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      AvailableAssets _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+    -- AvailableMortgage _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+    -- AvailableLoan _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+    -- AvailableInstallment _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
+    -- AvailableLease _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      _  -> splitAssumptions aps (dealAssump,a:assetAssump)
 
 splitAssumptions [] r = r

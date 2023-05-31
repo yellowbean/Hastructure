@@ -76,6 +76,8 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
           deriving (Show,Generic)
 
+
+-- Mortgage
 data MortgageInsurance = MortgageInsurance Rate
 
 
@@ -84,10 +86,12 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | ScheduleMortgageFlow Date [CF.TsRow]
               deriving (Show,Generic)
 
-data AssetUnion = M Mortgage
-                | L Loan
-                | I Installment
-                | LE Lease
+
+-- Base 
+data AssetUnion = MO Mortgage
+                | LO Loan
+                | IL Installment
+                | LS Lease
                 deriving (Show, Generic)
 
 

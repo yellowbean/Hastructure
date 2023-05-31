@@ -2,12 +2,13 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Asset (Pool(..),calc_p_i_flow
-       ,aggPool,IssuanceFields(..)
+module Asset (Pool(..),OriginalInfo(..),calc_p_i_flow
+       ,aggPool,RateType(..),AmortPlan(..)
+       ,Status(..),IssuanceFields(..)
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
-       ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
-       ,calcRecoveriesFromDefault
+       ,buildAssumptionRate,getRateAssumption
+       ,calc_p_i_flow_even,calc_p_i_flow_i_p
 ) where
 
 import qualified Data.Time as T
@@ -15,7 +16,7 @@ import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
 import Lib (Period(..),genDates
-           ,Ts(..),periodRateFromAnnualRate,previousDate,toDate
+           ,Ts(..),Index(..),periodRateFromAnnualRate,previousDate,toDate
            ,nextDate,getIntervalDays,zipWith9,mkTs,periodsBetween
            ,mkRateTs)
 
@@ -27,16 +28,18 @@ import Data.List
 import Data.Maybe
 import Data.Ratio
 import Data.Aeson hiding (json)
+import Data.Proxy
+import Data.OpenApi hiding (trace)
+
+import GHC.Generics (Generic) 
+
 import Language.Haskell.TH
-import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Types hiding (Current)
 import Text.Printf
 import Data.Fixed
-import qualified InterestRate as IR
 import Util
-
 import Debug.Trace
 debug = flip trace
 
@@ -49,12 +52,10 @@ class Show a => Asset a where
   getPaymentDates :: a -> Int -> [Date]
   projCashflow :: a -> Date -> [A.AssumptionBuilder] -> CF.CashFlowFrame
   getBorrowerNum :: a -> Int
-  splitWith :: a -> [Rate] -> [a]
-  pricing :: a -> Date -> PricingMethod -> [A.AssumptionBuilder] -> Balance
   {-# MINIMAL calcCashflow #-}
 
 data IssuanceFields = IssuanceBalance
-                    deriving (Show,Ord,Eq,Read,Generic)
+                    deriving (Show,Ord,Eq,Read)
 
 instance ToJSONKey IssuanceFields where
   toJSONKey = toJSONKeyText (Text.pack . show)
@@ -67,7 +68,7 @@ instance FromJSONKey IssuanceFields where
 data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
                    ,asOfDate :: Date
-                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)}
+                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Centi)}
                     deriving (Show,Generic)
 
 getIssuanceField :: Pool a -> IssuanceFields -> Centi
@@ -84,6 +85,40 @@ calcPmt bal periodRate periods =
      pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
    in
      mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
+
+data RateType = Fix IRate
+              | Floater Index Spread IRate Period (Maybe Floor)
+              -- index, spread, initial-rate reset interval,floor
+              deriving (Show,Generic)
+
+data AmortPlan = Level   -- for mortgage
+               | Even    -- for mortgage
+               | I_P     -- interest only and principal due at last payment
+               | F_P     -- fee based 
+               | ScheduleRepayment Ts-- custom principal follow
+               deriving (Show,Generic)
+
+data Status = Current
+            | Defaulted (Maybe Date)
+            -- | Delinquency (Maybe Int)
+            -- | Extended (Maybe T.Day)
+            deriving (Show,Generic)
+
+data OriginalInfo = MortgageOriginalInfo {
+    originBalance :: Centi
+    ,originRate :: RateType
+    ,originTerm :: Int
+    ,period :: Period
+    ,startDate :: Date
+    ,prinType :: AmortPlan }
+  | LoanOriginalInfo {
+     originBalance :: Centi
+    ,originRate :: RateType
+    ,originTerm :: Int
+    ,period :: Period
+    ,startDate :: Date
+    ,prinType :: AmortPlan
+    } deriving (Show,Generic)
 
 buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int) -- prepay rates,default rates,
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
@@ -147,7 +182,8 @@ buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag
      ,_recovery_rate
      ,_recovery_lag)
    where 
-     stressSize = pred (length pDates)
+     stressSize = (pred (length pDates))
+
 
 
 
@@ -197,24 +233,31 @@ calc_p_i_flow_i_p bal dates r
       _bals = (replicate flow_size bal ) ++ [ 0 ]
       _prins = (replicate flow_size 0 ) ++ [ bal ]
 
-calcRecoveriesFromDefault :: Balance -> Rate -> [Rate] -> [Amount]
-calcRecoveriesFromDefault bal recoveryRate recoveryTiming
-  = let
-      recoveryAmt = mulBR bal recoveryRate
-    in 
-      mulBR recoveryAmt <$> recoveryTiming
-
-
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
-aggPool [] = CF.CashFlowFrame []
+aggPool [] = undefined -- `debug` ("Empty cashflow from assets")
 aggPool xs = foldr1 CF.combine xs   -- `debug` ("XS"++show(xs))
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]
 
+getRateAssumption :: [A.AssumptionBuilder] -> Index -> Maybe A.AssumptionBuilder
+getRateAssumption assumps idx
+  = find (\x ->
+            case x of
+             A.InterestRateCurve _idx vs -> idx == _idx 
+             A.InterestRateConstant _idx v -> idx == _idx
+             _ -> False) assumps
 
 
+instance ToSchema OriginalInfo
+instance ToSchema RateType
+instance ToSchema Status
+instance ToSchema AmortPlan
 
+$(deriveJSON defaultOptions ''Status)
+$(deriveJSON defaultOptions ''OriginalInfo)
+$(deriveJSON defaultOptions ''RateType)
 $(deriveJSON defaultOptions ''Pool)
+$(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''IssuanceFields)
-$(deriveJSON defaultOptions ''AggregationRule)
+

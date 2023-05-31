@@ -325,11 +325,9 @@ instance Ast.Asset Mortgage where
     = [ AdjustRateMortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) arm (mulBR cb ratio) cr rt mbn st 
         | ratio <- rs ]
   
-  pricing 
-    m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn st )
-    d 
-    (BalanceFactor currentFactor defaultedFactor)
-    assumps 
-    = case st of 
-        Current -> mulBR cb currentFactor 
-        Defaulted _ -> mulBR cb defaultedFactor 
+  pricing m d (BalanceFactor currentFactor defaultedFactor) _ 
+    = case isDefaulted m of 
+        False -> mulBR cb currentFactor 
+        True  -> mulBR cb defaultedFactor 
+      where 
+        cb =  getCurrentBal m
