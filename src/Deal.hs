@@ -787,7 +787,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
   
 type RevolvingAssumption = (RevolvingPool , [AP.AssumptionBuilder])
 
-run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe RevolvingAssumption-> [ResultComponent] -> (TestDeal a,[ResultComponent])
+run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe RevolvingAssumption -> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run2 t@TestDeal{status=Ended} pcf _ _ _ _ log  = (prepareDeal t,log) `debug` "Deal Ended"
 run2 t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
 run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad:ads)) rates calls rAssump log
