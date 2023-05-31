@@ -351,12 +351,8 @@ data Ts = FloatCurve [TsPoint Rational]
         | PricingCurve [TsPoint Rational] 
         deriving (Show,Eq,Ord,Read,Generic)
 
-
-
-
 data RangeType = II | IE | EI | EE
 data CutoffType = Inc | Exc
-
 
 data BookItem = Item String Balance 
               | ParentItem String [BookItem]
@@ -447,10 +443,11 @@ data RateAssumption = RateCurve Index Ts
                     | RateFlat Index IRate
                     deriving (Show,Generic)
 
-data PricingMethod = BalanceFactor Rate Rate -- by performing & default balace
-                   | BalanceFactor2 Rate Rate Rate -- by performing/delinq/default factor
-                   | DefaultedBalance Rate  -- only liquidate defaulted balance
+data PricingMethod = BalanceFactor Rate Rate -- [balance] by performing & default balace
+                   | BalanceFactor2 Rate Rate Rate --[balance] by performing/delinq/default factor
+                   | DefaultedBalance Rate  --[balance] only liquidate defaulted balance
                    | PV IRate IRate -- discount factor, recovery pct on default
+                   | PVCurve Ts --[CF] Pricing cashflow with a Curve
                    | Custom Rate -- custom amount
                    deriving (Show,Generic)
 

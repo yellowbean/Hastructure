@@ -175,10 +175,10 @@ data RunContext a = RunContext{
                   ,revolvingAssump:: Maybe (RevolvingPool ,[AP.AssumptionBuilder]) }
 
 priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> [AP.AssumptionBuilder] -> Balance
-priceAssetUnion (ACM.MO m) d pm aps = P.pricing m d pm aps 
-priceAssetUnion (ACM.LO m) d pm aps = P.pricing m d pm aps 
-priceAssetUnion (ACM.IL m) d pm aps = P.pricing m d pm aps 
-priceAssetUnion (ACM.LS m) d pm aps = P.pricing m d pm aps 
+priceAssetUnion (ACM.MO m) d pm aps = P.priceAsset m d pm aps 
+priceAssetUnion (ACM.LO m) d pm aps = P.priceAsset m d pm aps
+priceAssetUnion (ACM.IL m) d pm aps = P.priceAsset m d pm aps
+priceAssetUnion (ACM.LS m) d pm aps = P.priceAsset m d pm aps
 
 splitAssetUnion :: [Rate] -> ACM.AssetUnion -> [ACM.AssetUnion]
 splitAssetUnion rs (ACM.MO m) = [ ACM.MO a | a <- P.splitWith m rs]

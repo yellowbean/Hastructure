@@ -231,10 +231,3 @@ instance Asset Lease where
         in  
             CF.mflowBegBalance $ head txns
 
-
-    pricing m d (BalanceFactor currentFactor defaultedFactor) _ 
-      = case isDefaulted m of 
-          False -> mulBR cb currentFactor 
-          True  -> mulBR cb defaultedFactor 
-        where 
-          cb = getCurrentBal m

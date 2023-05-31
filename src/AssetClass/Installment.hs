@@ -206,9 +206,3 @@ instance Asset Installment where
       where 
         cr = getOriginRate inst
 
-  pricing m d (BalanceFactor currentFactor defaultedFactor) _ 
-    = case isDefaulted m of 
-        False -> mulBR cb currentFactor 
-        True  -> mulBR cb defaultedFactor 
-      where 
-        cb = getCurrentBal m

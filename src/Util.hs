@@ -7,7 +7,7 @@ module Util
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
-    ,replace,paddingDefault, capWith, pv2, splitByDate, rangeBy
+    ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     )
     where
@@ -452,6 +452,15 @@ pv2 discount_rate today d amt =
   where
     denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
     distance =  daysBetween today d 
+
+pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
+pv3 pvCurve pricingDate ds vs 
+  = let 
+      rs = fromRational <$> getValByDates pvCurve Inc ds
+      pvs = [ pv2 r pricingDate d amt | (r,d,amt) <- zip3 rs ds vs ]
+    in 
+      sum pvs
+
 
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)

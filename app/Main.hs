@@ -95,7 +95,6 @@ data PoolType = MPool (P.Pool AB.Mortgage)
 instance ToSchema PoolType
 $(deriveJSON defaultOptions ''PoolType)
 
-
 instance ToSchema (P.Pool AB.Mortgage)
 instance ToSchema (P.Pool AB.Loan)
 instance ToSchema (P.Pool AB.Installment)
@@ -106,7 +105,6 @@ data DealType = MDeal (D.TestDeal AB.Mortgage)
               | IDeal (D.TestDeal AB.Installment) 
               | RDeal (D.TestDeal AB.Lease) 
               deriving(Show, Generic)
-
 
 instance ToSchema Ts
 instance ToSchema ResultComponent
@@ -182,7 +180,6 @@ instance ToSchema (TsPoint Balance)
 instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
--- instance ToSchema Revolving.PricingMethod
 instance ToSchema AB.Status
 instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
@@ -241,7 +238,13 @@ instance ToSchema RunPoolReq
 $(deriveJSON defaultOptions ''RunDealReq)
 $(deriveJSON defaultOptions ''RunPoolReq)
 
+data RunAssetReq = SingleRunAssetReq AB.AssetUnion AP.AssumptionLists
+                 | SinglePricingAssetReq AB.AssetUnion AP.AssumptionLists PricingMethod
+                 deriving(Show, Generic)
+
+
 type EngineAPI = "version" :> Get '[JSON] Version
+--             :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] CF.CashFlowFrame
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] CF.CashFlowFrame
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName CF.CashFlowFrame)
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
@@ -276,6 +279,7 @@ server2 = return engineSwagger
 --      :<|> error "not implemented"
         where 
           showVersion = return version1 
+--          runAsset (SingleRunAssetReq ) = return 
           runPool (SingleRunPoolReq pt passumption) = return $ wrapRunPool pt passumption
           runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) = return $ Map.map (\assump -> wrapRunPool pt (Just assump)) mAssumps
           runDeal (SingleRunReq dt assump pricing) = return $ wrapRun dt assump pricing

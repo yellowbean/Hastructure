@@ -8,6 +8,7 @@ module Asset (Pool(..),calc_p_i_flow
        ,getIssuanceField,calcPmt
        ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
        ,calcRecoveriesFromDefault
+       ,priceAsset
 ) where
 
 import qualified Data.Time as T
@@ -50,7 +51,6 @@ class Show a => Asset a where
   projCashflow :: a -> Date -> [A.AssumptionBuilder] -> CF.CashFlowFrame
   getBorrowerNum :: a -> Int
   splitWith :: a -> [Rate] -> [a]
-  pricing :: a -> Date -> PricingMethod -> [A.AssumptionBuilder] -> Balance
   {-# MINIMAL calcCashflow #-}
 
 data IssuanceFields = IssuanceBalance
@@ -204,6 +204,21 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
     in 
       mulBR recoveryAmt <$> recoveryTiming
 
+priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssumptionLists -> Balance
+priceAsset m d (PVCurve curve) assumps 
+  = let 
+      CF.CashFlowFrame txns = projCashflow m d assumps
+      ds = getDate <$> txns 
+      amts = CF.tsTotalCash <$> txns 
+    in 
+      pv3 curve d ds amts
+
+priceAsset m _ (BalanceFactor currentFactor defaultedFactor) _ 
+    = case isDefaulted m of 
+        False -> mulBR cb currentFactor 
+        True  -> mulBR cb defaultedFactor 
+      where 
+        cb =  getCurrentBal m
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool [] = CF.CashFlowFrame []
@@ -211,7 +226,6 @@ aggPool xs = foldr1 CF.combine xs   -- `debug` ("XS"++show(xs))
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]
-
 
 
 
