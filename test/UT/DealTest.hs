@@ -31,6 +31,8 @@ import qualified Data.Set as S
 td2 = TestDeal {
   D.name = "test deal1"
   ,D.status = Amortizing
+  ,D.rateSwap = Nothing
+  ,D.currencySwap = Nothing
   ,D.dates = PatternInterval $ 
                (Map.fromList [
                 (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
@@ -118,7 +120,8 @@ td2 = TestDeal {
                                    (AB.Defaulted Nothing)
                                  ]
                  ,P.futureCf=Nothing
-                 ,P.asOfDate = T.fromGregorian 2022 1 1}
+                 ,P.asOfDate = T.fromGregorian 2022 1 1
+                 ,P.issuanceStat = Nothing}
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee ["General"] ["Service-Fee"])
                                  ,(W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])

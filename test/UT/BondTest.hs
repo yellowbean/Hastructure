@@ -31,6 +31,7 @@ b1 = B.Bond{B.bndName="A"
             ,B.bndRate=0.08
             ,B.bndDuePrin=0.0
             ,B.bndDueInt=0.0
+            ,B.bndDueIntDate=Nothing
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 S.Empty]}
@@ -47,6 +48,7 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndRate=0.08
             ,B.bndDuePrin=0.0
             ,B.bndDueInt=0.0
+            ,B.bndDueIntDate=Nothing
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 S.Empty]}

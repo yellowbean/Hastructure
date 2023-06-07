@@ -35,6 +35,8 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.armTest
                            ,CFT.cfTests
                            ,CFT.tsSplitTests
+                           ,CFT.testMergePoolCf
+                           ,CFT.combineTest
                            ,BT.pricingTests
                            ,BT.bndUtilTest
                            ,LT.curveTests

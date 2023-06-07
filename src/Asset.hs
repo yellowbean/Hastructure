@@ -18,7 +18,7 @@ import Text.Read (readMaybe)
 import Lib (Period(..),genDates
            ,Ts(..),periodRateFromAnnualRate,previousDate,toDate
            ,nextDate,getIntervalDays,zipWith9,mkTs,periodsBetween
-           ,mkRateTs)
+           ,mkRateTs,daysBetween)
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
@@ -38,6 +38,8 @@ import Data.Fixed
 import qualified InterestRate as IR
 import Util
 
+import AssetClass.AssetBase
+
 import Debug.Trace
 debug = flip trace
 
@@ -46,12 +48,24 @@ class Show a => Asset a where
   getCurrentBal :: a -> Balance
   getOriginBal :: a -> Balance
   getOriginRate :: a -> IRate
+  getOriginDate :: a -> Date
   isDefaulted :: a -> Bool
   getPaymentDates :: a -> Int -> [Date]
+  getRemainTerms :: a -> Int
   projCashflow :: a -> Date -> [A.AssumptionBuilder] -> CF.CashFlowFrame
   getBorrowerNum :: a -> Int
   splitWith :: a -> [Rate] -> [a]
-  {-# MINIMAL calcCashflow #-}
+  updateOriginDate :: a -> Date -> a
+  calcAlignDate :: a -> Date -> Date
+  calcAlignDate ast d = let 
+                          payDates = getPaymentDates ast 0
+                          remainTerms = getRemainTerms ast 
+                          benchDate = (reverse payDates)!!remainTerms
+                          offset = daysBetween benchDate d
+                        in 
+                          T.addDays offset $ getOriginDate ast
+
+ -- {-# MINIMAL calcCashflow #-}
 
 data IssuanceFields = IssuanceBalance
                     deriving (Show,Ord,Eq,Read,Generic)
@@ -219,6 +233,46 @@ priceAsset m _ (BalanceFactor currentFactor defaultedFactor) _
         True  -> mulBR cb defaultedFactor 
       where 
         cb =  getCurrentBal m
+
+-- adjustOriginDateByRemainTerms :: AssetUnion -> Date -> AssetUnion 
+-- adjustOriginDateByRemainTerms astu d 
+--  = case astu of
+--      (LO ast) ->  
+--        let 
+--          payDates = getPaymentDates ast 0
+--          remainTerms = getRemainTerms ast 
+--          benchDate = (reverse payDates)!!remainTerms
+--          offset = daysBetween benchDate d
+--          newOrignDate = T.addDays offset $ getOriginDate ast
+--        in 
+--          LO $ updateOriginDate ast newOrignDate
+--      (MO ast) -> 
+--        let
+--          payDates = getPaymentDates ast 0
+--          remainTerms = getRemainTerms ast 
+--          benchDate = (reverse payDates)!!remainTerms
+--          offset = daysBetween benchDate d
+--          newOrignDate = T.addDays offset $ getOriginDate ast
+--        in 
+--          MO $ updateOriginDate ast newOrignDate
+--      (IL ast) ->  
+--        let 
+--          payDates = getPaymentDates ast 0
+--          remainTerms = getRemainTerms ast 
+--          benchDate = (reverse payDates)!!remainTerms
+--          offset = daysBetween benchDate d
+--          newOrignDate = T.addDays offset $ getOriginDate ast
+--        in 
+--          IL $ updateOriginDate ast newOrignDate
+--      (LS ast) ->  
+--        let 
+--          payDates = getPaymentDates ast 0
+--          remainTerms = getRemainTerms ast 
+--          benchDate = (reverse payDates)!!remainTerms
+--          offset = daysBetween benchDate d
+--          newOrignDate = T.addDays offset $ getOriginDate ast
+--        in 
+--          LS $ updateOriginDate ast newOrignDate
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool [] = CF.CashFlowFrame []

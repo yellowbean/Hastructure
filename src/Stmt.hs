@@ -81,6 +81,7 @@ instance ToJSON TxnComment where
   toJSON SwapAccure = String $ T.pack $ "<Accure:>"
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
+  toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
 
 -- instance FromJSON TxnComment
 

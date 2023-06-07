@@ -2,13 +2,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-
 module AssetClass.Mortgage
   (projectMortgageFlow,projectScheduleFlow)
   where
 
 import qualified Data.Time as T
-import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
+import qualified Cashflow as CF 
 import qualified Assumptions as A
 import Asset as Ast
 import Types
@@ -68,7 +67,6 @@ projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rat
 
                _end_bal = _new_bal_after_ppy - _new_prin
                _survive_rate = ((1 - _def_rate) * (1 - _ppy_rate))  
-               --_temp = _survive_rate * (1 - (_new_prin % _new_bal_after_ppy))
                _temp = _survive_rate * (toRational (1 - _new_prin / _new_bal_after_ppy))
                _new_mbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
                tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default (head _current_rec) (head _current_loss) _rate _new_mbn
@@ -205,6 +203,19 @@ instance Ast.Asset Mortgage where
   isDefaulted (Mortgage _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (AdjustRateMortgage _ _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (Mortgage _ _ _ _ _ _) = False
+  
+  getOriginDate (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) = sd
+  getOriginDate (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) = sd
+
+  getRemainTerms (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) = ct
+  getRemainTerms (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) = ct
+
+  updateOriginDate (Mortgage (MortgageOriginalInfo ob or ot p sd _type) cb cr ct mbn st) nd 
+    = (Mortgage (MortgageOriginalInfo ob or ot p nd _type) cb cr ct mbn st) 
+  updateOriginDate (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd _type) arm cb cr ct mbn st) nd 
+    = (AdjustRateMortgage (MortgageOriginalInfo ob or ot p nd _type) arm cb cr ct mbn st)
+  
+  -- updateOriginDate2 (LO m) d = LO (updateOriginDate m) (calcAlignDate m)
 
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn Current) asOfDay assumps =
     let 
@@ -213,7 +224,7 @@ instance Ast.Asset Mortgage where
       CF.CashFlowFrame futureTxns
     where
       last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
-      cf_dates_length = length cf_dates -- `debug` ("Last Pay Date"++ show last_pay_date++"SD"++ show sd++"ot,ct"++show ot++","++show rt)
+      cf_dates_length = length cf_dates  -- `debug` ("Last Pay Date\n"++ show last_pay_date++"SD\n"++ show sd++"ot,ct\n"++show ot++","++show rt)
       rate_vector = case or of
                       IR.Fix r ->  replicate cf_dates_length r
                       IR.Floater idx sprd _orate p mfloor ->

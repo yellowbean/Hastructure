@@ -5,7 +5,8 @@
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
   ,LeaseStepUp(..),AccrualPeriod(..)
-  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..))
+  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..)
+  )
   where
 
 import Language.Haskell.TH
@@ -76,16 +77,13 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
           deriving (Show,Generic)
 
-
 -- Mortgage
 data MortgageInsurance = MortgageInsurance Rate
-
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow]
               deriving (Show,Generic)
-
 
 -- Base 
 data AssetUnion = MO Mortgage
@@ -93,7 +91,6 @@ data AssetUnion = MO Mortgage
                 | IL Installment
                 | LS Lease
                 deriving (Show, Generic)
-
 
 
 $(deriveJSON defaultOptions ''Status)

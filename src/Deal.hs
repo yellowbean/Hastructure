@@ -158,6 +158,7 @@ testPre d t p =
     IfRateCurve cmp s _ts -> (toCmp cmp) (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfBool s True -> queryDealBool t s
     IfBool s False -> not (queryDealBool t s)
+    If2 cmp s1 s2 -> (toCmp cmp) (queryDeal t (ps s1)) (queryDeal t (ps s2))
     -- IfIntCurve cmp s _ts -> (toCmp cmp) (queryDealInt t s d) (getValByDate _ts Inc d)
     IfDealStatus st -> status t == st
     Always b -> b
@@ -186,13 +187,6 @@ splitAssetUnion rs (ACM.LO m) = [ ACM.LO a | a <- P.splitWith m rs]
 splitAssetUnion rs (ACM.IL m) = [ ACM.IL a | a <- P.splitWith m rs]
 splitAssetUnion rs (ACM.LS m) = [ ACM.LS a | a <- P.splitWith m rs]
 
--- compressAssetUnion :: Balance -> ACM.AssetUnion -> ACM.AssetUnion
--- compressAssetUnion bal (ACM.MO m) = ACM.MO $ P.compressBal m bal
--- compressAssetUnion bal (ACM.LO m) = ACM.LO $ P.compressBal m bal
--- compressAssetUnion bal (ACM.IL m) = ACM.IL $ P.compressBal m bal
--- compressAssetUnion bal (ACM.LS m) = ACM.LS $ P.compressBal m bal
-
-
 buyRevolvingPool :: Date -> [Rate] -> RevolvingPool -> ([ACM.AssetUnion],RevolvingPool)
 buyRevolvingPool _ rs rp@(StaticAsset assets) 
   = let 
@@ -217,7 +211,12 @@ buyRevolvingPool d rs rp@(AssetCurve aus)
     in 
       (assetBought, rp)
 
-
+updateOriginDate2 :: Date -> ACM.AssetUnion -> ACM.AssetUnion
+updateOriginDate2 d (ACM.LO m) = ACM.LO $ (P.updateOriginDate m) (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.MO m) = ACM.MO $ (P.updateOriginDate m) (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.IL m) = ACM.IL $ (P.updateOriginDate m) (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.LS m) = ACM.LS $ (P.updateOriginDate m) (P.calcAlignDate m d)
+ 
 projAssetUnion :: ACM.AssetUnion -> Date -> [AP.AssumptionBuilder] -> CF.CashFlowFrame
 projAssetUnion (ACM.MO ast) d assumps = P.projCashflow ast d assumps
 projAssetUnion (ACM.LO ast) d assumps = P.projCashflow ast d assumps
@@ -232,23 +231,28 @@ performActionWrap d
                   (W.BuyAsset ml pricingMethod accName) 
    = (t { accounts = newAccMap }, newRc )
     where 
-      assets = lookupAssetAvailable assetForSale d
-                 
-      valuationOnAvailableAssets = sum [ priceAssetUnion ast d pricingMethod perfAssumps  | ast <- assets ]
-      availBal  = A.accBalance $ accsMap Map.! accName
-      purchaseAmt = min availBal valuationOnAvailableAssets
+      _assets = lookupAssetAvailable assetForSale d
+      assets = (updateOriginDate2 d) <$> _assets 
+                
+      valuationOnAvailableAssets = sum [ priceAssetUnion ast d pricingMethod perfAssumps  | ast <- assets ]  `debug` ("Revolving >> after shift "++ show assets)
+      availBal  = A.accBalance $ accsMap Map.! accName -- `debug` ("Av")
+      --TODO limit the amount of revolving buy
+      purchaseAmt = min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
       purchaseRatio = purchaseAmt / valuationOnAvailableAssets
       purchaseRatios = toRational <$> [purchaseRatio,1-purchaseRatio]
 
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale
-      
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
-      newBoughtPcf = [projAssetUnion ast d perfAssumps | ast <- assetBought ]
-      newPcf = P.aggPool $ [pcf]++newBoughtPcf
+      -- newBoughtPcf = (CF.shiftCfToStartDate d) <$> [ projAssetUnion ast d perfAssumps | ast <- assetBought ]
+      newBoughtPcf = [ projAssetUnion (updateOriginDate2 d ast) d perfAssumps | ast <- assetBought ]
+      newPcf = foldl CF.mergePoolCf pcf newBoughtPcf -- `debug` ("reolvoing cf"++show d++"\n"++show newBoughtPcf++"\n")
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (poolAfterBought,perfAssumps)}
+                 ,revolvingAssump = Just (poolAfterBought,perfAssumps)} -- `debug` ("new pool flow"++show newPcf)
 
+performActionWrap d (t, rc) (W.ActionWithPre p actions) 
+  | testPre d t p = foldl (performActionWrap d) (t,rc) actions
+  | otherwise = (t, rc)
 
 performActionWrap d (t,rc) a = (performAction d t a,rc)
 

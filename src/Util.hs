@@ -461,7 +461,6 @@ pv3 pvCurve pricingDate ds vs
     in 
       sum pvs
 
-
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
 

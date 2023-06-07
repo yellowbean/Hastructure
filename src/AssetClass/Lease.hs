@@ -194,6 +194,21 @@ instance Asset Lease where
     getPaymentDates l@(StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) _
         = genSerialDates dp sd ot 
 
+    getOriginDate (StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) = sd
+    getOriginDate (RegularLease (LeaseInfo sd ot dp _) _ rt _)  = sd
+    
+    getRemainTerms (StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) = rt
+    getRemainTerms (RegularLease (LeaseInfo sd ot dp _) _ rt _)  = rt
+    
+    updateOriginDate (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st) nd 
+      = (StepUpLease (LeaseInfo nd ot dp dr) lsu bal rt st)
+    updateOriginDate (RegularLease (LeaseInfo sd ot dp dr) bal rt st) nd 
+      = (RegularLease (LeaseInfo nd ot dp dr) bal rt st)
+    
+
+
+
+
     projCashflow l asOfDay assumps = 
         foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
       where 

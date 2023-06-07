@@ -114,6 +114,13 @@ instance Asset Loan where
 
   isDefaulted pl@(PersonalLoan _ _ _ _ (Defaulted _)) = True
   isDefaulted pl@(PersonalLoan _ _ _ _ _ ) = False
+ 
+  getOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = sd
+  
+  getRemainTerms (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = rt
+
+  updateOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) nd
+    = PersonalLoan (LoanOriginalInfo ob or ot p nd I_P) cb cr rt st 
 
   getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd _ ) _bal _rate _term _ )  extra
     = genDates sd p (ot+extra)
