@@ -4750,6 +4750,34 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ReserveAmount"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ChangeReserveBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/TriggerEffect"
                                 },
@@ -9898,7 +9926,7 @@
         }
     },
     "info": {
-        "version": "0.17.2",
+        "version": "0.18.0",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

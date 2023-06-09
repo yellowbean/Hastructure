@@ -17,7 +17,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,getTxnBetween,getTxnBetween2
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
-                ,shiftCfToStartDate
+                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow
                 ,TsRow(..),cfAt) where
 
 import Data.Time (Day)
@@ -105,6 +105,10 @@ cfAt (CashFlowFrame trs) idx =
         Nothing
     else
         Just (trs!!idx)
+
+cfInsertHead :: TsRow -> CashFlowFrame -> CashFlowFrame
+cfInsertHead tr (CashFlowFrame trs)
+  = CashFlowFrame $ tr:trs
 
 getSingleTsCashFlowFrame :: CashFlowFrame -> Date -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame trs) d
@@ -201,7 +205,7 @@ combineTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2)
 
 appendTs :: TsRow -> TsRow -> TsRow --early row on left, later row on right
 appendTs bn1@(BondFlow d1 b1 _ _ ) bn2@(BondFlow d2 b2 p2 i2 ) 
-  = updateFlowBalance (b1 - (mflowAmortAmount bn2)) bn2 `debug` ("b1 >> "++show b1++">>"++show (mflowAmortAmount bn2))
+  = updateFlowBalance (b1 - (mflowAmortAmount bn2)) bn2 -- `debug` ("b1 >> "++show b1++">>"++show (mflowAmortAmount bn2))
 appendTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1) bn2@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2)
   = updateFlowBalance (b1 - (mflowAmortAmount bn2)) bn2
 appendTs (MortgageFlow2 d1 b1 p1 i1 prep1 del1 def1 rec1 los1 rat1) bn2@(MortgageFlow2 _ b2 p2 i2 prep2 del2 def2 rec2 los2 rat2)
@@ -247,8 +251,8 @@ tsTotalCash (LoanFlow _ _ a b c _ e _ _) =  a + b + c + e
 tsTotalCash (LeaseFlow _ _ a) =  a
 
 tsDefaultBal :: TsRow -> Balance
-tsDefaultBal (CashFlow _ _) = 0
-tsDefaultBal (BondFlow _ _ _ _) = 0
+tsDefaultBal (CashFlow _ _) = error "not supported"
+tsDefaultBal (BondFlow _ _ _ _) = error "not supported"
 tsDefaultBal (MortgageFlow _ _ _ _ _ x _ _ _ _) = x
 tsDefaultBal (MortgageFlow2 _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
@@ -262,6 +266,15 @@ tsSetDate (MortgageFlow2 _ a b c d e f g h i) x = MortgageFlow2 x a b c d e f g 
 tsSetDate (MortgageFlow3 _ a b c d e f g h i j k) x = MortgageFlow3 x a b c d e f g h i j k
 tsSetDate (LoanFlow _ a b c d e f g h) x = LoanFlow x a b c d e f g h
 tsSetDate (LeaseFlow _ a b) x = LeaseFlow x a b
+
+tsSetBalance :: Balance -> TsRow -> TsRow
+tsSetBalance x (CashFlow _d a) = CashFlow _d x
+tsSetBalance x (BondFlow _d a b c) = BondFlow _d x b c
+tsSetBalance x (MortgageFlow _d a b c d e f g h i) = MortgageFlow _d x b c d e f g h i
+tsSetBalance x (MortgageFlow2 _d a b c d e f g h i) = MortgageFlow2 _d x b c d e f g h i
+tsSetBalance x (MortgageFlow3 _d a b c d e f g h i j k) = MortgageFlow3 _d x b c d e f g h i j k
+tsSetBalance x (LoanFlow _d a b c d e f g h) = LoanFlow _d x b c d e f g h
+tsSetBalance x (LeaseFlow _d a b) = LeaseFlow _d x b
 
 tsOffsetDate :: Integer -> TsRow -> TsRow
 tsOffsetDate x (CashFlow _d a) = CashFlow (T.addDays x _d) a
@@ -292,9 +305,9 @@ combine cf1@(CashFlowFrame rs1) cf2@(CashFlowFrame rs2)
   | otherwise = 
       let 
         (ts_patch,ts_keep) = splitByDate rs1 fdRs2 EqToRight
-        patch_bal = mflowBegBalance $ head rs2   `debug` ("rs2 -> \n"++ show rs2)
-        ts_patched = [ addFlowBalance patch_bal y | y <- ts_patch ]  `debug` ("patch bal \n "++ show patch_bal)
-        sorted_cff = L.sortOn getDate (ts_keep++rs2)   `debug` ("TS patched->\n"++ show ts_patched)
+        patch_bal = mflowBegBalance $ head rs2  --  `debug` ("rs2 -> \n"++ show rs2)
+        ts_patched = [ addFlowBalance patch_bal y | y <- ts_patch ] -- `debug` ("patch bal \n "++ show patch_bal)
+        sorted_cff = L.sortOn getDate (ts_keep++rs2) --  `debug` ("TS patched->\n"++ show ts_patched)
       in 
         CashFlowFrame $ ts_patched ++ (tail (reverse (foldl reduceTs [last ts_patched] sorted_cff)))   -- `debug` ("In sorted_cff"++ show sorted_cff)
   where 
@@ -350,21 +363,21 @@ mflowInterest (MortgageFlow _ _ _ x _ _ _ _ _ _) = x
 mflowInterest (MortgageFlow2 _ _ _ x _ _ _ _ _ _) = x
 mflowInterest (MortgageFlow3 _ _ _ x _ _ _ _ _ _ _ _) = x
 mflowInterest (LoanFlow _ _ _ x _ _ _ _ _) = x
-mflowInterest _  = -1.0
+mflowInterest _  = error "not supported"
 
 mflowPrepayment :: TsRow -> Balance
 mflowPrepayment (MortgageFlow _ _ _ _ x _ _ _ _ _) = x
 mflowPrepayment (MortgageFlow2 _ _ _ _ x _ _ _ _ _) = x
 mflowPrepayment (MortgageFlow3 _ _ _ _ x _ _ _ _ _ _ _) = x
 mflowPrepayment (LoanFlow _ _ _ _ x _ _ _ _) = x
-mflowPrepayment _  = -1.0
+mflowPrepayment _  = error "not supported"
 
 mflowDefault :: TsRow -> Balance
 mflowDefault (MortgageFlow _ _ _ _ _ x _ _ _ _) = x
 mflowDefault (MortgageFlow2 _ _ _ _ _ _ x _ _ _) = x
 mflowDefault (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
 mflowDefault (LoanFlow _ _ _ _ _ x _ _ _) = x
-mflowDefault _  = -1.0
+mflowDefault _  = error "not supported"
 
 mflowRecovery :: TsRow -> Balance
 mflowRecovery (MortgageFlow _ _ _ _ _ _ x _ _ _) = x
@@ -448,6 +461,18 @@ appendCashFlow :: CashFlowFrame -> [TsRow] -> CashFlowFrame
 appendCashFlow (CashFlowFrame _tsr) tsr 
   = CashFlowFrame $ _tsr ++ tsr
 
+emptyTsRow :: Date -> TsRow -> TsRow 
+emptyTsRow _d (MortgageFlow a x c d e f g i j k) = (MortgageFlow _d 0 0 0 0 0 0 0 0 Nothing)
+emptyTsRow _d (MortgageFlow2 a x c d e f g i j k) = (MortgageFlow2 _d 0 0 0 0 0 0 0 0 0)
+emptyTsRow _d (MortgageFlow3 a x c d e f g i j k l m) = (MortgageFlow3 _d 0 0 0 0 0 0 0 0 0 0 0)
+emptyTsRow _d (LoanFlow a x c d e f g i j) = (LoanFlow _d 0 0 0 0 0 0 0 0)
+emptyTsRow _d (LeaseFlow a x c ) = (LeaseFlow _d 0 0 )
+
+buildBegTsRow :: Date -> TsRow -> TsRow
+buildBegTsRow d tr 
+  = (tsSetBalance (mflowBalance tr + mflowAmortAmount tr)) (emptyTsRow d tr)
+
+
 combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combineCashFlow cf1 (CashFlowFrame txn) 
   = appendCashFlow cf1 txn
@@ -470,7 +495,7 @@ mergePoolCf cf1@(CashFlowFrame txns1) cf2@(CashFlowFrame txns2) -- first day of 
       = let 
           splitDate = firstDate cf2
           (CashFlowFrame txn0,cfToBeMerged) = splitCashFlowFrameByDate cf1 splitDate EqToRight
-          (CashFlowFrame txn1) = combine cfToBeMerged cf2  `debug` ("left"++show cfToBeMerged++">> right"++ show cf2)
+          (CashFlowFrame txn1) = combine cfToBeMerged cf2 -- `debug` ("left"++show cfToBeMerged++">> right"++ show cf2)
         in 
           CashFlowFrame (txn0++txn1) -- `debug` ("Txn1"++show txn1)
   where 

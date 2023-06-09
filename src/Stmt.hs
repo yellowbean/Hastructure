@@ -277,6 +277,7 @@ getFlow comment =
       SwapAccure  -> Noneflow
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow
+      PurchaseAsset -> Outflow
       TxnComments cmts -> 
         let 
           directionList = getFlow <$> cmts 

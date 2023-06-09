@@ -18,7 +18,7 @@ module Types
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
-  ,PricingMethod(..))
+  ,PricingMethod(..),sortActionOnDate)
   where
 
 import qualified Data.Text as T
@@ -173,6 +173,16 @@ instance TimeSeries ActionOnDate where
     getDate (ResetBondRate d _ ) = d 
     getDate (BuildReport sd ed) = ed
 
+sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
+sortActionOnDate a1 a2 
+  | d1 == d2 = case (a1,a2) of
+                 (BuildReport sd1 ed1 ,_) -> GT 
+                 (_ , BuildReport sd1 ed1) -> LT
+                 (_,_) -> EQ 
+  | otherwise = compare d1 d2
+  where 
+    d1 = getDate a1 
+    d2 = getDate a2 
 
 instance Ord ActionOnDate where
   compare a1 a2 = compare (getDate a1) (getDate a2)

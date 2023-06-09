@@ -11,6 +11,7 @@ import qualified Data.Text as T
 import Text.Read (readMaybe)
 import Lib
 import Types
+import Accounts (ReserveAmount)
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -22,6 +23,7 @@ import GHC.Generics
 data TriggerEffect = DealStatusTo DealStatus
                    | DoAccrueFee FeeNames
                    | AddTrigger Trigger 
+                   | ChangeReserveBalance String ReserveAmount
                    | TriggerEffects [TriggerEffect]
                    deriving (Show, Eq, Generic)
  
