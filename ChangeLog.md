@@ -1,9 +1,10 @@
 # Changelog for Hastructure
 
 
-## 0.17.3
-#### 2023-5-
-* NEW "Major" : expose revolving assumption ! 
+## 0.18.0
+#### 2023-6-8
+* NEW "Major" : expose revolving assumption !
+* NEW : `Pre` now support comparing with a `balance` type formula ,not limited to a balance number
 
 
 ## 0.17.2

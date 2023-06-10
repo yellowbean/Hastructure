@@ -285,13 +285,13 @@ performAction d t@TestDeal{accounts=accMap} (W.TransferBy limit an1 an2) =
     formulaAmount = case limit of 
                       W.DuePct r -> r * A.accBalance sourceAcc
                       W.DueCapAmt a -> min a (A.accBalance sourceAcc)
-                      W.DS ds -> queryDeal t ds
+                      W.DS ds -> queryDeal t (patchDateToStats d ds)
                       W.Formula W.ABCD -> max 
                                             ((queryDeal t CumulativePoolDefaultedBalance) + 
                                                (negate (queryTxnAmt targetAcc (Transfer an2 an1))) +
                                                (negate (queryTxnAmt sourceAcc (Transfer an1 an2))))
                                           0
-    transferAmt = min (max formulaAmount 0) (A.accBalance sourceAcc) -- `debug` ("already transfer amt"++show(queryStmtAmt (A.accStmt sourceAcc) ("To:"++an2++"|ABCD") ))
+    transferAmt = min (max formulaAmount 0) (A.accBalance sourceAcc) `debug` ("Formula amount"++show formulaAmount)
 
     accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
@@ -832,8 +832,9 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                if testCalls dRunWithTrigger1 d callOpts then 
                  let 
                     dealAfterCleanUp = foldl (performAction d) dRunWithTrigger1 cleanUpActions
+                    endingLogs = patchFinancialReports dealAfterCleanUp d newLogs
                  in  
-                    (prepareDeal dealAfterCleanUp, log) -- `debug` ("Called ! "++ show d)
+                    (prepareDeal dealAfterCleanUp, endingLogs) -- `debug` ("Called ! "++ show d)
                else
                  run2 dRunWithTrigger1 (runPoolFlow newRc) (Just ads) rates calls rAssump newLogs -- `debug` ("Not called "++ show d )
              Nothing ->
@@ -932,10 +933,22 @@ run2 t (CF.CashFlowFrame []) Nothing Nothing Nothing Nothing log
 
 run2 t (CF.CashFlowFrame []) _ _ _ _ log = (prepareDeal t,log) `debug` ("End with pool CF is []")
 
+
+patchFinancialReports :: P.Asset a => TestDeal a -> Date -> [ResultComponent] -> [ResultComponent]
+patchFinancialReports t d [] = []
+patchFinancialReports t d logs 
+  = case (find (\(FinancialReport _ _ _ _) -> True) (reverse logs)) of 
+      Nothing -> []
+      Just (FinancialReport sd ed bs cash) 
+        -> let
+             bsReport = buildBalanceSheet t d
+             cashReport = buildCashReport t ed d
+             newlog = FinancialReport ed d bsReport cashReport
+           in
+             logs++[newlog] 
+
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
-
-
 
 calcLiquidationAmount :: PricingMethod -> P.Pool a -> Date -> Amount
 calcLiquidationAmount alm pool d 
