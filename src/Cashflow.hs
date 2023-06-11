@@ -297,6 +297,7 @@ firstDate (CashFlowFrame rs) = getDate $ head rs
 
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame -- Left CF is earlier than Right CF
 combine cf1@(CashFlowFrame rs1) cf2@(CashFlowFrame rs2)
+  | ds1 == ds2 = CashFlowFrame $ (zipWith combineTs rs1 rs2)
   | fdRs1 == fdRs2 
     = combineCashFlow 
         (CashFlowFrame [combineTs (head rs1) (head rs2)])
@@ -313,6 +314,7 @@ combine cf1@(CashFlowFrame rs1) cf2@(CashFlowFrame rs2)
   where 
      firstDateOfCfs r =  getDate $ head r -- the first date of cashflow
      (fdRs1,fdRs2) = (firstDateOfCfs rs1,firstDateOfCfs rs2)
+     (ds1,ds2) = (getDate <$> rs1,getDate <$> rs2)
 
 tsDateLT :: Date -> TsRow  -> Bool
 tsDateLT td (CashFlow d _) = d < td
