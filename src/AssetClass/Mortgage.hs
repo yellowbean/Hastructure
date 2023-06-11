@@ -149,13 +149,13 @@ projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C")
 instance Ast.Asset Mortgage where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _mbn _) d =
       let 
-        (_,futureTxns) = splitByDate txns d EqToRight
+        (_,futureTxns) = splitByDate txns d EqToRight  -- 
       in 
-        CF.CashFlowFrame futureTxns
+        CF.CashFlowFrame futureTxns  -- `debug` ("Future txn"++show futureTxns)
     where
       orate = getOriginRate m
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
-      last_pay_date:cf_dates = lastN (1 + _term) $ sd:getPaymentDates m 0
+      last_pay_date:cf_dates = lastN (1 + _term) $ sd:getPaymentDates m 0 -- `debug` ("CF dates--->"++ show (sd:getPaymentDates m 0)++">> laastN"++show (1+_term))
       l = length cf_dates
       rate_used = case or of
                     IR.Fix _r -> replicate l _r

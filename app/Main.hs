@@ -84,7 +84,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.18.1"
+version1 = Version "0.18.3"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -199,7 +199,6 @@ instance ToSchema Threshold
 type RunResp = (DealType , Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput -> RunResp
--- wrapRun (MDeal d) mAssump mPricing = (MDeal d, Nothing , Nothing, Nothing)
 wrapRun (MDeal d) mAssump mPricing = let 
                     (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
                      in 
