@@ -330,7 +330,10 @@ data Pre = IfZero DealStats
          | IfIntCurve Cmp DealStats Ts
          | IfDate Cmp Date
          | IfBool DealStats Bool
+         -- compare deal 
          | If2 Cmp DealStats DealStats
+         | IfRate2 Cmp DealStats DealStats
+         | IfInt2 Cmp DealStats DealStatsß
          -- | IfRateCurve DealStats Cmp Ts
          | IfDealStatus DealStatus
          | Always Bool
