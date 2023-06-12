@@ -86,7 +86,8 @@ data Action = Transfer AccountName AccountName
             | SwapReceive AccountName CeName
             | SwapPay AccountName CeName
             | BuyAsset (Maybe Limit) PricingMethod AccountName
-            | ActionWithPre L.Pre [Action]
+            | ActionWithPre L.Pre [Action] 
+            | ActionWithPre2 L.Pre [Action] [Action]
             deriving (Show,Generic)
 
 type DistributionSeq = [Action]

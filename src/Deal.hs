@@ -261,9 +261,17 @@ performActionWrap d (t, rc) (W.ActionWithPre p actions)
   | testPre d t p = foldl (performActionWrap d) (t,rc) actions
   | otherwise = (t, rc)
 
+performActionWrap d (t, rc) (W.ActionWithPre2 p actionsTrue actionsFalse) 
+  | testPre d t p = foldl (performActionWrap d) (t,rc) actionsTrue
+  | otherwise = foldl (performActionWrap d) (t,rc) actionsFalse
+
 performActionWrap d (t,rc) a = (performAction d t a,rc) -- `debug` ("DEBUG: Action on "++ show a)
 
 performAction :: P.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
+performAction d t (W.ActionWithPre2 _pre actionsTrue actionsFalse)
+  | testPre d t _pre = foldl (performAction d) t actionsTrue 
+  | otherwise  = foldl (performAction d) t actionsFalse 
+
 performAction d t (W.ActionWithPre _pre actions)
   | testPre d t _pre = foldl (performAction d) t actions 
   | otherwise  = t
