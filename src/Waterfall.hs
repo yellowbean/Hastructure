@@ -37,6 +37,7 @@ data ActionWhen = EndOfPoolCollection
                 | DistributionDay DealStatus
                 | CleanUp
                 | OnClosingDay
+                | DefaultDistribution
                 deriving (Show,Ord,Eq,Generic,Read)
 
 instance ToJSONKey ActionWhen where
@@ -75,7 +76,7 @@ data Action = Transfer AccountName AccountName
             | PayResidual (Maybe Limit) AccountName BondName
             | TransferReserve Satisfy AccountName AccountName 
             | LiquidatePool PricingMethod AccountName
-            | RunTrigger (Maybe [Trigger])
+            -- | RunTrigger (Maybe [Trigger])
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
             | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
             | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
@@ -88,6 +89,7 @@ data Action = Transfer AccountName AccountName
             | BuyAsset (Maybe Limit) PricingMethod AccountName
             | ActionWithPre L.Pre [Action] 
             | ActionWithPre2 L.Pre [Action] [Action]
+            | RunTrigger DealCycle Int
             deriving (Show,Generic)
 
 type DistributionSeq = [Action]

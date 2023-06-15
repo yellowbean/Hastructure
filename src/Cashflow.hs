@@ -53,12 +53,6 @@ type Prepayments = [Prepayment]
 type Recoveries = [Recovery]
 type Rates = [Rate]
 
-data ColType = ColNum Centi 
-             | ColDate Date 
-             | ColBal Centi 
-             | ColRate IRate
-             deriving (Show)
-
 data TsRow = CashFlow Date Amount
            | BondFlow Date Balance Principal Interest
            | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe BorrowerNum)
@@ -165,7 +159,7 @@ getTxnBetween2 (CashFlowFrame txn) rt sd ed
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> getDate x <= d) $ reverse txn
 
-addTs :: TsRow -> TsRow -> TsRow     -- left is ealier ,right is later
+addTs :: TsRow -> TsRow -> TsRow     -- left is ealier ,right is later,combine TS from same cashflow
 addTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = CashFlow d1 (a1 + a2)
 addTs (BondFlow d1 b1 p1 i1 ) tr@(BondFlow _ b2 p2 i2 ) = BondFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2)
 addTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1) tr@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2)
@@ -184,7 +178,7 @@ addTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1) tr@(LoanFlow _ b2 p2 i2 p
 addTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
   = (LeaseFlow d1 (b1 - mflowAmortAmount tr) (r1 + r2) )
 
-combineTs :: TsRow -> TsRow -> TsRow     -- left is ealier ,right is later
+combineTs :: TsRow -> TsRow -> TsRow     -- left is ealier ,right is later,combine TS from two cashflow
 combineTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = CashFlow d1 (a1 + a2)
 combineTs (BondFlow d1 b1 p1 i1 ) tr@(BondFlow _ b2 p2 i2 ) = BondFlow d1 (b1 + b2) (p1 + p2) (i1 + i2)
 combineTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1) tr@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2)
@@ -203,7 +197,7 @@ combineTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1) tr@(LoanFlow _ b2 p2 
 combineTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
   = (LeaseFlow d1 (b1 + b2) (r1 + r2) )
 
-appendTs :: TsRow -> TsRow -> TsRow --early row on left, later row on right
+appendTs :: TsRow -> TsRow -> TsRow --early row on left, later row on right, update right TS balance
 appendTs bn1@(BondFlow d1 b1 _ _ ) bn2@(BondFlow d2 b2 p2 i2 ) 
   = updateFlowBalance (b1 - (mflowAmortAmount bn2)) bn2 -- `debug` ("b1 >> "++show b1++">>"++show (mflowAmortAmount bn2))
 appendTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1) bn2@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2)

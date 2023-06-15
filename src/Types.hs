@@ -214,6 +214,7 @@ data DealCycle = EndCollection
                | EndCollectionWF
                | BeginDistributionWF
                | EndDistributionWF
+               | InWF
                deriving (Show, Ord, Eq, Read, Generic)
 
 instance ToJSONKey DealCycle where
