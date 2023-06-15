@@ -146,7 +146,7 @@ instance DealDates DateDesp where
 testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Bool
 testPre d t p =
   case p of
-    Types.All pds -> all (testPre d t) pds
+    Types.All pds -> all (testPre d t) pds 
     Types.Any pds -> any (testPre d t) pds 
     IfZero s -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
     
@@ -162,7 +162,7 @@ testPre d t p =
     IfRate2 cmp s1 s2 -> (toCmp cmp) (queryDealRate t (ps s1)) (queryDealRate t (ps s2))
     IfInt2 cmp s1 s2 -> (toCmp cmp) (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
     -- IfIntCurve cmp s _ts -> (toCmp cmp) (queryDealInt t s d) (getValByDate _ts Inc d)
-    IfDealStatus st -> status t == st
+    IfDealStatus st -> status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
     Always b -> b
     where 
       toCmp x = case x of 
@@ -611,7 +611,13 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapP
         newRtSwap = Map.adjust (CE.payoutIRS d amtToPay) sName rtSwap
         newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
 
--- BuyAsset (Maybe Limit) PricingMethod AccountName
+performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc idx)
+  = t { triggers = Just (Map.insert loc newTrgLst trgM) }
+    where 
+      trg = (trgM Map.! loc) !! idx
+      newTrg = updateTrigger t d trg
+      newTrgLst = replace (trgM Map.! loc) idx newTrg
+      
 
 getItemBalance :: BookItem -> Balance
 getItemBalance (Item _ bal) = bal
@@ -760,9 +766,13 @@ queryTrigger t@TestDeal{ triggers = trgs } wt
 
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
 testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
-  | not cure  && st = True 
-  | otherwise = testPre d t cond
+  | not cure && st = True 
+  | otherwise = testPre d t cond -- `debug` ("Testing Pre"++show d++">>>"++ show cond++">>result"++ show (testPre d t cond))
 
+updateTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Trigger
+updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
+  | testTrigger t d trigger = trigger {trgStatus = True}  
+  | otherwise = trigger
 
 testTriggers :: P.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
 testTriggers t d [] = False
@@ -771,7 +781,7 @@ testTriggers t d triggers = any (testTrigger t d) triggers
 runEffects :: P.Asset a => TestDeal a -> Date -> TriggerEffect -> TestDeal a 
 runEffects t@TestDeal{accounts = accMap} d te 
   = case te of 
-      DealStatusTo _ds -> t {status=_ds} -- `debug` ("changing status to "++show _ds)
+      DealStatusTo _ds -> t {status=_ds}  `debug` ("changing status to "++show _ds++"on date"++ show d)
       DoAccrueFee fns -> 
         let 
           fset = S.fromList fns
@@ -813,7 +823,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
 type RevolvingAssumption = (RevolvingPool , [AP.AssumptionBuilder])
 
 run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe RevolvingAssumption -> [ResultComponent] -> (TestDeal a,[ResultComponent])
-run2 t@TestDeal{status=Ended} pcf _ _ _ _ log  = (prepareDeal t,log) `debug` "Deal Ended"
+run2 t@TestDeal{status=Ended} pcf ads _ _ _ log  = (prepareDeal t,log) `debug` ("Deal Ended"++ show ads)
 run2 t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
 run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad:ads)) rates calls rAssump log
   | (CF.sizeCashFlowFrame poolFlow == 0) && (queryDeal t  AllAccBalance == 0) 
@@ -840,17 +850,20 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
              Just callOpts ->
                if testCalls dRunWithTrigger1 d callOpts then 
                  let 
-                    dealAfterCleanUp = foldl (performAction d) dRunWithTrigger1 cleanUpActions
+                    dealAfterCleanUp = foldl (performAction d) dRunWithTrigger1 cleanUpActions 
                     endingLogs = patchFinancialReports dealAfterCleanUp d newLogs
                  in  
                     (prepareDeal dealAfterCleanUp, endingLogs) -- `debug` ("Called ! "++ show d)
                else
-                 run2 dRunWithTrigger1 (runPoolFlow newRc) (Just ads) rates calls rAssump newLogs -- `debug` ("Not called "++ show d )
+                 run2 dRunWithTrigger1 (runPoolFlow newRc) (Just ads) rates calls rAssump newLogs -- `debug` ("status in run waterfall"++show (status dRunWithTrigger1))
              Nothing ->
                run2 dRunWithTrigger1 (runPoolFlow newRc) (Just ads) rates Nothing rAssump newLogs  -- `debug` ("Run waterfall "++ show d) -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
            where
                 (dRunWithTrigger0,newLogs0) = runTriggers t d BeginDistributionWF
-                waterfallToExe = Map.findWithDefault [] (W.DistributionDay (status t)) (waterfall t)
+                waterfallToExe = Map.findWithDefault 
+                                   (Map.findWithDefault [] (W.DistributionDay (status t)) (waterfall t))
+                                   W.DefaultDistribution 
+                                   (waterfall t)
                 runContext = RunContext poolFlow rAssump 
                 (dAfterWaterfall,newRc) = foldl (performActionWrap d) (dRunWithTrigger0,runContext) waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
                 (dRunWithTrigger1,newLogs1) = runTriggers dAfterWaterfall d EndDistributionWF  
@@ -1024,7 +1037,7 @@ runDeal t _ assumps bpi =
     (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  -- `debug` ("Run Deal"++show(name t) ++" Actions# >> "++ show (length ads)++"\n last log"++ show logs)
   where
     (ads,pcf,rcurves,calls,revolvingAssump) = getInits t assumps -- `debug` ("runDeal init line") 
-    (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls revolvingAssump [] -- `debug` ("run2 rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
+    (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls revolvingAssump [] `debug` ("start status"++show (status t) )-- `debug` ("run2 rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
     bndPricing = case bpi of
                    Nothing -> Nothing    -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
@@ -1123,14 +1136,10 @@ populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollec
       pa = [ PoolCollection _d "" | _d <- futureCollectDates]
 
 calcDealStageDate :: DateDesp -> [(Date,DealStatus)]
-calcDealStageDate (PreClosingDates _ closing Nothing endDate _ _) 
-  = [(closing,Amortizing),(endDate,Ended)]
-calcDealStageDate (PreClosingDates _ closing (Just revolvingEndDate) endDate _ _) 
-  = [(closing,Revolving),(revolvingEndDate,Amortizing),(endDate,Ended)]
-calcDealStageDate (CurrentDates _ Nothing endDate _ _) 
-  = [(endDate,Ended)]
-calcDealStageDate (CurrentDates _ (Just revolvingEndDate) endDate _ _) 
-  = [(revolvingEndDate,Amortizing),(endDate,Ended)]
+calcDealStageDate (PreClosingDates _ closing Nothing endDate _ _) = [(endDate,Ended)]
+calcDealStageDate (PreClosingDates _ closing (Just revolvingEndDate) endDate _ _) = [(endDate,Ended)]
+calcDealStageDate (CurrentDates _ Nothing endDate _ _) = [(endDate,Ended)]
+calcDealStageDate (CurrentDates _ (Just revolvingEndDate) endDate _ _) = [(endDate,Ended)]
 calcDealStageDate _ = []
 
 
