@@ -3055,73 +3055,6 @@
                             "tag",
                             "contents"
                         ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Pre"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/Action"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/Action"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "ActionWithPre2"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealCycle"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "RunTrigger"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
                     }
                 ],
                 "type": "object"
@@ -10035,7 +9968,7 @@
         }
     },
     "info": {
-        "version": "0.18.3",
+        "version": "0.18.2",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
