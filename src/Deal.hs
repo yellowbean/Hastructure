@@ -160,7 +160,7 @@ testPre d t p =
     IfBool s False -> not (queryDealBool t s)
     If2 cmp s1 s2 -> (toCmp cmp) (queryDeal t (ps s1)) (queryDeal t (ps s2))
     IfRate2 cmp s1 s2 -> (toCmp cmp) (queryDealRate t (ps s1)) (queryDealRate t (ps s2))
-    IfInt2 cmp s1 s2 -> (toCmp cmp) (queryDealInt t (ps s1)) (queryDealInt t (ps s2))
+    IfInt2 cmp s1 s2 -> (toCmp cmp) (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
     -- IfIntCurve cmp s _ts -> (toCmp cmp) (queryDealInt t s d) (getValByDate _ts Inc d)
     IfDealStatus st -> status t == st
     Always b -> b
