@@ -212,4 +212,8 @@ instance Asset Installment where
     = CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]
       where 
         cr = getOriginRate inst
+        
+  splitWith (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) rs
+    = [ Installment (LoanOriginalInfo (mulBR ob ratio) or ot p sd _type) (mulBR cb ratio) rt st | ratio <- rs ]
+
 
