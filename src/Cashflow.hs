@@ -7,14 +7,14 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental
                 ,mflowDefault,mflowLoss,mflowDate
-                ,getSingleTsCashFlowFrame,removeTsCashFlowFrameByDate,getDatesCashFlowFrame
+                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
                 ,mflowBorrowerNum
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
                 ,tsTotalCash -- ,PersonalLoanFlow
                 ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
-                ,getTxnBetween,getTxnBetween2
+                ,getTxnBetween2
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow
@@ -81,17 +81,7 @@ getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
 getTsCashFlowFrame (CashFlowFrame ts) = ts
 
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
-getDatesCashFlowFrame cff =  map getDate $ getTsCashFlowFrame cff
-
-removeTsCashFlowFrameByDate :: CashFlowFrame -> Date -> Maybe CashFlowFrame
-removeTsCashFlowFrameByDate (CashFlowFrame trs) d =
-  let
-    r = filter (\x -> getDate x /= d) trs
-  in
-    if null r then
-      Nothing
-    else
-      Just (CashFlowFrame r)
+getDatesCashFlowFrame (CashFlowFrame ts) = getDate <$> ts
 
 cfAt :: CashFlowFrame -> Int -> Maybe TsRow
 cfAt (CashFlowFrame trs) idx = 
@@ -144,10 +134,6 @@ getTxnAsOf (CashFlowFrame txn) d = filter (\x -> getDate x < d) txn
 
 getTxnAfter :: CashFlowFrame -> Date -> [TsRow]
 getTxnAfter (CashFlowFrame txn) d = filter (\x -> getDate x >= d) txn
-
-getTxnBetween :: CashFlowFrame -> Date -> Date -> [TsRow]
-getTxnBetween (CashFlowFrame txn) sd ed
-  =  filter (\x -> ((getDate x) >= sd) && ((getDate x) < ed)) txn
 
 getTxnBetween2 :: CashFlowFrame -> RangeType -> Date -> Date -> [TsRow]
 getTxnBetween2 (CashFlowFrame txn) rt sd ed

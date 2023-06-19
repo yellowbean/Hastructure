@@ -161,7 +161,6 @@ testPre d t p =
     If2 cmp s1 s2 -> (toCmp cmp) (queryDeal t (ps s1)) (queryDeal t (ps s2))
     IfRate2 cmp s1 s2 -> (toCmp cmp) (queryDealRate t (ps s1)) (queryDealRate t (ps s2))
     IfInt2 cmp s1 s2 -> (toCmp cmp) (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
-    -- IfIntCurve cmp s _ts -> (toCmp cmp) (queryDealInt t s d) (getValByDate _ts Inc d)
     IfDealStatus st -> status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
     Always b -> b
     where 
@@ -237,8 +236,13 @@ performActionWrap d
       assets = (updateOriginDate2 d) <$> _assets 
                 
       valuationOnAvailableAssets = sum [ priceAssetUnion ast d pricingMethod perfAssumps  | ast <- assets ]  -- `debug` ("Revolving >> after shift "++ show assets)
-      availBal  = A.accBalance $ accsMap Map.! accName -- `debug` ("Av")
-      --TODO limit the amount of revolving buy
+      accBal = A.accBalance $ accsMap Map.! accName -- `debug` ("Av")
+      limitAmt = case ml of 
+                   Just (W.DS ds) -> queryDeal t (patchDateToStats d ds)
+                   Just (W.DueCapAmt amt) -> amt
+                   Nothing -> accBal
+
+      availBal = min limitAmt accBal
       purchaseAmt = case assetForSale of 
                     (StaticAsset _) -> min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
                     ConstantAsset _ -> availBal 
@@ -822,6 +826,27 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
   
 type RevolvingAssumption = (RevolvingPool , [AP.AssumptionBuilder])
 
+-- newtype RunContext a = [TestDeal a, CF.CashFlowFrame , [ActionOnDate] , [RateAssumption] , [C.CallOption] , Maybe RevolvingAssumption]
+-- 
+-- runner :: P.Asset a => RunContext a -> ([ResultComponent],RunContext a)
+-- 
+-- runState :: State [ResultComponent] RunContext
+-- runState = State runState
+-- 
+-- run3 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> [ActionOnDate] -> [RateAssumption] -> [C.CallOption] -> Maybe RevolvingAssumption -> (TestDeal a,[ResultComponent])
+-- run3 t@TestDeal{status=Ended} pcf ads rateAssumps calls mRAssumps = (prepareDeal t,[])
+-- run3 t pcf [] rateAssumps calls mRAssumps = (prepareDeal t,[])
+-- run3 t pcf ads rateAssumps calls mRAssumps = (t,[0])
+-- 
+-- runWithLog :: P.Asset a => (TestDeal a,[ResultComponent]) -> (TestDeal a -> (TestDeal a,[ResultComponent])) -> (TestDeal a,[ResultComponent])
+-- runWithLog (t,logs) runner = 
+--   let 
+--     (t',newLogs) = runner t
+--   in 
+--     (t',logs ++ newLogs)
+-- 
+-- runWithLog2 :: P.Asset a => TestDeal a -> Writer [ResultComponent] (TestDeal a)
+ 
 run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe RevolvingAssumption -> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run2 t@TestDeal{status=Ended} pcf ads _ _ _ log  = (prepareDeal t,log) `debug` ("Deal Ended"++ show ads)
 run2 t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
