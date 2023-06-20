@@ -8326,6 +8326,44 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AssetPrice"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "multipleOf": 1.0e-6,
                                 "type": "number"
                             },
@@ -8498,6 +8536,28 @@
                     }
                 ],
                 "type": "object"
+            },
+            "RunAssetReq": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "items": {
+                            "$ref": "#/components/schemas/AssetUnion"
+                        },
+                        "type": "array"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ApplyAssumptionType"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PricingMethod"
+                    }
+                ],
+                "maxItems": 4,
+                "type": "array",
+                "minItems": 4
             },
             "BondType": {
                 "oneOf": [
@@ -10032,10 +10092,48 @@
                     }
                 }
             }
+        },
+        "/runAsset": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RunAssetReq"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "400": {
+                        "description": "Invalid `body`"
+                    },
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/PriceResult"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "info": {
-        "version": "0.18.6",
+        "version": "0.18.8",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

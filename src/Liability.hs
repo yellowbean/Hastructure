@@ -120,20 +120,6 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt l
     new_due = duePrin - amt
     new_stmt = S.appendStmt stmt (S.BondTxn d new_bal 0 amt 0 amt (S.PayPrin [bn] ))
 
-type Valuation = Centi
-type PerFace = Micro
-type WAL = Centi
-type Duration = Micro
-type Convexity = Micro
-type Yield = Micro
-type AccruedInterest = Centi
-type IRR = Rational
-data YieldResult = Yield
-
-data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
-                 | ZSpread Spread 
-                 deriving (Show,Eq,Generic)
-
 pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc today d amt = 
    realToFrac $ (realToFrac amt) * (1 / factor) -- `debug` ("DF:"++show factor++" PV AMT"++show amt)
@@ -307,4 +293,3 @@ $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
-$(deriveJSON defaultOptions ''PriceResult)

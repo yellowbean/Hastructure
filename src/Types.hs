@@ -18,7 +18,7 @@ module Types
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
-  ,PricingMethod(..),sortActionOnDate)
+  ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR)
   where
 
 import qualified Data.Text as T
@@ -466,6 +466,21 @@ data PricingMethod = BalanceFactor Rate Rate -- [balance] by performing & defaul
                    | Custom Rate -- custom amount
                    deriving (Show,Generic)
 
+type Valuation = Centi
+type PerFace = Micro
+type WAL = Centi
+type Duration = Micro
+type Convexity = Micro
+type Yield = Micro
+type AccruedInterest = Centi
+type IRR = Rational
+data YieldResult = Yield
+
+data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
+                 | AssetPrice Valuation WAL Duration Convexity
+                 | ZSpread Spread 
+                 deriving (Show,Eq,Generic)
+
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
@@ -491,3 +506,4 @@ $(deriveJSON defaultOptions ''BalanceSheetReport)
 $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''Cmp)
 $(deriveJSON defaultOptions ''PricingMethod)
+$(deriveJSON defaultOptions ''PriceResult)

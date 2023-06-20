@@ -222,6 +222,14 @@ wrapRunPool (LPool p) assump = P.aggPool $ D.runPool2 p assump
 wrapRunPool (IPool p) assump = P.aggPool $ D.runPool2 p assump
 wrapRunPool (RPool p) assump = P.aggPool $ D.runPool2 p assump
 
+data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe PricingMethod)
+                   deriving(Show, Generic)
+instance ToSchema RunAssetReq
+
+wrapRunAsset :: RunAssetReq -> (CF.CashFlowFrame, Maybe PriceResult)
+wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mPricing) 
+  = (P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets ,Nothing)
+
 type ScenarioName = String
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
                 | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
@@ -234,16 +242,13 @@ data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType)
                 deriving(Show, Generic)
 
 instance ToSchema RunPoolReq
+
 $(deriveJSON defaultOptions ''RunDealReq)
 $(deriveJSON defaultOptions ''RunPoolReq)
-
-data RunAssetReq = SingleRunAssetReq AB.AssetUnion AP.AssumptionLists
-                 | SinglePricingAssetReq AB.AssetUnion AP.AssumptionLists PricingMethod
-                 deriving(Show, Generic)
-
+$(deriveJSON defaultOptions ''RunAssetReq)
 
 type EngineAPI = "version" :> Get '[JSON] Version
---             :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] CF.CashFlowFrame
+            :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] (CF.CashFlowFrame,Maybe PriceResult)
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] CF.CashFlowFrame
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName CF.CashFlowFrame)
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
@@ -259,7 +264,6 @@ engineAPI = Proxy
 type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 type API = SwaggerAPI :<|> EngineAPI
 
--- todo swagger 
 engineSwagger :: OpenApi
 engineSwagger = toOpenApi engineAPI 
   & info.title .~ "Hastructure API"
@@ -270,6 +274,7 @@ engineSwagger = toOpenApi engineAPI
 server2 :: Server API
 server2 = return engineSwagger 
       :<|> showVersion 
+      :<|> runAsset
       :<|> runPool
       :<|> runPoolScenarios
       :<|> runDeal
@@ -278,7 +283,7 @@ server2 = return engineSwagger
 --      :<|> error "not implemented"
         where 
           showVersion = return version1 
---          runAsset (SingleRunAssetReq ) = return 
+          runAsset req = return $ wrapRunAsset req
           runPool (SingleRunPoolReq pt passumption) = return $ wrapRunPool pt passumption
           runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) = return $ Map.map (\assump -> wrapRunPool pt (Just assump)) mAssumps
           runDeal (SingleRunReq dt assump pricing) = return $ wrapRun dt assump pricing

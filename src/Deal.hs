@@ -7,7 +7,8 @@
 module Deal (TestDeal(..),run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
             ,setFutureCF,populateDealDates
-            ,calcTargetAmount, updateLiqProvider, accrueLiqProvider) where
+            ,calcTargetAmount, updateLiqProvider, accrueLiqProvider
+            ,projAssetUnion) where
 
 import qualified Accounts as A
 import qualified Asset as P
