@@ -8342,11 +8342,15 @@
                                     {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
                                     }
                                 ],
-                                "maxItems": 4,
+                                "maxItems": 5,
                                 "type": "array",
-                                "minItems": 4
+                                "minItems": 5
                             },
                             "tag": {
                                 "type": "string",
@@ -10117,7 +10121,10 @@
                                             "$ref": "#/components/schemas/CashFlowFrame"
                                         },
                                         {
-                                            "$ref": "#/components/schemas/PriceResult"
+                                            "items": {
+                                                "$ref": "#/components/schemas/PriceResult"
+                                            },
+                                            "type": "array"
                                         }
                                     ],
                                     "maxItems": 2,

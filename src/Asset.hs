@@ -218,21 +218,25 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
     in 
       mulBR recoveryAmt <$> recoveryTiming
 
-priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssumptionLists -> Balance
+priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssumptionLists -> PriceResult
 priceAsset m d (PVCurve curve) assumps 
   = let 
       CF.CashFlowFrame txns = projCashflow m d assumps
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
+      pv = pv3 curve d ds amts
     in 
-      pv3 curve d ds amts
+      AssetPrice pv (-1) (-1) (-1) (-1)
 
 priceAsset m _ (BalanceFactor currentFactor defaultedFactor) _ 
-    = case isDefaulted m of 
-        False -> mulBR cb currentFactor 
-        True  -> mulBR cb defaultedFactor 
-      where 
+    = 
+      let 
         cb =  getCurrentBal m
+        val = case isDefaulted m of 
+                False -> mulBR cb currentFactor 
+                True  -> mulBR cb defaultedFactor 
+      in 
+        AssetPrice val (-1) (-1) (-1) (-1) 
 
 -- adjustOriginDateByRemainTerms :: AssetUnion -> Date -> AssetUnion 
 -- adjustOriginDateByRemainTerms astu d 

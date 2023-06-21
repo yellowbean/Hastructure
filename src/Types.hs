@@ -477,7 +477,7 @@ type IRR = Rational
 data YieldResult = Yield
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
-                 | AssetPrice Valuation WAL Duration Convexity
+                 | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | ZSpread Spread 
                  deriving (Show,Eq,Generic)
 

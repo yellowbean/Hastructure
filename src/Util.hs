@@ -9,6 +9,7 @@ module Util
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
+    ,getPriceValue
     )
     where
 import qualified Data.Time as T
@@ -524,3 +525,5 @@ monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
 -- daysAfter :: Date -> Integer -> Date 
 -- daysAfter d n = T.addGregorianDurationRollOver (T.CalendarDiffDays 0 n) d
 
+getPriceValue :: PriceResult -> Balance
+getPriceValue (AssetPrice v _ _ _ _ ) = v

@@ -226,9 +226,15 @@ data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Mayb
                    deriving(Show, Generic)
 instance ToSchema RunAssetReq
 
-wrapRunAsset :: RunAssetReq -> (CF.CashFlowFrame, Maybe PriceResult)
-wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mPricing) 
-  = (P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets ,Nothing)
+wrapRunAsset :: RunAssetReq -> (CF.CashFlowFrame, Maybe [PriceResult])
+wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) Nothing) 
+  = (P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets, Nothing)
+wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) (Just pm)) 
+  = let 
+      assetCf = P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets 
+      pricingResult = (\a -> D.priceAssetUnion a d pm assumps) <$> assets
+    in 
+      (assetCf, Just pricingResult)
 
 type ScenarioName = String
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
@@ -248,7 +254,7 @@ $(deriveJSON defaultOptions ''RunPoolReq)
 $(deriveJSON defaultOptions ''RunAssetReq)
 
 type EngineAPI = "version" :> Get '[JSON] Version
-            :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] (CF.CashFlowFrame,Maybe PriceResult)
+            :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] (CF.CashFlowFrame,Maybe [PriceResult])
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] CF.CashFlowFrame
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName CF.CashFlowFrame)
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp

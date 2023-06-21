@@ -8,7 +8,7 @@ module Deal (TestDeal(..),run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
             ,setFutureCF,populateDealDates
             ,calcTargetAmount, updateLiqProvider, accrueLiqProvider
-            ,projAssetUnion) where
+            ,projAssetUnion,priceAssetUnion) where
 
 import qualified Accounts as A
 import qualified Asset as P
@@ -177,7 +177,7 @@ data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
                   ,revolvingAssump:: Maybe (RevolvingPool ,[AP.AssumptionBuilder]) }
 
-priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> [AP.AssumptionBuilder] -> Balance
+priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> [AP.AssumptionBuilder] -> PriceResult
 priceAssetUnion (ACM.MO m) d pm aps = P.priceAsset m d pm aps 
 priceAssetUnion (ACM.LO m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.IL m) d pm aps = P.priceAsset m d pm aps
@@ -236,7 +236,7 @@ performActionWrap d
       _assets = lookupAssetAvailable assetForSale d
       assets = (updateOriginDate2 d) <$> _assets 
                 
-      valuationOnAvailableAssets = sum [ priceAssetUnion ast d pricingMethod perfAssumps  | ast <- assets ]  -- `debug` ("Revolving >> after shift "++ show assets)
+      valuationOnAvailableAssets = sum [ getPriceValue (priceAssetUnion ast d pricingMethod perfAssumps)  | ast <- assets ]  -- `debug` ("Revolving >> after shift "++ show assets)
       accBal = A.accBalance $ accsMap Map.! accName -- `debug` ("Av")
       limitAmt = case ml of 
                    Just (W.DS ds) -> queryDeal t (patchDateToStats d ds)
