@@ -303,6 +303,8 @@ data DealStats =  CurrentBondBalance
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatusAt DealCycle Int
+               | PoolWaRate
+               | BondRate String
                | Factor DealStats Rational
                | Max DealStats DealStats
                | Min DealStats DealStats
@@ -310,6 +312,7 @@ data DealStats =  CurrentBondBalance
                | Substract [DealStats]
                | Divide DealStats DealStats
                | Constant Rational
+               | FloorAndCap DealStats DealStats DealStats
                | CustomData String Date
                deriving (Show,Eq,Ord,Read,Generic)
 

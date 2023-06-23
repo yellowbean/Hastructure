@@ -26,8 +26,10 @@ import Util
 import Debug.Trace
 debug = flip trace
 
-data FeeType = AnnualRateFee DealStats Rate
-             | PctFee DealStats Rate
+type FormulaRate = DealStats
+
+data FeeType = AnnualRateFee DealStats FormulaRate
+             | PctFee DealStats FormulaRate
              | FixFee Balance
              | RecurFee DatePattern Balance
              | NumFee DatePattern DealStats Amount

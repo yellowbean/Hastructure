@@ -6026,6 +6026,38 @@
                     {
                         "type": "object",
                         "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PoolWaRate"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BondRate"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
                             "contents": {
                                 "items": [
                                     {
@@ -6189,6 +6221,37 @@
                                 "type": "string",
                                 "enum": [
                                     "Constant"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FloorAndCap"
                                 ]
                             }
                         },
@@ -6814,8 +6877,7 @@
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "format": "double",
-                                        "type": "number"
+                                        "$ref": "#/components/schemas/DealStats"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -6843,8 +6905,7 @@
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "format": "double",
-                                        "type": "number"
+                                        "$ref": "#/components/schemas/DealStats"
                                     }
                                 ],
                                 "maxItems": 2,

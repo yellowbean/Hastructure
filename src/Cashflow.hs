@@ -5,7 +5,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf
                 ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
-                ,mflowRental
+                ,mflowRental,mflowRate
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
                 ,getEarlierTsCashFlowFrame
