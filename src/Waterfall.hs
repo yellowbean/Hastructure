@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,Satisfy(..),Limit(..),ActionWhen(..),FormulaType(..))
+  ,Satisfy(..),Limit(..),ActionWhen(..))
   where
 
 import GHC.Generics

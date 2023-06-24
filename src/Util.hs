@@ -452,7 +452,7 @@ pv2 discount_rate today d amt =
     mulBI amt $ 1/denominator -- `debug` ("days between->"++show d ++show today++">>>"++show distance )
   where
     denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
-    distance =  daysBetween today d 
+    distance = daysBetween today d 
 
 pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
 pv3 pvCurve pricingDate ds vs 

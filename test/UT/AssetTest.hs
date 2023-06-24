@@ -4,8 +4,6 @@ where
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Types
-
 import qualified Data.Time as T
 import qualified Lib as L
 import qualified Asset as P

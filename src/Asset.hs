@@ -24,6 +24,7 @@ import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
 
 import qualified Data.Map as Map
+import Analytics
 import Data.List
 import Data.Maybe
 import Data.Ratio
@@ -225,18 +226,24 @@ priceAsset m d (PVCurve curve) assumps
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
       pv = pv3 curve d ds amts
+      cb =  getCurrentBal m
+      wal = calcWAL ByYear cb d (zip amts ds)
     in 
-      AssetPrice pv (-1) (-1) (-1) (-1)
+      AssetPrice pv wal (-1) (-1) (-1)
 
-priceAsset m _ (BalanceFactor currentFactor defaultedFactor) _ 
+priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps
     = 
       let 
         cb =  getCurrentBal m
         val = case isDefaulted m of 
                 False -> mulBR cb currentFactor 
-                True  -> mulBR cb defaultedFactor 
+                True  -> mulBR cb defaultedFactor
+        CF.CashFlowFrame txns = projCashflow m d assumps
+        ds = getDate <$> txns 
+        amts = CF.tsTotalCash <$> txns 
+        wal = calcWAL ByYear cb d (zip amts ds) 
       in 
-        AssetPrice val (-1) (-1) (-1) (-1) 
+        AssetPrice val wal (-1) (-1) (-1) 
 
 -- adjustOriginDateByRemainTerms :: AssetUnion -> Date -> AssetUnion 
 -- adjustOriginDateByRemainTerms astu d 

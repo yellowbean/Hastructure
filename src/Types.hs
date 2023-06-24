@@ -9,9 +9,9 @@ module Types
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
   ,DateDesp(..),Period(..), Threshold(..)
-  ,RangeType(..),CutoffType(..),FormulaType(..),CustomDataType(..)
-  ,Balance,DealStats(..),Index(..)
-  ,DealCycle(..),Cmp(..)
+  ,RangeType(..),CutoffType(..),CustomDataType(..)
+  ,Balance,DealStats(..),Index(..),FormulaType(..)
+  ,DealCycle(..),Cmp(..),TimeHorizion(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
@@ -345,9 +345,6 @@ data Pre = IfZero DealStats
          | All [Pre]
          deriving (Show,Generic,Eq)
 
-data FormulaType = ABCD
-                 | Other
-                 deriving (Show,Ord,Eq,Generic)
 
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read,Generic)
@@ -484,6 +481,14 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | ZSpread Spread 
                  deriving (Show,Eq,Generic)
 
+data TimeHorizion = ByMonth
+                  | ByYear
+                  | ByQuarter
+
+data FormulaType = ABCD
+                 | Other
+                 deriving (Show,Ord,Eq,Generic)
+
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
@@ -500,7 +505,6 @@ $(deriveJSON defaultOptions ''Threshold)
 $(deriveJSON defaultOptions ''DateDesp)
 $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''PoolSource)
-$(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''CustomDataType)
 $(deriveJSON defaultOptions ''ResultComponent)
 $(deriveJSON defaultOptions ''CashflowReport)
@@ -509,4 +513,5 @@ $(deriveJSON defaultOptions ''BalanceSheetReport)
 $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''Cmp)
 $(deriveJSON defaultOptions ''PricingMethod)
+$(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''PriceResult)

@@ -301,7 +301,7 @@ performAction d t@TestDeal{accounts=accMap} (W.TransferBy limit an1 an2) =
                       W.DuePct r -> r * A.accBalance sourceAcc
                       W.DueCapAmt a -> min a (A.accBalance sourceAcc)
                       W.DS ds -> queryDeal t (patchDateToStats d ds)
-                      W.Formula W.ABCD -> max 
+                      W.Formula ABCD -> max 
                                             ((queryDeal t CumulativePoolDefaultedBalance) + 
                                                (negate (queryTxnAmt targetAcc (Transfer an2 an1))) +
                                                (negate (queryTxnAmt sourceAcc (Transfer an1 an2))))
