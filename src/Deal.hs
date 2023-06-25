@@ -1270,7 +1270,7 @@ getInits t mAssumps
                        Nothing ->  _actionDates   -- `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ runPool2 (pool t) mAssumps -- `debug` ("agg pool flow")
-    poolCfTs = filter (\txn -> CF.getDate txn >= startDate) $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf)
+    poolCfTs = filter (\txn -> CF.getDate txn >= startDate) $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (getDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
     rateCurves = buildRateCurves [] dealAssumps  
     revolvingCurves = getRevolvingCurve dealAssumps -- `debug` ("Getting revolving Curves")
@@ -1719,8 +1719,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just 
                 dc = case bi of 
                        L.Floater _ _ _ _dc _ _ -> _dc 
                        L.Fix _ _dc -> _dc 
-                     
-                new_due_int = calcInt (bond_bal+int_due) lastIntPayDay calc_date bond_rate DC_ACT_365F -- `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
+                new_due_int = calcInt (bond_bal+int_due) lastIntPayDay calc_date bond_rate dc -- `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
 
 
 calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond

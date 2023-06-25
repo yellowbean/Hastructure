@@ -27,6 +27,7 @@ source-repository head
 library
   exposed-modules:
       Accounts
+      Analytics
       Asset
       AssetClass.AssetBase
       AssetClass.Installment
@@ -125,6 +126,7 @@ test-suite Hastructure-test
   other-modules:
       Performance.Main
       UT.AccountTest
+      UT.AnalyticsTest
       UT.AssetTest
       UT.BondTest
       UT.CashflowTest

@@ -6854,6 +6854,7 @@
                     "USTSY10Y",
                     "USTSY20Y",
                     "USTSY30Y",
+                    "USCMT1Y",
                     "PRIME",
                     "COFI",
                     "SOFR1M",
@@ -10201,7 +10202,7 @@
         }
     },
     "info": {
-        "version": "0.18.8",
+        "version": "0.18.9",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

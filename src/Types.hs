@@ -88,6 +88,7 @@ data Index = LPR5Y
             | USTSY10Y
             | USTSY20Y
             | USTSY30Y
+            | USCMT1Y
             | PRIME
             | COFI
             | SOFR1M
