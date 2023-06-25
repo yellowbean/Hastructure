@@ -177,6 +177,8 @@ instance Ast.Asset Mortgage where
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows)  d = CF.CashFlowFrame flows
 
+  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d = projCashflow m d [] 
+  
   getCurrentBal (Mortgage _ _bal _ _ _ _) = _bal
   getCurrentBal (AdjustRateMortgage _ _ _bal _ _ _ _) = _bal
 
@@ -289,10 +291,10 @@ instance Ast.Asset Mortgage where
                           projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
                         in 
                           case A.getRateAssumption assumps idx of
-                            Just (A.InterestRateCurve idx curve) -> 
-                              projectFutureActualCurve curve 
-                            Just (A.InterestRateConstant idx v) ->
-                              projectFutureActualCurve (mkRateTs [(last_pay_date,v),(last cf_dates,v)])
+                            Just (A.InterestRateCurve idx curve) 
+                              -> projectFutureActualCurve curve -- `debug` ("Curve")
+                            Just (A.InterestRateConstant idx v) 
+                              -> projectFutureActualCurve (mkRateTs [(getOriginDate m,v),(last cf_dates,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
                             Nothing -> error $ "Failed to find index"++ show idx
 
       rate_vector = fromRational <$> getValByDates rate_curve Inc cf_dates -- `debug` ("RateCurve"++ show rate_curve)

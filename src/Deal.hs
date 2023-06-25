@@ -392,25 +392,30 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt an bnds) =
     acc = accMap Map.! an
     availBal = A.accBalance acc
     bndsToPay = map (bndMap Map.!) bnds
-    bndsWithDue = filter (\x -> L.bndDueInt x > 0) $ map (calcDueInt t d) bndsToPay
 
-    bndsDueAmts = map L.bndDueInt bndsWithDue
-    bndsNames = map L.bndName bndsWithDue
+    bndsDueAmts = map L.bndDueInt bndsToPay
+    bndsNames = map L.bndName bndsToPay
 
     actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("due mats"++ show bndsDueAmts ++">>"++ show availBal)
-    bndsAmountToBePaid = zip bndsWithDue $ prorataFactors bndsDueAmts availBal -- `debug` ("prorata"++ show (prorataFactors bndsDueAmts availBal) )
+    bndsAmountToBePaid = zip bndsToPay $ prorataFactors bndsDueAmts availBal -- `debug` ("prorata"++ show (prorataFactors bndsDueAmts availBal) )
 
     bndsPaid = map (\(l,amt) -> L.payInt d amt l) bndsAmountToBePaid
 
-    bndMapUpdated =   Map.union (Map.fromList $ zip bndsNames bndsPaid) bndMap
+    bndMapUpdated = Map.union (Map.fromList $ zip bndsNames bndsPaid) bndMap
     comment = PayInt bnds
     accMapAfterPay = Map.adjust 
                        (A.draw actualPaidOut d comment)
                        an
                        accMap
 
-performAction d t (W.PayTillYield an bnds) =
-    performAction d t (W.PayInt an bnds)
+performAction d t (W.AccrueAndPayInt an bnds) =
+  let 
+    dealWithBondDue = performAction d t (W.CalcBondInt bnds)
+  in 
+    performAction d dealWithBondDue (W.PayInt an bnds)
+
+
+performAction d t (W.PayTillYield an bnds) = performAction d t (W.AccrueAndPayInt an bnds)
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayResidual Nothing an bndName) =
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
@@ -1270,7 +1275,7 @@ getInits t mAssumps
                        Nothing ->  _actionDates   -- `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ runPool2 (pool t) mAssumps -- `debug` ("agg pool flow")
-    poolCfTs = filter (\txn -> CF.getDate txn >= startDate) $ CF.getTsCashFlowFrame poolCf  `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
+    poolCfTs = filter (\txn -> CF.getDate txn >= startDate) $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (getDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
     rateCurves = buildRateCurves [] dealAssumps  
     revolvingCurves = getRevolvingCurve dealAssumps -- `debug` ("Getting revolving Curves")
@@ -1713,13 +1718,10 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just 
   | calc_date == int_due_date = b
   | otherwise = b {L.bndDueInt = new_due_int+int_due,L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
               where
-                lastIntPayDay = case lstIntPay of
-                                  Just pd -> pd
-                                  Nothing -> getClosingDate (dates t)
                 dc = case bi of 
                        L.Floater _ _ _ _dc _ _ -> _dc 
                        L.Fix _ _dc -> _dc 
-                new_due_int = calcInt (bond_bal+int_due) lastIntPayDay calc_date bond_rate dc -- `debug` ("Bond bal"++show bond_bal++">>"++show lastIntPayDay++">>"++ show calc_date++">>"++show bond_rate)
+                new_due_int = calcInt (bond_bal+int_due) int_due_date calc_date bond_rate dc  -- `debug` ("Bond bal"++show bond_bal++">>"++show int_due_date++">>"++ show calc_date++">>"++show bond_rate)
 
 
 calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
