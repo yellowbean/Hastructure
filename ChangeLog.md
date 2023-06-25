@@ -1,11 +1,19 @@
 # Changelog for Hastructure
 
+## 0.19.0
+### 2023-7-1
+* BREAK : seperate `payInt` action and `accrueInt` action
+
+## 0.18.9
+### 2023-6-23
+* NEW : add `floorAndCap` formula to set upper or lower bound of formula value
+* NEW : add formula based fee rate for `pct` and `annual` type of fee
 
 ## 0.18.1
 #### 2023-6-21
 * NEW : Project cashflow for a list of asset, with performance assumption
 * ENHANCE : Add `limit` for revolving buy action
-* ENHANCE : Add `defautl` waterfall 
+* ENHANCE : Add `default` waterfall 
 * NEW : Add "IF-ELSE" in waterfall action
 
 ## 0.18.0
