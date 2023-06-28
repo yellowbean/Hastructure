@@ -124,7 +124,7 @@ td2 = TestDeal {
                  ,P.issuanceStat = Nothing}
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee ["General"] ["Service-Fee"])
-                                 ,(W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
+                                 ,(W.PayFeeBy (DuePct 0.5) ["General"] ["Service-Fee"])
                                  ,(W.TransferReserve W.Source  "Reserve" "General")
                                  ,(W.TransferReserve W.Target  "General" "Reserve")
                                  ,(W.PayInt "General" ["A"])
@@ -154,12 +154,13 @@ td2 = TestDeal {
                                                      ,Trg.trgStatus = False 
                                                      ,Trg.trgCurable = False }])]
  ,D.overrides = Nothing
+ ,D.ledgers = Nothing
 }
 
 waterfallTests =  testGroup "Waterfall Tests"
   [
     let
-     afterAction = D.performAction (toDate "20220301") td2 $ (W.PayPrinBy (W.RemainBalPct 0.05) "General" "B")
+     afterAction = D.performAction (toDate "20220301") td2 $ (W.PayPrinBy (RemainBalPct 0.05) "General" "B")
      afterBnd = (D.bonds afterAction) Map.! "B"
      afterBndA = (D.bonds afterAction) Map.! "A"
      afterAcc = (D.accounts afterAction) Map.! "General"
