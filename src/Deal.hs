@@ -11,6 +11,7 @@ module Deal (TestDeal(..),run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,projAssetUnion,priceAssetUnion) where
 
 import qualified Accounts as A
+import qualified Ledger as LD
 import qualified Asset as P
 import qualified Expense as F
 import qualified Liability as L
@@ -83,6 +84,7 @@ data TestDeal a = TestDeal {
   ,custom:: Maybe (Map.Map String CustomDataType)
   ,triggers :: Maybe (Map.Map DealCycle [Trigger])
   ,overrides :: Maybe [OverrideType]
+  ,ledgers :: Maybe (Map.Map String LD.Ledger)
 } deriving (Show,Generic)
 
 instance SPV (TestDeal a) where
@@ -239,8 +241,8 @@ performActionWrap d
       valuationOnAvailableAssets = sum [ getPriceValue (priceAssetUnion ast d pricingMethod perfAssumps)  | ast <- assets ]  -- `debug` ("Revolving >> after shift "++ show assets)
       accBal = A.accBalance $ accsMap Map.! accName -- `debug` ("Av")
       limitAmt = case ml of 
-                   Just (W.DS ds) -> queryDeal t (patchDateToStats d ds)
-                   Just (W.DueCapAmt amt) -> amt
+                   Just (DS ds) -> queryDeal t (patchDateToStats d ds)
+                   Just (DueCapAmt amt) -> amt
                    Nothing -> accBal
 
       availBal = min limitAmt accBal
@@ -292,20 +294,27 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer an1 an2) =
     accMapAfterDraw = Map.adjust (A.draw transferAmt d comment ) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d  comment) an2 accMapAfterDraw
 
+performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (DS ds) an) =
+  t {ledgers = Just newLedgerM}
+  where 
+    amt = queryDeal t ds
+    newLedgerM = Map.adjust (LD.entryLog amt d Empty) an ledgerM
+
+
 performAction d t@TestDeal{accounts=accMap} (W.TransferBy limit an1 an2) =
   t {accounts = accMapAfterDeposit}  -- `debug` ("ABCD "++show(d))
   where
     sourceAcc = accMap Map.! an1
     targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
     formulaAmount = case limit of 
-                      W.DuePct r -> r * A.accBalance sourceAcc
-                      W.DueCapAmt a -> min a (A.accBalance sourceAcc)
-                      W.DS ds -> queryDeal t (patchDateToStats d ds)
-                      W.Formula ABCD -> max 
-                                            ((queryDeal t CumulativePoolDefaultedBalance) + 
-                                               (negate (queryTxnAmt targetAcc (Transfer an2 an1))) +
-                                               (negate (queryTxnAmt sourceAcc (Transfer an1 an2))))
-                                          0
+                      DuePct r -> r * A.accBalance sourceAcc
+                      DueCapAmt a -> min a (A.accBalance sourceAcc)
+                      DS ds -> queryDeal t (patchDateToStats d ds)
+                      Formula ABCD -> max 
+                                          ((queryDeal t CumulativePoolDefaultedBalance) + 
+                                             (negate (queryTxnAmt targetAcc (Transfer an2 an1))) +
+                                             (negate (queryTxnAmt sourceAcc (Transfer an1 an2))))
+                                        0
     transferAmt = min (max formulaAmount 0) (A.accBalance sourceAcc) -- `debug` ("Formula amount"++show formulaAmount)
 
     accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
@@ -366,8 +375,8 @@ performAction d t@TestDeal{fees=feeMap} (W.PayFeeBy limit ans fns) =
     accMap = getAccountByName t (Just ans)
     feesToPay = map (feeMap Map.!) fns
     feeDueAmts = case limit of
-                  (W.DuePct pct) -> map (\x -> pct * (F.feeDue x) ) feesToPay
-                  (W.DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesToPay
+                  (DuePct pct) -> map (\x -> pct * (F.feeDue x) ) feesToPay
+                  (DueCapAmt amt) -> map (\x -> (min (F.feeDue x) amt)) feesToPay
 
     accNList = Map.toList accMap
     availBalLst = [ (n,A.accBalance x) | (n,x) <- accNList]
@@ -429,14 +438,14 @@ performAction d t@TestDeal{fees=feeMap,accounts=accMap} (W.PayFeeResidual limit 
   where
     availBal = A.accBalance $ accMap Map.! an
     paidOutAmt = case limit of
-                   Just (W.DuePct pct) ->  pct * availBal
-                   Just (W.DueCapAmt cap) ->  min cap availBal
+                   Just (DuePct pct) ->  pct * availBal
+                   Just (DueCapAmt cap) ->  min cap availBal
                    Nothing -> availBal
     accMapAfterPay = Map.adjust (A.draw paidOutAmt d (PayFeeYield feeName)) an accMap
     feeMapAfterPay = Map.adjust (F.payResidualFee d paidOutAmt) feeName feeMap
 
 -- ^ pay bond till its balance as pct of total balance
-performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (W.RemainBalPct pct) an bndName)=  --Need to replace with formula
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (RemainBalPct pct) an bndName)=  --Need to replace with formula
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     availBal = A.accBalance $ accMap Map.! an
@@ -455,7 +464,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (W.RemainB
                         accMap
     bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
 
-performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (W.DS ds) an bndName)=  --Need to replace with formula
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (DS ds) an bndName)=  --Need to replace with formula
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     availBal = A.accBalance $ accMap Map.! an
@@ -534,13 +543,12 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
   where 
       _transferAmt = case limit of 
                       Nothing -> 0 -- `debug` ("limit on nothing"++ show limit)
-                      Just (W.DS (ReserveAccGap [an])) -> queryDeal t (ReserveAccGapAt d [an]) -- `debug` ("Query Gap"++ show (queryDeal t (ReserveAccGapAt d [an])))
-                      Just (W.DS ds) -> queryDeal t ds -- `debug` ("hit with ds"++ show ds)
+                      Just (DS (ReserveAccGap [an])) -> queryDeal t (ReserveAccGapAt d [an]) -- `debug` ("Query Gap"++ show (queryDeal t (ReserveAccGapAt d [an])))
+                      Just (DS ds) -> queryDeal t (patchDateToStats d ds) -- `debug` ("hit with ds"++ show ds)
                       _ -> error "Failed on formula passed" -- `debug` ("limit on last"++ show limit)
       transferAmt = case CE.liqBalance $  _liqProvider Map.! pName of 
                        Nothing -> _transferAmt
                        Just _availBal -> min _transferAmt _availBal  -- `debug` ("transfer amt"++ show _transferAmt )
- --     transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName  -- `debug` ("_tAmft"++show _transferAmt)
       newAccMap = Map.adjust (A.deposit transferAmt d (LiquidationSupport pName)) an accs
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
@@ -549,7 +557,7 @@ performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqPa
   where 
       _transferAmt = case limit of 
                       Nothing -> 0 
-                      Just (W.DS (CurrentDueFee [fn]))
+                      Just (DS (CurrentDueFee [fn]))
                         -> queryDeal t (CurrentDueFee [fn])
                       _ -> 0
       transferAmt = case CE.liqBalance $  _liqProvider Map.! pName of 
@@ -565,7 +573,7 @@ performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqP
   where 
       _transferAmt = case limit of 
                       Nothing -> 0 
-                      Just (W.DS (CurrentDueBondInt [bn]))
+                      Just (DS (CurrentDueBondInt [bn]))
                         -> queryDeal t (CurrentDueBondInt [bn])
                       _ -> 0
       transferAmt = case CE.liqBalance $  _liqProvider Map.! pName of 
@@ -1344,27 +1352,34 @@ queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t s = 
   case s of
     CurrentBondBalance ->
-       Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 (bonds t)
+      Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 (bonds t)
     OriginalBondBalance ->
-       Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 (bonds t)
+      Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 (bonds t)
     CurrentPoolBalance ->
-       foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
+      foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
     CurrentPoolDefaultedBalance ->
-       foldl (\acc x -> acc + P.getCurrentBal x)
-             0.0 $
-             filter P.isDefaulted (P.assets (pool t))
+      foldl (\acc x -> acc + P.getCurrentBal x)
+            0.0 $
+            filter P.isDefaulted (P.assets (pool t))
+
     OriginalPoolBalance ->
-       case P.issuanceStat (pool t) of
-         Just m -> Map.findWithDefault (-1) P.IssuanceBalance m -- `debug` (">>>>"++show(m))
-         Nothing -> foldl (\acc x -> acc + P.getOriginBal x) 0.0 (P.assets (pool t)) 
+      case P.issuanceStat (pool t) of
+        Just m -> Map.findWithDefault (-1) P.IssuanceBalance m -- `debug` (">>>>"++show(m))
+        Nothing -> foldl (\acc x -> acc + P.getOriginBal x) 0.0 (P.assets (pool t)) 
+    
     CurrentPoolBorrowerNum ->
-       fromRational $ toRational $ foldl (\acc x -> acc + P.getBorrowerNum x) 0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
+      fromRational $ toRational $ foldl (\acc x -> acc + P.getBorrowerNum x) 0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
  
     AllAccBalance ->
-        sum $ map A.accBalance $ Map.elems (accounts t) -- `debug` ("Summing acc balance")
+      sum $ map A.accBalance $ Map.elems (accounts t) -- `debug` ("Summing acc balance")
     
     AccBalance ans -> 
-        sum $ map A.accBalance $ Map.elems $ getAccountByName t (Just ans)
+      sum $ map A.accBalance $ Map.elems $ getAccountByName t (Just ans)
+    
+    LedgerBalance ans ->
+      case (ledgers t) of 
+        Nothing -> 0 
+        Just ledgersM -> sum $ LD.ledgBalance  <$>  (ledgersM Map.!) <$> ans
 
     ReserveAccGapAt d ans ->
         max 0 $
@@ -1408,11 +1423,7 @@ queryDeal t s =
     CumulativePoolDefaultedBalance ->
         let
           futureDefaults = case P.futureCf (pool t) of
-                             Just (CF.CashFlowFrame _historyTxn) 
-                                -> foldr 
-                                     (\r a -> CF.tsDefaultBal r + a) 
-                                     0 
-                                     _historyTxn
+                             Just (CF.CashFlowFrame _historyTxn) -> sum $ CF.tsDefaultBal <$> _historyTxn
                              Nothing -> 0.0  -- `debug` ("Geting future defaults"++show futureDefaults)
           currentDefaults = queryDeal t CurrentPoolDefaultedBalance
         in
@@ -1463,16 +1474,14 @@ queryDeal t s =
            max 0 $ bal - targetBal  -- `debug` ("B T"++ show bal++"|"++show targetBal)
 
     FeesPaidAt d fns ->
-       let
-          -- fnSet = S.fromList fns
-          -- fSubMap = Map.filterWithKey (\fn f -> (S.member fn fnSet)) (fees t)
-          fSubMap = getFeeByName t (Just fns)
-          stmts = map F.feeStmt $ Map.elems fSubMap
-          ex s = case s of
-                   Nothing -> 0
-                   Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) txns
-       in
-          sum $ map ex stmts
+      let
+        fSubMap = getFeeByName t (Just fns)
+        stmts = map F.feeStmt $ Map.elems fSubMap
+        ex s = case s of
+                 Nothing -> 0
+                 Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) txns
+      in
+        sum $ map ex stmts
 
     CurrentDueBondInt bns ->
         let
@@ -1490,8 +1499,13 @@ queryDeal t s =
         in
            sum $ F.feeDue <$> Map.elems fSubMap
 
-    Sum _s ->
-        sum $ map (queryDeal t) _s
+    LiqCredit lqNames -> 
+      case (liqProvider t) of
+        Nothing -> 0
+        Just liqProviderM -> sum $ [ CE.liqCredit liq | (k,liq) <- Map.assocs liqProviderM
+                                     , S.member k (S.fromList lqNames) ]
+
+    Sum _s -> sum $ map (queryDeal t) _s
 
     Substract (ds:dss) -> 
         let 
@@ -1639,9 +1653,7 @@ updateLiqProvider t d liq@(CE.LiqFacility _ liqType (Just curBal) curCredit _ _ 
     where 
       newBalance = case liqType of 
                      CE.ReplenishSupport _ b -> Just (max b curBal)
-                     CE.ByPct _ ds pct -> Just $ mulBR (queryDeal t (patchDateToStats d ds)) pct
                      _ -> Just curBal
-
 updateLiqProvider _ _ liq = liq
 
 accrueLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
@@ -1780,6 +1792,7 @@ patchDateToStats d t
          LastBondIntPaid bns -> BondsIntPaidAt d bns
          LastFeePaid fns -> FeesPaidAt d fns
          LastBondPrinPaid bns -> BondsPrinPaidAt d bns
+         LastPoolDefaultedBal -> PoolNewDefaultedAt d
          BondBalanceGap bn -> BondBalanceGapAt d bn
          Sum _ds -> Sum $ map (patchDateToStats d) _ds
          Substract _ds -> Substract $ map (patchDateToStats d) _ds

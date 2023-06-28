@@ -205,6 +205,7 @@ instance Ast.Asset Mortgage where
   isDefaulted (Mortgage _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (AdjustRateMortgage _ _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (Mortgage _ _ _ _ _ _) = False
+  isDefaulted (AdjustRateMortgage _ _ _ _ _ _ _) = False
   
   getOriginDate (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) = sd
   getOriginDate (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) = sd

@@ -43,14 +43,14 @@ data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe
                   | Fix IRate DayCount 
                   | StepUpFix IRate DayCount StepUpDates Spread
                   | InterestByYield IRate
-                  deriving (Show,Generic)
+                  deriving (Show, Eq, Generic)
 
 data OriginalInfo = OriginalInfo {
   originBalance::Balance
   ,originDate::Date
   ,originRate::Rate
   ,maturityDate :: Maybe Date
-} deriving (Show,Generic)
+} deriving (Show, Eq, Generic)
 
 type SinkFundSchedule = Ts
 type PlannedAmorSchedule = Ts
@@ -62,7 +62,7 @@ data BondType = Sequential
               | Lockout Date
               | Z
               | Equity
-              deriving (Show,Generic)
+              deriving (Show, Eq, Generic)
 
 data Bond = Bond {
   bndName :: String
@@ -77,7 +77,7 @@ data Bond = Bond {
   ,bndLastIntPay :: Maybe Date
   ,bndLastPrinPay :: Maybe Date
   ,bndStmt :: Maybe S.Statement
-} deriving (Show,Generic)
+} deriving (Show, Eq, Generic)
 
 consolTxn :: [S.Txn] -> S.Txn -> [S.Txn]
 consolTxn (txn:txns) txn0

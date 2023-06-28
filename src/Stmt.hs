@@ -83,8 +83,6 @@ instance ToJSON TxnComment where
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
   toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
 
--- instance FromJSON TxnComment
-
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
 
@@ -102,35 +100,6 @@ parseTxn t = case tagName of
       tagName =  head sr!!1::String
       contents = head sr!!2::String
 
---instance Eq TxnComment where 
---   PayInt _ == PayInt _  = True
---   PayYield _ == PayYield _ = True
---   PayPrin _ _ == PayPrin _ _ = True 
---   PayFee _ _ == PayFee _ _ = True
---   SeqPayFee _ == SeqPayFee _ = True
---   PayFeeYield _ == PayFeeYield _ = True
---   Transfer _ _ == Transfer _ _ = True
---   PoolInflow _ == PoolInflow _ = True 
---   LiquidationProceeds _ == LiquidationProceeds _ = True
---   LiquidationSupport _ == LiquidationSupport _ = True 
---   LiquidationSupportInt _ _ == LiquidationSupportInt _ _ = True
---   Tag _ == Tag _ = True
---   UsingDS _ == UsingDS _ = True
---   UsingFormula _ == UsingFormula _ = True 
---   TxnComments as == TxnComments bs = 
---     let 
---      aset = Set.fromList as
---      bset = Set.fromList bs
---     in 
---      aset == bset
---   LiquidationDraw == LiquidationDraw = True
---   LiquidationRepay == LiquidationRepay = True
---   BankInt == BankInt = True
---   Empty == Empty = True
---   SwapAccure == SwapAccure = True
---   SwapInSettle == SwapInSettle = True
---   SwapOutSettle == SwapOutSettle = True
-
 type DueInt = Maybe Balance
 type DuePremium =  Maybe Balance
 
@@ -139,6 +108,7 @@ data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
          | ExpTxn Date Balance Amount Balance TxnComment
          | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment
          | IrsTxn Date Balance Amount IRate IRate Balance TxnComment
+         | EntryTxn Date Balance Amount TxnComment
          deriving (Show, Generic)
 
 aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance
@@ -158,6 +128,7 @@ getTxnComment (AccTxn _ _ _ t ) = t
 getTxnComment (ExpTxn _ _ _ _ t ) = t
 getTxnComment (SupportTxn _ _ _ _ _ _ t ) = t
 getTxnComment (IrsTxn _ _ _ _ _ _ t ) = t
+getTxnComment (EntryTxn _ _ _ t ) = t
 
 
 getTxnBalance :: Txn -> Balance
@@ -165,11 +136,13 @@ getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
 getTxnBalance (AccTxn _ t _ _ ) = t
 getTxnBalance (ExpTxn _ t _ _ _ ) = t
 getTxnBalance (SupportTxn _ _ _ t _ _ _ ) = t -- credit offered
+getTxnBalance (EntryTxn _ t _ _) = t
 
 getTxnBegBalance :: Txn -> Balance
 getTxnBegBalance (BondTxn _ t _ p _ _ _ ) = t + p
 getTxnBegBalance (AccTxn _ b a _ ) = b - a
 getTxnBegBalance (SupportTxn _ _ a b _ _ _) = b - a
+getTxnBegBalance (EntryTxn _ a b _) = a + b 
 
 getTxnPrincipal :: Txn -> Balance
 getTxnPrincipal (BondTxn _ _ _ t _ _ _ ) = t
@@ -180,6 +153,7 @@ getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
 getTxnAmt (SupportTxn _ _ t _ _ _ _) = t
 getTxnAmt (IrsTxn _ _ t _ _ _ _ ) = t
+getTxnAmt (EntryTxn _ _ t _) = t
 
 getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
@@ -190,6 +164,7 @@ emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 Empty )
 emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
 emptyTxn (SupportTxn _ _ _ _ _ _ _) d = (SupportTxn d Nothing 0 0 Nothing Nothing Empty)
 emptyTxn (IrsTxn _ _ _ _ _ _ _) d = IrsTxn d 0 0 0 0 0 Empty
+emptyTxn (EntryTxn _ _ _ _) d = (EntryTxn d 0 0 Empty)
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> (d == (getDate x))) ts
@@ -303,6 +278,7 @@ instance TimeSeries Txn where
   getDate (ExpTxn t _ _ _ _ ) = t
   getDate (SupportTxn t _ _ _ _ _ _) = t
   getDate (IrsTxn t _ _ _ _ _ _) = t
+  getDate (EntryTxn t _ _ _) = t
 
 
 $(deriveJSON defaultOptions ''Txn)

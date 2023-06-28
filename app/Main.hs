@@ -54,6 +54,7 @@ import Types
 import qualified Deal as D
 import qualified Asset as P
 import qualified Expense as F
+import qualified Ledger as LD
 import qualified AssetClass.Installment 
 import qualified AssetClass.Mortgage 
 import qualified AssetClass.Loan 
@@ -130,6 +131,7 @@ instance ToSchema AB.LeaseStepUp
 instance ToSchema AB.AccrualPeriod
 instance ToSchema DateDesp
 instance ToSchema DateType
+instance ToSchema LD.Ledger
 instance ToSchema A.Account
 instance ToSchema A.InterestInfo
 instance ToSchema A.ReserveAmount
@@ -143,7 +145,7 @@ instance ToSchema Pre
 instance ToSchema W.ActionWhen
 instance ToSchema W.Action
 instance ToSchema W.CollectionRule
-instance ToSchema W.Limit
+instance ToSchema Limit
 instance ToSchema W.Satisfy
 instance ToSchema C.CallOption
 instance ToSchema CE.LiqFacility

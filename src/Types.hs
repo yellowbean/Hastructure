@@ -18,7 +18,7 @@ module Types
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
-  ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR)
+  ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..))
   where
 
 import qualified Data.Text as T
@@ -117,7 +117,7 @@ data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Bas
               | DC_30_360_ISDA --  IDSA
               | DC_30_360_German --  Gernman
               | DC_30_360_US --  30/360 US Municipal , Bond basis
-              deriving (Show,Generic)
+              deriving (Show, Eq, Generic)
 
 data DateType = ClosingDate
               | CutoffDate
@@ -277,6 +277,7 @@ data DealStats =  CurrentBondBalance
                | PoolCollectionIncome PoolSource
                | AllAccBalance
                | AccBalance [String]
+               | LedgerBalance [String]
                | ReserveAccGap [String] 
                | MonthsTillMaturity BondName
                | ReserveAccGapAt Date [String] 
@@ -292,6 +293,7 @@ data DealStats =  CurrentBondBalance
                | BondsIntPaidAt Date [String]
                | BondPrinPaidAt Date String
                | BondsPrinPaidAt Date [String]
+               | PoolNewDefaultedAt Date
                | BondBalanceGap String
                | BondBalanceGapAt Date String
                | FeePaidAt Date String
@@ -301,6 +303,8 @@ data DealStats =  CurrentBondBalance
                | LastBondIntPaid [String]
                | LastBondPrinPaid [String]
                | LastFeePaid [String]
+               | LastPoolDefaultedBal
+               | LiqCredit [String]
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatusAt DealCycle Int
@@ -465,7 +469,7 @@ data PricingMethod = BalanceFactor Rate Rate -- [balance] by performing & defaul
                    | PV IRate IRate -- discount factor, recovery pct on default
                    | PVCurve Ts --[CF] Pricing cashflow with a Curve
                    | Custom Rate -- custom amount
-                   deriving (Show,Generic)
+                   deriving (Show, Eq ,Generic)
 
 type Valuation = Centi
 type PerFace = Micro
@@ -480,7 +484,7 @@ data YieldResult = Yield
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | ZSpread Spread 
-                 deriving (Show,Eq,Generic)
+                 deriving (Show, Eq, Generic)
 
 data TimeHorizion = ByMonth
                   | ByYear
@@ -490,6 +494,14 @@ data FormulaType = ABCD
                  | Other
                  deriving (Show,Ord,Eq,Generic)
 
+data Limit = DuePct Balance  --
+           | DueCapAmt Balance  -- due fee
+           | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
+           | KeepBalAmt DealStats -- pay till a certain amount remains in an account
+           | Multiple Limit Float -- factor of a limit:w
+           | Formula FormulaType
+           | DS DealStats
+           deriving (Show,Generic)
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
@@ -516,3 +528,4 @@ $(deriveJSON defaultOptions ''Cmp)
 $(deriveJSON defaultOptions ''PricingMethod)
 $(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''PriceResult)
+$(deriveJSON defaultOptions ''Limit)

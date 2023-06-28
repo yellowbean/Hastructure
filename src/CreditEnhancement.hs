@@ -30,7 +30,7 @@ type LiquidityProviderName = String
 
 data LiqSupportType = ReplenishSupport DatePattern Balance
                     | FixSupport
-                    | ByPct DatePattern DealStats Rate
+                    | ByPct DealStats Rate
                     | UnLimit
                     deriving(Show,Generic)
 
@@ -58,11 +58,6 @@ buildLiqResetAction [] ed r = r
 buildLiqResetAction (liqProvider:liqProviders) ed r = 
   case liqProvider of 
     (LiqFacility lqName (ReplenishSupport dp bal) _ _ ss _ _ _ _ stmt)
-      -> buildLiqResetAction
-           liqProviders
-           ed
-           [(lqName, projDatesByPattern dp ss ed)]++r
-    (LiqFacility lqName (ByPct dp ds pct) _ _ ss _ _ _ _ stmt)
       -> buildLiqResetAction
            liqProviders
            ed
