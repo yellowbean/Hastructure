@@ -532,5 +532,5 @@ getPriceValue (AssetPrice v _ _ _ _ ) = v
 maximum' :: Ord a => [a] -> a
 maximum' = foldr1 (\x y ->if x >= y then x else y)
 
-minmum' :: Ord a => [a] -> a
+minimum' :: Ord a => [a] -> a
 minimum' = foldr1 (\x y ->if x >= y then y else x)

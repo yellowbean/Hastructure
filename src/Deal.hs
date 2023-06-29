@@ -1327,9 +1327,9 @@ queryDealRate t s =
           [_f,_c,_s] = toRational <$> (queryDealRate t) <$> [floor,cap,s]
         in 
           max _f (min _c _s)
-      FloorWith s floor -> max (queryDealRate t s) (queryDealRate t floor)
-      FloorWithZero s -> max (queryDealRate t s) 0
-      CapWith s cap -> min (queryDealRate t s) (queryDealRate t cap)
+      FloorWith s floor -> toRational $ max (queryDealRate t s) (queryDealRate t floor)
+      FloorWithZero s -> toRational $ max (queryDealRate t s) 0
+      CapWith s cap -> toRational $ min (queryDealRate t s) (queryDealRate t cap)
 
 queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
 queryDealInt t s d = 
@@ -1350,12 +1350,12 @@ queryDealInt t s d =
         where
             (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _) = (bonds t) Map.! bn  
     FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
-    FloorWith s floor -> max (queryDealInt t s) (queryDealInt t floor)
-    FloorWithZero s -> max (queryDealInt t s) 0
-    CapWith s cap -> min (queryDealInt t s) (queryDealInt t cap)
+    FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
+    FloorWithZero s -> max (queryDealInt t s d) 0
+    CapWith s cap -> min (queryDealInt t s d) (queryDealInt t cap d)
 
-    Max ss -> maximum' [ queryDealInt t s | s <- ss ]
-    Min ss -> minimum' [ queryDealInt t s | s <- ss ]
+    Max ss -> maximum' $ [ queryDealInt t s d | s <- ss ]
+    Min ss -> minimum' $ [ queryDealInt t s d | s <- ss ]
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t s = 
@@ -1806,8 +1806,8 @@ patchDateToStats d t
          BondBalanceGap bn -> BondBalanceGapAt d bn
          Sum _ds -> Sum $ map (patchDateToStats d) _ds
          Substract _ds -> Substract $ map (patchDateToStats d) _ds
-         Min d1 d2 -> Min (patchDateToStats d d1) (patchDateToStats d d2)
-         Max d1 d2 -> Max (patchDateToStats d d1) (patchDateToStats d d2)
+         Min dss -> Min $ [ patchDateToStats d ds | ds <- dss ] 
+         Max dss -> Max $ [ patchDateToStats d ds | ds <- dss ]
          Factor _ds r -> Factor (patchDateToStats d _ds) r
          UseCustomData n -> CustomData n d
          CurrentPoolBorrowerNum -> FutureCurrentPoolBorrowerNum d
