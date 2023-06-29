@@ -6322,17 +6322,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "items": {
+                                    "$ref": "#/components/schemas/DealStats"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
@@ -6350,17 +6343,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "items": {
+                                    "$ref": "#/components/schemas/DealStats"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
@@ -6514,6 +6500,80 @@
                                 "type": "string",
                                 "enum": [
                                     "CustomData"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FloorWith"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStats"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FloorWithZero"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CapWith"
                                 ]
                             }
                         },

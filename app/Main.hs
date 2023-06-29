@@ -72,6 +72,8 @@ import qualified InterestRate as IR
 import qualified Stmt
 import qualified Triggers as TRG
 import qualified Revolving as RV
+import qualified Lib as Lib
+import qualified Util as U
 
 
 import Debug.Trace
@@ -251,9 +253,14 @@ data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType)
 
 instance ToSchema RunPoolReq
 
+data RunDateReq = RunDateReq Date DatePattern
+                deriving(Show, Generic)
+instance ToSchema RunDateReq
+
 $(deriveJSON defaultOptions ''RunDealReq)
 $(deriveJSON defaultOptions ''RunPoolReq)
 $(deriveJSON defaultOptions ''RunAssetReq)
+$(deriveJSON defaultOptions ''RunDateReq)
 
 type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] (CF.CashFlowFrame,Maybe [PriceResult])
@@ -262,6 +269,7 @@ type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
+            :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
 
 
 engineAPI :: Proxy EngineAPI
@@ -288,6 +296,7 @@ server2 = return engineSwagger
       :<|> runDeal
       :<|> runDealScenarios
       :<|> runMultiDeals
+      :<|> runDate
 --      :<|> error "not implemented"
         where 
           showVersion = return version1 
@@ -299,6 +308,8 @@ server2 = return engineSwagger
             = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
           runMultiDeals (MultiDealRunReq mDts assump pricing) 
             = return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
+          runDate (RunDateReq sd dp)
+            = return $ U.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
 
 
 writeSwaggerJSON :: IO ()
