@@ -1318,8 +1318,8 @@ queryDealRate t s =
             Nothing -> 0
             Just (CF.CashFlowFrame trs) -> CF.mflowRate $ last trs
       Constant r -> r
-      Max s1 s2 -> toRational $ max (queryDealRate t s1) (queryDealRate t s2)
-      Min s1 s2 -> toRational $ min (queryDealRate t s1) (queryDealRate t s2)
+      Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
+      Min ss -> toRational $ minimum' [ queryDealRate t s | s <- ss ]
       Substract (s1:ss) -> toRational $ (queryDealRate t s1) - (queryDealRate t (Sum ss))
       Sum ss -> toRational $ sum $ (queryDealRate t) <$> ss  
       FloorAndCap floor cap s ->  
@@ -1327,6 +1327,9 @@ queryDealRate t s =
           [_f,_c,_s] = toRational <$> (queryDealRate t) <$> [floor,cap,s]
         in 
           max _f (min _c _s)
+      FloorWith s floor -> max (queryDealRate t s) (queryDealRate t floor)
+      FloorWithZero s -> max (queryDealRate t s) 0
+      CapWith s cap -> min (queryDealRate t s) (queryDealRate t cap)
 
 queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
 queryDealInt t s d = 
@@ -1347,6 +1350,12 @@ queryDealInt t s d =
         where
             (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _) = (bonds t) Map.! bn  
     FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
+    FloorWith s floor -> max (queryDealInt t s) (queryDealInt t floor)
+    FloorWithZero s -> max (queryDealInt t s) 0
+    CapWith s cap -> min (queryDealInt t s) (queryDealInt t cap)
+
+    Max ss -> maximum' [ queryDealInt t s | s <- ss ]
+    Min ss -> minimum' [ queryDealInt t s | s <- ss ]
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t s = 
@@ -1516,11 +1525,8 @@ queryDeal t s =
 
     Constant n -> fromRational n
 
-    Max ds1 ds2 ->
-        max (queryDeal t ds1) (queryDeal t ds2)
-     
-    Min ds1 ds2 ->
-        min (queryDeal t ds1) (queryDeal t ds2) -- `debug` ("MIN->"++ show (queryDeal t ds1)++"|"++ show (queryDeal t ds2)++show ds2)
+    Max ss -> maximum' [ queryDeal t s | s <- ss ]
+    Min ss -> minimum' [ queryDeal t s | s <- ss ]
 
     Divide ds1 ds2 -> queryDeal t ds1 / queryDeal t ds2
 
@@ -1534,6 +1540,10 @@ queryDeal t s =
                 CustomDS ds -> (queryDeal t (patchDateToStats d ds ))
 
     FloorAndCap floor cap s -> max (queryDeal t floor) $ min (queryDeal t cap) (queryDeal t s)
+    
+    FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
+    FloorWithZero s -> max (queryDeal t s) 0
+    CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
 
     _ -> 0.0 `debug` ("Failed to query balance of -> "++ show s)
 

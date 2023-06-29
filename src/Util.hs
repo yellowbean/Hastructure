@@ -9,7 +9,7 @@ module Util
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
-    ,getPriceValue
+    ,getPriceValue,maximum',minimum'
     )
     where
 import qualified Data.Time as T
@@ -527,3 +527,10 @@ monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
 
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
+
+
+maximum' :: Ord a => [a] -> a
+maximum' = foldr1 (\x y ->if x >= y then x else y)
+
+minmum' :: Ord a => [a] -> a
+minimum' = foldr1 (\x y ->if x >= y then y else x)

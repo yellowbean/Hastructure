@@ -311,14 +311,17 @@ data DealStats =  CurrentBondBalance
                | PoolWaRate
                | BondRate String
                | Factor DealStats Rational
-               | Max DealStats DealStats
-               | Min DealStats DealStats
+               | Max [DealStats]
+               | Min [DealStats]
                | Sum [DealStats]
                | Substract [DealStats]
                | Divide DealStats DealStats
                | Constant Rational
                | FloorAndCap DealStats DealStats DealStats
                | CustomData String Date
+               | FloorWith DealStats DealStats
+               | FloorWithZero DealStats
+               | CapWith DealStats DealStats
                deriving (Show,Eq,Ord,Read,Generic)
 
 
