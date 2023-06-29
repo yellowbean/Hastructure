@@ -9835,6 +9835,19 @@
                     "asOfDate"
                 ]
             },
+            "RunDateReq": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DatePattern"
+                    }
+                ],
+                "maxItems": 2,
+                "type": "array",
+                "minItems": 2
+            },
             "AmortPlan": {
                 "oneOf": [
                     {
@@ -10279,6 +10292,37 @@
                                     "additionalProperties": {
                                         "$ref": "#/components/schemas/CashFlowFrame"
                                     }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/runDate": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RunDateReq"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "400": {
+                        "description": "Invalid `body`"
+                    },
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    "type": "array"
                                 }
                             }
                         },
