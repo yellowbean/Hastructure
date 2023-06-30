@@ -294,11 +294,24 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer an1 an2) =
     accMapAfterDraw = Map.adjust (A.draw transferAmt d comment ) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d  comment) an2 accMapAfterDraw
 
-performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (DS ds) an) =
+performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL ds ledgersList)) =
   t {ledgers = Just newLedgerM}
   where 
-    amt = queryDeal t ds
-    newLedgerM = Map.adjust (LD.entryLog amt d Empty) an ledgerM
+    amtToBook = queryDeal t ds
+    bookedLedger = [(queryDeal t ledgerCap, queryDeal t (LedgerBalance [ledgerName]))
+                     | (ledgerName, ledgerCap) <- ledgersList ]
+    
+    amtBooked = sum $ snd <$> bookedLedger
+    ledgerNames = fst <$> ledgersList
+
+    newAmtToBook = amtToBook - amtBooked
+    availableBalances = [ a-b | (a,b) <- bookedLedger]
+    amtBookedToLedgers = paySeqLiabilitiesAmt newAmtToBook availableBalances
+    
+    newLedgerM = foldr 
+                   (\(ln,amt) acc -> Map.adjust (LD.entryLog amt d Empty) ln acc)
+                   ledgerM
+                   (zip ledgerNames amtBookedToLedgers)
 
 
 performAction d t@TestDeal{accounts=accMap} (W.TransferBy limit an1 an2) =
@@ -1389,7 +1402,7 @@ queryDeal t s =
     LedgerBalance ans ->
       case (ledgers t) of 
         Nothing -> 0 
-        Just ledgersM -> sum $ LD.ledgBalance  <$>  (ledgersM Map.!) <$> ans
+        Just ledgersM -> sum $ LD.ledgBalance <$> (ledgersM Map.!) <$> ans
 
     ReserveAccGapAt d ans ->
         max 0 $
@@ -1513,6 +1526,11 @@ queryDeal t s =
       case (liqProvider t) of
         Nothing -> 0
         Just liqProviderM -> sum $ [ CE.liqCredit liq | (k,liq) <- Map.assocs liqProviderM
+                                     , S.member k (S.fromList lqNames) ]
+    LiqBalance lqNames -> 
+      case (liqProvider t) of
+        Nothing -> 0
+        Just liqProviderM -> sum $ [ fromMaybe 0 (CE.liqBalance liq) | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
 
     Sum _s -> sum $ map (queryDeal t) _s

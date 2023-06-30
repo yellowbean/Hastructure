@@ -25,11 +25,10 @@ data Ledger = Ledger {
 } deriving (Show, Generic)
 
 entryLog :: Amount -> Date -> TxnComment -> Ledger -> Ledger
-entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal } 
-  =  ledg { ledgStmt = Just (appendStmt mStmt txn)
-            ,ledgBalance = newBal }
+entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal} 
+  = ledg { ledgStmt = Just (appendStmt mStmt txn) ,ledgBalance = newBal }
     where 
-        newBal = bal + amt
-        txn = EntryTxn d newBal amt cmt
+      newBal = bal + amt
+      txn = EntryTxn d newBal amt cmt
 
 $(deriveJSON defaultOptions ''Ledger)

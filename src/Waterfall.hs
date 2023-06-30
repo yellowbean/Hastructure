@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,Satisfy(..),ActionWhen(..))
+  ,Satisfy(..),ActionWhen(..),BookLedgerType(..))
   where
 
 import GHC.Generics
@@ -52,10 +52,13 @@ data Satisfy = Source
              | Target
              deriving (Show,Generic)
 
+data BookLedgerType = PDL DealStats [(String,DealStats)]
+                    | Dummy
+                    deriving (Show,Generic)
 
 data Action = Transfer AccountName AccountName 
             | TransferBy Limit AccountName AccountName
-            | BookBy Limit String
+            | BookBy BookLedgerType
             | CalcFee [FeeName]
             | CalcBondInt [BondName]
             | PayFee [AccountName] [FeeName]
@@ -97,3 +100,4 @@ $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)
+$(deriveJSON defaultOptions ''BookLedgerType)

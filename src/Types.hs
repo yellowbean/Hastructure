@@ -305,6 +305,7 @@ data DealStats =  CurrentBondBalance
                | LastFeePaid [String]
                | LastPoolDefaultedBal
                | LiqCredit [String]
+               | LiqBalance [String]
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatusAt DealCycle Int
