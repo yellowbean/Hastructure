@@ -177,6 +177,7 @@ instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
 instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
+instance ToSchema Stmt.Direction
 instance ToSchema Stmt.TxnComment
 instance ToSchema FormulaType
 instance ToSchema AP.AssumptionBuilder

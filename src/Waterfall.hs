@@ -52,7 +52,7 @@ data Satisfy = Source
              | Target
              deriving (Show,Generic)
 
-data BookLedgerType = PDL DealStats [(String,DealStats)]
+data BookLedgerType = PDL DealStats [(String,DealStats)] --Debit reference, [(name,cap reference)]
                     | Dummy
                     deriving (Show,Generic)
 

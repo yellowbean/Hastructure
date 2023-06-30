@@ -297,22 +297,37 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer an1 an2) =
 performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL ds ledgersList)) =
   t {ledgers = Just newLedgerM}
   where 
-    amtToBook = queryDeal t ds
-    bookedLedger = [(queryDeal t ledgerCap, queryDeal t (LedgerBalance [ledgerName]))
+    bookedLedger = [(queryDeal t ledgerCap
+                     ,(queryTxnAmt (ledgerM Map.! ledgerName) (TxnDirection Debit)))
                      | (ledgerName, ledgerCap) <- ledgersList ]
-    
-    amtBooked = sum $ snd <$> bookedLedger
     ledgerNames = fst <$> ledgersList
 
+    amtToBook = queryDeal t ds
+    amtBooked = sum $ snd <$> bookedLedger
     newAmtToBook = amtToBook - amtBooked
     availableBalances = [ a-b | (a,b) <- bookedLedger]
     amtBookedToLedgers = paySeqLiabilitiesAmt newAmtToBook availableBalances
     
     newLedgerM = foldr 
-                   (\(ln,amt) acc -> Map.adjust (LD.entryLog amt d Empty) ln acc)
+                   (\(ln,amt) acc -> Map.adjust (LD.entryLog amt d (TxnDirection Debit)) ln acc)
                    ledgerM
                    (zip ledgerNames amtBookedToLedgers)
 
+performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.TransferBy (ClearPDL ln) an1 an2) =
+  t {accounts = accMapAfterDeposit}  -- `debug` ("ABCD "++show(d))
+  where
+    sourceAcc = accMap Map.! an1
+    targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
+    targetAmt = queryDeal t (LedgerBalance [ln]) -- assuming (debit -> positvie)
+    transferAmt = min (A.accBalance sourceAcc) targetAmt
+ 
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
+
+    newLedgerM = Map.adjust 
+                   (LD.entryLog (negate transferAmt) d (TxnDirection Credit))
+                   ln 
+                   ledgerM
 
 performAction d t@TestDeal{accounts=accMap} (W.TransferBy limit an1 an2) =
   t {accounts = accMapAfterDeposit}  -- `debug` ("ABCD "++show(d))
@@ -1403,6 +1418,11 @@ queryDeal t s =
       case (ledgers t) of 
         Nothing -> 0 
         Just ledgersM -> sum $ LD.ledgBalance <$> (ledgersM Map.!) <$> ans
+    
+    -- LedgerTxnBalance tc ans ->
+    --   case (ledgers t) of 
+    --     Nothing -> 0 
+    --     Just ledgersM -> sum $ (\x -> queryTxnAmt x tc) <$> (ledgersM Map.!) <$> ans
 
     ReserveAccGapAt d ans ->
         max 0 $

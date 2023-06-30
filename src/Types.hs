@@ -505,7 +505,9 @@ data Limit = DuePct Balance  --
            | Multiple Limit Float -- factor of a limit:w
            | Formula FormulaType
            | DS DealStats
+           | ClearPDL String
            deriving (Show,Generic)
+
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)

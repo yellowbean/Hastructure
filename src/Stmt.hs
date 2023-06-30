@@ -9,7 +9,7 @@ module Stmt
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,sliceTxns,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance
-   ,getFlow,FlowDirection(..), aggByTxnComment
+   ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..)
   )
   where
 
@@ -34,6 +34,10 @@ import qualified Data.Map as M
 import Debug.Trace
 debug = flip trace
 
+data Direction = Credit
+               | Debit
+               deriving (Show,Ord, Eq, Generic)
+
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
@@ -56,6 +60,7 @@ data TxnComment = PayInt [BondName]
                 | SwapInSettle
                 | SwapOutSettle
                 | PurchaseAsset
+                | TxnDirection Direction
                 | TxnComments [TxnComment]
                 deriving (Eq, Show, Ord , Generic)
 
@@ -82,6 +87,7 @@ instance ToJSON TxnComment where
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
   toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
+  toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
@@ -194,10 +200,6 @@ weightAvgBalance sd ed txns
       ds = [sd]++(map getDate _txns)++[ed] 
       dsFactor = getIntervalFactors ds  -- `debug` ("DS>>>"++show ds)
 
-class QueryByComment a where 
-    queryStmt :: a -> TxnComment -> [Txn]
-    queryTxnAmt :: a -> TxnComment -> Balance
-
 
 data Statement = Statement [Txn]
         deriving (Show,Eq,Generic)
@@ -280,6 +282,11 @@ instance TimeSeries Txn where
   getDate (IrsTxn t _ _ _ _ _ _) = t
   getDate (EntryTxn t _ _ _) = t
 
+class QueryByComment a where 
+    queryStmt :: a -> TxnComment -> [Txn]
+    queryTxnAmt :: a -> TxnComment -> Balance
+
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)
+$(deriveJSON defaultOptions ''Direction)

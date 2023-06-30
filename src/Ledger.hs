@@ -31,4 +31,12 @@ entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal}
       newBal = bal + amt
       txn = EntryTxn d newBal amt cmt
 
+instance QueryByComment Ledger where 
+    queryStmt (Ledger _ _ Nothing) tc = []
+    queryStmt (Ledger _ _ (Just (Statement txns))) tc
+      = filter (\x -> getTxnComment x == tc) txns
+
+    queryTxnAmt a tc
+      = sum $ map getTxnAmt $ queryStmt a tc
+
 $(deriveJSON defaultOptions ''Ledger)
