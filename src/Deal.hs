@@ -771,6 +771,7 @@ testCall t d opt =
        C.AfterDate x -> d > x
        C.And xs -> all (testCall t d) xs
        C.Or xs -> any (testCall t d) xs
+       C.Pre pre -> testPre d t pre
 
 testCalls :: P.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
 testCalls t d [] = False  -- `debug` ("Empty call optns")

@@ -23,6 +23,7 @@ data CallOption = PoolBalance Balance
                 | And [CallOption] 
                 | Or [CallOption] 
                 | PoolPv Balance  -- Call when PV of pool fall below
+                | Pre Pre
                 deriving (Show,Generic)
 
 $(deriveJSON defaultOptions ''CallOption)
