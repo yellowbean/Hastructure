@@ -420,9 +420,6 @@ ts3Test =
     ]
 
 roundingTest = 
-  let 
-    a =1 
-  in 
     testGroup "rounding by test"
     [ testCase "Rounding on Rate" $
       assertEqual "Rounding Floor"
@@ -432,5 +429,21 @@ roundingTest =
       assertEqual "Rounding Ceiling"
       0.02
       (roundingBy (RoundCeil 0.00125) 0.01876)
+    , testCase "Rounding on Rate" $
+      assertEqual "Rounding Equal"
+      0.02
+      (roundingBy (RoundCeil 0.00125) 0.02)
+    , testCase "Rounding on Balance" $
+      assertEqual "Rounding Ceiling"
+      100
+      (roundingBy (RoundCeil 5) 96)
+    , testCase "Rounding on Balance" $
+      assertEqual "Rounding Floor"
+      100
+      (roundingBy (RoundFloor 5) 104)
+    , testCase "Rounding on Balance" $
+      assertEqual "Rounding Equal"
+      100
+      (roundingBy (RoundFloor 5) 100)
     
     ]
