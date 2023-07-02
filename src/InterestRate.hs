@@ -26,13 +26,14 @@ type PeriodicCap = Maybe Spread
 type LifetimeCap = Maybe IRate
 type PaymentCap = Maybe Balance
 type RateFloor = Maybe IRate
+type RateCap = Maybe IRate
 type InitCap = Maybe IRate
 type ResetDates = [Date]
 type StartRate = IRate
 
 data RateType = Fix IRate
               | Floater Index Spread IRate Period (Maybe Floor)
-              | Floater2 Index Spread IRate DatePattern
+              | Floater2 Index Spread IRate DatePattern (Maybe RateFloor) (Maybe RateCap)
               deriving (Show,Generic)
 
 data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
@@ -40,7 +41,7 @@ data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
          deriving (Show,Generic)
 
 runInterestRate :: ARM -> StartRate -> RateType -> ResetDates -> Ts -> [IRate]
-runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 _ spd _ _) resetDates rc
+runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 _ spd _ _ _ _) resetDates rc
   = sr:cappedRates
     where 
       fr:rrs = (spd +) . fromRational <$> getValByDates rc Inc resetDates

@@ -282,7 +282,7 @@ armTest =
     arm1 = AB.AdjustRateMortgage
             (AB.MortgageOriginalInfo 
               240 
-              (Floater2 SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20240801") 2))
+              (Floater2 SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20240801") 2) Nothing Nothing)
               30
               Monthly
               (L.toDate "20230501")

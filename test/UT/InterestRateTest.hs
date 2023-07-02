@@ -14,7 +14,7 @@ import Debug.Trace
 debug = flip trace
 
 resetDates = toDates ["20230301","20230401","20230501"] 
-rt = Floater2 LPR5Y 0.01 0.03 QuarterEnd
+rt = Floater2 LPR5Y 0.01 0.03 QuarterEnd Nothing Nothing
 rc = IRateCurve [TsPoint (toDate "20230301") 0.01
                 ,TsPoint (toDate "20230401") 0.02
                 ,TsPoint (toDate "20230501") 0.03]

@@ -18,7 +18,10 @@ module Types
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
-  ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..))
+  ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
+  ,RoundingBy(..)
+  )
+  
   where
 
 import qualified Data.Text as T
@@ -508,6 +511,9 @@ data Limit = DuePct Balance  --
            | ClearPDL String
            deriving (Show,Generic)
 
+data RoundingBy a = RoundCeil a 
+                  | RoundFloor a
+                  deriving (Show,Generic)
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
@@ -535,3 +541,4 @@ $(deriveJSON defaultOptions ''PricingMethod)
 $(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
+$(deriveJSON defaultOptions ''RoundingBy)

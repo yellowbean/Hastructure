@@ -194,7 +194,7 @@ instance Ast.Asset Mortgage where
     = case or of
        IR.Fix _r -> _r
        IR.Floater _ _ _r _ Nothing -> _r
-       IR.Floater2 _ _ _r _ -> _r 
+       IR.Floater2 _ _ _r _ _ _ -> _r 
 
   getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) extra
     = genDates sd p (ot+extra)
@@ -286,7 +286,7 @@ instance Ast.Asset Mortgage where
       cf_dates_length = length cf_dates -- `debug` (" cf dates >>" ++ show (last_pay_date:cf_dates ))
       rate_curve = case or of
                       IR.Fix r ->  error "ARM should have floater rate"
-                      IR.Floater2 idx sprd initRate dp ->
+                      IR.Floater2 idx sprd initRate dp _ _ ->
                         let 
                           resetDates = genSerialDatesTill2 IE firstResetDate dp (last cf_dates)
                           projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates

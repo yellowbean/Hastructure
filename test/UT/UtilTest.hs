@@ -1,6 +1,6 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
-                  ,capTest)--,daycountTests3,daycountTests4)
+                  ,capTest,roundingTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -417,4 +417,20 @@ ts3Test =
       assertEqual "Shift RateCurve by 0.01"
       (IRateCurve [TsPoint (toDate "20230301") 0.04,TsPoint (toDate "20230301") 0.06]) $
       (shiftTsByAmt ts1 0.01)
+    ]
+
+roundingTest = 
+  let 
+    a =1 
+  in 
+    testGroup "rounding by test"
+    [ testCase "Rounding on Rate" $
+      assertEqual "Rounding Floor"
+      0.02
+      (roundingBy (RoundFloor (0.00125::IRate)) (0.02124::IRate))
+    , testCase "Rounding on Rate" $
+      assertEqual "Rounding Ceiling"
+      0.02
+      (roundingBy (RoundCeil (0.00125::IRate)) (0.01876::IRate))
+    
     ]

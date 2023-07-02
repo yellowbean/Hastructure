@@ -34,24 +34,22 @@ data Status = Current
             -- | Extended (Maybe T.Day)
             deriving (Show,Generic)
 
-data OriginalInfo = MortgageOriginalInfo {
-    originBalance :: Balance
-    ,originRate :: IR.RateType
-    ,originTerm :: Int
-    ,period :: Period
-    ,startDate :: Date
-    ,prinType :: AmortPlan }
-  | LoanOriginalInfo {
-     originBalance :: Balance
-    ,originRate :: IR.RateType
-    ,originTerm :: Int
-    ,period :: Period
-    ,startDate :: Date
-    ,prinType :: AmortPlan }
+data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
+                                          ,originRate :: IR.RateType
+                                          ,originTerm :: Int
+                                          ,period :: Period
+                                          ,startDate :: Date
+                                          ,prinType :: AmortPlan }
+  | LoanOriginalInfo { originBalance :: Balance
+                      ,originRate :: IR.RateType
+                      ,originTerm :: Int
+                      ,period :: Period
+                      ,startDate :: Date
+                      ,prinType :: AmortPlan }
   | LeaseInfo { startDate :: Date
-    ,originTerm :: Int 
-    ,paymentDates :: DatePattern
-    ,originRental :: Amount}
+               ,originTerm :: Int 
+               ,paymentDates :: DatePattern
+               ,originRental :: Amount}
     deriving (Show,Generic)
 
 

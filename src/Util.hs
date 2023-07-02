@@ -9,7 +9,7 @@ module Util
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
-    ,getPriceValue,maximum',minimum'
+    ,getPriceValue,maximum',minimum',roundingBy
     )
     where
 import qualified Data.Time as T
@@ -518,19 +518,18 @@ calcWeigthBalanceByDates bals ds
 testSumToOne :: [Rate] -> Bool
 testSumToOne rs = sum rs == 1.0
 
-
 monthsAfter :: Date -> Integer -> Date
 monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
 
--- daysAfter :: Date -> Integer -> Date 
--- daysAfter d n = T.addGregorianDurationRollOver (T.CalendarDiffDays 0 n) d
-
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
-
 
 maximum' :: Ord a => [a] -> a
 maximum' = foldr1 (\x y ->if x >= y then x else y)
 
 minimum' :: Ord a => [a] -> a
 minimum' = foldr1 (\x y ->if x >= y then y else x)
+
+roundingBy :: (Fractional a,RealFrac a,Integral a) => RoundingBy a -> a -> a
+roundingBy (RoundFloor x) n = x * floor ( n / x)
+roundingBy (RoundCeil x) n = x * (ceiling (n / x))

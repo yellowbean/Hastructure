@@ -63,6 +63,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.paddingTest
                            ,UtilT.dateSliceTest
                            ,UtilT.capTest
+                           ,UtilT.roundingTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest
