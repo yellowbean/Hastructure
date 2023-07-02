@@ -427,10 +427,10 @@ roundingTest =
     [ testCase "Rounding on Rate" $
       assertEqual "Rounding Floor"
       0.02
-      (roundingBy (RoundFloor (0.00125::IRate)) (0.02124::IRate))
+      (roundingBy (RoundFloor 0.00125) 0.02124)
     , testCase "Rounding on Rate" $
       assertEqual "Rounding Ceiling"
       0.02
-      (roundingBy (RoundCeil (0.00125::IRate)) (0.01876::IRate))
+      (roundingBy (RoundCeil 0.00125) 0.01876)
     
     ]
