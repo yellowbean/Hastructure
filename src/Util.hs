@@ -9,7 +9,7 @@ module Util
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
-    ,getPriceValue,maximum',minimum',roundingBy
+    ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     )
     where
 import qualified Data.Time as T
@@ -533,3 +533,7 @@ minimum' = foldr1 (\x y ->if x >= y then y else x)
 roundingBy :: (Fractional a,RealFrac a) => RoundingBy a -> a -> a
 roundingBy (RoundFloor x) n = x * fromIntegral (floor (n/x) :: Integer)
 roundingBy (RoundCeil x) n = x * fromIntegral (ceiling (n/x) :: Integer)
+
+roundingByM :: (Fractional a,RealFrac a) => Maybe (RoundingBy a) -> a -> a 
+roundingByM Nothing x = x 
+roundingByM (Just rb) x = roundingBy rb x

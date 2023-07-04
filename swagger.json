@@ -2065,6 +2065,13 @@
                     "collects"
                 ]
             },
+            "Direction": {
+                "type": "string",
+                "enum": [
+                    "Credit",
+                    "Debit"
+                ]
+            },
             "CashflowReport": {
                 "type": "object",
                 "properties": {
@@ -2365,17 +2372,7 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Limit"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "$ref": "#/components/schemas/BookLedgerType"
                             },
                             "tag": {
                                 "type": "string",
@@ -4115,6 +4112,24 @@
                         },
                         "required": [
                             "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Direction"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TxnDirection"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -6172,6 +6187,27 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "LiqBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -6738,6 +6774,67 @@
                                 "type": "string",
                                 "enum": [
                                     "DS"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ClearPDL"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "RoundingBy_(Fixed_*_E6)": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RoundCeil"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RoundFloor"
                                 ]
                             }
                         },
@@ -7432,6 +7529,66 @@
                 },
                 "type": "array"
             },
+            "BookLedgerType": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/DealStats"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PDL"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Dummy"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "DealCycle": {
                 "type": "string",
                 "enum": [
@@ -7949,11 +8106,22 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RoundingBy_(Fixed_*_E6)"
                                     }
                                 ],
-                                "maxItems": 4,
+                                "maxItems": 7,
                                 "type": "array",
-                                "minItems": 4
+                                "minItems": 7
                             },
                             "tag": {
                                 "type": "string",
@@ -10125,6 +10293,24 @@
                                 "type": "string",
                                 "enum": [
                                     "PoolPv"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pre"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Pre"
                                 ]
                             }
                         },

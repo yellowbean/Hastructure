@@ -33,7 +33,7 @@ type StartRate = IRate
 
 data RateType = Fix IRate
               | Floater Index Spread IRate Period (Maybe Floor)
-              | Floater2 Index Spread IRate DatePattern (Maybe RateFloor) (Maybe RateCap)
+              | Floater2 Index Spread IRate DatePattern (Maybe RateFloor) (Maybe RateCap) (Maybe (RoundingBy IRate))
               deriving (Show,Generic)
 
 data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
@@ -41,7 +41,7 @@ data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
          deriving (Show,Generic)
 
 runInterestRate :: ARM -> StartRate -> RateType -> ResetDates -> Ts -> [IRate]
-runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 _ spd _ _ _ _) resetDates rc
+runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 _ spd _ _ _ _ mRoundBy) resetDates rc
   = sr:cappedRates
     where 
       fr:rrs = (spd +) . fromRational <$> getValByDates rc Inc resetDates
@@ -49,19 +49,20 @@ runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 _ spd _ _ _ _) reset
         | isNothing icap = fr
         | (sr + fromMaybe 0 icap) <= fr = sr + fromMaybe 0 icap
         | otherwise = fr
+      rounder = roundingByM mRoundBy
       restRates = tail $
                     scanl 
                       (\lastRate idxRate -> 
-                          if isNothing pc then 
-                            idxRate
+                          if isNothing pc then -- periodic cap
+                            (rounder idxRate)
                           else
                             if (lastRate + (fromMaybe 0 pc)) <= idxRate then 
-                              lastRate + (fromMaybe 0 pc)
+                              rounder $ lastRate + (fromMaybe 0 pc)
                             else 
-                              idxRate)
+                              rounder idxRate)
                       firstRate
                       rrs
-      flooredRates =  max (fromMaybe 0 floor) <$> (firstRate:restRates) -- `debug` ("reset rates" ++ show (firstRate:restRates))
+      flooredRates = max (fromMaybe 0 floor) <$> (firstRate:restRates) -- `debug` ("reset rates" ++ show (firstRate:restRates))
       cappedRates = min (fromMaybe 1 lifeCap) <$> flooredRates 
 
 runInterestRate2 :: ARM -> (Date,StartRate) -> RateType -> ResetDates -> Ts -> Ts

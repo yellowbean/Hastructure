@@ -70,5 +70,6 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,QT.queryTest
                            ,ST.txnTest
                            ,IRT.armResetTests
+                           ,IRT.interestRoundingTest
                            ,AnalyticsT.walTest
                            ]

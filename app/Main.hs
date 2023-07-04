@@ -195,6 +195,8 @@ instance ToSchema P.IssuanceFields
 instance ToSchema PricingMethod
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
+instance ToSchema (RoundingBy IRate)
+instance ToSchema (RoundingBy Balance)
 
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
