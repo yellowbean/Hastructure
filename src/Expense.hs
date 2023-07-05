@@ -3,7 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Expense (Fee(..),FeeType(..),payFee
+module Expense (Fee(..),FeeType(..),payFee,payResidualFee
                ,buildFeeAccrueAction)
   where
 
@@ -23,8 +23,13 @@ import Data.Fixed
 import Types
 import Util
 
-data FeeType = AnnualRateFee DealStats Rate
-             | PctFee DealStats Rate
+import Debug.Trace
+debug = flip trace
+
+type FormulaRate = DealStats
+
+data FeeType = AnnualRateFee DealStats FormulaRate
+             | PctFee DealStats FormulaRate
              | FixFee Balance
              | RecurFee DatePattern Balance
              | NumFee DatePattern DealStats Amount
@@ -49,9 +54,19 @@ payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
      ,feeArrears = arrearRemain
      ,feeStmt = Just newStmt}
    where
-    [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd]
-    paid = fa + fd - arrearRemain - dueRemain
-    newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn))
+    [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd] -- `debug` ("AMT"++show amt++">> fa"++show fa++"fd"++show fd)
+    paid = fa + fd - arrearRemain - dueRemain -- `debug` ("arrear remain "++show arrearRemain++"due remain "++ show dueRemain++"r0 r1"++show r0++show r1)
+    newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn)) -- `debug` ("Actual paid to fee"++show paid)
+
+payResidualFee :: Date -> Amount -> Fee -> Fee
+payResidualFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
+   f {feeLastPaidDay = Just d
+     ,feeDue = dueRemain
+     ,feeArrears = arrearRemain
+     ,feeStmt = Just newStmt}
+   where
+    [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd] 
+    newStmt = appendStmt fstmt (ExpTxn d dueRemain amt arrearRemain (PayFee fn)) 
 
 buildFeeAccrueAction :: [Fee] -> Date -> [(String,Dates)] -> [(String,Dates)]
 buildFeeAccrueAction [] ed r = r

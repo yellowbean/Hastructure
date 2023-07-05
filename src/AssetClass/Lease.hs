@@ -194,6 +194,17 @@ instance Asset Lease where
     getPaymentDates l@(StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) _
         = genSerialDates dp sd ot 
 
+    getOriginDate (StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) = sd
+    getOriginDate (RegularLease (LeaseInfo sd ot dp _) _ rt _)  = sd
+    
+    getRemainTerms (StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) = rt
+    getRemainTerms (RegularLease (LeaseInfo sd ot dp _) _ rt _)  = rt
+    
+    updateOriginDate (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st) nd 
+      = (StepUpLease (LeaseInfo nd ot dp dr) lsu bal rt st)
+    updateOriginDate (RegularLease (LeaseInfo sd ot dp dr) bal rt st) nd 
+      = (RegularLease (LeaseInfo nd ot dp dr) bal rt st)
+
     projCashflow l asOfDay assumps = 
         foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
       where 
@@ -216,7 +227,6 @@ instance Asset Lease where
                         StepUpLease (LeaseInfo sd ot dp dr) _ bal _ _ -> fromRational $ toRational dr
                         RegularLease (LeaseInfo sd ot dp dr) bal _ _ ->  fromRational $ toRational dr
 
-
     isDefaulted (StepUpLease _ _ _ rt Current) = False
     isDefaulted (StepUpLease _ _ _ rt _) = True
     isDefaulted (RegularLease _ _  rt Current) = False
@@ -231,4 +241,8 @@ instance Asset Lease where
         in  
             CF.mflowBegBalance $ head txns
 
+    splitWith (RegularLease (LeaseInfo sd ot dp dr) bal rt st ) rs
+      = [ RegularLease (LeaseInfo sd ot dp dr) (mulBR bal ratio) rt st | ratio <- rs ] 
+    splitWith (StepUpLease (LeaseInfo sd ot dp dr) stup bal rt st ) rs
+      = [ StepUpLease (LeaseInfo sd ot dp dr) stup (mulBR bal ratio) rt st | ratio <- rs]
 

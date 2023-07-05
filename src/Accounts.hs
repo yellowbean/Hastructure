@@ -4,7 +4,7 @@
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
                 ,transfer,depositInt,depositIntByCurve
-                ,InterestInfo(..),buildEarnIntAction,)
+                ,InterestInfo(..),buildEarnIntAction,updateReserveBalance)
     where
 import qualified Data.Time as T
 import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getDate
@@ -30,7 +30,7 @@ data ReserveAmount = PctReserve DealStats Rate
                    | Either Pre ReserveAmount ReserveAmount
                    | Max ReserveAmount ReserveAmount
                    | Min ReserveAmount ReserveAmount
-                   deriving (Show, Generic)
+                   deriving (Show, Eq, Generic)
 
 data Account = Account {
     accBalance :: Balance
@@ -133,6 +133,8 @@ deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
 draw :: Amount -> Date -> TxnComment -> Account -> Account
 draw amount = deposit (- amount) 
 
+updateReserveBalance :: ReserveAmount -> Account -> Account 
+updateReserveBalance ra acc = acc {accType = Just ra}
 
 supportPay :: [Account] -> Date -> Amount -> (TxnComment, TxnComment) -> [Account]
 supportPay all_accs@(acc:accs) d amt (m1,m2) = 

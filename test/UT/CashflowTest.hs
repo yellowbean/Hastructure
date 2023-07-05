@@ -1,4 +1,4 @@
-module UT.CashflowTest(cfTests,tsSplitTests)
+module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest)
 where
 
 import Test.Tasty
@@ -134,21 +134,76 @@ tsSplitTests =
           assertEqual "get subset of Ts between two dates"
           [cf3] $
           rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") EE
-       -- ,testCase "Cashflow" $
-       --   assertEqual "Keep previous ones"
-       --   ([cf1],[cf2, cf2, cf3,cf4]) $
-       --   splitByDate ts2 (L.toDate "20230210") EqToLeftKeepOnes
       ]
 
---cashAggTest = [
---    testGroup "Test on Combine Cashflow Frame"  $ [
---        testCase "" $ 
---            assertEqual "A"
---            1
---            1 
---        ,testCase "1"
---            assertEqual "B" 
---            1
---            1 
---        ]          
---    ]
+combineTest = 
+  let 
+    txn1 = CF.MortgageFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0.0 Nothing 
+    txn2 = CF.MortgageFlow (L.toDate "20230201") 90 10 10 0 0 0 0 0.0 Nothing 
+    txn3 = CF.MortgageFlow (L.toDate "20230301") 50 10 10 0 0 0 0 0.0 Nothing 
+    txn4 = CF.MortgageFlow (L.toDate "20230401") 40 10 10 0 0 0 0 0.0 Nothing 
+    cf1 = CF.CashFlowFrame [txn1,txn2] 
+    cf2 = CF.CashFlowFrame [txn3,txn4] 
+  in 
+    testGroup "Combine Cashflow Test"
+    [ testCase "No overlap combine" $
+        assertEqual "No overlap combine"
+        (CF.CashFlowFrame 
+          [CF.MortgageFlow (L.toDate "20230101") 160 10 10 0 0 0 0 0.0 Nothing
+          ,CF.MortgageFlow (L.toDate "20230201") 150 10 10 0 0 0 0 0.0 Nothing
+          ,CF.MortgageFlow (L.toDate "20230301") 140 10 10 0 0 0 0 0.0 Nothing
+          ,CF.MortgageFlow (L.toDate "20230401") 130 10 10 0 0 0 0 0.0 Nothing])
+        (CF.combine cf1 cf2)
+      ,testCase "Overlap combine" $
+        let 
+          txn1 = CF.MortgageFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0.0 Nothing 
+          txn2 = CF.MortgageFlow (L.toDate "20230201") 90 10 10 0 0 0 0 0.0 Nothing 
+          txn3 = CF.MortgageFlow (L.toDate "20230301") 80 10 10 0 0 0 0 0.0 Nothing 
+          cf1 = CF.CashFlowFrame [txn1,txn2] 
+          cf2 = CF.CashFlowFrame [txn2,txn3] 
+        in 
+          assertEqual "Overlap combine"
+          (CF.CashFlowFrame $
+            [CF.MortgageFlow (L.toDate "20230101") 200 10 10 0 0 0 0 0.0 Nothing
+            ,CF.MortgageFlow (L.toDate "20230201") 180 20 20 0 0 0 0 0.0 Nothing
+            ,CF.MortgageFlow (L.toDate "20230301") 170 10 10 0 0 0 0 0.0 Nothing])
+          (CF.combine cf1 cf2)
+       ,testCase "Intersection" $
+        let 
+          txn1 = CF.MortgageFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0.0 Nothing 
+          txn2 = CF.MortgageFlow (L.toDate "20230201") 80 10 10 0 0 0 0 0.0 Nothing 
+          txn3 = CF.MortgageFlow (L.toDate "20230301") 90 10 10 0 0 0 0 0.0 Nothing 
+          txn4 = CF.MortgageFlow (L.toDate "20230401") 70 10 10 0 0 0 0 0.0 Nothing 
+          cf1 = CF.CashFlowFrame [txn1,txn3] 
+          cf2 = CF.CashFlowFrame [txn2,txn4] 
+        in 
+          assertEqual "Intersection CF"
+          (CF.CashFlowFrame $
+            [CF.MortgageFlow (L.toDate "20230101") 190 10 10 0 0 0 0 0.0 Nothing
+            ,CF.MortgageFlow (L.toDate "20230201") 180 10 10 0 0 0 0 0.0 Nothing
+            ,CF.MortgageFlow (L.toDate "20230301") 170 10 10 0 0 0 0 0.0 Nothing
+            ,CF.MortgageFlow (L.toDate "20230401") 160 10 10 0 0 0 0 0.0 Nothing ])
+          (CF.combine cf1 cf2)
+    ]
+
+
+testMergePoolCf = 
+  let 
+    txn1 = CF.MortgageFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0.0 Nothing 
+    txn4 = CF.MortgageFlow (L.toDate "20230401") 90 10 10 0 0 0 0 0.0 Nothing 
+    
+    txn2 = CF.MortgageFlow (L.toDate "20230201") 100 10 10 0 0 0 0 0.0 Nothing 
+    txn3 = CF.MortgageFlow (L.toDate "20230301") 90 10 10 0 0 0 0 0.0 Nothing 
+    cf1 = CF.CashFlowFrame [txn1,txn4]
+    cf2 = CF.CashFlowFrame [txn2,txn3]
+  in 
+    testGroup "Merge Cashflow Test"  -- merge cashflow into existing one without update previous balance
+    [ testCase "" $
+        assertEqual "Merge Cashflow Test 1"
+        (CF.CashFlowFrame [(CF.MortgageFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0.0 Nothing)
+                           ,(CF.MortgageFlow (L.toDate "20230201") 200 10 10 0 0 0 0 0.0 Nothing)
+                           ,(CF.MortgageFlow (L.toDate "20230301") 190 10 10 0 0 0 0 0.0 Nothing)
+                           ,(CF.MortgageFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0.0 Nothing)]) 
+        (CF.mergePoolCf cf1 cf2)
+    ]
+ 

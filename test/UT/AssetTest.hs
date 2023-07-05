@@ -4,11 +4,10 @@ where
 import Test.Tasty
 import Test.Tasty.HUnit
 
-import Types
-
 import qualified Data.Time as T
 import qualified Lib as L
 import qualified Asset as P
+import qualified AssetClass.AssetBase as AB
 import qualified AssetClass.Mortgage as ACM
 import qualified AssetClass.Loan as ACL
 import qualified AssetClass.Lease as ACR
@@ -22,23 +21,23 @@ import InterestRate
 import Debug.Trace
 debug = flip trace
 
-tm = ACM.Mortgage
-     (P.MortgageOriginalInfo 10000 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Level)
+tm = AB.Mortgage
+     (AB.MortgageOriginalInfo 10000 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") AB.Level)
      8000 0.08 19 
      Nothing
-     P.Current
+     AB.Current
 
-tm1 = ACM.Mortgage
-     (P.MortgageOriginalInfo 240 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
+tm1 = AB.Mortgage
+     (AB.MortgageOriginalInfo 240 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") AB.Even)
      240 0.08 19 
      Nothing
-     P.Current
+     AB.Current
 
-tm2 = ACM.Mortgage
-     (P.MortgageOriginalInfo 240 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") P.Even)
+tm2 = AB.Mortgage
+     (AB.MortgageOriginalInfo 240 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") AB.Even)
      240 0.08 19 
      Nothing 
-     (P.Defaulted Nothing)
+     (AB.Defaulted Nothing)
 
 asOfDate = L.toDate "20210605"
 tmcf_00 = P.projCashflow tm asOfDate []
@@ -87,12 +86,12 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
 
 loanTests = 
     let 
-      loan1 =  ACL.PersonalLoan
-                 (P.LoanOriginalInfo 180 (Fix 0.08) 36 L.Monthly (L.toDate "20200101") P.I_P) 
+      loan1 =  AB.PersonalLoan
+                 (AB.LoanOriginalInfo 180 (Fix 0.08) 36 L.Monthly (L.toDate "20200101") AB.I_P) 
                  120
                  0.06
                  24
-                 P.Current
+                 AB.Current
       asofDate = L.toDate "20200615"
       loan1Cf = P.calcCashflow loan1 asofDate
       loan2Cf = P.projCashflow loan1 asofDate []
@@ -138,28 +137,28 @@ leaseFunTests =
 
 leaseTests = 
     let 
-      lease1 = ACR.RegularLease
-                (ACR.LeaseInfo (L.toDate "20230101") 12 MonthEnd 1)
+      lease1 = AB.RegularLease
+                (AB.LeaseInfo (L.toDate "20230101") 12 MonthEnd 1)
                 100
                 12
-                P.Current
+                AB.Current
       asofDate = (L.toDate "20230615")
       cf1 = P.calcCashflow lease1 asofDate 
 
-      lease2 = ACR.StepUpLease
-                (ACR.LeaseInfo (L.toDate "20230601") 12 MonthEnd 1)
-                (ACR.FlatRate MonthEnd 0.02)
+      lease2 = AB.StepUpLease
+                (AB.LeaseInfo (L.toDate "20230601") 12 MonthEnd 1)
+                (AB.FlatRate MonthEnd 0.02)
                 100
                 12
-                P.Current
+                AB.Current
       cf2 = P.calcCashflow lease2 asofDate 
       
-      lease3 = ACR.StepUpLease
-                (ACR.LeaseInfo (L.toDate "20230401") 4 MonthEnd 1)
-                (ACR.ByRateCurve MonthEnd [0.02,0.04,0.05,0.06])
+      lease3 = AB.StepUpLease
+                (AB.LeaseInfo (L.toDate "20230401") 4 MonthEnd 1)
+                (AB.ByRateCurve MonthEnd [0.02,0.04,0.05,0.06])
                 100
                 4
-                P.Current
+                AB.Current
       cf3_0 = P.calcCashflow lease3 (L.toDate "20230415")
       cf3 = P.calcCashflow lease3 asofDate
 
@@ -224,34 +223,34 @@ leaseTests =
 
 installmentTest = 
     let 
-      loan1 =  ACI.Installment
-                 (P.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+      loan1 =  AB.Installment
+                 (AB.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P)
                  1000 
                  12 
-                 P.Current
+                 AB.Current
       asofDate1 = (L.toDate "20220115")
       loan1Cf = P.calcCashflow loan1 asofDate1
 
-      loan2 =  ACI.Installment
-                 (P.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+      loan2 =  AB.Installment
+                 (AB.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
                  500 
                  12
-                 P.Current
+                 AB.Current
       loan2Cf = P.calcCashflow loan2 asofDate1
 
       asofDate2 = (L.toDate "20220815")
-      loan3 =  ACI.Installment
-                 (P.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+      loan3 =  AB.Installment
+                 (AB.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
                  416.69 
                  5
-                 P.Current
+                 AB.Current
       loan3Cf = P.calcCashflow loan3 asofDate2
 
-      loan4 =  ACI.Installment
-                 (P.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") P.F_P) 
+      loan4 =  AB.Installment
+                 (AB.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
                  208.35 
                  5
-                 P.Current
+                 AB.Current
       loan4Cf = P.calcCashflow loan4 asofDate2
     in 
       testGroup "Installment cashflow Tests" [ 
@@ -280,18 +279,18 @@ installmentTest =
 
 armTest = 
   let 
-    arm1 = ACM.AdjustRateMortgage
-            (P.MortgageOriginalInfo 
+    arm1 = AB.AdjustRateMortgage
+            (AB.MortgageOriginalInfo 
               240 
-              (Floater2 SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20240801") 2))
+              (Floater2 SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20240801") 2) Nothing Nothing Nothing)
               30
               Monthly
               (L.toDate "20230501")
-              P.Level)
+              AB.Level)
             (ARM 12 (Just 0.015) (Just 0.01) (Just 0.09) (Just 0.02) )  
             240 0.08 19 
             Nothing 
-            P.Current
+            AB.Current
     assump1 = [A.InterestRateCurve 
                 SOFR3M
                 (IRateCurve [TsPoint (L.toDate "20240501") 0.05 

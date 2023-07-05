@@ -16,6 +16,7 @@ import qualified UT.DealTest as DT
 import qualified UT.QueryTest as QT
 import qualified UT.StmtTest as ST
 import qualified UT.UtilTest as UtilT
+import qualified UT.AnalyticsTest as AnalyticsT
 import qualified UT.InterestRateTest as IRT
 
 import qualified Accounts as A
@@ -35,6 +36,8 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.armTest
                            ,CFT.cfTests
                            ,CFT.tsSplitTests
+                           ,CFT.testMergePoolCf
+                           ,CFT.combineTest
                            ,BT.pricingTests
                            ,BT.bndUtilTest
                            ,LT.curveTests
@@ -60,10 +63,13 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.paddingTest
                            ,UtilT.dateSliceTest
                            ,UtilT.capTest
+                           ,UtilT.roundingTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest
                            ,QT.queryTest
                            ,ST.txnTest
                            ,IRT.armResetTests
+                           ,IRT.interestRoundingTest
+                           ,AnalyticsT.walTest
                            ]

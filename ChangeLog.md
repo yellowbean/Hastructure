@@ -1,6 +1,35 @@
 # Changelog for Hastructure
 
+## 0.19.0
+### 2023-7-1
+* BREAK : seperate `payInt` action and `accrueInt` action
 
+## 0.18.9
+### 2023-6-23
+* NEW : add `floorAndCap` formula to set upper or lower bound of formula value
+* NEW : add formula based fee rate for `pct` and `annual` type of fee
+
+## 0.18.1
+#### 2023-6-21
+* NEW : Project cashflow for a list of asset, with performance assumption
+* ENHANCE : Add `limit` for revolving buy action
+* ENHANCE : Add `default` waterfall 
+* NEW : Add "IF-ELSE" in waterfall action
+
+## 0.18.0
+#### 2023-6-8
+* NEW "Major" : expose revolving assumption !
+* NEW : `Pre` now support comparing with a `balance` type formula ,not limited to a balance number
+
+
+## 0.17.2
+#### 2023-5-24
+* NEW: expose "exclude dates" and "offset by days" <date pattern>
+
+
+## 0.17.1
+#### 2023-5-21
+* NEW: expose trigger status in "Inspect"
 
 ## 0.17.0
 #### 2023-5-21

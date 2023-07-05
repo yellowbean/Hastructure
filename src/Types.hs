@@ -9,15 +9,19 @@ module Types
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
   ,DateDesp(..),Period(..), Threshold(..)
-  ,RangeType(..),CutoffType(..),FormulaType(..),CustomDataType(..)
-  ,Balance,DealStats(..),Index(..)
-  ,DealCycle(..),Cmp(..)
+  ,RangeType(..),CutoffType(..),CustomDataType(..)
+  ,Balance,DealStats(..),Index(..),FormulaType(..)
+  ,DealCycle(..),Cmp(..),TimeHorizion(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
-  ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum)
+  ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
+  ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
+  ,RoundingBy(..)
+  )
+  
   where
 
 import qualified Data.Text as T
@@ -87,6 +91,7 @@ data Index = LPR5Y
             | USTSY10Y
             | USTSY20Y
             | USTSY30Y
+            | USCMT1Y
             | PRIME
             | COFI
             | SOFR1M
@@ -115,7 +120,7 @@ data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Bas
               | DC_30_360_ISDA --  IDSA
               | DC_30_360_German --  Gernman
               | DC_30_360_US --  30/360 US Municipal , Bond basis
-              deriving (Show,Generic)
+              deriving (Show, Eq, Generic)
 
 data DateType = ClosingDate
               | CutoffDate
@@ -172,6 +177,16 @@ instance TimeSeries ActionOnDate where
     getDate (ResetBondRate d _ ) = d 
     getDate (BuildReport sd ed) = ed
 
+sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
+sortActionOnDate a1 a2 
+  | d1 == d2 = case (a1,a2) of
+                 (BuildReport sd1 ed1 ,_) -> GT 
+                 (_ , BuildReport sd1 ed1) -> LT
+                 (_,_) -> EQ 
+  | otherwise = compare d1 d2
+  where 
+    d1 = getDate a1 
+    d2 = getDate a2 
 
 instance Ord ActionOnDate where
   compare a1 a2 = compare (getDate a1) (getDate a2)
@@ -203,6 +218,7 @@ data DealCycle = EndCollection
                | EndCollectionWF
                | BeginDistributionWF
                | EndDistributionWF
+               | InWF
                deriving (Show, Ord, Eq, Read, Generic)
 
 instance ToJSONKey DealCycle where
@@ -264,6 +280,7 @@ data DealStats =  CurrentBondBalance
                | PoolCollectionIncome PoolSource
                | AllAccBalance
                | AccBalance [String]
+               | LedgerBalance [String]
                | ReserveAccGap [String] 
                | MonthsTillMaturity BondName
                | ReserveAccGapAt Date [String] 
@@ -279,6 +296,7 @@ data DealStats =  CurrentBondBalance
                | BondsIntPaidAt Date [String]
                | BondPrinPaidAt Date String
                | BondsPrinPaidAt Date [String]
+               | PoolNewDefaultedAt Date
                | BondBalanceGap String
                | BondBalanceGapAt Date String
                | FeePaidAt Date String
@@ -288,17 +306,27 @@ data DealStats =  CurrentBondBalance
                | LastBondIntPaid [String]
                | LastBondPrinPaid [String]
                | LastFeePaid [String]
+               | LastPoolDefaultedBal
+               | LiqCredit [String]
+               | LiqBalance [String]
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatusAt DealCycle Int
+               | PoolWaRate
+               | BondRate String
                | Factor DealStats Rational
-               | Max DealStats DealStats
-               | Min DealStats DealStats
+               | Max [DealStats]
+               | Min [DealStats]
                | Sum [DealStats]
                | Substract [DealStats]
                | Divide DealStats DealStats
                | Constant Rational
+               | FloorAndCap DealStats DealStats DealStats
                | CustomData String Date
+               | FloorWith DealStats DealStats
+               | FloorWithZero DealStats
+               | CapWith DealStats DealStats
+               | Round DealStats (RoundingBy Balance)
                deriving (Show,Eq,Ord,Read,Generic)
 
 
@@ -319,6 +347,10 @@ data Pre = IfZero DealStats
          | IfIntCurve Cmp DealStats Ts
          | IfDate Cmp Date
          | IfBool DealStats Bool
+         -- compare deal 
+         | If2 Cmp DealStats DealStats
+         | IfRate2 Cmp DealStats DealStats
+         | IfInt2 Cmp DealStats DealStats
          -- | IfRateCurve DealStats Cmp Ts
          | IfDealStatus DealStatus
          | Always Bool
@@ -326,9 +358,6 @@ data Pre = IfZero DealStats
          | All [Pre]
          deriving (Show,Generic,Eq)
 
-data FormulaType = ABCD
-                 | Other
-                 deriving (Show,Ord,Eq,Generic)
 
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read,Generic)
@@ -350,12 +379,8 @@ data Ts = FloatCurve [TsPoint Rational]
         | PricingCurve [TsPoint Rational] 
         deriving (Show,Eq,Ord,Read,Generic)
 
-
-
-
 data RangeType = II | IE | EI | EE
 data CutoffType = Inc | Exc
-
 
 data BookItem = Item String Balance 
               | ParentItem String [BookItem]
@@ -446,8 +471,50 @@ data RateAssumption = RateCurve Index Ts
                     | RateFlat Index IRate
                     deriving (Show,Generic)
 
+data PricingMethod = BalanceFactor Rate Rate -- [balance] by performing & default balace
+                   | BalanceFactor2 Rate Rate Rate --[balance] by performing/delinq/default factor
+                   | DefaultedBalance Rate  --[balance] only liquidate defaulted balance
+                   | PV IRate IRate -- discount factor, recovery pct on default
+                   | PVCurve Ts --[CF] Pricing cashflow with a Curve
+                   | Custom Rate -- custom amount
+                   deriving (Show, Eq ,Generic)
 
+type Valuation = Centi
+type PerFace = Micro
+type WAL = Centi
+type Duration = Micro
+type Convexity = Micro
+type Yield = Micro
+type AccruedInterest = Centi
+type IRR = Rational
+data YieldResult = Yield
 
+data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
+                 | AssetPrice Valuation WAL Duration Convexity AccruedInterest
+                 | ZSpread Spread 
+                 deriving (Show, Eq, Generic)
+
+data TimeHorizion = ByMonth
+                  | ByYear
+                  | ByQuarter
+
+data FormulaType = ABCD
+                 | Other
+                 deriving (Show,Ord,Eq,Generic)
+
+data Limit = DuePct Balance  --
+           | DueCapAmt Balance  -- due fee
+           | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
+           | KeepBalAmt DealStats -- pay till a certain amount remains in an account
+           | Multiple Limit Float -- factor of a limit:w
+           | Formula FormulaType
+           | DS DealStats
+           | ClearPDL String
+           deriving (Show,Generic)
+
+data RoundingBy a = RoundCeil a 
+                  | RoundFloor a
+                  deriving (Show,Generic, Eq, Ord, Read)
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
@@ -464,7 +531,6 @@ $(deriveJSON defaultOptions ''Threshold)
 $(deriveJSON defaultOptions ''DateDesp)
 $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''PoolSource)
-$(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''CustomDataType)
 $(deriveJSON defaultOptions ''ResultComponent)
 $(deriveJSON defaultOptions ''CashflowReport)
@@ -472,3 +538,8 @@ $(deriveJSON defaultOptions ''BookItem)
 $(deriveJSON defaultOptions ''BalanceSheetReport)
 $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''Cmp)
+$(deriveJSON defaultOptions ''PricingMethod)
+$(deriveJSON defaultOptions ''FormulaType)
+$(deriveJSON defaultOptions ''PriceResult)
+$(deriveJSON defaultOptions ''Limit)
+$(deriveJSON defaultOptions ''RoundingBy)

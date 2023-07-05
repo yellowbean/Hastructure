@@ -32,7 +32,7 @@ dependencies:
 - containers
 - regex-tdfa
 - regex-base
-- regex-pcre
+- regex-pcre-builtin
 - vector
 - wai
 - servant
@@ -65,7 +65,6 @@ executables:
     - warp
     - wai-cors
     - base-compat  
-    - yesod
     - http-types
     - template-haskell
     - yaml

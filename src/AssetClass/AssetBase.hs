@@ -5,7 +5,8 @@
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
   ,LeaseStepUp(..),AccrualPeriod(..)
-  ,AmortPlan(..),Loan(..),Mortgage(..))
+  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..)
+  )
   where
 
 import Language.Haskell.TH
@@ -13,6 +14,7 @@ import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Types hiding (Current,startDate,originTerm)
+
 
 import qualified InterestRate as IR
 import qualified Cashflow as CF
@@ -32,37 +34,36 @@ data Status = Current
             -- | Extended (Maybe T.Day)
             deriving (Show,Generic)
 
-data OriginalInfo = MortgageOriginalInfo {
-    originBalance :: Balance
-    ,originRate :: IR.RateType
-    ,originTerm :: Int
-    ,period :: Period
-    ,startDate :: Date
-    ,prinType :: AmortPlan }
-  | LoanOriginalInfo {
-     originBalance :: Balance
-    ,originRate :: IR.RateType
-    ,originTerm :: Int
-    ,period :: Period
-    ,startDate :: Date
-    ,prinType :: AmortPlan }
+data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
+                                          ,originRate :: IR.RateType
+                                          ,originTerm :: Int
+                                          ,period :: Period
+                                          ,startDate :: Date
+                                          ,prinType :: AmortPlan }
+  | LoanOriginalInfo { originBalance :: Balance
+                      ,originRate :: IR.RateType
+                      ,originTerm :: Int
+                      ,period :: Period
+                      ,startDate :: Date
+                      ,prinType :: AmortPlan }
   | LeaseInfo { startDate :: Date
-    ,originTerm :: Int 
-    ,paymentDates :: DatePattern
-    ,originRental :: Amount}
+               ,originTerm :: Int 
+               ,paymentDates :: DatePattern
+               ,originRental :: Amount}
     deriving (Show,Generic)
+
 
 data Installment = Installment OriginalInfo Balance RemainTerms Status
                  | Dummy
-     deriving (Show,Generic)
+                 deriving (Show,Generic)
 
 data LeaseStepUp = FlatRate DatePattern Rate
                  | ByRateCurve DatePattern [Rate]
-    deriving (Show,Generic)
+                 deriving (Show,Generic)
 
 data Lease = RegularLease OriginalInfo Balance Int Status
            | StepUpLease OriginalInfo LeaseStepUp Balance Int Status
-    deriving (Show,Generic)
+           deriving (Show,Generic)
 
 data AccrualPeriod = AccrualPeriod Date DailyRate
                     deriving (Show,Generic)
@@ -74,13 +75,20 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
           deriving (Show,Generic)
 
+-- Mortgage
 data MortgageInsurance = MortgageInsurance Rate
-
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow]
               deriving (Show,Generic)
+
+-- Base 
+data AssetUnion = MO Mortgage
+                | LO Loan
+                | IL Installment
+                | LS Lease
+                deriving (Show, Generic)
 
 
 $(deriveJSON defaultOptions ''Status)
@@ -91,3 +99,4 @@ $(deriveJSON defaultOptions ''LeaseStepUp)
 $(deriveJSON defaultOptions ''Mortgage)
 $(deriveJSON defaultOptions ''Loan)
 $(deriveJSON defaultOptions ''Lease)
+$(deriveJSON defaultOptions ''AssetUnion)

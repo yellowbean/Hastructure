@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,Satisfy(..),Limit(..),ActionWhen(..),FormulaType(..))
+  ,Satisfy(..),ActionWhen(..),BookLedgerType(..))
   where
 
 import GHC.Generics
@@ -37,6 +37,7 @@ data ActionWhen = EndOfPoolCollection
                 | DistributionDay DealStatus
                 | CleanUp
                 | OnClosingDay
+                | DefaultDistribution
                 deriving (Show,Ord,Eq,Generic,Read)
 
 instance ToJSONKey ActionWhen where
@@ -51,32 +52,28 @@ data Satisfy = Source
              | Target
              deriving (Show,Generic)
 
-data Limit = DuePct L.Balance  --
-           | DueCapAmt L.Balance  -- due fee
-           | RemainBalPct L.Rate -- pay till remain balance equals to a percentage of `stats`
-           | KeepBalAmt DealStats -- pay till a certain amount remains in an account
-           | Multiple Limit Float -- factor of a limit:w
-           | Formula FormulaType
-           | DS DealStats
-           deriving (Show,Generic)
+data BookLedgerType = PDL DealStats [(String,DealStats)] --Debit reference, [(name,cap reference)]
+                    | Dummy
+                    deriving (Show,Generic)
 
 data Action = Transfer AccountName AccountName 
             | TransferBy Limit AccountName AccountName
+            | BookBy BookLedgerType
             | CalcFee [FeeName]
             | CalcBondInt [BondName]
             | PayFee [AccountName] [FeeName]
             | PayFeeBy Limit [AccountName] [FeeName]
             | PayFeeResidual (Maybe Limit) AccountName FeeName
+            | AccrueAndPayInt AccountName [BondName]
             | PayInt AccountName [BondName]
-            | PayPrin AccountName [BondName]
+            | PayPrin AccountName [BondName] 
             | PayPrinResidual AccountName [BondName]
             | PayPrinBy Limit AccountName BondName
             | PayTillYield AccountName [BondName]
             | PayResidual (Maybe Limit) AccountName BondName
             | TransferReserve Satisfy AccountName AccountName 
-            | LiquidatePool LiquidationMethod AccountName
-            | RunTrigger (Maybe [Trigger])
-            | BuyAsset (Maybe Limit) LiquidationMethod AccountName
+            | LiquidatePool PricingMethod AccountName
+            -- | RunTrigger (Maybe [Trigger])
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
             | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
             | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
@@ -86,7 +83,10 @@ data Action = Transfer AccountName AccountName
             | SwapAccrue CeName
             | SwapReceive AccountName CeName
             | SwapPay AccountName CeName
-            | ActionWithPre L.Pre [Action]
+            | BuyAsset (Maybe Limit) PricingMethod AccountName
+            | ActionWithPre L.Pre [Action] 
+            | ActionWithPre2 L.Pre [Action] [Action]
+            | RunTrigger DealCycle Int
             deriving (Show,Generic)
 
 type DistributionSeq = [Action]
@@ -97,7 +97,7 @@ data CollectionRule = Collect PoolSource AccountName
 
 
 $(deriveJSON defaultOptions ''Action)
-$(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)
+$(deriveJSON defaultOptions ''BookLedgerType)

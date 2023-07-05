@@ -2,10 +2,13 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GADTs #-}
+
 
 module Revolving
-  (LiquidationMethod(..),AssetForSale(..),AssetForSale(..)
-  ,AssetAvailable(..))
+  ( RevolvingPool(..)
+  , lookupAssetAvailable
+  )
   where
 
 import GHC.Generics
@@ -17,27 +20,26 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Hashable
 import Data.Fixed
+import Data.List
 import Types
 
 import AssetClass.AssetBase
 
 
-data LiquidationMethod = BalanceFactor Rate Rate -- by performing & default balace
-                       | BalanceFactor2 Rate Rate Rate -- by performing/delinq/default factor
-                       | DefaultedBalance Rate  -- only liquidate defaulted balance
-                       | PV IRate IRate -- discount factor, recovery on default
-                       | Custom Rate -- custom amount
-                       deriving (Show,Generic)
+data RevolvingPool = ConstantAsset [AssetUnion]
+                   | StaticAsset [AssetUnion]
+                   | AssetCurve [TsPoint [AssetUnion]]
+                   deriving (Show,Generic)
 
 
-data AssetAvailable a = ConstantAsset [a]
-                    | RevolvingAsset (TsPoint [a])
-                    deriving (Show,Generic)
+lookupAssetAvailable :: RevolvingPool -> Date -> [AssetUnion]
+lookupAssetAvailable (ConstantAsset aus) _ = aus
+lookupAssetAvailable (StaticAsset aus) _ = aus
+lookupAssetAvailable (AssetCurve ausCurve) d 
+  = case find (\(TsPoint _d _) -> d > _d) (reverse ausCurve)  of 
+      Just (TsPoint _d v) -> v
+      Nothing -> [] 
 
-data AssetForSale = AFS (AssetAvailable Installment)
-                  | StaticAssetFlow CF.CashFlowFrame
-                  deriving (Show, Generic)
 
-$(deriveJSON defaultOptions ''LiquidationMethod)
-$(deriveJSON defaultOptions ''AssetForSale)
-$(deriveJSON defaultOptions ''AssetAvailable)
+
+$(deriveJSON defaultOptions ''RevolvingPool)

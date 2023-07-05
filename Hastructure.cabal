@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 
@@ -27,6 +27,7 @@ source-repository head
 library
   exposed-modules:
       Accounts
+      Analytics
       Asset
       AssetClass.AssetBase
       AssetClass.Installment
@@ -40,6 +41,7 @@ library
       Deal
       Expense
       InterestRate
+      Ledger
       Liability
       Lib
       Revolving
@@ -62,7 +64,7 @@ library
     , lens
     , openapi3
     , regex-base
-    , regex-pcre
+    , regex-pcre-builtin
     , regex-tdfa
     , servant
     , servant-errors
@@ -99,7 +101,7 @@ executable Hastructure-exe
     , mtl
     , openapi3
     , regex-base
-    , regex-pcre
+    , regex-pcre-builtin
     , regex-tdfa
     , scientific
     , servant
@@ -117,7 +119,6 @@ executable Hastructure-exe
     , wai-cors
     , warp
     , yaml
-    , yesod
   default-language: Haskell2010
 
 test-suite Hastructure-test
@@ -126,6 +127,7 @@ test-suite Hastructure-test
   other-modules:
       Performance.Main
       UT.AccountTest
+      UT.AnalyticsTest
       UT.AssetTest
       UT.BondTest
       UT.CashflowTest
@@ -151,7 +153,7 @@ test-suite Hastructure-test
     , lens
     , openapi3
     , regex-base
-    , regex-pcre
+    , regex-pcre-builtin
     , regex-tdfa
     , servant
     , servant-errors

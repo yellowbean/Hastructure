@@ -1,4 +1,4 @@
-module UT.InterestRateTest(armResetTests)
+module UT.InterestRateTest(armResetTests,interestRoundingTest)
 where
 
 import Test.Tasty
@@ -14,7 +14,7 @@ import Debug.Trace
 debug = flip trace
 
 resetDates = toDates ["20230301","20230401","20230501"] 
-rt = Floater2 LPR5Y 0.01 0.03 QuarterEnd
+rt = Floater2 LPR5Y 0.01 0.03 QuarterEnd Nothing Nothing Nothing
 rc = IRateCurve [TsPoint (toDate "20230301") 0.01
                 ,TsPoint (toDate "20230401") 0.02
                 ,TsPoint (toDate "20230501") 0.03]
@@ -53,4 +53,16 @@ armResetTests =  testGroup "ARM reset curve test"
      assertEqual "life floor" 
        [0.05,0.025,0.035,0.035] 
        (runInterestRate armFloor 0.05 rt resetDates rc3)
+  ]
+
+-- resetDates = toDates ["20230301","20230401","20230501"] 
+rt2 = Floater2 LPR5Y 0.01 0.03 QuarterEnd Nothing Nothing (Just (RoundFloor 0.02))
+
+interestRoundingTest =  testGroup "Interest Rounding"
+  [
+    testCase "rounding by 0.005" $
+     assertEqual "no adj rate"  
+       [0.05,0.02,0.02,0.04] 
+       (runInterestRate arm 0.05 rt2 resetDates rc)
+    
   ]

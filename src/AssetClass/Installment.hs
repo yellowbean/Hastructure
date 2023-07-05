@@ -144,6 +144,13 @@ instance Asset Installment where
   getPaymentDates (Installment (LoanOriginalInfo _ _ ot p sd _) _ _ _) extra 
     = genDates sd p (ot+extra)
 
+  getOriginDate (Installment (LoanOriginalInfo _ _ ot p sd _) _ _ _) = sd
+  
+  getRemainTerms (Installment (LoanOriginalInfo _ _ ot p sd _) _ rt _) = rt
+
+  updateOriginDate (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) nd
+    = Installment (LoanOriginalInfo ob or ot p nd _type) cb rt st
+
   projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd _) cb rt Current) asOfDay assumps
     = CF.CashFlowFrame flows 
       where 
@@ -205,5 +212,8 @@ instance Asset Installment where
     = CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]
       where 
         cr = getOriginRate inst
+        
+  splitWith (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) rs
+    = [ Installment (LoanOriginalInfo (mulBR ob ratio) or ot p sd _type) (mulBR cb ratio) rt st | ratio <- rs ]
 
 

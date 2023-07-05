@@ -7,8 +7,9 @@ module Util
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
-    ,replace,paddingDefault, capWith, pv2, splitByDate, rangeBy
+    ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
+    ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     )
     where
 import qualified Data.Time as T
@@ -451,7 +452,15 @@ pv2 discount_rate today d amt =
     mulBI amt $ 1/denominator -- `debug` ("days between->"++show d ++show today++">>>"++show distance )
   where
     denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
-    distance =  daysBetween today d 
+    distance = daysBetween today d 
+
+pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
+pv3 pvCurve pricingDate ds vs 
+  = let 
+      rs = fromRational <$> getValByDates pvCurve Inc ds
+      pvs = [ pv2 r pricingDate d amt | (r,d,amt) <- zip3 rs ds vs ]
+    in 
+      sum pvs
 
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
@@ -509,10 +518,22 @@ calcWeigthBalanceByDates bals ds
 testSumToOne :: [Rate] -> Bool
 testSumToOne rs = sum rs == 1.0
 
-
 monthsAfter :: Date -> Integer -> Date
 monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
 
--- daysAfter :: Date -> Integer -> Date 
--- daysAfter d n = T.addGregorianDurationRollOver (T.CalendarDiffDays 0 n) d
+getPriceValue :: PriceResult -> Balance
+getPriceValue (AssetPrice v _ _ _ _ ) = v
 
+maximum' :: Ord a => [a] -> a
+maximum' = foldr1 (\x y ->if x >= y then x else y)
+
+minimum' :: Ord a => [a] -> a
+minimum' = foldr1 (\x y ->if x >= y then y else x)
+
+roundingBy :: (Fractional a,RealFrac a) => RoundingBy a -> a -> a
+roundingBy (RoundFloor x) n = x * fromIntegral (floor (n/x) :: Integer)
+roundingBy (RoundCeil x) n = x * fromIntegral (ceiling (n/x) :: Integer)
+
+roundingByM :: (Fractional a,RealFrac a) => Maybe (RoundingBy a) -> a -> a 
+roundingByM Nothing x = x 
+roundingByM (Just rb) x = roundingBy rb x

@@ -10,6 +10,7 @@ import qualified Accounts as A
 import qualified Stmt as S
 import qualified Asset as P
 import qualified AssetClass.Mortgage as ACM
+import qualified AssetClass.AssetBase as AB
 import qualified Expense as F
 import qualified Deal as D
 import qualified Liability as L
@@ -30,6 +31,8 @@ import qualified Data.Set as S
 td2 = TestDeal {
   D.name = "test deal1"
   ,D.status = Amortizing
+  ,D.rateSwap = Nothing
+  ,D.currencySwap = Nothing
   ,D.dates = PatternInterval $ 
                (Map.fromList [
                 (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
@@ -89,38 +92,39 @@ td2 = TestDeal {
                                ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = P.Pool {P.assets=[ACM.Mortgage
-                                         P.MortgageOriginalInfo{
-                                           P.originBalance=4000
-                                           ,P.originRate=Fix 0.085
-                                           ,P.originTerm=60
-                                           ,P.period=Monthly
-                                           ,P.startDate=(T.fromGregorian 2022 1 1)
-                                           ,P.prinType= P.Level}
+  ,D.pool = P.Pool {P.assets=[AB.Mortgage
+                                         AB.MortgageOriginalInfo{
+                                           AB.originBalance=4000
+                                           ,AB.originRate=Fix 0.085
+                                           ,AB.originTerm=60
+                                           ,AB.period=Monthly
+                                           ,AB.startDate=(T.fromGregorian 2022 1 1)
+                                           ,AB.prinType= AB.Level}
                                          4000
                                          0.085
                                          60
                                          Nothing
-                                         P.Current
-                                ,ACM.Mortgage
-                                   P.MortgageOriginalInfo{
-                                     P.originBalance=4000
-                                     ,P.originRate=Fix 0.085
-                                     ,P.originTerm=60
-                                     ,P.period=Monthly
-                                     ,P.startDate=(T.fromGregorian 2022 1 1)
-                                     ,P.prinType= P.Level}
+                                         AB.Current
+                                ,AB.Mortgage
+                                   AB.MortgageOriginalInfo{
+                                     AB.originBalance=4000
+                                     ,AB.originRate=Fix 0.085
+                                     ,AB.originTerm=60
+                                     ,AB.period=Monthly
+                                     ,AB.startDate=(T.fromGregorian 2022 1 1)
+                                     ,AB.prinType= AB.Level}
                                    200
                                    0.085
                                    60
                                    Nothing
-                                   (P.Defaulted Nothing)
+                                   (AB.Defaulted Nothing)
                                  ]
                  ,P.futureCf=Nothing
-                 ,P.asOfDate = T.fromGregorian 2022 1 1}
+                 ,P.asOfDate = T.fromGregorian 2022 1 1
+                 ,P.issuanceStat = Nothing}
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee ["General"] ["Service-Fee"])
-                                 ,(W.PayFeeBy (W.DuePct 0.5) ["General"] ["Service-Fee"])
+                                 ,(W.PayFeeBy (DuePct 0.5) ["General"] ["Service-Fee"])
                                  ,(W.TransferReserve W.Source  "Reserve" "General")
                                  ,(W.TransferReserve W.Target  "General" "Reserve")
                                  ,(W.PayInt "General" ["A"])
@@ -150,12 +154,13 @@ td2 = TestDeal {
                                                      ,Trg.trgStatus = False 
                                                      ,Trg.trgCurable = False }])]
  ,D.overrides = Nothing
+ ,D.ledgers = Nothing
 }
 
 waterfallTests =  testGroup "Waterfall Tests"
   [
     let
-     afterAction = D.performAction (toDate "20220301") td2 $ (W.PayPrinBy (W.RemainBalPct 0.05) "General" "B")
+     afterAction = D.performAction (toDate "20220301") td2 $ (W.PayPrinBy (RemainBalPct 0.05) "General" "B")
      afterBnd = (D.bonds afterAction) Map.! "B"
      afterBndA = (D.bonds afterAction) Map.! "A"
      afterAcc = (D.accounts afterAction) Map.! "General"
@@ -196,7 +201,7 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_) = run2 td2 poolflows (Just ads) Nothing Nothing []
+      (fdeal,_) = run2 td2 poolflows (Just ads) Nothing Nothing Nothing []
     in 
       testCase "deal becomes revolving" $
       assertEqual "revoving" 

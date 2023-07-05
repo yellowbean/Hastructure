@@ -114,6 +114,13 @@ instance Asset Loan where
 
   isDefaulted pl@(PersonalLoan _ _ _ _ (Defaulted _)) = True
   isDefaulted pl@(PersonalLoan _ _ _ _ _ ) = False
+ 
+  getOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = sd
+  
+  getRemainTerms (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = rt
+
+  updateOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) nd
+    = PersonalLoan (LoanOriginalInfo ob or ot p nd I_P) cb cr rt st 
 
   getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd _ ) _bal _rate _term _ )  extra
     = genDates sd p (ot+extra)
@@ -195,5 +202,6 @@ instance Asset Loan where
 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted Nothing)) asOfDay assumps
     = CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]
-
-
+  
+  splitWith l@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt st) rs
+    = [ PersonalLoan (LoanOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) (mulBR cb ratio) cr rt st | ratio <- rs ]

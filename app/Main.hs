@@ -54,10 +54,11 @@ import Types
 import qualified Deal as D
 import qualified Asset as P
 import qualified Expense as F
--- import qualified AssetClass.Installment as AC_Installment
--- import qualified AssetClass.Mortgage as AC_Mortgage
--- import qualified AssetClass.Loan as AC_Loan
--- import qualified AssetClass.Lease as AC_Lease
+import qualified Ledger as LD
+import qualified AssetClass.Installment 
+import qualified AssetClass.Mortgage 
+import qualified AssetClass.Loan 
+import qualified AssetClass.Lease 
 import qualified AssetClass.AssetBase as AB 
 import qualified Assumptions as AP
 import qualified Cashflow as CF
@@ -71,6 +72,8 @@ import qualified InterestRate as IR
 import qualified Stmt
 import qualified Triggers as TRG
 import qualified Revolving as RV
+import qualified Lib as Lib
+import qualified Util as U
 
 
 import Debug.Trace
@@ -84,7 +87,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.17.2"
+version1 = Version "0.18.9"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -94,7 +97,6 @@ data PoolType = MPool (P.Pool AB.Mortgage)
 
 instance ToSchema PoolType
 $(deriveJSON defaultOptions ''PoolType)
-
 
 instance ToSchema (P.Pool AB.Mortgage)
 instance ToSchema (P.Pool AB.Loan)
@@ -106,7 +108,6 @@ data DealType = MDeal (D.TestDeal AB.Mortgage)
               | IDeal (D.TestDeal AB.Installment) 
               | RDeal (D.TestDeal AB.Lease) 
               deriving(Show, Generic)
-
 
 instance ToSchema Ts
 instance ToSchema ResultComponent
@@ -132,6 +133,7 @@ instance ToSchema AB.LeaseStepUp
 instance ToSchema AB.AccrualPeriod
 instance ToSchema DateDesp
 instance ToSchema DateType
+instance ToSchema LD.Ledger
 instance ToSchema A.Account
 instance ToSchema A.InterestInfo
 instance ToSchema A.ReserveAmount
@@ -144,8 +146,9 @@ instance ToSchema L.InterestInfo
 instance ToSchema Pre
 instance ToSchema W.ActionWhen
 instance ToSchema W.Action
+instance ToSchema W.BookLedgerType
 instance ToSchema W.CollectionRule
-instance ToSchema W.Limit
+instance ToSchema Limit
 instance ToSchema W.Satisfy
 instance ToSchema C.CallOption
 instance ToSchema CE.LiqFacility
@@ -174,6 +177,7 @@ instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
 instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
+instance ToSchema Stmt.Direction
 instance ToSchema Stmt.TxnComment
 instance ToSchema FormulaType
 instance ToSchema AP.AssumptionBuilder
@@ -182,30 +186,18 @@ instance ToSchema (TsPoint Balance)
 instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
-instance ToSchema Revolving.LiquidationMethod
 instance ToSchema AB.Status
 instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
+instance ToSchema AB.AssetUnion
 instance ToSchema P.IssuanceFields
-instance ToSchema RV.AssetForSale
-instance ToSchema (RV.AssetAvailable AB.Installment)
-instance ToSchema (TsPoint [AB.Installment])
--- instance ToSchema (RV.AssetF AB.Installment)
--- instance ToSchema (RV.AssetForSale AB.Loan)
--- instance ToSchema (RV.AssetForSale AB.Mortgage)
--- instance ToSchema (RV.AssetForSale AB.Lease)
+instance ToSchema PricingMethod
+instance ToSchema RV.RevolvingPool
+instance ToSchema (TsPoint [AB.AssetUnion])
+instance ToSchema (RoundingBy IRate)
+instance ToSchema (RoundingBy Balance)
 
---instance ToSchema (Ratio Integer)
---instance ToSchema (Ratio Integer) where 
---  declareNamedSchema _ = do 
---      integerSchema <- declareSchemaRef (Proxy :: Proxy Integer)
---      return $ NamedSchema (Just "RatioInteger") $ mempty 
---        & type_ ?~ OpenApiObject 
---        & properties .~ 
---            [ ("numerator", integerSchema)
---            , ("denomiator", integerSchema)]
---        & required .~ ["numerator","denominator"]
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
 
@@ -215,7 +207,6 @@ instance ToSchema Threshold
 type RunResp = (DealType , Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput -> RunResp
--- wrapRun (MDeal d) mAssump mPricing = (MDeal d, Nothing , Nothing, Nothing)
 wrapRun (MDeal d) mAssump mPricing = let 
                     (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
                      in 
@@ -239,6 +230,20 @@ wrapRunPool (LPool p) assump = P.aggPool $ D.runPool2 p assump
 wrapRunPool (IPool p) assump = P.aggPool $ D.runPool2 p assump
 wrapRunPool (RPool p) assump = P.aggPool $ D.runPool2 p assump
 
+data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe PricingMethod)
+                   deriving(Show, Generic)
+instance ToSchema RunAssetReq
+
+wrapRunAsset :: RunAssetReq -> (CF.CashFlowFrame, Maybe [PriceResult])
+wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) Nothing) 
+  = (P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets, Nothing)
+wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) (Just pm)) 
+  = let 
+      assetCf = P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets 
+      pricingResult = (\a -> D.priceAssetUnion a d pm assumps) <$> assets
+    in 
+      (assetCf, Just pricingResult)
+
 type ScenarioName = String
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
                 | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
@@ -251,15 +256,24 @@ data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType)
                 deriving(Show, Generic)
 
 instance ToSchema RunPoolReq
+
+data RunDateReq = RunDateReq Date DatePattern
+                deriving(Show, Generic)
+instance ToSchema RunDateReq
+
 $(deriveJSON defaultOptions ''RunDealReq)
 $(deriveJSON defaultOptions ''RunPoolReq)
+$(deriveJSON defaultOptions ''RunAssetReq)
+$(deriveJSON defaultOptions ''RunDateReq)
 
 type EngineAPI = "version" :> Get '[JSON] Version
+            :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] (CF.CashFlowFrame,Maybe [PriceResult])
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] CF.CashFlowFrame
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName CF.CashFlowFrame)
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
+            :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
 
 
 engineAPI :: Proxy EngineAPI
@@ -270,7 +284,6 @@ engineAPI = Proxy
 type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 type API = SwaggerAPI :<|> EngineAPI
 
--- todo swagger 
 engineSwagger :: OpenApi
 engineSwagger = toOpenApi engineAPI 
   & info.title .~ "Hastructure API"
@@ -281,14 +294,17 @@ engineSwagger = toOpenApi engineAPI
 server2 :: Server API
 server2 = return engineSwagger 
       :<|> showVersion 
+      :<|> runAsset
       :<|> runPool
       :<|> runPoolScenarios
       :<|> runDeal
       :<|> runDealScenarios
       :<|> runMultiDeals
+      :<|> runDate
 --      :<|> error "not implemented"
         where 
           showVersion = return version1 
+          runAsset req = return $ wrapRunAsset req
           runPool (SingleRunPoolReq pt passumption) = return $ wrapRunPool pt passumption
           runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) = return $ Map.map (\assump -> wrapRunPool pt (Just assump)) mAssumps
           runDeal (SingleRunReq dt assump pricing) = return $ wrapRun dt assump pricing
@@ -296,6 +312,8 @@ server2 = return engineSwagger
             = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
           runMultiDeals (MultiDealRunReq mDts assump pricing) 
             = return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
+          runDate (RunDateReq sd dp)
+            = return $ U.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
 
 
 writeSwaggerJSON :: IO ()

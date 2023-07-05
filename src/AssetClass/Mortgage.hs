@@ -2,15 +2,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-
 module AssetClass.Mortgage
   (projectMortgageFlow,projectScheduleFlow)
   where
 
 import qualified Data.Time as T
-import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
+import qualified Cashflow as CF 
 import qualified Assumptions as A
-import Asset
+import Asset as Ast
 import Types
 import Lib
 import Util
@@ -68,7 +67,6 @@ projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rat
 
                _end_bal = _new_bal_after_ppy - _new_prin
                _survive_rate = ((1 - _def_rate) * (1 - _ppy_rate))  
-               --_temp = _survive_rate * (1 - (_new_prin % _new_bal_after_ppy))
                _temp = _survive_rate * (toRational (1 - _new_prin / _new_bal_after_ppy))
                _new_mbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
                tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default (head _current_rec) (head _current_loss) _rate _new_mbn
@@ -148,16 +146,16 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
 projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
 
 
-instance Asset Mortgage  where
+instance Ast.Asset Mortgage where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _mbn _) d =
       let 
-        (_,futureTxns) = splitByDate txns d EqToRight
+        (_,futureTxns) = splitByDate txns d EqToRight  -- 
       in 
-        CF.CashFlowFrame futureTxns
+        CF.CashFlowFrame futureTxns  -- `debug` ("Future txn"++show futureTxns)
     where
       orate = getOriginRate m
       pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
-      last_pay_date:cf_dates = lastN (1 + _term) $ sd:getPaymentDates m 0
+      last_pay_date:cf_dates = lastN (1 + _term) $ sd:getPaymentDates m 0 -- `debug` ("CF dates--->"++ show (sd:getPaymentDates m 0)++">> laastN"++show (1+_term))
       l = length cf_dates
       rate_used = case or of
                     IR.Fix _r -> replicate l _r
@@ -179,6 +177,8 @@ instance Asset Mortgage  where
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows)  d = CF.CashFlowFrame flows
 
+  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d = projCashflow m d [] 
+  
   getCurrentBal (Mortgage _ _bal _ _ _ _) = _bal
   getCurrentBal (AdjustRateMortgage _ _ _bal _ _ _ _) = _bal
 
@@ -194,7 +194,7 @@ instance Asset Mortgage  where
     = case or of
        IR.Fix _r -> _r
        IR.Floater _ _ _r _ Nothing -> _r
-       IR.Floater2 _ _ _r _ -> _r 
+       IR.Floater2 _ _ _r _ _ _ _ -> _r 
 
   getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) extra
     = genDates sd p (ot+extra)
@@ -205,7 +205,19 @@ instance Asset Mortgage  where
   isDefaulted (Mortgage _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (AdjustRateMortgage _ _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (Mortgage _ _ _ _ _ _) = False
+  isDefaulted (AdjustRateMortgage _ _ _ _ _ _ _) = False
+  
+  getOriginDate (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) = sd
+  getOriginDate (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) = sd
 
+  getRemainTerms (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) = ct
+  getRemainTerms (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) = ct
+
+  updateOriginDate (Mortgage (MortgageOriginalInfo ob or ot p sd _type) cb cr ct mbn st) nd 
+    = (Mortgage (MortgageOriginalInfo ob or ot p nd _type) cb cr ct mbn st) 
+  updateOriginDate (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd _type) arm cb cr ct mbn st) nd 
+    = (AdjustRateMortgage (MortgageOriginalInfo ob or ot p nd _type) arm cb cr ct mbn st)
+  
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn Current) asOfDay assumps =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
@@ -213,12 +225,12 @@ instance Asset Mortgage  where
       CF.CashFlowFrame futureTxns
     where
       last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
-      cf_dates_length = length cf_dates -- `debug` ("Last Pay Date"++ show last_pay_date++"SD"++ show sd++"ot,ct"++show ot++","++show rt)
+      cf_dates_length = length cf_dates  -- `debug` ("Last Pay Date\n"++ show last_pay_date++"SD\n"++ show sd++"ot,ct\n"++show ot++","++show rt)
       rate_vector = case or of
                       IR.Fix r ->  replicate cf_dates_length r
                       IR.Floater idx sprd _orate p mfloor ->
                               case A.getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates ps Exc cf_dates
+                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x)) $ getValByDates ps Exc cf_dates
                                 Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
                                 Nothing -> replicate cf_dates_length 0.0
 
@@ -272,16 +284,16 @@ instance Asset Mortgage  where
       cf_dates_length = length cf_dates -- `debug` (" cf dates >>" ++ show (last_pay_date:cf_dates ))
       rate_curve = case or of
                       IR.Fix r ->  error "ARM should have floater rate"
-                      IR.Floater2 idx sprd initRate dp ->
+                      IR.Floater2 idx sprd initRate dp _ _ mRoundBy ->
                         let 
                           resetDates = genSerialDatesTill2 IE firstResetDate dp (last cf_dates)
                           projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
                         in 
                           case A.getRateAssumption assumps idx of
-                            Just (A.InterestRateCurve idx curve) -> 
-                              projectFutureActualCurve curve 
-                            Just (A.InterestRateConstant idx v) ->
-                              projectFutureActualCurve (mkRateTs [(last_pay_date,v),(last cf_dates,v)])
+                            Just (A.InterestRateCurve idx curve) 
+                              -> projectFutureActualCurve curve -- `debug` ("Curve")
+                            Just (A.InterestRateConstant idx v) 
+                              -> projectFutureActualCurve (mkRateTs [(getOriginDate m,v),(last cf_dates,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
                             Nothing -> error $ "Failed to find index"++ show idx
 
       rate_vector = fromRational <$> getValByDates rate_curve Inc cf_dates -- `debug` ("RateCurve"++ show rate_curve)
@@ -316,4 +328,13 @@ instance Asset Mortgage  where
 
   getBorrowerNum m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) _ cb cr rt mbn _ ) 
     = fromMaybe 1 mbn
+
+  splitWith (Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn st ) rs 
+    = [ Mortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) (mulBR cb ratio) cr rt mbn st 
+        | ratio <- rs ]
+  
+  splitWith (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) arm cb cr rt mbn st ) rs 
+    = [ AdjustRateMortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) arm (mulBR cb ratio) cr rt mbn st 
+        | ratio <- rs ]
+  
 

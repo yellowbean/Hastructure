@@ -43,14 +43,14 @@ data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe
                   | Fix IRate DayCount 
                   | StepUpFix IRate DayCount StepUpDates Spread
                   | InterestByYield IRate
-                  deriving (Show,Generic)
+                  deriving (Show, Eq, Generic)
 
 data OriginalInfo = OriginalInfo {
   originBalance::Balance
   ,originDate::Date
   ,originRate::Rate
   ,maturityDate :: Maybe Date
-} deriving (Show,Generic)
+} deriving (Show, Eq, Generic)
 
 type SinkFundSchedule = Ts
 type PlannedAmorSchedule = Ts
@@ -62,7 +62,7 @@ data BondType = Sequential
               | Lockout Date
               | Z
               | Equity
-              deriving (Show,Generic)
+              deriving (Show, Eq, Generic)
 
 data Bond = Bond {
   bndName :: String
@@ -77,7 +77,7 @@ data Bond = Bond {
   ,bndLastIntPay :: Maybe Date
   ,bndLastPrinPay :: Maybe Date
   ,bndStmt :: Maybe S.Statement
-} deriving (Show,Generic)
+} deriving (Show, Eq, Generic)
 
 consolTxn :: [S.Txn] -> S.Txn -> [S.Txn]
 consolTxn (txn:txns) txn0
@@ -119,20 +119,6 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt l
     new_bal = bal - amt
     new_due = duePrin - amt
     new_stmt = S.appendStmt stmt (S.BondTxn d new_bal 0 amt 0 amt (S.PayPrin [bn] ))
-
-type Valuation = Centi
-type PerFace = Micro
-type WAL = Centi
-type Duration = Micro
-type Convexity = Micro
-type Yield = Micro
-type AccruedInterest = Centi
-type IRR = Rational
-data YieldResult = Yield
-
-data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
-                 | ZSpread Spread 
-                 deriving (Show,Eq,Generic)
 
 pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc today d amt = 
@@ -307,4 +293,3 @@ $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''BondType)
 $(deriveJSON defaultOptions ''Bond)
-$(deriveJSON defaultOptions ''PriceResult)
