@@ -45,9 +45,6 @@ class SPV a where
   getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
   
 
-class DealDates a where 
-  getClosingDate :: a -> Date
-  getFirstPayDate :: a -> Date
 
 
 data TestDeal a = TestDeal {
@@ -97,37 +94,5 @@ instance SPV (TestDeal a) where
     = case ans of
          Nothing -> accounts t
          Just _ans -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _ans)) (accounts t)
-
-instance DealDates DateDesp where 
-  getClosingDate (PatternInterval _m)
-    = let 
-        (sd,dp,ed) = _m Map.! ClosingDate 
-      in 
-         sd
-         
-  getClosingDate (CustomDates _ _ cd _) = cd
-
-  getClosingDate (FixInterval _m _p1 _p2) = _m Map.! ClosingDate
-
-  getClosingDate (PreClosingDates _ x _ _ _ _) = x
-
-  getClosingDate (CurrentDates (_,cd) _ _ _ _ ) = cd
-
-  getFirstPayDate (PatternInterval _m) 
-    = let 
-        (sd,dp,ed) = _m Map.! FirstPayDate
-      in 
-         sd
-  
-  getFirstPayDate (CustomDates _ _ _ bActions )
-    = getDate $ head bActions
-  
-  getFirstPayDate (FixInterval _m _p1 _p2)  
-    = _m Map.! FirstPayDate
-  
-  getFirstPayDate (PreClosingDates _ _ _ _ _ (fp,_)) = fp
-  
-  getFirstPayDate (CurrentDates _ _ _ _ (cpay,_)) = cpay    
-
 
 $(deriveJSON defaultOptions ''TestDeal)

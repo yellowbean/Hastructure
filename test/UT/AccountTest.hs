@@ -9,6 +9,7 @@ import Stmt
 import Util
 import Types
 import Deal
+import Deal.DealBase
 import qualified Cashflow as CF
 
 import qualified Data.Time as T
