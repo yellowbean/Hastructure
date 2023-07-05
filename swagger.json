@@ -978,6 +978,49 @@
                 ],
                 "type": "object"
             },
+            "RoundingBy_(Fixed_*_E2)": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RoundCeil"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RoundFloor"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "Status": {
                 "oneOf": [
                     {
@@ -6610,6 +6653,34 @@
                                 "type": "string",
                                 "enum": [
                                     "CapWith"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RoundingBy_(Fixed_*_E2)"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Round"
                                 ]
                             }
                         },

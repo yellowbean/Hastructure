@@ -326,6 +326,7 @@ data DealStats =  CurrentBondBalance
                | FloorWith DealStats DealStats
                | FloorWithZero DealStats
                | CapWith DealStats DealStats
+               | Round DealStats (RoundingBy Balance)
                deriving (Show,Eq,Ord,Read,Generic)
 
 
@@ -513,7 +514,7 @@ data Limit = DuePct Balance  --
 
 data RoundingBy a = RoundCeil a 
                   | RoundFloor a
-                  deriving (Show,Generic)
+                  deriving (Show,Generic, Eq, Ord, Read)
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)

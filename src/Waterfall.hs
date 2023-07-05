@@ -66,7 +66,7 @@ data Action = Transfer AccountName AccountName
             | PayFeeResidual (Maybe Limit) AccountName FeeName
             | AccrueAndPayInt AccountName [BondName]
             | PayInt AccountName [BondName]
-            | PayPrin AccountName [BondName]
+            | PayPrin AccountName [BondName] 
             | PayPrinResidual AccountName [BondName]
             | PayPrinBy Limit AccountName BondName
             | PayTillYield AccountName [BondName]

@@ -218,8 +218,6 @@ instance Ast.Asset Mortgage where
   updateOriginDate (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd _type) arm cb cr ct mbn st) nd 
     = (AdjustRateMortgage (MortgageOriginalInfo ob or ot p nd _type) arm cb cr ct mbn st)
   
-  -- updateOriginDate2 (LO m) d = LO (updateOriginDate m) (calcAlignDate m)
-
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn Current) asOfDay assumps =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
@@ -232,7 +230,7 @@ instance Ast.Asset Mortgage where
                       IR.Fix r ->  replicate cf_dates_length r
                       IR.Floater idx sprd _orate p mfloor ->
                               case A.getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates ps Exc cf_dates
+                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x)) $ getValByDates ps Exc cf_dates
                                 Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
                                 Nothing -> replicate cf_dates_length 0.0
 

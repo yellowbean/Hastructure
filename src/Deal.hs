@@ -510,7 +510,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (DS ds) an
                        bndName $
                        Map.adjust (calcDuePrin t d) bndName bndMap -- `debug` ("Actual PayAmount"++show payAmount)
 
-
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin an bnds) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
   where
@@ -1583,6 +1582,7 @@ queryDeal t s =
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
+    Round ds rb -> roundingBy rb (queryDeal t ds)
 
     _ -> 0.0 `debug` ("Failed to query balance of -> "++ show s)
 
