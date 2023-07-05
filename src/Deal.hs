@@ -1819,4 +1819,3 @@ depositPoolInflow rules d (CF.CashFlowFrame txn) amap =
       txn
 
 $(deriveJSON defaultOptions ''ExpectReturn)
-$(deriveJSON defaultOptions ''TestDeal)
