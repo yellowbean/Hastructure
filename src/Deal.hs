@@ -26,7 +26,7 @@ import AssetClass.Loan
 import AssetClass.Installment
 import qualified Call as C
 import qualified InterestRate as IR
-import Deal.Base
+import Deal.DealBase
 import Stmt
 import Lib
 import Util
