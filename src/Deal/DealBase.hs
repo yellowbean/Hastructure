@@ -6,6 +6,7 @@
 module Deal.DealBase (TestDeal(..),SPV(..)) 
   where
 import qualified Accounts as A
+import qualified Ledger as LD
 import qualified Asset as P
 import qualified Expense as F
 import qualified Liability as L
@@ -66,6 +67,7 @@ data TestDeal a = TestDeal {
   ,custom:: Maybe (Map.Map String CustomDataType)
   ,triggers :: Maybe (Map.Map DealCycle [Trigger])
   ,overrides :: Maybe [OverrideType]
+  ,ledgers :: Maybe (Map.Map String LD.Ledger)
 } deriving (Show,Generic)
 
 instance SPV (TestDeal a) where
