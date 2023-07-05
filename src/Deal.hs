@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Deal (TestDeal(..),run2,runPool2,getInits,runDeal,ExpectReturn(..)
+module Deal (run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,calcDueFee,applicableAdjust,performAction,queryDeal
             ,setFutureCF,populateDealDates
             ,calcTargetAmount, updateLiqProvider, accrueLiqProvider) where
@@ -19,6 +19,7 @@ import qualified Assumptions as AP
 import qualified AssetClass.AssetBase as ACM
 import qualified Call as C
 import qualified InterestRate as IR
+import Deal.Base
 import Stmt
 import Lib
 import Util
@@ -45,98 +46,6 @@ import GHC.Generics
 import Debug.Trace
 debug = flip trace
 
-
-class SPV a where
-  getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
-  getBondBegBal :: a -> String -> Balance
-  getBondStmtByName :: a -> Maybe [String] -> Map.Map String (Maybe Statement)
-  getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
-  getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
-  
-
-class DealDates a where 
-  getClosingDate :: a -> Date
-  getFirstPayDate :: a -> Date
-
--- data PoolType = P.Pool | MultAsset 
-
-data TestDeal a = TestDeal {
-  name :: String
-  ,status :: DealStatus
-  ,dates :: DateDesp
-  ,accounts :: Map.Map String A.Account
-  ,fees :: Map.Map String F.Fee
-  ,bonds :: Map.Map String L.Bond
-  ,pool ::  P.Pool a 
-  ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
-  ,collects :: [W.CollectionRule]
-  ,call :: Maybe [C.CallOption]
-  ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
-  ,rateSwap :: Maybe (Map.Map String CE.RateSwap)
-  ,currencySwap :: Maybe (Map.Map String CE.CurrencySwap)
-  ,custom:: Maybe (Map.Map String CustomDataType)
-  ,triggers :: Maybe (Map.Map DealCycle [Trigger])
-  ,overrides :: Maybe [OverrideType]
-} deriving (Show,Generic)
-
-instance SPV (TestDeal a) where
-  getBondByName t bns
-    = case bns of
-         Nothing -> bonds t
-         Just _bns -> Map.filterWithKey (\k _ -> S.member k (S.fromList _bns)) (bonds t)
-
-  getBondStmtByName t bns
-    = Map.map L.bndStmt bndsM
-      where
-      bndsM = Map.map L.consolStmt $ getBondByName t bns
-
-  getBondBegBal t bn 
-    = case L.bndStmt b of
-        Just (Statement stmts) -> getTxnBegBalance $ head stmts -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
-        Nothing -> L.bndBalance b  -- `debug` ("Getting beg bal nothing"++bn)
-        where
-            b = bonds t Map.! bn
-
-  getFeeByName t fns
-    = case fns of
-         Nothing -> fees t
-         Just _fns -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _fns)) (fees t)
-  
-  getAccountByName t ans
-    = case ans of
-         Nothing -> accounts t
-         Just _ans -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _ans)) (accounts t)
-
-instance DealDates DateDesp where 
-  getClosingDate (PatternInterval _m)
-    = let 
-        (sd,dp,ed) = _m Map.! ClosingDate 
-      in 
-         sd
-         
-  getClosingDate (CustomDates _ _ cd _) = cd
-
-  getClosingDate (FixInterval _m _p1 _p2) = _m Map.! ClosingDate
-
-  getClosingDate (PreClosingDates _ x _ _ _ _) = x
-
-  getClosingDate (CurrentDates (_,cd) _ _ _ _ ) = cd
-
-  getFirstPayDate (PatternInterval _m) 
-    = let 
-        (sd,dp,ed) = _m Map.! FirstPayDate
-      in 
-         sd
-  
-  getFirstPayDate (CustomDates _ _ _ bActions )
-    = getDate $ head bActions
-  
-  getFirstPayDate (FixInterval _m _p1 _p2)  
-    = _m Map.! FirstPayDate
-  
-  getFirstPayDate (PreClosingDates _ _ _ _ _ (fp,_)) = fp
-  
-  getFirstPayDate (CurrentDates _ _ _ _ (cpay,_)) = cpay
 
 testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Bool
 testPre d t p =
@@ -447,7 +356,6 @@ performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqPa
       newFeeMap = Map.adjust (F.payFee d transferAmt) fn feeMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
-
 performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqPayBond limit pName bn)
   = t { bonds = newBondMap, liqProvider = Just newLiqMap }
   where 
@@ -462,7 +370,6 @@ performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqP
       --transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
       newBondMap = Map.adjust (L.payInt d transferAmt ) bn bndMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
-
 
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.LiqRepay limit rpt an pName)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap }
