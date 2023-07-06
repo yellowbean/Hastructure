@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.Installment 
-  (projectInstallmentFlow)
+  (projectInstallmentFlow, updateOriginDate)
   where
 
 import qualified Data.Time as T

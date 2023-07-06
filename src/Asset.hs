@@ -8,7 +8,7 @@ module Asset (Pool(..),calc_p_i_flow
        ,getIssuanceField,calcPmt
        ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
        ,calcRecoveriesFromDefault
-       ,priceAsset
+       ,priceAsset,calcAlignDate
 ) where
 
 import qualified Data.Time as T
@@ -22,6 +22,7 @@ import Lib (Period(..),genDates
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
+import qualified AssetClass.AssetBase as ACM 
 
 import qualified Data.Map as Map
 import Analytics
@@ -245,45 +246,6 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps
       in 
         AssetPrice val wal (-1) (-1) (-1) 
 
--- adjustOriginDateByRemainTerms :: AssetUnion -> Date -> AssetUnion 
--- adjustOriginDateByRemainTerms astu d 
---  = case astu of
---      (LO ast) ->  
---        let 
---          payDates = getPaymentDates ast 0
---          remainTerms = getRemainTerms ast 
---          benchDate = (reverse payDates)!!remainTerms
---          offset = daysBetween benchDate d
---          newOrignDate = T.addDays offset $ getOriginDate ast
---        in 
---          LO $ updateOriginDate ast newOrignDate
---      (MO ast) -> 
---        let
---          payDates = getPaymentDates ast 0
---          remainTerms = getRemainTerms ast 
---          benchDate = (reverse payDates)!!remainTerms
---          offset = daysBetween benchDate d
---          newOrignDate = T.addDays offset $ getOriginDate ast
---        in 
---          MO $ updateOriginDate ast newOrignDate
---      (IL ast) ->  
---        let 
---          payDates = getPaymentDates ast 0
---          remainTerms = getRemainTerms ast 
---          benchDate = (reverse payDates)!!remainTerms
---          offset = daysBetween benchDate d
---          newOrignDate = T.addDays offset $ getOriginDate ast
---        in 
---          IL $ updateOriginDate ast newOrignDate
---      (LS ast) ->  
---        let 
---          payDates = getPaymentDates ast 0
---          remainTerms = getRemainTerms ast 
---          benchDate = (reverse payDates)!!remainTerms
---          offset = daysBetween benchDate d
---          newOrignDate = T.addDays offset $ getOriginDate ast
---        in 
---          LS $ updateOriginDate ast newOrignDate
 
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool [] = CF.CashFlowFrame []

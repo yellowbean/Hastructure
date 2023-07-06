@@ -44,9 +44,6 @@ class SPV a where
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
   getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
   
-
-
-
 data TestDeal a = TestDeal {
   name :: String
   ,status :: DealStatus

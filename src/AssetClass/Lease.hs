@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module AssetClass.Lease
-  (Lease(..),accrueRentals,projCashflow)
+  (Lease(..),accrueRentals,projCashflow,updateOriginDate)
   where
 
 import qualified Data.Time as T
