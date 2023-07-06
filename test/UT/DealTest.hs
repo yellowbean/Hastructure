@@ -12,7 +12,7 @@ import qualified Asset as P
 import qualified AssetClass.Mortgage as ACM
 import qualified AssetClass.AssetBase as AB
 import qualified Expense as F
-import qualified Deal as D
+import qualified Deal.DealBase as D
 import qualified Liability as L
 import qualified Waterfall as W
 import qualified Cashflow as CF
@@ -28,7 +28,7 @@ import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
 
-td2 = TestDeal {
+td2 = D.TestDeal {
   D.name = "test deal1"
   ,D.status = Amortizing
   ,D.rateSwap = Nothing
@@ -160,7 +160,7 @@ td2 = TestDeal {
 waterfallTests =  testGroup "Waterfall Tests"
   [
     let
-     afterAction = D.performAction (toDate "20220301") td2 $ (W.PayPrinBy (RemainBalPct 0.05) "General" "B")
+     afterAction = performAction (toDate "20220301") td2 $ (W.PayPrinBy (RemainBalPct 0.05) "General" "B")
      afterBnd = (D.bonds afterAction) Map.! "B"
      afterBndA = (D.bonds afterAction) Map.! "A"
      afterAcc = (D.accounts afterAction) Map.! "General"
@@ -172,7 +172,7 @@ waterfallTests =  testGroup "Waterfall Tests"
 queryTests =  testGroup "deal stat query Tests"
   [
     let
-     currentDefBal = D.queryDeal td2 CurrentPoolDefaultedBalance
+     currentDefBal = queryDeal td2 CurrentPoolDefaultedBalance
     in
      testCase "query current assets in defaulted status" $
      assertEqual "should be 200" 200 currentDefBal
@@ -206,7 +206,7 @@ triggerTests = testGroup "Trigger Tests"
       testCase "deal becomes revolving" $
       assertEqual "revoving" 
         Revolving 
-        (status fdeal)
+        (D.status fdeal)
   ]
 
 dateTests = 
@@ -249,5 +249,5 @@ liqProviderTest =
       [testCase "Liq Provider Int test" $
           assertEqual ""
            93
-           (CE.liqCredit $ D.accrueLiqProvider td2 (toDate "20221101") liq1)
+           (CE.liqCredit $ accrueLiqProvider td2 (toDate "20221101") liq1)
       ]
