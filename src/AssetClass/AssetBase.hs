@@ -91,6 +91,8 @@ data AssetUnion = MO Mortgage
                 deriving (Show, Generic)
 
 
+
+
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''OriginalInfo)

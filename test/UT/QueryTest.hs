@@ -11,7 +11,8 @@ import Stmt
 import Cashflow
 import Data.Ratio 
 import qualified UT.DealTest as DT
-import Deal 
+import Deal
+import Deal.DealBase
 import Asset
 import Types
 

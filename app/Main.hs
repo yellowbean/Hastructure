@@ -52,6 +52,7 @@ import Servant.Types.SourceT (source)
 
 import Types 
 import qualified Deal as D
+import qualified Deal.DealBase as DB
 import qualified Asset as P
 import qualified Expense as F
 import qualified Ledger as LD
@@ -103,10 +104,10 @@ instance ToSchema (P.Pool AB.Loan)
 instance ToSchema (P.Pool AB.Installment)
 instance ToSchema (P.Pool AB.Lease)
 
-data DealType = MDeal (D.TestDeal AB.Mortgage)
-              | LDeal (D.TestDeal AB.Loan)
-              | IDeal (D.TestDeal AB.Installment) 
-              | RDeal (D.TestDeal AB.Lease) 
+data DealType = MDeal (DB.TestDeal AB.Mortgage)
+              | LDeal (DB.TestDeal AB.Loan)
+              | IDeal (DB.TestDeal AB.Installment) 
+              | RDeal (DB.TestDeal AB.Lease) 
               deriving(Show, Generic)
 
 instance ToSchema Ts
@@ -125,10 +126,10 @@ instance ToSchema AB.Loan
 instance ToSchema AB.Installment
 instance ToSchema AB.Lease
 
-instance ToSchema (D.TestDeal AB.Mortgage)
-instance ToSchema (D.TestDeal AB.Loan)
-instance ToSchema (D.TestDeal AB.Installment)
-instance ToSchema (D.TestDeal AB.Lease)
+instance ToSchema (DB.TestDeal AB.Mortgage)
+instance ToSchema (DB.TestDeal AB.Loan)
+instance ToSchema (DB.TestDeal AB.Installment)
+instance ToSchema (DB.TestDeal AB.Lease)
 instance ToSchema AB.LeaseStepUp 
 instance ToSchema AB.AccrualPeriod
 instance ToSchema DateDesp

@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.Mortgage
-  (projectMortgageFlow,projectScheduleFlow)
+  (projectMortgageFlow,projectScheduleFlow,updateOriginDate)
   where
 
 import qualified Data.Time as T
