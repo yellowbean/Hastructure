@@ -1,4 +1,4 @@
-module UT.AnalyticsTest(walTest)
+module UT.AnalyticsTest(walTest,durationTest)
 where
 
 import Test.Tasty
@@ -25,3 +25,22 @@ walTest =
           0.74
           (calcWAL ByYear 100 (L.toDate "20230101") _ps )
     ]
+
+durationTest = 
+  testGroup "Duration Test" 
+  [
+    testCase "Duration 1" $ 
+      assertEqual "10 Months bullet"
+      0.74
+      (calcDuration 
+        (L.toDate "20230101")
+        [(L.toDate "20231001",100)]
+        (L.mkRateTs [(L.toDate "20230101",0.01)]))
+  , testCase "Duration 2" $ 
+      assertEqual "Multiple cf"
+      0.86
+      (calcDuration 
+        (L.toDate "20230101")
+        [(L.toDate "20231001",100),(L.toDate "20240101",100)]
+        (L.mkRateTs [(L.toDate "20230101",0.01)]))
+  ]

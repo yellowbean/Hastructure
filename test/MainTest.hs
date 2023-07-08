@@ -72,4 +72,5 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,IRT.armResetTests
                            ,IRT.interestRoundingTest
                            ,AnalyticsT.walTest
+                           ,AnalyticsT.durationTest
                            ]

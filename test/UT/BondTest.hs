@@ -138,8 +138,8 @@ pricingTests = testGroup "Pricing Tests"
     in 
       testCase "Z spread test" $
       assertEqual "Z spread test 01" 
-      0.085795
-      (B.calcZspread  (500.0,pday) 0 (103.0,0.01) (B.bndStmt b6) rateCurve)
+      (-1.039719)
+      (B.calcZspread  (100.0,pday) 0 (1.0,(0.01,0.02),0.03) b6 rateCurve)
       --(B.calcZspread  (500.0,pday) (103.0,1/100) Nothing rateCurve)
 
   ]
@@ -173,4 +173,4 @@ bndUtilTest = testGroup "Bond PV/FV Test" [
         assertEqual "0.5-year"
             103.89
             (B.fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 
-                                         ]
+ ]

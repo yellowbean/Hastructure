@@ -9,7 +9,7 @@ module Liability
   ,payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,fv2,calcZspread,payYield
-  ,buildRateResetDates)
+  ,buildRateResetDates,convertToFace)
   where
 
 import Language.Haskell.TH
@@ -23,6 +23,7 @@ import Lib (Period(..),Ts(..) ,TsPoint(..)
 
 import Util
 import Types
+import Analytics
 import Data.Ratio 
 
 import qualified Stmt as S 
@@ -120,13 +121,10 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt l
     new_due = duePrin - amt
     new_stmt = S.appendStmt stmt (S.BondTxn d new_bal 0 amt 0 amt (S.PayPrin [bn] ))
 
-pv :: Ts -> Date -> Date -> Amount -> Amount
-pv pc today d amt = 
-   realToFrac $ (realToFrac amt) * (1 / factor) -- `debug` ("DF:"++show factor++" PV AMT"++show amt)
-  where
-   distance::Double =  fromIntegral $ daysBetween today d
-   discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
-   factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)  -- `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
+convertToFace :: Balance -> Bond -> Balance
+convertToFace bal b@Bond{bndOriginInfo = info}
+  = bal / (originBalance info)
+
 
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
 fv2 discount_rate today futureDay amt =
@@ -160,15 +158,14 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayD
                     where
                       _t = find (\x -> (S.getDate x) == d) txns
                       leftTxns = takeWhile (\txn -> (S.getDate txn) < d) txns
-                      (leftPayDay,leftBal) =
-                        case leftTxns of
-                          [] -> case lastIntPayDay of
-                                 Nothing ->  (od,bal)
-                                 Just _d -> (_d,bal)
-                          _ -> let
-                                leftTxn = last leftTxns
-                              in
-                                (S.getDate leftTxn,S.getTxnBalance leftTxn)
+                      (leftPayDay,leftBal) = case leftTxns of
+                                               [] -> case lastIntPayDay of
+                                                       Nothing ->  (od,bal)
+                                                       Just _d -> (_d,bal)
+                                               _ -> let
+                                                      leftTxn = last leftTxns
+                                                    in
+                                                      (S.getDate leftTxn,S.getTxnBalance leftTxn)
        wal =  ((foldr 
                  (\x acc ->
                    (acc + ((fromIntegral (daysBetween d (S.getDate x)))*(S.getTxnPrincipal x)/365)))
@@ -199,7 +196,6 @@ priceBond d rc b@(Bond _ _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayD
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
 
-
 _calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
 _calcIRR amt initIrr today (BalanceCurve cashflows)
    = if ((abs(diff) < 0.005) || (abs(nextIrr-initIrr)<0.0001)) then
@@ -222,11 +218,8 @@ calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
    where
      cashflows = [ TsPoint (S.getDate txn) (S.getTxnAmt txn)  | txn <- txns ]
 
-
-
 backoutDueIntByYield :: Date -> Bond -> Balance
 backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYield y) currentBalance  _ _ _ _ _ _ stmt)
-  -- = obal_fv - fvs `debug` ("FVS->"++show fvs++"FV of Obal"++show (fv2 y odate d obal)++"y"++show y++"odate"++show odate++"d"++ show d++"obal"++show obal)
   = proj_fv - fvs - currentBalance -- `debug` ("Date"++ show d ++"FV->"++show proj_fv++">>"++show fvs++">>cb"++show currentBalance)
     where
      proj_fv = fv2 y odate d obal 
@@ -247,39 +240,45 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
                 Nothing -> []
                 Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 
-calcZspread :: (Balance,Date) -> Int -> (Balance,Rational) -> Maybe S.Statement -> Ts -> Spread
-calcZspread _ _ _ Nothing _ = 0
-
-calcZspread (tradePrice,priceDay) count (trialPrice,spd) (Just (S.Statement txns)) riskFreeCurve  
-  | count >= 10000 = fromRational spd
+calcZspread :: (Balance,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
+calcZspread _ _ _ b@Bond{bndStmt = Nothing} _ = error "No Cashflow for bond"
+calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{bndStmt = Just (S.Statement txns), bndOriginInfo = bInfo} riskFreeCurve  
+  | count >= 10000 = error "Failed to find Z spread with 10000 times try"
   | otherwise =
     let 
       (_,futureTxns) = splitByDate txns priceDay EqToRight
-      cashflow = map S.getTxnAmt futureTxns
-      ds = map S.getDate futureTxns
-      pvCurve = shiftTsByAmt riskFreeCurve spd
-      pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ]
-      newPrice = sum pvs -- `debug` ("PVS->>"++ show pvs)
-      newSpd_ = if newPrice > tradePrice then 
-                 if spd>0 then 
-                    spd * 1.005
-                 else
-                    spd * 0.995
-               else 
-                 if spd>0 then 
-                    spd * 0.995
-                 else
-                    spd * 1.005
+     
+      cashflow = S.getTxnAmt <$> futureTxns
+      ds = S.getDate <$> futureTxns
+      cutoffBalance = S.getTxnBegBalance $ head futureTxns
 
-      newSpd = if newSpd_ <= 0.00001 && newSpd_>0 then 
-                 newSpd_ * (-1)
-               else
-                 newSpd_
+      pvCurve = shiftTsByAmt riskFreeCurve spd -- `debug` ("Shfiting using spd"++ show (fromRational spd))
+      pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ] -- `debug` (" using pv curve"++ show pvCurve)
+      newPrice = 100 * (sum pvs) -- `debug` ("PVS->>"++ show pvs)
+      pricingFaceVal = newPrice / cutoffBalance -- `debug` ("new price"++ show newPrice)
+      gap = (pricingFaceVal - tradePrice) -- `debug` ("Face val"++show pricingFaceVal++"T price"++show tradePrice)
+      f = let 
+            thresholds = toRational  <$> (level *) <$> [50,20,10,5,2,0.1,0.05,0.01,0.005]
+            shiftPcts = (level *) <$> [0.5,0.2,0.1,0.05,0.02,0.01,0.005,0.001,0.0005]
+          in 
+            case find (\(a,b) -> a < (abs(toRational gap))) (zip thresholds shiftPcts ) of
+              Just (_,v) -> toRational v  -- `debug` ("shifting ->"++ show v)
+              Nothing -> toRational (level * 0.00001) --  `debug` ("shifting-> <> 0.00005")
+      newSpd = case (gap > 0, spd > 0) of
+                 (True,True)   -> spd + f -- `debug` ("1 -> "++ show f)
+                 (True,False)  -> spd + f -- `debug` ("2 -> "++ show f)
+                 (False,False) -> spd - f -- `debug` ("3 -> "++ show f)
+                 (False,True)  -> spd - f -- `debug` ("4 -> "++ show f)
+                  
+      newLevel = case (abs(newSpd) < 0.0001 , abs(newSpd-lastSpd)<0.000001) of
+                   (True, False) -> level * 0.5
+                   (False, True) -> level * 0.5
+                   _ -> level
     in 
-      if abs(newPrice - tradePrice) <= 0.0001 then 
-         fromRational spd -- `debug` ("trail price"++show (fromRational spd))
+      if abs(pricingFaceVal - tradePrice) <= 0.01 then 
+        fromRational spd  -- `debug` ("Curve -> "++show pvCurve)
       else
-        calcZspread (tradePrice,priceDay) (succ count) (newPrice, newSpd) (Just (S.Statement txns)) riskFreeCurve -- `debug` ("Run with newprice"++show newPrice++"Count->"++show count ) 
+        calcZspread (tradePrice,priceDay) (succ count) (newLevel, (spd, lastSpd), newSpd) b riskFreeCurve -- `debug` ("new price"++ show pricingFaceVal++ "new spd"++ show (fromRational newSpd))
 
 buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
 buildRateResetDates b sd ed 

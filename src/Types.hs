@@ -516,6 +516,9 @@ data RoundingBy a = RoundCeil a
                   | RoundFloor a
                   deriving (Show,Generic, Eq, Ord, Read)
 
+
+
+
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
 $(deriveJSON defaultOptions ''DealStats)
