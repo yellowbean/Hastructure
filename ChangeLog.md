@@ -3,6 +3,13 @@
 ## 0.19.0
 ### 2023-7-1
 * BREAK : seperate `payInt` action and `accrueInt` action
+* ENHANCE: optimize `Z-spread` calculation
+* ENHANCE: re arrange `deal.hs` , break down code logic into seperate files.
+* NEW: include `ledgers` to accomodate `PDL` feature (Principal Deficiency Ledger)
+* ENHANCE: expose `rounding` on `deal stats`, which rounds interest rate change by a factor of fix amount ,or pay principal on balance by a factor of fix amount.
+* ENAHNCE: expose `runDate` endpoint as sandbox for user to play with `<datePattern>`
+* ENHANCE: Seperate action `PayInt` -> `PayInt` and `AccrueInt`.
+
 
 ## 0.18.9
 ### 2023-6-23
