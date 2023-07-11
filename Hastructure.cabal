@@ -39,6 +39,10 @@ library
       Cashflow
       CreditEnhancement
       Deal
+      Deal.DealAction
+      Deal.DealBase
+      Deal.DealDate
+      Deal.DealQuery
       Expense
       InterestRate
       Ledger
