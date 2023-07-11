@@ -257,16 +257,18 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
       newPrice = 100 * (sum pvs) -- `debug` ("PVS->>"++ show pvs)
       pricingFaceVal = toRational $ newPrice / cutoffBalance -- `debug` ("new price"++ show newPrice)
       gap = (pricingFaceVal - tradePrice) -- `debug` ("Face val"++show pricingFaceVal++"T price"++show tradePrice)
-      f = let 
-            thresholds = toRational  <$> (level *) <$> [50,20,10,5,2,0.1,0.05,0.01,0.005]
-            shiftPcts = (level *) <$> [0.5,0.2,0.1,0.05,0.02,0.01,0.005,0.001,0.0005]
-          in 
-            case find (\(a,b) -> a < (abs(toRational gap))) (zip thresholds shiftPcts ) of
-              Just (_,v) -> toRational v  -- `debug` ("shifting ->"++ show v)
-              Nothing -> toRational (level * 0.00001) --  `debug` ("shifting-> <> 0.00005")
-      newSpd = case (gap > 0, spd > 0) of
-                 (True,_)   -> spd + f -- `debug` ("1 -> "++ show f)
-                 (False,_) -> spd - f -- `debug` ("3 -> "++ show f)
+      newSpd = case [gap ==0 ,gap > 0, spd > 0] of
+                 [True,_,_]   -> spd
+                 [_,True,_]   -> spd + f -- `debug` ("1 -> "++ show f)
+                 [_,False,_]  -> spd - f -- `debug` ("3 -> "++ show f)
+                 where 
+                   f = let 
+                        thresholds = toRational  <$> (level *) <$> [50,20,10,5,2,0.1,0.05,0.01,0.005]
+                        shiftPcts = (level *) <$> [0.5,0.2,0.1,0.05,0.02,0.01,0.005,0.001,0.0005]
+                       in 
+                         case find (\(a,b) -> a < (abs(toRational gap))) (zip thresholds shiftPcts ) of
+                           Just (_,v) -> toRational v  -- `debug` ("shifting ->"++ show v)
+                           Nothing -> toRational (level * 0.00001) --  `debug` ("shifting-> <> 0.00005")
                   
       newLevel = case [abs(newSpd) < 0.0001
                        ,abs(newSpd-lastSpd)<0.000001
