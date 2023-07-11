@@ -131,14 +131,15 @@ pricingTests = testGroup "Pricing Tests"
       assertEqual "pay int" 2400  $ B.bndBalance (B.payPrin pday 600 b5)
     ,
     let 
-      b6 = b1
+      newCfStmt = Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 300 2800 0.08 3100 S.Empty] 
+      b6 = b1 {B.bndStmt = newCfStmt}
       pday = L.toDate "20220301" -- `debug` ("stmt>>>>>"++ show (B.bndStmt b6))
       rateCurve = IRateCurve [TsPoint (L.toDate "20220201") 0.03 ,TsPoint (L.toDate "20220401") 0.04]
       --rateCurve = IRateCurve [TsPoint (L.toDate "20220201") 0.03::IRate]
     in 
       testCase "Z spread test" $
       assertEqual "Z spread test 01" 
-      (-1.095000)
+      (0.175999)
       (B.calcZspread  (100.0,pday) 0 (1.0,(0.01,0.02),0.03) b6 rateCurve)
       --(B.calcZspread  (500.0,pday) (103.0,1/100) Nothing rateCurve)
 

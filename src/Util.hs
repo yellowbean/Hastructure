@@ -10,6 +10,7 @@ module Util
     ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
+    ,floorWith
     )
     where
 import qualified Data.Time as T
@@ -446,6 +447,9 @@ capWith xs cap = [ if x > cap then
                     cap
                    else 
                     x | x <- xs ]
+
+floorWith :: Ord a => [a] -> a -> [a]
+floorWith xs floor = [ max x floor | x <- xs]
 
 pv2 :: IRate -> Date -> Date -> Amount -> Amount
 pv2 discount_rate today d amt =

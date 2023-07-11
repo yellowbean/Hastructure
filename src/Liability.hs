@@ -243,7 +243,7 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
 calcZspread :: (Rational,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
 calcZspread _ _ _ b@Bond{bndStmt = Nothing} _ = error "No Cashflow for bond"
 calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{bndStmt = Just (S.Statement txns), bndOriginInfo = bInfo} riskFreeCurve  
-  | count >= 3 =  fromRational spd -- error "Failed to find Z spread with 10000 times try"
+  | count >= 10000 =  fromRational spd -- error "Failed to find Z spread with 10000 times try"
   | otherwise =
     let 
       (_,futureTxns) = splitByDate txns priceDay EqToRight
@@ -255,7 +255,7 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
       pvCurve = shiftTsByAmt riskFreeCurve spd -- `debug` ("Shfiting using spd"++ show (fromRational spd))
       pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ] -- `debug` (" using pv curve"++ show pvCurve)
       newPrice = 100 * (sum pvs) -- `debug` ("PVS->>"++ show pvs)
-      pricingFaceVal = toRational $ newPrice / oBalance  `debug` ("new price"++ show newPrice)
+      pricingFaceVal = toRational $ newPrice / oBalance -- `debug` ("new price"++ show newPrice)
       gap = (pricingFaceVal - tradePrice) -- `debug` ("Face val"++show pricingFaceVal++"T price"++show tradePrice)
       newSpd = case [gap ==0 ,gap > 0, spd > 0] of
                  [True,_,_]   -> spd
@@ -281,7 +281,7 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
       if abs(pricingFaceVal - tradePrice) <= 0.01 then 
         fromRational spd  -- `debug` ("Curve -> "++show pvCurve)
       else
-        calcZspread (tradePrice,priceDay) (succ count) (newLevel, (spd, lastSpd), newSpd) b riskFreeCurve  `debug` ("new price"++ show pricingFaceVal++"trade price"++ show tradePrice++ "new spd"++ show (fromRational newSpd))
+        calcZspread (tradePrice,priceDay) (succ count) (newLevel, (spd, lastSpd), newSpd) b riskFreeCurve -- `debug` ("new price"++ show pricingFaceVal++"trade price"++ show tradePrice++ "new spd"++ show (fromRational newSpd))
 
 buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
 buildRateResetDates b sd ed 
