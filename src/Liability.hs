@@ -240,7 +240,7 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
                 Nothing -> []
                 Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 
-calcZspread :: (Balance,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
+calcZspread :: (Rational,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
 calcZspread _ _ _ b@Bond{bndStmt = Nothing} _ = error "No Cashflow for bond"
 calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{bndStmt = Just (S.Statement txns), bndOriginInfo = bInfo} riskFreeCurve  
   | count >= 10000 = error "Failed to find Z spread with 10000 times try"
@@ -255,7 +255,7 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
       pvCurve = shiftTsByAmt riskFreeCurve spd -- `debug` ("Shfiting using spd"++ show (fromRational spd))
       pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ] -- `debug` (" using pv curve"++ show pvCurve)
       newPrice = 100 * (sum pvs) -- `debug` ("PVS->>"++ show pvs)
-      pricingFaceVal = newPrice / cutoffBalance -- `debug` ("new price"++ show newPrice)
+      pricingFaceVal = toRational $ newPrice / cutoffBalance -- `debug` ("new price"++ show newPrice)
       gap = (pricingFaceVal - tradePrice) -- `debug` ("Face val"++show pricingFaceVal++"T price"++show tradePrice)
       f = let 
             thresholds = toRational  <$> (level *) <$> [50,20,10,5,2,0.1,0.05,0.01,0.005]
@@ -266,13 +266,13 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
               Nothing -> toRational (level * 0.00001) --  `debug` ("shifting-> <> 0.00005")
       newSpd = case (gap > 0, spd > 0) of
                  (True,_)   -> spd + f -- `debug` ("1 -> "++ show f)
-                 -- (True,_)  -> spd + f -- `debug` ("2 -> "++ show f)
                  (False,_) -> spd - f -- `debug` ("3 -> "++ show f)
-                 -- (False,_)  -> spd - f -- `debug` ("4 -> "++ show f)
                   
-      newLevel = case [abs(newSpd) < 0.0001 , abs(newSpd-lastSpd)<0.000001, abs(newSpd-lastSpd2)<0.000001] of
-                   [True,_,_ ] -> level * 0.5
-                   [_, True,_] -> level * 0.5
+      newLevel = case [abs(newSpd) < 0.0001
+                       ,abs(newSpd-lastSpd)<0.000001
+                       ,abs(newSpd-lastSpd2)<0.000001] of
+                   [True,_,_] -> level * 0.5
+                   [_,True,_] -> level * 0.5
                    [_,_,True] -> level * 0.5
                    _ -> level
     in 
