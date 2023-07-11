@@ -243,7 +243,7 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
 calcZspread :: (Rational,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
 calcZspread _ _ _ b@Bond{bndStmt = Nothing} _ = error "No Cashflow for bond"
 calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{bndStmt = Just (S.Statement txns), bndOriginInfo = bInfo} riskFreeCurve  
-  | count >= 10000 =  fromRational spd -- error "Failed to find Z spread with 10000 times try"
+  | count >= 10 =  fromRational spd -- error "Failed to find Z spread with 10000 times try"
   | otherwise =
     let 
       (_,futureTxns) = splitByDate txns priceDay EqToRight
