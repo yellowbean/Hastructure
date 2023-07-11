@@ -265,14 +265,15 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
               Just (_,v) -> toRational v  -- `debug` ("shifting ->"++ show v)
               Nothing -> toRational (level * 0.00001) --  `debug` ("shifting-> <> 0.00005")
       newSpd = case (gap > 0, spd > 0) of
-                 (True,True)   -> spd + f -- `debug` ("1 -> "++ show f)
-                 (True,False)  -> spd + f -- `debug` ("2 -> "++ show f)
-                 (False,False) -> spd - f -- `debug` ("3 -> "++ show f)
-                 (False,True)  -> spd - f -- `debug` ("4 -> "++ show f)
+                 (True,_)   -> spd + f -- `debug` ("1 -> "++ show f)
+                 -- (True,_)  -> spd + f -- `debug` ("2 -> "++ show f)
+                 (False,_) -> spd - f -- `debug` ("3 -> "++ show f)
+                 -- (False,_)  -> spd - f -- `debug` ("4 -> "++ show f)
                   
-      newLevel = case (abs(newSpd) < 0.0001 , abs(newSpd-lastSpd)<0.000001) of
-                   (True, False) -> level * 0.5
-                   (False, True) -> level * 0.5
+      newLevel = case [abs(newSpd) < 0.0001 , abs(newSpd-lastSpd)<0.000001, abs(newSpd-lastSpd2)<0.000001] of
+                   [True,_,_ ] -> level * 0.5
+                   [_, True,_] -> level * 0.5
+                   [_,_,True] -> level * 0.5
                    _ -> level
     in 
       if abs(pricingFaceVal - tradePrice) <= 0.01 then 
