@@ -281,7 +281,7 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
       if abs(pricingFaceVal - tradePrice) <= 0.01 then 
         fromRational spd  -- `debug` ("Curve -> "++show pvCurve)
       else
-        calcZspread (tradePrice,priceDay) (succ count) (newLevel, (spd, lastSpd), newSpd) b riskFreeCurve -- `debug` ("new price"++ show pricingFaceVal++ "new spd"++ show (fromRational newSpd))
+        calcZspread (tradePrice,priceDay) (succ count) (newLevel, (spd, lastSpd), newSpd) b riskFreeCurve  `debug` ("new price"++ show pricingFaceVal++"trade price"++ show tradePrice++ "new spd"++ show (fromRational newSpd))
 
 buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
 buildRateResetDates b sd ed 
