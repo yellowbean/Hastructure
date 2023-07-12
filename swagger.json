@@ -7565,7 +7565,7 @@
                                                     "$ref": "#/components/schemas/Day"
                                                 },
                                                 {
-                                                    "multipleOf": 1.0e-2,
+                                                    "format": "double",
                                                     "type": "number"
                                                 }
                                             ],
@@ -10831,7 +10831,7 @@
         }
     },
     "info": {
-        "version": "0.18.9",
+        "version": "0.19.1",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
