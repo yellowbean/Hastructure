@@ -289,7 +289,9 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                dAfterDeposit = (appendCollectedCF t collected_flow) {accounts=accs}   -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
                (dRunWithTrigger0,newLogs0) = runTriggers dAfterDeposit d EndCollection  
                waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
-               (dAfterAction,rc) = foldl (performActionWrap d) (dRunWithTrigger0, RunContext outstanding_flow rAssump ) waterfallToExe
+               (dAfterAction,rc,newLogs) = foldl (performActionWrap d) (dRunWithTrigger0
+                                                                        ,RunContext outstanding_flow rAssump
+                                                                        ,log ) waterfallToExe
                (dRunWithTrigger1,newLogs1) = runTriggers dAfterAction d EndCollectionWF -- `debug` ("Running T end of Collection"++show (queryTrigger dAfterAction EndCollectionWF))
              in 
                run2 dRunWithTrigger1 (runPoolFlow rc) (Just ads) rates calls rAssump (log++newLogs0++newLogs1)  -- `debug` ("Logs"++ show d++"is"++ show log++">>"++show newLogs0++show newLogs1)
@@ -316,9 +318,9 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                                    W.DefaultDistribution 
                                    (waterfall t)
                 runContext = RunContext poolFlow rAssump 
-                (dAfterWaterfall,newRc) = foldl (performActionWrap d) (dRunWithTrigger0,runContext) waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
+                (dAfterWaterfall,newRc,newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,runContext,newLogs0) waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
                 (dRunWithTrigger1,newLogs1) = runTriggers dAfterWaterfall d EndDistributionWF  
-                newLogs = log++newLogs0 ++ newLogs1
+                newLogs = log ++ newLogsWaterfall ++ newLogs1
 
          EarnAccInt d accName ->
            let 
@@ -353,9 +355,9 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
            let 
              w = Map.findWithDefault [] W.OnClosingDay (waterfall t)  -- `debug` ("DDD0")
              rc = RunContext poolFlow rAssump  -- `debug` ("DDD1")
-             (newDeal,newRc) = foldl (performActionWrap d) (t, rc) w  -- `debug` ("ClosingDay Action:"++show w)
+             (newDeal,newRc, newLog) = foldl (performActionWrap d) (t, rc, log) w  -- `debug` ("ClosingDay Action:"++show w)
            in 
-             run2 newDeal (runPoolFlow newRc) (Just ads) rates calls rAssump log -- `debug` ("New pool flow"++show (runPoolFlow newRc))
+             run2 newDeal (runPoolFlow newRc) (Just ads) rates calls rAssump newLog -- `debug` ("New pool flow"++show (runPoolFlow newRc))
 
          ChangeDealStatusTo d s -> run2 (t{status=s}) poolFlow (Just ads) rates calls rAssump log
 

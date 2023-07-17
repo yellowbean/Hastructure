@@ -87,6 +87,7 @@ data Action = Transfer AccountName AccountName
             | ActionWithPre L.Pre [Action] 
             | ActionWithPre2 L.Pre [Action] [Action]
             | RunTrigger DealCycle Int
+            | WatchVal (Maybe String) [DealStats]
             deriving (Show,Generic)
 
 type DistributionSeq = [Action]

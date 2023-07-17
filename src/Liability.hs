@@ -136,63 +136,62 @@ fv2 discount_rate today futureDay amt =
     distance::Double = fromIntegral $ daysBetween today futureDay
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond _ _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
-  = PriceResult
-     presentValue
-     (fromRational (100*(toRational presentValue)/(toRational obal)))
-     (realToFrac wal)
-     (realToFrac duration)
-     (realToFrac convexity)
-     accruedInt -- `debug` ("Convexity->"++ show convexity)
-     where
-       futureCf = filter (\x -> (S.getDate x) > d) txns
-       presentValue = foldr (\x acc -> acc + (pv rc d (S.getDate x) (S.getTxnAmt x))) 0 futureCf
-       cutoffBalance = case (S.getTxnAsOf txns d) of
-                          Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
-                                     where
-                                      fstTxn = head txns
-                          Just _txn -> S.getTxnBalance _txn  -- `debug` ("presentValue"++show presentValue)
-       accruedInt = case _t of
-                      Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * (mulBI leftBal cr)
-                      Just _ -> 0  -- `debug` ("all txn"++show(_t))-- `debug` ("l day, right"++show(leftPayDay)++show(d)++show(T.diffDays leftPayDay d))
-                    where
-                      _t = find (\x -> (S.getDate x) == d) txns
-                      leftTxns = takeWhile (\txn -> (S.getDate txn) < d) txns
-                      (leftPayDay,leftBal) = case leftTxns of
-                                               [] -> case lastIntPayDay of
-                                                       Nothing ->  (od,bal)
-                                                       Just _d -> (_d,bal)
-                                               _ -> let
-                                                      leftTxn = last leftTxns
-                                                    in
-                                                      (S.getDate leftTxn,S.getTxnBalance leftTxn)
-       wal =  ((foldr 
-                 (\x acc ->
-                   (acc + ((fromIntegral (daysBetween d (S.getDate x)))*(S.getTxnPrincipal x)/365)))
-                   0.0
-                   futureCf) / cutoffBalance)  
-       duration = (foldr (\x acc ->
-                           (mulBR  
-                             ((pv rc d (S.getDate x) (S.getTxnAmt x)) / presentValue) 
-                             (yearCountFraction DC_ACT_365F d (S.getDate x)))
-                           + acc)
-                    0
-                    futureCf)  -- `debug` ("WAL-->"++show wal) 
-       convexity = let 
-                     b = (foldr (\x acc ->
-                                         let 
-                                            _t = yearCountFraction DC_ACT_365F d (S.getDate x) -- `debug` ("calc _T"++show d++">>"++show (S.getTxnDate x))
-                                            _t2 = _t * _t + _t -- `debug` ("T->"++show _t)
-                                            _cash_date = S.getDate x
-                                            _yield = getValByDate rc Exc _cash_date
-                                            _y = (1+ _yield) * (1+ _yield) -- `debug` ("yield->"++ show _yield++"By date"++show d)
-                                            _x = ((mulBR  (pv rc d _cash_date (S.getTxnAmt x)) _t2) / (fromRational _y)) -- `debug` ("PV:->"++show (pv rc d (S.getTxnDate x) (S.getTxnAmt x))++"Y->"++ show _y++"T2-->"++ show _t2)
-                                         in 
-                                            _x + acc) 
-                                 0
-                                 futureCf)
-                   in 
-                     b/presentValue -- `debug` ("Duration->"++show duration) -- `debug` ("B->"++show b++"PV"++show presentValue)
+priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
+  | length futureCf == 0 = PriceResult 0 0 0 0 0 0
+  | otherwise = 
+                let
+                  presentValue = foldr (\x acc -> acc + (pv rc d (S.getDate x) (S.getTxnAmt x))) 0 futureCf -- `debug` "PRICING -A"
+                  cutoffBalance = case (S.getTxnAsOf txns d) of
+                                      Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
+                                                 where
+                                                  fstTxn = head txns
+                                      Just _txn -> S.getTxnBalance _txn  -- `debug` ("presentValue"++show presentValue++"Bond->"++bn)
+                  accruedInt = case _t of
+                                  Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * (mulBI leftBal cr)
+                                  Just _ -> 0  -- `debug` ("all txn"++show(_t))-- `debug` ("l day, right"++show(leftPayDay)++show(d)++show(T.diffDays leftPayDay d))
+                                where
+                                  _t = find (\x -> (S.getDate x) == d) txns
+                                  leftTxns = takeWhile (\txn -> (S.getDate txn) < d) txns
+                                  (leftPayDay,leftBal) = case leftTxns of
+                                                           [] -> case lastIntPayDay of
+                                                                   Nothing ->  (od,bal)
+                                                                   Just _d -> (_d,bal)
+                                                           _ -> let
+                                                                  leftTxn = last leftTxns
+                                                                in
+                                                                  (S.getDate leftTxn,S.getTxnBalance leftTxn)
+                  wal =  ((foldr 
+                             (\x acc ->
+                               (acc + ((fromIntegral (daysBetween d (S.getDate x)))*(S.getTxnPrincipal x)/365)))
+                               0.0
+                               futureCf) / cutoffBalance) -- `debug` ("cut off balace"++show cutoffBalance)
+                  duration =  0 --  (foldr (\x acc ->
+                             --            (mulBR  
+                             --              ((pv rc d (S.getDate x) (S.getTxnAmt x)) / presentValue) 
+                             --              (yearCountFraction DC_ACT_365F d (S.getDate x)))
+                             --            + acc)
+                             --     0
+                             --     futureCf) -- `debug` "PRICING -C" -- `debug` ("WAL-->"++show wal) 
+                  convexity = 0 -- let 
+                              --   b = (foldr (\x acc ->
+                              --                       let 
+                              --                           _t = yearCountFraction DC_ACT_365F d (S.getDate x) -- `debug` ("calc _T"++show d++">>"++show (S.getTxnDate x))
+                              --                           _t2 = _t * _t + _t -- `debug` ("T->"++show _t)
+                              --                           _cash_date = S.getDate x
+                              --                           _yield = getValByDate rc Exc _cash_date
+                              --                           _y = (1+ _yield) * (1+ _yield) -- `debug` ("yield->"++ show _yield++"By date"++show d)
+                              --                           _x = ((mulBR  (pv rc d _cash_date (S.getTxnAmt x)) _t2) / (fromRational _y)) `debug` ("PRICING -E") -- `debug` ("PV:->"++show (pv rc d (S.getTxnDate x) (S.getTxnAmt x))++"Y->"++ show _y++"T2-->"++ show _t2)
+                              --                       in 
+                              --                           _x + acc) 
+                              --               0
+                              --               futureCf) -- `debug` ("PRICING VALUE"++ show presentValue)
+                              -- in 
+                              --   b/presentValue -- `debug` "PRICING -D" -- `debug` ("B->"++show b++"PV"++show presentValue)
+                in 
+                  PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt -- `debug` ("Convexity->"++ show convexity)
+  where 
+    futureCf = filter (\x -> (S.getDate x) > d) txns
+
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
 

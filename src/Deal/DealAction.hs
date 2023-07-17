@@ -78,7 +78,6 @@ getPoolFlows t sd ed rt =
     _trs =  CF.getTsCashFlowFrame _projCf
 
 
-
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
 testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
   | not cure && st = True 
@@ -89,7 +88,6 @@ updateTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Trigger
 updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
   | testTrigger t d trigger = trigger {trgStatus = True}  
   | otherwise = trigger
-
 
 
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
@@ -397,7 +395,8 @@ projAssetUnion (ACM.LS ast) d assumps = CF.cfInsertHead (CF.LeaseFlow d (P.getCu
 
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
-                  ,revolvingAssump:: Maybe (RevolvingPool ,[AP.AssumptionBuilder]) }
+                  ,revolvingAssump:: Maybe (RevolvingPool ,[AP.AssumptionBuilder])
+                   }
 
 updateOriginDate2 :: Date -> ACM.AssetUnion -> ACM.AssetUnion
 updateOriginDate2 d (ACM.LO m) = ACM.LO $ (updateOriginDate m) (P.calcAlignDate m d)
@@ -406,12 +405,14 @@ updateOriginDate2 d (ACM.IL m) = ACM.IL $ (updateOriginDate m) (P.calcAlignDate 
 updateOriginDate2 d (ACM.LS m) = ACM.LS $ (updateOriginDate m) (P.calcAlignDate m d)
  
 
-performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext a) -> W.Action -> (TestDeal a, RunContext a)
+performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d 
-                  (t@TestDeal{ accounts = accsMap },rc@RunContext{runPoolFlow=pcf@(CF.CashFlowFrame (tr:trs))
-                                                                  ,revolvingAssump=Just (assetForSale,perfAssumps)}) 
+                  (t@TestDeal{ accounts = accsMap }
+                  ,rc@RunContext{runPoolFlow=pcf@(CF.CashFlowFrame (tr:trs))
+                                ,revolvingAssump=Just (assetForSale,perfAssumps)}
+                  ,logs)
                   (W.BuyAsset ml pricingMethod accName) 
-   = (t { accounts = newAccMap }, newRc )
+   = (t { accounts = newAccMap }, newRc, logs )
     where 
       _assets = lookupAssetAvailable assetForSale d
       assets = (updateOriginDate2 d) <$> _assets 
@@ -444,15 +445,20 @@ performActionWrap d
       newRc = rc {runPoolFlow = newPcf
                  ,revolvingAssump = Just (poolAfterBought,perfAssumps)} -- `debug` ("new pool flow"++show newPcf)
 
-performActionWrap d (t, rc) (W.ActionWithPre p actions) 
-  | testPre d t p = foldl (performActionWrap d) (t,rc) actions
-  | otherwise = (t, rc)
+performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
+  = (t, rc, newLogs ++ logs)
+    where 
+      newLogs = [ InspectBal d ds (queryDeal t ds) | ds <- dss ] 
 
-performActionWrap d (t, rc) (W.ActionWithPre2 p actionsTrue actionsFalse) 
-  | testPre d t p = foldl (performActionWrap d) (t,rc) actionsTrue
-  | otherwise = foldl (performActionWrap d) (t,rc) actionsFalse
+performActionWrap d (t, rc, logs) (W.ActionWithPre p actions) 
+  | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actions
+  | otherwise = (t, rc, logs)
 
-performActionWrap d (t,rc) a = (performAction d t a,rc) -- `debug` ("DEBUG: Action on "++ show a)
+performActionWrap d (t, rc, logs) (W.ActionWithPre2 p actionsTrue actionsFalse) 
+  | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actionsTrue
+  | otherwise = foldl (performActionWrap d) (t,rc,logs) actionsFalse
+
+performActionWrap d (t,rc, logs) a = (performAction d t a,rc,logs) -- `debug` ("DEBUG: Action on "++ show a)
 
 performAction :: P.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
 performAction d t (W.ActionWithPre2 _pre actionsTrue actionsFalse)
