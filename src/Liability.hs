@@ -165,28 +165,28 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
                                (acc + ((fromIntegral (daysBetween d (S.getDate x)))*(S.getTxnPrincipal x)/365)))
                                0.0
                                futureCf) / cutoffBalance) -- `debug` ("cut off balace"++show cutoffBalance)
-                  duration =  0 --  (foldr (\x acc ->
-                             --            (mulBR  
-                             --              ((pv rc d (S.getDate x) (S.getTxnAmt x)) / presentValue) 
-                             --              (yearCountFraction DC_ACT_365F d (S.getDate x)))
-                             --            + acc)
-                             --     0
-                             --     futureCf) -- `debug` "PRICING -C" -- `debug` ("WAL-->"++show wal) 
-                  convexity = 0 -- let 
-                              --   b = (foldr (\x acc ->
-                              --                       let 
-                              --                           _t = yearCountFraction DC_ACT_365F d (S.getDate x) -- `debug` ("calc _T"++show d++">>"++show (S.getTxnDate x))
-                              --                           _t2 = _t * _t + _t -- `debug` ("T->"++show _t)
-                              --                           _cash_date = S.getDate x
-                              --                           _yield = getValByDate rc Exc _cash_date
-                              --                           _y = (1+ _yield) * (1+ _yield) -- `debug` ("yield->"++ show _yield++"By date"++show d)
-                              --                           _x = ((mulBR  (pv rc d _cash_date (S.getTxnAmt x)) _t2) / (fromRational _y)) `debug` ("PRICING -E") -- `debug` ("PV:->"++show (pv rc d (S.getTxnDate x) (S.getTxnAmt x))++"Y->"++ show _y++"T2-->"++ show _t2)
-                              --                       in 
-                              --                           _x + acc) 
-                              --               0
-                              --               futureCf) -- `debug` ("PRICING VALUE"++ show presentValue)
-                              -- in 
-                              --   b/presentValue -- `debug` "PRICING -D" -- `debug` ("B->"++show b++"PV"++show presentValue)
+                  duration = (foldr (\x acc ->
+                                       (mulBR  
+                                         ((pv rc d (S.getDate x) (S.getTxnAmt x)) / presentValue) 
+                                         (yearCountFraction DC_ACT_365F d (S.getDate x)))
+                                       + acc)
+                                0
+                                futureCf) -- `debug` "PRICING -C" -- `debug` ("WAL-->"++show wal) 
+                  convexity = let 
+                                b = (foldr (\x acc ->
+                                                    let 
+                                                        _t = yearCountFraction DC_ACT_365F d (S.getDate x) -- `debug` ("calc _T"++show d++">>"++show (S.getTxnDate x))
+                                                        _t2 = _t * _t + _t -- `debug` ("T->"++show _t)
+                                                        _cash_date = S.getDate x
+                                                        _yield = getValByDate rc Exc _cash_date
+                                                        _y = (1+ _yield) * (1+ _yield) -- `debug` ("yield->"++ show _yield++"By date"++show d)
+                                                        _x = ((mulBR  (pv rc d _cash_date (S.getTxnAmt x)) _t2) / (fromRational _y)) `debug` ("PRICING -E") -- `debug` ("PV:->"++show (pv rc d (S.getTxnDate x) (S.getTxnAmt x))++"Y->"++ show _y++"T2-->"++ show _t2)
+                                                    in 
+                                                        _x + acc) 
+                                            0
+                                            futureCf) -- `debug` ("PRICING VALUE"++ show presentValue)
+                              in 
+                                b/presentValue -- `debug` "PRICING -D" -- `debug` ("B->"++show b++"PV"++show presentValue)
                 in 
                   PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt -- `debug` ("Convexity->"++ show convexity)
   where 
