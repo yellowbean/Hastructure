@@ -3946,6 +3946,37 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TransferBy"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "$ref": "#/components/schemas/PoolSource"
                             },
                             "tag": {
@@ -10862,7 +10893,7 @@
         }
     },
     "info": {
-        "version": "0.19.4",
+        "version": "0.19.5",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
