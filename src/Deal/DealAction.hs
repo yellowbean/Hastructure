@@ -498,15 +498,15 @@ performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL ds ledgersLis
                    (zip ledgerNames amtBookedToLedgers)
 
 performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.TransferBy (ClearPDL ln) an1 an2) =
-  t {accounts = accMapAfterDeposit}  -- `debug` ("ABCD "++show(d))
+  t {accounts = accMapAfterDeposit, ledgers = Just newLedgerM}  -- `debug` ("ABCD "++show(d))
   where
     sourceAcc = accMap Map.! an1
     targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
     targetAmt = queryDeal t (LedgerBalance [ln]) -- assuming (debit -> positvie)
-    transferAmt = min (A.accBalance sourceAcc) targetAmt
+    transferAmt = min (A.accBalance sourceAcc) targetAmt -- `debug` ("Clear PDL"++show d++ show targetAmt)
  
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 (ClearPDL ln))) an1 accMap -- `debug` (">>PDL >>Ledger bal"++show d ++ show targetAmt)
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (TransferBy an1 an2 (ClearPDL ln))) an2 accMapAfterDraw
 
     newLedgerM = Map.adjust 
                    (LD.entryLog (negate transferAmt) d (TxnDirection Credit))
@@ -529,8 +529,8 @@ performAction d t@TestDeal{accounts=accMap} (W.TransferBy limit an1 an2) =
                                         0
     transferAmt = min (max formulaAmount 0) (A.accBalance sourceAcc) -- `debug` ("Formula amount"++show formulaAmount)
 
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 limit)) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (TransferBy an1 an2 limit)) an2 accMapAfterDraw
 
 performAction d t@TestDeal{accounts=accMap} (W.TransferReserve meetAcc sa ta)=
     t {accounts = accMapAfterTransfer }

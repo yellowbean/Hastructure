@@ -45,6 +45,7 @@ data TxnComment = PayInt [BondName]
                 | SeqPayFee [FeeName] 
                 | PayFeeYield FeeName
                 | Transfer AccName AccName 
+                | TransferBy AccName AccName Limit
                 | PoolInflow PoolSource
                 | LiquidationProceeds
                 | LiquidationSupport String
@@ -72,6 +73,7 @@ instance ToJSON TxnComment where
   toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++show fns++">"
   toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
+  toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
   toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
   toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"

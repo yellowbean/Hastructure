@@ -510,7 +510,7 @@ data Limit = DuePct Balance  --
            | Formula FormulaType
            | DS DealStats
            | ClearPDL String
-           deriving (Show,Generic)
+           deriving (Show,Ord,Eq,Generic)
 
 data RoundingBy a = RoundCeil a 
                   | RoundFloor a

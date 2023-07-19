@@ -162,7 +162,7 @@ queryDeal t s =
       sum $ map A.accBalance $ Map.elems $ getAccountByName t (Just ans)
     
     LedgerBalance ans ->
-      case (ledgers t) of 
+      case ledgers t of 
         Nothing -> 0 
         Just ledgersM -> sum $ LD.ledgBalance <$> (ledgersM Map.!) <$> ans
     
