@@ -219,6 +219,17 @@ queryDeal t s =
         in
           futureDefaults + currentDefaults
 
+    CumulativePoolRecoveriesBalance ->
+        let 
+          futureRecoveries = case P.futureCf (pool t) of
+                               Just (CF.CashFlowFrame _historyTxn) -> sum $ CF.mflowRecovery <$> _historyTxn
+                               Nothing -> 0.0
+          historyRecoveries = case P.issuanceStat (pool t) of
+                                Just m -> Map.findWithDefault 0.0 P.HistoryRecoveries m 
+                                Nothing -> 0.0
+        in
+          futureRecoveries + historyRecoveries
+
     CurrentBondBalanceOf bns ->
        let
           bSubMap = getBondByName t (Just bns) -- Map.filterWithKey (\bn b -> (S.member bn bnSet)) (bonds t)

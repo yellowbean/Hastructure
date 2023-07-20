@@ -238,6 +238,13 @@ tsDefaultBal (MortgageFlow2 _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _) = x
 
+mflowDefault :: TsRow -> Balance
+mflowDefault (MortgageFlow _ _ _ _ _ x _ _ _ _) = x
+mflowDefault (MortgageFlow2 _ _ _ _ _ _ x _ _ _) = x
+mflowDefault (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
+mflowDefault (LoanFlow _ _ _ _ _ x _ _ _) = x
+mflowDefault _  = error "not supported"
+
 tsSetDate :: TsRow -> Date -> TsRow
 tsSetDate (CashFlow _ a) x  = CashFlow x a
 tsSetDate (BondFlow _ a b c) x = BondFlow x a b c
@@ -366,7 +373,7 @@ mflowRecovery (MortgageFlow _ _ _ _ _ _ x _ _ _) = x
 mflowRecovery (MortgageFlow2 _ _ _ _ _ _ _ x _ _) = x
 mflowRecovery (MortgageFlow3 _ _ _ _ _ _ _ _ _ x _ _) = x
 mflowRecovery (LoanFlow _ _ _ _ _ _ x _ _) = x
-mflowRecovery _  = -1.0
+mflowRecovery _  = error "not supported"
 
 mflowBalance :: TsRow -> Balance
 mflowBalance (MortgageFlow _ x _ _ _ _ _ _ _ _) = x

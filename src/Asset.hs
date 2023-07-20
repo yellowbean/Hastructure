@@ -70,6 +70,7 @@ class Show a => Asset a where
  -- {-# MINIMAL calcCashflow #-}
 
 data IssuanceFields = IssuanceBalance
+                    | HistoryRecoveries
                     deriving (Show,Ord,Eq,Read,Generic)
 
 instance ToJSONKey IssuanceFields where
