@@ -269,6 +269,7 @@ data DealStats =  CurrentBondBalance
                | CurrentPoolBegBalance
                | CurrentPoolDefaultedBalance
                | CumulativePoolDefaultedBalance
+               | CumulativePoolRecoveriesBalance
                | CumulativePoolDefaultedRate
                | OriginalBondBalance
                | OriginalPoolBalance

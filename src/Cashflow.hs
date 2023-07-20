@@ -238,13 +238,6 @@ tsDefaultBal (MortgageFlow2 _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _) = x
 
-mflowDefault :: TsRow -> Balance
-mflowDefault (MortgageFlow _ _ _ _ _ x _ _ _ _) = x
-mflowDefault (MortgageFlow2 _ _ _ _ _ _ x _ _ _) = x
-mflowDefault (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
-mflowDefault (LoanFlow _ _ _ _ _ x _ _ _) = x
-mflowDefault _  = error "not supported"
-
 tsSetDate :: TsRow -> Date -> TsRow
 tsSetDate (CashFlow _ a) x  = CashFlow x a
 tsSetDate (BondFlow _ a b c) x = BondFlow x a b c
