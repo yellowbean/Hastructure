@@ -5514,6 +5514,20 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "CumulativePoolRecoveriesBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "CumulativePoolDefaultedRate"
                                 ]
                             }
@@ -10893,7 +10907,7 @@
         }
     },
     "info": {
-        "version": "0.19.5",
+        "version": "0.19.6",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
