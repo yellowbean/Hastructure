@@ -680,10 +680,10 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (DS ds) an
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     availBal = A.accBalance $ accMap Map.! an
-    targetBnd = bndMap Map.! bndName
+    targetBndBal = L.bndBalance $ bndMap Map.! bndName
 
     patchedDs = patchDateToStats d ds 
-    payAmount = min availBal (queryDeal t patchedDs) -- `debug` ("Query with "++show (patchedDs))
+    payAmount = min targetBndBal $ min availBal (queryDeal t patchedDs) -- `debug` ("Query with "++show (patchedDs))
 
     accMapAfterPay = Map.adjust
                         (A.draw payAmount d (TxnComments [PayPrin [bndName],UsingDS ds])) 

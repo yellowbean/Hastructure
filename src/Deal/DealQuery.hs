@@ -338,10 +338,13 @@ queryDeal t s =
 
     FloorAndCap floor cap s -> max (queryDeal t floor) $ min (queryDeal t cap) (queryDeal t s)
     
+    Factor s f -> mulBR (queryDeal t s) f
+
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
     Round ds rb -> roundingBy rb (queryDeal t ds)
+    
 
     _ -> 0.0 `debug` ("Failed to query balance of -> "++ show s)
 
