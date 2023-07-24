@@ -144,7 +144,7 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
                         --  cutoff pool       closing bond payment dates 
               | CustomDates Date [ActionOnDate] Date [ActionOnDate]
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
-              --cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
+              --             cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
               | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
               --             cutoff mRevolving closing dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector

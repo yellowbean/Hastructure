@@ -103,8 +103,8 @@ projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) 
 
        _schedule_bal = CF.mflowBalance flow
 
-       _schedule_prin = (mulBR (CF.mflowPrincipal flow) _survive_rate) --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
-       _schedule_int = (mulBR (CF.mflowInterest flow) _survive_rate)
+       _schedule_prin = mulBR (CF.mflowPrincipal flow) _survive_rate --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
+       _schedule_int = mulBR (CF.mflowInterest flow) _survive_rate
 
        _new_rec = mulBR _def_amt recovery_rate
        _new_loss = mulBR _def_amt (1 - recovery_rate)
@@ -315,9 +315,9 @@ instance Ast.Asset Mortgage where
                              ppy_rates
                              (replicate curve_dates_length 0.0)
                              (replicate curve_dates_length 0.0)
-                             (recovery_lag,recovery_rate)  
+                             (recovery_lag,recovery_rate) -- `debug` ("ppy rate"++ show ppy_rates)
        where
-        beg_bal =  CF.mflowBegBalance $ head flows
+        beg_bal =  CF.mflowBegBalance $ head flows -- `debug` ("beg date"++show beg_date)
         (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (beg_date:cf_dates) assumps [] [] 0 0 -- `debug` ("Assumpt"++ show assumps)
         curve_dates_length =  recovery_lag + length flows
         temp_p = Lib.Monthly -- TODO to fix this hard code

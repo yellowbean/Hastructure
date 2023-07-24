@@ -95,6 +95,7 @@ consolStmt b@Bond{bndStmt = Just (S.Statement (txn:txns))}
 consolStmt b@Bond{bndStmt = Nothing} =  b {bndStmt = Nothing}
 
 payInt :: Date -> Amount -> Bond -> Bond
+payInt d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
 payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd { bndDueInt=new_due, bndStmt = Just new_stmt}
   where
@@ -114,6 +115,7 @@ payYield d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt 
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payPrin :: Date -> Amount -> Bond -> Bond
+payPrin d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDuePrin =new_due, bndBalance = new_bal , bndStmt=Just new_stmt}
   where
