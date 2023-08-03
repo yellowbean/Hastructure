@@ -62,6 +62,9 @@ patchDateToStats d t
          Factor _ds r -> Factor (patchDateToStats d _ds) r
          UseCustomData n -> CustomData n d
          CurrentPoolBorrowerNum -> FutureCurrentPoolBorrowerNum d
+         FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
+         BondTxnAmt ns mCmt -> BondTxnAmtBy d ns mCmt
+         AccTxnAmt ns mCmt -> AccTxnAmtBy d ns mCmt
          _ -> t
 
 
@@ -265,6 +268,43 @@ queryDeal t s =
                           filter (\x -> d == getDate x) txns
        in
           sum $ map ex stmts
+    
+    FeeTxnAmtBy d fns mCmt -> 
+      let 
+        fees = Map.elems $ getFeeByName t (Just fns)
+      in  
+        case mCmt of 
+          Just cmt -> sum [ queryTxnAmtAsOf fee d cmt | fee <- fees ]
+          Nothing -> 
+            let 
+              _txn = concat [ getTxns (F.feeStmt fee) | fee <- fees ]
+            in 
+              sumTxn (beforeOnDate _txn d)
+    
+    BondTxnAmtBy d bns mCmt -> 
+      let 
+        bnds = Map.elems $ getBondByName t (Just bns)
+      in 
+        case mCmt of
+          Just cmt -> sum [ queryTxnAmtAsOf bnd d cmt | bnd <- bnds ]
+          Nothing ->
+            let 
+              _txn = concat [ getTxns (L.bndStmt bnd) | bnd <- bnds ]
+            in 
+              sumTxn (beforeOnDate _txn d)
+
+    AccTxnAmtBy d ans mCmt -> 
+      let 
+        accs = Map.elems $ getAccountByName t (Just ans)
+      in 
+        case mCmt of
+          Just cmt -> sum [ queryTxnAmtAsOf acc d cmt | acc <- accs ]
+          Nothing ->
+            let 
+              _txn = concat [ getTxns (A.accStmt acc) | acc <- accs ]
+            in 
+              sumTxn (beforeOnDate _txn d)
+
 
     BondBalanceGapAt d bName -> 
         let 

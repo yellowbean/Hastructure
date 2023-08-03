@@ -20,13 +20,17 @@ module Types
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..)
+  ,TxnComment(..),Direction(..)
   )
   
   where
 
 import qualified Data.Text as T
+import qualified Data.Vector as V
 import qualified Data.Time as Time
 import qualified Data.Map as Map
+import Text.Regex.Base
+import Text.Regex.PCRE
 import GHC.Generics
 import Language.Haskell.TH
 
@@ -146,7 +150,7 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
               --             cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
               | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
-              --             cutoff mRevolving closing dp1-pool-pay dp2-bond-pay
+              --             (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
               deriving (Show,Eq, Generic)
 
@@ -255,6 +259,80 @@ data DatePattern = MonthEnd
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq, Generic)
 
+data Direction = Credit
+               | Debit
+               deriving (Show,Ord, Eq,Read, Generic)
+
+data TxnComment = PayInt [BondName]
+                | PayYield BondName 
+                | PayPrin [BondName] 
+                | PayFee FeeName
+                | SeqPayFee [FeeName] 
+                | PayFeeYield FeeName
+                | Transfer AccName AccName 
+                | TransferBy AccName AccName Limit
+                | PoolInflow PoolSource
+                | LiquidationProceeds
+                | LiquidationSupport String
+                | LiquidationDraw
+                | LiquidationRepay
+                | LiquidationSupportInt Balance Balance
+                | BankInt
+                | Empty 
+                | Tag String
+                | UsingDS DealStats
+                | UsingFormula FormulaType
+                | SwapAccure
+                | SwapInSettle
+                | SwapOutSettle
+                | PurchaseAsset
+                | TxnDirection Direction
+                | TxnComments [TxnComment]
+                deriving (Eq, Show, Ord ,Read, Generic)
+
+instance ToJSON TxnComment where 
+  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
+  toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
+  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
+  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
+  toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
+  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
+  toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
+  toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
+  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
+  toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
+  toJSON (UsingFormula fm) =  String $ T.pack $ "<Formula:"++ show fm++">"
+  toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
+  toJSON Empty =  String $ T.pack $ "" 
+  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
+  toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
+  toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
+  toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
+  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
+  toJSON SwapAccure = String $ T.pack $ "<Accure:>"
+  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
+  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
+  toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
+  toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
+
+instance FromJSON TxnComment where
+    parseJSON = withText "Empty" parseTxn
+
+parseTxn :: T.Text -> Parser TxnComment 
+parseTxn "" = return Empty 
+parseTxn "<BankInt>" = return BankInt
+parseTxn t = case tagName of 
+  "Transfer" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
+  where 
+      pat = "<(\\S+):(\\S+)>"::String
+      sr = (T.unpack t =~ pat)::[[String]]
+      tagName =  head sr!!1::String
+      contents = head sr!!2::String
+
 data PoolSource = CollectedInterest
                 | CollectedPrincipal
                 | CollectedRecoveries
@@ -301,7 +379,13 @@ data DealStats =  CurrentBondBalance
                | BondBalanceGap String
                | BondBalanceGapAt Date String
                | FeePaidAt Date String
-               | FeesPaidAt Date [String]
+               | FeeTxnAmt [String] (Maybe TxnComment)
+               | BondTxnAmt [String] (Maybe TxnComment)
+               | AccTxnAmt  [String] (Maybe TxnComment)
+               | FeeTxnAmtBy Date [String] (Maybe TxnComment)
+               | BondTxnAmtBy Date [String] (Maybe TxnComment)
+               | AccTxnAmtBy Date [String] (Maybe TxnComment)
+               | FeesPaidAt Date [String] 
                | CurrentDueBondInt [String]
                | CurrentDueFee [String]
                | LastBondIntPaid [String]
@@ -443,6 +527,8 @@ class TimeSeries ts where
     getDates ts = [ getDate t | t <- ts ]
     filterByDate :: [ts] -> Date -> [ts]
     filterByDate ts d = filter (\x -> getDate x == d ) ts
+    beforeOnDate :: [ts] -> Date -> [ts]
+    beforeOnDate ts d = filter (\x -> getDate x <= d ) ts
 
 class Liable lb where 
   getDue :: lb -> Balance
@@ -501,7 +587,7 @@ data TimeHorizion = ByMonth
 
 data FormulaType = ABCD
                  | Other
-                 deriving (Show,Ord,Eq,Generic)
+                 deriving (Show,Ord,Eq,Read,Generic)
 
 data Limit = DuePct Balance  --
            | DueCapAmt Balance  -- due fee
@@ -511,7 +597,7 @@ data Limit = DuePct Balance  --
            | Formula FormulaType
            | DS DealStats
            | ClearPDL String
-           deriving (Show,Ord,Eq,Generic)
+           deriving (Show,Ord,Eq,Read,Generic)
 
 data RoundingBy a = RoundCeil a 
                   | RoundFloor a

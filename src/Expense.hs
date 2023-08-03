@@ -22,6 +22,7 @@ import GHC.Generics
 import Data.Fixed
 import Types
 import Util
+import qualified Stmt as S
 
 import Debug.Trace
 debug = flip trace
@@ -33,6 +34,7 @@ data FeeType = AnnualRateFee DealStats FormulaRate
              | FixFee Balance
              | RecurFee DatePattern Balance
              | NumFee DatePattern DealStats Amount
+             | TargetBalanceFee DealStats DealStats
              | FeeFlow Ts
              deriving (Show,Eq, Generic)
 
@@ -81,6 +83,10 @@ buildFeeAccrueAction (fee:fees) ed r =
     _
       -> buildFeeAccrueAction fees ed r
 
+instance S.QueryByComment Fee where 
+    queryStmt Fee{feeStmt = Nothing} tc = []
+    queryStmt Fee{feeStmt = Just (S.Statement txns)} tc
+      = filter (\x -> S.getTxnComment x == tc) txns
 
 
 $(deriveJSON defaultOptions ''FeeType)

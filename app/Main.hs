@@ -73,7 +73,7 @@ import qualified InterestRate as IR
 import qualified Stmt
 import qualified Triggers as TRG
 import qualified Revolving as RV
-import qualified Lib as Lib
+import qualified Lib
 import qualified Util as U
 
 

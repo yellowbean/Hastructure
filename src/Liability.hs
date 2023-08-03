@@ -147,7 +147,7 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
                                       Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                                  where
                                                   fstTxn = head txns
-                                      Just _txn -> S.getTxnBalance _txn --  `debug` ("presentValue"++show presentValue++"Bond->"++bn)
+                                      Just _txn -> S.getTxnBalance _txn   -- `debug` ("presentValue"++show presentValue++"Bond->"++bn)
                   accruedInt = case _t of
                                   Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * (mulBI leftBal cr)
                                   Just _ -> 0  -- `debug` ("all txn"++show(_t))-- `debug` ("l day, right"++show(leftPayDay)++show(d)++show(T.diffDays leftPayDay d))
@@ -190,7 +190,7 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
                               in 
                                 b/presentValue -- `debug` "PRICING -D" -- `debug` ("B->"++show b++"PV"++show presentValue)
                 in 
-                  PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt -- `debug` ("Convexity->"++ show convexity)
+                  PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt  `debug` ("Obal->"++ show obal++"Rate>>"++ show (bndRate b))
   where 
     futureCf = filter (\x -> (S.getDate x) > d) txns
 
@@ -291,6 +291,10 @@ buildRateResetDates b sd ed
      (Floater _ _ dp _ _ _) -> genSerialDatesTill2 EE sd dp ed
      _ -> []
 
+instance S.QueryByComment Bond where 
+    queryStmt Bond{bndStmt = Nothing} tc = []
+    queryStmt Bond{bndStmt = Just (S.Statement txns)} tc
+      = filter (\x -> S.getTxnComment x == tc) txns
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

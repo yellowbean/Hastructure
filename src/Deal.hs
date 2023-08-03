@@ -5,7 +5,7 @@
 {-# LANGUAGE GADTs #-}
 
 module Deal (run2,runPool2,getInits,runDeal,ExpectReturn(..)
-            ,calcDueFee,applicableAdjust,performAction,queryDeal
+            ,applicableAdjust,performAction,queryDeal
             ,setFutureCF,populateDealDates
             ,calcTargetAmount,updateLiqProvider
             ,projAssetUnion,priceAssetUnion,accrueLiqProvider
@@ -449,7 +449,7 @@ priceBonds t (AP.RunZSpread curve bond_prices)
 runDeal :: P.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> Maybe AP.BondPricingInput
         -> (TestDeal a,Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 runDeal t _ assumps bpi =
-    (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  -- `debug` ("Run Deal"++show(name t) ++" Actions# >> "++ show (length ads)++"\n last log"++ show logs)
+    (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing) -- `debug` ("Run Deal"++show(name t))
   where
     (ads,pcf,rcurves,calls,revolvingAssump) = getInits t assumps -- `debug` ("runDeal init line") 
     (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls revolvingAssump [] `debug` ("start status"++show (status t) )-- `debug` ("run2 rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))

@@ -150,9 +150,6 @@ instance QueryByComment Account where
     queryStmt (Account _ _ _ _ (Just (Statement txns))) tc
       = filter (\x -> getTxnComment x == tc) txns
 
-    queryTxnAmt a tc 
-      = sum $ map getTxnAmt $ queryStmt a tc
-
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)
 $(deriveJSON defaultOptions ''Account)

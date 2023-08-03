@@ -211,6 +211,12 @@ calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd (Just _fdDay) fa lpd _
     baseCount = queryDealInt t (patchDateToStats calcDay s) calcDay
     newFeeDueAmt = fromRational $ mulBInt amt $ baseCount * periodGap -- `debug` ("amt"++show amt++">>"++show baseCount++">>"++show periodGap)
 
+calcDueFee t calcDay f@(F.Fee fn (F.TargetBalanceFee dsDue dsPaid) fs fd (Just _fdDay) fa lpd _)
+  = f { F.feeDue = dueAmt, F.feeDueDate = Just calcDay}
+    where
+      dsDueD = patchDateToStats d dsDue 
+      dsPaidD = patchDateToStats d dsPaid
+      dueAmt = max 0 $ (queryDeal t dsDueD) - (queryDeal t dsPaidD)
 
 updateLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@(CE.LiqFacility _ liqType (Just curBal) curCredit _ _ _ mRate mPRate stmt) -- refresh available balance
