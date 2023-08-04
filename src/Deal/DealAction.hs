@@ -5,7 +5,7 @@
 
 module Deal.DealAction (performActionWrap,performAction,calcDueFee
                        ,testTrigger,RunContext(..),updateLiqProvider
-                       ,calcDueInt,calcDueFee,projAssetUnion,priceAssetUnion
+                       ,calcDueInt,projAssetUnion,priceAssetUnion
                        ,accrueLiqProvider) 
   where
 
