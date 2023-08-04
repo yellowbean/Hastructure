@@ -184,24 +184,27 @@ queryDeal t s =
 
     ReserveAccGapAt d ans ->
         max 0 $
-          (sum $ map 
-                   (calcTargetAmount t d) $ 
-                   Map.elems $ getAccountByName t (Just ans))
-          - 
-          (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
+                (sum $ (calcTargetAmount t d) <$> Map.elems $ getAccountByName t (Just ans))
+                - 
+                (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
 
     FutureCurrentPoolBalance ->
        case P.futureCf (pool t) of 
          Nothing -> 0.0
          Just (CF.CashFlowFrame trs) -> CF.mflowBalance $ last trs
+    
+    FutureCurrentPoolBegBalance ->
+       case P.futureCf (pool t) of 
+         Nothing -> 0.0
+         Just (CF.CashFlowFrame trs) -> CF.mflowBegBalance $ last trs
 
-    FutureCurrentPoolBegBalance asOfDay ->
-         case _poolSnapshot of
-            Just ts -> CF.mflowBegBalance ts
-            Nothing -> error $ "Pool begin balance not found at"++show asOfDay
-        where
-         _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
-         _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
+    -- FutureCurrentPoolBegBalance asOfDay ->
+    --      case _poolSnapshot of
+    --         Just ts -> CF.mflowBegBalance ts
+    --         Nothing -> error $ "Pool begin balance not found at"++show asOfDay
+    --     where
+    --      _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+    --      _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
 
     PoolCollectionHistory incomeType fromDay asOfDay ->
       sum fieldAmts
