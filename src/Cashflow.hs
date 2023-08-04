@@ -5,7 +5,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf
                 ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
-                ,mflowRental,mflowRate
+                ,mflowRental,mflowRate,sumPoolFlow
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
                 ,getEarlierTsCashFlowFrame
@@ -491,6 +491,16 @@ shiftCfToStartDate d cf@(CashFlowFrame (txn:txns))
       diffDays = daysBetween fstDate d
     in 
       CashFlowFrame $ (tsOffsetDate diffDays) <$> (txn:txns)
+
+sumPoolFlow :: CashFlowFrame -> PoolSource -> Balance
+sumPoolFlow (CashFlowFrame trs) ps 
+  = sum $ lookup ps <$> trs
+    where
+      lookup CollectedPrepayment  = mflowPrepayment
+      lookup CollectedPrincipal = mflowPrincipal
+      lookup CollectedRecoveries = mflowRecovery
+      lookup CollectedRental = mflowRental
+      lookup CollectedInterest = mflowInterest
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

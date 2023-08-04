@@ -77,7 +77,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap } d
                                       _pbal = (queryDeal t CurrentPoolBalance) - _dbal
                                       _issuancePbal = case P.issuanceStat pool of
                                                         Nothing -> 0
-                                                        Just statMap -> Map.findWithDefault 0 P.IssuanceBalance statMap
+                                                        Just statMap -> Map.findWithDefault 0 IssuanceBalance statMap
                                     in 
                                       (max _pbal _issuancePbal, _dbal, 0)
                          Just cf@(CF.CashFlowFrame txns) 

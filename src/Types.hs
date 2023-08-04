@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Types
-  (DayCount(..),DateType(..),OverrideType(..)
+  (DayCount(..),DateType(..),OverrideType(..),IssuanceFields(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
@@ -25,6 +25,7 @@ module Types
   
   where
 
+import qualified Data.Text as Text
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.Time as Time
@@ -333,13 +334,29 @@ parseTxn t = case tagName of
       tagName =  head sr!!1::String
       contents = head sr!!2::String
 
+data IssuanceFields = IssuanceBalance
+                    | HistoryRecoveries
+                    | HistoryInterest
+                    | HistoryPrepayment
+                    | HistoryPrincipal
+                    | HistoryRental
+                    deriving (Show,Ord,Eq,Read,Generic)
+
+instance ToJSONKey IssuanceFields where
+  toJSONKey = toJSONKeyText (Text.pack . show)
+
+instance FromJSONKey IssuanceFields where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+
 data PoolSource = CollectedInterest
                 | CollectedPrincipal
                 | CollectedRecoveries
                 | CollectedPrepayment
                 | CollectedRental
-                | CollectedFee
                 deriving (Show,Ord,Read,Eq, Generic)
+
 
 
 data DealStats =  CurrentBondBalance
@@ -356,7 +373,8 @@ data DealStats =  CurrentBondBalance
                | PoolFactor
                | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
                | UseCustomData String
-               | PoolCollectionIncome PoolSource
+               | PoolCumCollection [PoolSource]
+               | PoolCurCollection [PoolSource]
                | AllAccBalance
                | AccBalance [String]
                | LedgerBalance [String]
@@ -633,3 +651,4 @@ $(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''RoundingBy)
+$(deriveJSON defaultOptions ''IssuanceFields)

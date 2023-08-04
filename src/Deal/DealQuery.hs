@@ -136,6 +136,14 @@ queryDealInt t s d =
     Max ss -> maximum' $ [ queryDealInt t s d | s <- ss ]
     Min ss -> minimum' $ [ queryDealInt t s d | s <- ss ]
 
+poolSourceToIssuanceField :: PoolSource -> IssuanceFields
+poolSourceToIssuanceField CollectedInterest = HistoryInterest
+poolSourceToIssuanceField CollectedPrincipal = HistoryPrincipal
+poolSourceToIssuanceField CollectedRecoveries = HistoryRecoveries
+poolSourceToIssuanceField CollectedPrepayment = HistoryPrepayment
+poolSourceToIssuanceField CollectedRental = HistoryRental
+
+
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t s = 
   case s of
@@ -152,7 +160,7 @@ queryDeal t s =
 
     OriginalPoolBalance ->
       case P.issuanceStat (pool t) of
-        Just m -> Map.findWithDefault (-1) P.IssuanceBalance m -- `debug` (">>>>"++show(m))
+        Just m -> Map.findWithDefault (-1) IssuanceBalance m -- `debug` (">>>>"++show(m))
         Nothing -> foldl (\acc x -> acc + P.getOriginBal x) 0.0 (P.assets (pool t)) 
     
     CurrentPoolBorrowerNum ->
@@ -228,10 +236,22 @@ queryDeal t s =
                                Just (CF.CashFlowFrame _historyTxn) -> sum $ CF.mflowRecovery <$> _historyTxn
                                Nothing -> 0.0
           historyRecoveries = case P.issuanceStat (pool t) of
-                                Just m -> Map.findWithDefault 0.0 P.HistoryRecoveries m 
+                                Just m -> Map.findWithDefault 0.0 HistoryRecoveries m 
                                 Nothing -> 0.0
         in
           futureRecoveries + historyRecoveries
+    
+    PoolCumCollection ps ->
+        let 
+          futureVals = case P.futureCf (pool t) of
+                         Just cf -> sum $ CF.sumPoolFlow cf <$> ps
+                         Nothing -> 0.0
+
+          historyVals = case P.issuanceStat (pool t) of
+                                Just m -> sum [ Map.findWithDefault 0.0 (poolSourceToIssuanceField p) m | p <- ps ]
+                                Nothing -> 0.0
+        in 
+          futureVals + historyVals
 
     CurrentBondBalanceOf bns ->
        let
