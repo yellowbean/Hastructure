@@ -176,12 +176,12 @@ payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt}
 instance QueryByComment LiqFacility where 
     queryStmt liq@LiqFacility{liqStmt = Nothing} tc = []
     queryStmt liq@LiqFacility{liqStmt = (Just (Statement txns))} tc
-      = filter (\x -> getTxnComment x == tc) txn
+      = filter (\x -> getTxnComment x == tc) txns
 
 instance QueryByComment RateSwap where 
     queryStmt RateSwap{rsStmt = Nothing} tc = []
     queryStmt RateSwap{rsStmt = Just (Statement txns)} tc
-      = filter (\x -> getTxnComment x == tc) txn
+      = filter (\x -> getTxnComment x == tc) txns
 
 data CurrencySwap = CurrencySwap Rate Balance
                   | Dummy3

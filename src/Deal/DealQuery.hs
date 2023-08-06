@@ -184,7 +184,7 @@ queryDeal t s =
 
     ReserveAccGapAt d ans ->
         max 0 $
-                (sum $ (calcTargetAmount t d) <$> Map.elems $ getAccountByName t (Just ans))
+                (sum $ (calcTargetAmount t d) <$> (Map.elems $ getAccountByName t (Just ans)))
                 - 
                 (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
 
