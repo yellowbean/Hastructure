@@ -64,6 +64,7 @@ data Action = Transfer AccountName AccountName
             | PayFee [AccountName] [FeeName]
             | PayFeeBy Limit [AccountName] [FeeName]
             | PayFeeResidual (Maybe Limit) AccountName FeeName
+            | CalcAndPayFee [AccountName] [FeeName]
             | AccrueAndPayInt AccountName [BondName]
             | PayInt AccountName [BondName]
             | PayPrin AccountName [BondName] 

@@ -2579,6 +2579,40 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CalcAndPayFee"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "type": "string"
                                     },
                                     {
@@ -3791,8 +3825,7 @@
                     "CollectedPrincipal",
                     "CollectedRecoveries",
                     "CollectedPrepayment",
-                    "CollectedRental",
-                    "CollectedFee"
+                    "CollectedRental"
                 ]
             },
             "TxnComment": {
@@ -5642,12 +5675,36 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/PoolSource"
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolSource"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "PoolCollectionIncome"
+                                    "PoolCumCollection"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolSource"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PoolCurCollection"
                                 ]
                             }
                         },
@@ -5799,9 +5856,6 @@
                     {
                         "type": "object",
                         "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5810,8 +5864,7 @@
                             }
                         },
                         "required": [
-                            "tag",
-                            "contents"
+                            "tag"
                         ]
                     },
                     {
@@ -11130,7 +11183,7 @@
         }
     },
     "info": {
-        "version": "0.19.8",
+        "version": "0.19.10",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

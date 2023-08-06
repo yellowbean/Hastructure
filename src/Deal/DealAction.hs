@@ -641,6 +641,12 @@ performAction d t (W.AccrueAndPayInt an bnds) =
   in 
     performAction d dealWithBondDue (W.PayInt an bnds)
 
+performAction d t (W.CalcAndPayFee ans fees) =
+  let 
+    dealWithFeeDue = performAction d t (W.CalcFee fees)
+  in 
+    performAction d dealWithFeeDue (W.PayFee ans fees)
+
 
 performAction d t (W.PayTillYield an bnds) = performAction d t (W.AccrueAndPayInt an bnds)
 
