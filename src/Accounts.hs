@@ -48,9 +48,9 @@ buildEarnIntAction (acc:accs) ed r =
     (Account _ _ Nothing _ _) 
       -> buildEarnIntAction accs ed r
     (Account _ an (Just (BankAccount _ lastAccDate dp)) _ _)
-      -> buildEarnIntAction accs ed [(an, projDatesByPattern dp lastAccDate ed)]++r    
+      -> buildEarnIntAction accs ed [(an, genSerialDatesTill2 EE lastAccDate dp ed)]++r    
     (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _)
-      -> buildEarnIntAction accs ed [(an, projDatesByPattern dp lastAccDate ed)]++r    
+      -> buildEarnIntAction accs ed [(an, genSerialDatesTill2 EE lastAccDate dp ed)]++r    
 
 
 depositInt :: Account -> Date -> Account

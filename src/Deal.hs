@@ -62,13 +62,10 @@ getItemBalance :: BookItem -> Balance
 getItemBalance (Item _ bal) = bal
 getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
 
-                        
--- data AccountingAdjust = 
 buildBalanceSheet :: P.Asset a => TestDeal a -> Date -> BalanceSheetReport
 buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap } d 
     = BalanceSheetReport {asset=ast,liability=liab,equity=eqty,reportDate=d}
     where 
-        ---accured interest
         ---accured interest
         accM = [ Item accName accBal | (accName,accBal) <- Map.toList $ Map.map A.accBalance (accounts t) ]
         (performingBal,dBal,rBal) = case P.futureCf pool of
