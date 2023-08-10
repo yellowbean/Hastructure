@@ -400,9 +400,9 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
 
 
 run2 t (CF.CashFlowFrame []) Nothing Nothing Nothing Nothing log
-  = run2 t pcf (Just ads) Nothing Nothing Nothing log  -- `debug` ("Init Done >>Last Action#"++show (length ads)++"F/L"++show (head ads)++show (last ads))
+  = run2 newT pcf (Just ads) Nothing Nothing Nothing log  -- `debug` ("Init Done >>Last Action#"++show (length ads)++"F/L"++show (head ads)++show (last ads))
   where
-    (ads,pcf,rcurves,clls,revolveAssump) = getInits t Nothing  
+    (newT, ads,pcf,rcurves,clls,revolveAssump) = getInits t Nothing  
 
 run2 t (CF.CashFlowFrame []) _ _ _ _ log = (prepareDeal t,log) -- `debug` ("End with pool CF is []")
 
@@ -449,8 +449,8 @@ runDeal :: P.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionTy
 runDeal t _ assumps bpi =
     (finalDeal, Just pcf, Just ((getRunResult finalDeal)++logs), bndPricing)  -- `debug` ("Run Deal"++show(name t) ++" Actions# >> "++ show (length ads)++"\n last log"++ show logs)
   where
-    (ads,pcf,rcurves,calls,revolvingAssump) = getInits t assumps -- `debug` ("runDeal init line") 
-    (finalDeal,logs) = run2 (removePoolCf t) pcf (Just ads) (Just rcurves) calls revolvingAssump [] `debug` ("start status"++show (status t) )-- `debug` ("run2 rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
+    (_t, ads,pcf,rcurves,calls,revolvingAssump) = getInits t assumps -- `debug` ("runDeal init line") 
+    (finalDeal,logs) = run2 (removePoolCf _t) pcf (Just ads) (Just rcurves) calls revolvingAssump [] `debug` ("start status"++show (status t) )-- `debug` ("run2 rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
     bndPricing = case bpi of
                    Nothing -> Nothing    -- `debug` ("pricing bpi with Nothing")
                    Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with"++show _bpi)
@@ -574,9 +574,9 @@ runPool2 (P.Pool as Nothing asof _) (Just applyAssumpType)
 
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType ->
-    ([ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption], Maybe (RevolvingPool ,[AP.AssumptionBuilder]))
+    (TestDeal a,[ActionOnDate], CF.CashFlowFrame, [RateAssumption],Maybe [C.CallOption], Maybe (RevolvingPool ,[AP.AssumptionBuilder]))
 getInits t mAssumps 
-  = (allActionDates, pCollectionCfAfterCutoff, rateCurves, callOptions, revolvingCurves)   `debug` ("init done actions->"++ show (head allActionDates))
+  = (newT, allActionDates, pCollectionCfAfterCutoff, rateCurves, callOptions, revolvingCurves)   `debug` ("init done actions->"++ show (head allActionDates))
   where
     dealAssumps = case mAssumps of
                     Just (AP.PoolLevel []) -> []
@@ -663,6 +663,20 @@ getInits t mAssumps
     revolvingCurves = getRevolvingCurve dealAssumps -- `debug` ("Getting revolving Curves")
                       
     callOptions = buildCallOptions Nothing dealAssumps -- `debug` ("Assump"++show(assumps))
+    -- Expense Override
+    newFeeMap = case find 
+                       (\case
+                         (AP.ProjectedExpense _ _) -> True    
+                         _ -> False)
+                       dealAssumps of 
+                         Nothing -> (fees t)
+                         Just (AP.ProjectedExpense fn projectedFlow) -> 
+                           Map.adjust
+                             (\x -> x {F.feeType = F.FeeFlow projectedFlow})
+                             fn
+                             (fees t)
+    newT = t {fees = newFeeMap}
+
 
 depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
 depositInflow (W.Collect s an) d row amap 

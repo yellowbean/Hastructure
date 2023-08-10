@@ -82,6 +82,8 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                 | LeaseGapDaysByAmount [(Amount,Int)] Int
                 -- For Defaulted Asset
                 | DefaultedRecovery Rate Int [Rate]
+                -- Expense Assumption
+                | ProjectedExpense FeeName Ts
                 -- Debug 
                 | StopRunBy Date
                 | InspectOn [(DatePattern,DealStats)]
