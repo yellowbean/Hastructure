@@ -8,6 +8,7 @@ import qualified Data.Time as T
 import qualified Lib as L
 import qualified Asset as P
 import qualified Deal as D
+import qualified Deal.DealAction as DA
 import qualified UT.DealTest as DT
 import Expense
 import Types
@@ -31,10 +32,10 @@ expTests =  testGroup "Expense Tests"
         "test date"
         [100.0, 0.0, 110.0, 150.0]
         (map feeDue 
-             [(D.calcDueFee DT.td2 _calcDate f1)
-              ,(D.calcDueFee DT.td2 _calcDate2 f1)
-              ,(D.calcDueFee DT.td2 _calcDate3 f2)
-              ,(D.calcDueFee DT.td2 _calcDate3 f1)])
+             [(DA.calcDueFee DT.td2 _calcDate f1)
+              ,(DA.calcDueFee DT.td2 _calcDate2 f1)
+              ,(DA.calcDueFee DT.td2 _calcDate3 f2)
+              ,(DA.calcDueFee DT.td2 _calcDate3 f1)])
     ,
     let
      tsPoints = [(L.TsPoint (L.toDate "20220101") 10.0)
@@ -53,10 +54,10 @@ expTests =  testGroup "Expense Tests"
     in
       testCase "test on Custom Fee Type" $
       assertEqual "calc Due Fee" [f1_ , f2_ , f3_ , _f1WithDue]
-                                 [D.calcDueFee DT.td2 _calcDate f1
-                                 ,D.calcDueFee DT.td2 _calcDate2 f1
-                                 ,D.calcDueFee DT.td2 _calcDate3 f1
-                                 ,D.calcDueFee DT.td2 _calcDate f1WithDue
+                                 [DA.calcDueFee DT.td2 _calcDate f1
+                                 ,DA.calcDueFee DT.td2 _calcDate2 f1
+                                 ,DA.calcDueFee DT.td2 _calcDate3 f1
+                                 ,DA.calcDueFee DT.td2 _calcDate f1WithDue
                                  ]
 
   ]

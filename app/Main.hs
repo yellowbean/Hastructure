@@ -73,7 +73,7 @@ import qualified InterestRate as IR
 import qualified Stmt
 import qualified Triggers as TRG
 import qualified Revolving as RV
-import qualified Lib as Lib
+import qualified Lib
 import qualified Util as U
 
 
@@ -88,7 +88,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.19.2"
+version1 = Version "0.19.10"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -192,7 +192,7 @@ instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
 instance ToSchema AB.AssetUnion
-instance ToSchema P.IssuanceFields
+instance ToSchema IssuanceFields
 instance ToSchema PricingMethod
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])

@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Asset (Pool(..),calc_p_i_flow
-       ,aggPool,IssuanceFields(..)
+       ,aggPool
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
        ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
@@ -69,16 +69,7 @@ class Show a => Asset a where
 
  -- {-# MINIMAL calcCashflow #-}
 
-data IssuanceFields = IssuanceBalance
-                    deriving (Show,Ord,Eq,Read,Generic)
 
-instance ToJSONKey IssuanceFields where
-  toJSONKey = toJSONKeyText (Text.pack . show)
-
-instance FromJSONKey IssuanceFields where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
 
 data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
@@ -257,5 +248,4 @@ data AggregationRule = Regular Date Period
 
 
 $(deriveJSON defaultOptions ''Pool)
-$(deriveJSON defaultOptions ''IssuanceFields)
 $(deriveJSON defaultOptions ''AggregationRule)

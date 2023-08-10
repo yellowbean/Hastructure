@@ -48,9 +48,9 @@ buildEarnIntAction (acc:accs) ed r =
     (Account _ _ Nothing _ _) 
       -> buildEarnIntAction accs ed r
     (Account _ an (Just (BankAccount _ lastAccDate dp)) _ _)
-      -> buildEarnIntAction accs ed [(an, projDatesByPattern dp lastAccDate ed)]++r    
+      -> buildEarnIntAction accs ed [(an, genSerialDatesTill2 EE lastAccDate dp ed)]++r    
     (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _)
-      -> buildEarnIntAction accs ed [(an, projDatesByPattern dp lastAccDate ed)]++r    
+      -> buildEarnIntAction accs ed [(an, genSerialDatesTill2 EE lastAccDate dp ed)]++r    
 
 
 depositInt :: Account -> Date -> Account
@@ -149,9 +149,6 @@ instance QueryByComment Account where
     queryStmt (Account _ _ _ _ Nothing) tc = []
     queryStmt (Account _ _ _ _ (Just (Statement txns))) tc
       = filter (\x -> getTxnComment x == tc) txns
-
-    queryTxnAmt a tc 
-      = sum $ map getTxnAmt $ queryStmt a tc
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)

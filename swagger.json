@@ -2579,6 +2579,40 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CalcAndPayFee"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "type": "string"
                                     },
                                     {
@@ -3227,6 +3261,37 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/DealStats"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "WatchVal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -3760,8 +3825,7 @@
                     "CollectedPrincipal",
                     "CollectedRecoveries",
                     "CollectedPrepayment",
-                    "CollectedRental",
-                    "CollectedFee"
+                    "CollectedRental"
                 ]
             },
             "TxnComment": {
@@ -3903,6 +3967,37 @@
                                 "type": "string",
                                 "enum": [
                                     "Transfer"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TransferBy"
                                 ]
                             }
                         },
@@ -5452,6 +5547,20 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "CumulativePoolRecoveriesBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "CumulativePoolDefaultedRate"
                                 ]
                             }
@@ -5566,12 +5675,36 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/PoolSource"
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolSource"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "PoolCollectionIncome"
+                                    "PoolCumCollection"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolSource"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PoolCurCollection"
                                 ]
                             }
                         },
@@ -5723,9 +5856,6 @@
                     {
                         "type": "object",
                         "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5734,8 +5864,7 @@
                             }
                         },
                         "required": [
-                            "tag",
-                            "contents"
+                            "tag"
                         ]
                     },
                     {
@@ -6047,6 +6176,201 @@
                                 "type": "string",
                                 "enum": [
                                     "FeePaidAt"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FeeTxnAmt"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BondTxnAmt"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AccTxnAmt"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FeeTxnAmtBy"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BondTxnAmtBy"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AccTxnAmtBy"
                                 ]
                             }
                         },
@@ -7490,6 +7814,34 @@
                                 "type": "string",
                                 "enum": [
                                     "NumFee"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TargetBalanceFee"
                                 ]
                             }
                         },
@@ -10831,7 +11183,7 @@
         }
     },
     "info": {
-        "version": "0.19.1",
+        "version": "0.19.10",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

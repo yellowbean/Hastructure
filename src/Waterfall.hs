@@ -64,6 +64,7 @@ data Action = Transfer AccountName AccountName
             | PayFee [AccountName] [FeeName]
             | PayFeeBy Limit [AccountName] [FeeName]
             | PayFeeResidual (Maybe Limit) AccountName FeeName
+            | CalcAndPayFee [AccountName] [FeeName]
             | AccrueAndPayInt AccountName [BondName]
             | PayInt AccountName [BondName]
             | PayPrin AccountName [BondName] 
@@ -87,6 +88,7 @@ data Action = Transfer AccountName AccountName
             | ActionWithPre L.Pre [Action] 
             | ActionWithPre2 L.Pre [Action] [Action]
             | RunTrigger DealCycle Int
+            | WatchVal (Maybe String) [DealStats]
             deriving (Show,Generic)
 
 type DistributionSeq = [Action]

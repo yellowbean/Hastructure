@@ -5,7 +5,7 @@
 
 module Deal.DealAction (performActionWrap,performAction,calcDueFee
                        ,testTrigger,RunContext(..),updateLiqProvider
-                       ,calcDueInt,calcDueFee,projAssetUnion,priceAssetUnion
+                       ,calcDueInt,projAssetUnion,priceAssetUnion
                        ,accrueLiqProvider) 
   where
 
@@ -78,7 +78,6 @@ getPoolFlows t sd ed rt =
     _trs =  CF.getTsCashFlowFrame _projCf
 
 
-
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
 testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
   | not cure && st = True 
@@ -89,7 +88,6 @@ updateTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Trigger
 updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
   | testTrigger t d trigger = trigger {trgStatus = True}  
   | otherwise = trigger
-
 
 
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
@@ -153,17 +151,17 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase _r) fs fd (Just _fdDay
         (baseBal,newDueDay) = case feeBase of
                                 CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing II,collectionEndDay)-- `debug` ("FeeBase" ++ show (getPoolFlows t Nothing Nothing II))
                                 -- CurrentPoolBegBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing
-                                OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) P.IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),collectionEndDay)
+                                OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),collectionEndDay)
                                 OriginalBondBalance -> (mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),calcDay)
                                 CurrentBondBalance -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t),calcDay)
                                 CurrentBondBalanceOf bns -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns)),calcDay)
         r = toRational $ queryDealRate t _r 
         newDue = mulBR baseBal r
 
-calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCollectionIncome it) r ) fs fd fdDay fa lpd _)
+calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCurCollection its) r ) fs fd fdDay fa lpd _)
   = f { F.feeDue = newDueFee, F.feeDueDate = Just calcDay } -- `debug` ("BAL"++show baseBal++"New Fee Due"++ show newDueFee)
     where 
-      baseBal = queryDeal t (PoolCollectionHistory it lastBegDay calcDay)  
+      baseBal = sum [ queryDeal t (PoolCollectionHistory it lastBegDay calcDay)  | it <- its ]
       newDueFee = fd + mulBR baseBal (toRational (queryDealRate t r))
       lastBegDay = case fdDay of
                      (Just _fdDay) -> _fdDay
@@ -213,6 +211,12 @@ calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd (Just _fdDay) fa lpd _
     baseCount = queryDealInt t (patchDateToStats calcDay s) calcDay
     newFeeDueAmt = fromRational $ mulBInt amt $ baseCount * periodGap -- `debug` ("amt"++show amt++">>"++show baseCount++">>"++show periodGap)
 
+calcDueFee t calcDay f@(F.Fee fn (F.TargetBalanceFee dsDue dsPaid) fs fd _ fa lpd _)
+  = f { F.feeDue = dueAmt, F.feeDueDate = Just calcDay}
+    where
+      dsDueD = patchDateToStats calcDay dsDue 
+      dsPaidD = patchDateToStats calcDay dsPaid
+      dueAmt = max 0 $ (queryDeal t dsDueD) - (queryDeal t dsPaidD)
 
 updateLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@(CE.LiqFacility _ liqType (Just curBal) curCredit _ _ _ mRate mPRate stmt) -- refresh available balance
@@ -397,7 +401,8 @@ projAssetUnion (ACM.LS ast) d assumps = CF.cfInsertHead (CF.LeaseFlow d (P.getCu
 
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
-                  ,revolvingAssump:: Maybe (RevolvingPool ,[AP.AssumptionBuilder]) }
+                  ,revolvingAssump:: Maybe (RevolvingPool ,[AP.AssumptionBuilder])
+                   }
 
 updateOriginDate2 :: Date -> ACM.AssetUnion -> ACM.AssetUnion
 updateOriginDate2 d (ACM.LO m) = ACM.LO $ (updateOriginDate m) (P.calcAlignDate m d)
@@ -406,12 +411,14 @@ updateOriginDate2 d (ACM.IL m) = ACM.IL $ (updateOriginDate m) (P.calcAlignDate 
 updateOriginDate2 d (ACM.LS m) = ACM.LS $ (updateOriginDate m) (P.calcAlignDate m d)
  
 
-performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext a) -> W.Action -> (TestDeal a, RunContext a)
+performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d 
-                  (t@TestDeal{ accounts = accsMap },rc@RunContext{runPoolFlow=pcf@(CF.CashFlowFrame (tr:trs))
-                                                                  ,revolvingAssump=Just (assetForSale,perfAssumps)}) 
+                  (t@TestDeal{ accounts = accsMap }
+                  ,rc@RunContext{runPoolFlow=pcf@(CF.CashFlowFrame (tr:trs))
+                                ,revolvingAssump=Just (assetForSale,perfAssumps)}
+                  ,logs)
                   (W.BuyAsset ml pricingMethod accName) 
-   = (t { accounts = newAccMap }, newRc )
+   = (t { accounts = newAccMap }, newRc, logs )
     where 
       _assets = lookupAssetAvailable assetForSale d
       assets = (updateOriginDate2 d) <$> _assets 
@@ -444,15 +451,20 @@ performActionWrap d
       newRc = rc {runPoolFlow = newPcf
                  ,revolvingAssump = Just (poolAfterBought,perfAssumps)} -- `debug` ("new pool flow"++show newPcf)
 
-performActionWrap d (t, rc) (W.ActionWithPre p actions) 
-  | testPre d t p = foldl (performActionWrap d) (t,rc) actions
-  | otherwise = (t, rc)
+performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
+  = (t, rc, newLogs ++ logs)
+    where 
+      newLogs = [ InspectBal d ds (queryDeal t ds) | ds <- dss ] 
 
-performActionWrap d (t, rc) (W.ActionWithPre2 p actionsTrue actionsFalse) 
-  | testPre d t p = foldl (performActionWrap d) (t,rc) actionsTrue
-  | otherwise = foldl (performActionWrap d) (t,rc) actionsFalse
+performActionWrap d (t, rc, logs) (W.ActionWithPre p actions) 
+  | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actions
+  | otherwise = (t, rc, logs)
 
-performActionWrap d (t,rc) a = (performAction d t a,rc) -- `debug` ("DEBUG: Action on "++ show a)
+performActionWrap d (t, rc, logs) (W.ActionWithPre2 p actionsTrue actionsFalse) 
+  | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actionsTrue
+  | otherwise = foldl (performActionWrap d) (t,rc,logs) actionsFalse
+
+performActionWrap d (t,rc, logs) a = (performAction d t a,rc,logs) -- `debug` ("DEBUG: Action on "++ show a)
 
 performAction :: P.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
 performAction d t (W.ActionWithPre2 _pre actionsTrue actionsFalse)
@@ -492,15 +504,15 @@ performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL ds ledgersLis
                    (zip ledgerNames amtBookedToLedgers)
 
 performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.TransferBy (ClearPDL ln) an1 an2) =
-  t {accounts = accMapAfterDeposit}  -- `debug` ("ABCD "++show(d))
+  t {accounts = accMapAfterDeposit, ledgers = Just newLedgerM}  -- `debug` ("ABCD "++show(d))
   where
     sourceAcc = accMap Map.! an1
     targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
     targetAmt = queryDeal t (LedgerBalance [ln]) -- assuming (debit -> positvie)
-    transferAmt = min (A.accBalance sourceAcc) targetAmt
+    transferAmt = min (A.accBalance sourceAcc) targetAmt -- `debug` ("Clear PDL"++show d++ show targetAmt)
  
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 (ClearPDL ln))) an1 accMap -- `debug` (">>PDL >>Ledger bal"++show d ++ show targetAmt)
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (TransferBy an1 an2 (ClearPDL ln))) an2 accMapAfterDraw
 
     newLedgerM = Map.adjust 
                    (LD.entryLog (negate transferAmt) d (TxnDirection Credit))
@@ -523,8 +535,8 @@ performAction d t@TestDeal{accounts=accMap} (W.TransferBy limit an1 an2) =
                                         0
     transferAmt = min (max formulaAmount 0) (A.accBalance sourceAcc) -- `debug` ("Formula amount"++show formulaAmount)
 
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 limit)) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (TransferBy an1 an2 limit)) an2 accMapAfterDraw
 
 performAction d t@TestDeal{accounts=accMap} (W.TransferReserve meetAcc sa ta)=
     t {accounts = accMapAfterTransfer }
@@ -629,6 +641,12 @@ performAction d t (W.AccrueAndPayInt an bnds) =
   in 
     performAction d dealWithBondDue (W.PayInt an bnds)
 
+performAction d t (W.CalcAndPayFee ans fees) =
+  let 
+    dealWithFeeDue = performAction d t (W.CalcFee fees)
+  in 
+    performAction d dealWithFeeDue (W.PayFee ans fees)
+
 
 performAction d t (W.PayTillYield an bnds) = performAction d t (W.AccrueAndPayInt an bnds)
 
@@ -674,10 +692,10 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBy (DS ds) an
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     availBal = A.accBalance $ accMap Map.! an
-    targetBnd = bndMap Map.! bndName
+    targetBndBal = L.bndBalance $ bndMap Map.! bndName
 
     patchedDs = patchDateToStats d ds 
-    payAmount = min availBal (queryDeal t patchedDs) -- `debug` ("Query with "++show (patchedDs))
+    payAmount = min targetBndBal $ min availBal (queryDeal t patchedDs) -- `debug` ("Query with "++show (patchedDs))
 
     accMapAfterPay = Map.adjust
                         (A.draw payAmount d (TxnComments [PayPrin [bndName],UsingDS ds])) 

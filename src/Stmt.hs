@@ -8,7 +8,7 @@ module Stmt
    ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,sliceTxns,TxnComment(..),QueryByComment(..)
-   ,weightAvgBalanceByDates,weightAvgBalance
+   ,weightAvgBalanceByDates,weightAvgBalance, sumTxn
    ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..)
   )
   where
@@ -33,78 +33,6 @@ import qualified Data.Map as M
 
 import Debug.Trace
 debug = flip trace
-
-data Direction = Credit
-               | Debit
-               deriving (Show,Ord, Eq, Generic)
-
-data TxnComment = PayInt [BondName]
-                | PayYield BondName 
-                | PayPrin [BondName] 
-                | PayFee FeeName
-                | SeqPayFee [FeeName] 
-                | PayFeeYield FeeName
-                | Transfer AccName AccName 
-                | PoolInflow PoolSource
-                | LiquidationProceeds
-                | LiquidationSupport String
-                | LiquidationDraw
-                | LiquidationRepay
-                | LiquidationSupportInt Balance Balance
-                | BankInt
-                | Empty 
-                | Tag String
-                | UsingDS DealStats
-                | UsingFormula FormulaType
-                | SwapAccure
-                | SwapInSettle
-                | SwapOutSettle
-                | PurchaseAsset
-                | TxnDirection Direction
-                | TxnComments [TxnComment]
-                deriving (Eq, Show, Ord , Generic)
-
-instance ToJSON TxnComment where 
-  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ show bns ++ ">"
-  toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ show bn ++">"
-  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ show bns ++ ">"
-  toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
-  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++show fns++">"
-  toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
-  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
-  toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
-  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
-  toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
-  toJSON (UsingFormula fm) =  String $ T.pack $ "<Formula:"++ show fm++">"
-  toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
-  toJSON Empty =  String $ T.pack $ "" 
-  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
-  toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
-  toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
-  toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
-  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
-  toJSON SwapAccure = String $ T.pack $ "<Accure:>"
-  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
-  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
-  toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
-  toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
-
-instance FromJSON TxnComment where
-    parseJSON = withText "Empty" parseTxn
-
-parseTxn :: T.Text -> Parser TxnComment 
-parseTxn "" = return Empty 
-parseTxn "<BankInt>" = return BankInt
-parseTxn t = case tagName of 
-  "Transfer" -> let 
-                  sv = T.splitOn (T.pack ",") $ T.pack contents
-                in 
-                  return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
-  where 
-      pat = "<(\\S+):(\\S+)>"::String
-      sr = (T.unpack t =~ pat)::[[String]]
-      tagName =  head sr!!1::String
-      contents = head sr!!2::String
 
 type DueInt = Maybe Balance
 type DuePremium =  Maybe Balance
@@ -284,8 +212,18 @@ instance TimeSeries Txn where
 
 class QueryByComment a where 
     queryStmt :: a -> TxnComment -> [Txn]
+    queryStmtAsOf :: a -> Date -> TxnComment -> [Txn]
+    queryStmtAsOf a d tc =  [ txn | txn <- queryStmt a tc, getDate txn <= d]
     queryTxnAmt :: a -> TxnComment -> Balance
-
+    queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
+    queryTxnAmtAsOf :: a -> Date -> TxnComment -> Balance 
+    queryTxnAmtAsOf a d tc =  sum $ getTxnAmt <$> queryStmtAsOf a d tc
+-- queryTxn :: [Txn] -> TxnComment -> [Txn]
+-- queryTxn txns comment = [ txn | txn <- txns, getTxnComment txn == comment]
+-- 
+-- queryTxnAmt :: [Txn] -> TxnComment -> Balance
+-- queryTxnAmt txns comment 
+--   = sum $ geTxnAmt <$> queryTxn txns comment
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)

@@ -170,9 +170,18 @@ payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt}
   | otherwise = rs
      where 
        actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
-       outstanding = (negate payoutAmt) - amt
+       outstanding = negate payoutAmt - amt
        newTxn = IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle
 
+instance QueryByComment LiqFacility where 
+    queryStmt liq@LiqFacility{liqStmt = Nothing} tc = []
+    queryStmt liq@LiqFacility{liqStmt = (Just (Statement txns))} tc
+      = filter (\x -> getTxnComment x == tc) txns
+
+instance QueryByComment RateSwap where 
+    queryStmt RateSwap{rsStmt = Nothing} tc = []
+    queryStmt RateSwap{rsStmt = Just (Statement txns)} tc
+      = filter (\x -> getTxnComment x == tc) txns
 
 data CurrencySwap = CurrencySwap Rate Balance
                   | Dummy3

@@ -62,6 +62,9 @@ patchDateToStats d t
          Factor _ds r -> Factor (patchDateToStats d _ds) r
          UseCustomData n -> CustomData n d
          CurrentPoolBorrowerNum -> FutureCurrentPoolBorrowerNum d
+         FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
+         BondTxnAmt ns mCmt -> BondTxnAmtBy d ns mCmt
+         AccTxnAmt ns mCmt -> AccTxnAmtBy d ns mCmt
          _ -> t
 
 
@@ -133,6 +136,14 @@ queryDealInt t s d =
     Max ss -> maximum' $ [ queryDealInt t s d | s <- ss ]
     Min ss -> minimum' $ [ queryDealInt t s d | s <- ss ]
 
+poolSourceToIssuanceField :: PoolSource -> IssuanceFields
+poolSourceToIssuanceField CollectedInterest = HistoryInterest
+poolSourceToIssuanceField CollectedPrincipal = HistoryPrincipal
+poolSourceToIssuanceField CollectedRecoveries = HistoryRecoveries
+poolSourceToIssuanceField CollectedPrepayment = HistoryPrepayment
+poolSourceToIssuanceField CollectedRental = HistoryRental
+
+
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t s = 
   case s of
@@ -149,7 +160,7 @@ queryDeal t s =
 
     OriginalPoolBalance ->
       case P.issuanceStat (pool t) of
-        Just m -> Map.findWithDefault (-1) P.IssuanceBalance m -- `debug` (">>>>"++show(m))
+        Just m -> Map.findWithDefault (-1) IssuanceBalance m -- `debug` (">>>>"++show(m))
         Nothing -> foldl (\acc x -> acc + P.getOriginBal x) 0.0 (P.assets (pool t)) 
     
     CurrentPoolBorrowerNum ->
@@ -162,7 +173,7 @@ queryDeal t s =
       sum $ map A.accBalance $ Map.elems $ getAccountByName t (Just ans)
     
     LedgerBalance ans ->
-      case (ledgers t) of 
+      case ledgers t of 
         Nothing -> 0 
         Just ledgersM -> sum $ LD.ledgBalance <$> (ledgersM Map.!) <$> ans
     
@@ -173,24 +184,27 @@ queryDeal t s =
 
     ReserveAccGapAt d ans ->
         max 0 $
-          (sum $ map 
-                   (calcTargetAmount t d) $ 
-                   Map.elems $ getAccountByName t (Just ans))
-          - 
-          (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
+                (sum $ (calcTargetAmount t d) <$> (Map.elems $ getAccountByName t (Just ans)))
+                - 
+                (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
 
     FutureCurrentPoolBalance ->
        case P.futureCf (pool t) of 
          Nothing -> 0.0
          Just (CF.CashFlowFrame trs) -> CF.mflowBalance $ last trs
+    
+    FutureCurrentPoolBegBalance ->
+       case P.futureCf (pool t) of 
+         Nothing -> 0.0
+         Just (CF.CashFlowFrame trs) -> CF.mflowBegBalance $ last trs
 
-    FutureCurrentPoolBegBalance asOfDay ->
-         case _poolSnapshot of
-            Just ts -> CF.mflowBegBalance ts
-            Nothing -> error $ "Pool begin balance not found at"++show asOfDay
-        where
-         _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
-         _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
+    -- FutureCurrentPoolBegBalance asOfDay ->
+    --      case _poolSnapshot of
+    --         Just ts -> CF.mflowBegBalance ts
+    --         Nothing -> error $ "Pool begin balance not found at"++show asOfDay
+    --     where
+    --      _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+    --      _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
 
     PoolCollectionHistory incomeType fromDay asOfDay ->
       sum fieldAmts
@@ -218,6 +232,29 @@ queryDeal t s =
           currentDefaults = queryDeal t CurrentPoolDefaultedBalance
         in
           futureDefaults + currentDefaults
+
+    CumulativePoolRecoveriesBalance ->
+        let 
+          futureRecoveries = case P.futureCf (pool t) of
+                               Just (CF.CashFlowFrame _historyTxn) -> sum $ CF.mflowRecovery <$> _historyTxn
+                               Nothing -> 0.0
+          historyRecoveries = case P.issuanceStat (pool t) of
+                                Just m -> Map.findWithDefault 0.0 HistoryRecoveries m 
+                                Nothing -> 0.0
+        in
+          futureRecoveries + historyRecoveries
+    
+    PoolCumCollection ps ->
+        let 
+          futureVals = case P.futureCf (pool t) of
+                         Just cf -> sum $ CF.sumPoolFlow cf <$> ps
+                         Nothing -> 0.0
+
+          historyVals = case P.issuanceStat (pool t) of
+                                Just m -> sum [ Map.findWithDefault 0.0 (poolSourceToIssuanceField p) m | p <- ps ]
+                                Nothing -> 0.0
+        in 
+          futureVals + historyVals
 
     CurrentBondBalanceOf bns ->
        let
@@ -254,6 +291,43 @@ queryDeal t s =
                           filter (\x -> d == getDate x) txns
        in
           sum $ map ex stmts
+    
+    FeeTxnAmtBy d fns mCmt -> 
+      let 
+        fees = Map.elems $ getFeeByName t (Just fns)
+      in  
+        case mCmt of 
+          Just cmt -> sum [ queryTxnAmtAsOf fee d cmt | fee <- fees ]
+          Nothing -> 
+            let 
+              _txn = concat [ getTxns (F.feeStmt fee) | fee <- fees ]
+            in 
+              sumTxn (beforeOnDate _txn d)
+    
+    BondTxnAmtBy d bns mCmt -> 
+      let 
+        bnds = Map.elems $ getBondByName t (Just bns)
+      in 
+        case mCmt of
+          Just cmt -> sum [ queryTxnAmtAsOf bnd d cmt | bnd <- bnds ]
+          Nothing ->
+            let 
+              _txn = concat [ getTxns (L.bndStmt bnd) | bnd <- bnds ]
+            in 
+              sumTxn (beforeOnDate _txn d)
+
+    AccTxnAmtBy d ans mCmt -> 
+      let 
+        accs = Map.elems $ getAccountByName t (Just ans)
+      in 
+        case mCmt of
+          Just cmt -> sum [ queryTxnAmtAsOf acc d cmt | acc <- accs ]
+          Nothing ->
+            let 
+              _txn = concat [ getTxns (A.accStmt acc) | acc <- accs ]
+            in 
+              sumTxn (beforeOnDate _txn d)
+
 
     BondBalanceGapAt d bName -> 
         let 
@@ -327,10 +401,13 @@ queryDeal t s =
 
     FloorAndCap floor cap s -> max (queryDeal t floor) $ min (queryDeal t cap) (queryDeal t s)
     
+    Factor s f -> mulBR (queryDeal t s) f
+
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
     Round ds rb -> roundingBy rb (queryDeal t ds)
+    
 
     _ -> 0.0 `debug` ("Failed to query balance of -> "++ show s)
 
