@@ -29,6 +29,7 @@ import Text.Printf
 import Control.Exception
 
 import Debug.Trace
+import Data.Time (addDays)
 debug = flip trace
 
 mulBR :: Balance -> Rate -> Centi
@@ -242,7 +243,7 @@ genSerialDatesTill sd ptn ed
               YearFirst->  div cdM 12
               MonthDayOfYear _m _d -> div cdM 12 -- T.MonthOfYear T.DayOfMonth
               DayOfMonth _d -> cdM -- T.DayOfMonth 
-              CustomDate ds -> 2 + (toInteger $ length ds)
+              CustomDate ds -> 2 + toInteger (length ds)
               EveryNMonth _d _n -> div cdM (toInteger _n)
               -- DayOfWeek Int -> -- T.DayOfWeek 
 
@@ -257,6 +258,7 @@ genSerialDatesTill2 rt sd dp ed
       (IE,False) -> sd:_r 
       (EE,True) -> tail _r 
       (EE,False) -> _r 
+      (NO_IE,_) -> genSerialDatesTill2 rt sd dp (addDays 1 ed)
     where 
       _r = case dp of 
              AllDatePattern dps -> concat [ genSerialDatesTill sd _dp ed | _dp <- dps ]

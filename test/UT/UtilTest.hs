@@ -361,6 +361,22 @@ dateVectorPatternTest =
            (OffsetBy 
              (CustomDate [toDate "20230202", toDate "20230909"]) 2)
            (toDate "20230910"))
+    , testCase "No Inclusive or Exclusive" $
+        assertEqual "1"
+        (toDates ["20230831","20230930","20231031"])
+        (genSerialDatesTill2 NO_IE (toDate "20230810") MonthEnd (toDate "20231031") )
+    , testCase "No Inclusive or Exclusive" $
+        assertEqual "2"
+        (toDates ["20230831","20230930"])
+        (genSerialDatesTill2 NO_IE (toDate "20230810") MonthEnd (toDate "20231030") )
+    , testCase "No Inclusive or Exclusive" $
+        assertEqual "3"
+        (toDates ["20230831","20230930","20231031"])
+        (genSerialDatesTill2 NO_IE (toDate "20230831") MonthEnd (toDate "20231031") )
+    , testCase "No Inclusive or Exclusive" $
+        assertEqual "4"
+        (toDates ["20230831","20230930"])
+        (genSerialDatesTill2 NO_IE (toDate "20230831") MonthEnd (toDate "20231030") )
     ]                          
 
 paddingTest = 

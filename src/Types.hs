@@ -483,7 +483,7 @@ data Ts = FloatCurve [TsPoint Rational]
         | PricingCurve [TsPoint Rational] 
         deriving (Show,Eq,Ord,Read,Generic)
 
-data RangeType = II | IE | EI | EE
+data RangeType = II | IE | EI | EE | NO_IE
 data CutoffType = Inc | Exc
 
 data BookItem = Item String Balance 

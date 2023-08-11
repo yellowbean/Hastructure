@@ -69,7 +69,7 @@ reserveAccTest =
     acc1 = Account 200 "A1" Nothing (Just (PctReserve CurrentPoolBalance 0.01)) Nothing
     acc2 = Account 150 "A2" Nothing (Just (FixReserve 210)) Nothing
     accMap = Map.fromList [("A1",acc1),("A2",acc2)]
-    testCFs = CF.CashFlowFrame $
+    testCFs = CF.CashFlowFrame
                [CF.MortgageFlow (toDate "20220601") 150 20 10 0 0 0 0 0 Nothing
                ,CF.MortgageFlow (toDate "20220701") 130 20 10 0 0 0 0 0 Nothing
                ,CF.MortgageFlow (toDate "20220801") 110 20 10 0 0 0 0 0 Nothing
