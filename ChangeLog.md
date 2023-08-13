@@ -1,9 +1,12 @@
 # Changelog for Hastructure
 
 ## 0.19.11
+### 2023-8-13
 * ENHANCE: add `calcAndPay` action for fee
+* FIX: Fix missing periods of `recurr` type of fee
 
 ## 0.19.10
+### 2023-8-7
 * NEW : add a new expense type: `TargetBalanceFee`, which due amount = `<formula 1> - <formula 2>`
 * ENHANCE: add query total txn amount for account/bond/expense with optional `comment` as a filter
 * ENHANCE: expoese query on `cumulative pool` on `recoveries` `principal` `interest` `prepayment` 
