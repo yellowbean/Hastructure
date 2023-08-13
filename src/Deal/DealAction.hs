@@ -179,11 +179,11 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee ds _r ) fs fd fdDay fa lpd _)
 calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd _ fa mflpd _)
   = f{ F.feeDue = newFeeDue
       ,F.feeDueDate = Just calcDay
-      ,F.feeType = F.FeeFlow futureDue} -- `debug` ("New fee due"++show newFeeDue)
+      ,F.feeType = F.FeeFlow futureDue} 
     where
-      (currentNewDue,futureDue) = splitTsByDate ts calcDay
+      (currentNewDue,futureDue) = splitTsByDate ts calcDay 
       cumulativeDue = sumValTs currentNewDue
-      newFeeDue =  cumulativeDue + fd  -- `debug` ("cumulativeDue"++ show cumulativeDue)
+      newFeeDue =  cumulativeDue + fd  
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd mLastAccDate fa _ _)
   | periodGaps == 0 = f 
@@ -193,7 +193,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd mLastAccDate fa _ _)
     accDates = case mLastAccDate of 
                       Nothing -> genSerialDatesTill2 NO_IE (T.addDays 1 fs) p calcDay 
                       Just lastAccDate -> genSerialDatesTill2 NO_IE lastAccDate p calcDay 
-    periodGaps = length accDates `debug` ("RECUR FEE DATES->"++ show accDates)
+    periodGaps = length accDates 
 
 
 calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd Nothing fa lpd _)
