@@ -209,21 +209,21 @@ type RunResp = (DealType , Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput -> RunResp
 wrapRun (MDeal d) mAssump mPricing = let 
-                    (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
-                     in 
-                                 (MDeal _d,_pflow,_rs,_p)
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing 
+                                     in 
+                                       (MDeal _d,_pflow,_rs,_p) -- `debug` ("Run Done with deal->"++ show _d)
 wrapRun (RDeal d) mAssump mPricing = let 
-                    (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
-                     in 
-                                 (RDeal _d,_pflow,_rs,_p)
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
+                                     in 
+                                       (RDeal _d,_pflow,_rs,_p)
 wrapRun (IDeal d) mAssump mPricing = let 
-                    (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
-                     in 
-                                 (IDeal _d,_pflow,_rs,_p)
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
+                                     in 
+                                       (IDeal _d,_pflow,_rs,_p)
 wrapRun (LDeal d) mAssump mPricing = let 
-                    (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
-                     in 
-                                 (LDeal _d,_pflow,_rs,_p)
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
+                                     in 
+                                       (LDeal _d,_pflow,_rs,_p)
 
 wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> CF.CashFlowFrame
 wrapRunPool (MPool p) assump = P.aggPool $ D.runPool2 p assump
@@ -308,7 +308,10 @@ server2 = return engineSwagger
           runAsset req = return $ wrapRunAsset req
           runPool (SingleRunPoolReq pt passumption) = return $ wrapRunPool pt passumption
           runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) = return $ Map.map (\assump -> wrapRunPool pt (Just assump)) mAssumps
-          runDeal (SingleRunReq dt assump pricing) = return $ wrapRun dt assump pricing
+          runDeal (SingleRunReq dt assump pricing) = let
+                                                       resp = wrapRun dt assump pricing 
+                                                     in 
+                                                       return resp  
           runDealScenarios (MultiScenarioRunReq dt mAssumps pricing)
             = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
           runMultiDeals (MultiDealRunReq mDts assump pricing) 

@@ -229,7 +229,7 @@ genSerialDates dp sd num
 
 genSerialDatesTill:: Date -> DatePattern -> Date -> Dates 
 genSerialDatesTill sd ptn ed 
-  = filter (< ed) $ genSerialDates ptn sd (fromInteger (succ num))  --`debug` ("Num"++show num)
+  = filter (<= ed) $ genSerialDates ptn sd (fromInteger (succ num))  --`debug` ("Num"++show num)
     where 
       (sy,sm,sday) = T.toGregorian sd 
       (ey,em,eday) = T.toGregorian ed 
@@ -245,20 +245,29 @@ genSerialDatesTill sd ptn ed
               DayOfMonth _d -> cdM -- T.DayOfMonth 
               CustomDate ds -> 2 + toInteger (length ds)
               EveryNMonth _d _n -> div cdM (toInteger _n)
+              _ -> error $ "failed to match" ++ show ptn
               -- DayOfWeek Int -> -- T.DayOfWeek 
 
 genSerialDatesTill2 :: RangeType -> Date -> DatePattern -> Date -> Dates
 genSerialDatesTill2 rt sd dp ed 
-  = case (rt,head _r==sd) of 
-      (II,True) -> _r ++ [ed]
-      (II,False)-> sd:_r ++ [ed] 
-      (EI,True) -> tail _r ++ [ed]
-      (EI,False) -> _r ++ [ed]
-      (IE,True) -> _r 
-      (IE,False) -> sd:_r 
-      (EE,True) -> tail _r 
-      (EE,False) -> _r 
-      (NO_IE,_) -> genSerialDatesTill2 rt sd dp (addDays 1 ed)
+  = case (rt, head _r==sd, last _r==ed) of 
+      (II,True,True) -> _r
+      (II,True,False) -> _r ++ [ed]
+      (II,False,True)-> sd:_r 
+      (II,False,False)-> sd:_r ++ [ed] 
+      (EI,True,True) -> tail _r 
+      (EI,True,False) -> tail _r ++ [ed]
+      (EI,False,True) -> _r 
+      (EI,False,False) -> _r ++ [ed]
+      (IE,True,True) -> init _r 
+      (IE,True,False) -> _r 
+      (IE,False,True) -> sd:init _r
+      (IE,False,False) -> sd:_r 
+      (EE,True,True) -> init $ tail _r 
+      (EE,True,False) -> tail _r 
+      (EE,False,True) -> init _r
+      (EE,False,False) -> _r 
+      (NO_IE,_,_) -> _r
     where 
       _r = case dp of 
              AllDatePattern dps -> concat [ genSerialDatesTill sd _dp ed | _dp <- dps ]
@@ -270,7 +279,7 @@ genSerialDatesTill2 rt sd dp ed
                  in 
                    sort $ S.toList $ S.difference a b
              OffsetBy _dp _n -> [ T.addDays (toInteger _n) _d   | _d <- genSerialDatesTill2 rt sd _dp ed ]
-             _ -> genSerialDatesTill sd dp ed -- maybe sd in _r, but not ed in _r
+             _ -> genSerialDatesTill sd dp ed -- maybe sd/ed in _r
 
 
 tsPointVal :: TsPoint a -> a 
