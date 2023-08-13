@@ -27,7 +27,7 @@ expTests =  testGroup "Expense Tests"
      _calcDate2 = (L.toDate "20220115")
      _calcDate3 = (L.toDate "20220415")
     in
-      testCase "calc on diff/same period for recur fee" $
+      testCase "calc on diff same period for recur fee" $
       assertEqual
         "test date"
         [100.0, 0.0, 110.0, 150.0]

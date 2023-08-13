@@ -187,12 +187,13 @@ calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd _ fa mflpd _)
 
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd mLastAccDate fa _ _)
   | periodGaps == 0 = f 
-  | otherwise = f{ F.feeDue = amt * fromIntegral periodGaps + fd, F.feeDueDate = Just (T.addDays 1 calcDay) } -- `debug` ("periods"++show periodGaps)
+  | otherwise = f{ F.feeDue = amt * fromIntegral periodGaps + fd
+                 , F.feeDueDate = Just (T.addDays 1 calcDay) } -- `debug` ("periods"++show periodGaps)
   where
     accDates = case mLastAccDate of 
-                      Nothing -> tail $ genSerialDatesTill2 NO_IE fs p calcDay 
+                      Nothing -> genSerialDatesTill2 NO_IE (T.addDays 1 fs) p calcDay 
                       Just lastAccDate -> genSerialDatesTill2 NO_IE lastAccDate p calcDay 
-    periodGaps = length accDates
+    periodGaps = length accDates `debug` ("RECUR FEE DATES->"++ show accDates)
 
 
 calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd Nothing fa lpd _)
