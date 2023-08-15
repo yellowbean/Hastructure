@@ -45,6 +45,8 @@ data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe
                   | StepUpFix IRate DayCount StepUpDates Spread
                   | BiStepUp IRate Pre InterestInfo InterestInfo
                   | InterestByYield IRate
+                  | CapRate InterestInfo IRate
+                  | FloorRate InterestInfo IRate
                   deriving (Show, Eq, Generic)
 
 data OriginalInfo = OriginalInfo {
@@ -282,15 +284,20 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
       else
         calcZspread (tradePrice,priceDay) (succ count) (newLevel, (spd, lastSpd), newSpd) b riskFreeCurve -- `debug` ("new price"++ show pricingFaceVal++"trade price"++ show tradePrice++ "new spd"++ show (fromRational newSpd))
 
-buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
-buildRateResetDates b sd ed 
- = case bndInterestInfo b of 
-     (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 EE sd dp ed
-     (Floater _ _ dp _ _ _) -> genSerialDatesTill2 EE sd dp ed
-     (BiStepUp _ p (Floater _ _ dp1 _ _ _) (Floater _ _ dp2 _ _ _)) -> genSerialDatesTill2 EE sd (AllDatePattern [dp1,dp2]) ed
-     (BiStepUp _ p _ (Floater _ _ dp _ _ _)) -> genSerialDatesTill2 EE sd dp ed
-     (BiStepUp _ p (Floater _ _ dp _ _ _) _ ) -> genSerialDatesTill2 EE sd dp ed
-     _ -> []
+
+buildRateResetDates :: InterestInfo -> StartDate -> EndDate -> [Date]
+buildRateResetDates ii sd ed 
+  = case ii of 
+      (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 EE sd dp ed
+      (Floater _ _ dp _ _ _) -> genSerialDatesTill2 EE sd dp ed
+      (BiStepUp _ p (Floater _ _ dp1 _ _ _) (Floater _ _ dp2 _ _ _)) -> genSerialDatesTill2 EE sd (AllDatePattern [dp1,dp2]) ed
+      (BiStepUp _ p _ (Floater _ _ dp _ _ _)) -> genSerialDatesTill2 EE sd dp ed
+      (BiStepUp _ p (Floater _ _ dp _ _ _) _ ) -> genSerialDatesTill2 EE sd dp ed
+      (CapRate _ii _)  -> buildRateResetDates _ii sd ed 
+      (FloorRate _ii _)  -> buildRateResetDates _ii sd ed 
+      _ -> error "Failed to mach interest info when building rate reset dates"  
+       
+
 
 instance S.QueryByComment Bond where 
     queryStmt Bond{bndStmt = Nothing} tc = []

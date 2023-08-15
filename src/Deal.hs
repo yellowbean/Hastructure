@@ -159,11 +159,16 @@ applyFloatRate (L.Floater idx spd p dc mf mc) d ras
       ra = getRateAssumptionByIndex ras idx
       _rate = idx_rate + spd
 
+applyFloatRate (L.CapRate ii _rate) d ras 
+  = min _rate (applyFloatRate ii d ras)
+
+applyFloatRate (L.FloorRate ii _rate) d ras 
+  = max _rate (applyFloatRate ii d ras)
+
 applicableAdjust :: L.Bond -> Bool
-applicableAdjust (L.Bond _ _ _ (L.Floater _ _ _ _ _ _) _ _ _ _ _ _ _ _ ) = True
-applicableAdjust (L.Bond _ _ _ (L.StepUpFix _ _ _ _) _ _ _ _ _ _ _ _ ) = True
 applicableAdjust (L.Bond _ _ _ (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
 applicableAdjust (L.Bond _ _ _ (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
+applicableAdjust (L.Bond _ _ _ ii _ _ _ _ _ _ _ _ ) = True
 
 
 updateRateSwapRate :: [RateAssumption] -> Date -> CE.RateSwap -> CE.RateSwap
@@ -641,7 +646,7 @@ getInits t mAssumps
     -- bond rate resets 
     bndRateResets = let 
                       rateAdjBnds = Map.filter applicableAdjust $ bonds t
-                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates b startDate endDate) rateAdjBnds
+                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates (L.bndInterestInfo b) startDate endDate) rateAdjBnds
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate , bdate     <- bdates ]
 
