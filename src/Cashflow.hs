@@ -55,7 +55,7 @@ type Rates = [Rate]
 
 data TsRow = CashFlow Date Amount
            | BondFlow Date Balance Principal Interest
-           | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe BorrowerNum)
+           | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty)
            | MortgageFlow2 Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate
            | MortgageFlow3 Date Balance Principal Interest Prepayment Delinquent30 Delinquent60 Delinquent90 Default Recovery Loss IRate
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate
@@ -501,6 +501,12 @@ sumPoolFlow (CashFlowFrame trs) ps
       lookup CollectedRecoveries = mflowRecovery
       lookup CollectedRental = mflowRental
       lookup CollectedInterest = mflowInterest
+
+applyPrepaymentPenaltyCurve :: [TsRow] -> Maybe RateCurve -> [TsRow]
+applyPrepaymentPenaltyCurve trs (Just rc)
+  = [  (MortgageFlow a b c d e f g i j (Just (mulBR e (getValByDate rc Inc a ))))  |  (MortgageFlow a b c d e f g i j k ) <- trs ]
+applyPrepaymentPenaltyCurve trs Nothing = trs
+
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

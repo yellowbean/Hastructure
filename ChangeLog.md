@@ -2,7 +2,8 @@
 
 ## 0.19.12
 ### 2023-8-31
-* NEW: Add `BiStep Up` coupon type for bond
+* NEW: Add `BiStep Up` /`Cap`/`Floor` coupon type for bond
+* NEW: Add `Prepay Penalty` attribute on `Mortgage`
 
 
 ## 0.19.11

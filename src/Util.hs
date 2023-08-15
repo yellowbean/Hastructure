@@ -320,7 +320,6 @@ getValByDate (IRateCurve dps) Inc d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
-
 getValByDate (ThresholdCurve dps) Inc d
   = case find (\(TsPoint _d _) -> d <= _d) dps  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))

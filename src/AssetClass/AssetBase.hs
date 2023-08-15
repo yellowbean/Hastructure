@@ -21,7 +21,7 @@ import qualified Cashflow as CF
 
 type DailyRate = Balance
 
-data AmortPlan = Level   -- for mortgage
+data AmortPlan = Level   -- for mortgage / french system
                | Even    -- for mortgage
                | I_P     -- interest only and principal due at last payment
                | F_P     -- fee based 
@@ -34,23 +34,32 @@ data Status = Current
             -- | Extended (Maybe T.Day)
             deriving (Show,Generic)
 
+data PrepayPenaltyType = ByTerm Int Float Float
+                       | FixAmount Balance (Maybe Int)
+                       | FixPct Float (Maybe Int)
+                       | Sliding Float Float
+                       | StepDown [(Int,Float)]
+                       -- | NMonthInterest Int
+                       deriving (Show,Generic)
+
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
                                           ,originTerm :: Int
                                           ,period :: Period
                                           ,startDate :: Date
-                                          ,prinType :: AmortPlan }
-  | LoanOriginalInfo { originBalance :: Balance
-                      ,originRate :: IR.RateType
-                      ,originTerm :: Int
-                      ,period :: Period
-                      ,startDate :: Date
-                      ,prinType :: AmortPlan }
-  | LeaseInfo { startDate :: Date
-               ,originTerm :: Int 
-               ,paymentDates :: DatePattern
-               ,originRental :: Amount}
-    deriving (Show,Generic)
+                                          ,prinType :: AmortPlan 
+                                          ,pepaymentPenalty :: Maybe PrepayPenaltyType }
+                  | LoanOriginalInfo { originBalance :: Balance
+                                      ,originRate :: IR.RateType
+                                      ,originTerm :: Int
+                                      ,period :: Period
+                                      ,startDate :: Date
+                                      ,prinType :: AmortPlan }
+                  | LeaseInfo { startDate :: Date
+                              ,originTerm :: Int 
+                              ,paymentDates :: DatePattern
+                              ,originRental :: Amount}
+                  deriving (Show,Generic)
 
 
 data Installment = Installment OriginalInfo Balance RemainTerms Status
