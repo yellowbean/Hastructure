@@ -124,11 +124,15 @@ buildCashReport t@TestDeal{accounts = accs } sd ed
         cashChange = sum (Map.elems inflowM) + sum (Map.elems outflowM)
 
 
-setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
-setBondNewRate d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
+setBondNewRate :: P.Asset a => TestDeal a -> T.Day -> [RateAssumption] -> L.Bond -> L.Bond
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
   = b { L.bndRate = currentRate + spd }
 
-setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.BiStepUp _ p f1 f2) _ currentRate _ _ _ _ _ _)
+  | testPre d t p = b {L.bndRate = applyFloatRate f1 d ras}
+  | otherwise = b {L.bndRate = applyFloatRate f2 d ras}
+
+setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
 
 
@@ -384,7 +388,7 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                newBndMap = case rates of 
                              Nothing -> bonds t
                              (Just _rates) -> Map.adjustWithKey 
-                                              (\k v-> setBondNewRate d _rates v)
+                                              (\k v-> setBondNewRate t d _rates v)
                                               bn
                                               (bonds t) -- `debug` ("Reset bond"++show bn)
              in 

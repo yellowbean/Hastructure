@@ -43,6 +43,7 @@ type StepUpDates = DatePattern
 data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount 
                   | StepUpFix IRate DayCount StepUpDates Spread
+                  | BiStepUp IRate Pre InterestInfo InterestInfo
                   | InterestByYield IRate
                   deriving (Show, Eq, Generic)
 
@@ -127,12 +128,9 @@ convertToFace :: Balance -> Bond -> Balance
 convertToFace bal b@Bond{bndOriginInfo = info}
   = bal / (originBalance info)
 
-
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
-fv2 discount_rate today futureDay amt =
-    -- mulBI (realToFrac amt) factor 
-    realToFrac $ (realToFrac amt) * factor 
-    --mulBI amt ((1+discount_rate) ** (distance / 365))
+fv2 discount_rate today futureDay amt 
+  = realToFrac $ (realToFrac amt) * factor 
   where
     factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)
     distance::Double = fromIntegral $ daysBetween today futureDay
@@ -289,6 +287,9 @@ buildRateResetDates b sd ed
  = case bndInterestInfo b of 
      (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 EE sd dp ed
      (Floater _ _ dp _ _ _) -> genSerialDatesTill2 EE sd dp ed
+     (BiStepUp _ p (Floater _ _ dp1 _ _ _) (Floater _ _ dp2 _ _ _)) -> genSerialDatesTill2 EE sd (AllDatePattern [dp1,dp2]) ed
+     (BiStepUp _ p _ (Floater _ _ dp _ _ _)) -> genSerialDatesTill2 EE sd dp ed
+     (BiStepUp _ p (Floater _ _ dp _ _ _) _ ) -> genSerialDatesTill2 EE sd dp ed
      _ -> []
 
 instance S.QueryByComment Bond where 
