@@ -124,11 +124,15 @@ buildCashReport t@TestDeal{accounts = accs } sd ed
         cashChange = sum (Map.elems inflowM) + sum (Map.elems outflowM)
 
 
-setBondNewRate :: T.Day -> [RateAssumption] -> L.Bond -> L.Bond
-setBondNewRate d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
+setBondNewRate :: P.Asset a => TestDeal a -> T.Day -> [RateAssumption] -> L.Bond -> L.Bond
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
   = b { L.bndRate = currentRate + spd }
 
-setBondNewRate d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.BiStepUp _ p f1 f2) _ currentRate _ _ _ _ _ _)
+  | testPre d t p = b {L.bndRate = applyFloatRate f1 d ras}
+  | otherwise = b {L.bndRate = applyFloatRate f2 d ras}
+
+setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
 
 
@@ -155,11 +159,16 @@ applyFloatRate (L.Floater idx spd p dc mf mc) d ras
       ra = getRateAssumptionByIndex ras idx
       _rate = idx_rate + spd
 
+applyFloatRate (L.CapRate ii _rate) d ras 
+  = min _rate (applyFloatRate ii d ras)
+
+applyFloatRate (L.FloorRate ii _rate) d ras 
+  = max _rate (applyFloatRate ii d ras)
+
 applicableAdjust :: L.Bond -> Bool
-applicableAdjust (L.Bond _ _ _ (L.Floater _ _ _ _ _ _) _ _ _ _ _ _ _ _ ) = True
-applicableAdjust (L.Bond _ _ _ (L.StepUpFix _ _ _ _) _ _ _ _ _ _ _ _ ) = True
 applicableAdjust (L.Bond _ _ _ (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
 applicableAdjust (L.Bond _ _ _ (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
+applicableAdjust (L.Bond _ _ _ ii _ _ _ _ _ _ _ _ ) = True
 
 
 updateRateSwapRate :: [RateAssumption] -> Date -> CE.RateSwap -> CE.RateSwap
@@ -384,7 +393,7 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
                newBndMap = case rates of 
                              Nothing -> bonds t
                              (Just _rates) -> Map.adjustWithKey 
-                                              (\k v-> setBondNewRate d _rates v)
+                                              (\k v-> setBondNewRate t d _rates v)
                                               bn
                                               (bonds t) -- `debug` ("Reset bond"++show bn)
              in 
@@ -637,7 +646,7 @@ getInits t mAssumps
     -- bond rate resets 
     bndRateResets = let 
                       rateAdjBnds = Map.filter applicableAdjust $ bonds t
-                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates b startDate endDate) rateAdjBnds
+                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates (L.bndInterestInfo b) startDate endDate) rateAdjBnds
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate , bdate     <- bdates ]
 

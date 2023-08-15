@@ -1,8 +1,15 @@
 # Changelog for Hastructure
 
+## 0.19.12
+### 2023-8-31
+* NEW: Add `BiStep Up` coupon type for bond
+
+
 ## 0.19.11
-### 2023-8-13
+### 2023-8-14
 * ENHANCE: add `calcAndPay` action for fee
+* ENHANCE: expose new assumption on expense projection
+* ENHANCE: include a new `NO_IE` type to generate dates vector
 * FIX: Fix missing periods of `recurr` type of fee
 
 ## 0.19.10
