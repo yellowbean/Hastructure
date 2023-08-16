@@ -68,6 +68,7 @@ import qualified Revolving
 import qualified Liability as L
 import qualified Call as C
 import qualified CreditEnhancement as CE
+import qualified Hedge as HE
 import qualified Waterfall as W
 import qualified InterestRate as IR
 import qualified Stmt
@@ -154,12 +155,11 @@ instance ToSchema Limit
 instance ToSchema W.Satisfy
 instance ToSchema C.CallOption
 instance ToSchema CE.LiqFacility
-instance ToSchema CE.RateSwap
-instance ToSchema CE.RateSwapType
-instance ToSchema CE.RateSwapBase
-instance ToSchema CE.CurrencySwap
+instance ToSchema HE.RateSwap
+instance ToSchema HE.RateSwapType
+instance ToSchema HE.RateSwapBase
+instance ToSchema HE.CurrencySwap
 instance ToSchema CE.LiqSupportType
-instance ToSchema CE.LiqSupportRate
 instance ToSchema CE.LiqRepayType
 instance ToSchema CustomDataType
 instance ToSchema DealCycle

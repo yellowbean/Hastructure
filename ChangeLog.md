@@ -9,7 +9,9 @@
   * Fixed pct in life time or bfore `term N`
   * Sliding from `rate0` by step of `rate1`
   * Ladder type like first `12` periods with Pct of `Rate0` , next `12` periods with Pct of `Rate1`
-
+* ENHANCE: refactor `liquidity provider`
+  * include a maybe `valid date` of the agreement
+  * include floater index
 
 ## 0.19.11
 ### 2023-8-14

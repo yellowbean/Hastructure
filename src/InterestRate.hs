@@ -33,7 +33,7 @@ type StartRate = IRate
 
 data RateType = Fix IRate
               | Floater Index Spread IRate Period (Maybe Floor)
-              | Floater2 Index Spread IRate DatePattern (Maybe RateFloor) (Maybe RateCap) (Maybe (RoundingBy IRate))
+              | Floater2 Index Spread IRate DatePattern RateFloor RateCap (Maybe (RoundingBy IRate))
               deriving (Show,Generic)
 
 data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor

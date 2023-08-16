@@ -17,6 +17,7 @@ import qualified Asset as P
 import qualified Expense as F
 import qualified Liability as L
 import qualified CreditEnhancement as CE
+import qualified Hedge as HE
 import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
@@ -171,21 +172,21 @@ applicableAdjust (L.Bond _ _ _ (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
 applicableAdjust (L.Bond _ _ _ ii _ _ _ _ _ _ _ _ ) = True
 
 
-updateRateSwapRate :: [RateAssumption] -> Date -> CE.RateSwap -> CE.RateSwap
-updateRateSwapRate rAssumps d rs@CE.RateSwap{ CE.rsType = rt } 
-  = rs {CE.rsPayingRate = pRate, CE.rsReceivingRate = rRate }
+updateRateSwapRate :: [RateAssumption] -> Date -> HE.RateSwap -> HE.RateSwap
+updateRateSwapRate rAssumps d rs@HE.RateSwap{ HE.rsType = rt } 
+  = rs {HE.rsPayingRate = pRate, HE.rsReceivingRate = rRate }
   where 
       (pRate,rRate) = case rt of 
-                     CE.FloatingToFloating flter1 flter2 -> (getRate flter1,getRate flter2)
-                     CE.FloatingToFixed flter r -> (getRate flter, r)
-                     CE.FixedToFloating r flter -> (r , getRate flter)
+                     HE.FloatingToFloating flter1 flter2 -> (getRate flter1,getRate flter2)
+                     HE.FloatingToFixed flter r -> (getRate flter, r)
+                     HE.FixedToFloating r flter -> (r , getRate flter)
       getRate x = AP.lookupRate rAssumps x d
 
-updateRateSwapBal :: P.Asset a => TestDeal a -> Date -> CE.RateSwap -> CE.RateSwap
-updateRateSwapBal t d rs@CE.RateSwap{ CE.rsNotional = base }
+updateRateSwapBal :: P.Asset a => TestDeal a -> Date -> HE.RateSwap -> HE.RateSwap
+updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
   =  case base of 
-       CE.Fixed _ -> rs 
-       CE.Base ds -> rs { CE.rsRefBalance = queryDeal t (patchDateToStats d ds) }
+       HE.Fixed _ -> rs 
+       HE.Base ds -> rs { HE.rsRefBalance = queryDeal t (patchDateToStats d ds) }
 
 testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
 testCall t d opt = 
@@ -639,7 +640,7 @@ getInits t mAssumps
                         Nothing -> []
                         Just rsm -> Map.elems $ Map.mapWithKey 
                                                  (\k x -> let 
-                                                           resetDs = (genSerialDatesTill2 IE startDate (CE.rsSettleDates x) endDate)
+                                                           resetDs = (genSerialDatesTill2 IE startDate (HE.rsSettleDates x) endDate)
                                                           in 
                                                            ((flip ResetIRSwapRate) k) <$> resetDs)
                                                  rsm

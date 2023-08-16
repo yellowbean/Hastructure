@@ -11,6 +11,7 @@ import qualified Asset as P
 import qualified Expense as F
 import qualified Liability as L
 import qualified CreditEnhancement as CE
+import qualified Hedge as HE
 import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
@@ -56,8 +57,8 @@ data TestDeal a = TestDeal {
   ,collects :: [W.CollectionRule]
   ,call :: Maybe [C.CallOption]
   ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
-  ,rateSwap :: Maybe (Map.Map String CE.RateSwap)
-  ,currencySwap :: Maybe (Map.Map String CE.CurrencySwap)
+  ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
+  ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
   ,custom:: Maybe (Map.Map String CustomDataType)
   ,triggers :: Maybe (Map.Map DealCycle [Trigger])
   ,overrides :: Maybe [OverrideType]

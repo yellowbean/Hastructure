@@ -34,8 +34,8 @@ import qualified Data.Map as M
 import Debug.Trace
 debug = flip trace
 
-type DueInt = Maybe Balance
-type DuePremium =  Maybe Balance
+type DueInt = Balance
+type DuePremium = Balance
 
 data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
          | AccTxn Date Balance Amount TxnComment
@@ -96,7 +96,7 @@ emptyTxn :: Txn -> Date -> Txn
 emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 Empty )
 emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 Empty )
 emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
-emptyTxn (SupportTxn _ _ _ _ _ _ _) d = (SupportTxn d Nothing 0 0 Nothing Nothing Empty)
+emptyTxn (SupportTxn _ _ _ _ _ _ _) d = (SupportTxn d Nothing 0 0 0 0 Empty)
 emptyTxn (IrsTxn _ _ _ _ _ _ _) d = IrsTxn d 0 0 0 0 0 Empty
 emptyTxn (EntryTxn _ _ _ _) d = (EntryTxn d 0 0 Empty)
 
