@@ -89,7 +89,7 @@ projectMortgageFlow trs _b mbn _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_a
   where
     tr = CF.MortgageFlow _pdate _b 0 0 0 0 _rec_amt _loss_amt 0.0 Nothing Nothing
 
-projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs   -- `debug` ("Ending trs=>"++show(trs))
+projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs  
 
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
 projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss (recovery_lag,recovery_rate)
@@ -144,7 +144,53 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
              Nothing
              Nothing
 
-projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
+projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs 
+
+
+patchPrepayPentalyFlow :: Mortgage -> CF.CashFlowFrame -> CF.CashFlowFrame
+patchPrepayPentalyFlow m mflow@(CF.CashFlowFrame trs) 
+  = let 
+      (MortgageOriginalInfo ob or ot p sd pt mPpyPen) =  getOriginInfo m 
+      (startDate,endDate) = CF.getDateRangeCashFlowFrame mflow
+      prepaymentFlow = CF.mflowPrepayment <$> trs
+      flowSize = CF.sizeCashFlowFrame mflow
+    in 
+      case mPpyPen of 
+        Nothing -> mflow
+        Just (ByTerm cutoff rate0 rate1) -> 
+          let 
+            rs = lastN flowSize $ (replicate cutoff rate0) ++ replicate (ot-cutoff) rate1
+          in 
+            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
+        Just (FixAmount amt mCutoff) -> 
+          let 
+            projFlow = case mCutoff of 
+                         Nothing -> replicate flowSize amt
+                         Just cutoff -> lastN flowSize $ replicate cutoff amt ++ (replicate (ot-cutoff) 0 ) 
+            actFlow = [ if ppy > 0 then 
+                          f
+                        else
+                          0
+                        | (f,ppy) <- zip projFlow prepaymentFlow]
+          in 
+            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow actFlow trs
+        Just (FixPct r mCutoff) ->
+          let 
+            rs = case mCutoff of 
+                   Nothing -> replicate flowSize r
+                   Just cutoff -> lastN flowSize $ replicate cutoff r ++ (replicate (ot-cutoff) 0)
+          in
+            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
+        Just (Sliding sr changeRate) -> 
+          let 
+            rs = lastN flowSize $ paddingDefault 0 [sr,(sr-changeRate)..0] ot
+          in
+            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
+        Just (StepDown ps) ->
+          let 
+            rs = lastN flowSize $ concat [ replicate n r | (n,r) <- ps]
+          in 
+            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
 
 
 instance Ast.Asset Mortgage where
@@ -215,11 +261,12 @@ instance Ast.Asset Mortgage where
   updateOriginDate (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd _type mpn) arm cb cr ct mbn st) nd 
     = (AdjustRateMortgage (MortgageOriginalInfo ob or ot p nd _type mpn) arm cb cr ct mbn st)
   
+  -- project current mortgage
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) asOfDay assumps =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
     in 
-      CF.CashFlowFrame futureTxns
+      patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
     where
       last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
       cf_dates_length = length cf_dates  -- `debug` ("Last Pay Date\n"++ show last_pay_date++"SD\n"++ show sd++"ot,ct\n"++show ot++","++show rt)
@@ -238,6 +285,7 @@ instance Ast.Asset Mortgage where
                                0
       txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
 
+  -- project defaulted Mortgage    
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay assumps
     = case find f assumps of 
         Nothing -> CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing]
@@ -256,21 +304,22 @@ instance Ast.Asset Mortgage where
                    A.DefaultedRecovery _ _ _ ->True 
                    _ -> False 
 
+  -- project defaulted adjMortgage    
   projCashflow m@(AdjustRateMortgage mo arm cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay assumps
     = projCashflow (Mortgage mo cb cr rt mbn  (Defaulted (Just defaultedDate))) asOfDay assumps
-      
-  projCashflow m@(Mortgage _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps
-    = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
-  
+  -- project defaulted adjMortgage    
   projCashflow m@(AdjustRateMortgage _ _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps
     = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
-      
+  -- project defaulted Mortgage    
+  projCashflow m@(Mortgage _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps
+    = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
 
+  -- project current AdjMortgage
   projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) asOfDay assumps =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
     in 
-      CF.CashFlowFrame futureTxns
+      patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns) 
     where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 

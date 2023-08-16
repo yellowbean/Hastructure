@@ -3,7 +3,12 @@
 ## 0.19.12
 ### 2023-8-31
 * NEW: Add `BiStep Up` /`Cap`/`Floor` coupon type for bond
-* NEW: Add `Prepay Penalty` attribute on `Mortgage`
+* NEW: Add `Prepay Penalty` attribute on `Mortgage`, penalty types includes:
+  * `rate0` before `term N` and `rate1` after `term N`
+  * Fixed amount in lifetime or before `term N`
+  * Fixed pct in life time or bfore `term N`
+  * Sliding from `rate0` by step of `rate1`
+  * Ladder type like first `12` periods with Pct of `Rate0` , next `12` periods with Pct of `Rate1`
 
 
 ## 0.19.11

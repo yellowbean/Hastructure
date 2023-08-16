@@ -7,12 +7,12 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow
                 ,mflowDefault,mflowLoss,mflowDate
-                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
+                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
                 ,mflowBorrowerNum
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
-                ,tsTotalCash -- ,PersonalLoanFlow
+                ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
                 ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
                 ,getTxnBetween2
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
@@ -83,6 +83,10 @@ getTsCashFlowFrame (CashFlowFrame ts) = ts
 
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame ts) = getDate <$> ts
+
+getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date)
+getDateRangeCashFlowFrame (CashFlowFrame trs)
+  = ( getDate (head trs), getDate (last trs))
 
 cfAt :: CashFlowFrame -> Int -> Maybe TsRow
 cfAt (CashFlowFrame trs) idx = 
@@ -512,6 +516,11 @@ sumPoolFlow (CashFlowFrame trs) ps
       lookup CollectedRental = mflowRental
       lookup CollectedInterest = mflowInterest
 
+setPrepaymentPenalty :: Balance -> TsRow -> TsRow
+setPrepaymentPenalty bal (MortgageFlow a b c d e f g h i j k) = MortgageFlow a b c d e f g h i j (Just bal)
+
+setPrepaymentPenaltyFlow :: [Balance] -> [TsRow] -> [TsRow]
+setPrepaymentPenaltyFlow bals trs = [ setPrepaymentPenalty bal tr | (bal,tr) <- zip bals trs]
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

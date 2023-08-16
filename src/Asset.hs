@@ -75,8 +75,8 @@ class Show a => Asset a where
 data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
                    ,asOfDate :: Date
-                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)}
-                    deriving (Show,Generic)
+                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)
+                   }deriving (Show,Generic)
 
 getIssuanceField :: Pool a -> IssuanceFields -> Centi
 getIssuanceField p _if

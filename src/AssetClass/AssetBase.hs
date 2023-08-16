@@ -34,11 +34,11 @@ data Status = Current
             -- | Extended (Maybe T.Day)
             deriving (Show,Generic)
 
-data PrepayPenaltyType = ByTerm Int Float Float
+data PrepayPenaltyType = ByTerm Int Rate Rate
                        | FixAmount Balance (Maybe Int)
-                       | FixPct Float (Maybe Int)
-                       | Sliding Float Float
-                       | StepDown [(Int,Float)]
+                       | FixPct Rate (Maybe Int)
+                       | Sliding Rate Rate
+                       | StepDown [(Int,Rate)]
                        -- | NMonthInterest Int
                        deriving (Show,Generic)
 
@@ -48,7 +48,7 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,period :: Period
                                           ,startDate :: Date
                                           ,prinType :: AmortPlan 
-                                          ,pepaymentPenalty :: Maybe PrepayPenaltyType }
+                                          ,prepaymentPenalty :: Maybe PrepayPenaltyType }
                   | LoanOriginalInfo { originBalance :: Balance
                                       ,originRate :: IR.RateType
                                       ,originTerm :: Int
