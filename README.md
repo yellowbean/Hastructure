@@ -10,73 +10,48 @@
 
 ### Features
 * Integration
-  * Built-in REST API services :heavy_check_mark:
+  * Built-in REST API services
     * Language independent, integration friendly.
     * Swagger -> [here](https://github.com/yellowbean/Hastructure/blob/master/swagger.json)
     * Public server status -> [here](https://absbox.org)
-  * Docker Support :heavy_check_mark:
-* Asset class coverage
-  * Mortgage  :heavy_check_mark:
-  * Student Loan
-  * Auto Loan
-  * Rentals :heavy_check_mark:
-  * Corp Loan :heavy_check_mark:
-  * Consumer Installment :heavy_check_mark:
+  * Docker Support 
+* Asset class coverage (Mortgage/Student Loan/Auto Loan/Rentals/Corp Loan/Consumer Installment)
 * Pool Assumptions
-  * Mortgage (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
-  * Installment (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
-  * Corp Loan (Prepay Default Recovery Lag/Rate) :heavy_check_mark:
-  * Rentals (Gaps between leases,Rental Curve Assumption) :heavy_check_mark:
+  * Mortgage (Prepay,Prepay Penalty,Default,Recovery Lag/Rate)
+  * Installment (Prepay Default Recovery Lag/Rate) 
+  * Corp Loan (Prepay Default Recovery Lag/Rate)
+  * Rentals (Gaps between leases,Rental Curve Assumption) 
 * Multiple Waterfalls
   * User defined waterfalls and supported any point of time during the running cycle
-    * Waterfall at Distribution Day :heavy_check_mark:
-      * Waterfall before EOD :heavy_check_mark:
-      * Waterfall when Event of Acceleration :heavy_check_mark:
-      * Waterfall when Event of Default :heavy_check_mark:
-    * Waterfall at End of Pool Collection Day :heavy_check_mark:
-    * Waterfall for Clean Up Call  :heavy_check_mark:
+    * Waterfall at Distribution Day 
+      * Pre Turbo Waterfall / Waterfall after Event of Acceleration/Waterfall after  Event of Default
+    * Waterfall at End of Pool Collection Day 
+    * Waterfall for Clean Up Call 
 * Accounts
-  * Reserve Account  :heavy_check_mark:
-  * Bank Account (with interest) :heavy_check_mark:
-  * PDL :heavy_check_mark:
+  * Reserve Account/Bank Account (with interest)/Cash Account/PDL
 * Bonds/Tranches
-  * Float Index rate :heavy_check_mark:
-  * Sequential :heavy_check_mark:
-  * Prepay Lockout :heavy_check_mark:
-  * PAC Bond Support :heavy_check_mark:
-  * Z Bond Support :heavy_check_mark:
+  * Float Index rate / Step Up coupon type
+  * Sequential / Prepay Lockout /PAC Bond Support /Z Bond Support 
   * Bond Pricing
-    * IRR :heavy_check_mark:
-    * WAL :heavy_check_mark:
-    * Duration :heavy_check_mark:
-    * Accrual Int in pricing :heavy_check_mark:
+    * IRR /WAL /Duration /Accrual Int in pricing 
 * Call
-  * Pool/Bond Balance :heavy_check_mark:
-  * Bond/Pool Factor :heavy_check_mark:
-  * On Date/or after :heavy_check_mark:
+  * call by Pool/Bond Balance amount;Bond/Pool Factor;On Date/or after
 * Fees
-  * Pool / Bond balanced based fees  :heavy_check_mark:
-  * Pool Interest pct :heavy_check_mark:
-  * Fix Amount Fees  :heavy_check_mark:
-  * Custom Fee Flow :heavy_check_mark:
-  * Number Type Fee of a deal :heavy_check_mark:
-  * Formula based fee rate :heavy_check_mark:
+  * Pool / Bond balanced based fees 
+  * Fix Amount Fees / Custom Fee Flow / Number Type Fee of a deal / Formula based fee rate 
 * Liquidity Provider 
-  * line of credit/ Unlimit support  :heavy_check_mark:
+  * line of credit/ Unlimit support 
 * Trigger 
-  * Base on Date :heavy_check_mark:
-  * Base on Formula :heavy_check_mark:
-    * Pool performance :heavy_check_mark:
-    * Bond stats :heavy_check_mark:
+  * Base on Date 
+  * Base on Free Formula : Bond /Pool metrics
 * Scenario Analysis
-  * Running multiple scenarios :heavy_check_mark:
-  * Pricing on single asset :heavy_check_mark:
-  * Revoving Buy Analysis :heavy_check_mark:
+  * Running multiple scenarios 
+  * Pricing on single asset 
+  * Revoving Buy Analysis 
 * Formula Support 
-  * User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc. :heavy_check_mark:
+  * User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc.
 * Misc
-  * Support user define pay dates & pool collection dates :heavy_check_mark:
-
+  * Support user define pay dates & pool collection dates 
 ### Online Demo
 
 The demo only cover very limit features of this engine and subject to UI performance issue due to rapid prototype design of web component
