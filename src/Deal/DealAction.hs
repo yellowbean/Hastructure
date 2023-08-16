@@ -224,6 +224,7 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
     where 
       newCredit = case liqType of 
                      CE.ReplenishSupport _ b -> max b <$> curCredit
+                     CE.ByPct ds _r -> min (mulBR (queryDeal t ds) _r) <$> curCredit
                      _ -> curCredit
 
 updateLiqProvider _ _ liq = liq
@@ -766,16 +767,17 @@ performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns)
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.LiqSupport limit pName an)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)
   where 
+      newLiqMapUpdated = Map.adjust (updateLiqProvider t d) pName _liqProvider 
       _transferAmt = case limit of 
                       Nothing -> 0 -- `debug` ("limit on nothing"++ show limit)
                       Just (DS (ReserveAccGap [an])) -> queryDeal t (ReserveAccGapAt d [an]) -- `debug` ("Query Gap"++ show (queryDeal t (ReserveAccGapAt d [an])))
                       Just (DS ds) -> queryDeal t (patchDateToStats d ds) -- `debug` ("hit with ds"++ show ds)
                       _ -> error "Failed on formula passed" -- `debug` ("limit on last"++ show limit)
-      transferAmt = case CE.liqCredit $  _liqProvider Map.! pName of 
+      transferAmt = case CE.liqCredit $  newLiqMapUpdated Map.! pName of 
                        Nothing -> _transferAmt
                        Just _availBal -> min _transferAmt _availBal  -- `debug` ("transfer amt"++ show _transferAmt )
       newAccMap = Map.adjust (A.deposit transferAmt d (LiquidationSupport pName)) an accs
-      newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
+      newLiqMap = Map.adjust (CE.draw transferAmt d ) pName newLiqMapUpdated
 
 performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqPayFee limit pName fn)
   = t { fees = newFeeMap, liqProvider = Just newLiqMap }
