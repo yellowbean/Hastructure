@@ -89,7 +89,7 @@ projectMortgageFlow trs _b mbn _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_a
   where
     tr = CF.MortgageFlow _pdate _b 0 0 0 0 _rec_amt _loss_amt 0.0 Nothing Nothing
 
-projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ _ = trs   -- `debug` ("Ending trs=>"++show(trs))
+projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs   -- `debug` ("Ending trs=>"++show(trs))
 
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
 projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss (recovery_lag,recovery_rate)
@@ -148,7 +148,7 @@ projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs -- `debug` ("===>C")
 
 
 instance Ast.Asset Mortgage where
-  calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype)  _bal _rate _term _mbn _) d =
+  calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype _)  _bal _rate _term _mbn _) d =
       let 
         (_,futureTxns) = splitByDate txns d EqToRight  -- 
       in 
@@ -167,7 +167,7 @@ instance Ast.Asset Mortgage where
                                      Even ->  calc_p_i_flow_even (_bal / fromIntegral _term) _bal (last_pay_date:cf_dates) _rate
 
       bnflow = [ (\y -> (fromInteger (round ((toRational y) * (toRational (b / _bal)))))) <$> _mbn  | b <- b_flow ] -- borrower number
-      txns = zipWith10 CF.MortgageFlow cf_dates b_flow prin_flow int_flow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) rate_used bnflow (replicate l Nothing)
+      txns = zipWith11 CF.MortgageFlow cf_dates b_flow prin_flow int_flow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) rate_used bnflow (replicate l Nothing) 
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows)  d = CF.CashFlowFrame flows
   calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d = projCashflow m d [] 
@@ -175,24 +175,24 @@ instance Ast.Asset Mortgage where
   getCurrentBal (Mortgage _ _bal _ _ _ _) = _bal
   getCurrentBal (AdjustRateMortgage _ _ _bal _ _ _ _) = _bal
 
-  getOriginBal (Mortgage (MortgageOriginalInfo _bal _ _ _ _ _ ) _ _ _ _ _ ) = _bal
-  getOriginBal (AdjustRateMortgage (MortgageOriginalInfo _bal _ _ _ _ _ ) _ _ _ _ _ ) = _bal
+  getOriginBal (Mortgage (MortgageOriginalInfo _bal _ _ _ _ _ _) _ _ _ _ _ ) = _bal
+  getOriginBal (AdjustRateMortgage (MortgageOriginalInfo _bal _ _ _ _ _ _) _ _ _ _ _ _ ) = _bal
 
-  getOriginRate (Mortgage (MortgageOriginalInfo _ or _ _ _ _ ) _ _ _ _ _ )
+  getOriginRate (Mortgage (MortgageOriginalInfo _ or _ _ _ _ _) _ _ _ _ _ )
     = case or of
        IR.Fix _r -> _r
        IR.Floater _ _ _r _ Nothing -> _r
        IR.Floater _ _ _r _ (Just floor) -> max _r floor
-  getOriginRate (AdjustRateMortgage (MortgageOriginalInfo _ or _ _ _ _ ) _ _ _ _ _ _ )
+  getOriginRate (AdjustRateMortgage (MortgageOriginalInfo _ or _ _ _ _ _ ) _ _ _ _ _ _ )
     = case or of
        IR.Fix _r -> _r
        IR.Floater _ _ _r _ Nothing -> _r
        IR.Floater2 _ _ _r _ _ _ _ -> _r 
 
-  getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) extra
+  getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) extra
     = genDates sd p (ot+extra)
   
-  getPaymentDates (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) extra
+  getPaymentDates (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) extra
     = genDates sd p (ot+extra)
 
   isDefaulted (Mortgage _ _ _ _ _ (Defaulted _)) = True
@@ -200,18 +200,22 @@ instance Ast.Asset Mortgage where
   isDefaulted (Mortgage _ _ _ _ _ _) = False
   isDefaulted (AdjustRateMortgage _ _ _ _ _ _ _) = False
   
-  getOriginDate (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) = sd
-  getOriginDate (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) = sd
+  getOriginDate (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) = sd
+  getOriginDate (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) = sd
 
-  getRemainTerms (Mortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ ct _ _) = ct
-  getRemainTerms (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _) _ _ _ ct _ _) = ct
 
-  updateOriginDate (Mortgage (MortgageOriginalInfo ob or ot p sd _type) cb cr ct mbn st) nd 
-    = (Mortgage (MortgageOriginalInfo ob or ot p nd _type) cb cr ct mbn st) 
-  updateOriginDate (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd _type) arm cb cr ct mbn st) nd 
-    = (AdjustRateMortgage (MortgageOriginalInfo ob or ot p nd _type) arm cb cr ct mbn st)
+  getRemainTerms (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) = ct
+  getRemainTerms (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) = ct
+
+  getOriginInfo (Mortgage oi _ _ _ _ _) = oi
+  getOriginInfo (AdjustRateMortgage oi _ _ _ _ _ _) = oi
+
+  updateOriginDate (Mortgage (MortgageOriginalInfo ob or ot p sd _type mpn) cb cr ct mbn st) nd 
+    = (Mortgage (MortgageOriginalInfo ob or ot p nd _type mpn) cb cr ct mbn st) 
+  updateOriginDate (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd _type mpn) arm cb cr ct mbn st) nd 
+    = (AdjustRateMortgage (MortgageOriginalInfo ob or ot p nd _type mpn) arm cb cr ct mbn st)
   
-  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn Current) asOfDay assumps =
+  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) asOfDay assumps =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
     in 
@@ -234,7 +238,7 @@ instance Ast.Asset Mortgage where
                                0
       txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
 
-  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay assumps
+  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay assumps
     = case find f assumps of 
         Nothing -> CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing]
         Just (A.DefaultedRecovery rr lag timing) -> 
@@ -262,7 +266,7 @@ instance Ast.Asset Mortgage where
     = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
       
 
-  projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) arm cb cr rt mbn Current) asOfDay assumps =
+  projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) asOfDay assumps =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
     in 
@@ -316,15 +320,15 @@ instance Ast.Asset Mortgage where
         temp_p = Lib.Monthly -- TODO to fix this hard code
         cf_dates = (map CF.getDate flows) ++ (genDates (CF.getDate (last flows)) temp_p recovery_lag)
 
-  getBorrowerNum m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn _ ) = fromMaybe 1 mbn
-  getBorrowerNum m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) _ cb cr rt mbn _ ) = fromMaybe 1 mbn
+  getBorrowerNum m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) cb cr rt mbn _ ) = fromMaybe 1 mbn
+  getBorrowerNum m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) _ cb cr rt mbn _ ) = fromMaybe 1 mbn
 
-  splitWith (Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType) cb cr rt mbn st ) rs 
-    = [ Mortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) (mulBR cb ratio) cr rt mbn st 
+  splitWith (Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn st ) rs 
+    = [ Mortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType mpn) (mulBR cb ratio) cr rt mbn st 
        | ratio <- rs ]
   
-  splitWith (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType) arm cb cr rt mbn st ) rs 
-    = [ AdjustRateMortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) arm (mulBR cb ratio) cr rt mbn st 
+  splitWith (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn st ) rs 
+    = [ AdjustRateMortgage (MortgageOriginalInfo (mulBR ob ratio) or ot p sd prinPayType mpn) arm (mulBR cb ratio) cr rt mbn st 
        | ratio <- rs ]
   
 

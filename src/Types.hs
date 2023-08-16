@@ -13,7 +13,7 @@ module Types
   ,Balance,DealStats(..),Index(..),FormulaType(..)
   ,DealCycle(..),Cmp(..),TimeHorizion(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
-  ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
+  ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental,PrepaymentPenalty
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment

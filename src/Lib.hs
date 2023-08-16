@@ -14,7 +14,7 @@ module Lib
     ,toDate,toDates
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
-    ,zipWith8,zipWith9,zipWith10, monthsOfPeriod
+    ,zipWith8,zipWith9,zipWith10,zipWith11, monthsOfPeriod
     ,weightedBy, mkTs, DealStatus(..),isTsEmpty
     ,mkRateTs,Pre(..)
     ) where
@@ -224,6 +224,12 @@ zipWith10 :: (a->b->c->d->e->f->g->h->i->j->k) -> [a]->[b]->[c]->[d]->[e]->[f]->
 zipWith10 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks)
                    =  z a b c d e f g h j k: zipWith10 z as bs cs ds es fs gs hs js ks
 zipWith10 _ _ _ _ _ _ _ _ _ _ _ = []
+
+zipWith11 :: (a->b->c->d->e->f->g->h->i->j->k->l) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]->[k]->[l]
+zipWith11 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks) (l:ls)
+                   =  z a b c d e f g h j k l: zipWith11 z as bs cs ds es fs gs hs js ks ls
+zipWith11 _ _ _ _ _ _ _ _ _ _ _ _ = []
+
 
 
 floatToFixed :: HasResolution a => Float -> Fixed a

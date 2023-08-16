@@ -51,6 +51,7 @@ class Show a => Asset a where
   getOriginBal :: a -> Balance
   getOriginRate :: a -> IRate
   getOriginDate :: a -> Date
+  getOriginInfo :: a -> OriginalInfo  
   isDefaulted :: a -> Bool
   getPaymentDates :: a -> Int -> [Date]
   getRemainTerms :: a -> Int

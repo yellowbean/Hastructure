@@ -4,7 +4,7 @@
 
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
-  ,LeaseStepUp(..),AccrualPeriod(..)
+  ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..)
   )
   where
@@ -111,3 +111,4 @@ $(deriveJSON defaultOptions ''Mortgage)
 $(deriveJSON defaultOptions ''Loan)
 $(deriveJSON defaultOptions ''Lease)
 $(deriveJSON defaultOptions ''AssetUnion)
+$(deriveJSON defaultOptions ''PrepayPenaltyType)
