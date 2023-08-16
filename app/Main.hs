@@ -132,6 +132,7 @@ instance ToSchema (DB.TestDeal AB.Installment)
 instance ToSchema (DB.TestDeal AB.Lease)
 instance ToSchema AB.LeaseStepUp 
 instance ToSchema AB.AccrualPeriod
+instance ToSchema AB.PrepayPenaltyType
 instance ToSchema DateDesp
 instance ToSchema DateType
 instance ToSchema LD.Ledger

@@ -13,7 +13,7 @@ module Types
   ,Balance,DealStats(..),Index(..),FormulaType(..)
   ,DealCycle(..),Cmp(..),TimeHorizion(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
-  ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental
+  ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental,PrepaymentPenalty
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
@@ -75,6 +75,7 @@ type Recovery = Centi
 type Prepayment = Centi
 type Rental = Centi
 type Cap = Micro
+type PrepaymentPenalty = Centi
 
 type PrepaymentRate = Rate
 type DefaultRate = Rate
@@ -107,6 +108,7 @@ data Index = LPR5Y
             | EURIBOR3M
             | EURIBOR6M
             | EURIBOR12M
+            | IRPH --  The IRPH (Índice de Referencia de Préstamos Hipotecarios) is a reference index used in Spain to fix the interest rate of mortgage loans
             deriving (Show,Eq,Generic)
 
 type Floater = (Index,Spread)

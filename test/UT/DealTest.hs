@@ -99,7 +99,8 @@ td2 = D.TestDeal {
                                            ,AB.originTerm=60
                                            ,AB.period=Monthly
                                            ,AB.startDate=(T.fromGregorian 2022 1 1)
-                                           ,AB.prinType= AB.Level}
+                                           ,AB.prinType= AB.Level
+                                           ,AB.prepaymentPenalty = Nothing}
                                          4000
                                          0.085
                                          60
@@ -112,7 +113,8 @@ td2 = D.TestDeal {
                                      ,AB.originTerm=60
                                      ,AB.period=Monthly
                                      ,AB.startDate=(T.fromGregorian 2022 1 1)
-                                     ,AB.prinType= AB.Level}
+                                     ,AB.prinType= AB.Level
+                                     ,AB.prepaymentPenalty = Nothing}
                                    200
                                    0.085
                                    60
@@ -182,12 +184,12 @@ triggerTests = testGroup "Trigger Tests"
   [ let 
       setup = 0 
       poolflows = CF.CashFlowFrame $
-                     [CF.MortgageFlow (toDate "20220201") 800 100 20 0 0 0 0 0.08 Nothing
-                     ,CF.MortgageFlow (toDate "20220301") 700 100 20 0 0 0 0 0.08 Nothing
-                     ,CF.MortgageFlow (toDate "20220401") 600 100 20 0 0 0 0 0.08 Nothing 
-                     ,CF.MortgageFlow (toDate "20220501") 500 100 20 0 0 0 0 0.08 Nothing
-                     ,CF.MortgageFlow (toDate "20220601") 400 100 20 0 0 0 0 0.08 Nothing
-                     ,CF.MortgageFlow (toDate "20220701") 300 100 20 0 0 0 0 0.08 Nothing
+                     [CF.MortgageFlow (toDate "20220201") 800 100 20 0 0 0 0 0.08 Nothing Nothing
+                     ,CF.MortgageFlow (toDate "20220301") 700 100 20 0 0 0 0 0.08 Nothing Nothing
+                     ,CF.MortgageFlow (toDate "20220401") 600 100 20 0 0 0 0 0.08 Nothing Nothing 
+                     ,CF.MortgageFlow (toDate "20220501") 500 100 20 0 0 0 0 0.08 Nothing Nothing
+                     ,CF.MortgageFlow (toDate "20220601") 400 100 20 0 0 0 0 0.08 Nothing Nothing
+                     ,CF.MortgageFlow (toDate "20220701") 300 100 20 0 0 0 0 0.08 Nothing Nothing
                      ]
       ads = [PoolCollection (toDate "20220201") "" 
              ,RunWaterfall  (toDate "20220225") ""

@@ -51,6 +51,7 @@ class Show a => Asset a where
   getOriginBal :: a -> Balance
   getOriginRate :: a -> IRate
   getOriginDate :: a -> Date
+  getOriginInfo :: a -> OriginalInfo  
   isDefaulted :: a -> Bool
   getPaymentDates :: a -> Int -> [Date]
   getRemainTerms :: a -> Int
@@ -74,8 +75,8 @@ class Show a => Asset a where
 data Pool a = Pool {assets :: [a]
                    ,futureCf :: Maybe CF.CashFlowFrame
                    ,asOfDate :: Date
-                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)}
-                    deriving (Show,Generic)
+                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)
+                   }deriving (Show,Generic)
 
 getIssuanceField :: Pool a -> IssuanceFields -> Centi
 getIssuanceField p _if
