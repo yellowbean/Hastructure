@@ -1,11 +1,11 @@
-cabal-version: 1.12
+cabal-version:    0.19.12
 
 -- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:        0.1.2.0
+version:    0.19.12
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance;Securitisation;Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
@@ -44,6 +44,7 @@ library
       Deal.DealDate
       Deal.DealQuery
       Expense
+      Hedge
       InterestRate
       Ledger
       Liability
