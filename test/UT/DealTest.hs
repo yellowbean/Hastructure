@@ -140,15 +140,23 @@ td2 = D.TestDeal {
                     [("Liq1",CE.LiqFacility 
                                 "" 
                                 CE.FixSupport
-                                (Just 100)
                                 50
+                                (Just 100)
+                                
+                                Nothing
+                                Nothing
+                                
+                                Nothing
+                                Nothing
+
+                                Nothing 
+                                0
+                                0
+
                                 (toDate "20220201")
                                 Nothing
-                                Nothing
-                                (Just (CE.FixRate MonthEnd 0.05 (Just (toDate "20220201"))))
-                                Nothing
-                                (Just (S.Statement [S.SupportTxn (toDate "20220215") (Just 110) 10 40 (Just 0) (Just 0) S.Empty 
-                                                    ,S.SupportTxn (toDate "20220315") (Just 100) 10 50 (Just 0) (Just 0) S.Empty])))]
+                                (Just (S.Statement [S.SupportTxn (toDate "20220215") (Just 110) 10 40 0 0 S.Empty 
+                                                    ,S.SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 S.Empty])))]
  ,D.triggers = Just $
                 Map.fromList $
                   [(BeginDistributionWF,[ Trg.Trigger{Trg.trgCondition = IfDate G (toDate "20220501")
@@ -235,21 +243,28 @@ liqProviderTest =
   let 
     liq1 = CE.LiqFacility "" 
                        CE.FixSupport
-                       (Just 100)
                        90
-                       (toDate "20220201")
+                       (Just 100)
+
+                       Nothing
                        Nothing 
                        Nothing
-                       (Just (CE.FixRate MonthEnd 0.05 (Just (toDate "20220201"))))
+                       Nothing 
+
+                       (Just (toDate "20220201"))
+                       0
+                       0
+                       
+                       (toDate "20220301")
                        Nothing
                        (Just (S.Statement 
-                               [S.SupportTxn (toDate "20220215") (Just 110) 40 40 (Just 0) (Just 0) S.Empty
-                               ,S.SupportTxn (toDate "20220315") (Just 100) 50 90 (Just 0) (Just 0) S.Empty
+                               [S.SupportTxn (toDate "20220215") (Just 110) 40 40 0 0 S.Empty
+                               ,S.SupportTxn (toDate "20220315") (Just 100) 50 90 0 0 S.Empty
                                ]))
   in 
     testGroup "Liq provider test" 
       [testCase "Liq Provider Int test" $
           assertEqual ""
-           93
+           (Just 100)
            (CE.liqCredit $ accrueLiqProvider td2 (toDate "20221101") liq1)
       ]
