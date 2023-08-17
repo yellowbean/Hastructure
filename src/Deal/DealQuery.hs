@@ -55,6 +55,8 @@ patchDateToStats d t
          LastBondPrinPaid bns -> BondsPrinPaidAt d bns
          LastPoolDefaultedBal -> PoolNewDefaultedAt d
          BondBalanceGap bn -> BondBalanceGapAt d bn
+         ReserveAccGap ans -> ReserveAccGapAt d ans
+         ReserveExcess ans -> ReserveExcessAt d ans
          Sum _ds -> Sum $ map (patchDateToStats d) _ds
          Substract _ds -> Substract $ map (patchDateToStats d) _ds
          Min dss -> Min $ [ patchDateToStats d ds | ds <- dss ] 
@@ -177,16 +179,15 @@ queryDeal t s =
         Nothing -> 0 
         Just ledgersM -> sum $ LD.ledgBalance <$> (ledgersM Map.!) <$> ans
     
-    -- LedgerTxnBalance tc ans ->
-    --   case (ledgers t) of 
-    --     Nothing -> 0 
-    --     Just ledgersM -> sum $ (\x -> queryTxnAmt x tc) <$> (ledgersM Map.!) <$> ans
+    ReserveExcessAt d ans ->
+      max 
+        0
+        $ (-) (queryDeal t (AccBalance ans)) (sum $ (calcTargetAmount t d) <$> (Map.elems $ getAccountByName t (Just ans)))
 
     ReserveAccGapAt d ans ->
-        max 0 $
-                (sum $ (calcTargetAmount t d) <$> (Map.elems $ getAccountByName t (Just ans)))
-                - 
-                (queryDeal t (AccBalance ans))  -- `debug` (">>"++show (sum $ map (calcTargetAmount t d) $ Map.elems $ getAccountByName t (Just ans)) ++">>>"++ show (queryDeal t (AccBalance ans)))
+      max 
+        0 
+        $ (-) (sum $ (calcTargetAmount t d) <$> (Map.elems $ getAccountByName t (Just ans))) (queryDeal t (AccBalance ans)) 
 
     FutureCurrentPoolBalance ->
        case P.futureCf (pool t) of 
