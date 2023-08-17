@@ -161,6 +161,7 @@ data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus
                   | AccrueFee Date FeeName
                   | ResetLiqProvider Date String
+                  | ResetLiqProviderRate Date String
                   | PoolCollection Date String
                   | RunWaterfall Date String
                   | DealClosed Date 

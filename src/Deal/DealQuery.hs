@@ -366,12 +366,12 @@ queryDeal t s =
     LiqCredit lqNames -> 
       case (liqProvider t) of
         Nothing -> 0
-        Just liqProviderM -> sum $ [ CE.liqCredit liq | (k,liq) <- Map.assocs liqProviderM
+        Just liqProviderM -> sum $ [ fromMaybe 0 (CE.liqCredit liq) | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
     LiqBalance lqNames -> 
       case (liqProvider t) of
         Nothing -> 0
-        Just liqProviderM -> sum $ [ fromMaybe 0 (CE.liqBalance liq) | (k,liq) <- Map.assocs liqProviderM
+        Just liqProviderM -> sum $ [ (CE.liqBalance liq) | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
 
     Sum _s -> sum $ map (queryDeal t) _s
