@@ -109,6 +109,7 @@ data Index = LPR5Y
             | EURIBOR6M
             | EURIBOR12M
             | IRPH --  The IRPH (Índice de Referencia de Préstamos Hipotecarios) is a reference index used in Spain to fix the interest rate of mortgage loans
+            | SONIA 
             deriving (Show,Eq,Generic)
 
 type Floater = (Index,Spread)
