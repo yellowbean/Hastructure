@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module CreditEnhancement
-  (LiqFacility(..),LiqSupportType(..),buildLiqResetAction
+  (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
   ,LiquidityProviderName,draw,repay
   ,LiqRepayType(..)
   )
@@ -41,8 +41,8 @@ data LiqFacility = LiqFacility {
     ,liqRateType :: Maybe IR.RateType
     ,liqPremiumRateType :: Maybe IR.RateType
     
-    ,liqRate :: Maybe Rate 
-    ,liqPremiumRate :: Maybe Rate 
+    ,liqRate :: Maybe IRate 
+    ,liqPremiumRate :: Maybe IRate 
     
     ,liqDueIntDate :: Maybe Date
     
@@ -65,6 +65,17 @@ buildLiqResetAction (liqProvider:liqProviders) ed r =
            ed
            [(lqName, projDatesByPattern dp ss ed)]++r
     _ -> buildLiqResetAction liqProviders ed r
+
+buildLiqRateResetAction  :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, Dates)]
+buildLiqRateResetAction [] ed r = r
+buildLiqRateResetAction (liq:liqProviders) ed r = 
+  case liq of 
+    liq@LiqFacility{liqRateType = rt, liqPremiumRateType = prt, liqName =ln , liqStart = sd} -> 
+       buildLiqRateResetAction 
+        liqProviders 
+        ed 
+        [(ln,IR.getRateResetDates sd ed rt ++ IR.getRateResetDates sd ed prt)]++r
+    _ -> buildLiqRateResetAction liqProviders ed r
 
 draw :: Balance -> Date -> LiqFacility -> LiqFacility
 draw  amt d liq@LiqFacility{ liqBalance = liqBal

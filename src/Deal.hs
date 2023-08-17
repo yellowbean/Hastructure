@@ -125,7 +125,7 @@ buildCashReport t@TestDeal{accounts = accs } sd ed
         cashChange = sum (Map.elems inflowM) + sum (Map.elems outflowM)
 
 
-setBondNewRate :: P.Asset a => TestDeal a -> T.Day -> [RateAssumption] -> L.Bond -> L.Bond
+setBondNewRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
   = b { L.bndRate = currentRate + spd }
 
@@ -136,6 +136,17 @@ setBondNewRate t d ras b@(L.Bond _ _ _ (L.BiStepUp _ p f1 f2) _ currentRate _ _ 
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
 
+updateLiqProviderRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> CE.LiqFacility -> CE.LiqFacility
+updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPremiumRateType = mPrt
+                                               , CE.liqRate = mr, CE.liqPremiumRate = mPr }
+  = let 
+      newMr =  evalFloaterRate d ras <$> mRt
+      newMpr = evalFloaterRate d ras <$> mPrt
+      -- TODO probably need to accure int when interest rate changes ? 
+    in 
+      liq {CE.liqRate = newMr, CE.liqPremiumRate = newMpr }
+
+updateLiqProviderRate t d ras liq = liq 
 
 getRateAssumptionByIndex :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumptionByIndex ras idx
@@ -144,6 +155,22 @@ getRateAssumptionByIndex ras idx
         (RateCurve _idx _ts) -> (_idx==idx)
         (RateFlat _idx _rval) -> (_idx==idx))
       ras
+
+evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
+evalFloaterRate _ _ (IR.Fix r) = r 
+evalFloaterRate d ras (IR.Floater2 idx spd _ _ mFloor mCap mRounding)
+  = let 
+      ra = getRateAssumptionByIndex ras idx 
+      flooring (Just f) v = max f v 
+      flooring Nothing v = v 
+      capping (Just f) v = min f v 
+      capping Nothing  v = v 
+    in 
+      case ra of 
+        Nothing -> error "Failed to find index rate in assumption"
+        Just (RateFlat _ v) -> capping mCap $ flooring mFloor $ v + spd 
+        Just (RateCurve _ curve) -> capping mCap $ flooring mFloor $ fromRational $ (getValByDate curve Inc d) + (toRational spd)
+
 
 applyFloatRate :: L.InterestInfo -> Date -> [RateAssumption] -> IRate
 applyFloatRate (L.Floater idx spd p dc mf mc) d ras
@@ -357,11 +384,20 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
            case liqProvider t of 
              Nothing -> run2 t poolFlow (Just ads) rates calls rAssump log
              (Just mLiqProvider) 
-               -> let 
+               -> let -- update credit 
                     newLiqMap = Map.adjust (updateLiqProvider t d) liqName mLiqProvider
                   in
-                    run2 (t{liqProvider =Just newLiqMap}) poolFlow (Just ads) rates calls rAssump log
+                    run2 (t{liqProvider = Just newLiqMap}) poolFlow (Just ads) rates calls rAssump log
 
+         ResetLiqProviderRate d liqName -> 
+           case liqProvider t of 
+             Nothing -> run2 t poolFlow (Just ads) rates calls rAssump log
+             (Just mLiqProvider) 
+               -> let -- update rate 
+                    newLiqMap = Map.adjust (updateLiqProviderRate t d (fromMaybe [] rates)) liqName mLiqProvider
+                  in
+                    run2 (t{liqProvider = Just newLiqMap}) poolFlow (Just ads) rates calls rAssump log
+        
          DealClosed d ->
            let 
              w = Map.findWithDefault [] W.OnClosingDay (waterfall t)  -- `debug` ("DDD0")
@@ -375,7 +411,7 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
          ResetIRSwapRate d sn -> 
            let
              _rates = fromMaybe [] rates
-             newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn  <$>  (rateSwap t)
+             newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn  <$>  rateSwap t
              newRateSwap_bal = Map.adjust (updateRateSwapBal t d) sn <$> newRateSwap_rate
            in 
              run2 (t{rateSwap = newRateSwap_bal}) poolFlow (Just ads) rates calls rAssump log
@@ -613,10 +649,14 @@ getInits t mAssumps
                       Nothing -> []
                       Just mLiqProvider -> 
                           let 
-                            _liqResetDates = CE.buildLiqResetAction (Map.elems mLiqProvider) endDate []                    
+                            _liqResetDates = CE.buildLiqResetAction (Map.elems mLiqProvider) endDate []
+                            _liqRateResetDates = CE.buildLiqRateResetAction (Map.elems mLiqProvider) endDate []
                           in 
                             [ ResetLiqProvider _d _liqName |(_liqName,__liqResetDates) <- _liqResetDates
-                                                          , _d <- __liqResetDates ]
+                                                           , _d <- __liqResetDates ]
+                            ++ 
+                            [ ResetLiqProviderRate _d _liqName |(_liqName,__liqResetDates) <- _liqRateResetDates
+                                                               , _d <- __liqResetDates ]                            
     --inspect dates 
     inspectDates = let 
                      m_inspect_vars = find (\case

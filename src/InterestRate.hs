@@ -4,7 +4,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module InterestRate
-  (ARM(..),RateType(..),runInterestRate2,runInterestRate)
+  (ARM(..),RateType(..),runInterestRate2,runInterestRate
+  ,getRateResetDates)
+  
   where
 
 import Language.Haskell.TH
@@ -39,6 +41,10 @@ data RateType = Fix IRate
 data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
          | OtherARM
          deriving (Show,Generic)
+
+getRateResetDates :: Date -> Date -> Maybe RateType -> Dates
+getRateResetDates _ _ Nothing = []
+getRateResetDates sd ed (Just (Floater2 _ _ _ dp _ _ _)) = genSerialDatesTill2 NO_IE sd dp ed 
 
 runInterestRate :: ARM -> StartRate -> RateType -> ResetDates -> Ts -> [IRate]
 runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 _ spd _ _ _ _ mRoundBy) resetDates rc

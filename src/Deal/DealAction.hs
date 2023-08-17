@@ -218,16 +218,22 @@ calcDueFee t calcDay f@(F.Fee fn (F.TargetBalanceFee dsDue dsPaid) fs fd _ fa lp
       dsPaidD = patchDateToStats calcDay dsPaid
       dueAmt = max 0 $ (queryDeal t dsDueD) - (queryDeal t dsPaidD)
 
+disableLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
+disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate } 
+  | d > endDate = liq{CE.liqCredit = Just 0}
+  | otherwise = liq
+
 updateLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = curCredit} -- refresh available balance
-  = liq { CE.liqCredit = newCredit }
+  -- = liq { CE.liqCredit = newCredit }
+  = disableLiqProvider t d $ liq { CE.liqCredit = newCredit } 
     where 
       newCredit = case liqType of 
                      CE.ReplenishSupport _ b -> max b <$> curCredit
                      CE.ByPct ds _r -> min (mulBR (queryDeal t ds) _r) <$> curCredit
                      _ -> curCredit
 
-updateLiqProvider _ _ liq = liq
+updateLiqProvider t d liq = disableLiqProvider t d liq
 
 accrueLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 accrueLiqProvider t d liq@(CE.LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd Nothing)
@@ -251,7 +257,7 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ curBal mCredit mRateType mPRateTyp
                         lastAccDate = fromMaybe sd dueDate
                         bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns mStmt
                       in 
-                        sum $ flip mulBR r <$> bals
+                        sum $ flip mulBIR r <$> bals
       accureFee = case prate of
                     Nothing -> 0 
                     Just r -> 
@@ -262,7 +268,7 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ curBal mCredit mRateType mPRateTyp
                         _ds = lastAccDate : tail (getDate <$> _unAccTxns)
                         _avgBal = calcWeigthBalanceByDates accBals (_ds++[d])
                       in 
-                        mulBR _avgBal r
+                        mulBIR _avgBal r
                         
       getUnusedBal (SupportTxn _ b _ _ _ _ _ ) = fromMaybe 0 b 
       
