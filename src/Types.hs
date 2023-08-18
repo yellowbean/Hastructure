@@ -286,7 +286,6 @@ data TxnComment = PayInt [BondName]
                 | Empty 
                 | Tag String
                 | UsingDS DealStats
-                | UsingFormula FormulaType
                 | SwapAccure
                 | SwapInSettle
                 | SwapOutSettle
@@ -307,7 +306,6 @@ instance ToJSON TxnComment where
   toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
   toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
-  toJSON (UsingFormula fm) =  String $ T.pack $ "<Formula:"++ show fm++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
@@ -610,18 +608,13 @@ data TimeHorizion = ByMonth
                   | ByYear
                   | ByQuarter
 
-data FormulaType = ABCD
-                 | Other
-                 deriving (Show,Ord,Eq,Read,Generic)
-
-data Limit = DuePct Balance  --
+data Limit = DuePct Rate  --
            | DueCapAmt Balance  -- due fee
-           | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
            | KeepBalAmt DealStats -- pay till a certain amount remains in an account
-           | Multiple Limit Float -- factor of a limit:w
-           | Formula FormulaType
            | DS DealStats
-           | ClearPDL String
+           | ClearPDL [String]
+           | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
+           | Multiple Limit Float -- factor of a limit
            deriving (Show,Ord,Eq,Read,Generic)
 
 data RoundingBy a = RoundCeil a 

@@ -381,6 +381,7 @@ subDates rt sd ed ds
       EI -> filter (\x -> x > sd && x <= ed ) ds
       IE -> filter (\x -> x >= sd && x < ed ) ds
       EE -> filter (\x -> x > sd && x < ed ) ds
+      NO_IE -> error "Need to specify II/EI/EE/IE when subset dates vector "
 
 data SliceType = SliceAfter Date 
                | SliceOnAfter Date 
@@ -449,8 +450,8 @@ replace xs i e = case splitAt i xs of
 
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 
-  | (length xs) > s = take s xs
-  | otherwise = xs++(replicate (s - (length xs)) x)
+  | length xs > s = take s xs
+  | otherwise = xs ++ replicate (s - length xs) x
 
 capWith :: Ord a => [a] -> a -> [a]
 capWith xs cap = [ if x > cap then 
@@ -510,7 +511,7 @@ debugLine xs = ""
 
 shiftTsByAmt :: Ts -> Rational -> Ts 
 shiftTsByAmt (IRateCurve  tps) delta 
-  = IRateCurve $ [ TsPoint d ((fromRational delta)+v) | TsPoint d v <- tps ]
+  = IRateCurve $ [ TsPoint d (fromRational delta+v) | TsPoint d v <- tps ]
 
 shiftTsByAmt _ts delta = _ts
 

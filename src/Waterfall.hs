@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,Satisfy(..),ActionWhen(..),BookLedgerType(..))
+  ,Satisfy(..),ActionWhen(..),BookLedgerType(..),ExtraSupport(..))
   where
 
 import GHC.Generics
@@ -31,6 +31,8 @@ import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
 import qualified CreditEnhancement as CE
+import CreditEnhancement (LiquidityProviderName)
+import Ledger (Ledger)
 
 
 data ActionWhen = EndOfPoolCollection
@@ -48,46 +50,54 @@ instance FromJSONKey ActionWhen where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
-data Satisfy = Source
-             | Target
-             deriving (Show,Generic)
 
-data BookLedgerType = PDL DealStats [(String,DealStats)] --Debit reference, [(name,cap reference)]
-                    | Dummy
+data BookLedgerType = PDL DealStats [(LedgerName,DealStats)] --Reverse PDL Debit reference, [(name,cap reference)]
+                    | ByAccountDraw
                     deriving (Show,Generic)
 
-data Action = Transfer AccountName AccountName 
-            | TransferBy Limit AccountName AccountName
-            | BookBy BookLedgerType
+data ExtraSupport = SupportAccount AccountName (Maybe BookLedgerType)
+                  | SupportLiqFacility LiquidityProviderName
+                  | MultiSupport [ExtraSupport]
+                  deriving (Show,Generic)
+
+data Action = Transfer (Maybe Limit) AccountName AccountName 
+            -- Fee
             | CalcFee [FeeName]
+            | PayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)
+            | CalcAndPayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)
+            | PayFeeResidual (Maybe Limit) AccountName FeeName 
+            -- Bond - Interest
             | CalcBondInt [BondName]
-            | PayFee [AccountName] [FeeName]
-            | PayFeeBy Limit [AccountName] [FeeName]
-            | PayFeeResidual (Maybe Limit) AccountName FeeName
-            | CalcAndPayFee [AccountName] [FeeName]
-            | AccrueAndPayInt AccountName [BondName]
-            | PayInt AccountName [BondName]
-            | PayPrin AccountName [BondName] 
-            | PayPrinResidual AccountName [BondName]
-            | PayPrinBy Limit AccountName BondName
+            | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)
+            | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)
+            | PayIntResidual (Maybe Limit) AccountName BondName
             | PayTillYield AccountName [BondName]
-            | PayResidual (Maybe Limit) AccountName BondName
-            | TransferReserve Satisfy AccountName AccountName 
+            -- Bond - Principal
+            | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
+            | PayPrinResidual AccountName [BondName]
+            -- | PayPrinBy Limit AccountName BondName
+            -- Pool/Asset change
+            | BuyAsset (Maybe Limit) PricingMethod AccountName
             | LiquidatePool PricingMethod AccountName
-            -- | RunTrigger (Maybe [Trigger])
+            -- Liquidation support
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
             | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
             | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName 
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
             | LiqAccrue CE.LiquidityProviderName 
+            -- Swap
             | SwapAccrue CeName
             | SwapReceive AccountName CeName
             | SwapPay AccountName CeName
-            | BuyAsset (Maybe Limit) PricingMethod AccountName
+            -- Record booking
+            | BookBy BookLedgerType
+            -- Pre
             | ActionWithPre L.Pre [Action] 
             | ActionWithPre2 L.Pre [Action] [Action]
+            -- Trigger
             | RunTrigger DealCycle Int
+            -- Debug
             | WatchVal (Maybe String) [DealStats]
             deriving (Show,Generic)
 
@@ -103,3 +113,4 @@ $(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)
 $(deriveJSON defaultOptions ''BookLedgerType)
+$(deriveJSON defaultOptions ''ExtraSupport)

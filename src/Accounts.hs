@@ -21,26 +21,26 @@ import GHC.Generics
 import Debug.Trace
 debug = flip trace
 
-data InterestInfo = BankAccount IRate Date DatePattern
-                  | InvestmentAccount Index Spread Date DatePattern
+data InterestInfo = BankAccount IRate Date DatePattern                -- ^ fix reinvest return rate
+                  | InvestmentAccount Index Spread Date DatePattern   -- ^ float reinvest return rate 
                   deriving (Show, Generic)
 
-data ReserveAmount = PctReserve DealStats Rate
-                   | FixReserve Balance
-                   | Either Pre ReserveAmount ReserveAmount
-                   | Max ReserveAmount ReserveAmount
-                   | Min ReserveAmount ReserveAmount
+data ReserveAmount = PctReserve DealStats Rate               -- ^ target amount with reference to % of formula
+                   | FixReserve Balance                      -- ^ target amount with fixed balance amount    
+                   | Either Pre ReserveAmount ReserveAmount  -- ^ target amount depends on a test, if true, then use first one ,otherwise use second one
+                   | Max ReserveAmount ReserveAmount         -- ^ use higher of two
+                   | Min ReserveAmount ReserveAmount         -- ^ use lower of two
                    deriving (Show, Eq, Generic)
 
 data Account = Account {
-    accBalance :: Balance
-    ,accName :: String
-    ,accInterest :: Maybe InterestInfo
-    ,accType :: Maybe ReserveAmount
-    ,accStmt :: Maybe Statement
+    accBalance :: Balance                 -- ^ account current balance
+    ,accName :: String                    -- ^ account name
+    ,accInterest :: Maybe InterestInfo    -- ^ account reinvestment interest
+    ,accType :: Maybe ReserveAmount       -- ^ target info if a reserve account
+    ,accStmt :: Maybe Statement           -- ^ transactional history
 } deriving (Show, Generic)
 
-
+-- | build interest earn actions
 buildEarnIntAction :: [Account] -> Date -> [(String,Dates)] -> [(String,Dates)]
 buildEarnIntAction [] ed r = r
 buildEarnIntAction (acc:accs) ed r = 
@@ -52,7 +52,7 @@ buildEarnIntAction (acc:accs) ed r =
     (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _)
       -> buildEarnIntAction accs ed [(an, genSerialDatesTill2 NO_IE lastAccDate dp ed)]++r    
 
-
+-- | sweep interest/investement income into account
 depositInt :: Account -> Date -> Account
 depositInt a@(Account _ _ Nothing _ _) _ = a
 depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed 
@@ -75,6 +75,7 @@ depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed
             new_txn = AccTxn ed newBal accrued_int BankInt
             new_stmt = appendStmt stmt new_txn
 
+-- | sweep interest/investement income into account by a yield curve
 depositIntByCurve :: Account -> Ts -> Date -> Account
 depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectDate dp)) _ stmt)
                   rc
@@ -104,13 +105,13 @@ depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectD
                               in
                                 sum $ zipWith mulBR bals curve_vs -- `debug` ("cds"++show curve_ds++"vs"++ show curve_vs++"bs"++show bals)
 
-            newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
+            newBal = accrued_int + bal 
             new_txn = AccTxn ed newBal accrued_int BankInt
             new_stmt = appendStmt stmt new_txn
 
 
-
-transfer :: Account -> Amount -> T.Day -> Account -> (Account, Account)
+-- | move cash from account A to account B
+transfer :: Account -> Amount -> Date -> Account -> (Account, Account)
 transfer source_acc@(Account s_bal san _ _ s_stmt)
          amount
          d
@@ -123,6 +124,7 @@ transfer source_acc@(Account s_bal san _ _ s_stmt)
     source_newStmt = appendStmt s_stmt (AccTxn d new_s_bal (- amount) (Transfer san tan))
     target_newStmt = appendStmt t_stmt (AccTxn d new_t_bal amount (Transfer san tan) )
 
+-- | deposit cash to account with a comment
 deposit :: Amount -> Date -> TxnComment -> Account -> Account
 deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
     acc {accBalance = newBal, accStmt = newStmt}
@@ -130,9 +132,11 @@ deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
     newBal = bal + amount
     newStmt = appendStmt maybeStmt (AccTxn d newBal amount source)
 
+-- | draw cash from account with a comment
 draw :: Amount -> Date -> TxnComment -> Account -> Account
 draw amount = deposit (- amount) 
 
+-- | change reserve target info of account
 updateReserveBalance :: ReserveAmount -> Account -> Account 
 updateReserveBalance ra acc = acc {accType = Just ra}
 

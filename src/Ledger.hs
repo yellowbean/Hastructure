@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Ledger (Ledger(..),entryLog)
+module Ledger (Ledger(..),entryLog,LedgerName)
     where
 import qualified Data.Time as T
 import Stmt 
@@ -17,6 +17,8 @@ import GHC.Generics
 
 import Debug.Trace
 debug = flip trace
+
+type LedgerName = String
 
 data Ledger = Ledger {
     ledgName :: String              -- ^ ledger account name
