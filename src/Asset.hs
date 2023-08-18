@@ -8,16 +8,16 @@ module Asset (Pool(..),calc_p_i_flow
        ,getIssuanceField,calcPmt
        ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
        ,calcRecoveriesFromDefault
-       ,priceAsset,calcAlignDate
+       ,priceAsset
 ) where
 
 import qualified Data.Time as T
 import qualified Data.Text as Text
 import Text.Read (readMaybe)
 
-import Lib (Period(..),genDates
-           ,Ts(..),periodRateFromAnnualRate,previousDate,toDate
-           ,nextDate,getIntervalDays,zipWith9,mkTs,periodsBetween
+import Lib (Period(..)
+           ,Ts(..),periodRateFromAnnualRate,toDate
+           ,getIntervalDays,zipWith9,mkTs,periodsBetween
            ,mkRateTs,daysBetween)
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
@@ -46,19 +46,33 @@ import Debug.Trace
 debug = flip trace
 
 class Show a => Asset a where
+  -- | project contractual cashflow of an asset
   calcCashflow :: a -> Date -> CF.CashFlowFrame
+  -- | Get current balance of an asset
   getCurrentBal :: a -> Balance
+  -- | Get original balance of an asset
   getOriginBal :: a -> Balance
+  -- | Get original rate of an asset
   getOriginRate :: a -> IRate
+  -- | Get origination date of an asset
   getOriginDate :: a -> Date
+  -- | Get origin info of an asset
   getOriginInfo :: a -> OriginalInfo  
+  -- | if the asset is defaulted
   isDefaulted :: a -> Bool
+  -- | project projected dates of an asset
   getPaymentDates :: a -> Int -> [Date]
+  -- | get number of remaining payments
   getRemainTerms :: a -> Int
+  -- | project asset cashflow under assumptions
   projCashflow :: a -> Date -> [A.AssumptionBuilder] -> CF.CashFlowFrame
+  -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
+  -- | Split asset per rates passed in 
   splitWith :: a -> [Rate] -> [a]
+  -- | !Change the origination date of an asset
   updateOriginDate :: a -> Date -> a
+  -- | ! Internal use
   calcAlignDate :: a -> Date -> Date
   calcAlignDate ast d = let 
                           payDates = getPaymentDates ast 0
@@ -72,10 +86,10 @@ class Show a => Asset a where
 
 
 
-data Pool a = Pool {assets :: [a]
-                   ,futureCf :: Maybe CF.CashFlowFrame
-                   ,asOfDate :: Date
-                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)
+data Pool a = Pool {assets :: [a]                       -- ^ a list of assets in the pool
+                   ,futureCf :: Maybe CF.CashFlowFrame  -- ^ projected cashflow from the assets in the pool
+                   ,asOfDate :: Date                    -- ^ date of the assets/pool cashflow
+                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)  -- ^ other misc balance data
                    }deriving (Show,Generic)
 
 getIssuanceField :: Pool a -> IssuanceFields -> Centi
@@ -84,6 +98,7 @@ getIssuanceField p _if
       Just m -> Map.findWithDefault 0.0 _if m
       Nothing -> 0.0
 
+-- | calculate period payment (Annuity/Level mortgage)
 calcPmt :: Balance -> IRate -> Int -> Amount
 calcPmt bal periodRate periods =
    let
@@ -93,6 +108,7 @@ calcPmt bal periodRate periods =
    in
      mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
 
+-- | build pool performance curve from assumption passed in
 buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int) -- prepay rates,default rates,
 buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
        A.DefaultConstant r ->

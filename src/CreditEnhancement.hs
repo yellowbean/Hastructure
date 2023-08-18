@@ -83,7 +83,7 @@ draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqCredit = mCredit
                             ,liqDueInt = dueInt 
                             ,liqDuePremium = duePremium} 
-  = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = Just newStmt}
+  = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = newStmt}
     where 
         newCredit = (\x -> x - amt) <$> mCredit
         newBal = liqBal + amt
@@ -108,7 +108,7 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
          ,liqCredit = newCredit
          ,liqDueInt = newIntDue
          ,liqDuePremium = newDuePremium
-         ,liqStmt = Just newStmt}
+         ,liqStmt = newStmt}
     where 
       (newBal,newCredit,newIntDue,newDuePremium) = 
         case pt of 
@@ -118,6 +118,7 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
 
       newStmt = appendStmt mStmt $ 
                            SupportTxn d newCredit amt newBal newIntDue newDuePremium LiquidationRepay
+
 
 
 instance QueryByComment LiqFacility where 

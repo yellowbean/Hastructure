@@ -169,8 +169,8 @@ yearCountFraction dc sd ed
                    any (inRange (sd,ed)) _leapDays
 
       _diffYears = (eyear - syear) % 1 -- Ratio Integer
-      _gapDay =   (toInteger (eday - sday)) % 1
-      _gapMonth = (toInteger (emonth - smonth)) % 1
+      _gapDay =   toInteger (eday - sday) % 1
+      _gapMonth = toInteger (emonth - smonth) % 1
       sDaysTillYearEnd = succ $ T.diffDays (T.fromGregorian syear 12 31) sd
       eDaysAfterYearBeg = T.diffDays ed (T.fromGregorian eyear 1 1)
       _diffDays = toInteger $ T.diffDays ed sd

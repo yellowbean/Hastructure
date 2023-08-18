@@ -29,47 +29,52 @@ debug = flip trace
 
 type FormulaRate = DealStats
 
-data FeeType = AnnualRateFee DealStats FormulaRate
-             | PctFee DealStats FormulaRate
-             | FixFee Balance
-             | RecurFee DatePattern Balance
-             | NumFee DatePattern DealStats Amount
-             | TargetBalanceFee DealStats DealStats
-             | FeeFlow Ts
+data FeeType = AnnualRateFee DealStats FormulaRate   -- ^ annulized fee with a referece
+             | PctFee DealStats FormulaRate          -- ^ fee base on percentage 
+             | FixFee Balance                        -- ^ one-off fee
+             | RecurFee DatePattern Balance          -- ^ fee occur every date pattern
+             | NumFee DatePattern DealStats Amount   -- ^ fee based on an integer number
+             | TargetBalanceFee DealStats DealStats  -- ^ fee occur if (ds1 > ds2)
+             | FeeFlow Ts                            -- ^ a time series based fee 
              deriving (Show,Eq, Generic)
 
 data Fee = Fee {
-  feeName :: String
-  ,feeType :: FeeType
-  ,feeStart :: Date
-  ,feeDue :: Balance
-  ,feeDueDate :: Maybe Date
-  ,feeArrears :: Balance
-  ,feeLastPaidDay :: Maybe Date
-  ,feeStmt :: Maybe Statement
+  feeName :: String    -- ^ fee name
+  ,feeType :: FeeType  -- ^ fee type
+  ,feeStart :: Date    -- ^ when fee become effective
+  ,feeDue :: Balance   -- ^ outstanding due amount fee
+  ,feeDueDate :: Maybe Date  -- ^ the date when due amount was calculated
+  ,feeArrears :: Balance     -- ^ reserved
+  ,feeLastPaidDay :: Maybe Date  -- ^ last paid date
+  ,feeStmt :: Maybe Statement     -- ^ transaction history
 } deriving (Show,Eq, Generic)
 
-payFee :: Date -> Amount -> Fee -> Fee
+payFee :: Date   -- ^ When pay action happen
+       -> Amount -- ^ Amount paid to fee
+       -> Fee    -- ^ Fee before being paid
+       -> Fee    -- ^ Fee after paid
 payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
    f {feeLastPaidDay = Just d
      ,feeDue = dueRemain
      ,feeArrears = arrearRemain
-     ,feeStmt = Just newStmt}
+     ,feeStmt = newStmt}
    where
     [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd] -- `debug` ("AMT"++show amt++">> fa"++show fa++"fd"++show fd)
     paid = fa + fd - arrearRemain - dueRemain -- `debug` ("arrear remain "++show arrearRemain++"due remain "++ show dueRemain++"r0 r1"++show r0++show r1)
     newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn)) -- `debug` ("Actual paid to fee"++show paid)
 
+-- | pay amount of fee regardless the due amount
 payResidualFee :: Date -> Amount -> Fee -> Fee
 payResidualFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
    f {feeLastPaidDay = Just d
      ,feeDue = dueRemain
      ,feeArrears = arrearRemain
-     ,feeStmt = Just newStmt}
+     ,feeStmt = newStmt}
    where
     [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd] 
     newStmt = appendStmt fstmt (ExpTxn d dueRemain amt arrearRemain (PayFee fn)) 
 
+-- | build accure dates for a fee
 buildFeeAccrueAction :: [Fee] -> Date -> [(String,Dates)] -> [(String,Dates)]
 buildFeeAccrueAction [] ed r = r
 buildFeeAccrueAction (fee:fees) ed r = 

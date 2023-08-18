@@ -56,7 +56,7 @@ buildEarnIntAction (acc:accs) ed r =
 depositInt :: Account -> Date -> Account
 depositInt a@(Account _ _ Nothing _ _) _ = a
 depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed 
-          = a {accBalance = newBal ,accStmt= Just new_stmt ,accInterest = Just (BankAccount r ed dp)}
+          = a {accBalance = newBal ,accStmt= new_stmt ,accInterest = Just (BankAccount r ed dp)}
           where 
             accrued_int = case stmt of 
                             Nothing -> mulBR 
@@ -80,7 +80,7 @@ depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectD
                   rc
                   ed 
           = a {accBalance = newBal 
-              ,accStmt= Just new_stmt 
+              ,accStmt= new_stmt 
               ,accInterest = Just (InvestmentAccount idx spd ed dp)}
           where 
             accrued_int = case stmt of 
@@ -115,8 +115,8 @@ transfer source_acc@(Account s_bal san _ _ s_stmt)
          amount
          d
          target_acc@(Account t_bal tan _ _ t_stmt)
-  = (source_acc {accBalance = new_s_bal, accStmt = Just source_newStmt}
-    ,target_acc {accBalance = new_t_bal, accStmt = Just target_newStmt})
+  = (source_acc {accBalance = new_s_bal, accStmt = source_newStmt}
+    ,target_acc {accBalance = new_t_bal, accStmt = target_newStmt})
   where
     new_s_bal = s_bal - amount
     new_t_bal = t_bal + amount
@@ -125,7 +125,7 @@ transfer source_acc@(Account s_bal san _ _ s_stmt)
 
 deposit :: Amount -> Date -> TxnComment -> Account -> Account
 deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
-    acc {accBalance = newBal, accStmt = Just newStmt}
+    acc {accBalance = newBal, accStmt = newStmt}
   where
     newBal = bal + amount
     newStmt = appendStmt maybeStmt (AccTxn d newBal amount source)

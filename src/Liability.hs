@@ -6,7 +6,7 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
-  ,payInt,payPrin,consolTxn,consolStmt,backoutDueIntByYield
+  ,payInt,payPrin,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,fv2,calcZspread,payYield
   ,buildRateResetDates,convertToFace)
@@ -41,31 +41,31 @@ type StepUpDates = DatePattern
 
 
 data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
-                  | Fix IRate DayCount 
-                  | StepUpFix IRate DayCount StepUpDates Spread
-                  | BiStepUp IRate Pre InterestInfo InterestInfo
+                  | Fix IRate DayCount                               -- ^ fixed rate
+                  | StepUpFix IRate DayCount StepUpDates Spread      -- ^ rate steps up base on dates
+                  | BiStepUp IRate Pre InterestInfo InterestInfo     -- ^ Rate can be selective base on `pre`
                   | InterestByYield IRate
                   | CapRate InterestInfo IRate
                   | FloorRate InterestInfo IRate
                   deriving (Show, Eq, Generic)
 
 data OriginalInfo = OriginalInfo {
-  originBalance::Balance
-  ,originDate::Date
-  ,originRate::Rate
-  ,maturityDate :: Maybe Date
+  originBalance::Balance           -- ^ issuance balance
+  ,originDate::Date                -- ^ issuance date
+  ,originRate::Rate                -- ^ issuance rate of the bond
+  ,maturityDate :: Maybe Date      -- ^ optional maturity date
 } deriving (Show, Eq, Generic)
 
 type SinkFundSchedule = Ts
 type PlannedAmorSchedule = Ts
 
-data BondType = Sequential
+data BondType = Sequential                              -- ^ Pass through type tranche
               | SinkFund SinkFundSchedule
-              | PAC PlannedAmorSchedule
+              | PAC PlannedAmorSchedule                 -- ^ bond with schedule amortization 
               | PAC_Anchor PlannedAmorSchedule [String]
-              | Lockout Date
-              | Z
-              | Equity
+              | Lockout Date                            -- ^ No principal due till date
+              | Z       
+              | Equity                                  -- ^ Equity type tranche
               deriving (Show, Eq, Generic)
 
 data Bond = Bond {
@@ -73,54 +73,48 @@ data Bond = Bond {
   ,bndType :: BondType
   ,bndOriginInfo :: OriginalInfo
   ,bndInterestInfo :: InterestInfo
-  ,bndBalance :: Balance
-  ,bndRate :: IRate
-  ,bndDuePrin :: Balance
-  ,bndDueInt :: Balance
-  ,bndDueIntDate :: Maybe Date
-  ,bndLastIntPay :: Maybe Date
-  ,bndLastPrinPay :: Maybe Date
-  ,bndStmt :: Maybe S.Statement
+  ,bndBalance :: Balance               -- ^ current balance
+  ,bndRate :: IRate                    -- ^ current rate
+  ,bndDuePrin :: Balance               -- ^ principal due
+  ,bndDueInt :: Balance                -- ^ interest due
+  ,bndDueIntDate :: Maybe Date         -- ^ last interest due calc date
+  ,bndLastIntPay :: Maybe Date         -- ^ last interest pay date
+  ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
+  ,bndStmt :: Maybe S.Statement        -- ^ transaction history
 } deriving (Show, Eq, Generic)
 
-consolTxn :: [S.Txn] -> S.Txn -> [S.Txn]
-consolTxn (txn:txns) txn0
-  = if txn==txn0 then 
-      (S.combineTxn txn txn0):txns
-    else
-      txn0:txn:txns 
-consolTxn [] txn = [txn]
+
 
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
-  =  b {bndStmt = Just (S.Statement (reverse (foldl consolTxn [txn] txns)))} -- `debug` ("Consoling stmt for "++ bn )
+  =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} -- `debug` ("Consoling stmt for "++ bn )
 
-consolStmt b@Bond{bndName = bn, bndStmt = Nothing} =  b `debug` ("No stmt for bond" ++ bn)
+consolStmt b@Bond{bndName = bn, bndStmt = Nothing} =  b  -- `0debug` ("No stmt for bond" ++ bn)
 
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
 payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd { bndDueInt=new_due, bndStmt = Just new_stmt}
+  = bnd { bndDueInt=new_due, bndStmt = new_stmt}
   where
     new_due = dueInt - amt
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndDueInt=new_due, bndStmt=Just new_stmt, bndLastIntPay = Just d}
+  = bnd {bndDueInt=new_due, bndStmt=new_stmt, bndLastIntPay = Just d}
   where
     new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn]))
 
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndStmt=Just new_stmt}
+  = bnd {bndStmt= new_stmt}
   where
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndDuePrin =new_due, bndBalance = new_bal , bndStmt=Just new_stmt}
+  = bnd {bndDuePrin =new_due, bndBalance = new_bal , bndStmt=new_stmt}
   where
     new_bal = bal - amt
     new_due = duePrin - amt

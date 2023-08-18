@@ -82,7 +82,7 @@ getPoolFlows t sd ed rt =
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
 testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
   | not cure && st = True 
-  | otherwise = testPre d t cond -- `debug` ("Testing Pre"++show d++">>>"++ show cond++">>result"++ show (testPre d t cond))
+  | otherwise = testPre d t cond 
 
 
 updateTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Trigger
@@ -110,7 +110,6 @@ calcLiquidationAmount alm pool d
                     Nothing -> 0  -- `debug` ("No pool Inflow")
                     Just _ts ->   -- TODO need to check if missing last row
                         (mulBR (CF.mflowBalance _ts) currentFactor) + (mulBR currentDefaulBal defaultFactor) 
-                        -- `debug` ("LIQ:"++show poolInflow)
 
       PV discountRate recoveryPct ->
           case P.futureCf pool of
@@ -243,12 +242,9 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ curBal mCredit mRateType mPRateTyp
 
 accrueLiqProvider t d liq@(CE.LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt)
   = liq { CE.liqCredit = newCredit
-         ,CE.liqStmt = Just newStmt
+         ,CE.liqStmt = newStmt
          ,CE.liqDueInt = newDueInt
-         ,CE.liqDuePremium = newDueFee
-         --,CE.liqPremium = newPRate
-         --,CE.liqRate = newRate
-         } -- `debug` ("Accure liq"++ show liq)
+         ,CE.liqDuePremium = newDueFee }
     where 
       accureInt = case rate of 
                     Nothing -> 0
@@ -282,14 +278,6 @@ accrueLiqProvider t d liq@(CE.LiqFacility _ _ curBal mCredit mRateType mPRateTyp
                                              newDueInt 
                                              newDueFee 
                                              (LiquidationSupportInt accureInt accureFee)
-      
-      -- newRate = case mRate of 
-      --             Nothing -> Nothing
-      --             Just (CE.FixRate _x _y _) -> Just $ CE.FixRate _x _y (Just d)
-      -- newPRate = case mPRate of 
-      --             Nothing -> Nothing
-      --             Just (CE.FixRate _x _y _) -> Just $ CE.FixRate _x _y (Just d)
-
 
 calcDueInt :: P.Asset a => TestDeal a -> Date -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond _ _ oi io _ r dp di Nothing _ lastPrinPay _ ) 

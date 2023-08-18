@@ -4,18 +4,17 @@
 
 module Lib
     (Amount,Rate,Dates,Period(..),Balance
-    ,genDates,StartDate,EndDate,daysBetween,daysBetweenI
+    ,StartDate,EndDate,daysBetween,daysBetweenI
     ,Spread,Date
     ,paySeqLiabilities,prorataFactors
     ,afterNPeriod,Ts(..),periodsBetween
     ,periodRateFromAnnualRate
-    ,previousDate,inSamePeriod
     ,Floor,Cap,TsPoint(..)
-    ,toDate,toDates
+    ,toDate,toDates,genDates,nextDate,isTsEmpty
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
-    ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors,nextDate
-    ,zipWith8,zipWith9,zipWith10,zipWith11, monthsOfPeriod
-    ,weightedBy, mkTs, DealStatus(..),isTsEmpty
+    ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors
+    ,zipWith8,zipWith9,zipWith10,zipWith11
+    ,weightedBy, mkTs, DealStatus(..)
     ,mkRateTs,Pre(..)
     ) where
 
@@ -44,68 +43,30 @@ annualRateToPeriodRate p annualRate =
     1 - (1 - annualRate ) ** n
   where 
     n = case p of 
-      Monthly -> 1/12
-      Quarterly -> 1/4 
-      SemiAnnually -> 1/2
-      Annually -> 1.0
+          Monthly -> 1/12
+          Quarterly -> 1/4 
+          SemiAnnually -> 1/2
+          Annually -> 1.0
+          Daily -> 1 / 365
+          Weekly -> 1 / 52.143
 
 periodRateFromAnnualRate :: Period -> IRate -> IRate
 periodRateFromAnnualRate Annually annual_rate  = annual_rate
 periodRateFromAnnualRate Monthly annual_rate  = annual_rate / 12
 periodRateFromAnnualRate Quarterly annual_rate  = annual_rate / 4
 periodRateFromAnnualRate SemiAnnually annual_rate  = annual_rate / 2
+periodRateFromAnnualRate Daily annual_rate  = annual_rate / 365
+periodRateFromAnnualRate Weekly annual_rate  = annual_rate / 52.143
 
 addD :: Date -> T.CalendarDiffDays -> Date
 addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
 
-genDates :: Date -> Period -> Int -> [Date]
-genDates start_day p n =
-   [ T.addGregorianDurationClip (T.CalendarDiffDays (toInteger i*mul) 0) start_day | i <- [1..n]]
-   where
-     mul = case p of
-       Monthly -> 1
-       Quarterly -> 3
-       SemiAnnually -> 6
-       Annually -> 12
-       _ -> 0
-
-nextDate :: Date -> Period -> Date
-nextDate d p
-  = T.addGregorianMonthsClip m d
-    where
-      m = case p of
-        Monthly -> 1
-        Quarterly -> 3
-        SemiAnnually -> 6
-        Annually -> 12
-        _ -> 0
-
 getIntervalDays :: [Date] -> [Int]
-getIntervalDays ds
-  = map (\(x,y)-> (fromIntegral (T.diffDays y x))) $ zip (init ds) (tail ds)
+getIntervalDays ds = zipWith daysBetweenI (init ds) (tail ds)
+  -- = map (\(x,y)-> (fromIntegral (T.diffDays y x))) $ zip (init ds) (tail ds)
 
 getIntervalFactors :: [Date] -> [Rate]
-getIntervalFactors ds
-  = map (\x -> toRational x / 365) (getIntervalDays ds) -- `debug` ("Interval Days"++show(ds))
-
-previousDate :: T.Day -> Period -> T.Day
-previousDate start_day p
-   = T.addGregorianDurationClip (T.CalendarDiffDays (toInteger (-1*mul)) 0) start_day
-   where
-     mul = case p of
-       Monthly -> 1
-       Quarterly -> 3
-       SemiAnnually -> 6
-       Annually -> 12
-       _ -> 0
-
-monthsOfPeriod :: Period -> Int 
-monthsOfPeriod p = 
-    case p of 
-      Monthly -> 1
-      Quarterly -> 3
-      SemiAnnually -> 6
-      Annually -> 12
+getIntervalFactors ds = (\x -> toRational x / 365) <$> getIntervalDays ds -- `debug` ("Interval Days"++show(ds))
 
 
 prorataFactors :: [Centi] -> Centi -> [Centi]
@@ -129,8 +90,9 @@ paySeqLiabilities startAmt liabilities =
                             (0, target-amt):accum
 
 paySeqLiabilitiesAmt :: Amount -> [Balance] -> [Amount]
-paySeqLiabilitiesAmt startAmt funds =
-    map (\(a,b) -> (a-b)) $ zip funds remainBals
+paySeqLiabilitiesAmt startAmt funds
+  = zipWith (-) funds remainBals
+    -- map (\(a,b) -> (a-b)) $ zip funds remainBals
   where 
     remainBals = map snd $ paySeqLiabilities startAmt funds 
 
@@ -159,10 +121,6 @@ mkTs :: [(Date,Rational)] -> Ts
 mkTs [] = FloatCurve []
 mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
 
-isTsEmpty :: Ts -> Bool
-isTsEmpty (FloatCurve []) = True
-isTsEmpty (RatioCurve []) = True
-isTsEmpty _ = False
 
 mkRateTs :: [(Date,IRate)] -> Ts
 mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
@@ -200,16 +158,6 @@ toDate = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d"
 toDates :: [String] -> [Date]
 toDates ds = toDate <$> ds
 
-inSamePeriod :: T.Day -> T.Day -> Period -> Bool
-inSamePeriod t1 t2 p
-  = case p of
-      Monthly -> m1 == m2
-      Annually ->  y1 == y2
-    where
-      (y1,m1,d1) = T.toGregorian t1
-      (y2,m2,d2) = T.toGregorian t2
-
-
 zipWith8 :: (a->b->c->d->e->f->g->h->i) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]
 zipWith8 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs)
                    =  z a b c d e f g h : zipWith8 z as bs cs ds es fs gs hs
@@ -231,23 +179,47 @@ zipWith11 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks
 zipWith11 _ _ _ _ _ _ _ _ _ _ _ _ = []
 
 
-
 floatToFixed :: HasResolution a => Float -> Fixed a
 floatToFixed x = y where
   y = MkFixed (round (fromInteger (resolution y) * x))
 
 weightedBy :: [Centi] -> [Rational] -> Rational
-weightedBy ws vs = if sum_weights == 0 then 
-                     0
-                   else
-                     (sum $ zipWith (*) vs $ _ws ) / sum_weights
-                  where 
-                      _ws = map toRational ws
-                      sum_weights = sum _ws
+weightedBy ws vs 
+  | sum_weights == 0 = 0
+  | otherwise = sum ( zipWith (*) vs  _ws ) / sum_weights
+  where 
+    _ws = toRational <$> ws
+    sum_weights = sum _ws
 
 daysBetween :: Date -> Date -> Integer -- start date , end date
-daysBetween sd ed = (fromIntegral (T.diffDays ed sd))
+daysBetween sd ed = fromIntegral (T.diffDays ed sd)
 
 daysBetweenI :: Date -> Date -> Int 
 daysBetweenI sd ed = fromInteger $ T.diffDays ed sd
 
+genDates :: Date -> Period -> Int -> [Date]
+genDates start_day p n =
+   [ T.addGregorianDurationClip (T.CalendarDiffDays (toInteger i*mul) 0) start_day | i <- [1..n]]
+   where
+     mul = case p of
+       Monthly -> 1
+       Quarterly -> 3
+       SemiAnnually -> 6
+       Annually -> 12
+       _ -> 0
+
+nextDate :: Date -> Period -> Date
+nextDate d p
+  = T.addGregorianMonthsClip m d
+    where
+      m = case p of
+        Monthly -> 1
+        Quarterly -> 3
+        SemiAnnually -> 6
+        Annually -> 12
+        _ -> 0
+
+isTsEmpty :: Ts -> Bool
+isTsEmpty (FloatCurve []) = True
+isTsEmpty (RatioCurve []) = True
+isTsEmpty _ = False

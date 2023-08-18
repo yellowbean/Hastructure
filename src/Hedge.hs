@@ -4,9 +4,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Hedge
-  (RateSwap(..),CurrencySwap(..)
+  (RateSwap(..)
   ,RateSwapType(..),RateSwapBase(..)
   ,accrueIRS,payoutIRS,receiveIRS
+  ,CurrencySwap(..)
   )
   where
 
@@ -24,23 +25,26 @@ import Types
 import Util
 import Stmt
 
-data RateSwapBase = Fixed Balance
-                  | Base DealStats
-                  | Schedule Ts
+data RateSwapBase = Fixed Balance    -- ^ a fixed balance as notional base 
+                  | Base DealStats   -- ^ a referece as notional base
+                  | Schedule Ts      -- ^ a predfiend schedule of notional balance
                   deriving(Show,Generic)
 
-data RateSwap = RateSwap {rsType :: RateSwapType
-                         ,rsSettleDates :: SettleDates
-                         ,rsNotional :: RateSwapBase
-                         ,rsStartDate :: StartDate
-                         ,rsPayingRate :: IRate
-                         ,rsReceivingRate :: IRate
-                         ,rsRefBalance :: Balance
-                         ,rsLastStlDate :: Maybe Date
-                         ,rsNetCash :: Balance
-                         ,rsStmt :: Maybe Statement}
+data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
+                         ,rsSettleDates :: SettleDates   -- ^ define settle dates
+                         ,rsNotional :: RateSwapBase     -- ^ define notional balance
+                         ,rsStartDate :: StartDate       -- ^ swap start date
+                         ,rsPayingRate :: IRate          -- ^ collect rate
+                         ,rsReceivingRate :: IRate       -- ^ paying rate
+                         ,rsRefBalance :: Balance        -- ^ notional balance in use
+                         ,rsLastStlDate :: Maybe Date    -- ^ last  settle date
+                         ,rsNetCash :: Balance           -- ^ amount to pay/collect
+                         ,rsStmt :: Maybe Statement      -- ^ Transaction history
+                         }
                          deriving(Show,Generic)
-              
+
+-- | The `accrueIRS` will calculate the `Net` amount 
+-- ( payble with negative, positve with receivable) of Rate Swap      
 accrueIRS :: Date -> RateSwap -> RateSwap
 accrueIRS d rs@RateSwap{rsRefBalance = face
                       , rsPayingRate = payRate
@@ -57,29 +61,31 @@ accrueIRS d rs@RateSwap{rsRefBalance = face
           newNetAmount = mulBIR (face * yearFactor) rateDiff 
           newNet = netCash + newNetAmount
           newTxn = IrsTxn d face newNetAmount payRate receiveRate newNet SwapAccure
-          newStmt = case stmt of 
-                      Nothing -> Just $ Statement [newTxn]
-                      Just (Statement txns) -> Just $ Statement $ txns++[newTxn]
+          newStmt = appendStmt stmt newTxn
 
+-- | set rate swap to state of receive all cash from counterparty
 receiveIRS :: Date -> RateSwap -> RateSwap 
 receiveIRS d rs@RateSwap{rsNetCash = receiveAmt, rsStmt = stmt} 
-  | receiveAmt > 0 = rs { rsNetCash = 0 }
+  | receiveAmt > 0 = rs { rsNetCash = 0 ,rsStmt = newStmt}
   | otherwise = rs
      where 
        newTxn = IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle
+       newStmt = appendStmt stmt newTxn 
 
+-- | set rate swap to state of payout all possible cash to counterparty
 payoutIRS :: Date -> Amount -> RateSwap -> RateSwap 
 payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt} 
-  | payoutAmt < 0  =  rs { rsNetCash = outstanding }
+  | payoutAmt < 0  =  rs { rsNetCash = outstanding, rsStmt = newStmt }
   | otherwise = rs
      where 
        actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
        outstanding = negate payoutAmt - amt
        newTxn = IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle
+       newStmt = appendStmt stmt newTxn
 
-data CurrencySwap = CurrencySwap Rate Balance
-                  | Dummy3
-                  deriving(Show,Generic)
+-- data CurrencySwap = CurrencySwap Rate Balance
+--                   | Dummy3
+--                   deriving(Show,Generic)
               
 instance QueryByComment RateSwap where 
     queryStmt RateSwap{rsStmt = Nothing} tc = []
@@ -88,14 +94,18 @@ instance QueryByComment RateSwap where
 
 type SettleDates = DatePattern
 type Notional = Balance
-
-data RateSwapType = FloatingToFloating Floater Floater   -- Paying Floating rate and receiving Floating Rate
-                  | FloatingToFixed  Floater IRate        -- Paying Floating Rate and receiving Fixed Rate
-                  | FixedToFloating  IRate Floater        -- Paying Fixed Rate and receiving Floating rate
-                  deriving(Show,Generic)
-
 type ReceiveAmount = Balance
 type PayoutAmount = Balance
+
+data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating rate and receiving Floating Rate
+                  | FloatingToFixed  Floater IRate        -- ^ Paying Floating Rate and receiving Fixed Rate
+                  | FixedToFloating  IRate Floater        -- ^ Paying Fixed Rate and receiving Floating rate
+                  deriving(Show,Generic)
+
+data CurrencySwap = CurrencySwap {
+                    csBalance :: Balance
+                    } deriving (Show,Generic)
+
 
 
 $(deriveJSON defaultOptions ''RateSwap)

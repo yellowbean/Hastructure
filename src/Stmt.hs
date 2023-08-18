@@ -8,7 +8,7 @@ module Stmt
    ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,sliceTxns,TxnComment(..),QueryByComment(..)
-   ,weightAvgBalanceByDates,weightAvgBalance, sumTxn
+   ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..)
   )
   where
@@ -101,7 +101,7 @@ emptyTxn (IrsTxn _ _ _ _ _ _ _) d = IrsTxn d 0 0 0 0 0 Empty
 emptyTxn (EntryTxn _ _ _ _) d = (EntryTxn d 0 0 Empty)
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
-getTxnByDate ts d = find (\x -> (d == (getDate x))) ts
+getTxnByDate ts d = find (\x -> d == (getDate x)) ts
 
 sliceStmt :: Maybe Statement -> Date -> Date -> Maybe Statement
 sliceStmt Nothing sd ed  = Nothing
@@ -132,13 +132,20 @@ weightAvgBalance sd ed txns
 data Statement = Statement [Txn]
         deriving (Show,Eq,Generic)
 
-appendStmt :: Maybe Statement -> Txn -> Statement
-appendStmt (Just stmt@(Statement txns)) txn = Statement (txns++[txn])
-appendStmt Nothing txn = Statement [txn]
+appendStmt :: Maybe Statement -> Txn -> Maybe Statement
+appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])
+appendStmt Nothing txn = Just $ Statement [txn]
 
 extractTxns :: [Txn] -> [Statement] -> [Txn]
 extractTxns rs ((Statement _txns):stmts) = extractTxns (rs++_txns) stmts
 extractTxns rs [] = rs
+
+
+consolTxn :: [Txn] -> Txn -> [Txn]
+consolTxn [] txn = [txn]
+consolTxn (txn:txns) txn0
+  | txn==txn0 = combineTxn txn txn0:txns
+  | otherwise = txn0:txn:txns 
 
 getTxns :: Maybe Statement -> [Txn]
 getTxns Nothing = []

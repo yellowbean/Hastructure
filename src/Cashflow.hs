@@ -245,12 +245,13 @@ tsTotalCash (LoanFlow _ _ a b c _ e _ _) =  a + b + c + e
 tsTotalCash (LeaseFlow _ _ a) =  a
 
 tsDefaultBal :: TsRow -> Balance
-tsDefaultBal (CashFlow _ _) = error "not supported"
-tsDefaultBal (BondFlow _ _ _ _) = error "not supported"
+tsDefaultBal CashFlow {} = error "not supported"
+tsDefaultBal BondFlow {} = error "not supported"
 tsDefaultBal (MortgageFlow _ _ _ _ _ x _ _ _ _ _) = x
 tsDefaultBal (MortgageFlow2 _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (MortgageFlow3 _ _ _ _ _ _ _ _ x _ _ _) = x
 tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _) = x
+tsDefaultBal LeaseFlow {} = error "not supported"
 
 tsSetDate :: TsRow -> Date -> TsRow
 tsSetDate (CashFlow _ a) x  = CashFlow x a
@@ -518,6 +519,7 @@ sumPoolFlow (CashFlowFrame trs) ps
 
 setPrepaymentPenalty :: Balance -> TsRow -> TsRow
 setPrepaymentPenalty bal (MortgageFlow a b c d e f g h i j k) = MortgageFlow a b c d e f g h i j (Just bal)
+setPrepaymentPenalty _ _ = error "prepay pental only applies to MortgageFlow"
 
 setPrepaymentPenaltyFlow :: [Balance] -> [TsRow] -> [TsRow]
 setPrepaymentPenaltyFlow bals trs = [ setPrepaymentPenalty bal tr | (bal,tr) <- zip bals trs]

@@ -30,10 +30,11 @@ import Lib
 import Debug.Trace
 debug = flip trace
 
+-- | calcuate target balance for a reserve account, 0 for a non-reserve account
 calcTargetAmount :: P.Asset a => TestDeal a -> Date -> A.Account -> Balance
 calcTargetAmount t d (A.Account _ n i Nothing _ ) = 0
 calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
-   eval r -- `debug` ("$$$$ Evaluating" ++show(r)++" result:==>>"++show((eval r)))
+   eval r 
    where
      eval ra = case ra of
        A.PctReserve (Sum ds) _rate -> mulBR (queryDeal t (Sum (map (patchDateToStats d) ds))) _rate  -- `debug` ("In multiple query spot"++show(ds))
@@ -91,7 +92,7 @@ queryDealRate t s =
           in 
             cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
       BondRate bn -> 
-        toRational $ L.bndRate $ (bonds t) Map.! bn
+        toRational $ L.bndRate $ bonds t Map.! bn
       
       PoolWaRate -> 
         toRational $ 
