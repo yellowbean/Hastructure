@@ -17,6 +17,19 @@ import Data.Fixed
 import GHC.Generics
 
 import Types
+    ( RoundingBy,
+      CutoffType(Inc),
+      RangeType(NO_IE),
+      Ts,
+      DatePattern,
+      Period,
+      Index,
+      Floor,
+      Spread,
+      IRate,
+      Dates,
+      Date,
+      Balance )
 import Util
 import Lib
 

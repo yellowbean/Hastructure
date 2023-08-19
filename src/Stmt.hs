@@ -93,12 +93,12 @@ getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
 
 emptyTxn :: Txn -> Date -> Txn
-emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 Empty )
-emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 Empty )
-emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
-emptyTxn (SupportTxn _ _ _ _ _ _ _) d = (SupportTxn d Nothing 0 0 0 0 Empty)
-emptyTxn (IrsTxn _ _ _ _ _ _ _) d = IrsTxn d 0 0 0 0 0 Empty
-emptyTxn (EntryTxn _ _ _ _) d = (EntryTxn d 0 0 Empty)
+emptyTxn BondTxn {} d = BondTxn d 0 0 0 0 0 Empty
+emptyTxn AccTxn {} d = AccTxn d 0 0 Empty
+emptyTxn ExpTxn {} d = ExpTxn d 0 0 0 Empty
+emptyTxn SupportTxn {} d = SupportTxn d Nothing 0 0 0 0 Empty
+emptyTxn IrsTxn {} d = IrsTxn d 0 0 0 0 0 Empty
+emptyTxn EntryTxn {} d = EntryTxn d 0 0 Empty
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> d == (getDate x)) ts
@@ -185,7 +185,6 @@ getFlow comment =
       Empty -> Noneflow 
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
-      UsingFormula _ -> Noneflow
       SwapAccure  -> Noneflow
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow

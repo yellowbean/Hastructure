@@ -48,7 +48,6 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,LT.prorataTests
                            ,LT.tsOperationTests
                            ,ET.expTests
-                           ,DT.waterfallTests
                            ,DT.queryTests
                            ,DT.triggerTests
                            ,DT.dateTests

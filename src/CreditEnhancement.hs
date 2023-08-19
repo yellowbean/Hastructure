@@ -77,7 +77,7 @@ buildLiqRateResetAction (liq:liqProviders) ed r =
         [(ln,IR.getRateResetDates sd ed rt ++ IR.getRateResetDates sd ed prt)]++r
     _ -> buildLiqRateResetAction liqProviders ed r
 
-draw :: Balance -> Date -> LiqFacility -> LiqFacility
+draw :: Amount -> Date -> LiqFacility -> LiqFacility
 draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqStmt = mStmt
                             ,liqCredit = mCredit

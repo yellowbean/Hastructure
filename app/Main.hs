@@ -148,11 +148,11 @@ instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
 instance ToSchema Pre
 instance ToSchema W.ActionWhen
+instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
 instance ToSchema W.BookLedgerType
 instance ToSchema W.CollectionRule
 instance ToSchema Limit
-instance ToSchema W.Satisfy
 instance ToSchema C.CallOption
 instance ToSchema CE.LiqFacility
 instance ToSchema HE.RateSwap
@@ -181,7 +181,6 @@ instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
 instance ToSchema Stmt.Direction
 instance ToSchema Stmt.TxnComment
-instance ToSchema FormulaType
 instance ToSchema AP.AssumptionBuilder
 instance ToSchema CF.TsRow
 instance ToSchema (TsPoint Balance)

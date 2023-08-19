@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,Satisfy(..),ActionWhen(..),BookLedgerType(..),ExtraSupport(..))
+  ,ActionWhen(..),BookLedgerType(..),ExtraSupport(..))
   where
 
 import GHC.Generics
@@ -27,6 +27,7 @@ import Liability
 import Types
 import Revolving
 import Triggers
+import Ledger
 import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
@@ -51,16 +52,16 @@ instance FromJSONKey ActionWhen where
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 
-data BookLedgerType = PDL DealStats [(LedgerName,DealStats)] --Reverse PDL Debit reference, [(name,cap reference)]
-                    | ByAccountDraw
-                    deriving (Show,Generic)
+data BookType = PDL DealStats [(LedgerName,DealStats)] --Reverse PDL Debit reference, [(name,cap reference)]
+              | ByAccountDraw LedgerName
+              deriving (Show,Generic)
 
-data ExtraSupport = SupportAccount AccountName (Maybe BookLedgerType)
+data ExtraSupport = SupportAccount AccountName (Maybe BookType)
                   | SupportLiqFacility LiquidityProviderName
                   | MultiSupport [ExtraSupport]
                   deriving (Show,Generic)
 
-data Action = Transfer (Maybe Limit) AccountName AccountName 
+data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Fee
             | CalcFee [FeeName]
             | PayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)
@@ -71,7 +72,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName
             | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)
             | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)
             | PayIntResidual (Maybe Limit) AccountName BondName
-            | PayTillYield AccountName [BondName]
+            -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
             | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
             | PayPrinResidual AccountName [BondName]
@@ -90,8 +91,9 @@ data Action = Transfer (Maybe Limit) AccountName AccountName
             | SwapAccrue CeName
             | SwapReceive AccountName CeName
             | SwapPay AccountName CeName
+            | SwapSettle AccountName CeName
             -- Record booking
-            | BookBy BookLedgerType
+            | BookBy BookType
             -- Pre
             | ActionWithPre L.Pre [Action] 
             | ActionWithPre2 L.Pre [Action] [Action]
@@ -109,8 +111,7 @@ data CollectionRule = Collect PoolSource AccountName
 
 
 $(deriveJSON defaultOptions ''Action)
-$(deriveJSON defaultOptions ''Satisfy)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)
-$(deriveJSON defaultOptions ''BookLedgerType)
+$(deriveJSON defaultOptions ''BookType)
 $(deriveJSON defaultOptions ''ExtraSupport)

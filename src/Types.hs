@@ -10,7 +10,7 @@ module Types
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
   ,DateDesp(..),Period(..), Threshold(..)
   ,RangeType(..),CutoffType(..),CustomDataType(..)
-  ,Balance,DealStats(..),Index(..),FormulaType(..)
+  ,Balance,DealStats(..),Index(..)
   ,DealCycle(..),Cmp(..),TimeHorizion(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental,PrepaymentPenalty
@@ -612,7 +612,8 @@ data Limit = DuePct Rate  --
            | DueCapAmt Balance  -- due fee
            | KeepBalAmt DealStats -- pay till a certain amount remains in an account
            | DS DealStats
-           | ClearPDL [String]
+           | ClearLedger String
+           | BookLedger String
            | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
            | Multiple Limit Float -- factor of a limit
            deriving (Show,Ord,Eq,Read,Generic)
@@ -647,7 +648,6 @@ $(deriveJSON defaultOptions ''BalanceSheetReport)
 $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''Cmp)
 $(deriveJSON defaultOptions ''PricingMethod)
-$(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''RoundingBy)
