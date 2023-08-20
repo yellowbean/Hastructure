@@ -116,18 +116,18 @@ type Floater = (Index,Spread)
 
 epocDate = Time.fromGregorian 1970 1 1
 -- http://www.deltaquants.com/day-count-conventions
-data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Basis
-              | DC_30Ep_360 -- 30E+/360
-              | DC_ACT_360 -- Actual/360 , French
+data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurobond Basis
+              | DC_30Ep_360      -- ^ 30E+/360
+              | DC_ACT_360       -- ^ Actual/360 , French
               | DC_ACT_365
-              | DC_ACT_365A -- Actual/365 Actual 
-              | DC_ACT_365L -- Actual/365 Leap Year
-              | DC_NL_365 -- Actual/365 No leap year
-              | DC_ACT_365F -- Actual /365 Fixed, English
-              | DC_ACT_ACT -- Actual/Actual ISDA 
-              | DC_30_360_ISDA --  IDSA
-              | DC_30_360_German --  Gernman
-              | DC_30_360_US --  30/360 US Municipal , Bond basis
+              | DC_ACT_365A      -- ^ Actual/365 Actual 
+              | DC_ACT_365L      -- ^ Actual/365 Leap Year
+              | DC_NL_365        -- ^ Actual/365 No leap year
+              | DC_ACT_365F      -- ^ Actual /365 Fixed, English
+              | DC_ACT_ACT       -- ^ Actual/Actual ISDA 
+              | DC_30_360_ISDA   -- ^ IDSA
+              | DC_30_360_German -- ^ Gernman
+              | DC_30_360_US     -- ^ 30/360 US Municipal , Bond basis
               deriving (Show, Eq, Generic)
 
 data DateType = ClosingDate
@@ -135,7 +135,7 @@ data DateType = ClosingDate
               | FirstPayDate
               | RevolvingEndDate
               | RevolvingDate
-              | StatedMaturityDate
+              | StatedMaturityDate      
               deriving (Show,Ord,Eq,Generic,Read)
 
 data Period = Daily 
@@ -158,18 +158,18 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
               deriving (Show,Eq, Generic)
 
-data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
-                  | ChangeDealStatusTo Date DealStatus
-                  | AccrueFee Date FeeName
-                  | ResetLiqProvider Date String
-                  | ResetLiqProviderRate Date String
-                  | PoolCollection Date String
-                  | RunWaterfall Date String
-                  | DealClosed Date 
-                  | InspectDS Date DealStats
-                  | ResetIRSwapRate Date String
-                  | ResetBondRate Date String
-                  | BuildReport StartDate EndDate
+data ActionOnDate = EarnAccInt Date AccName              -- sweep bank account interest
+                  | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
+                  | AccrueFee Date FeeName               -- ^ accure fee
+                  | ResetLiqProvider Date String         -- ^ reset credit for liquidity provider
+                  | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
+                  | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
+                  | RunWaterfall Date String             -- ^ execute waterfall
+                  | DealClosed Date                      
+                  | InspectDS Date DealStats             -- ^ inspect formula
+                  | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
+                  | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   deriving (Show,Generic,Read)
 
 
@@ -223,7 +223,7 @@ data DealStatus = DealAccelerated (Maybe Date)
                 | PreClosing
                 deriving (Show,Ord,Eq,Read, Generic)
 
-data DealCycle = EndCollection
+data DealCycle = EndCollection            
                | EndCollectionWF
                | BeginDistributionWF
                | EndDistributionWF
@@ -514,15 +514,15 @@ data CashflowReport = CashflowReport {
                      deriving (Show,Read,Generic)
 
 data ResultComponent = CallAt Date
-                  | DealStatusChangeTo Date DealStatus DealStatus
-                  | BondOutstanding String Balance Balance -- when deal ends
-                  | BondOutstandingInt String Balance Balance -- when deal ends
-                  | InspectBal Date DealStats Balance
-                  | InspectInt Date DealStats Int
-                  | InspectRate Date DealStats Rate
-                  | InspectBool Date DealStats Bool
-                  | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
-                  deriving (Show, Generic)
+                     | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed
+                     | BondOutstanding String Balance Balance         -- ^ when deal ends,calculate oustanding principal balance 
+                     | BondOutstandingInt String Balance Balance      -- ^ when deal ends,calculate oustanding interest due 
+                     | InspectBal Date DealStats Balance
+                     | InspectInt Date DealStats Int
+                     | InspectRate Date DealStats Rate
+                     | InspectBool Date DealStats Bool
+                     | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
+                     deriving (Show, Generic)
 
 data Threshold = Below
                | EqBelow

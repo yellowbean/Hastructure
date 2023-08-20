@@ -148,12 +148,12 @@ poolSourceToIssuanceField CollectedRental = HistoryRental
 
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
-queryDeal t s = 
+queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s = 
   case s of
     CurrentBondBalance ->
-      Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 (bonds t)
+      Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 bndMap
     OriginalBondBalance ->
-      Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 (bonds t)
+      Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 bndMap
     CurrentPoolBalance ->
       foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
     CurrentPoolDefaultedBalance ->
@@ -169,11 +169,9 @@ queryDeal t s =
     CurrentPoolBorrowerNum ->
       fromRational $ toRational $ foldl (\acc x -> acc + P.getBorrowerNum x) 0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
  
-    AllAccBalance ->
-      sum $ map A.accBalance $ Map.elems (accounts t) -- `debug` ("Summing acc balance")
+    AllAccBalance -> sum $ map A.accBalance $ Map.elems accMap 
     
-    AccBalance ans -> 
-      sum $ map A.accBalance $ Map.elems $ getAccountByName t (Just ans)
+    AccBalance ans -> sum $ A.accBalance <$> (accMap Map.!) <$> ans
     
     LedgerBalance ans ->
       case ledgers t of 
@@ -183,12 +181,12 @@ queryDeal t s =
     ReserveExcessAt d ans ->
       max 
         0
-        $ (-) (queryDeal t (AccBalance ans)) (sum $ (calcTargetAmount t d) <$> (Map.elems $ getAccountByName t (Just ans)))
+        $ (-) (queryDeal t (AccBalance ans)) (sum $ (calcTargetAmount t d) <$> ((accMap Map.!) <$> ans))
 
     ReserveAccGapAt d ans ->
       max 
         0 
-        $ (-) (sum $ (calcTargetAmount t d) <$> (Map.elems $ getAccountByName t (Just ans))) (queryDeal t (AccBalance ans)) 
+        $ (-) (sum $ (calcTargetAmount t d) <$> (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
 
     FutureCurrentPoolBalance ->
        case P.futureCf (pool t) of 
@@ -259,11 +257,7 @@ queryDeal t s =
         in 
           futureVals + historyVals
 
-    CurrentBondBalanceOf bns ->
-       let
-          bSubMap = getBondByName t (Just bns) -- Map.filterWithKey (\bn b -> (S.member bn bnSet)) (bonds t)
-       in
-          sum $ map L.bndBalance $ Map.elems bSubMap
+    CurrentBondBalanceOf bns -> sum $ L.bndBalance <$> (bndMap Map.!) <$> bns
 
     BondsIntPaidAt d bns ->
        let
@@ -297,7 +291,7 @@ queryDeal t s =
     
     FeeTxnAmtBy d fns mCmt -> 
       let 
-        fees = Map.elems $ getFeeByName t (Just fns)
+        fees = (feeMap Map.!) <$> fns -- Map.elems $ getFeeByName t (Just fns)
       in  
         case mCmt of 
           Just cmt -> sum [ queryTxnAmtAsOf fee d cmt | fee <- fees ]
@@ -309,7 +303,7 @@ queryDeal t s =
     
     BondTxnAmtBy d bns mCmt -> 
       let 
-        bnds = Map.elems $ getBondByName t (Just bns)
+        bnds = (bndMap Map.!) <$> bns -- Map.elems $ getBondByName t (Just bns)
       in 
         case mCmt of
           Just cmt -> sum [ queryTxnAmtAsOf bnd d cmt | bnd <- bnds ]
@@ -321,7 +315,7 @@ queryDeal t s =
 
     AccTxnAmtBy d ans mCmt -> 
       let 
-        accs = Map.elems $ getAccountByName t (Just ans)
+        accs = (accMap Map.!) <$> ans
       in 
         case mCmt of
           Just cmt -> sum [ queryTxnAmtAsOf acc d cmt | acc <- accs ]
@@ -331,14 +325,13 @@ queryDeal t s =
             in 
               sumTxn (beforeOnDate _txn d)
 
-
     BondBalanceGapAt d bName -> 
         let 
-           bn@L.Bond{L.bndType = L.PAC _target} = (bonds t) Map.! bName
+           bn@L.Bond{L.bndType = L.PAC _target} = bndMap Map.! bName
            bal = L.bndBalance bn
            targetBal = getValOnByDate _target d
         in 
-           max 0 $ bal - targetBal  -- `debug` ("B T"++ show bal++"|"++show targetBal)
+           max 0 $ bal - targetBal 
 
     FeesPaidAt d fns ->
       let
@@ -350,31 +343,19 @@ queryDeal t s =
       in
         sum $ map ex stmts
 
-    CurrentDueBondInt bns ->
-        let
-           -- bnSet = S.fromList bns
-           -- bSubMap = Map.filterWithKey (\bn b -> (S.member bn bnSet)) (bonds t)
-           bSubMap =  getBondByName t (Just bns)   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
-        in
-           sum $ map L.bndDueInt $ Map.elems bSubMap
+    CurrentDueBondInt bns -> sum $ L.bndDueInt <$> (bndMap Map.!) <$> bns
 
-    CurrentDueFee fns ->
-        let
-           -- fnSet = S.fromList fns
-           -- fSubMap = Map.filterWithKey (\fn f -> (S.member fn fnSet)) (fees t)
-           fSubMap = getFeeByName t (Just fns)
-        in
-           sum $ F.feeDue <$> Map.elems fSubMap
+    CurrentDueFee fns -> sum $ F.feeDue <$> (feeMap Map.!) <$> fns
 
     LiqCredit lqNames -> 
-      case (liqProvider t) of
+      case liqProvider t of
         Nothing -> 0
         Just liqProviderM -> sum $ [ fromMaybe 0 (CE.liqCredit liq) | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
     LiqBalance lqNames -> 
-      case (liqProvider t) of
+      case liqProvider t of
         Nothing -> 0
-        Just liqProviderM -> sum $ [ (CE.liqBalance liq) | (k,liq) <- Map.assocs liqProviderM
+        Just liqProviderM -> sum $ [ CE.liqBalance liq | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
 
     Sum _s -> sum $ map (queryDeal t) _s
@@ -384,7 +365,7 @@ queryDeal t s =
           a  = queryDeal t ds 
           bs = queryDeal t (Sum dss) 
         in 
-          a - bs  -- `debug` ("SS->"++show a ++"SS2->"++ show bs)
+          a - bs 
 
     Constant n -> fromRational n
 
@@ -399,8 +380,8 @@ queryDeal t s =
           Just mCustom ->
               case mCustom Map.! s of 
                 CustomConstant v -> fromRational v 
-                CustomCurve cv -> (getValOnByDate cv d)
-                CustomDS ds -> (queryDeal t (patchDateToStats d ds ))
+                CustomCurve cv -> getValOnByDate cv d
+                CustomDS ds -> queryDeal t (patchDateToStats d ds )
 
     FloorAndCap floor cap s -> max (queryDeal t floor) $ min (queryDeal t cap) (queryDeal t s)
     
@@ -411,8 +392,7 @@ queryDeal t s =
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
     Round ds rb -> roundingBy rb (queryDeal t ds)
     
-
-    _ -> 0.0 `debug` ("Failed to query balance of -> "++ show s)
+    _ -> error ("Failed to query balance of -> "++ show s)
 
 queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Bool
 queryDealBool t@TestDeal{triggers= trgs} ds = 
