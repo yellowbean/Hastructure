@@ -119,7 +119,6 @@ instance ToSchema AP.BondPricingInput
 instance ToSchema L.PriceResult
 
 instance ToSchema DealType
-$(deriveJSON defaultOptions ''DealType)
 
 instance ToSchema AB.Mortgage
 instance ToSchema IR.ARM
@@ -161,6 +160,7 @@ instance ToSchema HE.RateSwapBase
 instance ToSchema HE.CurrencySwap
 instance ToSchema CE.LiqSupportType
 instance ToSchema CE.LiqRepayType
+instance ToSchema CE.LiqDrawType
 instance ToSchema CustomDataType
 instance ToSchema DealCycle
 instance ToSchema TRG.Trigger
@@ -290,7 +290,7 @@ engineSwagger = toOpenApi engineAPI
   & info.title .~ "Hastructure API"
   & info.version .~  T.pack (_version version1)
   & info.description ?~ "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
-  & info.license ?~ ("BSD 3")
+  & info.license ?~ "BSD 3"
 
 server2 :: Server API
 server2 = return engineSwagger 
@@ -338,3 +338,5 @@ main =
     run _p 
       $ errorMwDefJson
       $ serve (Proxy :: Proxy API) server2
+
+$(deriveJSON defaultOptions ''DealType)

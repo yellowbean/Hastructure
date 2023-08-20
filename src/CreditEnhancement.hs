@@ -6,7 +6,7 @@
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
   ,LiquidityProviderName,draw,repay
-  ,LiqRepayType(..)
+  ,LiqRepayType(..),LiqDrawType(..)
   )
   where
 
@@ -27,31 +27,31 @@ import Stmt
 
 type LiquidityProviderName = String
 
-data LiqSupportType = ReplenishSupport DatePattern Balance
-                    | FixSupport
-                    | ByPct DealStats Rate
-                    | UnLimit
+data LiqSupportType = ReplenishSupport DatePattern Balance    -- ^ credit will be refresh by an interval
+                    | FixSupport                              -- ^ fixed credit amount
+                    | ByPct DealStats Rate                    -- ^ By a pct of formula
+                    | UnLimit                                 -- ^ Unlimit credit support, like insurance company
                     deriving(Show,Generic)
 
 data LiqFacility = LiqFacility {
     liqName :: String 
     ,liqType :: LiqSupportType 
-    ,liqBalance :: Balance  -- total support balance supported
-    ,liqCredit :: Maybe Balance  -- available balance to support. Nothing -> unlimit 
-    ,liqRateType :: Maybe IR.RateType
-    ,liqPremiumRateType :: Maybe IR.RateType
+    ,liqBalance :: Balance                   -- ^ total support balance supported
+    ,liqCredit :: Maybe Balance              -- ^ available balance to support. Nothing -> unlimit 
+    ,liqRateType :: Maybe IR.RateType        -- ^ interest rate type 
+    ,liqPremiumRateType :: Maybe IR.RateType -- ^ premium rate type
     
-    ,liqRate :: Maybe IRate 
-    ,liqPremiumRate :: Maybe IRate 
+    ,liqRate :: Maybe IRate                  -- ^ current interest rated on oustanding balance
+    ,liqPremiumRate :: Maybe IRate           -- ^ current premium rate used on credit un-used
     
-    ,liqDueIntDate :: Maybe Date
+    ,liqDueIntDate :: Maybe Date             -- ^ last day of interest/premium calculated
     
-    ,liqDueInt :: Balance
-    ,liqDuePremium :: Balance
+    ,liqDueInt :: Balance                    -- ^ oustanding due on interest
+    ,liqDuePremium :: Balance                -- ^ oustanding due on premium
     
-    ,liqStart :: Date
-    ,liqEnds :: Maybe Date
-    ,liqStmt :: Maybe Statement
+    ,liqStart :: Date                        -- ^ when liquidiy provider came into effective
+    ,liqEnds :: Maybe Date                   -- ^ when liquidiy provider came into expired
+    ,liqStmt :: Maybe Statement              -- ^ transaction history
 } deriving (Show,Generic)
 
 
@@ -91,9 +91,15 @@ draw  amt d liq@LiqFacility{ liqBalance = liqBal
                     mStmt $
                     SupportTxn d newCredit amt newBal dueInt duePremium LiquidationDraw
 
-data LiqRepayType = LiqBal 
-                  | LiqPremium 
-                  | LiqInt 
+data LiqDrawType = LiqToAcc        -- ^ draw credit and deposit cash to account
+                 | LiqToBondInt    -- ^ draw credit and pay to bond interest if any shortfall
+                 | LiqToBondPrin   -- ^ draw credit and pay to bond principal if any shortfall
+                 | LiqToFee        -- ^ draw credit and pay to a fee if there is a shortfall
+                 deriving (Show,Generic)
+
+data LiqRepayType = LiqBal         -- ^ repay oustanding balance of liquidation provider
+                  | LiqPremium     -- ^ repay oustanding premium fee of lp
+                  | LiqInt         -- ^ repay oustanding interest of lp
                   | LiqRepayTypes [LiqRepayType] --TODO not implemented
                   deriving (Show,Generic)
 
@@ -128,5 +134,6 @@ instance QueryByComment LiqFacility where
 
 
 $(deriveJSON defaultOptions ''LiqRepayType)
+$(deriveJSON defaultOptions ''LiqDrawType)
 $(deriveJSON defaultOptions ''LiqSupportType)
 $(deriveJSON defaultOptions ''LiqFacility)

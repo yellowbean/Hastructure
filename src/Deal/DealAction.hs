@@ -610,7 +610,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt Nothing an bn
 
     availBal = case mSupport of
                  Nothing -> availAccBal
-                 Just support -> availAccBal + (sum $ evalExtraSupportBalance d t support)
+                 Just support -> availAccBal + sum ( evalExtraSupportBalance d t support)
     actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("due mats"++ show bndsDueAmts ++">>"++ show availBal)
     bndsAmountToBePaid = zip bndsToPay $ prorataFactors bndsDueAmts availBal -- `debug` ("prorata"++ show (prorataFactors bndsDueAmts availBal) )
 
@@ -749,7 +749,7 @@ performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns)
                   (calcDueInt t d) $
                   getBondByName t (Just bns)
 
-performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.LiqSupport limit pName an)
+performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToAcc an)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)
   where 
       newLiqMapUpdated = Map.adjust (updateLiqProvider t d) pName _liqProvider 
@@ -758,13 +758,13 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
                       Just (DS (ReserveAccGap [an])) -> queryDeal t (ReserveAccGapAt d [an]) -- `debug` ("Query Gap"++ show (queryDeal t (ReserveAccGapAt d [an])))
                       Just (DS ds) -> queryDeal t (patchDateToStats d ds) -- `debug` ("hit with ds"++ show ds)
                       _ -> error "Failed on formula passed" -- `debug` ("limit on last"++ show limit)
-      transferAmt = case CE.liqCredit $  newLiqMapUpdated Map.! pName of 
+      transferAmt = case CE.liqCredit $ newLiqMapUpdated Map.! pName of 
                        Nothing -> _transferAmt
                        Just _availBal -> min _transferAmt _availBal  -- `debug` ("transfer amt"++ show _transferAmt )
       newAccMap = Map.adjust (A.deposit transferAmt d (LiquidationSupport pName)) an accs
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName newLiqMapUpdated
 
-performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqPayFee limit pName fn)
+performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToFee fn)
   = t { fees = newFeeMap, liqProvider = Just newLiqMap }
   where 
       _transferAmt = case limit of 
@@ -779,7 +779,7 @@ performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqPa
       newFeeMap = Map.adjust (F.payFee d transferAmt) fn feeMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
-performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqPayBond limit pName bn)
+performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToBondInt bn)
   = t { bonds = newBondMap, liqProvider = Just newLiqMap }
   where 
       _transferAmt = case limit of 

@@ -36,11 +36,11 @@ import CreditEnhancement (LiquidityProviderName)
 import Ledger (Ledger)
 
 
-data ActionWhen = EndOfPoolCollection
-                | DistributionDay DealStatus
-                | CleanUp
-                | OnClosingDay
-                | DefaultDistribution
+data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the end of pool collection
+                | DistributionDay DealStatus      -- ^ waterfall executed depends on deal status
+                | CleanUp                         -- ^ waterfall exectued upon a clean up call
+                | OnClosingDay                    -- ^ waterfall executed on deal closing day
+                | DefaultDistribution             -- ^ default waterfall executed
                 deriving (Show,Ord,Eq,Generic,Read)
 
 instance ToJSONKey ActionWhen where
@@ -52,14 +52,14 @@ instance FromJSONKey ActionWhen where
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 
-data BookType = PDL DealStats [(LedgerName,DealStats)] --Reverse PDL Debit reference, [(name,cap reference)]
-              | ByAccountDraw LedgerName
-              | ByDS          LedgerName DealStats 
+data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
+              | ByAccountDraw LedgerName               -- Book amount equal to account draw amount
+              | ByDS          LedgerName DealStats     -- Book amount equal to a formula/deal stats
               deriving (Show,Generic)
 
-data ExtraSupport = SupportAccount AccountName (Maybe BookType)
-                  | SupportLiqFacility LiquidityProviderName
-                  | MultiSupport [ExtraSupport]
+data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there is deficit, draw another account to pay the shortfall
+                  | SupportLiqFacility LiquidityProviderName     -- ^ if there is deficit, draw facility's available credit to pay the shortfall
+                  | MultiSupport [ExtraSupport]                  -- ^ if there is deficit, draw multiple supports to pay the shortfall
                   deriving (Show,Generic)
 
 data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
@@ -75,39 +75,37 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayIntResidual (Maybe Limit) AccountName BondName
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
-            | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
-            | PayPrinResidual AccountName [BondName]
+            | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond
+            | PayPrinResidual AccountName [BondName]                                        -- ^ pay principal regardless predefined balance schedule
             -- | PayPrinBy Limit AccountName BondName
             -- Pool/Asset change
-            | BuyAsset (Maybe Limit) PricingMethod AccountName
-            | LiquidatePool PricingMethod AccountName
+            | BuyAsset (Maybe Limit) PricingMethod AccountName                              -- ^ buy asset from revolving assumptions using funds from account
+            | LiquidatePool PricingMethod AccountName                                       -- ^ sell all assets and deposit proceeds to account
             -- Liquidation support
-            | LiqSupport (Maybe Limit) CE.LiquidityProviderName AccountName
-            | LiqPayFee (Maybe Limit) CE.LiquidityProviderName FeeName
-            | LiqPayBond (Maybe Limit) CE.LiquidityProviderName BondName
-            | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName 
-            | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
-            | LiqAccrue CE.LiquidityProviderName 
+            | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType String       -- ^ draw credit and deposit to account/fee/bond interest/principal
+            | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName   -- ^ repay liquidity facility
+            | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName                   -- ^ repay compensation to liquidity facility
+            | LiqAccrue CE.LiquidityProviderName                                            -- ^ accure premium/due interest of liquidity facility
             -- Swap
             | SwapAccrue CeName                 -- ^ calculate the net amount of swap
             | SwapReceive AccountName CeName    -- ^ receive amount from net amount of swap and deposit to account
             | SwapPay AccountName CeName        -- ^ pay out net amount from account 
             | SwapSettle AccountName CeName     -- ^ pay & receive net amount of swap with account
             -- Record booking
-            | BookBy BookType
+            | BookBy BookType                         -- ^ book an ledger with book types
             -- Pre
             | ActionWithPre L.Pre [Action]            -- ^ execute actions if <pre> is true 
             | ActionWithPre2 L.Pre [Action] [Action]  -- ^ execute action1 if <pre> is true ,else execute action2 
             -- Trigger
-            | RunTrigger DealCycle Int
+            | RunTrigger DealCycle Int                -- ^ update the trigger status during the waterfall execution
             -- Debug
             | WatchVal (Maybe String) [DealStats]
             deriving (Show,Generic)
 
 type DistributionSeq = [Action]
 
-data CollectionRule = Collect PoolSource AccountName
-                    | CollectByPct PoolSource [(Rate,AccountName)]
+data CollectionRule = Collect PoolSource AccountName                   -- ^ collect a pool source from pool collection and deposit to an account
+                    | CollectByPct PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
                     deriving (Show,Generic)
 
 
