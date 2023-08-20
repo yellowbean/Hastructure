@@ -68,14 +68,14 @@ getIntervalDays ds = zipWith daysBetweenI (init ds) (tail ds)
 getIntervalFactors :: [Date] -> [Rate]
 getIntervalFactors ds = (\x -> toRational x / 365) <$> getIntervalDays ds -- `debug` ("Interval Days"++show(ds))
 
-
+-- | 
 prorataFactors :: [Centi] -> Centi -> [Centi]
 prorataFactors bals amt =
   case s of 
     0.0 -> replicate (length bals) 0.0
-    _ -> map (\y -> (fromRational (y * (toRational amtToPay)))) weights -- `debug` ("Weights->>"++ show weights)
+    _ -> map (\y -> fromRational (y * toRational amtToPay)) weights -- `debug` ("Weights->>"++ show weights)
            where 
-              weights = map (\x -> (toRational x) / s) bals
+              weights = map (\x -> toRational x / s) bals
   where
     s = toRational $ sum bals
     amtToPay = min s (toRational amt)
@@ -183,6 +183,7 @@ floatToFixed :: HasResolution a => Float -> Fixed a
 floatToFixed x = y where
   y = MkFixed (round (fromInteger (resolution y) * x))
 
+-- | given balances and weight, get sum weighted balance
 weightedBy :: [Centi] -> [Rational] -> Rational
 weightedBy ws vs 
   | sum_weights == 0 = 0

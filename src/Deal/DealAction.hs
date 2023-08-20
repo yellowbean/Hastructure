@@ -65,7 +65,7 @@ calcDayToPoolDate t calcDay
 
 
 getPoolFlows :: TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
-getPoolFlows t sd ed rt =
+getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   case (sd,ed) of
     (Nothing,Nothing) ->  _trs
     (Nothing,Just _ed) -> case rt of 
@@ -75,7 +75,7 @@ getPoolFlows t sd ed rt =
                              IE -> filter (\x -> (CF.getDate x >= _sd) && (CF.getDate x < _ed)) _trs
                              EI -> filter (\x -> (CF.getDate x > _sd) && (CF.getDate x <= _ed)) _trs
   where
-    _projCf = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
+    _projCf = fromMaybe (CF.CashFlowFrame []) (P.futureCf _pool)
     _trs =  CF.getTsCashFlowFrame _projCf
 
 
@@ -128,12 +128,12 @@ liquidatePool lq d accName t =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
      proceeds = calcLiquidationAmount lq (pool t) d
-     updateFn = A.deposit proceeds d (LiquidationProceeds)
+     updateFn = A.deposit proceeds d LiquidationProceeds
      accs = accounts t
 
 
 
-calcDueFee :: P.Asset a => (TestDeal a) -> Date -> F.Fee -> F.Fee
+calcDueFee :: P.Asset a => TestDeal a -> Date -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay fa _ _)
   | isJust fdDay = f  
   | calcDay >= fs && (isNothing fdDay) = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd)++show amt)
@@ -224,7 +224,6 @@ disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate }
 
 updateLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = curCredit} -- refresh available balance
-  -- = liq { CE.liqCredit = newCredit }
   = disableLiqProvider t d $ liq { CE.liqCredit = newCredit } 
     where 
       newCredit = case liqType of 
@@ -341,7 +340,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
       b {L.bndDuePrin = 0, L.bndBalance = new_bal, L.bndLastIntPay=Just calc_date} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     isZbond (L.Bond _ L.Z _ _ _ _ _ _ _ _ _ _) = True
-    isZbond (L.Bond _ _ _ _ _ _ _ _ _ _ _ _) = False
+    isZbond L.Bond {} = False
     
     activeBnds = filter (\x -> L.bndBalance x > 0) (Map.elems (bonds t))
     new_bal = bond_bal + dueInt
@@ -368,7 +367,7 @@ splitAssetUnion rs (ACM.LS m) = [ ACM.LS a | a <- P.splitWith m rs]
 buyRevolvingPool :: Date -> [Rate] -> RevolvingPool -> ([ACM.AssetUnion],RevolvingPool)
 buyRevolvingPool _ rs rp@(StaticAsset assets) 
   = let 
-      splitedAssets = (splitAssetUnion rs) <$> assets
+      splitedAssets = splitAssetUnion rs <$> assets
       assetBought = head <$> splitedAssets
       assetRemains = last <$> splitedAssets 
     in 
@@ -376,7 +375,7 @@ buyRevolvingPool _ rs rp@(StaticAsset assets)
 
 buyRevolvingPool _ rs rp@(ConstantAsset assets)
   = let 
-      splitedAssets = (splitAssetUnion rs) <$> assets
+      splitedAssets = splitAssetUnion rs <$> assets
       assetBought = head <$> splitedAssets
     in 
       (assetBought ,rp)
@@ -384,11 +383,10 @@ buyRevolvingPool _ rs rp@(ConstantAsset assets)
 buyRevolvingPool d rs rp@(AssetCurve aus)
   = let
       assets = lookupAssetAvailable rp d 
-      splitedAssets = (splitAssetUnion rs) <$> assets
+      splitedAssets = splitAssetUnion rs <$> assets
       assetBought = head <$> splitedAssets
     in 
       (assetBought, rp)
-
 
 projAssetUnion :: ACM.AssetUnion -> Date -> [AP.AssumptionBuilder] -> CF.CashFlowFrame
 projAssetUnion (ACM.MO ast) d assumps = CF.cfInsertHead (CF.MortgageFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0 Nothing Nothing) $ P.projCashflow ast d assumps
@@ -399,13 +397,13 @@ projAssetUnion (ACM.LS ast) d assumps = CF.cfInsertHead (CF.LeaseFlow d (P.getCu
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
                   ,revolvingAssump:: Maybe (RevolvingPool ,[AP.AssumptionBuilder])
-                   }
+                  }
 
 updateOriginDate2 :: Date -> ACM.AssetUnion -> ACM.AssetUnion
-updateOriginDate2 d (ACM.LO m) = ACM.LO $ (updateOriginDate m) (P.calcAlignDate m d)
-updateOriginDate2 d (ACM.MO m) = ACM.MO $ (updateOriginDate m) (P.calcAlignDate m d)
-updateOriginDate2 d (ACM.IL m) = ACM.IL $ (updateOriginDate m) (P.calcAlignDate m d)
-updateOriginDate2 d (ACM.LS m) = ACM.LS $ (updateOriginDate m) (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.LO m) = ACM.LO $ updateOriginDate m (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.MO m) = ACM.MO $ updateOriginDate m (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.IL m) = ACM.IL $ updateOriginDate m (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.LS m) = ACM.LS $ updateOriginDate m (P.calcAlignDate m d)
 
 evalExtraSupportBalance :: Date -> TestDeal a -> W.ExtraSupport  -> [Balance]
 evalExtraSupportBalance d t@TestDeal{accounts=accMap} (W.SupportAccount an _) = [A.accBalance $ accMap Map.! an]
@@ -429,7 +427,6 @@ drawExtraSupport d amt (W.SupportAccount an Nothing) t@TestDeal{accounts=accMap}
     in 
       (t {accounts = Map.adjust (A.draw drawAmt d Empty) an accMap }
       , oustandingAmt) 
-
 
 drawExtraSupport d amt (W.SupportLiqFacility liqName) t@TestDeal{liqProvider= Just liqMap}
   = let 
@@ -455,7 +452,7 @@ performActionWrap d
    = (t { accounts = newAccMap }, newRc, logs )
     where 
       _assets = lookupAssetAvailable assetForSale d
-      assets = (updateOriginDate2 d) <$> _assets 
+      assets = updateOriginDate2 d <$> _assets 
                 
       valuationOnAvailableAssets = sum [ getPriceValue (priceAssetUnion ast d pricingMethod perfAssumps)  | ast <- assets ]  -- `debug` ("Revolving >> after shift "++ show assets)
       accBal = A.accBalance $ accsMap Map.! accName -- `debug` ("Av")
@@ -509,7 +506,7 @@ performAction d t (W.ActionWithPre _pre actions)
   | testPre d t _pre = foldl (performAction d) t actions 
   | otherwise  = t
 
-performAction d t@TestDeal{accounts=accMap} (W.Transfer Nothing an1 an2) =
+performAction d t@TestDeal{accounts=accMap} (W.Transfer Nothing an1 an2 mComment) =
   t {accounts = accMapAfterDeposit}
   where
     sourceAcc = accMap Map.! an1
@@ -537,7 +534,7 @@ performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL ds ledgersLis
                    ledgerM
                    (zip ledgerNames amtBookedToLedgers)
 
-performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.Transfer (Just (ClearLedger ln)) an1 an2) =
+performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.Transfer (Just (ClearLedger ln)) an1 an2 mComment) =
   t {accounts = accMapAfterDeposit, ledgers = Just newLedgerM}  -- `debug` ("ABCD "++show(d))
   where
     sourceAcc = accMap Map.! an1
@@ -553,7 +550,8 @@ performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.Transfer 
                    ln 
                    ledgerM
 
-performAction d t@TestDeal{accounts=accMap} (W.Transfer (Just limit) an1 an2) =
+
+performAction d t@TestDeal{accounts=accMap} (W.Transfer (Just limit) an1 an2 mComment) =
   t {accounts = accMapAfterDeposit}  
   where
     sourceAcc = accMap Map.! an1

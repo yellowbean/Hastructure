@@ -10,7 +10,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
                 ,getEarlierTsCashFlowFrame
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
-                ,mflowBorrowerNum
+                ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
                 ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
@@ -238,7 +238,7 @@ sumTsCF trs d = tsSetDate (foldl1 addTsCF trs) d -- `debug` ("Summing"++show trs
 tsTotalCash :: TsRow -> Balance
 tsTotalCash (CashFlow _ x) = x
 tsTotalCash (BondFlow _ _ a b) = a + b
-tsTotalCash (MortgageFlow x _ _ a b c _ e _ _ mPn) = a + b + c + e + (fromMaybe 0 mPn)
+tsTotalCash (MortgageFlow x _ _ a b c _ e _ _ mPn) = a + b + c + e + fromMaybe 0 mPn
 tsTotalCash (MortgageFlow2 x _ _ a b c _ _ e _) = a + b + c + e
 tsTotalCash (MortgageFlow3 x _ _ a b c _ _ _ _ e _) = a + b + c + e
 tsTotalCash (LoanFlow _ _ a b c _ e _ _) =  a + b + c + e
@@ -444,6 +444,11 @@ mflowAmortAmount (LeaseFlow _ _ x ) = x
 mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 mflowBorrowerNum (MortgageFlow _ _ _ _ _ _ _ _ _ x _) = x
 mflowBorrowerNum _ = undefined
+
+mflowPrepaymentPenalty :: TsRow -> Balance
+mflowPrepaymentPenalty (MortgageFlow _ _ _ _ _ _ _ _ _ _ (Just x)) = x
+mflowPrepaymentPenalty (MortgageFlow _ _ _ _ _ _ _ _ _ _ Nothing) = 0
+mflowPrepaymentPenalty _ = undefined
 
 mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs

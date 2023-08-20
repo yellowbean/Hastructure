@@ -150,7 +150,7 @@ instance ToSchema Pre
 instance ToSchema W.ActionWhen
 instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
-instance ToSchema W.BookLedgerType
+instance ToSchema W.BookType
 instance ToSchema W.CollectionRule
 instance ToSchema Limit
 instance ToSchema C.CallOption

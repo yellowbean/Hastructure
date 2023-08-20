@@ -39,18 +39,18 @@ data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
                          ,rsRefBalance :: Balance        -- ^ notional balance in use
                          ,rsLastStlDate :: Maybe Date    -- ^ last  settle date
                          ,rsNetCash :: Balance           -- ^ amount to pay/collect
-                         ,rsStmt :: Maybe Statement      -- ^ Transaction history
+                         ,rsStmt :: Maybe Statement      -- ^ transaction history
                          }
                          deriving(Show,Generic)
 
 -- | The `accrueIRS` will calculate the `Net` amount 
 -- ( payble with negative, positve with receivable) of Rate Swap      
 accrueIRS :: Date -> RateSwap -> RateSwap
-accrueIRS d rs@RateSwap{rsRefBalance = face
-                      , rsPayingRate = payRate
-                      , rsReceivingRate = receiveRate
-                      , rsNetCash = netCash
-                      , rsStmt = stmt}
+accrueIRS d rs@RateSwap{rsRefBalance = face               
+                      , rsPayingRate = payRate            
+                      , rsReceivingRate = receiveRate     
+                      , rsNetCash = netCash               
+                      , rsStmt = stmt}                    
   =  rs {rsNetCash = newNet , rsLastStlDate = Just d, rsStmt = newStmt }
       where 
           accureStartDate =  case rsLastStlDate rs of 

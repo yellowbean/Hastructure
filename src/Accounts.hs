@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Accounts (Account(..),ReserveAmount(..),draw,deposit,supportPay
+module Accounts (Account(..),ReserveAmount(..),draw,deposit
                 ,transfer,depositInt,depositIntByCurve
                 ,InterestInfo(..),buildEarnIntAction,updateReserveBalance)
     where
@@ -28,8 +28,8 @@ data InterestInfo = BankAccount IRate Date DatePattern                -- ^ fix r
 data ReserveAmount = PctReserve DealStats Rate               -- ^ target amount with reference to % of formula
                    | FixReserve Balance                      -- ^ target amount with fixed balance amount    
                    | Either Pre ReserveAmount ReserveAmount  -- ^ target amount depends on a test, if true, then use first one ,otherwise use second one
-                   | Max ReserveAmount ReserveAmount         -- ^ use higher of two
-                   | Min ReserveAmount ReserveAmount         -- ^ use lower of two
+                   | Max [ReserveAmount]                     -- ^ use higher of two
+                   | Min [ReserveAmount]                     -- ^ use lower of two
                    deriving (Show, Eq, Generic)
 
 data Account = Account {
@@ -140,19 +140,15 @@ draw amount = deposit (- amount)
 updateReserveBalance :: ReserveAmount -> Account -> Account 
 updateReserveBalance ra acc = acc {accType = Just ra}
 
-supportPay :: [Account] -> Date -> Amount -> (TxnComment, TxnComment) -> [Account]
-supportPay all_accs@(acc:accs) d amt (m1,m2) = 
-    (draw payOutAmt d m1 acc): (map (\(_acc,amt) -> draw amt d m2 _acc) supportPayByAcc)
-  where 
-      availBals = map accBalance all_accs
-      accNames = map accName all_accs
-      payOutAmt:payOutAmts = paySeqLiabilitiesAmt amt availBals
-      supportPayByAcc = filter (\(_acc,_amt_out) -> _amt_out > 0)   $ zip accs payOutAmts
+-- | query total balance transfer from account a to account b
+queryTrasnferBalance :: Account -> Account -> Balance
+queryTrasnferBalance Account{accStmt = Nothing } Account{accName = an} = 0
+queryTrasnferBalance a@Account{accName = fromAccName, accStmt = Just (Statement txns)} Account{accName = toAccName}
+  = sum $ getTxnAmt <$> queryStmt a (Transfer fromAccName toAccName) 
 
 instance QueryByComment Account where 
     queryStmt (Account _ _ _ _ Nothing) tc = []
-    queryStmt (Account _ _ _ _ (Just (Statement txns))) tc
-      = filter (\x -> getTxnComment x == tc) txns
+    queryStmt (Account _ _ _ _ (Just (Statement txns))) tc = filter (\x -> getTxnComment x == tc) txns
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)

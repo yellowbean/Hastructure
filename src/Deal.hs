@@ -643,6 +643,8 @@ getInits t mAssumps
     newT = t {fees = newFeeMap} 
 
 
+
+
 depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
 depositInflow (W.Collect s an) d row amap 
   = Map.adjust (A.deposit amt d (PoolInflow s)) an amap
@@ -653,21 +655,23 @@ depositInflow (W.Collect s an) d row amap
               W.CollectedRecoveries -> CF.mflowRecovery row
               W.CollectedPrepayment -> CF.mflowPrepayment row
               W.CollectedRental     -> CF.mflowRental row
+              W.CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty row
 
 depositInflow (W.CollectByPct s splitRules) d row amap    --TODO need to check 100%
   = foldr
       (\(accName,accAmt) accM -> 
-        (Map.adjust (A.deposit accAmt d (PoolInflow s)) accName) accM)
+        Map.adjust (A.deposit accAmt d (PoolInflow s)) accName accM)
       amap
       amtsToAccs
     where 
       amtsToAccs = [ (an, mulBR amt splitRate) | (splitRate, an) <- splitRules]
       amt = case s of 
-              W.CollectedInterest   -> CF.mflowInterest row
-              W.CollectedPrincipal  -> CF.mflowPrincipal row
-              W.CollectedRecoveries -> CF.mflowRecovery row
-              W.CollectedPrepayment -> CF.mflowPrepayment row
-              W.CollectedRental     -> CF.mflowRental row
+              CollectedInterest   -> CF.mflowInterest row
+              CollectedPrincipal  -> CF.mflowPrincipal row
+              CollectedRecoveries -> CF.mflowRecovery row
+              CollectedPrepayment -> CF.mflowPrepayment row
+              CollectedRental     -> CF.mflowRental row
+              CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty row
 
 depositInflowByRules :: [W.CollectionRule] -> Date -> CF.TsRow -> Map.Map AccountName A.Account ->  Map.Map AccountName A.Account
 depositInflowByRules rs d row amap 

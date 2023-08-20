@@ -44,8 +44,8 @@ calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
                                 eval ra1
                             else 
                                 eval ra2 
-       A.Max ra1 ra2 -> max (eval ra1) (eval ra2)  -- `debug` ("Max result here ->>> left "++show(eval ra1)++" right "++show(eval ra2))
-       A.Min ra1 ra2 -> min (eval ra1) (eval ra2)
+       A.Max ras -> maximum' $ eval <$> ras
+       A.Min ras -> minimum' $ eval <$> ras
 
 patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
@@ -178,7 +178,7 @@ queryDeal t s =
     LedgerBalance ans ->
       case ledgers t of 
         Nothing -> 0 
-        Just ledgersM -> sum $ LD.ledgBalance <$> (ledgersM Map.!) <$> ans
+        Just ledgersM -> sum $ LD.ledgBalance . (ledgersM Map.!) <$> ans
     
     ReserveExcessAt d ans ->
       max 
@@ -216,8 +216,9 @@ queryDeal t s =
                         CollectedInterest -> CF.mflowInterest 
                         CollectedPrincipal -> CF.mflowPrincipal 
                         CollectedPrepayment -> CF.mflowPrepayment
-                        CollectedRecoveries -> CF.mflowRecovery)    
-                      subflow  -- `debug` ("SDED"++ show fromDay ++ show asOfDay ++"Pool Collection Histroy"++show subflow)
+                        CollectedRecoveries -> CF.mflowRecovery
+                        CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty)
+                      subflow  
         subflow = case P.futureCf (pool t) of
                     Nothing ->  []
                     Just _futureCf -> 

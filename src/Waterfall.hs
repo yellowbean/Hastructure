@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,ActionWhen(..),BookLedgerType(..),ExtraSupport(..))
+  ,ActionWhen(..),BookType(..),ExtraSupport(..))
   where
 
 import GHC.Generics
@@ -54,6 +54,7 @@ instance FromJSONKey ActionWhen where
 
 data BookType = PDL DealStats [(LedgerName,DealStats)] --Reverse PDL Debit reference, [(name,cap reference)]
               | ByAccountDraw LedgerName
+              | ByDS          LedgerName DealStats 
               deriving (Show,Generic)
 
 data ExtraSupport = SupportAccount AccountName (Maybe BookType)
@@ -88,15 +89,15 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName 
             | LiqAccrue CE.LiquidityProviderName 
             -- Swap
-            | SwapAccrue CeName
-            | SwapReceive AccountName CeName
-            | SwapPay AccountName CeName
-            | SwapSettle AccountName CeName
+            | SwapAccrue CeName                 -- ^ calculate the net amount of swap
+            | SwapReceive AccountName CeName    -- ^ receive amount from net amount of swap and deposit to account
+            | SwapPay AccountName CeName        -- ^ pay out net amount from account 
+            | SwapSettle AccountName CeName     -- ^ pay & receive net amount of swap with account
             -- Record booking
             | BookBy BookType
             -- Pre
-            | ActionWithPre L.Pre [Action] 
-            | ActionWithPre2 L.Pre [Action] [Action]
+            | ActionWithPre L.Pre [Action]            -- ^ execute actions if <pre> is true 
+            | ActionWithPre2 L.Pre [Action] [Action]  -- ^ execute action1 if <pre> is true ,else execute action2 
             -- Trigger
             | RunTrigger DealCycle Int
             -- Debug

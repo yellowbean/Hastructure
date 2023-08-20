@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
                     ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR,ApplyAssumptionType(..)
@@ -39,12 +40,12 @@ lookupAssumptionByIdx sbi i
         Just (_, aps ) ->  aps
         Nothing -> []
 
-data ApplyAssumptionType = PoolLevel AssumptionLists 
-                         | ByIndex [StratificationByIdx] AssumptionLists
+data ApplyAssumptionType = PoolLevel AssumptionLists                       -- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratificationByIdx] AssumptionLists   -- ^ assumption which only apply to a set of assets in the pool
                          deriving (Show,Generic)
 
-data AssumptionInput = Single ApplyAssumptionType
-                     | Multiple (Map.Map String ApplyAssumptionType)
+data AssumptionInput = Single ApplyAssumptionType                          -- ^ one assumption request
+                     | Multiple (Map.Map String ApplyAssumptionType)       -- ^ multiple assumption request in a single request
                      deriving (Show,Generic)
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
@@ -139,18 +140,18 @@ getIndexFromRateAssumption (RateFlat idx _) = idx
 
 lookupRate :: [RateAssumption] -> Floater -> Date -> IRate 
 lookupRate rAssumps (index,spd) d
-  = case find (\x -> (getIndexFromRateAssumption x) == index ) rAssumps of 
-      Just (RateCurve _ ts) -> spd + (fromRational (getValByDate ts Inc d))
+  = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
+      Just (RateCurve _ ts) -> spd + fromRational (getValByDate ts Inc d)
       Just (RateFlat _ r) -> r + spd
       Nothing -> error $ "Failed to find Index "++show index
 
 getRateAssumption :: [AssumptionBuilder] -> Index -> Maybe AssumptionBuilder
 getRateAssumption assumps idx
-  = find (\x ->
-            case x of
-              InterestRateCurve _idx _ -> idx == _idx 
-              InterestRateConstant _idx _ -> idx == _idx
-              _ -> False) assumps
+  = find (\case
+           (InterestRateCurve _idx _) -> idx == _idx 
+           (InterestRateConstant _idx _) -> idx == _idx
+           _ -> False)
+         assumps
 
 
 

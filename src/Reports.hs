@@ -64,7 +64,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap } d
         (performingBal,dBal,rBal) = case P.futureCf pool of
                          Nothing -> let 
                                       _dbal = queryDeal t CurrentPoolDefaultedBalance
-                                      _pbal = (queryDeal t CurrentPoolBalance) - _dbal
+                                      _pbal = queryDeal t CurrentPoolBalance - _dbal
                                       _issuancePbal = case P.issuanceStat pool of
                                                         Nothing -> 0
                                                         Just statMap -> Map.findWithDefault 0 IssuanceBalance statMap

@@ -356,6 +356,7 @@ data PoolSource = CollectedInterest
                 | CollectedPrincipal
                 | CollectedRecoveries
                 | CollectedPrepayment
+                | CollectedPrepaymentPenalty
                 | CollectedRental
                 deriving (Show,Ord,Read,Eq, Generic)
 
@@ -490,11 +491,12 @@ data Ts = FloatCurve [TsPoint Rational]
 data RangeType = II | IE | EI | EE | NO_IE
 data CutoffType = Inc | Exc
 
+type BookItems = [BookItem]
+
 data BookItem = Item String Balance 
-              | ParentItem String [BookItem]
+              | ParentItem String BookItems
               deriving (Show,Read,Generic)
 
-type BookItems = [BookItem]
 
 data BalanceSheetReport = BalanceSheetReport {
                         asset :: BookItems
@@ -509,7 +511,7 @@ data CashflowReport = CashflowReport {
                      ,net :: Balance
                      ,startDate :: Date 
                      ,endDate :: Date }
-                deriving (Show,Read,Generic)
+                     deriving (Show,Read,Generic)
 
 data ResultComponent = CallAt Date
                   | DealStatusChangeTo Date DealStatus DealStatus
