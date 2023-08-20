@@ -63,8 +63,8 @@ setBondNewRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond 
 setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
   = b { L.bndRate = currentRate + spd }
 
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.BiStepUp _ p f1 f2) _ currentRate _ _ _ _ _ _)
-  | testPre d t p = b {L.bndRate = applyFloatRate f1 d ras}
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpByDate _ p f1 f2) _ currentRate _ _ _ _ _ _)
+  | d < p = b {L.bndRate = applyFloatRate f1 d ras}
   | otherwise = b {L.bndRate = applyFloatRate f2 d ras}
 
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
@@ -107,7 +107,7 @@ evalFloaterRate d ras (IR.Floater2 idx spd _ _ mFloor mCap mRounding)
 
 
 applyFloatRate :: L.InterestInfo -> Date -> [RateAssumption] -> IRate
-applyFloatRate (L.Floater idx spd p dc mf mc) d ras
+applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
   = case (mf,mc) of
       (Nothing,Nothing) -> _rate
       (Just f,Nothing) -> max f _rate
@@ -233,7 +233,7 @@ type RevolvingAssumption = (RevolvingPool , [AP.AssumptionBuilder])
 run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe RevolvingAssumption -> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run2 t@TestDeal{status=Ended} pcf ads _ _ _ log  = (prepareDeal t,log) `debug` ("Deal Ended")
 run2 t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
-run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad:ads)) rates calls rAssump log
+run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFlow (Just (ad:ads)) rates calls rAssump log
   | (CF.sizeCashFlowFrame poolFlow == 0) && (queryDeal t  AllAccBalance == 0) 
      = let 
          _dealAfterCleanUp = foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal")
@@ -351,11 +351,11 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
          ResetBondRate d bn -> 
              let 
                newBndMap = case rates of 
-                             Nothing -> bonds t
+                             Nothing -> error ("No rate assumption for floating bond:"++bn)
                              (Just _rates) -> Map.adjustWithKey 
                                               (\k v-> setBondNewRate t d _rates v)
                                               bn
-                                              (bonds t) -- `debug` ("Reset bond"++show bn)
+                                              bndMap -- `debug` ("Reset bond"++show bn)
              in 
                run2 t{bonds = newBndMap} poolFlow (Just ads) rates calls rAssump log
          BuildReport sd ed ->
@@ -459,13 +459,13 @@ buildCallOptions rs [] =  rs
 
 appendCollectedCF :: TestDeal a -> CF.CashFlowFrame -> TestDeal a
 appendCollectedCF t (CF.CashFlowFrame []) = t
-appendCollectedCF t@(TestDeal { pool = mpool }) cf@(CF.CashFlowFrame _trs)
+appendCollectedCF t@TestDeal { pool = mpool } cf@(CF.CashFlowFrame _trs)
   = case P.futureCf mpool of 
       Nothing -> t {pool = mpool {P.futureCf = Just cf}}
       Just _p -> t {pool = mpool {P.futureCf = Just (CF.appendCashFlow _p _trs)}}
 
 removePoolCf :: TestDeal a -> TestDeal a
-removePoolCf t@(TestDeal {pool = _pool})
+removePoolCf t@TestDeal {pool = _pool}
   = case P.futureCf _pool of 
       Nothing -> t 
       Just _cf -> t {pool = _pool {P.futureCf = Nothing}}

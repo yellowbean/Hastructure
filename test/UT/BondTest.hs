@@ -43,7 +43,7 @@ bfloat = B.Bond{B.bndName="A"
                                ,B.originDate= (T.fromGregorian 2022 1 1)
                                ,B.originRate= 0.08
                                ,B.maturityDate = Nothing}
-            ,B.bndInterestInfo= B.Floater LPR5Y 0.015 (MonthDayOfYear 1 1) DC_ACT_365F Nothing Nothing
+            ,B.bndInterestInfo= B.Floater 0.02 LPR5Y 0.015 (MonthDayOfYear 1 1) DC_ACT_365F Nothing Nothing
             ,B.bndBalance=3000
             ,B.bndRate=0.08
             ,B.bndDuePrin=0.0
@@ -154,7 +154,10 @@ bndTests = testGroup "Float Bond Tests" [
       assertEqual "" [True,False] [r1,r2]
     ,
     let 
-       bfloatResetInterval = bfloat {B.bndInterestInfo = B.Floater LPR5Y 0.015 
+       bfloatResetInterval = bfloat {B.bndInterestInfo = B.Floater 
+                                                         0.01
+                                                         LPR5Y 
+                                                         0.015 
                                                          QuarterEnd
                                                          DC_ACT_365F   
                                                          Nothing Nothing}

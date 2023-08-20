@@ -298,7 +298,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just 
   | otherwise = b {L.bndDueInt = new_due_int+int_due,L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
               where
                 dc = case bi of 
-                       L.Floater _ _ _ _dc _ _ -> _dc 
+                       L.Floater _ _ _ _ _dc _ _ -> _dc 
                        L.Fix _ _dc -> _dc 
                 new_due_int = calcInt (bond_bal+int_due) int_due_date calc_date bond_rate dc  -- `debug` ("Bond bal"++show bond_bal++">>"++show int_due_date++">>"++ show calc_date++">>"++show bond_rate)
 

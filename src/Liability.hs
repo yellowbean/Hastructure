@@ -40,13 +40,13 @@ type RateReset = DatePattern
 type StepUpDates = DatePattern 
 
 
-data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
-                  | Fix IRate DayCount                               -- ^ fixed rate
-                  | StepUpFix IRate DayCount StepUpDates Spread      -- ^ rate steps up base on dates
-                  | BiStepUp IRate Pre InterestInfo InterestInfo     -- ^ Rate can be selective base on `pre`
+data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
+                  | Fix IRate DayCount                                    -- ^ fixed rate
+                  | StepUpFix IRate DayCount StepUpDates Spread           -- ^ rate steps up base on dates
+                  | StepUpByDate IRate Date InterestInfo InterestInfo     -- ^ Rate can be selective base on `pre`
                   | InterestByYield IRate
-                  | CapRate InterestInfo IRate
-                  | FloorRate InterestInfo IRate
+                  | CapRate InterestInfo IRate                            -- ^ cap rate 
+                  | FloorRate InterestInfo IRate                          -- ^ floor rate
                   deriving (Show, Eq, Generic)
 
 data OriginalInfo = OriginalInfo {
@@ -64,15 +64,15 @@ data BondType = Sequential                              -- ^ Pass through type t
               | PAC PlannedAmorSchedule                 -- ^ bond with schedule amortization 
               | PAC_Anchor PlannedAmorSchedule [String]
               | Lockout Date                            -- ^ No principal due till date
-              | Z       
+              | Z                                       -- ^ Z tranche
               | Equity                                  -- ^ Equity type tranche
               deriving (Show, Eq, Generic)
 
 data Bond = Bond {
   bndName :: String
-  ,bndType :: BondType
-  ,bndOriginInfo :: OriginalInfo
-  ,bndInterestInfo :: InterestInfo
+  ,bndType :: BondType                 -- ^ bond type ,which describle the how principal due was calculated
+  ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
+  ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
   ,bndBalance :: Balance               -- ^ current balance
   ,bndRate :: IRate                    -- ^ current rate
   ,bndDuePrin :: Balance               -- ^ principal due
@@ -282,11 +282,11 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
 buildRateResetDates :: InterestInfo -> StartDate -> EndDate -> [Date]
 buildRateResetDates ii sd ed 
   = case ii of 
-      (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 EE sd dp ed
-      (Floater _ _ dp _ _ _) -> genSerialDatesTill2 EE sd dp ed
-      (BiStepUp _ p (Floater _ _ dp1 _ _ _) (Floater _ _ dp2 _ _ _)) -> genSerialDatesTill2 EE sd (AllDatePattern [dp1,dp2]) ed
-      (BiStepUp _ p _ (Floater _ _ dp _ _ _)) -> genSerialDatesTill2 EE sd dp ed
-      (BiStepUp _ p (Floater _ _ dp _ _ _) _ ) -> genSerialDatesTill2 EE sd dp ed
+      (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 NO_IE sd dp ed
+      (Floater _ _ _ dp _ _ _) -> genSerialDatesTill2 NO_IE sd dp ed
+      (StepUpByDate _ d (Floater _ _ _ dp1 _ _ _) (Floater _ _ _ dp2 _ _ _)) -> genSerialDatesTill2 NO_IE sd (AllDatePattern [dp1,dp2]) ed
+      (StepUpByDate _ d _ (Floater _ _ _ dp _ _ _)) -> genSerialDatesTill2 NO_IE sd dp ed
+      (StepUpByDate _ d (Floater _ _ _ dp _ _ _) _ ) -> genSerialDatesTill2 NO_IE sd dp ed
       (CapRate _ii _)  -> buildRateResetDates _ii sd ed 
       (FloorRate _ii _)  -> buildRateResetDates _ii sd ed 
       _ -> error "Failed to mach interest info when building rate reset dates"  

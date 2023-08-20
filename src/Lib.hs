@@ -192,11 +192,14 @@ weightedBy ws vs
     _ws = toRational <$> ws
     sum_weights = sum _ws
 
-daysBetween :: Date -> Date -> Integer -- start date , end date
+-- | Given a start date and a end date, return number of days between(Integer)
+daysBetween :: Date -> Date -> Integer 
 daysBetween sd ed = fromIntegral (T.diffDays ed sd)
 
+-- | Given a start date and a end date, return number of days between(Int)
 daysBetweenI :: Date -> Date -> Int 
 daysBetweenI sd ed = fromInteger $ T.diffDays ed sd
+
 
 genDates :: Date -> Period -> Int -> [Date]
 genDates start_day p n =

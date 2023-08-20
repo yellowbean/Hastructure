@@ -64,15 +64,15 @@ data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there i
 
 data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Fee
-            | CalcFee [FeeName]
-            | PayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)
-            | CalcAndPayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)
-            | PayFeeResidual (Maybe Limit) AccountName FeeName 
+            | CalcFee [FeeName]                                                            -- ^ calculate fee due amount in the fee names
+            | PayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)              -- ^ pay fee with cash from account with optional limit or extra support
+            | CalcAndPayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)       -- ^ combination of CalcFee and PayFee
+            | PayFeeResidual (Maybe Limit) AccountName FeeName                             -- ^ pay fee regardless fee due amount
             -- Bond - Interest
-            | CalcBondInt [BondName]
-            | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)
-            | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)
-            | PayIntResidual (Maybe Limit) AccountName BondName
+            | CalcBondInt [BondName]                                                       -- ^ calculate interest due amount in the bond names
+            | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay interest with cash from the account with optional limit or extra support
+            | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)    -- ^ combination of CalcInt and PayInt
+            | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
             | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond
@@ -99,7 +99,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Trigger
             | RunTrigger DealCycle Int                -- ^ update the trigger status during the waterfall execution
             -- Debug
-            | WatchVal (Maybe String) [DealStats]
+            | WatchVal (Maybe String) [DealStats]     -- ^ inspect vals during the waterfall execution
             deriving (Show,Generic)
 
 type DistributionSeq = [Action]
