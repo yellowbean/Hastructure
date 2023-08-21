@@ -32,6 +32,7 @@ import Types
       Balance )
 import Util
 import Lib
+-- import qualified Assumptions as A
 
 import Debug.Trace
 debug = flip trace
@@ -47,8 +48,7 @@ type ResetDates = [Date]
 type StartRate = IRate
 
 data RateType = Fix IRate
-              | Floater Index Spread IRate Period (Maybe Floor)
-              | Floater2 Index Spread IRate DatePattern RateFloor RateCap (Maybe (RoundingBy IRate))
+              | Floater Index Spread IRate DatePattern RateFloor RateCap (Maybe (RoundingBy IRate))
               deriving (Show,Generic)
 
 data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
@@ -57,10 +57,12 @@ data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
 
 getRateResetDates :: Date -> Date -> Maybe RateType -> Dates
 getRateResetDates _ _ Nothing = []
-getRateResetDates sd ed (Just (Floater2 _ _ _ dp _ _ _)) = genSerialDatesTill2 NO_IE sd dp ed 
+getRateResetDates sd ed (Just (Floater _ _ _ dp _ _ _)) = genSerialDatesTill2 NO_IE sd dp ed 
+
+
 
 runInterestRate :: ARM -> StartRate -> RateType -> ResetDates -> Ts -> [IRate]
-runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater2 _ spd _ _ _ _ mRoundBy) resetDates rc
+runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater _ spd _ _ _ _ mRoundBy) resetDates rc
   = sr:cappedRates
     where 
       fr:rrs = (spd +) . fromRational <$> getValByDates rc Inc resetDates

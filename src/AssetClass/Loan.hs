@@ -106,9 +106,8 @@ instance Asset Loan where
 
   getOriginRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
     = case or of
-       Fix _r -> _r
-       Floater _ _ _r _ Nothing -> _r
-       Floater _ _ _r _ (Just floor) -> max _r floor
+        Fix _r -> _r
+        Floater _ _ _r _ _ _ _ -> _r 
 
   getOriginBal pl@(PersonalLoan (LoanOriginalInfo ob _ _ _ _ _) _ _ _ _ ) = ob
 
@@ -124,7 +123,8 @@ instance Asset Loan where
 
   getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd _ ) _bal _rate _term _ )  extra
     = genDates sd p (ot+extra)
-
+  
+  -- ^ Projection cashflow for loan with Interest only and bullet principal at end
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt Current) asOfDay assumps =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
@@ -133,13 +133,7 @@ instance Asset Loan where
     where
       last_pay_date:cf_dates =  lastN (1 + rt + recovery_lag) $ sd:(getPaymentDates pl recovery_lag)
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
-      rate_vector = case or of
-                      Fix r ->  replicate cf_dates_length cr   --calcIntRateCurve DC_ACT_360 r (last_pay_date:cf_dates) -- replicate cf_dates_length cr
-                      Floater idx sprd _orate p mfloor ->
-                              case A.getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates ps Exc cf_dates
-                                Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
-                                Nothing -> replicate cf_dates_length 0.0
+      rate_vector = A.projRates or assumps cf_dates
       schedule_flow = calcCashflow pl asOfDay
       schedule_cf = map CF.tsTotalCash $ CF.getTsCashFlowFrame schedule_flow
       sum_cf = sum schedule_cf
@@ -160,6 +154,7 @@ instance Asset Loan where
       
       -- adjusted_ppy_rates = map (\x -> (toRational x) * lifetime_prepayment_pct) cf_factor
 
+  -- ^ Project cashflow for loans with prepayment/default/loss and interest rate assumptions
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt Current) asOfDay assumps =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
@@ -168,13 +163,7 @@ instance Asset Loan where
     where
       last_pay_date:cf_dates = lastN (rt + recovery_lag + 1) $ sd:(getPaymentDates pl recovery_lag)
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
-      rate_vector = case or of
-                      Fix r ->  replicate cf_dates_length cr   --calcIntRateCurve DC_ACT_360 r (last_pay_date:cf_dates) -- replicate cf_dates_length cr
-                      Floater idx sprd _orate p mfloor ->
-                              case A.getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x))   $ getValByDates ps Exc cf_dates
-                                Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
-                                Nothing -> replicate cf_dates_length 0.0
+      rate_vector = A.projRates or assumps cf_dates
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0)
                                (replicate cf_dates_length 0.0)
@@ -182,6 +171,7 @@ instance Asset Loan where
                                0
       txns = projectLoanFlow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType  -- `debug` ("rate"++show rate_vector)
 
+  -- ^ Project cashflow for defautled loans 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted (Just defaultedDate))) asOfDay assumps
     = case find f assumps of 
         Nothing -> CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]

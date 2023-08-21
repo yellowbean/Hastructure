@@ -6,11 +6,11 @@
 module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
                     ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR,ApplyAssumptionType(..)
                     ,lookupAssumptionByIdx,splitAssumptions,lookupRate
-                    ,getRateAssumption)
+                    ,getRateAssumption,projRates)
 where
 
 import Call as C
-import Lib (Ts(..),TsPoint(..),toDate)
+import Lib (Ts(..),TsPoint(..),toDate,mkRateTs)
 import Util
 import qualified Data.Map as Map 
 import Data.List
@@ -29,6 +29,7 @@ import Revolving
 import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
+import InterestRate
 debug = flip trace
 
 type AssumptionLists = [AssumptionBuilder]
@@ -112,10 +113,6 @@ splitAssumptions (a:aps) (dealAssump,assetAssump)
      BuildFinancialReport _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      AvailableAssets _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      ProjectedExpense _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
-    -- AvailableMortgage _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
-    -- AvailableLoan _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
-    -- AvailableInstallment _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
-    -- AvailableLease _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
      _  -> splitAssumptions aps (dealAssump,a:assetAssump)
 
 splitAssumptions [] r = r
@@ -153,6 +150,29 @@ getRateAssumption assumps idx
            _ -> False)
          assumps
 
+-- | project rates used by rate type ,with interest rate assumptions and observation dates
+projRates :: RateType -> [AssumptionBuilder] -> [Date] -> [IRate]
+projRates (Fix r) _ ds = replicate (length ds) r 
+projRates (Floater idx spd r dp rfloor rcap mr) assumps ds 
+  = case getRateAssumption assumps idx of
+      Nothing -> error ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
+      Just _rateAssumption -> 
+        let 
+          resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
+          ratesFromCurve = case _rateAssumption of
+                             (InterestRateCurve _ ts)   -> (\x -> spd + (fromRational x) ) <$>  (getValByDates ts Inc resetDates)
+                             (InterestRateConstant _ v) -> (spd +) <$> replicate (length resetDates) v
+          --TODO flooring and capping 
+          ratesUsedByDates =  getValByDates
+                                (mkRateTs $ zip resetDates ratesFromCurve)
+                                Inc
+                                ds
+        in 
+          case (rfloor,rcap) of 
+            (Nothing, Nothing) -> fromRational <$> ratesUsedByDates 
+            (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
+            (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
+            (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
 
 
 $(deriveJSON defaultOptions ''AssumptionBuilder)

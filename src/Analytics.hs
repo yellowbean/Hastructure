@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Analytics (calcDuration,pv,calcWAL)
+module Analytics (calcDuration,pv,calcWAL,pv2,pv3)
   where 
 import Types
 import Lib
@@ -48,3 +48,18 @@ pv pc today d amt =
    distance::Double = fromIntegral $ daysBetween today d
    discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
    factor::Double = (1 + realToFrac discount_rate) ** (distance / 365) --  `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
+
+pv2 :: IRate -> Date -> Date -> Amount -> Amount
+pv2 discount_rate today d amt =
+    mulBI amt $ 1/denominator -- `debug` ("days between->"++show d ++show today++">>>"++show distance )
+  where
+    denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
+    distance = daysBetween today d 
+
+pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
+pv3 pvCurve pricingDate ds vs 
+  = let 
+      rs = fromRational <$> getValByDates pvCurve Inc ds
+      pvs = [ pv2 r pricingDate d amt | (r,d,amt) <- zip3 rs ds vs ]
+    in 
+      sum pvs

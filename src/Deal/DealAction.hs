@@ -26,6 +26,7 @@ import AssetClass.Loan
 import AssetClass.Installment
 import qualified Call as C
 import qualified InterestRate as IR
+import qualified Analytics as AN
 
 import Deal.DealBase
 import Deal.DealQuery
@@ -118,7 +119,7 @@ calcLiquidationAmount alm pool d
                 let 
                   futureTxns = CF.getTxnAfter _futureCf d
                   earlierTxns = CF.getTxnAsOf _futureCf d
-                  pvCf = sum $ map (\x -> pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
+                  pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
                   currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
                 in 
                   pvCf + mulBI currentDefaulBal recoveryPct

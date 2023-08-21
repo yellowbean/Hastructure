@@ -92,7 +92,7 @@ getRateAssumptionByIndex ras idx
 
 evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
 evalFloaterRate _ _ (IR.Fix r) = r 
-evalFloaterRate d ras (IR.Floater2 idx spd _ _ mFloor mCap mRounding)
+evalFloaterRate d ras (IR.Floater idx spd _r _ mFloor mCap mRounding)
   = let 
       ra = getRateAssumptionByIndex ras idx 
       flooring (Just f) v = max f v 

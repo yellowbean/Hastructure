@@ -206,7 +206,7 @@ instance Ast.Asset Mortgage where
       l = length cf_dates
       rate_used = case or of
                     IR.Fix _r -> replicate l _r
-                    IR.Floater _ _ _ _ _ -> replicate l _rate
+                    IR.Floater _ _ _ _ _ _ _ -> replicate l _rate
 
       (b_flow,prin_flow,int_flow) = case ptype of
                                      Level -> calc_p_i_flow _bal pmt (last_pay_date:cf_dates) _rate
@@ -227,13 +227,12 @@ instance Ast.Asset Mortgage where
   getOriginRate (Mortgage (MortgageOriginalInfo _ or _ _ _ _ _) _ _ _ _ _ )
     = case or of
        IR.Fix _r -> _r
-       IR.Floater _ _ _r _ Nothing -> _r
-       IR.Floater _ _ _r _ (Just floor) -> max _r floor
+       IR.Floater _ _ _r _ _ _ _ -> _r 
+  
   getOriginRate (AdjustRateMortgage (MortgageOriginalInfo _ or _ _ _ _ _ ) _ _ _ _ _ _ )
     = case or of
        IR.Fix _r -> _r
-       IR.Floater _ _ _r _ Nothing -> _r
-       IR.Floater2 _ _ _r _ _ _ _ -> _r 
+       IR.Floater _ _ _r _ _ _ _ -> _r 
 
   getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) extra
     = genDates sd p (ot+extra)
@@ -270,14 +269,14 @@ instance Ast.Asset Mortgage where
     where
       last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
       cf_dates_length = length cf_dates  -- `debug` ("Last Pay Date\n"++ show last_pay_date++"SD\n"++ show sd++"ot,ct\n"++show ot++","++show rt)
-      rate_vector = case or of
-                      IR.Fix r ->  replicate cf_dates_length r
-                      IR.Floater idx sprd _orate p mfloor ->
-                              case A.getRateAssumption assumps idx of
-                                Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x)) $ getValByDates ps Exc cf_dates
-                                Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
-                                Nothing -> replicate cf_dates_length 0.0
-
+      -- rate_vector = case or of
+      --                 IR.Fix r ->  replicate cf_dates_length r
+      --                 IR.Floater idx sprd _orate p mfloor mcap mr->
+      --                         case A.getRateAssumption assumps idx of
+      --                           Just (A.InterestRateCurve idx ps) ->  map (\x -> sprd + (fromRational x)) $ getValByDates ps Exc cf_dates
+      --                           Just (A.InterestRateConstant idx v) ->  map (\x -> sprd + x) $ replicate cf_dates_length v
+      --                           Nothing -> replicate cf_dates_length 0.0
+      rate_vector = A.projRates or assumps cf_dates
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
                                (replicate cf_dates_length 0.0)
                                (replicate cf_dates_length 0.0)
@@ -330,7 +329,7 @@ instance Ast.Asset Mortgage where
       cf_dates_length = length cf_dates -- `debug` (" cf dates >>" ++ show (last_pay_date:cf_dates ))
       rate_curve = case or of
                       IR.Fix r ->  error "ARM should have floater rate"
-                      IR.Floater2 idx sprd initRate dp _ _ mRoundBy ->
+                      IR.Floater idx sprd initRate dp _ _ mRoundBy ->
                         let 
                           resetDates = genSerialDatesTill2 IE firstResetDate dp (last cf_dates)
                           projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates

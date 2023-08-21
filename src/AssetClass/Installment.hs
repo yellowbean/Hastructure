@@ -135,8 +135,7 @@ instance Asset Installment where
   getOriginRate (Installment (LoanOriginalInfo _ or _ _ _ _) _ _ _) 
     = case or of
        Fix _r -> _r
-       Floater _ _ _r _ Nothing -> _r
-       Floater _ _ _r _ (Just floor) -> max _r floor
+       Floater _ _ _r _ _ _ _ -> _r
 
   isDefaulted (Installment _ _ _ (Defaulted _)) = True
   isDefaulted (Installment _ _ _ _) = False

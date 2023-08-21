@@ -21,11 +21,11 @@ import qualified Cashflow as CF
 
 type DailyRate = Balance
 
-data AmortPlan = Level   -- for mortgage / french system
-               | Even    -- for mortgage
-               | I_P     -- interest only and principal due at last payment
-               | F_P     -- fee based 
-               | ScheduleRepayment Ts-- custom principal follow
+data AmortPlan = Level                -- ^ for mortgage / french system  -> fixed payment each period which consist of increasing princial and decreasing interest.
+               | Even                 -- ^ for linear mortgage   -> evenly distributed principal repayment
+               | I_P                  -- ^ interest only and principal due at last payment
+               | F_P                  -- ^ fee based 
+               | ScheduleRepayment Ts -- ^ custom principal follow
                deriving (Show,Generic)
 
 data Status = Current
@@ -34,11 +34,11 @@ data Status = Current
             -- | Extended (Maybe T.Day)
             deriving (Show,Generic)
 
-data PrepayPenaltyType = ByTerm Int Rate Rate
-                       | FixAmount Balance (Maybe Int)
-                       | FixPct Rate (Maybe Int)
-                       | Sliding Rate Rate
-                       | StepDown [(Int,Rate)]
+data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 1 if period < Int, use penalty rate 2 if period > Int
+                       | FixAmount Balance (Maybe Int)  -- ^ fixed penalty fee if any prepayment, or it only applies if period < Int
+                       | FixPct Rate (Maybe Int)        -- ^ fixed percentage penalty fee as percentage of prepayment, or it only applies if period < Int
+                       | Sliding Rate Rate              -- ^ starting with Rate1 at period 1 then decrease by step by rate2
+                       | StepDown [(Int,Rate)]          -- ^ first tuple (n,r) ,first n periods use penalty rate r , then next n periods use pentaly rate in next tuple
                        -- | NMonthInterest Int
                        deriving (Show,Generic)
 
