@@ -37,12 +37,12 @@ debug = flip trace
 type DueInt = Balance
 type DuePremium = Balance
 
-data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
-         | AccTxn Date Balance Amount TxnComment
-         | ExpTxn Date Balance Amount Balance TxnComment
-         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment
-         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment
-         | EntryTxn Date Balance Amount TxnComment
+data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment                   -- ^ bond transaction record for interest and principal 
+         | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
+         | ExpTxn Date Balance Amount Balance TxnComment                                   -- ^ expense transaction record
+         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment     -- ^ liquidity provider transaction record
+         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                       -- ^ interest swap transaction record
+         | EntryTxn Date Balance Amount TxnComment                                         -- ^ ledger book entry
          deriving (Show, Generic)
 
 aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance

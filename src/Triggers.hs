@@ -32,10 +32,10 @@ data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal
                    deriving (Show, Eq, Generic)
  
 data Trigger = Trigger {
-            trgCondition :: Pre
-            ,trgEffects :: TriggerEffect
-            ,trgStatus :: Bool
-            ,trgCurable :: Bool
+            trgCondition :: Pre                       -- ^ condition to trigger 
+            ,trgEffects :: TriggerEffect              -- ^ what happen if it was triggered
+            ,trgStatus :: Bool                        -- ^ if it is triggered or not 
+            ,trgCurable :: Bool                       -- ^ if it is curable trigger
             } deriving (Show, Eq, Generic)
 
 $(deriveJSON defaultOptions ''Trigger)

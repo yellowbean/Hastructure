@@ -394,6 +394,7 @@ data DealStats = CurrentBondBalance
                | FutureCurrentPoolBorrowerNum Date
                | FutureOriginalPoolBalance
                | CurrentBondBalanceOf [String]
+               | IsMostSenior String [String]
                | BondIntPaidAt Date String
                | BondsIntPaidAt Date [String]
                | BondPrinPaidAt Date String

@@ -395,12 +395,19 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
     _ -> error ("Failed to query balance of -> "++ show s)
 
 queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Bool
-queryDealBool t@TestDeal{triggers= trgs} ds = 
+queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds = 
   case ds of 
     TriggersStatusAt dealcycle idx -> 
       case trgs of 
         Just _trgs -> Trg.trgStatus $ (_trgs Map.! dealcycle) !! idx
         Nothing -> error "no trigger for this deal"
+    IsMostSenior bn bns ->
+      let 
+        bn1:bns1 =  (bndMap Map.!) <$> (bn:bns)
+      in
+        case (L.isPaidOff bn1,all L.isPaidOff bns1) of
+          (False,True) -> True
+          _ -> False
 
     _ -> error ("Failed to query bool type formula"++ show ds)
 
