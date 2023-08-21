@@ -26,7 +26,7 @@ data Ledger = Ledger {
     ,ledgStmt :: Maybe Statement    -- ^ ledger transaction history
 } deriving (Show, Generic)
 
-
+-- | Book an entry with date,amount and transaction to a ledger
 entryLog :: Amount -> Date -> TxnComment -> Ledger -> Ledger
 entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal} 
   = ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }

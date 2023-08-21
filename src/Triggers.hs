@@ -22,12 +22,12 @@ import GHC.Generics
 import qualified Liability as L
 
 
-data TriggerEffect = DealStatusTo DealStatus
-                   | DoAccrueFee FeeNames
-                   | AddTrigger Trigger 
-                   | ChangeReserveBalance String ReserveAmount
-                   | IssueBonds [L.Bond] AccountName
-                   | BuyAsset AccountName PricingMethod
+data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal status
+                   | DoAccrueFee FeeNames                       -- ^ accure fee
+                   | AddTrigger Trigger                         -- ^ add a new trigger
+                   | ChangeReserveBalance String ReserveAmount  -- ^ update reserve target balance  
+                   | IssueBonds [L.Bond] AccountName            -- ^ issue new bonds and deposit proceeds to account
+                   | BuyAsset AccountName PricingMethod         -- ^ buy asset from the assumption using funds from account
                    | TriggerEffects [TriggerEffect]
                    deriving (Show, Eq, Generic)
  

@@ -50,48 +50,47 @@ data AssumptionInput = Single ApplyAssumptionType                          -- ^ 
                      deriving (Show,Generic)
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
-                -- | MortgageByRate ([Float],[Float])
-                | PrepaymentConstant Rate
-                | PrepaymentCurve Ts
-                | PrepaymentVec [Rate]
-                | PrepaymentCPR Rate
-                | PrepaymentFactors Ts
-                | DefaultConstant Rate
-                | DefaultCurve Ts
-                | DefaultCDR Rate
-                | DefaultVec [Rate]
-                | DefaultFactors Ts
-                | Recovery (Rate,Int)
-                | RecoveryDistribution (Rate,[Rate])
-                | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
-                | PrepaymentByAging [(Int,Float)]
-                | EvenRecoveryOnDefault Float Int
-                | InterestRateConstant Index IRate
-                | InterestRateCurve Index Ts
-                | CallWhen [C.CallOption]
-                | PoolHairCut PoolSource Rate
-                -- Revolving
-                | AvailableAssets RevolvingPool [AssumptionBuilder]
-                -- | AvailableMortgage (RevolvingPool2 Mortgage) [AssumptionBuilder]
-                -- | AvailableLease (RevolvingPool2 Lease) [AssumptionBuilder]
-                -- | AvailableLoan (RevolvingPool2 Loan) [AssumptionBuilder]
-                -- | AvailableInstallment (RevolvingPool2 Installment) [AssumptionBuilder]
-                -- Lease Assumption 
-                | LeaseProjectionEnd Date
-                | LeaseBaseAnnualRate Rate
-                | LeaseBaseCurve Ts
-                | LeaseGapDays Int
-                | LeaseGapDaysByAmount [(Amount,Int)] Int
-                -- For Defaulted Asset
-                | DefaultedRecovery Rate Int [Rate]
-                -- Expense Assumption
-                | ProjectedExpense FeeName Ts
-                -- Debug 
-                | StopRunBy Date
-                | InspectOn [(DatePattern,DealStats)]
-                -- Financial Report
-                | BuildFinancialReport DatePattern
-                deriving (Show,Generic)
+                       | PrepaymentConstant Rate
+                       | PrepaymentCurve Ts
+                       | PrepaymentVec [Rate]
+                       | PrepaymentCPR Rate
+                       | PrepaymentFactors Ts
+                       | DefaultConstant Rate
+                       | DefaultCurve Ts
+                       | DefaultCDR Rate
+                       | DefaultVec [Rate]
+                       | DefaultFactors Ts
+                       | Recovery (Rate,Int)
+                       | RecoveryDistribution (Rate,[Rate])
+                       | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
+                       | PrepaymentByAging [(Int,Float)]
+                       | EvenRecoveryOnDefault Float Int
+                       | InterestRateConstant Index IRate
+                       | InterestRateCurve Index Ts
+                       | CallWhen [C.CallOption]
+                       | PoolHairCut PoolSource Rate
+                       -- Revolving
+                       | AvailableAssets RevolvingPool [AssumptionBuilder]
+                       -- | AvailableMortgage (RevolvingPool2 Mortgage) [AssumptionBuilder]
+                       -- | AvailableLease (RevolvingPool2 Lease) [AssumptionBuilder]
+                       -- | AvailableLoan (RevolvingPool2 Loan) [AssumptionBuilder]
+                       -- | AvailableInstallment (RevolvingPool2 Installment) [AssumptionBuilder]
+                       -- Lease Assumption 
+                       | LeaseProjectionEnd Date
+                       | LeaseBaseAnnualRate Rate
+                       | LeaseBaseCurve Ts
+                       | LeaseGapDays Int
+                       | LeaseGapDaysByAmount [(Amount,Int)] Int
+                       -- For Defaulted Asset
+                       | DefaultedRecovery Rate Int [Rate]
+                       -- Expense Assumption
+                       | ProjectedExpense FeeName Ts
+                       -- Debug 
+                       | StopRunBy Date
+                       | InspectOn [(DatePattern,DealStats)]
+                       -- Financial Report
+                       | BuildFinancialReport DatePattern
+                       deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))
@@ -162,7 +161,6 @@ projRates (Floater idx spd r dp rfloor rcap mr) assumps ds
           ratesFromCurve = case _rateAssumption of
                              (InterestRateCurve _ ts)   -> (\x -> spd + (fromRational x) ) <$>  (getValByDates ts Inc resetDates)
                              (InterestRateConstant _ v) -> (spd +) <$> replicate (length resetDates) v
-          --TODO flooring and capping 
           ratesUsedByDates =  getValByDates
                                 (mkRateTs $ zip resetDates ratesFromCurve)
                                 Inc

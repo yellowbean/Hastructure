@@ -336,12 +336,12 @@ parseTxn t = case tagName of
       tagName =  head sr!!1::String
       contents = head sr!!2::String
 
-data IssuanceFields = IssuanceBalance
-                    | HistoryRecoveries
-                    | HistoryInterest
-                    | HistoryPrepayment
-                    | HistoryPrincipal
-                    | HistoryRental
+data IssuanceFields = IssuanceBalance      -- ^ pool issuance balance
+                    | HistoryRecoveries    -- ^ cumulative recoveries
+                    | HistoryInterest      -- ^ cumulative interest collected
+                    | HistoryPrepayment    -- ^ cumulative prepayment collected
+                    | HistoryPrincipal     -- ^ cumulative principal collected
+                    | HistoryRental        -- ^ cumulative rental collected
                     deriving (Show,Ord,Eq,Read,Generic)
 
 instance ToJSONKey IssuanceFields where
@@ -352,17 +352,16 @@ instance FromJSONKey IssuanceFields where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
 
-data PoolSource = CollectedInterest
-                | CollectedPrincipal
-                | CollectedRecoveries
-                | CollectedPrepayment
-                | CollectedPrepaymentPenalty
-                | CollectedRental
+data PoolSource = CollectedInterest               -- ^ interest
+                | CollectedPrincipal              -- ^ schdule principal
+                | CollectedRecoveries             -- ^ recoveries 
+                | CollectedPrepayment             -- ^ prepayment
+                | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
+                | CollectedRental                 -- ^ rental from pool
                 deriving (Show,Ord,Read,Eq, Generic)
 
 
-
-data DealStats =  CurrentBondBalance
+data DealStats = CurrentBondBalance
                | CurrentPoolBalance
                | CurrentPoolBegBalance
                | CurrentPoolDefaultedBalance
