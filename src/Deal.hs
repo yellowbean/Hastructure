@@ -8,7 +8,7 @@ module Deal (run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,applicableAdjust,performAction,queryDeal
             ,setFutureCF,populateDealDates
             ,calcTargetAmount,updateLiqProvider
-            ,projAssetUnion,priceAssetUnion,accrueLiqProvider
+            ,projAssetUnion,priceAssetUnion
             ) where
 
 import qualified Accounts as A

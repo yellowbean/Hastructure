@@ -5,7 +5,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Liability
-  (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
+  (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,fv2,calcZspread,payYield

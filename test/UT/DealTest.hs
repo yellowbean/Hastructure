@@ -263,5 +263,5 @@ liqProviderTest =
       [testCase "Liq Provider Int test" $
           assertEqual ""
            (Just 100)
-           (CE.liqCredit $ accrueLiqProvider td2 (toDate "20221101") liq1)
+           (CE.liqCredit $ CE.accrueLiqProvider (toDate "20221101") liq1)
       ]

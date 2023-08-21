@@ -5,7 +5,7 @@
 
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
-  ,LiquidityProviderName,draw,repay
+  ,LiquidityProviderName,draw,repay,accrueLiqProvider
   ,LiqRepayType(..),LiqDrawType(..)
   )
   where
@@ -124,6 +124,51 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
 
       newStmt = appendStmt mStmt $ 
                            SupportTxn d newCredit amt newBal newIntDue newDuePremium LiquidationRepay
+
+accrueLiqProvider ::  Date -> LiqFacility -> LiqFacility
+accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd Nothing)
+  = accrueLiqProvider d $ liq{liqStmt = Just defaultStmt} 
+    where 
+      defaultStmt = Statement [SupportTxn sd mCredit 0 curBal dueInt duePremium Empty]
+
+accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt)
+  = liq { liqCredit = newCredit
+         ,liqStmt = newStmt
+         ,liqDueInt = newDueInt
+         ,liqDuePremium = newDueFee }
+    where 
+      accureInt = case rate of 
+                    Nothing -> 0
+                    Just r -> 
+                      let 
+                        lastAccDate = fromMaybe sd dueDate
+                        bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns mStmt
+                      in 
+                        sum $ flip mulBIR r <$> bals
+      accureFee = case prate of
+                    Nothing -> 0 
+                    Just r -> 
+                      let 
+                        lastAccDate = fromMaybe sd dueDate
+                        (_,_unAccTxns) = splitByDate (getTxns mStmt) lastAccDate EqToLeftKeepOne
+                        accBals = getUnusedBal <$> _unAccTxns 
+                        _ds = lastAccDate : tail (getDate <$> _unAccTxns)
+                        _avgBal = calcWeigthBalanceByDates accBals (_ds++[d])
+                      in 
+                        mulBIR _avgBal r
+                        
+      getUnusedBal (SupportTxn _ b _ _ _ _ _ ) = fromMaybe 0 b 
+      
+      newDueFee = accureFee + duePremium
+      newDueInt = accureInt + dueInt
+      newCredit = (\x-> x - accureInt - accureFee) <$> mCredit 
+      newStmt = appendStmt mStmt $ SupportTxn d 
+                                             newCredit
+                                             (accureInt + accureFee) 
+                                             curBal
+                                             newDueInt 
+                                             newDueFee 
+                                             (LiquidationSupportInt accureInt accureFee)
 
 
 

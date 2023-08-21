@@ -5,8 +5,7 @@
 
 module Deal.DealAction (performActionWrap,performAction,calcDueFee
                        ,testTrigger,RunContext(..),updateLiqProvider
-                       ,calcDueInt,projAssetUnion,priceAssetUnion
-                       ,accrueLiqProvider) 
+                       ,calcDueInt,projAssetUnion,priceAssetUnion) 
   where
 
 import qualified Accounts as A
@@ -233,51 +232,6 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
                      _ -> curCredit
 
 updateLiqProvider t d liq = disableLiqProvider t d liq
-
-accrueLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
-accrueLiqProvider t d liq@(CE.LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd Nothing)
-  = accrueLiqProvider t d $ liq{CE.liqStmt = Just defaultStmt} 
-    where 
-      defaultStmt = Statement [SupportTxn sd mCredit 0 curBal dueInt duePremium Empty]
-
-accrueLiqProvider t d liq@(CE.LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt)
-  = liq { CE.liqCredit = newCredit
-         ,CE.liqStmt = newStmt
-         ,CE.liqDueInt = newDueInt
-         ,CE.liqDuePremium = newDueFee }
-    where 
-      accureInt = case rate of 
-                    Nothing -> 0
-                    Just r -> 
-                      let 
-                        lastAccDate = fromMaybe sd dueDate
-                        bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns mStmt
-                      in 
-                        sum $ flip mulBIR r <$> bals
-      accureFee = case prate of
-                    Nothing -> 0 
-                    Just r -> 
-                      let 
-                        lastAccDate = fromMaybe sd dueDate
-                        (_,_unAccTxns) = splitByDate (getTxns mStmt) lastAccDate EqToLeftKeepOne
-                        accBals = getUnusedBal <$> _unAccTxns 
-                        _ds = lastAccDate : tail (getDate <$> _unAccTxns)
-                        _avgBal = calcWeigthBalanceByDates accBals (_ds++[d])
-                      in 
-                        mulBIR _avgBal r
-                        
-      getUnusedBal (SupportTxn _ b _ _ _ _ _ ) = fromMaybe 0 b 
-      
-      newDueFee = accureFee + duePremium
-      newDueInt = accureInt + dueInt
-      newCredit = (\x-> x - accureInt - accureFee) <$> mCredit 
-      newStmt = appendStmt mStmt $ SupportTxn d 
-                                             newCredit
-                                             (accureInt + accureFee) 
-                                             curBal
-                                             newDueInt 
-                                             newDueFee 
-                                             (LiquidationSupportInt accureInt accureFee)
 
 calcDueInt :: P.Asset a => TestDeal a -> Date -> L.Bond -> L.Bond
 calcDueInt t calc_date b@(L.Bond _ _ oi io _ r dp di Nothing _ lastPrinPay _ ) 
@@ -817,7 +771,7 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
 performAction d t@TestDeal{liqProvider = Just _liqProvider} (W.LiqAccrue n)
   = t {liqProvider = Just updatedLiqProvider}
     where 
-      updatedLiqProvider = Map.adjust (accrueLiqProvider t d ) n _liqProvider
+      updatedLiqProvider = Map.adjust (CE.accrueLiqProvider d ) n _liqProvider
 
 performAction d t@TestDeal{rateSwap = Just rtSwap } (W.SwapAccrue sName)
   = t { rateSwap = Just newRtSwap }
