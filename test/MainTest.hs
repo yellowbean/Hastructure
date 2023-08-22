@@ -19,6 +19,8 @@ import qualified UT.UtilTest as UtilT
 import qualified UT.AnalyticsTest as AnalyticsT
 import qualified UT.InterestRateTest as IRT
 
+import qualified DealTest.DealTest as DealTest
+
 import qualified Accounts as A
 import qualified Lib as L
 import qualified Stmt as S
@@ -73,4 +75,5 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,IRT.interestRoundingTest
                            ,AnalyticsT.walTest
                            ,AnalyticsT.durationTest
+                           ,DealTest.baseTests
                            ]

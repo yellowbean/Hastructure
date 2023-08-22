@@ -49,9 +49,9 @@ data TestDeal a = TestDeal {
   name :: String
   ,status :: DealStatus
   ,dates :: DateDesp
-  ,accounts :: Map.Map String A.Account
-  ,fees :: Map.Map String F.Fee
-  ,bonds :: Map.Map String L.Bond
+  ,accounts :: Map.Map AccountName A.Account
+  ,fees :: Map.Map FeeName F.Fee
+  ,bonds :: Map.Map BondName L.Bond
   ,pool ::  P.Pool a 
   ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
   ,collects :: [W.CollectionRule]

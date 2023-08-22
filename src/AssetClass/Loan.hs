@@ -114,6 +114,7 @@ instance Asset Loan where
   isDefaulted pl@(PersonalLoan _ _ _ _ (Defaulted _)) = True
   isDefaulted pl@(PersonalLoan _ _ _ _ _ ) = False
  
+  getOriginInfo (PersonalLoan oi cb cr rt st) = oi
   getOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = sd
   
   getRemainTerms (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = rt

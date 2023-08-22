@@ -36,9 +36,14 @@
   * Fix Amount Fees / Custom Fee Flow / Number Type Fee of a deal / Formula based fee rate 
 * Liquidity Provider 
   * line of credit/ Unlimit support 
+  * interest charge or fee charge on the credit used & unused
 * Trigger 
   * Base on Date 
   * Base on Free Formula : Bond /Pool metrics
+  * Base on Pool performance
+  * Base on any combination above
+* Interest Swap
+  * Float to Float/ Fix to Float support
 * Scenario Analysis
   * Running multiple scenarios on single deal
   * Pricing on single asset 

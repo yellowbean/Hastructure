@@ -307,12 +307,15 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
 calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = bond_bal }
 
+
 priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> [AP.AssumptionBuilder] -> PriceResult
 priceAssetUnion (ACM.MO m) d pm aps = P.priceAsset m d pm aps 
 priceAssetUnion (ACM.LO m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.IL m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.LS m) d pm aps = P.priceAsset m d pm aps
 
+
+-- | this would used in `static` revolving ,which assumes the revolving pool will decrease
 splitAssetUnion :: [Rate] -> ACM.AssetUnion -> [ACM.AssetUnion]
 splitAssetUnion rs (ACM.MO m) = [ ACM.MO a | a <- P.splitWith m rs]
 splitAssetUnion rs (ACM.LO m) = [ ACM.LO a | a <- P.splitWith m rs]

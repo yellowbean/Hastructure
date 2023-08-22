@@ -42,7 +42,7 @@ data LiqFacility = LiqFacility {
     ,liqPremiumRateType :: Maybe IR.RateType -- ^ premium rate type
     
     ,liqRate :: Maybe IRate                  -- ^ current interest rated on oustanding balance
-    ,liqPremiumRate :: Maybe IRate           -- ^ current premium rate used on credit un-used
+    ,liqPremiumRate :: Maybe IRate           -- ^ current premium rate used on credit un-used, a.k. commitment fee
     
     ,liqDueIntDate :: Maybe Date             -- ^ last day of interest/premium calculated
     
