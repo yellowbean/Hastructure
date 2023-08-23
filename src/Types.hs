@@ -271,6 +271,7 @@ data Direction = Credit
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
+                | PayPrinResidual [BondName] 
                 | PayFee FeeName
                 | SeqPayFee [FeeName] 
                 | PayFeeYield FeeName
@@ -298,6 +299,7 @@ instance ToJSON TxnComment where
   toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
   toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
   toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
   toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
   toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
   toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
@@ -546,7 +548,7 @@ class TimeSeries ts where
     cmp :: ts -> ts -> Ordering
     cmp t1 t2 = compare (getDate t1) (getDate t2)
     sameDate :: ts -> ts -> Bool
-    sameDate t1 t2 =  (getDate t1) ==  (getDate t2)
+    sameDate t1 t2 =  getDate t1 == getDate t2
     getDate :: ts -> Date
     getDates :: [ts] -> [Date]
     getDates ts = [ getDate t | t <- ts ]

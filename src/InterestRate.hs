@@ -57,6 +57,7 @@ data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
 
 getRateResetDates :: Date -> Date -> Maybe RateType -> Dates
 getRateResetDates _ _ Nothing = []
+getRateResetDates _ _ (Just (Fix _)) = []
 getRateResetDates sd ed (Just (Floater _ _ _ dp _ _ _)) = genSerialDatesTill2 NO_IE sd dp ed 
 
 
@@ -75,9 +76,9 @@ runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater _ spd _ _ _ _ mRoundB
                     scanl 
                       (\lastRate idxRate -> 
                           if isNothing pc then -- periodic cap
-                            (rounder idxRate)
+                            rounder idxRate
                           else
-                            if (lastRate + (fromMaybe 0 pc)) <= idxRate then 
+                            if lastRate + (fromMaybe 0 pc) <= idxRate then 
                               rounder $ lastRate + (fromMaybe 0 pc)
                             else 
                               rounder idxRate)

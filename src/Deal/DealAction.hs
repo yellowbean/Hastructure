@@ -222,6 +222,8 @@ disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate }
   | d > endDate = liq{CE.liqCredit = Just 0}
   | otherwise = liq
 
+disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Nothing }  = liq
+
 updateLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = curCredit} -- refresh available balance
   = disableLiqProvider t d $ liq { CE.liqCredit = newCredit } 

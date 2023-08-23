@@ -239,7 +239,7 @@ dateTests =
 liqProviderTest = 
   let 
     liq1 = CE.LiqFacility "" 
-                       CE.FixSupport
+                       CE.FixSupport 100
                        90
                        (Just 100)
 

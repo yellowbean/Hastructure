@@ -1,14 +1,14 @@
 # Changelog for Hastructure
 
-## 0.19.15
+## 0.20
 ### 2023-8-31
 * ENHANCE: add `reserve account excess/gap` to formula
-
-
+* ENHANCE: refactor bond `step up` coupon by date ,which pertains to Euro deals
+* ENHANCE: add comments to souce code and prepare to release to `Hackage`
 
 ## 0.19.12
 ### 2023-8-17
-* NEW: Add `BiStep Up` /`Cap`/`Floor` coupon type for bond
+* NEW: Add `Step Up By Date` /`Cap`/`Floor` coupon type for bond
 * NEW: Add `Prepay Penalty` attribute on `Mortgage`, penalty types includes:
   * `rate0` before `term N` and `rate1` after `term N`
   * Fixed amount in lifetime or before `term N`

@@ -28,7 +28,7 @@ import Stmt
 type LiquidityProviderName = String
 
 data LiqSupportType = ReplenishSupport DatePattern Balance    -- ^ credit will be refresh by an interval
-                    | FixSupport                              -- ^ fixed credit amount
+                    | FixSupport Balance                      -- ^ fixed credit amount
                     | ByPct DealStats Rate                    -- ^ By a pct of formula
                     | UnLimit                                 -- ^ Unlimit credit support, like insurance company
                     deriving(Show,Generic)
