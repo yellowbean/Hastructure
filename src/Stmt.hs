@@ -64,7 +64,6 @@ getTxnComment (SupportTxn _ _ _ _ _ _ t ) = t
 getTxnComment (IrsTxn _ _ _ _ _ _ t ) = t
 getTxnComment (EntryTxn _ _ _ t ) = t
 
-
 getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
 getTxnBalance (AccTxn _ t _ _ ) = t

@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
-                ,combine,mergePoolCf
+                ,combine,mergePoolCf,sumTsCF
                 ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow

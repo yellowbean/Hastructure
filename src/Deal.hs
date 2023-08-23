@@ -247,7 +247,7 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolF
              let 
                (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate poolFlow d EqToLeft 
                accs = depositPoolInflow (collects t) d collected_flow accMap  -- `debug` ("Splitting:"++show(d)++"|||"++show(collected_flow))--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
-               dAfterDeposit = (appendCollectedCF t collected_flow) {accounts=accs}   -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
+               dAfterDeposit = (appendCollectedCF d t collected_flow) {accounts=accs}   -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
                (dRunWithTrigger0,newLogs0) = runTriggers dAfterDeposit d EndCollection  
                waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
                (dAfterAction,rc,newLogs) = foldl (performActionWrap d) (dRunWithTrigger0
@@ -457,12 +457,14 @@ buildCallOptions Nothing [] =  Nothing
 buildCallOptions rs [] =  rs
 
 
-appendCollectedCF :: TestDeal a -> CF.CashFlowFrame -> TestDeal a
-appendCollectedCF t (CF.CashFlowFrame []) = t
-appendCollectedCF t@TestDeal { pool = mpool } cf@(CF.CashFlowFrame _trs)
+appendCollectedCF :: Date -> TestDeal a -> CF.CashFlowFrame -> TestDeal a
+appendCollectedCF d t (CF.CashFlowFrame []) = t
+appendCollectedCF d t@TestDeal { pool = mpool } cf@(CF.CashFlowFrame _trs)
   = case P.futureCf mpool of 
       Nothing -> t {pool = mpool {P.futureCf = Just cf}}
-      Just _p -> t {pool = mpool {P.futureCf = Just (CF.appendCashFlow _p _trs)}}
+      Just _p -> t {pool = mpool {P.futureCf = Just (CF.appendCashFlow _p mergedPoolStats)}}
+    where
+      mergedPoolStats = [CF.sumTsCF _trs d]
 
 removePoolCf :: TestDeal a -> TestDeal a
 removePoolCf t@TestDeal {pool = _pool}
