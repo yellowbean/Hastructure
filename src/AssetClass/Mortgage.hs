@@ -41,12 +41,12 @@ projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rat
                     _pdates
                     _def_rates
                     _ppy_rates
-                    (tail _current_rec) -- (replace _rec_vector recovery_lag  _new_rec) -- `debug` ("Adding TR->>>"++show(tr))
-                    (tail _current_loss) -- (replace _loss_vector recovery_lag _new_loss) -- `debug` ("Adding TR->>>"++show(tr))
+                    (tail _current_rec) 
+                    (tail _current_loss) 
                     _rates
                     (recovery_lag,recovery_rate)
                     p
-                    pt -- `debug` ("remain terms"++ show _remain_terms++">> new_bal_after_ppy"++ show _new_bal_after_ppy)
+                    pt 
                   where
                     _remain_terms = 1 + max 0 (length _pdates - recovery_lag) -- `debug` ("IN mortgage flow"++ show _remain_terms)
                     _new_default = mulBR _bal _def_rate

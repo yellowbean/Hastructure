@@ -369,7 +369,9 @@ data DealStats = CurrentBondBalance
                | CurrentPoolDefaultedBalance
                | CumulativePoolDefaultedBalance
                | CumulativePoolRecoveriesBalance
+               | CumulativeNetLoss
                | CumulativePoolDefaultedRate
+               | CumulativeNetLossRatio
                | OriginalBondBalance
                | OriginalPoolBalance
                | CurrentPoolBorrowerNum
@@ -430,6 +432,7 @@ data DealStats = CurrentBondBalance
                | Min [DealStats]
                | Sum [DealStats]
                | Substract [DealStats]
+               | Avg [DealStats]
                | Divide DealStats DealStats
                | Constant Rational
                | FloorAndCap DealStats DealStats DealStats
@@ -441,11 +444,11 @@ data DealStats = CurrentBondBalance
                deriving (Show,Eq,Ord,Read,Generic)
 
 
-data Cmp = G 
-         | GE
-         | L
-         | LE
-         | E
+data Cmp = G      -- ^ Greater than 
+         | GE     -- ^ Greater Equal than
+         | L      -- ^ Less than
+         | LE     -- ^ Less Equal than
+         | E      -- ^ Equals to
          deriving (Show,Generic,Eq)
 
 
@@ -466,7 +469,7 @@ data Pre = IfZero DealStats
          | IfDealStatus DealStatus
          | Always Bool
          | Any [Pre]
-         | All [Pre]
+         | All [Pre]                            -- ^ 
          deriving (Show,Generic,Eq)
 
 
@@ -501,19 +504,19 @@ data BookItem = Item String Balance
 
 
 data BalanceSheetReport = BalanceSheetReport {
-                        asset :: BookItems
-                        ,liability :: BookItems
-                        ,equity :: BookItems
-                        ,reportDate :: Date}
-                        deriving (Show,Read,Generic)
+                            asset :: BookItems
+                            ,liability :: BookItems
+                            ,equity :: BookItems
+                            ,reportDate :: Date}
+                            deriving (Show,Read,Generic)
  
 data CashflowReport = CashflowReport {
-                      inflow :: BookItems
-                     ,outflow :: BookItems
-                     ,net :: Balance
-                     ,startDate :: Date 
-                     ,endDate :: Date }
-                     deriving (Show,Read,Generic)
+                        inflow :: BookItems
+                        ,outflow :: BookItems
+                        ,net :: Balance
+                        ,startDate :: Date 
+                        ,endDate :: Date }
+                        deriving (Show,Read,Generic)
 
 data ResultComponent = CallAt Date
                      | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed

@@ -28,8 +28,8 @@ data InterestInfo = BankAccount IRate Date DatePattern                -- ^ fix r
 data ReserveAmount = PctReserve DealStats Rate               -- ^ target amount with reference to % of formula
                    | FixReserve Balance                      -- ^ target amount with fixed balance amount    
                    | Either Pre ReserveAmount ReserveAmount  -- ^ target amount depends on a test, if true, then use first one ,otherwise use second one
-                   | Max [ReserveAmount]                     -- ^ use higher of two
-                   | Min [ReserveAmount]                     -- ^ use lower of two
+                   | Max [ReserveAmount]                     -- ^ use higher of all reserve formulas
+                   | Min [ReserveAmount]                     -- ^ use lower of all reserve formulas
                    deriving (Show, Eq, Generic)
 
 data Account = Account {

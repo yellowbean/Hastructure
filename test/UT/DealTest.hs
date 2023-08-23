@@ -136,7 +136,7 @@ td2 = D.TestDeal {
  ,D.liqProvider = Just $ Map.fromList $
                     [("Liq1",CE.LiqFacility 
                                 "" 
-                                CE.FixSupport
+                                (CE.FixSupport 100)
                                 50
                                 (Just 100)
                                 
@@ -239,14 +239,16 @@ dateTests =
 liqProviderTest = 
   let 
     liq1 = CE.LiqFacility "" 
-                       CE.FixSupport 100
+                       (CE.FixSupport 100)
+
                        90
                        (Just 100)
 
-                       Nothing
-                       Nothing 
-                       Nothing
-                       Nothing 
+                       Nothing -- rate type
+                       Nothing -- premium rate type
+                       
+                       Nothing -- rate
+                       Nothing -- premium reate
 
                        (Just (toDate "20220201"))
                        0

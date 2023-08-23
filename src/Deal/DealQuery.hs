@@ -91,6 +91,10 @@ queryDealRate t s =
             cumuPoolDefBal = toRational (queryDeal t CumulativePoolDefaultedBalance) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
           in 
             cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
+      
+      CumulativeNetLossRatio ->
+        toRational $ (queryDeal t CumulativeNetLoss)/(queryDeal t OriginalPoolBalance)
+
       BondRate bn -> 
         toRational $ L.bndRate $ bonds t Map.! bn
       
@@ -99,11 +103,14 @@ queryDealRate t s =
           case P.futureCf (pool t) of 
             Nothing -> 0
             Just (CF.CashFlowFrame trs) -> CF.mflowRate $ last trs
+
       Constant r -> r
       Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
       Min ss -> toRational $ minimum' [ queryDealRate t s | s <- ss ]
       Substract (s1:ss) -> toRational $ (queryDealRate t s1) - (queryDealRate t (Sum ss))
       Sum ss -> toRational $ sum $ (queryDealRate t) <$> ss  
+      Avg ss -> toRational (queryDealRate t (Sum ss)) / (toRational (length ss))
+
       FloorAndCap floor cap s ->  
         let 
           [_f,_c,_s] = toRational <$> (queryDealRate t) <$> [floor,cap,s]
@@ -245,6 +252,9 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
         in
           futureRecoveries + historyRecoveries
     
+    CumulativeNetLoss ->
+         (queryDeal t CumulativePoolDefaultedBalance) - (queryDeal t CumulativePoolRecoveriesBalance)
+    
     PoolCumCollection ps ->
         let 
           futureVals = case P.futureCf (pool t) of
@@ -366,6 +376,8 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
           bs = queryDeal t (Sum dss) 
         in 
           a - bs 
+    
+    Avg dss ->  divideBI (sum ( (queryDeal t) <$> dss ))  (length dss)
 
     Constant n -> fromRational n
 

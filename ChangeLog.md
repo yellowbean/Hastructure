@@ -1,6 +1,13 @@
 # Changelog for Hastructure
 
-## 0.20
+## 0.20.0
+
+* ENHANCE: add `liquidity provider` `interest swap` to `balance sheet repot`
+* ENHANCE: add new bool query `is_most_senior_bond`
+* NEW: expose `Cumulative Net Loss` `Cumulative Net Loss Ratio` in formula
+* NEW: expose `Avg` in formula ,which can calculate average value from a list of deal stats.
+
+## 0.19.15
 ### 2023-8-31
 * ENHANCE: add `reserve account excess/gap` to formula
 * ENHANCE: refactor bond `step up` coupon by date ,which pertains to Euro deals
