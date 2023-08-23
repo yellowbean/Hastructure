@@ -8,7 +8,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowRental,mflowRate,sumPoolFlow
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
-                ,getEarlierTsCashFlowFrame
+                ,getEarlierTsCashFlowFrame, lookupSource
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
@@ -521,6 +521,16 @@ sumPoolFlow (CashFlowFrame trs) ps
       lookup CollectedRecoveries = mflowRecovery
       lookup CollectedRental = mflowRental
       lookup CollectedInterest = mflowInterest
+
+lookupSource :: TsRow -> PoolSource -> Balance 
+lookupSource tr CollectedPrepayment  = mflowPrepayment tr
+lookupSource tr CollectedPrincipal = mflowPrincipal tr
+lookupSource tr CollectedRecoveries = mflowRecovery tr
+lookupSource tr CollectedRental = mflowRental tr
+lookupSource tr CollectedInterest = mflowInterest tr
+lookupSource tr CollectedPrepaymentPenalty = mflowPrepaymentPenalty tr
+
+
 
 setPrepaymentPenalty :: Balance -> TsRow -> TsRow
 setPrepaymentPenalty bal (MortgageFlow a b c d e f g h i j k) = MortgageFlow a b c d e f g h i j (Just bal)

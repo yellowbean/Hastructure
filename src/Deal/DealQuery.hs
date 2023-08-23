@@ -28,6 +28,7 @@ import Util
 import Lib
 
 import Debug.Trace
+import Cashflow (CashFlowFrame(CashFlowFrame))
 debug = flip trace
 
 -- | calcuate target balance for a reserve account, 0 for a non-reserve account
@@ -266,6 +267,11 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
                                 Nothing -> 0.0
         in 
           futureVals + historyVals
+    
+    PoolCurCollection ps ->
+      case P.futureCf (pool t) of
+            Just (CF.CashFlowFrame trs) -> sum $ CF.lookupSource (last trs) <$> ps
+            Nothing -> 0.0
 
     CurrentBondBalanceOf bns -> sum $ L.bndBalance <$> (bndMap Map.!) <$> bns
 
