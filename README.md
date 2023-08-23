@@ -22,7 +22,8 @@
   * Corp Loan (Prepay Default Recovery Lag/Rate)
   * Rentals (Gaps between leases,Rental Curve Assumption) 
 * Multiple Waterfalls
-  * Clean up waterfall/ Pre,Post Enforce waterfall / Pool collection waterfall
+  * Clean up waterfall/ Pre,Post Enforcement waterfall
+  * Pool collection waterfall
 * Accounts
   * Reserve Account/Bank Account (with interest)/Cash Account/ Ledger(PDL)
 * Bonds/Tranches
