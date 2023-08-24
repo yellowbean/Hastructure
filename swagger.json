@@ -5393,7 +5393,35 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "CumulativeNetLoss"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "CumulativePoolDefaultedRate"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CumulativeNetLossRatio"
                                 ]
                             }
                         },
@@ -6724,6 +6752,27 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DealStats"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Avg"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/DealStats"
@@ -7079,6 +7128,34 @@
                         "required": [
                             "tag",
                             "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TillTarget"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TillSource"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
                         ]
                     },
                     {

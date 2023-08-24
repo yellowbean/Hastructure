@@ -4,8 +4,11 @@
 
 * ENHANCE: add `liquidity provider` `interest swap` to `balance sheet repot`
 * ENHANCE: add new bool query `is_most_senior_bond`
+* ENHANCE: add new balance query `PoolCurCollection` returns target pool source balance in last collected period
+* ENHANCE: refactor account transfer by `target reserve amount`
 * NEW: expose `Cumulative Net Loss` `Cumulative Net Loss Ratio` in formula
 * NEW: expose `Avg` in formula ,which can calculate average value from a list of deal stats.
+
 
 ## 0.19.15
 ### 2023-8-31

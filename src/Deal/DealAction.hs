@@ -510,7 +510,6 @@ performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.Transfer 
                    ln 
                    ledgerM
 
-
 performAction d t@TestDeal{accounts=accMap} (W.Transfer (Just limit) an1 an2 mComment) =
   t {accounts = accMapAfterDeposit}  
   where
@@ -520,6 +519,8 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer (Just limit) an1 an2 mCo
                       DuePct r -> mulBR (A.accBalance sourceAcc) r
                       DueCapAmt a -> min a (A.accBalance sourceAcc)
                       DS ds -> queryDeal t (patchDateToStats d ds)
+                      TillSource -> queryDeal t (ReserveExcessAt d [an1])
+                      TillTarget -> queryDeal t (ReserveAccGapAt d [an2])
     transferAmt = min (max formulaAmount 0) (A.accBalance sourceAcc) 
 
     accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 limit)) an1 accMap

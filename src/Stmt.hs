@@ -198,6 +198,8 @@ getFlow comment =
             Inflow
           else
             Noneflow
+      TransferBy {} -> Noneflow
+      _ -> error ("Missing in GetFlow >> "++ show comment)
 
 instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ ) = compare d1 d2

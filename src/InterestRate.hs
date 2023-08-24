@@ -29,7 +29,7 @@ import Types
       IRate,
       Dates,
       Date,
-      Balance )
+      Balance, DealStats )
 import Util
 import Lib
 -- import qualified Assumptions as A
@@ -59,7 +59,6 @@ getRateResetDates :: Date -> Date -> Maybe RateType -> Dates
 getRateResetDates _ _ Nothing = []
 getRateResetDates _ _ (Just (Fix _)) = []
 getRateResetDates sd ed (Just (Floater _ _ _ dp _ _ _)) = genSerialDatesTill2 NO_IE sd dp ed 
-
 
 
 runInterestRate :: ARM -> StartRate -> RateType -> ResetDates -> Ts -> [IRate]

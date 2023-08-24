@@ -622,6 +622,8 @@ data Limit = DuePct Rate  --
            | ClearLedger String
            | BookLedger String
            | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
+           | TillTarget
+           | TillSource
            | Multiple Limit Float -- factor of a limit
            deriving (Show,Ord,Eq,Read,Generic)
 
