@@ -7,7 +7,7 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit
                 ,InterestInfo(..),buildEarnIntAction,updateReserveBalance)
     where
 import qualified Data.Time as T
-import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,sliceTxns,getDate
+import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,getDate
             ,TxnComment(..),QueryByComment(..),getTxnComment,getTxnAmt,weightAvgBalanceByDates)
 import Types
 import Lib
@@ -64,7 +64,7 @@ depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed
                                          (yearCountFraction DC_30E_360 lastCollectDate ed) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
                             Just (Statement _txns) ->
                               let 
-                                _accrue_txns = sliceTxns _txns lastCollectDate ed
+                                _accrue_txns = sliceBy IE lastCollectDate ed _txns
                                 _bals = map getTxnBegBalance _accrue_txns ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
                                 _ds = getDates _accrue_txns
                                 _dfs = getIntervalFactors $ [lastCollectDate] ++ _ds ++ [ed]

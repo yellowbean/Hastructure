@@ -121,19 +121,19 @@ tsSplitTests =
         ,testCase "Range of Ts" $
           assertEqual "get subset of Ts between two dates"
           [cf2, cf3,cf4] $
-          rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") II
+          sliceBy II (L.toDate "20230201") (L.toDate "20230401") ts1
         ,testCase "Range of Ts" $
           assertEqual "get subset of Ts between two dates"
           [cf3,cf4] $
-          rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") EI
+          sliceBy EI (L.toDate "20230201") (L.toDate "20230401") ts1
         ,testCase "Range of Ts" $
           assertEqual "get subset of Ts between two dates"
           [cf2, cf3] $
-          rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") IE
+          sliceBy IE (L.toDate "20230201") (L.toDate "20230401") ts1
         ,testCase "Range of Ts" $
           assertEqual "get subset of Ts between two dates"
           [cf3] $
-          rangeBy ts1 (L.toDate "20230201") (L.toDate "20230401") EE
+          sliceBy EE (L.toDate "20230201") (L.toDate "20230401") ts1
       ]
 
 combineTest = 

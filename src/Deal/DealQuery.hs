@@ -233,12 +233,12 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
                         CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty)
                       subflow  
         subflow = case P.futureCf (pool t) of
-                    Nothing ->  []
-                    Just _futureCf -> 
+                    -- Just _futureCf -> 
+                    Just (CashFlowFrame trs) -> 
                         if fromDay == asOfDay then 
-                            CF.getTxnBetween2 _futureCf II fromDay asOfDay
+                          sliceBy II fromDay asOfDay trs
                         else 
-                            CF.getTxnBetween2 _futureCf EI fromDay asOfDay
+                          sliceBy EI fromDay asOfDay trs
 
     CumulativePoolDefaultedBalance ->
         let
@@ -322,7 +322,7 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
             let 
               _txn = concat [ getTxns (F.feeStmt fee) | fee <- fees ]
             in 
-              sumTxn (beforeOnDate _txn d)
+              sumTxn $ cutBy Inc Past d _txn 
     
     BondTxnAmtBy d bns mCmt -> 
       let 
@@ -334,7 +334,7 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
             let 
               _txn = concat [ getTxns (L.bndStmt bnd) | bnd <- bnds ]
             in 
-              sumTxn (beforeOnDate _txn d)
+              sumTxn $ cutBy Inc Past d _txn
 
     AccTxnAmtBy d ans mCmt -> 
       let 
@@ -346,7 +346,7 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
             let 
               _txn = concat [ getTxns (A.accStmt acc) | acc <- accs ]
             in 
-              sumTxn (beforeOnDate _txn d)
+              sumTxn $ cutBy Inc Past d _txn 
 
     BondBalanceGapAt d bName -> 
         let 

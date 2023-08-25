@@ -55,6 +55,7 @@ import Data.Aeson.Types
 import GHC.Generics
 
 import Debug.Trace
+import Cashflow (CashFlowFrame(CashFlowFrame))
 debug = flip trace
 
 calcDayToPoolDate :: TestDeal a -> Date -> Date 
@@ -70,7 +71,7 @@ getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
     (Nothing,Nothing) ->  _trs
     (Nothing,Just _ed) -> case rt of 
                              EI -> filter (\x -> CF.getDate x <= _ed) _trs
-    (Just _sd,Nothing) -> CF.getTxnAfter _projCf _sd   -- >= d
+    (Just _sd,Nothing) ->  cutBy Inc Future _sd _trs 
     (Just _sd,Just _ed) -> case rt of 
                              IE -> filter (\x -> (CF.getDate x >= _sd) && (CF.getDate x < _ed)) _trs
                              EI -> filter (\x -> (CF.getDate x > _sd) && (CF.getDate x <= _ed)) _trs
@@ -100,10 +101,10 @@ calcLiquidationAmount alm pool d
       BalanceFactor currentFactor defaultFactor ->
           case P.futureCf pool of 
             Nothing -> 0  -- `debug` ("No futureCF")
-            Just _futureCf ->
+            Just _futureCf@(CashFlowFrame trs) ->
                 let 
                   poolInflow = CF.getEarlierTsCashFlowFrame _futureCf d -- `debug` ("liq:"++show _futureCf++"D"++ show d)
-                  earlierTxns = CF.getTxnAsOf _futureCf d
+                  earlierTxns = cutBy Exc Past d trs
                   currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
                 in 
                   case poolInflow of 
@@ -114,10 +115,10 @@ calcLiquidationAmount alm pool d
       PV discountRate recoveryPct ->
           case P.futureCf pool of
             Nothing -> 0 
-            Just _futureCf ->
+            Just (CashFlowFrame trs) ->
                 let 
-                  futureTxns = CF.getTxnAfter _futureCf d
-                  earlierTxns = CF.getTxnAsOf _futureCf d
+                  futureTxns = cutBy Inc Future d trs
+                  earlierTxns = cutBy Exc Past d trs 
                   pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
                   currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
                 in 

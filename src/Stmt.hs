@@ -7,7 +7,7 @@ module Stmt
   (Statement(..),Txn(..)
    ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
-   ,sliceTxns,TxnComment(..),QueryByComment(..)
+   ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..)
   )
@@ -99,18 +99,11 @@ emptyTxn SupportTxn {} d = SupportTxn d Nothing 0 0 0 0 Empty
 emptyTxn IrsTxn {} d = IrsTxn d 0 0 0 0 0 Empty
 emptyTxn EntryTxn {} d = EntryTxn d 0 0 Empty
 
-getTxnByDate :: [Txn] -> Date -> Maybe Txn
-getTxnByDate ts d = find (\x -> d == (getDate x)) ts
-
 sliceStmt :: Maybe Statement -> Date -> Date -> Maybe Statement
 sliceStmt Nothing sd ed  = Nothing
 sliceStmt (Just (Statement txns)) sd ed 
   = Just $ Statement $ filter 
                   (\x -> ((getDate x) >= sd) && ((getDate x) <= ed)) txns 
-
-sliceTxns :: [Txn] -> Date -> Date -> [Txn]
-sliceTxns txns sd ed 
-  = filter (\x -> (getDate x)>=sd && (getDate x)<ed) txns
 
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 
@@ -122,7 +115,7 @@ weightAvgBalance :: Date -> Date -> [Txn] -> Balance -- txn has to be between sd
 weightAvgBalance sd ed txns 
   = sum $ zipWith mulBR bals dsFactor -- `debug` ("WavgBalace "++show bals++show dsFactor)
   where 
-      _txns = sliceTxns txns sd ed
+      _txns = sliceBy IE sd ed txns
       bals = (map getTxnBegBalance _txns) ++ [getTxnBalance (last _txns)]
       ds = [sd]++(map getDate _txns)++[ed] 
       dsFactor = getIntervalFactors ds  -- `debug` ("DS>>>"++show ds)

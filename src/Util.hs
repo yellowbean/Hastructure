@@ -7,7 +7,7 @@ module Util
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
-    ,replace,paddingDefault, capWith, splitByDate, rangeBy
+    ,replace,paddingDefault, capWith, splitByDate
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     ,floorWith
@@ -462,7 +462,6 @@ capWith cap xs = [ if x > cap then
 floorWith :: Ord a => a -> [a] -> [a]
 floorWith floor xs = [ max x floor | x <- xs]
 
-
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
 
@@ -484,13 +483,6 @@ splitByDate xs d st
      --     case findIndices (\x -> (getDate x) <= d) xs of
      --       [] -> (xs,[])
      --       inds -> 
-rangeBy :: TimeSeries a => [a] -> Date -> Date -> RangeType -> [a]
-rangeBy xs sd ed rt = 
-    case rt of 
-      II -> filter (\x -> (getDate x >= sd) && (getDate x <= ed)) xs  -- `debug` ("in rangeBy II")
-      IE -> filter (\x -> (getDate x >= sd) && (getDate x < ed)) xs
-      EI -> filter (\x -> (getDate x > sd) && (getDate x <= ed)) xs
-      EE -> filter (\x -> (getDate x > sd) && (getDate x < ed)) xs
     
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""

@@ -9,12 +9,11 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
                 ,getEarlierTsCashFlowFrame, lookupSource
-                ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
+                ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
-                ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
+                ,splitCashFlowFrameByDate
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
-                ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
-                ,getTxnBetween2
+                ,tsDateLT,getDate,getTxnLatestAsOf
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow
@@ -107,26 +106,6 @@ getEarlierTsCashFlowFrame :: CashFlowFrame -> Date -> Maybe TsRow
 getEarlierTsCashFlowFrame (CashFlowFrame trs) d
   = L.find (tsDateLT d) (reverse trs)
 
-getAllBeforeCashFlowFrame :: CashFlowFrame -> Date -> Maybe CashFlowFrame
-getAllBeforeCashFlowFrame cf@(CashFlowFrame trx) d
-  =
-   let
-     txn = getTxnAsOf cf d
-   in
-     case txn of
-       [] -> Nothing
-       _ -> Just (CashFlowFrame txn)
-
-getAllAfterCashFlowFrame :: CashFlowFrame -> Date -> Maybe CashFlowFrame
-getAllAfterCashFlowFrame cf@(CashFlowFrame trx) d
-  =
-   let
-     txn = getTxnAfter cf d
-   in
-     case txn of
-       [] -> Nothing
-       _ -> Just (CashFlowFrame txn)
-
 splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
 splitCashFlowFrameByDate (CashFlowFrame txns) d st
   = let 
@@ -134,18 +113,6 @@ splitCashFlowFrameByDate (CashFlowFrame txns) d st
     in 
       (CashFlowFrame ls,CashFlowFrame rs)
 
-getTxnAsOf :: CashFlowFrame -> Date -> [TsRow]
-getTxnAsOf (CashFlowFrame txn) d = filter (\x -> getDate x < d) txn
-
-getTxnAfter :: CashFlowFrame -> Date -> [TsRow]
-getTxnAfter (CashFlowFrame txn) d = filter (\x -> getDate x >= d) txn
-
-getTxnBetween2 :: CashFlowFrame -> RangeType -> Date -> Date -> [TsRow]
-getTxnBetween2 (CashFlowFrame txn) rt sd ed
-  =  case rt of 
-       II -> filter (\x -> (getDate x >= sd) && (getDate x <= ed)) txn
-       IE -> filter (\x -> (getDate x >= sd) && (getDate x < ed)) txn
-       EI -> filter (\x -> (getDate x > sd) && (getDate x <= ed)) txn
 
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame txn) d = L.find (\x -> getDate x <= d) $ reverse txn
@@ -283,9 +250,9 @@ tsOffsetDate x (LeaseFlow _d a b) = LeaseFlow (T.addDays x _d) a b
 reduceTs :: [TsRow] -> TsRow -> [TsRow]
 reduceTs [] _tr = [_tr]
 reduceTs (tr:trs) _tr 
-  | sameDate tr _tr = (addTs tr _tr):trs -- `debug` ("Same date for "++show tr ++ show _tr)
+  | sameDate tr _tr = addTs tr _tr : trs -- `debug` ("Same date for "++show tr ++ show _tr)
   -- | otherwise = (_tr:tr:trs)
-  | otherwise = (appendTs tr _tr):tr:trs  -- `debug` ("head of trs"++ show tr)
+  | otherwise = appendTs tr _tr : tr : trs  -- `debug` ("head of trs"++ show tr)
 
 firstDate :: CashFlowFrame -> Date 
 firstDate (CashFlowFrame rs) = getDate $ head rs

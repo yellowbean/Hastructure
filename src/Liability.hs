@@ -142,7 +142,7 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
   | otherwise = 
                 let
                   presentValue = foldr (\x acc -> acc + (pv rc d (S.getDate x) (S.getTxnAmt x))) 0 futureCf -- `debug` "PRICING -A"
-                  cutoffBalance = case (S.getTxnAsOf txns d) of
+                  cutoffBalance = case S.getTxnAsOf txns d of
                                       Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                                  where
                                                   fstTxn = head txns

@@ -16,7 +16,6 @@ import qualified CreditEnhancement as CE
 import qualified Hedge as HE
 import qualified Expense as F
 import qualified Liability as L
-import Util ( rangeBy )
 import Types
     ( ResultComponent(FinancialReport),
       CashflowReport(..),
@@ -25,7 +24,7 @@ import Types
       RangeType(EI),
       DealStats(CurrentPoolBalance, CurrentPoolDefaultedBalance),
       IssuanceFields(IssuanceBalance),
-      Date,
+      Date,sliceBy,
       Balance )
 import Deal.DealBase
     ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap) )
@@ -109,7 +108,7 @@ buildCashReport t@TestDeal{accounts = accs } sd ed
                    , endDate = ed }
       where 
         _txns = concat $ Map.elems $ Map.map getTxns $ Map.map A.accStmt accs
-        txns = rangeBy _txns sd ed EI 
+        txns = sliceBy EI sd ed _txns
    
         inflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Inflow)  txns
         outflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Outflow) txns

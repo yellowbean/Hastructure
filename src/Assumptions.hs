@@ -50,39 +50,40 @@ data AssumptionInput = Single ApplyAssumptionType                          -- ^ 
                      deriving (Show,Generic)
 
 data AssumptionBuilder = MortgageByAge ([Int],[Float])
-                       | PrepaymentConstant Rate
-                       | PrepaymentCurve Ts
-                       | PrepaymentVec [Rate]
-                       | PrepaymentCPR Rate
-                       | PrepaymentFactors Ts
+                       -- Default Assumption
                        | DefaultConstant Rate
                        | DefaultCurve Ts
                        | DefaultCDR Rate
                        | DefaultVec [Rate]
-                       | DefaultFactors Ts
-                       | Recovery (Rate,Int)
-                       | RecoveryDistribution (Rate,[Rate])
-                       | PrepaymentDistribution Float [Float] -- total default rate, distribution pct
+                       -- Prepayment Assumption
+                       | PrepaymentCPR Rate
+                       | PrepaymentDistribution Float [Float] 
                        | PrepaymentByAging [(Int,Float)]
-                       | EvenRecoveryOnDefault Float Int
+                       | PrepaymentConstant Rate
+                       | PrepaymentCurve Ts
+                       | PrepaymentVec [Rate]
+                       -- Interest Rate
                        | InterestRateConstant Index IRate
                        | InterestRateCurve Index Ts
-                       | CallWhen [C.CallOption]
+                       -- Exta Stress 
+                       | DefaultFactors Ts
+                       | PrepaymentFactors Ts
                        | PoolHairCut PoolSource Rate
+                       -- Call Assumption
+                       | CallWhen [C.CallOption]
                        -- Revolving
                        | AvailableAssets RevolvingPool [AssumptionBuilder]
-                       -- | AvailableMortgage (RevolvingPool2 Mortgage) [AssumptionBuilder]
-                       -- | AvailableLease (RevolvingPool2 Lease) [AssumptionBuilder]
-                       -- | AvailableLoan (RevolvingPool2 Loan) [AssumptionBuilder]
-                       -- | AvailableInstallment (RevolvingPool2 Installment) [AssumptionBuilder]
                        -- Lease Assumption 
                        | LeaseProjectionEnd Date
                        | LeaseBaseAnnualRate Rate
                        | LeaseBaseCurve Ts
                        | LeaseGapDays Int
                        | LeaseGapDaysByAmount [(Amount,Int)] Int
-                       -- For Defaulted Asset
+                       -- For Defaulted Asset/Recovery
+                       | Recovery (Rate,Int)
+                       | RecoveryDistribution (Rate,[Rate])
                        | DefaultedRecovery Rate Int [Rate]
+                       | EvenRecoveryOnDefault Float Int
                        -- Expense Assumption
                        | ProjectedExpense FeeName Ts
                        -- Debug 
@@ -95,10 +96,6 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
                       deriving (Show,Generic)
-
-data PoolAssumptionType = PpyDefault
-
-
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days

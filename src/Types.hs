@@ -19,7 +19,7 @@ module Types
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
-  ,RoundingBy(..)
+  ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),Direction(..)
   )
   
@@ -495,7 +495,10 @@ data Ts = FloatCurve [TsPoint Rational]
         deriving (Show,Eq,Ord,Read,Generic)
 
 data RangeType = II | IE | EI | EE | NO_IE
+
 data CutoffType = Inc | Exc
+
+data DateDirection = Future | Past
 
 type BookItems = [BookItem]
 
@@ -558,8 +561,22 @@ class TimeSeries ts where
     getDates ts = [ getDate t | t <- ts ]
     filterByDate :: [ts] -> Date -> [ts]
     filterByDate ts d = filter (\x -> getDate x == d ) ts
-    beforeOnDate :: [ts] -> Date -> [ts]
-    beforeOnDate ts d = filter (\x -> getDate x <= d ) ts
+    sliceBy :: RangeType -> StartDate -> EndDate -> [ts] -> [ts]
+    sliceBy rt sd ed ts
+      = case rt of 
+          II -> filter (\x -> (getDate x) >= sd && (getDate x) <= ed ) ts 
+          IE -> filter (\x -> (getDate x) >= sd  && (getDate x) < ed ) ts 
+          EI -> filter (\x -> (getDate x) > sd && (getDate x) <= ed) ts 
+          EE -> filter (\x -> (getDate x) > sd && (getDate x) < ed ) ts 
+          _  -> error "Not support NO_IE for sliceBy in TimeSeries"
+    cutBy :: CutoffType -> DateDirection -> Date -> [ts] -> [ts]
+    cutBy ct dd d ts 
+      = case (ct,dd) of
+          (Inc, Future) ->  filter (\x -> getDate x >= d) ts
+          (Inc, Past) ->  filter (\x -> getDate x <= d) ts
+          (Exc, Future) ->  filter (\x -> getDate x > d) ts
+          (Exc, Past) ->  filter (\x -> getDate x < d) ts
+
 
 class Liable lb where 
   getDue :: lb -> Balance

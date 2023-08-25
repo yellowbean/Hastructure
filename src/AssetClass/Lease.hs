@@ -43,7 +43,7 @@ accrueRentalBetween :: Date -> Date -> Ts -> Amount
 accrueRentalBetween sd ed rc@(LeftBalanceCurve tps)
   = fromRational $ sum $ zipWith (*) ints vs -- `debug` ("ds from range"++show sd++show ed++">>ints"++show ints++">>"++show vs)
    where 
-     ds = [sd]++(getDates $ rangeBy tps sd ed EE)++[ed]  -- `debug` ("in ds with rc->"++show rc++">>"++show tps++">>"++show sd++">>"++show ed)
+     ds = [sd]++(getDates $ sliceBy EE sd ed tps)++[ed]  -- `debug` ("in ds with rc->"++show rc++">>"++show tps++">>"++show sd++">>"++show ed)
      vs = init $ getValByDates rc Inc ds  
      ints = map fromIntegral $ daysInterval ds -- `debug` ("ds value ->"++show ds++"->>"++show vs)
 
