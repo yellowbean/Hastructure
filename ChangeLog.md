@@ -6,8 +6,9 @@
 * ENHANCE: add new bool query `is_most_senior_bond`
 * ENHANCE: add new balance query `PoolCurCollection` returns target pool source balance in last collected period
 * ENHANCE: refactor account transfer by `target reserve amount`
-* NEW: expose `Cumulative Net Loss` `Cumulative Net Loss Ratio` in formula
+* NEW: expose `Cumulative Net Loss` `Cumulative Net Loss Ratio` `Bond Rate` `Bond Weight Average Rate` in formula
 * NEW: expose `Avg` in formula ,which can calculate average value from a list of deal stats.
+* NEW: expose `RefRate` in bond , now bond can be setup interest rate which reference to a value of deal , could be like 100% of Pool WAC coupon , or average of bond rate of bonds etc.
 
 
 ## 0.19.15

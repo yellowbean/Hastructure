@@ -78,20 +78,20 @@ queryDealRate t s =
   fromRational $ 
     case s of
       BondFactor ->
-           toRational (queryDeal t CurrentBondBalance) / toRational (queryDeal t OriginalBondBalance)
+        toRational (queryDeal t CurrentBondBalance) / toRational (queryDeal t OriginalBondBalance)
 
       PoolFactor ->
-           toRational (queryDeal t CurrentPoolBalance)  / toRational (queryDeal t OriginalPoolBalance)
+        toRational (queryDeal t CurrentPoolBalance)  / toRational (queryDeal t OriginalPoolBalance)
 
       FutureCurrentPoolFactor asOfDay ->
-           toRational (queryDeal t FutureCurrentPoolBalance) / toRational (queryDeal t OriginalPoolBalance)
+        toRational (queryDeal t FutureCurrentPoolBalance) / toRational (queryDeal t OriginalPoolBalance)
       
       CumulativePoolDefaultedRate ->
-          let 
-            originPoolBal = toRational (queryDeal t OriginalPoolBalance) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
-            cumuPoolDefBal = toRational (queryDeal t CumulativePoolDefaultedBalance) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
-          in 
-            cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
+        let 
+          originPoolBal = toRational (queryDeal t OriginalPoolBalance) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
+          cumuPoolDefBal = toRational (queryDeal t CumulativePoolDefaultedBalance) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
+        in 
+          cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
       
       CumulativeNetLossRatio ->
         toRational $ (queryDeal t CumulativeNetLoss)/(queryDeal t OriginalPoolBalance)
@@ -99,6 +99,13 @@ queryDealRate t s =
       BondRate bn -> 
         toRational $ L.bndRate $ bonds t Map.! bn
       
+      BondWaRate bns -> 
+        let 
+          rs = toRational <$> (\bn -> (queryDealRate t (BondRate bn))) <$> bns
+          ws = toRational <$> (\bn -> (queryDeal t (CurrentBondBalanceOf [bn]))) <$> bns
+        in 
+          toRational $ sum (zipWith (+) ws rs) / (sum ws)
+
       PoolWaRate -> 
         toRational $ 
           case P.futureCf (pool t) of 

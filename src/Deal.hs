@@ -67,6 +67,12 @@ setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpByDate _ p f1 f2) _ currentRate 
   | d < p = b {L.bndRate = applyFloatRate f1 d ras}
   | otherwise = b {L.bndRate = applyFloatRate f2 d ras}
 
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _) 
+  = let 
+      rate = queryDealRate t (patchDateToStats d ds)
+    in 
+      b {L.bndRate = fromRational ((toRational rate) * (toRational factor)) }
+
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
 

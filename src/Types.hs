@@ -377,18 +377,19 @@ data DealStats = CurrentBondBalance
                | CurrentPoolBorrowerNum
                | BondFactor
                | PoolFactor
+               | BondWaRate [BondName]
                | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
                | UseCustomData String
                | PoolCumCollection [PoolSource]
                | PoolCurCollection [PoolSource]
                | AllAccBalance
-               | AccBalance [String]
+               | AccBalance [AccName]
                | LedgerBalance [String]
-               | ReserveAccGap [String]
-               | ReserveExcess [String] 
+               | ReserveAccGap [AccName]
+               | ReserveExcess [AccName] 
                | MonthsTillMaturity BondName
-               | ReserveAccGapAt Date [String] 
-               | ReserveExcessAt Date [String] 
+               | ReserveAccGapAt Date [AccName] 
+               | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance
                -- | FutureCurrentPoolBegBalance Date
                | FutureCurrentPoolBegBalance
@@ -397,28 +398,28 @@ data DealStats = CurrentBondBalance
                | FutureCurrentPoolFactor Date
                | FutureCurrentPoolBorrowerNum Date
                | FutureOriginalPoolBalance
-               | CurrentBondBalanceOf [String]
-               | IsMostSenior String [String]
-               | BondIntPaidAt Date String
-               | BondsIntPaidAt Date [String]
-               | BondPrinPaidAt Date String
-               | BondsPrinPaidAt Date [String]
+               | CurrentBondBalanceOf [BondName]
+               | IsMostSenior BondName [BondName]
+               | BondIntPaidAt Date BondName
+               | BondsIntPaidAt Date [BondName]
+               | BondPrinPaidAt Date BondName
+               | BondsPrinPaidAt Date [BondName]
                | PoolNewDefaultedAt Date
-               | BondBalanceGap String
-               | BondBalanceGapAt Date String
-               | FeePaidAt Date String
-               | FeeTxnAmt [String] (Maybe TxnComment)
-               | BondTxnAmt [String] (Maybe TxnComment)
-               | AccTxnAmt  [String] (Maybe TxnComment)
-               | FeeTxnAmtBy Date [String] (Maybe TxnComment)
-               | BondTxnAmtBy Date [String] (Maybe TxnComment)
-               | AccTxnAmtBy Date [String] (Maybe TxnComment)
-               | FeesPaidAt Date [String] 
-               | CurrentDueBondInt [String]
-               | CurrentDueFee [String]
-               | LastBondIntPaid [String]
-               | LastBondPrinPaid [String]
-               | LastFeePaid [String]
+               | BondBalanceGap BondName
+               | BondBalanceGapAt Date BondName
+               | FeePaidAt Date FeeName
+               | FeeTxnAmt [FeeName] (Maybe TxnComment)
+               | BondTxnAmt [BondName] (Maybe TxnComment)
+               | AccTxnAmt  [AccName] (Maybe TxnComment)
+               | FeeTxnAmtBy Date [FeeName] (Maybe TxnComment)
+               | BondTxnAmtBy Date [BondName] (Maybe TxnComment)
+               | AccTxnAmtBy Date [AccName] (Maybe TxnComment)
+               | FeesPaidAt Date [FeeName] 
+               | CurrentDueBondInt [BondName]
+               | CurrentDueFee [FeeName]
+               | LastBondIntPaid [BondName]
+               | LastBondPrinPaid [BondName]
+               | LastFeePaid [FeeName]
                | LastPoolDefaultedBal
                | LiqCredit [String]
                | LiqBalance [String]
@@ -426,7 +427,7 @@ data DealStats = CurrentBondBalance
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatusAt DealCycle Int
                | PoolWaRate
-               | BondRate String
+               | BondRate BondName
                | Factor DealStats Rational
                | Max [DealStats]
                | Min [DealStats]

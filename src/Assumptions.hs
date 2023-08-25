@@ -161,6 +161,7 @@ projRates (Floater idx spd r dp rfloor rcap mr) assumps ds
           ratesFromCurve = case _rateAssumption of
                              (InterestRateCurve _ ts)   -> (\x -> spd + (fromRational x) ) <$>  (getValByDates ts Inc resetDates)
                              (InterestRateConstant _ v) -> (spd +) <$> replicate (length resetDates) v
+                             _ -> error ("Invalid rate type "++ show _rateAssumption)
           ratesUsedByDates =  getValByDates
                                 (mkRateTs $ zip resetDates ratesFromCurve)
                                 Inc

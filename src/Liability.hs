@@ -45,6 +45,7 @@ data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) 
                   | StepUpFix IRate DayCount StepUpDates Spread           -- ^ rate steps up base on dates
                   | StepUpByDate IRate Date InterestInfo InterestInfo     -- ^ Rate can be selective base on `pre`
                   | InterestByYield IRate
+                  | RefRate IRate DealStats Float RateReset                     -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
                   deriving (Show, Eq, Generic)
@@ -126,7 +127,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt l
 
 convertToFace :: Balance -> Bond -> Balance
 convertToFace bal b@Bond{bndOriginInfo = info}
-  = bal / (originBalance info)
+  = bal / originBalance info
 
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
 fv2 discount_rate today futureDay amt 
@@ -293,6 +294,7 @@ buildRateResetDates ii sd ed
       (StepUpByDate _ d (Floater _ _ _ dp _ _ _) _ ) -> genSerialDatesTill2 NO_IE sd dp ed
       (CapRate _ii _)  -> buildRateResetDates _ii sd ed 
       (FloorRate _ii _)  -> buildRateResetDates _ii sd ed 
+      (RefRate _ _ _ dp)  -> genSerialDatesTill2 NO_IE sd dp ed 
       _ -> error "Failed to mach interest info when building rate reset dates"  
        
 
