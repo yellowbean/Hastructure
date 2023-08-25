@@ -70,7 +70,7 @@ class Show a => Asset a where
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
   splitWith :: a -> [Rate] -> [a]
-  -- | !Change the origination date of an asset
+  -- | ! Change the origination date of an asset
   updateOriginDate :: a -> Date -> a
   -- | ! Internal use
   calcAlignDate :: a -> Date -> Date

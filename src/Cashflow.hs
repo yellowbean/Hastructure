@@ -73,7 +73,7 @@ instance TimeSeries TsRow where
     getDate (LeaseFlow x _ _ ) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
-                   deriving (Show,Eq,Generic)
+                     deriving (Show,Eq,Generic)
                    
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame ts) = length ts

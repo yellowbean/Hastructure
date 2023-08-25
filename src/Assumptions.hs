@@ -92,9 +92,13 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                        | BuildFinancialReport DatePattern
                        deriving (Show,Generic)
 
-data BondPricingInput = DiscountCurve Date Ts
-                      | RunZSpread Ts (Map.Map BondName (Date,Rational))
+data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
+                      | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
                       deriving (Show,Generic)
+
+data PoolAssumptionType = PpyDefault
+
+
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days

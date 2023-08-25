@@ -20,7 +20,7 @@ data CallOption = PoolBalance Balance    -- ^ triggered when pool perform balanc
                 | BondFactor Rate        -- ^ triggered when bond factor (total bonds current balance / origin balance)
                 | OnDate Date            -- ^ triggered at date
                 | AfterDate Date         -- ^ triggered when after date
-                | And [CallOption]       -- ^  triggered when all options were satisfied
+                | And [CallOption]       -- ^ triggered when all options were satisfied
                 | Or [CallOption]        -- ^ triggered when any option is satisfied
                 | PoolPv Balance         -- ^ Call when PV of pool fall below
                 | Pre Pre                -- ^ triggered when pool perform balance below threshold
