@@ -10,7 +10,7 @@ module Types
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
   ,DateDesp(..),Period(..), Threshold(..)
   ,RangeType(..),CutoffType(..),CustomDataType(..)
-  ,Balance,DealStats(..),Index(..),FormulaType(..)
+  ,Balance,DealStats(..),Index(..)
   ,DealCycle(..),Cmp(..),TimeHorizion(..)
   ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental,PrepaymentPenalty
@@ -116,18 +116,18 @@ type Floater = (Index,Spread)
 
 epocDate = Time.fromGregorian 1970 1 1
 -- http://www.deltaquants.com/day-count-conventions
-data DayCount = DC_30E_360  -- ISMA European 30S/360 Special German Eurobond Basis
-              | DC_30Ep_360 -- 30E+/360
-              | DC_ACT_360 -- Actual/360 , French
+data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurobond Basis
+              | DC_30Ep_360      -- ^ 30E+/360
+              | DC_ACT_360       -- ^ Actual/360 , French
               | DC_ACT_365
-              | DC_ACT_365A -- Actual/365 Actual 
-              | DC_ACT_365L -- Actual/365 Leap Year
-              | DC_NL_365 -- Actual/365 No leap year
-              | DC_ACT_365F -- Actual /365 Fixed, English
-              | DC_ACT_ACT -- Actual/Actual ISDA 
-              | DC_30_360_ISDA --  IDSA
-              | DC_30_360_German --  Gernman
-              | DC_30_360_US --  30/360 US Municipal , Bond basis
+              | DC_ACT_365A      -- ^ Actual/365 Actual 
+              | DC_ACT_365L      -- ^ Actual/365 Leap Year
+              | DC_NL_365        -- ^ Actual/365 No leap year
+              | DC_ACT_365F      -- ^ Actual /365 Fixed, English
+              | DC_ACT_ACT       -- ^ Actual/Actual ISDA 
+              | DC_30_360_ISDA   -- ^ IDSA
+              | DC_30_360_German -- ^ Gernman
+              | DC_30_360_US     -- ^ 30/360 US Municipal , Bond basis
               deriving (Show, Eq, Generic)
 
 data DateType = ClosingDate
@@ -135,7 +135,7 @@ data DateType = ClosingDate
               | FirstPayDate
               | RevolvingEndDate
               | RevolvingDate
-              | StatedMaturityDate
+              | StatedMaturityDate      
               deriving (Show,Ord,Eq,Generic,Read)
 
 data Period = Daily 
@@ -158,18 +158,18 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
               deriving (Show,Eq, Generic)
 
-data ActionOnDate = EarnAccInt Date AccName -- sweep bank account interest
-                  | ChangeDealStatusTo Date DealStatus
-                  | AccrueFee Date FeeName
-                  | ResetLiqProvider Date String
-                  | ResetLiqProviderRate Date String
-                  | PoolCollection Date String
-                  | RunWaterfall Date String
-                  | DealClosed Date 
-                  | InspectDS Date DealStats
-                  | ResetIRSwapRate Date String
-                  | ResetBondRate Date String
-                  | BuildReport StartDate EndDate
+data ActionOnDate = EarnAccInt Date AccName              -- sweep bank account interest
+                  | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
+                  | AccrueFee Date FeeName               -- ^ accure fee
+                  | ResetLiqProvider Date String         -- ^ reset credit for liquidity provider
+                  | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
+                  | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
+                  | RunWaterfall Date String             -- ^ execute waterfall
+                  | DealClosed Date                      
+                  | InspectDS Date DealStats             -- ^ inspect formula
+                  | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
+                  | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   deriving (Show,Generic,Read)
 
 
@@ -223,7 +223,7 @@ data DealStatus = DealAccelerated (Maybe Date)
                 | PreClosing
                 deriving (Show,Ord,Eq,Read, Generic)
 
-data DealCycle = EndCollection
+data DealCycle = EndCollection            
                | EndCollectionWF
                | BeginDistributionWF
                | EndDistributionWF
@@ -271,6 +271,7 @@ data Direction = Credit
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
+                | PayPrinResidual [BondName] 
                 | PayFee FeeName
                 | SeqPayFee [FeeName] 
                 | PayFeeYield FeeName
@@ -286,7 +287,6 @@ data TxnComment = PayInt [BondName]
                 | Empty 
                 | Tag String
                 | UsingDS DealStats
-                | UsingFormula FormulaType
                 | SwapAccure
                 | SwapInSettle
                 | SwapOutSettle
@@ -299,6 +299,7 @@ instance ToJSON TxnComment where
   toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
   toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
   toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
   toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
   toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
   toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
@@ -307,7 +308,6 @@ instance ToJSON TxnComment where
   toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
   toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
-  toJSON (UsingFormula fm) =  String $ T.pack $ "<Formula:"++ show fm++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
@@ -338,12 +338,12 @@ parseTxn t = case tagName of
       tagName =  head sr!!1::String
       contents = head sr!!2::String
 
-data IssuanceFields = IssuanceBalance
-                    | HistoryRecoveries
-                    | HistoryInterest
-                    | HistoryPrepayment
-                    | HistoryPrincipal
-                    | HistoryRental
+data IssuanceFields = IssuanceBalance      -- ^ pool issuance balance
+                    | HistoryRecoveries    -- ^ cumulative recoveries
+                    | HistoryInterest      -- ^ cumulative interest collected
+                    | HistoryPrepayment    -- ^ cumulative prepayment collected
+                    | HistoryPrincipal     -- ^ cumulative principal collected
+                    | HistoryRental        -- ^ cumulative rental collected
                     deriving (Show,Ord,Eq,Read,Generic)
 
 instance ToJSONKey IssuanceFields where
@@ -354,39 +354,42 @@ instance FromJSONKey IssuanceFields where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
 
-data PoolSource = CollectedInterest
-                | CollectedPrincipal
-                | CollectedRecoveries
-                | CollectedPrepayment
-                | CollectedRental
+data PoolSource = CollectedInterest               -- ^ interest
+                | CollectedPrincipal              -- ^ schdule principal
+                | CollectedRecoveries             -- ^ recoveries 
+                | CollectedPrepayment             -- ^ prepayment
+                | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
+                | CollectedRental                 -- ^ rental from pool
                 deriving (Show,Ord,Read,Eq, Generic)
 
 
-
-data DealStats =  CurrentBondBalance
+data DealStats = CurrentBondBalance
                | CurrentPoolBalance
                | CurrentPoolBegBalance
                | CurrentPoolDefaultedBalance
                | CumulativePoolDefaultedBalance
                | CumulativePoolRecoveriesBalance
+               | CumulativeNetLoss
                | CumulativePoolDefaultedRate
+               | CumulativeNetLossRatio
                | OriginalBondBalance
                | OriginalPoolBalance
                | CurrentPoolBorrowerNum
                | BondFactor
                | PoolFactor
+               | BondWaRate [BondName]
                | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
                | UseCustomData String
                | PoolCumCollection [PoolSource]
                | PoolCurCollection [PoolSource]
                | AllAccBalance
-               | AccBalance [String]
+               | AccBalance [AccName]
                | LedgerBalance [String]
-               | ReserveAccGap [String]
-               | ReserveExcess [String] 
+               | ReserveAccGap [AccName]
+               | ReserveExcess [AccName] 
                | MonthsTillMaturity BondName
-               | ReserveAccGapAt Date [String] 
-               | ReserveExcessAt Date [String] 
+               | ReserveAccGapAt Date [AccName] 
+               | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance
                -- | FutureCurrentPoolBegBalance Date
                | FutureCurrentPoolBegBalance
@@ -395,27 +398,28 @@ data DealStats =  CurrentBondBalance
                | FutureCurrentPoolFactor Date
                | FutureCurrentPoolBorrowerNum Date
                | FutureOriginalPoolBalance
-               | CurrentBondBalanceOf [String]
-               | BondIntPaidAt Date String
-               | BondsIntPaidAt Date [String]
-               | BondPrinPaidAt Date String
-               | BondsPrinPaidAt Date [String]
+               | CurrentBondBalanceOf [BondName]
+               | IsMostSenior BondName [BondName]
+               | BondIntPaidAt Date BondName
+               | BondsIntPaidAt Date [BondName]
+               | BondPrinPaidAt Date BondName
+               | BondsPrinPaidAt Date [BondName]
                | PoolNewDefaultedAt Date
-               | BondBalanceGap String
-               | BondBalanceGapAt Date String
-               | FeePaidAt Date String
-               | FeeTxnAmt [String] (Maybe TxnComment)
-               | BondTxnAmt [String] (Maybe TxnComment)
-               | AccTxnAmt  [String] (Maybe TxnComment)
-               | FeeTxnAmtBy Date [String] (Maybe TxnComment)
-               | BondTxnAmtBy Date [String] (Maybe TxnComment)
-               | AccTxnAmtBy Date [String] (Maybe TxnComment)
-               | FeesPaidAt Date [String] 
-               | CurrentDueBondInt [String]
-               | CurrentDueFee [String]
-               | LastBondIntPaid [String]
-               | LastBondPrinPaid [String]
-               | LastFeePaid [String]
+               | BondBalanceGap BondName
+               | BondBalanceGapAt Date BondName
+               | FeePaidAt Date FeeName
+               | FeeTxnAmt [FeeName] (Maybe TxnComment)
+               | BondTxnAmt [BondName] (Maybe TxnComment)
+               | AccTxnAmt  [AccName] (Maybe TxnComment)
+               | FeeTxnAmtBy Date [FeeName] (Maybe TxnComment)
+               | BondTxnAmtBy Date [BondName] (Maybe TxnComment)
+               | AccTxnAmtBy Date [AccName] (Maybe TxnComment)
+               | FeesPaidAt Date [FeeName] 
+               | CurrentDueBondInt [BondName]
+               | CurrentDueFee [FeeName]
+               | LastBondIntPaid [BondName]
+               | LastBondPrinPaid [BondName]
+               | LastFeePaid [FeeName]
                | LastPoolDefaultedBal
                | LiqCredit [String]
                | LiqBalance [String]
@@ -423,12 +427,13 @@ data DealStats =  CurrentBondBalance
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatusAt DealCycle Int
                | PoolWaRate
-               | BondRate String
+               | BondRate BondName
                | Factor DealStats Rational
                | Max [DealStats]
                | Min [DealStats]
                | Sum [DealStats]
                | Substract [DealStats]
+               | Avg [DealStats]
                | Divide DealStats DealStats
                | Constant Rational
                | FloorAndCap DealStats DealStats DealStats
@@ -440,11 +445,11 @@ data DealStats =  CurrentBondBalance
                deriving (Show,Eq,Ord,Read,Generic)
 
 
-data Cmp = G 
-         | GE
-         | L
-         | LE
-         | E
+data Cmp = G      -- ^ Greater than 
+         | GE     -- ^ Greater Equal than
+         | L      -- ^ Less than
+         | LE     -- ^ Less Equal than
+         | E      -- ^ Equals to
          deriving (Show,Generic,Eq)
 
 
@@ -465,7 +470,7 @@ data Pre = IfZero DealStats
          | IfDealStatus DealStatus
          | Always Bool
          | Any [Pre]
-         | All [Pre]
+         | All [Pre]                            -- ^ 
          deriving (Show,Generic,Eq)
 
 
@@ -492,37 +497,38 @@ data Ts = FloatCurve [TsPoint Rational]
 data RangeType = II | IE | EI | EE | NO_IE
 data CutoffType = Inc | Exc
 
-data BookItem = Item String Balance 
-              | ParentItem String [BookItem]
-              deriving (Show,Read,Generic)
-
 type BookItems = [BookItem]
 
+data BookItem = Item String Balance 
+              | ParentItem String BookItems
+              deriving (Show,Read,Generic)
+
+
 data BalanceSheetReport = BalanceSheetReport {
-                        asset :: BookItems
-                        ,liability :: BookItems
-                        ,equity :: BookItems
-                        ,reportDate :: Date}
-                        deriving (Show,Read,Generic)
+                            asset :: BookItems
+                            ,liability :: BookItems
+                            ,equity :: BookItems
+                            ,reportDate :: Date}
+                            deriving (Show,Read,Generic)
  
 data CashflowReport = CashflowReport {
-                      inflow :: BookItems
-                     ,outflow :: BookItems
-                     ,net :: Balance
-                     ,startDate :: Date 
-                     ,endDate :: Date }
-                deriving (Show,Read,Generic)
+                        inflow :: BookItems
+                        ,outflow :: BookItems
+                        ,net :: Balance
+                        ,startDate :: Date 
+                        ,endDate :: Date }
+                        deriving (Show,Read,Generic)
 
 data ResultComponent = CallAt Date
-                  | DealStatusChangeTo Date DealStatus DealStatus
-                  | BondOutstanding String Balance Balance -- when deal ends
-                  | BondOutstandingInt String Balance Balance -- when deal ends
-                  | InspectBal Date DealStats Balance
-                  | InspectInt Date DealStats Int
-                  | InspectRate Date DealStats Rate
-                  | InspectBool Date DealStats Bool
-                  | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
-                  deriving (Show, Generic)
+                     | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed
+                     | BondOutstanding String Balance Balance         -- ^ when deal ends,calculate oustanding principal balance 
+                     | BondOutstandingInt String Balance Balance      -- ^ when deal ends,calculate oustanding interest due 
+                     | InspectBal Date DealStats Balance
+                     | InspectInt Date DealStats Int
+                     | InspectRate Date DealStats Rate
+                     | InspectBool Date DealStats Bool
+                     | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
+                     deriving (Show, Generic)
 
 data Threshold = Below
                | EqBelow
@@ -546,7 +552,7 @@ class TimeSeries ts where
     cmp :: ts -> ts -> Ordering
     cmp t1 t2 = compare (getDate t1) (getDate t2)
     sameDate :: ts -> ts -> Bool
-    sameDate t1 t2 =  (getDate t1) ==  (getDate t2)
+    sameDate t1 t2 =  getDate t1 == getDate t2
     getDate :: ts -> Date
     getDates :: [ts] -> [Date]
     getDates ts = [ getDate t | t <- ts ]
@@ -610,18 +616,16 @@ data TimeHorizion = ByMonth
                   | ByYear
                   | ByQuarter
 
-data FormulaType = ABCD
-                 | Other
-                 deriving (Show,Ord,Eq,Read,Generic)
-
-data Limit = DuePct Balance  --
+data Limit = DuePct Rate  --
            | DueCapAmt Balance  -- due fee
-           | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
            | KeepBalAmt DealStats -- pay till a certain amount remains in an account
-           | Multiple Limit Float -- factor of a limit:w
-           | Formula FormulaType
            | DS DealStats
-           | ClearPDL String
+           | ClearLedger String
+           | BookLedger String
+           | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
+           | TillTarget
+           | TillSource
+           | Multiple Limit Float -- factor of a limit
            deriving (Show,Ord,Eq,Read,Generic)
 
 data RoundingBy a = RoundCeil a 
@@ -654,7 +658,6 @@ $(deriveJSON defaultOptions ''BalanceSheetReport)
 $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''Cmp)
 $(deriveJSON defaultOptions ''PricingMethod)
-$(deriveJSON defaultOptions ''FormulaType)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''RoundingBy)

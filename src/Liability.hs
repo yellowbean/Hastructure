@@ -5,11 +5,11 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Liability
-  (Bond(..),BondType(..),OriginalInfo(..),SinkFundSchedule(..)
+  (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,fv2,calcZspread,payYield
-  ,buildRateResetDates,convertToFace)
+  ,buildRateResetDates,convertToFace,isPaidOff)
   where
 
 import Language.Haskell.TH
@@ -40,13 +40,14 @@ type RateReset = DatePattern
 type StepUpDates = DatePattern 
 
 
-data InterestInfo = Floater Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
-                  | Fix IRate DayCount                               -- ^ fixed rate
-                  | StepUpFix IRate DayCount StepUpDates Spread      -- ^ rate steps up base on dates
-                  | BiStepUp IRate Pre InterestInfo InterestInfo     -- ^ Rate can be selective base on `pre`
+data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
+                  | Fix IRate DayCount                                    -- ^ fixed rate
+                  | StepUpFix IRate DayCount StepUpDates Spread           -- ^ rate steps up base on dates
+                  | StepUpByDate IRate Date InterestInfo InterestInfo     -- ^ Rate can be selective base on `pre`
                   | InterestByYield IRate
-                  | CapRate InterestInfo IRate
-                  | FloorRate InterestInfo IRate
+                  | RefRate IRate DealStats Float RateReset                     -- ^ interest rate depends to a formula
+                  | CapRate InterestInfo IRate                            -- ^ cap rate 
+                  | FloorRate InterestInfo IRate                          -- ^ floor rate
                   deriving (Show, Eq, Generic)
 
 data OriginalInfo = OriginalInfo {
@@ -56,23 +57,21 @@ data OriginalInfo = OriginalInfo {
   ,maturityDate :: Maybe Date      -- ^ optional maturity date
 } deriving (Show, Eq, Generic)
 
-type SinkFundSchedule = Ts
 type PlannedAmorSchedule = Ts
 
-data BondType = Sequential                              -- ^ Pass through type tranche
-              | SinkFund SinkFundSchedule
-              | PAC PlannedAmorSchedule                 -- ^ bond with schedule amortization 
-              | PAC_Anchor PlannedAmorSchedule [String]
-              | Lockout Date                            -- ^ No principal due till date
-              | Z       
-              | Equity                                  -- ^ Equity type tranche
+data BondType = Sequential                                 -- ^ Pass through type tranche
+              | PAC PlannedAmorSchedule                    -- ^ bond with schedule amortization 
+              | PAC_Anchor PlannedAmorSchedule [BondName]  -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
+              | Lockout Date                               -- ^ No principal due till date
+              | Z                                          -- ^ Z tranche
+              | Equity                                     -- ^ Equity type tranche
               deriving (Show, Eq, Generic)
 
 data Bond = Bond {
   bndName :: String
-  ,bndType :: BondType
-  ,bndOriginInfo :: OriginalInfo
-  ,bndInterestInfo :: InterestInfo
+  ,bndType :: BondType                 -- ^ bond type ,which describle the how principal due was calculated
+  ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
+  ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
   ,bndBalance :: Balance               -- ^ current balance
   ,bndRate :: IRate                    -- ^ current rate
   ,bndDuePrin :: Balance               -- ^ principal due
@@ -90,6 +89,12 @@ consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
   =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} -- `debug` ("Consoling stmt for "++ bn )
 
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} =  b  -- `0debug` ("No stmt for bond" ++ bn)
+
+-- | if no any principal due and interest due /oustanding balance ,then the bond is paid off
+isPaidOff :: Bond -> Bool
+isPaidOff b@Bond{bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
+  | bal==0 && dp==0 && di==0 = True 
+  | otherwise = False 
 
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -122,7 +127,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt l
 
 convertToFace :: Balance -> Bond -> Balance
 convertToFace bal b@Bond{bndOriginInfo = info}
-  = bal / (originBalance info)
+  = bal / originBalance info
 
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
 fv2 discount_rate today futureDay amt 
@@ -282,13 +287,14 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
 buildRateResetDates :: InterestInfo -> StartDate -> EndDate -> [Date]
 buildRateResetDates ii sd ed 
   = case ii of 
-      (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 EE sd dp ed
-      (Floater _ _ dp _ _ _) -> genSerialDatesTill2 EE sd dp ed
-      (BiStepUp _ p (Floater _ _ dp1 _ _ _) (Floater _ _ dp2 _ _ _)) -> genSerialDatesTill2 EE sd (AllDatePattern [dp1,dp2]) ed
-      (BiStepUp _ p _ (Floater _ _ dp _ _ _)) -> genSerialDatesTill2 EE sd dp ed
-      (BiStepUp _ p (Floater _ _ dp _ _ _) _ ) -> genSerialDatesTill2 EE sd dp ed
+      (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 NO_IE sd dp ed
+      (Floater _ _ _ dp _ _ _) -> genSerialDatesTill2 NO_IE sd dp ed
+      (StepUpByDate _ d (Floater _ _ _ dp1 _ _ _) (Floater _ _ _ dp2 _ _ _)) -> genSerialDatesTill2 NO_IE sd (AllDatePattern [dp1,dp2]) ed
+      (StepUpByDate _ d _ (Floater _ _ _ dp _ _ _)) -> genSerialDatesTill2 NO_IE sd dp ed
+      (StepUpByDate _ d (Floater _ _ _ dp _ _ _) _ ) -> genSerialDatesTill2 NO_IE sd dp ed
       (CapRate _ii _)  -> buildRateResetDates _ii sd ed 
       (FloorRate _ii _)  -> buildRateResetDates _ii sd ed 
+      (RefRate _ _ _ dp)  -> genSerialDatesTill2 NO_IE sd dp ed 
       _ -> error "Failed to mach interest info when building rate reset dates"  
        
 

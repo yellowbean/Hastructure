@@ -119,7 +119,6 @@ instance ToSchema AP.BondPricingInput
 instance ToSchema L.PriceResult
 
 instance ToSchema DealType
-$(deriveJSON defaultOptions ''DealType)
 
 instance ToSchema AB.Mortgage
 instance ToSchema IR.ARM
@@ -148,11 +147,11 @@ instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
 instance ToSchema Pre
 instance ToSchema W.ActionWhen
+instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
-instance ToSchema W.BookLedgerType
+instance ToSchema W.BookType
 instance ToSchema W.CollectionRule
 instance ToSchema Limit
-instance ToSchema W.Satisfy
 instance ToSchema C.CallOption
 instance ToSchema CE.LiqFacility
 instance ToSchema HE.RateSwap
@@ -161,6 +160,7 @@ instance ToSchema HE.RateSwapBase
 instance ToSchema HE.CurrencySwap
 instance ToSchema CE.LiqSupportType
 instance ToSchema CE.LiqRepayType
+instance ToSchema CE.LiqDrawType
 instance ToSchema CustomDataType
 instance ToSchema DealCycle
 instance ToSchema TRG.Trigger
@@ -181,7 +181,6 @@ instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
 instance ToSchema Stmt.Direction
 instance ToSchema Stmt.TxnComment
-instance ToSchema FormulaType
 instance ToSchema AP.AssumptionBuilder
 instance ToSchema CF.TsRow
 instance ToSchema (TsPoint Balance)
@@ -291,7 +290,7 @@ engineSwagger = toOpenApi engineAPI
   & info.title .~ "Hastructure API"
   & info.version .~  T.pack (_version version1)
   & info.description ?~ "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
-  & info.license ?~ ("BSD 3")
+  & info.license ?~ "BSD 3"
 
 server2 :: Server API
 server2 = return engineSwagger 
@@ -339,3 +338,5 @@ main =
     run _p 
       $ errorMwDefJson
       $ serve (Proxy :: Proxy API) server2
+
+$(deriveJSON defaultOptions ''DealType)

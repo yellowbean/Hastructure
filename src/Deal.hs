@@ -8,7 +8,7 @@ module Deal (run2,runPool2,getInits,runDeal,ExpectReturn(..)
             ,applicableAdjust,performAction,queryDeal
             ,setFutureCF,populateDealDates
             ,calcTargetAmount,updateLiqProvider
-            ,projAssetUnion,priceAssetUnion,accrueLiqProvider
+            ,projAssetUnion,priceAssetUnion
             ) where
 
 import qualified Accounts as A
@@ -63,9 +63,15 @@ setBondNewRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond 
 setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
   = b { L.bndRate = currentRate + spd }
 
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.BiStepUp _ p f1 f2) _ currentRate _ _ _ _ _ _)
-  | testPre d t p = b {L.bndRate = applyFloatRate f1 d ras}
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpByDate _ p f1 f2) _ currentRate _ _ _ _ _ _)
+  | d < p = b {L.bndRate = applyFloatRate f1 d ras}
   | otherwise = b {L.bndRate = applyFloatRate f2 d ras}
+
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _) 
+  = let 
+      rate = queryDealRate t (patchDateToStats d ds)
+    in 
+      b {L.bndRate = fromRational ((toRational rate) * (toRational factor)) }
 
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
@@ -92,7 +98,7 @@ getRateAssumptionByIndex ras idx
 
 evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
 evalFloaterRate _ _ (IR.Fix r) = r 
-evalFloaterRate d ras (IR.Floater2 idx spd _ _ mFloor mCap mRounding)
+evalFloaterRate d ras (IR.Floater idx spd _r _ mFloor mCap mRounding)
   = let 
       ra = getRateAssumptionByIndex ras idx 
       flooring (Just f) v = max f v 
@@ -107,7 +113,7 @@ evalFloaterRate d ras (IR.Floater2 idx spd _ _ mFloor mCap mRounding)
 
 
 applyFloatRate :: L.InterestInfo -> Date -> [RateAssumption] -> IRate
-applyFloatRate (L.Floater idx spd p dc mf mc) d ras
+applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
   = case (mf,mc) of
       (Nothing,Nothing) -> _rate
       (Just f,Nothing) -> max f _rate
@@ -233,7 +239,7 @@ type RevolvingAssumption = (RevolvingPool , [AP.AssumptionBuilder])
 run2 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe RevolvingAssumption -> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run2 t@TestDeal{status=Ended} pcf ads _ _ _ log  = (prepareDeal t,log) `debug` ("Deal Ended")
 run2 t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
-run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad:ads)) rates calls rAssump log
+run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFlow (Just (ad:ads)) rates calls rAssump log
   | (CF.sizeCashFlowFrame poolFlow == 0) && (queryDeal t  AllAccBalance == 0) 
      = let 
          _dealAfterCleanUp = foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal")
@@ -247,7 +253,7 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
              let 
                (collected_flow,outstanding_flow) = CF.splitCashFlowFrameByDate poolFlow d EqToLeft 
                accs = depositPoolInflow (collects t) d collected_flow accMap  -- `debug` ("Splitting:"++show(d)++"|||"++show(collected_flow))--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
-               dAfterDeposit = (appendCollectedCF t collected_flow) {accounts=accs}   -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
+               dAfterDeposit = (appendCollectedCF d t collected_flow) {accounts=accs}   -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
                (dRunWithTrigger0,newLogs0) = runTriggers dAfterDeposit d EndCollection  
                waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("AD->"++show(ad)++"remain ads"++show(length ads))
                (dAfterAction,rc,newLogs) = foldl (performActionWrap d) (dRunWithTrigger0
@@ -351,11 +357,11 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap} poolFlow (Just (ad
          ResetBondRate d bn -> 
              let 
                newBndMap = case rates of 
-                             Nothing -> bonds t
+                             Nothing -> error ("No rate assumption for floating bond:"++bn)
                              (Just _rates) -> Map.adjustWithKey 
                                               (\k v-> setBondNewRate t d _rates v)
                                               bn
-                                              (bonds t) -- `debug` ("Reset bond"++show bn)
+                                              bndMap -- `debug` ("Reset bond"++show bn)
              in 
                run2 t{bonds = newBndMap} poolFlow (Just ads) rates calls rAssump log
          BuildReport sd ed ->
@@ -457,15 +463,17 @@ buildCallOptions Nothing [] =  Nothing
 buildCallOptions rs [] =  rs
 
 
-appendCollectedCF :: TestDeal a -> CF.CashFlowFrame -> TestDeal a
-appendCollectedCF t (CF.CashFlowFrame []) = t
-appendCollectedCF t@(TestDeal { pool = mpool }) cf@(CF.CashFlowFrame _trs)
+appendCollectedCF :: Date -> TestDeal a -> CF.CashFlowFrame -> TestDeal a
+appendCollectedCF d t (CF.CashFlowFrame []) = t
+appendCollectedCF d t@TestDeal { pool = mpool } cf@(CF.CashFlowFrame _trs)
   = case P.futureCf mpool of 
       Nothing -> t {pool = mpool {P.futureCf = Just cf}}
-      Just _p -> t {pool = mpool {P.futureCf = Just (CF.appendCashFlow _p _trs)}}
+      Just _p -> t {pool = mpool {P.futureCf = Just (CF.appendCashFlow _p mergedPoolStats)}}
+    where
+      mergedPoolStats = [CF.sumTsCF _trs d]
 
 removePoolCf :: TestDeal a -> TestDeal a
-removePoolCf t@(TestDeal {pool = _pool})
+removePoolCf t@TestDeal {pool = _pool}
   = case P.futureCf _pool of 
       Nothing -> t 
       Just _cf -> t {pool = _pool {P.futureCf = Nothing}}
@@ -643,6 +651,8 @@ getInits t mAssumps
     newT = t {fees = newFeeMap} 
 
 
+
+
 depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
 depositInflow (W.Collect s an) d row amap 
   = Map.adjust (A.deposit amt d (PoolInflow s)) an amap
@@ -653,21 +663,23 @@ depositInflow (W.Collect s an) d row amap
               W.CollectedRecoveries -> CF.mflowRecovery row
               W.CollectedPrepayment -> CF.mflowPrepayment row
               W.CollectedRental     -> CF.mflowRental row
+              W.CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty row
 
 depositInflow (W.CollectByPct s splitRules) d row amap    --TODO need to check 100%
   = foldr
       (\(accName,accAmt) accM -> 
-        (Map.adjust (A.deposit accAmt d (PoolInflow s)) accName) accM)
+        Map.adjust (A.deposit accAmt d (PoolInflow s)) accName accM)
       amap
       amtsToAccs
     where 
       amtsToAccs = [ (an, mulBR amt splitRate) | (splitRate, an) <- splitRules]
       amt = case s of 
-              W.CollectedInterest   -> CF.mflowInterest row
-              W.CollectedPrincipal  -> CF.mflowPrincipal row
-              W.CollectedRecoveries -> CF.mflowRecovery row
-              W.CollectedPrepayment -> CF.mflowPrepayment row
-              W.CollectedRental     -> CF.mflowRental row
+              CollectedInterest   -> CF.mflowInterest row
+              CollectedPrincipal  -> CF.mflowPrincipal row
+              CollectedRecoveries -> CF.mflowRecovery row
+              CollectedPrepayment -> CF.mflowPrepayment row
+              CollectedRental     -> CF.mflowRental row
+              CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty row
 
 depositInflowByRules :: [W.CollectionRule] -> Date -> CF.TsRow -> Map.Map AccountName A.Account ->  Map.Map AccountName A.Account
 depositInflowByRules rs d row amap 

@@ -12,6 +12,8 @@ import qualified Asset as P
 import qualified Data.Map as Map
 import qualified Cashflow as CF
 import qualified Accounts as A
+import qualified CreditEnhancement as CE
+import qualified Hedge as HE
 import qualified Expense as F
 import qualified Liability as L
 import Util ( rangeBy )
@@ -26,9 +28,11 @@ import Types
       Date,
       Balance )
 import Deal.DealBase
-    ( TestDeal(TestDeal, pool, fees, bonds, accounts) )
+    ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap) )
 import Deal.DealQuery ( queryDeal )
 import Deal.DealAction ( calcDueFee, calcDueInt )
+import Data.Maybe (fromMaybe)
+
 import Stmt
     ( aggByTxnComment,
       getFlow,
@@ -56,7 +60,7 @@ getItemBalance (Item _ bal) = bal
 getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
 
 buildBalanceSheet :: P.Asset a => TestDeal a -> Date -> BalanceSheetReport
-buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap } d 
+buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqProvider = liqMap, rateSwap = rsMap } d 
     = BalanceSheetReport {asset=ast,liability=liab,equity=eqty,reportDate=d}
     where 
         ---accured interest
@@ -64,7 +68,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap } d
         (performingBal,dBal,rBal) = case P.futureCf pool of
                          Nothing -> let 
                                       _dbal = queryDeal t CurrentPoolDefaultedBalance
-                                      _pbal = (queryDeal t CurrentPoolBalance) - _dbal
+                                      _pbal = queryDeal t CurrentPoolBalance - _dbal
                                       _issuancePbal = case P.issuanceStat pool of
                                                         Nothing -> 0
                                                         Just statMap -> Map.findWithDefault 0 IssuanceBalance statMap
@@ -79,15 +83,17 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap } d
                   , Item "Pool Defaulted" dBal
                   , Item "Pool Recovery" rBal]
         
-        swapToCollect = []
+        swapToCollect = [ Item ("Swap:"++rsName) rsNet | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
+                                                       , rsNet > 0 ]
         ast = accM ++ poolAst ++ swapToCollect
         --tranches
         
         bndM = [ Item bndName bndBal | (bndName,bndBal) <- Map.toList $ Map.map L.bndBalance (bonds t) ]
         bndAccPayable = [ Item ("Accured Int:"++bndName) bndAccBal | (bndName,bndAccBal) <- Map.toList (Map.map (L.bndDueInt . (calcDueInt t d)) bndMap)]
         feeToPay = [ Item ("Fee Due:"++feeName) feeDueBal | (feeName,feeDueBal) <- Map.toList (Map.map (F.feeDue . (calcDueFee t d)) feeMap)]
-        liqProviderToPay = []   --TODO
-        swapToPay = [] --TODO
+        liqProviderToPay = [ Item ("Liquidity Provider:"++liqName) liqBal | (liqName,liqBal) <- Map.toList (Map.map (CE.liqBalance . (CE.accrueLiqProvider d)) (fromMaybe Map.empty liqMap))] 
+        swapToPay = [ Item ("Swap:"++rsName) (negate rsNet) | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
+                                                   , rsNet < 0 ]
         liab = bndM ++ bndAccPayable ++ feeToPay ++ liqProviderToPay ++ swapToPay -- `debug` ("ACC BOND"++show bndAccPayable)
 
         totalAssetBal = sum $ getItemBalance <$> ast  

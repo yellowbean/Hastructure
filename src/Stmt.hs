@@ -37,12 +37,12 @@ debug = flip trace
 type DueInt = Balance
 type DuePremium = Balance
 
-data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment
-         | AccTxn Date Balance Amount TxnComment
-         | ExpTxn Date Balance Amount Balance TxnComment
-         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment
-         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment
-         | EntryTxn Date Balance Amount TxnComment
+data Txn = BondTxn Date Balance Interest Principal IRate Cash TxnComment                   -- ^ bond transaction record for interest and principal 
+         | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
+         | ExpTxn Date Balance Amount Balance TxnComment                                   -- ^ expense transaction record
+         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment     -- ^ liquidity provider transaction record
+         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                       -- ^ interest swap transaction record
+         | EntryTxn Date Balance Amount TxnComment                                         -- ^ ledger book entry
          deriving (Show, Generic)
 
 aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance
@@ -63,7 +63,6 @@ getTxnComment (ExpTxn _ _ _ _ t ) = t
 getTxnComment (SupportTxn _ _ _ _ _ _ t ) = t
 getTxnComment (IrsTxn _ _ _ _ _ _ t ) = t
 getTxnComment (EntryTxn _ _ _ t ) = t
-
 
 getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ ) = t
@@ -93,12 +92,12 @@ getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
 
 emptyTxn :: Txn -> Date -> Txn
-emptyTxn (BondTxn _ _ _ _ _ _ _ ) d = (BondTxn d 0 0 0 0 0 Empty )
-emptyTxn (AccTxn _ _ _ _  ) d = (AccTxn d 0 0 Empty )
-emptyTxn (ExpTxn _ _ _ _ _ ) d = (ExpTxn d 0 0 0 Empty )
-emptyTxn (SupportTxn _ _ _ _ _ _ _) d = (SupportTxn d Nothing 0 0 0 0 Empty)
-emptyTxn (IrsTxn _ _ _ _ _ _ _) d = IrsTxn d 0 0 0 0 0 Empty
-emptyTxn (EntryTxn _ _ _ _) d = (EntryTxn d 0 0 Empty)
+emptyTxn BondTxn {} d = BondTxn d 0 0 0 0 0 Empty
+emptyTxn AccTxn {} d = AccTxn d 0 0 Empty
+emptyTxn ExpTxn {} d = ExpTxn d 0 0 0 Empty
+emptyTxn SupportTxn {} d = SupportTxn d Nothing 0 0 0 0 Empty
+emptyTxn IrsTxn {} d = IrsTxn d 0 0 0 0 0 Empty
+emptyTxn EntryTxn {} d = EntryTxn d 0 0 Empty
 
 getTxnByDate :: [Txn] -> Date -> Maybe Txn
 getTxnByDate ts d = find (\x -> d == (getDate x)) ts
@@ -185,7 +184,6 @@ getFlow comment =
       Empty -> Noneflow 
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
-      UsingFormula _ -> Noneflow
       SwapAccure  -> Noneflow
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow
@@ -200,6 +198,8 @@ getFlow comment =
             Inflow
           else
             Noneflow
+      TransferBy {} -> Noneflow
+      _ -> error ("Missing in GetFlow >> "++ show comment)
 
 instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ ) = compare d1 d2

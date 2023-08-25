@@ -2,15 +2,15 @@
 {-# LANGUAGE DeriveGeneric       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
-                ,combine,mergePoolCf
+                ,combine,mergePoolCf,sumTsCF
                 ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
-                ,getEarlierTsCashFlowFrame
+                ,getEarlierTsCashFlowFrame, lookupSource
                 ,mflowBalance,mflowBegBalance,tsDefaultBal,getAllAfterCashFlowFrame
-                ,mflowBorrowerNum
+                ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,getAllBeforeCashFlowFrame,splitCashFlowFrameByDate
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
                 ,getTxnAsOf,tsDateLT,getDate,getTxnLatestAsOf,getTxnAfter
@@ -73,7 +73,7 @@ instance TimeSeries TsRow where
     getDate (LeaseFlow x _ _ ) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
-                   deriving (Show,Eq,Generic)
+                     deriving (Show,Eq,Generic)
                    
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame ts) = length ts
@@ -238,7 +238,7 @@ sumTsCF trs d = tsSetDate (foldl1 addTsCF trs) d -- `debug` ("Summing"++show trs
 tsTotalCash :: TsRow -> Balance
 tsTotalCash (CashFlow _ x) = x
 tsTotalCash (BondFlow _ _ a b) = a + b
-tsTotalCash (MortgageFlow x _ _ a b c _ e _ _ mPn) = a + b + c + e + (fromMaybe 0 mPn)
+tsTotalCash (MortgageFlow x _ _ a b c _ e _ _ mPn) = a + b + c + e + fromMaybe 0 mPn
 tsTotalCash (MortgageFlow2 x _ _ a b c _ _ e _) = a + b + c + e
 tsTotalCash (MortgageFlow3 x _ _ a b c _ _ _ _ e _) = a + b + c + e
 tsTotalCash (LoanFlow _ _ a b c _ e _ _) =  a + b + c + e
@@ -445,6 +445,11 @@ mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 mflowBorrowerNum (MortgageFlow _ _ _ _ _ _ _ _ _ x _) = x
 mflowBorrowerNum _ = undefined
 
+mflowPrepaymentPenalty :: TsRow -> Balance
+mflowPrepaymentPenalty (MortgageFlow _ _ _ _ _ _ _ _ _ _ (Just x)) = x
+mflowPrepaymentPenalty (MortgageFlow _ _ _ _ _ _ _ _ _ _ Nothing) = 0
+mflowPrepaymentPenalty _ = undefined
+
 mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs
   = sum $ zipWith mulBR _bals _dfs  -- `debug` ("CalcingAvgBal=>"++show sd++show ed++show txns  )
@@ -516,6 +521,16 @@ sumPoolFlow (CashFlowFrame trs) ps
       lookup CollectedRecoveries = mflowRecovery
       lookup CollectedRental = mflowRental
       lookup CollectedInterest = mflowInterest
+
+lookupSource :: TsRow -> PoolSource -> Balance 
+lookupSource tr CollectedPrepayment  = mflowPrepayment tr
+lookupSource tr CollectedPrincipal = mflowPrincipal tr
+lookupSource tr CollectedRecoveries = mflowRecovery tr
+lookupSource tr CollectedRental = mflowRental tr
+lookupSource tr CollectedInterest = mflowInterest tr
+lookupSource tr CollectedPrepaymentPenalty = mflowPrepaymentPenalty tr
+
+
 
 setPrepaymentPenalty :: Balance -> TsRow -> TsRow
 setPrepaymentPenalty bal (MortgageFlow a b c d e f g h i j k) = MortgageFlow a b c d e f g h i j (Just bal)

@@ -417,11 +417,11 @@ capTest =
       [ testCase "Cap with 2" $ 
         assertEqual "Cap with 2" 
         [1,2,2,2]
-        (capWith a 2)
+        (capWith 2 a)
       ,testCase "No Cap" $ 
         assertEqual "No Cap" 
         [1,2,3,4]
-        (capWith a 5)
+        (capWith 5 a)
       ]
 
 ts3Test = 

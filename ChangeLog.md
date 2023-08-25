@@ -1,14 +1,25 @@
 # Changelog for Hastructure
 
+## 0.20.0
+
+* ENHANCE: add `liquidity provider` `interest swap` to `balance sheet repot`
+* ENHANCE: add new bool query `is_most_senior_bond`
+* ENHANCE: add new balance query `PoolCurCollection` returns target pool source balance in last collected period
+* ENHANCE: refactor account transfer by `target reserve amount`
+* NEW: expose `Cumulative Net Loss` `Cumulative Net Loss Ratio` `Bond Rate` `Bond Weight Average Rate` in formula
+* NEW: expose `Avg` in formula ,which can calculate average value from a list of deal stats.
+* NEW: expose `RefRate` in bond , now bond can be setup interest rate which reference to a value of deal , could be like 100% of Pool WAC coupon , or average of bond rate of bonds etc.
+
+
 ## 0.19.15
 ### 2023-8-31
 * ENHANCE: add `reserve account excess/gap` to formula
-
-
+* ENHANCE: refactor bond `step up` coupon by date ,which pertains to Euro deals
+* ENHANCE: add comments to souce code and prepare to release to `Hackage`
 
 ## 0.19.12
 ### 2023-8-17
-* NEW: Add `BiStep Up` /`Cap`/`Floor` coupon type for bond
+* NEW: Add `Step Up By Date` /`Cap`/`Floor` coupon type for bond
 * NEW: Add `Prepay Penalty` attribute on `Mortgage`, penalty types includes:
   * `rate0` before `term N` and `rate1` after `term N`
   * Fixed amount in lifetime or before `term N`

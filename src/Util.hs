@@ -7,7 +7,7 @@ module Util
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
-    ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
+    ,replace,paddingDefault, capWith, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     ,floorWith
@@ -381,6 +381,7 @@ subDates rt sd ed ds
       EI -> filter (\x -> x > sd && x <= ed ) ds
       IE -> filter (\x -> x >= sd && x < ed ) ds
       EE -> filter (\x -> x > sd && x < ed ) ds
+      NO_IE -> error "Need to specify II/EI/EE/IE when subset dates vector "
 
 data SliceType = SliceAfter Date 
                | SliceOnAfter Date 
@@ -449,32 +450,18 @@ replace xs i e = case splitAt i xs of
 
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 
-  | (length xs) > s = take s xs
-  | otherwise = xs++(replicate (s - (length xs)) x)
+  | length xs > s = take s xs
+  | otherwise = xs ++ replicate (s - length xs) x
 
-capWith :: Ord a => [a] -> a -> [a]
-capWith xs cap = [ if x > cap then 
+capWith :: Ord a => a -> [a] -> [a]
+capWith cap xs = [ if x > cap then 
                     cap
                    else 
                     x | x <- xs ]
 
-floorWith :: Ord a => [a] -> a -> [a]
-floorWith xs floor = [ max x floor | x <- xs]
+floorWith :: Ord a => a -> [a] -> [a]
+floorWith floor xs = [ max x floor | x <- xs]
 
-pv2 :: IRate -> Date -> Date -> Amount -> Amount
-pv2 discount_rate today d amt =
-    mulBI amt $ 1/denominator -- `debug` ("days between->"++show d ++show today++">>>"++show distance )
-  where
-    denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
-    distance = daysBetween today d 
-
-pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
-pv3 pvCurve pricingDate ds vs 
-  = let 
-      rs = fromRational <$> getValByDates pvCurve Inc ds
-      pvs = [ pv2 r pricingDate d amt | (r,d,amt) <- zip3 rs ds vs ]
-    in 
-      sum pvs
 
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
@@ -510,7 +497,7 @@ debugLine xs = ""
 
 shiftTsByAmt :: Ts -> Rational -> Ts 
 shiftTsByAmt (IRateCurve  tps) delta 
-  = IRateCurve $ [ TsPoint d ((fromRational delta)+v) | TsPoint d v <- tps ]
+  = IRateCurve $ [ TsPoint d (fromRational delta+v) | TsPoint d v <- tps ]
 
 shiftTsByAmt _ts delta = _ts
 

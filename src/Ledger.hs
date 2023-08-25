@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Ledger (Ledger(..),entryLog)
+module Ledger (Ledger(..),entryLog,LedgerName)
     where
 import qualified Data.Time as T
 import Stmt 
@@ -18,13 +18,15 @@ import GHC.Generics
 import Debug.Trace
 debug = flip trace
 
+type LedgerName = String
+
 data Ledger = Ledger {
     ledgName :: String              -- ^ ledger account name
     ,ledgBalance :: Balance         -- ^ current balance of ledger
     ,ledgStmt :: Maybe Statement    -- ^ ledger transaction history
 } deriving (Show, Generic)
 
-
+-- | Book an entry with date,amount and transaction to a ledger
 entryLog :: Amount -> Date -> TxnComment -> Ledger -> Ledger
 entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal} 
   = ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }

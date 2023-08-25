@@ -89,7 +89,7 @@ loanTests =
       loan1 =  AB.PersonalLoan
                  (AB.LoanOriginalInfo 180 (Fix 0.08) 36 L.Monthly (L.toDate "20200101") AB.I_P) 
                  120
-                 0.06
+                 0.08
                  24
                  AB.Current
       asofDate = L.toDate "20200615"
@@ -103,11 +103,11 @@ loanTests =
              (CF.sizeCashFlowFrame loan1Cf)
        ,testCase "First cashflow" $
            assertEqual ""
-            (Just (CF.LoanFlow (L.toDate "20210201") 120 0 0.61 0 0 0 0 0.06))
+            (Just (CF.LoanFlow (L.toDate "20210201") 120 0 0.82 0 0 0 0 0.08))
             (CF.cfAt loan1Cf 0)
        ,testCase "Last Principal Amount" $
            assertEqual ""
-            (Just (CF.LoanFlow (L.toDate "20230101") 0 120 0.61 0 0 0 0 0.06))
+            (Just (CF.LoanFlow (L.toDate "20230101") 0 120 0.82 0 0 0 0 0.08))
             (CF.cfAt loan1Cf 23)
        ,testCase "calcCashflow == projCashflow when assump = []" $
            assertEqual ""
@@ -282,7 +282,7 @@ armTest =
     arm1 = AB.AdjustRateMortgage
             (AB.MortgageOriginalInfo 
               240 
-              (Floater2 SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20240801") 2) Nothing Nothing Nothing)
+              (Floater SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20240801") 2) Nothing Nothing Nothing)
               30
               Monthly
               (L.toDate "20230501")

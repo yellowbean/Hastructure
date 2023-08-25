@@ -70,7 +70,7 @@ class Show a => Asset a where
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
   splitWith :: a -> [Rate] -> [a]
-  -- | !Change the origination date of an asset
+  -- | ! Change the origination date of an asset
   updateOriginDate :: a -> Date -> a
   -- | ! Internal use
   calcAlignDate :: a -> Date -> Date
@@ -81,8 +81,8 @@ class Show a => Asset a where
                           offset = daysBetween benchDate d
                         in 
                           T.addDays offset $ getOriginDate ast
-
- -- {-# MINIMAL calcCashflow #-}
+                          
+  {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 
 
 
@@ -92,11 +92,15 @@ data Pool a = Pool {assets :: [a]                       -- ^ a list of assets in
                    ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)  -- ^ other misc balance data
                    }deriving (Show,Generic)
 
+-- | get stats of pool 
 getIssuanceField :: Pool a -> IssuanceFields -> Centi
-getIssuanceField p _if
-  = case issuanceStat p of
-      Just m -> Map.findWithDefault 0.0 _if m
-      Nothing -> 0.0
+getIssuanceField p@Pool{issuanceStat = Just m} s
+  = case Map.lookup s m of
+      Just r -> r
+      Nothing -> error ("Failed to lookup "++show s++" in stats "++show m)
+getIssuanceField Pool{issuanceStat = Nothing} _ 
+  = error "There is no pool stats"
+
 
 -- | calculate period payment (Annuity/Level mortgage)
 calcPmt :: Balance -> IRate -> Int -> Amount

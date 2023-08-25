@@ -22,18 +22,14 @@
   * Corp Loan (Prepay Default Recovery Lag/Rate)
   * Rentals (Gaps between leases,Rental Curve Assumption) 
 * Multiple Waterfalls
-  * User defined waterfalls and supported any point of time during the running cycle
-    * Waterfall at Distribution Day 
-      * Pre Turbo Waterfall / Waterfall after Event of Acceleration/Waterfall after  Event of Default
-    * Waterfall at End of Pool Collection Day 
-    * Waterfall for Clean Up Call 
+  * Clean up waterfall/ Pre,Post Enforcement waterfall
+  * Pool collection waterfall
 * Accounts
-  * Reserve Account/Bank Account (with interest)/Cash Account/PDL
+  * Reserve Account/Bank Account (with interest)/Cash Account/ Ledger(PDL)
 * Bonds/Tranches
-  * Float Index rate / Step Up coupon type
+  * Float Index rate / Step Up coupon type / Fix Rate
   * Sequential / Prepay Lockout /PAC Bond Support /Z Bond Support 
-  * Bond Pricing
-    * IRR /WAL /Duration /Accrual Int in pricing 
+  * Bond Pricing (IRR /WAL /Duration /Accrual Int)
 * Call
   * call by Pool/Bond Balance amount;Bond/Pool Factor;On Date/or after
 * Fees
@@ -41,11 +37,16 @@
   * Fix Amount Fees / Custom Fee Flow / Number Type Fee of a deal / Formula based fee rate 
 * Liquidity Provider 
   * line of credit/ Unlimit support 
+  * interest charge or fee charge on the credit used & unused
 * Trigger 
   * Base on Date 
   * Base on Free Formula : Bond /Pool metrics
+  * Base on Pool performance
+  * Base on any combination above
+* Interest Swap
+  * Float to Float/ Fix to Float support
 * Scenario Analysis
-  * Running multiple scenarios 
+  * Running multiple scenarios on single deal
   * Pricing on single asset 
   * Revoving Buy Analysis 
 * Formula Support 
