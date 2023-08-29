@@ -20,6 +20,7 @@ module Types
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..)
+  ,BalanceCurve
   ,TxnComment(..),Direction(..)
   )
   
@@ -240,7 +241,7 @@ instance FromJSONKey DealCycle where
  
 
 data CustomDataType = CustomConstant Rational 
-                    | CustomCurve    Ts 
+                    | CustomCurve    (Ts Rational)
                     | CustomDS       DealStats
                     deriving (Show,Ord,Eq,Read,Generic)
 
@@ -457,9 +458,9 @@ data Pre = IfZero DealStats
          | If Cmp DealStats Balance
          | IfRate Cmp DealStats Micro
          | IfInt Cmp DealStats Int
-         | IfCurve Cmp DealStats Ts
-         | IfRateCurve Cmp DealStats Ts
-         | IfIntCurve Cmp DealStats Ts
+         | IfCurve Cmp DealStats (Ts Rational)
+         | IfRateCurve Cmp DealStats (Ts IRate)
+         | IfIntCurve Cmp DealStats (Ts Int)
          | IfDate Cmp Date
          | IfBool DealStats Bool
          -- compare deal 
@@ -483,19 +484,26 @@ instance TimeSeries (TsPoint a) where
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
 
-data Ts = FloatCurve [TsPoint Rational]
-        | BoolCurve [TsPoint Bool]
-        | BalanceCurve [TsPoint Balance]
-        | LeftBalanceCurve [TsPoint Balance]
-        | RatioCurve [TsPoint Rational]
-        | ThresholdCurve [TsPoint Rational]
-        | IRateCurve [TsPoint IRate]
-        | FactorCurveClosed [TsPoint Rational] Date
-        | PricingCurve [TsPoint Rational] 
-        deriving (Show,Eq,Ord,Read,Generic)
+data CurveDefaultHandle = UseZero 
+                        | Closest
+                        deriving (Show,Eq,Ord,Read,Generic)
+
+data Ts a = LeftCurve   CutoffType   CurveDefaultHandle [TsPoint a]
+          | RightCurve  CutoffType   CurveDefaultHandle [TsPoint a]
+          | LinearCurve CutoffType   CurveDefaultHandle [TsPoint a]
+          deriving (Show,Eq,Ord,Read,Generic)
+
+-- type YieldCurve = LinearCurve Inc Closest [TsPoint IRate]
+-- type RateCurve = LinearCurve Inc Closest [TsPoint IRate]
+
+type RateCurve = Ts IRate
+type PricingCurve = Ts IRate
+type BalanceCurve = Ts Balance
 
 data RangeType = II | IE | EI | EE | NO_IE
+
 data CutoffType = Inc | Exc
+                  deriving (Show,Eq,Ord,Read,Generic)
 
 type BookItems = [BookItem]
 
@@ -585,7 +593,7 @@ lookupTable (ThresholdTable rows) lkupType lkupVal notFound
                       Downward  -> (<)
                       DownwardInclude -> (<=)
 
-data RateAssumption = RateCurve Index Ts
+data RateAssumption = RateCurve Index RateCurve
                     | RateFlat Index IRate
                     deriving (Show,Generic)
 
@@ -593,7 +601,7 @@ data PricingMethod = BalanceFactor Rate Rate -- [balance] by performing & defaul
                    | BalanceFactor2 Rate Rate Rate --[balance] by performing/delinq/default factor
                    | DefaultedBalance Rate  --[balance] only liquidate defaulted balance
                    | PV IRate IRate -- discount factor, recovery pct on default
-                   | PVCurve Ts --[CF] Pricing cashflow with a Curve
+                   | PVCurve (PricingCurve) --[CF] Pricing cashflow with a Curve
                    | Custom Rate -- custom amount
                    deriving (Show, Eq ,Generic)
 
@@ -662,3 +670,5 @@ $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''RoundingBy)
 $(deriveJSON defaultOptions ''IssuanceFields)
+$(deriveJSON defaultOptions ''CutoffType)
+$(deriveJSON defaultOptions ''CurveDefaultHandle)
