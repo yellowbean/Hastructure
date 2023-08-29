@@ -33,6 +33,7 @@ import InterestRate
 debug = flip trace
 
 type AssumptionLists = [AssumptionBuilder]
+type NonAssetAssumptionLists = [AssumptionBuilder]
 type StratificationByIdx = ([Int],AssumptionLists)
 
 lookupAssumptionByIdx :: [StratificationByIdx] -> Int -> AssumptionLists
@@ -41,8 +42,8 @@ lookupAssumptionByIdx sbi i
         Just (_, aps ) ->  aps
         Nothing -> []
 
-data ApplyAssumptionType = PoolLevel AssumptionLists                       -- ^ assumption apply to all assets in the pool
-                         | ByIndex [StratificationByIdx] AssumptionLists   -- ^ assumption which only apply to a set of assets in the pool
+data ApplyAssumptionType = PoolLevel AssumptionLists                               -- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratificationByIdx] NonAssetAssumptionLists   -- ^ assumption which only apply to a set of assets in the pool
                          deriving (Show,Generic)
 
 data AssumptionInput = Single ApplyAssumptionType                          -- ^ one assumption request
@@ -86,6 +87,7 @@ data AssumptionBuilder = MortgageByAge ([Int],[Float])
                        | EvenRecoveryOnDefault Float Int
                        -- Expense Assumption
                        | ProjectedExpense FeeName Ts
+                       --- Instruction
                        -- Debug 
                        | StopRunBy Date
                        | InspectOn [(DatePattern,DealStats)]

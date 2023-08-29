@@ -378,7 +378,6 @@ data DealStats = CurrentBondBalance
                | BondFactor
                | PoolFactor
                | BondWaRate [BondName]
-               | PoolCollectionInt  -- a redirect map to `CurrentPoolCollectionInt T.Day`
                | UseCustomData String
                | PoolCumCollection [PoolSource]
                | PoolCurCollection [PoolSource]
@@ -404,7 +403,6 @@ data DealStats = CurrentBondBalance
                | BondsIntPaidAt Date [BondName]
                | BondPrinPaidAt Date BondName
                | BondsPrinPaidAt Date [BondName]
-               | PoolNewDefaultedAt Date
                | BondBalanceGap BondName
                | BondBalanceGapAt Date BondName
                | FeePaidAt Date FeeName
@@ -420,7 +418,6 @@ data DealStats = CurrentBondBalance
                | LastBondIntPaid [BondName]
                | LastBondPrinPaid [BondName]
                | LastFeePaid [FeeName]
-               | LastPoolDefaultedBal
                | LiqCredit [String]
                | LiqBalance [String]
                | BondBalanceHistory Date Date

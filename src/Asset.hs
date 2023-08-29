@@ -86,9 +86,9 @@ class Show a => Asset a where
 
 
 
-data Pool a = Pool {assets :: [a]                       -- ^ a list of assets in the pool
-                   ,futureCf :: Maybe CF.CashFlowFrame  -- ^ projected cashflow from the assets in the pool
-                   ,asOfDate :: Date                    -- ^ date of the assets/pool cashflow
+data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
+                   ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
+                   ,asOfDate :: Date                                        -- ^ date of the assets/pool cashflow
                    ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)  -- ^ other misc balance data
                    }deriving (Show,Generic)
 

@@ -55,7 +55,6 @@ patchDateToStats d t
          LastBondIntPaid bns -> BondsIntPaidAt d bns
          LastFeePaid fns -> FeesPaidAt d fns
          LastBondPrinPaid bns -> BondsPrinPaidAt d bns
-         LastPoolDefaultedBal -> PoolNewDefaultedAt d
          BondBalanceGap bn -> BondBalanceGapAt d bn
          ReserveAccGap ans -> ReserveAccGapAt d ans
          ReserveExcess ans -> ReserveExcessAt d ans
