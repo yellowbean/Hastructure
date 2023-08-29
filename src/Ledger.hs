@@ -39,7 +39,6 @@ instance QueryByComment Ledger where
     queryStmt (Ledger _ _ (Just (Statement txns))) tc
       = filter (\x -> getTxnComment x == tc) txns
 
-    queryTxnAmt a tc
-      = sum $ map getTxnAmt $ queryStmt a tc
+    queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
 
 $(deriveJSON defaultOptions ''Ledger)

@@ -377,7 +377,7 @@ drawExtraSupport d amt (W.SupportAccount an (Just (W.ByAccountDraw ln))) t@TestD
       oustandingAmt = amt - drawAmt
     in 
       (t {accounts = Map.adjust (A.draw drawAmt d Empty) an accMap
-         ,ledgers = Just $ Map.adjust (LD.entryLog drawAmt d Empty) ln ledgerMap}
+         ,ledgers = Just $ Map.adjust (LD.entryLog drawAmt d (TxnDirection Debit)) ln ledgerMap}
       , oustandingAmt)
 
 drawExtraSupport d amt (W.SupportAccount an Nothing) t@TestDeal{accounts=accMap} 
