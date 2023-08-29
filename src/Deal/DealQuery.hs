@@ -162,7 +162,7 @@ poolSourceToIssuanceField CollectedRental = HistoryRental
 
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
-queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s = 
+queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM} s = 
   case s of
     CurrentBondBalance ->
       Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 bndMap
@@ -188,8 +188,8 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
     AccBalance ans -> sum $ A.accBalance <$> (accMap Map.!) <$> ans
     
     LedgerBalance ans ->
-      case ledgers t of 
-        Nothing -> 0 
+      case ledgerM of 
+        Nothing -> error ("No ledgers were modeled , failed to find ledger:"++show ans )
         Just ledgersM -> sum $ LD.ledgBalance . (ledgersM Map.!) <$> ans
     
     ReserveExcessAt d ans ->
@@ -347,6 +347,17 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
             in 
               sumTxn $ cutBy Inc Past d _txn 
 
+    LedgerTxnAmt lns mCmt ->
+      case ledgerM of 
+        Nothing -> error ("No ledgers were modeled , failed to find ledger:"++show lns )
+        Just ledgerm ->
+          let 
+            lgs = (ledgerm Map.!) <$> lns
+          in
+            case mCmt of
+              Just cmt -> sum [ queryTxnAmt lg cmt | lg <- lgs ]
+              Nothing -> sum [ (LD.ledgBalance lg) | lg <- lgs ]
+
     BondBalanceGapAt d bName -> 
         let 
            bn@L.Bond{L.bndType = L.PAC _target} = bndMap Map.! bName
@@ -414,6 +425,7 @@ queryDeal t@TestDeal{accounts = accMap, bonds = bndMap, fees= feeMap} s =
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
+    Abs s -> abs $ queryDeal t s
     Round ds rb -> roundingBy rb (queryDeal t ds)
     
     _ -> error ("Failed to query balance of -> "++ show s)

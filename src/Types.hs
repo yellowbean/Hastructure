@@ -384,6 +384,7 @@ data DealStats = CurrentBondBalance
                | AllAccBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
+               | LedgerTxnAmt [String] (Maybe TxnComment)
                | ReserveAccGap [AccName]
                | ReserveExcess [AccName] 
                | MonthsTillMaturity BondName
@@ -438,6 +439,7 @@ data DealStats = CurrentBondBalance
                | FloorWith DealStats DealStats
                | FloorWithZero DealStats
                | CapWith DealStats DealStats
+               | Abs DealStats
                | Round DealStats (RoundingBy Balance)
                deriving (Show,Eq,Ord,Read,Generic)
 
