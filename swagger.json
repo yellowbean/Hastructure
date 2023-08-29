@@ -253,102 +253,6 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "PrepaymentConstant"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Ts"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentCurve"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "format": "double",
-                                    "type": "number"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentVec"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentCPR"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Ts"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentFactors"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
                                     "DefaultConstant"
                                 ]
                             }
@@ -421,76 +325,13 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Ts"
+                                "format": "double",
+                                "type": "number"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "DefaultFactors"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "Recovery"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "items": {
-                                            "format": "double",
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "RecoveryDistribution"
+                                    "PrepaymentCPR"
                                 ]
                             }
                         },
@@ -570,25 +411,53 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "format": "float",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                "format": "double",
+                                "type": "number"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "EvenRecoveryOnDefault"
+                                    "PrepaymentConstant"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Ts"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PrepaymentCurve"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PrepaymentVec"
                                 ]
                             }
                         },
@@ -658,15 +527,30 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/CallOption"
-                                },
-                                "type": "array"
+                                "$ref": "#/components/schemas/Ts"
                             },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "CallWhen"
+                                    "DefaultFactors"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Ts"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PrepaymentFactors"
                                 ]
                             }
                         },
@@ -696,6 +580,27 @@
                                 "type": "string",
                                 "enum": [
                                     "PoolHairCut"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CallOption"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CallWhen"
                                 ]
                             }
                         },
@@ -869,6 +774,70 @@
                                         "maximum": 9223372036854775807,
                                         "type": "integer",
                                         "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Recovery"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RecoveryDistribution"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
                                     },
                                     {
                                         "items": {
@@ -886,6 +855,37 @@
                                 "type": "string",
                                 "enum": [
                                     "DefaultedRecovery"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "float",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "EvenRecoveryOnDefault"
                                 ]
                             }
                         },
@@ -5502,15 +5502,22 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "PoolCollectionInt"
+                                    "BondWaRate"
                                 ]
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -6039,24 +6046,6 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PoolNewDefaultedAt"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
                                 "type": "string"
                             },
                             "tag": {
@@ -6456,20 +6445,6 @@
                         "required": [
                             "tag",
                             "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "LastPoolDefaultedBal"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag"
                         ]
                     },
                     {
@@ -11373,7 +11348,7 @@
         }
     },
     "info": {
-        "version": "0.19.14",
+        "version": "0.20.0",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
