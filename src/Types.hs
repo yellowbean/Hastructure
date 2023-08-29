@@ -6,7 +6,7 @@
 module Types
   (DayCount(..),DateType(..),OverrideType(..),IssuanceFields(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
-  ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
+  ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName,ScenarioName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
   ,DateDesp(..),Period(..), Threshold(..)
   ,RangeType(..),CutoffType(..),CustomDataType(..)
@@ -54,6 +54,7 @@ type AccountName = String
 type AccNames = [String]
 type CeName = String
 type Balance = Centi
+type ScenarioName = String
 
 type Date = Time.Day
 type Dates = [Time.Day]
