@@ -356,7 +356,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           in
             case mCmt of
               Just cmt -> sum [ queryTxnAmt lg cmt | lg <- lgs ]
-              Nothing -> sum [ (LD.ledgBalance lg) | lg <- lgs ]
+              Nothing -> sum [ LD.ledgBalance lg | lg <- lgs ]
 
     BondBalanceGapAt d bName -> 
         let 

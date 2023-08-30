@@ -781,15 +781,23 @@ performAction d t@TestDeal{liqProvider = Just _liqProvider} (W.LiqAccrue n)
       updatedLiqProvider = Map.adjust (CE.accrueLiqProvider d ) n _liqProvider
 
 performAction d t@TestDeal{rateSwap = Just rtSwap } (W.SwapAccrue sName)
-  = t { rateSwap = Just newRtSwap }
+  = t { rateSwap = Just newRtSwap } 
     where 
-        newRtSwap = Map.adjust (HE.accrueIRS d) sName rtSwap
+        refBal = case  (HE.rsNotional (rtSwap Map.! sName)) of 
+                   (HE.Fixed b) -> b
+                   (HE.Base ds) -> queryDeal t (patchDateToStats d ds)
+                   (HE.Schedule ts) -> fromRational $ getValByDate ts Inc d
+                   
+        newRtSwap = Map.adjust 
+                      (HE.accrueIRS d)
+                      sName
+                      (Map.adjust (HE.updateRefBalance refBal) sName rtSwap)
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapReceive accName sName)
   = t { rateSwap = Just newRtSwap, accounts = newAccMap }
     where 
-        receiveAmt = HE.rsNetCash $ rtSwap Map.! sName
-        newRtSwap = Map.adjust (HE.receiveIRS d) sName rtSwap
+        receiveAmt = max 0 $ HE.rsNetCash $ rtSwap Map.! sName
+        newRtSwap = Map.adjust (HE.receiveIRS d) sName rtSwap -- `debug` ("REceiv AMT"++ show receiveAmt)
         newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapPay accName sName)
@@ -797,9 +805,17 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapP
     where 
         payoutAmt = negate $ HE.rsNetCash $ rtSwap Map.! sName
         availBal = A.accBalance $ accsMap Map.! accName
-        amtToPay = min payoutAmt availBal 
+        amtToPay = min payoutAmt availBal
         newRtSwap = Map.adjust (HE.payoutIRS d amtToPay) sName rtSwap
         newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
+
+performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapSettle accName sName)
+  = let 
+      t1 = performAction d t (W.SwapAccrue sName)
+      t2 = performAction d t1 (W.SwapReceive accName sName)
+    in 
+      performAction d t2 (W.SwapPay accName sName)
+
 
 performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc idx)
   = t { triggers = Just (Map.insert loc newTrgLst trgM) }
@@ -807,3 +823,5 @@ performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc idx)
       trg = (trgM Map.! loc) !! idx
       newTrg = updateTrigger t d trg
       newTrgLst = replace (trgM Map.! loc) idx newTrg
+
+performAction d t action =  error $ "failed to match action"++show action

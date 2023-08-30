@@ -1766,136 +1766,6 @@
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 10,
-                                "type": "array",
-                                "minItems": 10
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "MortgageFlow2"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Day"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 12,
-                                "type": "array",
-                                "minItems": 12
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "MortgageFlow3"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Day"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
                                     }
@@ -5640,6 +5510,37 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "LedgerTxnAmt"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "type": "string"
                                 },
@@ -6916,6 +6817,24 @@
                                 "type": "string",
                                 "enum": [
                                     "CapWith"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStats"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Abs"
                                 ]
                             }
                         },
@@ -11348,7 +11267,7 @@
         }
     },
     "info": {
-        "version": "0.20.0",
+        "version": "0.20.1",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

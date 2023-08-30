@@ -1,18 +1,23 @@
 # Changelog for Hastructure
 
-## 0.20.0
+## 0.20.1
+### 2023-8-29
+* ENHANCE: add `LedgerTxnAmt` , allow user to query transaction amount for a ledger by `comment`
+* ENHANCE: expose `Abs` in formula , which will get absolute value of another formula
 
+## 0.20.0
+### 2023-8-25
+* NEW: expose `Cumulative Net Loss` `Cumulative Net Loss Ratio` `Bond Rate` `Bond Weight Average Rate` in formula
+* NEW: expose `Avg` in formula ,which can calculate average value from a list of deal stats.
+* NEW: expose `RefRate` in bond , now bond can be setup interest rate which reference to a value of deal , could be like 100% of Pool WAC coupon , or average of bond rate of bonds etc.
 * ENHANCE: add `liquidity provider` `interest swap` to `balance sheet repot`
 * ENHANCE: add new bool query `is_most_senior_bond`
 * ENHANCE: add new balance query `PoolCurCollection` returns target pool source balance in last collected period
 * ENHANCE: refactor account transfer by `target reserve amount`
-* NEW: expose `Cumulative Net Loss` `Cumulative Net Loss Ratio` `Bond Rate` `Bond Weight Average Rate` in formula
-* NEW: expose `Avg` in formula ,which can calculate average value from a list of deal stats.
-* NEW: expose `RefRate` in bond , now bond can be setup interest rate which reference to a value of deal , could be like 100% of Pool WAC coupon , or average of bond rate of bonds etc.
 
 
 ## 0.19.15
-### 2023-8-31
+### 2023-8-20
 * ENHANCE: add `reserve account excess/gap` to formula
 * ENHANCE: refactor bond `step up` coupon by date ,which pertains to Euro deals
 * ENHANCE: add comments to souce code and prepare to release to `Hackage`

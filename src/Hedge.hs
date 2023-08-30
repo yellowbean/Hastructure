@@ -7,7 +7,7 @@ module Hedge
   (RateSwap(..)
   ,RateSwapType(..),RateSwapBase(..)
   ,accrueIRS,payoutIRS,receiveIRS
-  ,CurrencySwap(..)
+  ,CurrencySwap(..),updateRefBalance
   )
   where
 
@@ -24,6 +24,9 @@ import Data.Maybe
 import Types
 import Util
 import Stmt
+
+import Debug.Trace
+debug = flip trace
 
 data RateSwapBase = Fixed Balance    -- ^ a fixed balance as notional base 
                   | Base DealStats   -- ^ a referece as notional base
@@ -43,6 +46,9 @@ data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
                          }
                          deriving(Show,Generic)
 
+updateRefBalance :: Balance -> RateSwap -> RateSwap
+updateRefBalance bal rs = rs { rsRefBalance = bal}
+
 -- | The `accrueIRS` will calculate the `Net` amount 
 -- ( payble with negative, positve with receivable) of Rate Swap      
 accrueIRS :: Date -> RateSwap -> RateSwap
@@ -57,8 +63,8 @@ accrueIRS d rs@RateSwap{rsRefBalance = face
                                Nothing ->  rsStartDate rs 
                                Just lsd -> lsd
           rateDiff =  receiveRate - payRate 
-          yearFactor = fromRational $ yearCountFraction DC_ACT_365 accureStartDate d
-          newNetAmount = mulBIR (face * yearFactor) rateDiff 
+          yearFactor = fromRational $ yearCountFraction DC_ACT_365F accureStartDate d
+          newNetAmount = mulBIR (face * yearFactor) rateDiff  -- `debug` ("Diff rate"++ show rateDiff)
           newNet = netCash + newNetAmount
           newTxn = IrsTxn d face newNetAmount payRate receiveRate newNet SwapAccure
           newStmt = appendStmt stmt newTxn
@@ -69,8 +75,7 @@ receiveIRS d rs@RateSwap{rsNetCash = receiveAmt, rsStmt = stmt}
   | receiveAmt > 0 = rs { rsNetCash = 0 ,rsStmt = newStmt}
   | otherwise = rs
      where 
-       newTxn = IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle
-       newStmt = appendStmt stmt newTxn 
+       newStmt = appendStmt stmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle)
 
 -- | set rate swap to state of payout all possible cash to counterparty
 payoutIRS :: Date -> Amount -> RateSwap -> RateSwap 
@@ -79,7 +84,7 @@ payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt}
   | otherwise = rs
      where 
        actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
-       outstanding = negate payoutAmt - amt
+       outstanding = payoutAmt + actualAmt
        newTxn = IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle
        newStmt = appendStmt stmt newTxn
 

@@ -79,3 +79,4 @@ extra-deps:
 # compiler-check: newer-minor
 
 # allow-newer : true
+pvp-bounds: both
