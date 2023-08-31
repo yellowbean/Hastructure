@@ -95,6 +95,14 @@ queryDealRate t s =
       CumulativeNetLossRatio ->
         toRational $ (queryDeal t CumulativeNetLoss)/(queryDeal t OriginalPoolBalance)
 
+      CumulativePoolDefaultedRateTill idx -> 
+        let 
+          originPoolBal = toRational (queryDeal t OriginalPoolBalance) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
+          cumuPoolDefBal = toRational (queryDeal t (PoolCumCollectionTill idx [NewDefaults])) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
+        in 
+          cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
+        
+
       BondRate bn -> 
         toRational $ L.bndRate $ bonds t Map.! bn
       
@@ -185,7 +193,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
  
     AllAccBalance -> sum $ map A.accBalance $ Map.elems accMap 
     
-    AccBalance ans -> sum $ A.accBalance <$> (accMap Map.!) <$> ans
+    AccBalance ans -> sum $ A.accBalance . (accMap Map.!) <$> ans
     
     LedgerBalance ans ->
       case ledgerM of 
@@ -274,10 +282,37 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         in 
           futureVals + historyVals
     
+    PoolCumCollectionTill idx ps -> 
+        let 
+          futureVals = case P.futureCf (pool t) of
+                         Just (CashFlowFrame _trs) -> 
+                          let 
+                            lengthTrs = length _trs
+                            trs = slice 0 (max 0 (lengthTrs + idx)) _trs
+                          in 
+                            sum $ (CF.lookupSource <$> trs) <*> ps
+                         Nothing -> 0.0
+
+          historyVals = case P.issuanceStat (pool t) of
+                                Just m -> sum [ Map.findWithDefault 0.0 (poolSourceToIssuanceField p) m | p <- ps ]
+                                Nothing -> 0.0
+        in 
+          futureVals + historyVals
+ 
     PoolCurCollection ps ->
       case P.futureCf (pool t) of
             Just (CF.CashFlowFrame trs) -> sum $ CF.lookupSource (last trs) <$> ps
             Nothing -> 0.0
+
+    PoolCollectionStats idx ps -> 
+      case P.futureCf (pool t) of
+            Just (CF.CashFlowFrame trs) 
+              ->let
+                  theCollection = trs!!((length trs) + idx)
+                in  
+                  sum $ CF.lookupSource theCollection <$> ps
+            Nothing -> 0.0
+
 
     CurrentBondBalanceOf bns -> sum $ L.bndBalance <$> (bndMap Map.!) <$> bns
 
@@ -444,6 +479,19 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
         case (L.isPaidOff bn1,all L.isPaidOff bns1) of
           (False,True) -> True
           _ -> False
+    
+    TestRate ds cmp r -> let
+                           testRate = queryDealRate t ds
+                         in  
+                           case cmp of 
+                             G ->  testRate > r
+                             GE -> testRate >= r
+                             L ->  testRate < r
+                             LE -> testRate <= r
+                             E ->  testRate == r
+
+    TestAny b dss -> any (== b) [ queryDealBool t ds | ds <- dss ]
+    TestAll b dss -> all (== b) [ queryDealBool t ds | ds <- dss ]
 
     _ -> error ("Failed to query bool type formula"++ show ds)
 

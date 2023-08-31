@@ -434,6 +434,8 @@ lookupSource tr CollectedRecoveries = mflowRecovery tr
 lookupSource tr CollectedRental = mflowRental tr
 lookupSource tr CollectedInterest = mflowInterest tr
 lookupSource tr CollectedPrepaymentPenalty = mflowPrepaymentPenalty tr
+lookupSource tr NewDefaults = mflowDefault tr
+lookupSource tr NewLosses = mflowLoss tr
 
 
 

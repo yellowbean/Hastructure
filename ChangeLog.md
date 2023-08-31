@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.20.2
+### 2023-8-31
+* ENHANCE: add `CumulatiePoolDefaultedRateTill` to query default rate as of collection period N , then support query last one,last two default rates in the past as a rolling basis..
+* ENHANCE: add `queryBool` with test logic of `any` `or` which will test all predicates or any predicates are/is satisfied. With new included aforementioned formula above, the engine can have a predicate like `last 2 period cumulative defaulte rates are all lower than 5%`, `any last 2 period cumulative defaulte rates is higher than 5%`  
+
 ## 0.20.1
 ### 2023-8-29
 * ENHANCE: add `LedgerTxnAmt` , allow user to query transaction amount for a ledger by `comment`
@@ -7,6 +12,7 @@
 
 ## 0.20.0
 ### 2023-8-25
+* BREAK: refactor `payInt` and `payFee` which includes `extraSupport` from either another `account` or `liquidation provider`, with option to book `PDL draw` on ledger
 * NEW: expose `Cumulative Net Loss` `Cumulative Net Loss Ratio` `Bond Rate` `Bond Weight Average Rate` in formula
 * NEW: expose `Avg` in formula ,which can calculate average value from a list of deal stats.
 * NEW: expose `RefRate` in bond , now bond can be setup interest rate which reference to a value of deal , could be like 100% of Pool WAC coupon , or average of bond rate of bonds etc.

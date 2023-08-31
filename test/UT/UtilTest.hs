@@ -1,6 +1,6 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
-                  ,capTest,roundingTest)--,daycountTests3,daycountTests4)
+                  ,capTest,roundingTest,sliceTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -461,5 +461,24 @@ roundingTest =
       assertEqual "Rounding Equal"
       100
       (roundingBy (RoundFloor 5) 100)
-    
     ]
+
+sliceTest = 
+  testGroup "sliceTest"
+  [ testCase "slice 1" $
+    assertEqual ""
+    [1]
+    (slice 0 1 [1,2,3])
+  , testCase "slice 2" $
+    assertEqual ""
+    []
+    (slice 0 0 [1,2,3])
+  , testCase "slice 2" $
+    assertEqual ""
+    [1,2,3]
+    (slice 0 3 [1,2,3])
+  , testCase "slice 3" $
+    assertEqual ""
+    [1,2,3]
+    (slice 0 4 [1,2,3])
+  ]

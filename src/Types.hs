@@ -360,6 +360,8 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | CollectedPrepayment             -- ^ prepayment
                 | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
                 | CollectedRental                 -- ^ rental from pool
+                | NewDefaults
+                | NewLosses
                 deriving (Show,Ord,Read,Eq, Generic)
 
 
@@ -371,6 +373,7 @@ data DealStats = CurrentBondBalance
                | CumulativePoolRecoveriesBalance  -- Depreciated, use PoolCumCollection
                | CumulativeNetLoss
                | CumulativePoolDefaultedRate
+               | CumulativePoolDefaultedRateTill Int
                | CumulativeNetLossRatio
                | OriginalBondBalance
                | OriginalPoolBalance
@@ -380,7 +383,9 @@ data DealStats = CurrentBondBalance
                | BondWaRate [BondName]
                | UseCustomData String
                | PoolCumCollection [PoolSource]
+               | PoolCumCollectionTill Int [PoolSource]
                | PoolCurCollection [PoolSource]
+               | PoolCollectionStats Int [PoolSource]
                | AllAccBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
@@ -424,6 +429,9 @@ data DealStats = CurrentBondBalance
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatusAt DealCycle Int
+               | TestRate DealStats Cmp Micro
+               | TestAny Bool [DealStats]
+               | TestAll Bool [DealStats]
                | PoolWaRate
                | BondRate BondName
                | Factor DealStats Rational
@@ -449,7 +457,7 @@ data Cmp = G      -- ^ Greater than
          | L      -- ^ Less than
          | LE     -- ^ Less Equal than
          | E      -- ^ Equals to
-         deriving (Show,Generic,Eq)
+         deriving (Show,Generic,Eq,Ord,Read)
 
 
 data Pre = IfZero DealStats

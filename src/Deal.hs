@@ -154,6 +154,7 @@ updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
   =  case base of 
        HE.Fixed _ -> rs 
        HE.Base ds -> rs { HE.rsRefBalance = queryDeal t (patchDateToStats d ds) }
+       HE.Schedule ts -> rs { HE.rsRefBalance = fromRational (getValByDate ts Inc d) }
 
 testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
 testCall t d opt = 
@@ -342,8 +343,9 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolF
              _rates = fromMaybe [] rates
              newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn  <$>  rateSwap t
              newRateSwap_bal = Map.adjust (updateRateSwapBal t d) sn <$> newRateSwap_rate
+             newRateSwap_acc = Map.adjust (HE.accrueIRS d) sn <$> newRateSwap_bal
            in 
-             run2 (t{rateSwap = newRateSwap_bal}) poolFlow (Just ads) rates calls rAssump log
+             run2 (t{rateSwap = newRateSwap_acc}) poolFlow (Just ads) rates calls rAssump log
 
          InspectDS d ds -> 
            let 
