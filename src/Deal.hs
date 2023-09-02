@@ -56,6 +56,8 @@ import Data.Aeson.Types
 import GHC.Generics
 
 import Debug.Trace
+import Hedge (RateSwap(rsRefBalance))
+import Cashflow (buildBegTsRow)
 debug = flip trace
 
 
@@ -127,11 +129,9 @@ applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
       ra = getRateAssumptionByIndex ras idx
       _rate = idx_rate + spd
 
-applyFloatRate (L.CapRate ii _rate) d ras 
-  = min _rate (applyFloatRate ii d ras)
+applyFloatRate (L.CapRate ii _rate) d ras = min _rate (applyFloatRate ii d ras)
 
-applyFloatRate (L.FloorRate ii _rate) d ras 
-  = max _rate (applyFloatRate ii d ras)
+applyFloatRate (L.FloorRate ii _rate) d ras = max _rate (applyFloatRate ii d ras)
 
 applicableAdjust :: L.Bond -> Bool
 applicableAdjust (L.Bond _ _ _ (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
@@ -152,8 +152,8 @@ updateRateSwapRate rAssumps d rs@HE.RateSwap{ HE.rsType = rt }
 updateRateSwapBal :: P.Asset a => TestDeal a -> Date -> HE.RateSwap -> HE.RateSwap
 updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
   =  case base of 
-       HE.Fixed _ -> rs 
-       HE.Base ds -> rs { HE.rsRefBalance = queryDeal t (patchDateToStats d ds) }
+       HE.Fixed _ -> rs  
+       HE.Base ds -> rs { HE.rsRefBalance = queryDeal t (patchDateToStats d ds) } `debug` ("query Result"++ show (patchDateToStats d ds) )
        HE.Schedule ts -> rs { HE.rsRefBalance = fromRational (getValByDate ts Inc d) }
 
 testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
@@ -168,6 +168,7 @@ testCall t d opt =
        C.And xs -> all (testCall t d) xs
        C.Or xs -> any (testCall t d) xs
        C.Pre pre -> testPre d t pre
+       _ -> error ("failed to find call options"++ show opt)
 
 testCalls :: P.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
 testCalls t d [] = False  -- `debug` ("Empty call optns")
@@ -203,7 +204,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
                       | _trg <- _trgs ] 
     triggeredEffects = [ trgEffects _trg | (_trg,_flag)  <- testTrgsResult, _flag ] -- `debug` ("DEBUG->TG"++show [ testTrigger t d (fst x) | x <- _trgs ])
     newDeal = foldl 
-               (\_t _te -> runEffects _t d _te)
+               (\_t  -> runEffects _t d )  -- aka (\_t _te -> runEffects _t d _te)
                t
                triggeredEffects 
     newStatus = status newDeal 
@@ -246,7 +247,6 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolF
          _dealAfterCleanUp = foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal")
        in 
          (prepareDeal _dealAfterCleanUp,log) `debug` "End with pool cf == 0 and all account bals are 0" -- ++ "> Remain Actions" ++ show (ad:ads))
-        -- (_dealAfterCleanUp,log) `debug` "End with pool cf == 0 and all account bals are 0 with out console" -- ++ "> Remain Actions" ++ show (ad:ads))
   | otherwise
      = case ad of 
          PoolCollection d _ ->
@@ -341,8 +341,8 @@ run2 t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolF
          ResetIRSwapRate d sn -> 
            let
              _rates = fromMaybe [] rates
-             newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn  <$>  rateSwap t
-             newRateSwap_bal = Map.adjust (updateRateSwapBal t d) sn <$> newRateSwap_rate
+             newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn  <$>  rateSwap t  
+             newRateSwap_bal = Map.adjust (updateRateSwapBal t d) sn <$> newRateSwap_rate 
              newRateSwap_acc = Map.adjust (HE.accrueIRS d) sn <$> newRateSwap_bal
            in 
              run2 (t{rateSwap = newRateSwap_acc}) poolFlow (Just ads) rates calls rAssump log
@@ -600,7 +600,7 @@ getInits t mAssumps
                         Nothing -> []
                         Just rsm -> Map.elems $ Map.mapWithKey 
                                                  (\k x -> let 
-                                                           resetDs = (genSerialDatesTill2 IE startDate (HE.rsSettleDates x) endDate)
+                                                           resetDs = (genSerialDatesTill2 EE (HE.rsStartDate x) (HE.rsSettleDates x) endDate)
                                                           in 
                                                            ((flip ResetIRSwapRate) k) <$> resetDs)
                                                  rsm
@@ -616,23 +616,28 @@ getInits t mAssumps
                    (AP.StopRunBy d) -> True
                    _ -> False)
                  dealAssumps 
-    
-    _actionDates = let 
-                     a = concat [bActionDates,pActionDates,iAccIntDates
-                                ,feeAccrueDates,liqResetDates,dealStageDates
-                                ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] -- `debug` ("fee acc dates"++show feeAccrueDates)
-                   in
-                     case dates t of 
-                       (PreClosingDates _ _ _ _ _ _) -> sortBy sortActionOnDate $ (DealClosed closingDate):a  -- `debug` ("add a closing date"++show closingDate)
-                       _ -> sortBy sortActionOnDate a
-                      
-    allActionDates = case stopDate of
-                       Just (AP.StopRunBy d) -> filter (\x -> getDate x < d) _actionDates
-                       Nothing ->  _actionDates   -- `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
+                     
+    allActionDates = let 
+                       _actionDates = let 
+                                        a = concat [bActionDates,pActionDates,iAccIntDates
+                                                   ,feeAccrueDates,liqResetDates,dealStageDates
+                                                   ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] -- `debug` ("fee acc dates"++show feeAccrueDates)
+                                      in
+                                        case dates t of 
+                                          (PreClosingDates {}) -> sortBy sortActionOnDate $ (DealClosed closingDate):a  -- `debug` ("add a closing date"++show closingDate)
+                                          _ -> sortBy sortActionOnDate a
+                     in 
+                       case stopDate of
+                         Just (AP.StopRunBy d) -> filter (\x -> getDate x < d) _actionDates
+                         Nothing ->  _actionDates   -- `debug` ("Action days") -- `debug` (">>action dates done"++show(_actionDates))
 
     poolCf = P.aggPool $ runPool2 (pool t) mAssumps -- `debug` ("agg pool flow")
     poolCfTs = filter (\txn -> CF.getDate txn >= startDate) $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $ CF.aggTsByDates poolCfTs (getDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
+    pCollectionCfAfterCutoff = let 
+                                 _poolflows = CF.aggTsByDates poolCfTs (getDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
+                                 _beg_row = buildBegTsRow startDate (head _poolflows)
+                               in 
+                                 CF.CashFlowFrame $ _beg_row:_poolflows
     rateCurves = buildRateCurves [] dealAssumps  
     revolvingCurves = getRevolvingCurve dealAssumps -- `debug` ("Getting revolving Curves")
                       
@@ -692,10 +697,6 @@ depositInflowByRules rs d row amap
 
 depositPoolInflow :: [W.CollectionRule] -> Date -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolInflow rules d (CF.CashFlowFrame []) amap = amap -- `debug` ("Deposit inflow Nothing")
-depositPoolInflow rules d (CF.CashFlowFrame txn) amap =
-  foldr 
-      (depositInflowByRules rules d)
-      amap
-      txn
+depositPoolInflow rules d (CF.CashFlowFrame txn) amap = foldr (depositInflowByRules rules d) amap txn
 
 $(deriveJSON defaultOptions ''ExpectReturn)
