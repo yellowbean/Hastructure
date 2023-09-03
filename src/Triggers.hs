@@ -9,10 +9,10 @@ module Triggers(
 
 import qualified Data.Text as T
 import Text.Read (readMaybe)
-import Lib
+import Lib ( Pre, DealStatus )
 import Types
 import Accounts (ReserveAmount)
-import Data.Aeson hiding (json)
+import Data.Aeson ( defaultOptions )
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
