@@ -1946,10 +1946,10 @@
                     "triggers": {
                         "type": "object",
                         "additionalProperties": {
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "$ref": "#/components/schemas/Trigger"
-                            },
-                            "type": "array"
+                            }
                         }
                     },
                     "pool": {
@@ -2939,9 +2939,7 @@
                                         "$ref": "#/components/schemas/DealCycle"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "type": "string"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -6546,9 +6544,7 @@
                                         "$ref": "#/components/schemas/DealCycle"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "type": "string"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -6558,7 +6554,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "TriggersStatusAt"
+                                    "TriggersStatus"
                                 ]
                             }
                         },
@@ -7581,10 +7577,10 @@
                     "triggers": {
                         "type": "object",
                         "additionalProperties": {
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "$ref": "#/components/schemas/Trigger"
-                            },
-                            "type": "array"
+                            }
                         }
                     },
                     "pool": {
@@ -7693,10 +7689,10 @@
                     "triggers": {
                         "type": "object",
                         "additionalProperties": {
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "$ref": "#/components/schemas/Trigger"
-                            },
-                            "type": "array"
+                            }
                         }
                     },
                     "pool": {
@@ -9221,10 +9217,10 @@
                     "triggers": {
                         "type": "object",
                         "additionalProperties": {
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "$ref": "#/components/schemas/Trigger"
-                            },
-                            "type": "array"
+                            }
                         }
                     },
                     "pool": {
