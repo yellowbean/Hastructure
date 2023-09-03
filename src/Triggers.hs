@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Triggers(
-    Trigger(..),TriggerEffect(..)
+    Trigger(..),TriggerEffect(..),TriggerName,setTriggered
 )
  where
 
@@ -18,8 +18,15 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Fixed
 import Data.Maybe
+import Data.Map
 import GHC.Generics
 import qualified Liability as L
+
+type TriggerName = String
+
+setTriggered :: Trigger -> Trigger
+setTriggered trg@Trigger{ trgStatus = False } = trg { trgStatus = True }
+setTriggered trg@Trigger{ trgStatus = True } = error ("The trigger is already triggered"++ show trg)
 
 
 data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal status

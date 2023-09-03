@@ -97,7 +97,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | ActionWithPre L.Pre [Action]            -- ^ execute actions if <pre> is true 
             | ActionWithPre2 L.Pre [Action] [Action]  -- ^ execute action1 if <pre> is true ,else execute action2 
             -- Trigger
-            | RunTrigger DealCycle Int                -- ^ update the trigger status during the waterfall execution
+            | RunTrigger DealCycle TriggerName        -- ^ update the trigger status during the waterfall execution
             -- Debug
             | WatchVal (Maybe String) [DealStats]     -- ^ inspect vals during the waterfall execution
             deriving (Show,Generic)

@@ -60,7 +60,8 @@ data TestDeal a = TestDeal {
   ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
   ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
   ,custom:: Maybe (Map.Map String CustomDataType)
-  ,triggers :: Maybe (Map.Map DealCycle [Trigger])
+  ,triggers :: Maybe (Map.Map DealCycle 
+                              (Map.Map String Trigger))
   ,overrides :: Maybe [OverrideType]
   ,ledgers :: Maybe (Map.Map String LD.Ledger)
 } deriving (Show,Generic)

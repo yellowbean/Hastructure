@@ -430,7 +430,7 @@ data DealStats = CurrentBondBalance
                | LiqBalance [String]
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
-               | TriggersStatusAt DealCycle Int
+               | TriggersStatus DealCycle String
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
                | TestAll Bool [DealStats]

@@ -178,7 +178,10 @@ queryTrigger :: P.Asset a => TestDeal a -> DealCycle -> [Trigger]
 queryTrigger t@TestDeal{ triggers = trgs } wt 
   = case trgs of 
       Nothing -> []
-      Just _trgs -> Map.findWithDefault [] wt _trgs
+      Just _trgs -> case Map.lookup wt _trgs of 
+                      Nothing -> []
+                      Just _trgsM -> Map.elems _trgsM
+      
 
 testTriggers :: P.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
 testTriggers t d [] = False
@@ -197,23 +200,44 @@ runEffects t@TestDeal{accounts = accMap, fees = feeMap } d te
 runTriggers :: P.Asset a => TestDeal a -> Date -> DealCycle -> (TestDeal a,[ResultComponent])
 runTriggers t@TestDeal{status=oldStatus, triggers = Nothing} d dcycle = (t, [])
 runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle = 
-    (newDeal{triggers = Just (Map.insert dcycle newTriggers trgM)}, newLogs)
+    (newDeal {triggers = Just (Map.insert dcycle newTriggers trgM)}, newLogs)
   where 
-    _trgs = Map.findWithDefault [] dcycle trgM
-    testTrgsResult = [ (_trg, (not (trgStatus _trg) || trgStatus _trg && trgCurable _trg) && testTrigger t d _trg)
-                      | _trg <- _trgs ] 
-    triggeredEffects = [ trgEffects _trg | (_trg,_flag)  <- testTrgsResult, _flag ] -- `debug` ("DEBUG->TG"++show [ testTrigger t d (fst x) | x <- _trgs ])
+    -- _trgs = Map.findWithDefault [] dcycle trgM
+
+    -- get triggeres to run at `dealCycle`
+    trgsMap = Map.findWithDefault Map.empty dcycle trgM
+    
+    --testTrgsResult = [ (_trg, (not (trgStatus _trg) || trgStatus _trg && trgCurable _trg) && testTrigger t d _trg)
+    --                  | _trg <- _trgs ] 
+    
+    -- triggered trigger
+    triggeredTrgs = Map.filter   
+                          (\trg -> 
+                            (not (trgStatus trg) || trgStatus trg && trgCurable trg) && testTrigger t d trg)
+                          trgsMap
+
+    -- extract trigger effects to run                   
+    triggeredEffects = [ trgEffects _trg | _trg <- Map.elems triggeredTrgs ] 
+
+    -- run effects on deals
     newDeal = foldl 
                (\_t  -> runEffects _t d )  -- aka (\_t _te -> runEffects _t d _te)
                t
-               triggeredEffects 
+               triggeredEffects
+
+    -- if deal status changed, then insert to log if changes
     newStatus = status newDeal 
     newLogs = [DealStatusChangeTo d oldStatus newStatus |  newStatus /= oldStatus] 
-    newTriggers = [ if _flag then 
-                       _trg { trgStatus = True } 
-                    else 
-                       _trg     
-                   | (_trg,_flag) <- testTrgsResult ]
+
+    -- new status of trigger, update status of trigger to True
+    triggeredNames = Map.keys triggeredTrgs
+
+    newTriggers = Map.union 
+                    (Map.map setTriggered triggeredTrgs)
+                    trgsMap
+                    
+
+
   
 type RevolvingAssumption = (RevolvingPool , [AP.AssumptionBuilder])
 
@@ -351,7 +375,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFl
            let 
              newlog = 
                 case ds of 
-                  TriggersStatusAt dc idx -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
+                  TriggersStatus dc trgName -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
                   _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds)
            in 
              run t poolFlow (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("Add log"++show newlog)

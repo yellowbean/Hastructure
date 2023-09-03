@@ -468,9 +468,9 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Bool
 queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds = 
   case ds of 
-    TriggersStatusAt dealcycle idx -> 
+    TriggersStatus dealcycle tName -> 
       case trgs of 
-        Just _trgs -> Trg.trgStatus $ (_trgs Map.! dealcycle) !! idx
+        Just _trgs -> Trg.trgStatus $ (_trgs Map.! dealcycle) Map.! tName
         Nothing -> error "no trigger for this deal"
     IsMostSenior bn bns ->
       let 

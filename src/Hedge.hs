@@ -28,6 +28,10 @@ import Stmt
 import Debug.Trace
 debug = flip trace
 
+type SettleDates = DatePattern       -- ^ dates when rates/ex-rates are reseted
+type ReceiveAmount = Balance         -- ^ cash to be collect in instrutment
+type PayoutAmount = Balance          -- ^ cash to be paid in instrutment
+
 data RateSwapBase = Fixed Balance    -- ^ a fixed balance as notional base 
                   | Base DealStats   -- ^ a referece as notional base
                   | Schedule Ts      -- ^ a predfiend schedule of notional balance
@@ -88,19 +92,11 @@ payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt}
        newTxn = IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle
        newStmt = appendStmt stmt newTxn
 
--- data CurrencySwap = CurrencySwap Rate Balance
---                   | Dummy3
---                   deriving(Show,Generic)
-              
 instance QueryByComment RateSwap where 
     queryStmt RateSwap{rsStmt = Nothing} tc = []
     queryStmt RateSwap{rsStmt = Just (Statement txns)} tc
       = filter (\x -> getTxnComment x == tc) txns
 
-type SettleDates = DatePattern
-type Notional = Balance
-type ReceiveAmount = Balance
-type PayoutAmount = Balance
 
 data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating rate and receiving Floating Rate
                   | FloatingToFixed  Floater IRate        -- ^ Paying Floating Rate and receiving Fixed Rate

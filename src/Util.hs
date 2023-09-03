@@ -443,6 +443,7 @@ projDatesByPattern dp sd ed
     in 
       genSerialDates dp sd (fromInteger num)
 
+-- | swap a value in list with index supplied
 replace :: [a] -> Int -> a -> [a]
 replace xs i e = case splitAt i xs of
                    (before, _:after) -> before ++ e: after
