@@ -20,7 +20,7 @@ module Types
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
-  ,TxnComment(..),Direction(..)
+  ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
   )
   
   where
@@ -453,6 +453,39 @@ data DealStats = CurrentBondBalance
                | Round DealStats (RoundingBy Balance)
                deriving (Show,Eq,Ord,Read,Generic)
 
+data DealStatType = RtnBalance 
+                  | RtnRate 
+                  | RtnBool 
+                  | RtnInt
+                  deriving (Show,Eq,Ord,Read,Generic)
+
+getDealStatType :: DealStats -> DealStatType
+getDealStatType (CumulativePoolDefaultedRateTill _) = RtnRate
+getDealStatType CumulativePoolDefaultedRate = RtnRate
+getDealStatType CumulativeNetLossRatio = RtnRate
+getDealStatType BondFactor = RtnRate
+getDealStatType PoolFactor = RtnRate
+getDealStatType (FutureCurrentBondFactor _) = RtnRate
+getDealStatType (FutureCurrentPoolFactor _) = RtnRate
+getDealStatType (BondWaRate _) = RtnRate
+getDealStatType PoolWaRate = RtnRate
+getDealStatType (BondRate _) = RtnRate
+
+getDealStatType CurrentPoolBorrowerNum = RtnInt
+getDealStatType (MonthsTillMaturity _) = RtnInt
+
+getDealStatType (IsMostSenior _ _) = RtnBool
+getDealStatType TestRate {} = RtnBool
+getDealStatType (TestAny _ _) = RtnBool
+getDealStatType (TestAll _ _) = RtnBool
+
+getDealStatType (Avg dss) = getDealStatType (head dss)
+getDealStatType (Max dss) = getDealStatType (head dss)
+getDealStatType (Min dss) = getDealStatType (head dss)
+getDealStatType (Divide ds1 ds2) = getDealStatType ds1
+
+
+dealStatType _ = RtnBalance
 
 data Cmp = G      -- ^ Greater than 
          | GE     -- ^ Greater Equal than
@@ -537,7 +570,7 @@ data ResultComponent = CallAt Date
                      | BondOutstandingInt String Balance Balance      -- ^ when deal ends,calculate oustanding interest due 
                      | InspectBal Date DealStats Balance
                      | InspectInt Date DealStats Int
-                     | InspectRate Date DealStats Rate
+                     | InspectRate Date DealStats Micro
                      | InspectBool Date DealStats Bool
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
                      deriving (Show, Generic)

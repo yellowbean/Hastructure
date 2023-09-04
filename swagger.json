@@ -3426,7 +3426,7 @@
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "format": "double",
+                                        "multipleOf": 1.0e-6,
                                         "type": "number"
                                     }
                                 ],
@@ -11445,7 +11445,7 @@
         }
     },
     "info": {
-        "version": "0.20.1",
+        "version": "0.20.2",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

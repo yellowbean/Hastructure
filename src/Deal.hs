@@ -153,7 +153,7 @@ updateRateSwapBal :: P.Asset a => TestDeal a -> Date -> HE.RateSwap -> HE.RateSw
 updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
   =  case base of 
        HE.Fixed _ -> rs  
-       HE.Base ds -> rs { HE.rsRefBalance = queryDeal t (patchDateToStats d ds) } `debug` ("query Result"++ show (patchDateToStats d ds) )
+       HE.Base ds -> rs { HE.rsRefBalance = queryDeal t (patchDateToStats d ds) } -- `debug` ("query Result"++ show (patchDateToStats d ds) )
        HE.Schedule ts -> rs { HE.rsRefBalance = fromRational (getValByDate ts Inc d) }
 
 testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
@@ -374,9 +374,11 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFl
          InspectDS d ds -> 
            let 
              newlog = 
-                case ds of 
-                  TriggersStatus dc trgName -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
-                  _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds)
+                case getDealStatType ds of 
+                  RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
+                  RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
+                  RtnInt -> InspectInt d ds $ queryDealInt t (patchDateToStats d ds) d
+                  _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds) `debug` ("getDealStatType"++show (getDealStatType ds)++ ">>>"++ show ds)
            in 
              run t poolFlow (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("Add log"++show newlog)
          

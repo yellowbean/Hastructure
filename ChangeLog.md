@@ -1,7 +1,12 @@
 # Changelog for Hastructure
 
+## 0.20.3
+### 2023-9-4
+* ENHANCE: now user can include boolean/int/balance/rate type query in `inspect` field
+
 ## 0.20.2
 ### 2023-8-31
+* BREAK: move `Trigger` from `list` into a `map` with a name
 * ENHANCE: add `CumulatiePoolDefaultedRateTill` to query default rate as of collection period N , then support query last one,last two default rates in the past as a rolling basis..
 * ENHANCE: add `queryBool` with test logic of `any` `or` which will test all predicates or any predicates are/is satisfied. With new included aforementioned formula above, the engine can have a predicate like `last 2 period cumulative defaulte rates are all lower than 5%`, `any last 2 period cumulative defaulte rates is higher than 5%`  
 

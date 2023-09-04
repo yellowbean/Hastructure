@@ -1,11 +1,12 @@
 [![Actions Status](https://github.com/yellowbean/Hastructure/workflows/Haskell%20CI/badge.svg)](https://github.com/yellowbean/Hastructure/actions)
 [![Docker Build](https://img.shields.io/docker/v/yellowbean/hastructure?color=green&label=docker)](https://hub.docker.com/r/yellowbean/hastructure)
 
-# Hastructure
+# Why Hastructure ?
 * :dollar: A structured finance cashflow engine written in Haskell 
 * :coffee: Easy integration with Java/C#/C++/JavaScript/Python with RESTful interface and Docker image ready
 * :bricks: A building block engine to model cashflows of structured product, all the formula and variables are exposed.
 * :car: In-house and white-label friendly.
+* :flags: No lockdown, all JSONs input/output, no private file formats.
 * :snake: [Python wrapper](https://github.com/yellowbean/PyABS) on the way   
 
 ### Features
@@ -40,8 +41,8 @@
   * interest charge or fee charge on the credit used & unused
 * Trigger 
   * Base on Date 
-  * Base on Free Formula : Bond /Pool metrics
-  * Base on Pool performance
+  * Base on Free Formula, Bond /Pool metrics
+  * Base on Pool performance, like Cumulative Default Rate, last 3 periods delinquency rates.
   * Base on any combination above
 * Interest Swap
   * Float to Float/ Fix to Float support
