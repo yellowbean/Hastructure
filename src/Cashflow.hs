@@ -8,7 +8,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowRental,mflowRate,sumPoolFlow
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
-                ,getEarlierTsCashFlowFrame, lookupSource
+                ,lookupSource
                 ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,splitCashFlowFrameByDate
@@ -81,7 +81,7 @@ getDatesCashFlowFrame (CashFlowFrame ts) = getDate <$> ts
 
 getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date)
 getDateRangeCashFlowFrame (CashFlowFrame trs)
-  = ( getDate (head trs), getDate (last trs))
+  = (getDate (head trs), getDate (last trs))
 
 cfAt :: CashFlowFrame -> Int -> Maybe TsRow
 cfAt (CashFlowFrame trs) idx = 
@@ -97,10 +97,6 @@ cfInsertHead tr (CashFlowFrame trs)
 getSingleTsCashFlowFrame :: CashFlowFrame -> Date -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame trs) d
   = head $ filter (\x -> getDate x == d) trs
-
-getEarlierTsCashFlowFrame :: CashFlowFrame -> Date -> Maybe TsRow
-getEarlierTsCashFlowFrame (CashFlowFrame trs) d
-  = L.find (tsDateLT d) (reverse trs)
 
 splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
 splitCashFlowFrameByDate (CashFlowFrame txns) d st
@@ -221,7 +217,6 @@ reduceTs :: [TsRow] -> TsRow -> [TsRow]
 reduceTs [] _tr = [_tr]
 reduceTs (tr:trs) _tr 
   | sameDate tr _tr = addTs tr _tr : trs -- `debug` ("Same date for "++show tr ++ show _tr)
-  -- | otherwise = (_tr:tr:trs)
   | otherwise = appendTs tr _tr : tr : trs  -- `debug` ("head of trs"++ show tr)
 
 firstDate :: CashFlowFrame -> Date 

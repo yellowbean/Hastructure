@@ -12,7 +12,7 @@ module Types
   ,RangeType(..),CutoffType(..),CustomDataType(..)
   ,Balance,DealStats(..),Index(..)
   ,DealCycle(..),Cmp(..),TimeHorizion(..)
-  ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate
+  ,Date,Dates,TimeSeries(..),IRate,Amount,Rate,StartDate,EndDate,Lag
   ,Spread,Floor,Cap,Interest,Principal,Cash,Default,Loss,Rental,PrepaymentPenalty
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
@@ -82,6 +82,7 @@ type DefaultRate = Rate
 type RecoveryRate = Rate
 type RemainTerms = Int
 type BorrowerNum = Int
+type Lag = Int
 
 data Index = LPR5Y
             | LPR1Y
@@ -619,10 +620,42 @@ class TimeSeries ts where
           (Exc, Future) ->  filter (\x -> getDate x > d) ts
           (Exc, Past) ->  filter (\x -> getDate x < d) ts
 
+    cmpWith :: ts -> Date -> Ordering
+    cmpWith t d = compare (getDate t) d
+
+    isAfter :: ts -> Date -> Bool 
+    isAfter t d = (getDate t) > d
+    isOnAfter :: ts -> Date -> Bool 
+    isOnAfter t d = (getDate t) >= d
+    isBefore :: ts -> Date -> Bool 
+    isBefore t d = (getDate t) < d
+    isOnBefore :: ts -> Date -> Bool 
+    isOnBefore t d = (getDate t) <= d
+
+    splitBy :: Date -> CutoffType -> [ts] -> ([ts],[ts])
+    splitBy d ct tss = 
+      let 
+        ffunR x = case ct of
+                   Inc -> (getDate x > d) -- include ts in the Left
+                   Exc -> (getDate x >= d)  -- 
+        ffunL x = case ct of
+                   Inc -> (getDate x <= d) -- include ts in the Left
+                   Exc -> (getDate x < d)  -- 
+      in 
+        (filter ffunL tss, filter ffunR tss)
+        
+                         
+
 
 class Liable lb where 
+
+  -- must implement
   getDue :: lb -> Balance
   getLastPaidDate :: lb -> Date 
+
+  -- optional implement
+  getTotalDue :: [lb] -> Balance
+  getTotalDue lbs =  sum $ getDue <$> lbs
 
 data LookupType = Upward 
                 | Downward

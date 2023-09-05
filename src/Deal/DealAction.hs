@@ -102,15 +102,14 @@ calcLiquidationAmount alm pool d
           case P.futureCf pool of 
             Nothing -> 0  -- `debug` ("No futureCF")
             Just _futureCf@(CashFlowFrame trs) ->
-                let 
-                  poolInflow = CF.getEarlierTsCashFlowFrame _futureCf d -- `debug` ("liq:"++show _futureCf++"D"++ show d)
-                  earlierTxns = cutBy Exc Past d trs
-                  currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
-                in 
-                  case poolInflow of 
-                    Nothing -> 0  -- `debug` ("No pool Inflow")
-                    Just _ts ->   -- TODO need to check if missing last row
-                        (mulBR (CF.mflowBalance _ts) currentFactor) + (mulBR currentDefaulBal defaultFactor) 
+              let 
+                earlierTxns = cutBy Inc Past d trs
+                currentCumulativeDefaultBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
+              in 
+                case earlierTxns of 
+                  [] -> 0  -- `debug` ("No pool Inflow")
+                  _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor) 
+                  -- TODO need to check if missing last row
 
       PV discountRate recoveryPct ->
           case P.futureCf pool of
