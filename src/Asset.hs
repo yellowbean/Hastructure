@@ -2,8 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Asset (Pool(..),calc_p_i_flow
-       ,aggPool
+module Asset (Pool(..),calc_p_i_flow ,aggPool
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
        ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
@@ -258,10 +257,10 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps
       in 
         AssetPrice val wal (-1) (-1) (-1) 
 
-
+-- | Aggregate all cashflow into a single cashflow frame
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
 aggPool [] = CF.CashFlowFrame []
-aggPool xs = foldr1 CF.combine xs   -- `debug` ("XS"++show(xs))
+aggPool xs = foldr1 CF.combine xs  
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]

@@ -1946,10 +1946,10 @@
                     "triggers": {
                         "type": "object",
                         "additionalProperties": {
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "$ref": "#/components/schemas/Trigger"
-                            },
-                            "type": "array"
+                            }
                         }
                     },
                     "pool": {
@@ -2939,9 +2939,7 @@
                                         "$ref": "#/components/schemas/DealCycle"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "type": "string"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -3428,7 +3426,7 @@
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "format": "double",
+                                        "multipleOf": 1.0e-6,
                                         "type": "number"
                                     }
                                 ],
@@ -3524,7 +3522,9 @@
                     "CollectedRecoveries",
                     "CollectedPrepayment",
                     "CollectedPrepaymentPenalty",
-                    "CollectedRental"
+                    "CollectedRental",
+                    "NewDefaults",
+                    "NewLosses"
                 ]
             },
             "TxnComment": {
@@ -5288,6 +5288,26 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "maximum": 9223372036854775807,
+                                "type": "integer",
+                                "minimum": -9223372036854775808
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CumulativePoolDefaultedRateTill"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5433,6 +5453,39 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolSource"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PoolCumCollectionTill"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/PoolSource"
                                 },
@@ -5442,6 +5495,39 @@
                                 "type": "string",
                                 "enum": [
                                     "PoolCurCollection"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolSource"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PoolCollectionStats"
                                 ]
                             }
                         },
@@ -6458,9 +6544,7 @@
                                         "$ref": "#/components/schemas/DealCycle"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "type": "string"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -6470,7 +6554,101 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "TriggersStatusAt"
+                                    "TriggersStatus"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TestRate"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/DealStats"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TestAny"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/DealStats"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TestAll"
                                 ]
                             }
                         },
@@ -7399,10 +7577,10 @@
                     "triggers": {
                         "type": "object",
                         "additionalProperties": {
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "$ref": "#/components/schemas/Trigger"
-                            },
-                            "type": "array"
+                            }
                         }
                     },
                     "pool": {
@@ -7511,10 +7689,10 @@
                     "triggers": {
                         "type": "object",
                         "additionalProperties": {
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "$ref": "#/components/schemas/Trigger"
-                            },
-                            "type": "array"
+                            }
                         }
                     },
                     "pool": {
@@ -9039,10 +9217,10 @@
                     "triggers": {
                         "type": "object",
                         "additionalProperties": {
-                            "items": {
+                            "type": "object",
+                            "additionalProperties": {
                                 "$ref": "#/components/schemas/Trigger"
-                            },
-                            "type": "array"
+                            }
                         }
                     },
                     "pool": {
@@ -11267,7 +11445,7 @@
         }
     },
     "info": {
-        "version": "0.20.1",
+        "version": "0.20.2",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

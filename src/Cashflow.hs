@@ -375,6 +375,7 @@ emptyTsRow _d (MortgageFlow a x c d e f g h i j k) = (MortgageFlow _d 0 0 0 0 0 
 emptyTsRow _d (LoanFlow a x c d e f g i j) = (LoanFlow _d 0 0 0 0 0 0 0 0)
 emptyTsRow _d (LeaseFlow a x c ) = (LeaseFlow _d 0 0 )
 
+-- | given a row ,build a new cf row with begin balance
 buildBegTsRow :: Date -> TsRow -> TsRow
 buildBegTsRow d tr 
   = (tsSetBalance (mflowBalance tr + mflowAmortAmount tr)) (emptyTsRow d tr)
@@ -434,6 +435,8 @@ lookupSource tr CollectedRecoveries = mflowRecovery tr
 lookupSource tr CollectedRental = mflowRental tr
 lookupSource tr CollectedInterest = mflowInterest tr
 lookupSource tr CollectedPrepaymentPenalty = mflowPrepaymentPenalty tr
+lookupSource tr NewDefaults = mflowDefault tr
+lookupSource tr NewLosses = mflowLoss tr
 
 
 

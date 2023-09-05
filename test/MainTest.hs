@@ -25,6 +25,7 @@ import qualified Accounts as A
 import qualified Lib as L
 import qualified Stmt as S
 import qualified Data.Time as T
+import qualified Data.Vector as UtilT
 
 main = defaultMain tests
 
@@ -66,6 +67,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.dateSliceTest
                            ,UtilT.capTest
                            ,UtilT.roundingTest
+                           ,UtilT.sliceTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest

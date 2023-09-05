@@ -10,7 +10,7 @@ module Util
     ,replace,paddingDefault, capWith, splitByDate
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
-    ,floorWith
+    ,floorWith,slice
     )
     where
 import qualified Data.Time as T
@@ -443,6 +443,7 @@ projDatesByPattern dp sd ed
     in 
       genSerialDates dp sd (fromInteger num)
 
+-- | swap a value in list with index supplied
 replace :: [a] -> Int -> a -> [a]
 replace xs i e = case splitAt i xs of
                    (before, _:after) -> before ++ e: after
@@ -530,3 +531,6 @@ roundingBy (RoundCeil x) n = x * fromIntegral (ceiling (n/x) :: Integer)
 roundingByM :: (Fractional a,RealFrac a) => Maybe (RoundingBy a) -> a -> a 
 roundingByM Nothing x = x 
 roundingByM (Just rb) x = roundingBy rb x
+
+slice :: Int -> Int -> [a] -> [a]
+slice from to xs = take (to - from ) (drop from xs)

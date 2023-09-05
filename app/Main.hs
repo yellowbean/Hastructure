@@ -89,7 +89,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.20.1"
+version1 = Version "0.20.2"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -226,10 +226,10 @@ wrapRun (LDeal d) mAssump mPricing = let
                                        (LDeal _d,_pflow,_rs,_p)
 
 wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> CF.CashFlowFrame
-wrapRunPool (MPool p) assump = P.aggPool $ D.runPool2 p assump
-wrapRunPool (LPool p) assump = P.aggPool $ D.runPool2 p assump
-wrapRunPool (IPool p) assump = P.aggPool $ D.runPool2 p assump
-wrapRunPool (RPool p) assump = P.aggPool $ D.runPool2 p assump
+wrapRunPool (MPool p) assump = P.aggPool $ D.runPool p assump
+wrapRunPool (LPool p) assump = P.aggPool $ D.runPool p assump
+wrapRunPool (IPool p) assump = P.aggPool $ D.runPool p assump
+wrapRunPool (RPool p) assump = P.aggPool $ D.runPool p assump
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe PricingMethod)
                    deriving(Show, Generic)

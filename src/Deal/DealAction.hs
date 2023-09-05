@@ -811,17 +811,15 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapP
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapSettle accName sName)
   = let 
-      t1 = performAction d t (W.SwapAccrue sName)
-      t2 = performAction d t1 (W.SwapReceive accName sName)
+      -- t1 = performAction d t (W.SwapAccrue sName)
+      t2 = performAction d t (W.SwapReceive accName sName)
     in 
       performAction d t2 (W.SwapPay accName sName)
 
 
-performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc idx)
-  = t { triggers = Just (Map.insert loc newTrgLst trgM) }
+performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tName)
+  = t { triggers = Just (Map.insert loc newMap trgM) }
     where 
-      trg = (trgM Map.! loc) !! idx
-      newTrg = updateTrigger t d trg
-      newTrgLst = replace (trgM Map.! loc) idx newTrg
+      newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
 
 performAction d t action =  error $ "failed to match action"++show action

@@ -20,7 +20,7 @@ module Types
   ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
-  ,TxnComment(..),Direction(..)
+  ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
   )
   
   where
@@ -191,6 +191,8 @@ sortActionOnDate a1 a2
   | d1 == d2 = case (a1,a2) of
                  (BuildReport sd1 ed1 ,_) -> GT 
                  (_ , BuildReport sd1 ed1) -> LT
+                 (ResetIRSwapRate _ _ ,_) -> LT 
+                 (_ , ResetIRSwapRate _ _) -> GT
                  (_,_) -> EQ 
   | otherwise = compare d1 d2
   where 
@@ -360,6 +362,8 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | CollectedPrepayment             -- ^ prepayment
                 | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
                 | CollectedRental                 -- ^ rental from pool
+                | NewDefaults                     -- ^ new defaults in balance
+                | NewLosses                       -- ^ new loss in balance
                 deriving (Show,Ord,Read,Eq, Generic)
 
 
@@ -371,6 +375,7 @@ data DealStats = CurrentBondBalance
                | CumulativePoolRecoveriesBalance  -- Depreciated, use PoolCumCollection
                | CumulativeNetLoss
                | CumulativePoolDefaultedRate
+               | CumulativePoolDefaultedRateTill Int
                | CumulativeNetLossRatio
                | OriginalBondBalance
                | OriginalPoolBalance
@@ -380,7 +385,9 @@ data DealStats = CurrentBondBalance
                | BondWaRate [BondName]
                | UseCustomData String
                | PoolCumCollection [PoolSource]
+               | PoolCumCollectionTill Int [PoolSource]
                | PoolCurCollection [PoolSource]
+               | PoolCollectionStats Int [PoolSource]
                | AllAccBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
@@ -423,7 +430,10 @@ data DealStats = CurrentBondBalance
                | LiqBalance [String]
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
-               | TriggersStatusAt DealCycle Int
+               | TriggersStatus DealCycle String
+               | TestRate DealStats Cmp Micro
+               | TestAny Bool [DealStats]
+               | TestAll Bool [DealStats]
                | PoolWaRate
                | BondRate BondName
                | Factor DealStats Rational
@@ -443,13 +453,46 @@ data DealStats = CurrentBondBalance
                | Round DealStats (RoundingBy Balance)
                deriving (Show,Eq,Ord,Read,Generic)
 
+data DealStatType = RtnBalance 
+                  | RtnRate 
+                  | RtnBool 
+                  | RtnInt
+                  deriving (Show,Eq,Ord,Read,Generic)
+
+getDealStatType :: DealStats -> DealStatType
+getDealStatType (CumulativePoolDefaultedRateTill _) = RtnRate
+getDealStatType CumulativePoolDefaultedRate = RtnRate
+getDealStatType CumulativeNetLossRatio = RtnRate
+getDealStatType BondFactor = RtnRate
+getDealStatType PoolFactor = RtnRate
+getDealStatType (FutureCurrentBondFactor _) = RtnRate
+getDealStatType (FutureCurrentPoolFactor _) = RtnRate
+getDealStatType (BondWaRate _) = RtnRate
+getDealStatType PoolWaRate = RtnRate
+getDealStatType (BondRate _) = RtnRate
+
+getDealStatType CurrentPoolBorrowerNum = RtnInt
+getDealStatType (MonthsTillMaturity _) = RtnInt
+
+getDealStatType (IsMostSenior _ _) = RtnBool
+getDealStatType TestRate {} = RtnBool
+getDealStatType (TestAny _ _) = RtnBool
+getDealStatType (TestAll _ _) = RtnBool
+
+getDealStatType (Avg dss) = getDealStatType (head dss)
+getDealStatType (Max dss) = getDealStatType (head dss)
+getDealStatType (Min dss) = getDealStatType (head dss)
+getDealStatType (Divide ds1 ds2) = getDealStatType ds1
+
+
+dealStatType _ = RtnBalance
 
 data Cmp = G      -- ^ Greater than 
          | GE     -- ^ Greater Equal than
          | L      -- ^ Less than
          | LE     -- ^ Less Equal than
          | E      -- ^ Equals to
-         deriving (Show,Generic,Eq)
+         deriving (Show,Generic,Eq,Ord,Read)
 
 
 data Pre = IfZero DealStats
@@ -527,7 +570,7 @@ data ResultComponent = CallAt Date
                      | BondOutstandingInt String Balance Balance      -- ^ when deal ends,calculate oustanding interest due 
                      | InspectBal Date DealStats Balance
                      | InspectInt Date DealStats Int
-                     | InspectRate Date DealStats Rate
+                     | InspectRate Date DealStats Micro
                      | InspectBool Date DealStats Bool
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
                      deriving (Show, Generic)

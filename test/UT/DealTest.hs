@@ -156,10 +156,12 @@ td2 = D.TestDeal {
                                                     ,S.SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 S.Empty])))]
  ,D.triggers = Just $
                 Map.fromList $
-                  [(BeginDistributionWF,[ Trg.Trigger{Trg.trgCondition = IfDate G (toDate "20220501")
-                                                     ,Trg.trgEffects = Trg.DealStatusTo Revolving
-                                                     ,Trg.trgStatus = False 
-                                                     ,Trg.trgCurable = False }])]
+                  [(BeginDistributionWF,
+                    Map.fromList [ ("revolving trigger",Trg.Trigger{Trg.trgCondition = IfDate G (toDate "20220501")
+                                                                    ,Trg.trgEffects = Trg.DealStatusTo Revolving
+                                                                    ,Trg.trgStatus = False 
+                                                                    ,Trg.trgCurable = False })]
+                                                                    )]
  ,D.overrides = Nothing
  ,D.ledgers = Nothing
 }
@@ -208,7 +210,7 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_) = run2 td2 poolflows (Just ads) Nothing Nothing Nothing []
+      (fdeal,_) = run td2 poolflows (Just ads) Nothing Nothing Nothing []
     in 
       testCase "deal becomes revolving" $
       assertEqual "revoving" 

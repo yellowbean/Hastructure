@@ -3,23 +3,30 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Triggers(
-    Trigger(..),TriggerEffect(..)
+    Trigger(..),TriggerEffect(..),TriggerName,setTriggered
 )
  where
 
 import qualified Data.Text as T
 import Text.Read (readMaybe)
-import Lib
+import Lib ( Pre, DealStatus )
 import Types
 import Accounts (ReserveAmount)
-import Data.Aeson hiding (json)
+import Data.Aeson ( defaultOptions )
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Fixed
 import Data.Maybe
+import Data.Map
 import GHC.Generics
 import qualified Liability as L
+
+type TriggerName = String
+
+setTriggered :: Trigger -> Trigger
+setTriggered trg@Trigger{ trgStatus = False } = trg { trgStatus = True }
+setTriggered trg@Trigger{ trgStatus = True } = error ("The trigger is already triggered"++ show trg)
 
 
 data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal status
