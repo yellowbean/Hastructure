@@ -122,11 +122,11 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
            buildAssumptionRate pDates assumps _ppy_rates _def_rates  rr rl
        A.DefaultCDR r ->
            buildAssumptionRate pDates assumps _ppy_rates
-                                              (map (A.toPeriodRateByInterval r)
+                                              (map (Util.toPeriodRateByInterval r)
                                                    (getIntervalDays pDates))
                                                _recovery_rate _recovery_lag
        A.PrepaymentCPR r -> -- TODO need to convert to annualized rate
-           buildAssumptionRate pDates assumps (map (A.toPeriodRateByInterval r)
+           buildAssumptionRate pDates assumps (map (Util.toPeriodRateByInterval r)
                                                    (getIntervalDays pDates))
                                               _def_rates
                                               _recovery_rate _recovery_lag
@@ -153,14 +153,14 @@ buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate
        A.PrepaymentVec vs ->  
            let 
              _new_ppy = paddingDefault 0.0 vs (pred (length pDates))
-             new_ppy = zipWith A.toPeriodRateByInterval _new_ppy (getIntervalDays pDates)
+             new_ppy = zipWith Util.toPeriodRateByInterval _new_ppy (getIntervalDays pDates)
            in 
              buildAssumptionRate pDates assumps new_ppy _def_rates _recovery_rate _recovery_lag
 
        A.DefaultVec vs ->  
            let 
              _new_def = paddingDefault 0.0 vs (pred (length pDates))
-             new_def = zipWith A.toPeriodRateByInterval _new_def (getIntervalDays pDates)
+             new_def = zipWith Util.toPeriodRateByInterval _new_def (getIntervalDays pDates)
            in 
              buildAssumptionRate pDates assumps _ppy_rates new_def _recovery_rate _recovery_lag
 

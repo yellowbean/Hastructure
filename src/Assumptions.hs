@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Assumptions (AssumptionBuilder(..),BondPricingInput(..),toPeriodRateByInterval
+module Assumptions (AssumptionBuilder(..),BondPricingInput(..)
                     ,AssumptionInput(..),AssumptionLists(..),getCDR,getCPR,ApplyAssumptionType(..)
                     ,lookupAssumptionByIdx,splitAssumptions,lookupRate
                     ,getRateAssumption,projRates)
@@ -50,58 +50,52 @@ data AssumptionInput = Single ApplyAssumptionType                          -- ^ 
                      | Multiple (Map.Map String ApplyAssumptionType)       -- ^ multiple assumption request in a single request
                      deriving (Show,Generic)
 
-data AssumptionBuilder = MortgageByAge ([Int],[Float])
-                       -- Default Assumption
-                       | DefaultConstant Rate
-                       | DefaultCurve Ts
-                       | DefaultCDR Rate
-                       | DefaultVec [Rate]
-                       -- Prepayment Assumption
-                       | PrepaymentCPR Rate
-                       | PrepaymentDistribution Float [Float] 
-                       | PrepaymentByAging [(Int,Float)]
-                       | PrepaymentConstant Rate
-                       | PrepaymentCurve Ts
-                       | PrepaymentVec [Rate]
-                       -- Interest Rate
-                       | InterestRateConstant Index IRate
-                       | InterestRateCurve Index Ts
-                       -- Exta Stress 
-                       | DefaultFactors Ts
-                       | PrepaymentFactors Ts
-                       | PoolHairCut PoolSource Rate
-                       -- Call Assumption
-                       | CallWhen [C.CallOption]
-                       -- Revolving
-                       | AvailableAssets RevolvingPool [AssumptionBuilder]
-                       -- Lease Assumption 
-                       | LeaseProjectionEnd Date
-                       | LeaseBaseAnnualRate Rate
-                       | LeaseBaseCurve Ts
-                       | LeaseGapDays Int
-                       | LeaseGapDaysByAmount [(Amount,Int)] Int
-                       -- For Defaulted Asset/Recovery
-                       | Recovery (Rate,Int)
-                       | RecoveryDistribution (Rate,[Rate])
-                       | DefaultedRecovery Rate Int [Rate]
-                       | EvenRecoveryOnDefault Float Int
-                       -- Expense Assumption
+-- Revolving
+-- | AvailableAssets RevolvingPool [AssumptionBuilder]
+
+data AssetDefaultAssumption = DefaultConstant Rate
+                            | DefaultCDR Rate
+                            | DefaultVec [Rate]
+
+data AssetPrepayAssumption = PrepaymentConstant Rate
+                           | PrepaymentCPR Rate 
+                           | PrepaymentVec [Rate] 
+
+data AssetDelinquencyAssumption = DelinqCDR Rate Lag Rate Lag -- Annualized Rate to Delinq status , period lag become defaulted, loss rate, period become loss
+
+data InterestAssumption = InterestRateCurve Index Ts 
+                        | InterestRateConstant Index IRate
+
+data LeaseAssetGapAssump = GapDays Int 
+                         | GapDaysByAmount [(Amount,Int)] Int
+
+data LeaseAssetRentAssump = BaseAnnualRate Rate
+                          | BaseCurve Ts 
+
+data ExtraStress = DefaultFactors Ts 
+                 | PrepaymentFactors Ts
+                 | PoolHairCut PoolSource Rate
+
+data RecoveryAssumption = Recovery (Rate,Int)
+                        | DefaultedRecovery Rate Int [Rate]
+
+data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)
+                         | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump Date 
+                         | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)
+                         | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)
+
+data ReovolvingAssumption = AvailableAssets RevolvingPool AssetPerfAssumption
+
+data DealRunAssumption = StopRunBy Date
                        | ProjectedExpense FeeName Ts
-                       --- Instruction
-                       -- Debug 
-                       | StopRunBy Date
-                       | InspectOn [(DatePattern,DealStats)]
-                       -- Financial Report
-                       | BuildFinancialReport DatePattern
-                       deriving (Show,Generic)
+                       | CallWhen [C.CallOption]
+
+data QueryInput = InspectOn [(DatePattern,DealStats)]
+                | BuildFinancialReport DatePattern
 
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
                       deriving (Show,Generic)
-
-toPeriodRateByInterval :: Rate -> Int -> Rate
-toPeriodRateByInterval annualRate days
-  = toRational $ 1 - fromRational (1-annualRate) ** (fromIntegral days / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
 
 splitAssumptions :: [AssumptionBuilder] -> ([AssumptionBuilder],[AssumptionBuilder]) -> ([AssumptionBuilder],[AssumptionBuilder])
 splitAssumptions (a:aps) (dealAssump,assetAssump)

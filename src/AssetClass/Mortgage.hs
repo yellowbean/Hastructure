@@ -146,7 +146,7 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
 
 projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs 
 
-
+-- | implementation on prepayment penalty, which patch cashflow to cashflow frame
 patchPrepayPentalyFlow :: Mortgage -> CF.CashFlowFrame -> CF.CashFlowFrame
 patchPrepayPentalyFlow m mflow@(CF.CashFlowFrame trs) 
   = let 
