@@ -168,8 +168,8 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
                                0.0
                                futureCf) / cutoffBalance) -- `debug` ("cut off balace"++show cutoffBalance)
                   duration = (foldr (\x acc ->
-                                       (mulBR  
-                                         ((pv rc d (S.getDate x) (S.getTxnAmt x)) / presentValue) 
+                                       ((*)  
+                                         (divideBB (pv rc d (S.getDate x) (S.getTxnAmt x)) presentValue) 
                                          (yearCountFraction DC_ACT_365F d (S.getDate x)))
                                        + acc)
                                 0

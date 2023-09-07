@@ -6,7 +6,7 @@ module Util
     ,getValByDate,getValByDates,projDatesByPattern
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
     ,calcInt,calcIntRate,calcIntRateCurve
-    ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
+    ,multiplyTs,zipTs,getTsVals,divideBI,divideBB,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
@@ -51,6 +51,9 @@ mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
 
 divideBI :: Balance -> Int -> Balance
 divideBI b i = fromRational $ (toRational b) / (toRational i)
+
+divideBB :: Balance -> Balance -> Rational
+divideBB b1 b2 = toRational b1 / toRational b2
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
