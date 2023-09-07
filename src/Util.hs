@@ -5,7 +5,7 @@ module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern
     ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
-    ,calcInt,calcIntRate,calcIntRateCurve
+    ,calcInt,calcIntRate,calcIntRateCurve,divideBB
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, pv2, pv3, splitByDate, rangeBy
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
@@ -52,6 +52,10 @@ mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
 
 divideBI :: Balance -> Int -> Balance
 divideBI b i = fromRational $ (toRational b) / (toRational i)
+
+divideBB :: Balance -> Balance -> Rational
+divideBB b1 b2 = toRational b1 / toRational b2
+
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
