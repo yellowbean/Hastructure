@@ -233,17 +233,21 @@ wrapRunPool (RPool p) assump = P.aggPool $ D.runPool p assump
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe PricingMethod)
                    deriving(Show, Generic)
+
 instance ToSchema RunAssetReq
 
 wrapRunAsset :: RunAssetReq -> (CF.CashFlowFrame, Maybe [PriceResult])
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) Nothing) 
   = (P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets, Nothing)
+
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) (Just pm)) 
   = let 
       assetCf = P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets 
       pricingResult = (\a -> D.priceAssetUnion a d pm assumps) <$> assets
     in 
       (assetCf, Just pricingResult)
+
+--TODO implement on running via ByIndex
 
 type ScenarioName = String
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)

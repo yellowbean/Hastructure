@@ -216,7 +216,7 @@ instance Ast.Asset Mortgage where
       txns = zipWith11 CF.MortgageFlow cf_dates b_flow prin_flow int_flow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) rate_used bnflow (replicate l Nothing) 
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows)  d = CF.CashFlowFrame flows
-  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d = projCashflow m d [] 
+  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d = error "Adj Mortgage need to setup interest rate curve"
   
   getCurrentBal (Mortgage _ _bal _ _ _ _) = _bal
   getCurrentBal (AdjustRateMortgage _ _ _bal _ _ _ _) = _bal
@@ -259,7 +259,7 @@ instance Ast.Asset Mortgage where
     = (AdjustRateMortgage (MortgageOriginalInfo ob or ot p nd _type mpn) arm cb cr ct mbn st)
   
   -- project current mortgage
-  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) asOfDay assumps =
+  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) asOfDay mars@(A.MortgageAssump amd amp amr ami ams) =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
     in 
@@ -267,32 +267,27 @@ instance Ast.Asset Mortgage where
     where
       last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
       cf_dates_length = length cf_dates  -- `debug` ("Last Pay Date\n"++ show last_pay_date++"SD\n"++ show sd++"ot,ct\n"++show ot++","++show rt)
-      rate_vector = A.projRates or assumps cf_dates
-      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
-                               (replicate cf_dates_length 0.0)
-                               (replicate cf_dates_length 0.0)
-                               0
-                               0
+      
+      rate_vector = A.projRates or ami cf_dates
+      
+      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) mars
       txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
 
   -- project defaulted Mortgage    
-  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay assumps
-    = case find f assumps of 
-        Nothing -> CF.CashFlowFrame $ [CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing]
-        Just (A.DefaultedRecovery rr lag timing) -> 
-          let 
-            (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+ length timing)
-            beforeRecoveryTxn = [  CF.MortgageFlow d cb 0 0 0 0 0 0 cr mbn Nothing | d <- cf_dates1 ]
-            recoveries = calcRecoveriesFromDefault cb rr timing
-            bals = scanl (-) cb recoveries
-            _txns = [  CF.MortgageFlow d b 0 0 0 0 r 0 cr mbn Nothing | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
-            (_, txns) = splitByDate (beforeRecoveryTxn++_txns) asOfDay EqToRight -- `debug` ("AS OF Date"++show asOfDay)
-          in 
-            CF.CashFlowFrame txns
-       where 
-           f x = case x of 
-                   A.DefaultedRecovery _ _ _ ->True 
-                   _ -> False 
+  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay (A.DefaultedRecovery rr lag timing) =
+    let 
+      (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+ length timing)
+      beforeRecoveryTxn = [  CF.MortgageFlow d cb 0 0 0 0 0 0 cr mbn Nothing | d <- cf_dates1 ]
+      recoveries = calcRecoveriesFromDefault cb rr timing
+      bals = scanl (-) cb recoveries
+      _txns = [  CF.MortgageFlow d b 0 0 0 0 r 0 cr mbn Nothing | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
+      (_, txns) = splitByDate (beforeRecoveryTxn++_txns) asOfDay EqToRight -- `debug` ("AS OF Date"++show asOfDay)
+    in 
+      CF.CashFlowFrame txns
+    -- where 
+    --   f x = case x of 
+    --           A.DefaultedRecovery _ _ _ ->True 
+    --           _ -> False 
 
   -- project defaulted adjMortgage    
   projCashflow m@(AdjustRateMortgage mo arm cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay assumps
@@ -305,7 +300,7 @@ instance Ast.Asset Mortgage where
     = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
 
   -- project current AdjMortgage
-  projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) asOfDay assumps =
+  projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) asOfDay mars@(A.MortgageAssump amd amp amr ami ams) =
     let 
       (_,futureTxns) = splitByDate txns asOfDay EqToRight
     in 
@@ -325,7 +320,7 @@ instance Ast.Asset Mortgage where
                           resetDates = genSerialDatesTill2 IE firstResetDate dp (last cf_dates)
                           projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
                         in 
-                          case A.getRateAssumption assumps idx of
+                          case A.getRateAssumption (fromMaybe [] ami) idx of
                             Just (A.InterestRateCurve idx curve) 
                               -> projectFutureActualCurve curve -- `debug` ("Curve")
                             Just (A.InterestRateConstant idx v) 
@@ -334,11 +329,7 @@ instance Ast.Asset Mortgage where
 
       rate_vector = fromRational <$> getValByDates rate_curve Inc cf_dates -- `debug` ("RateCurve"++ show rate_curve)
 
-      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (last_pay_date:cf_dates) assumps
-                               (replicate cf_dates_length 0.0)
-                               (replicate cf_dates_length 0.0)
-                               0
-                               0
+      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) mars 
       txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
 
   projCashflow (ScheduleMortgageFlow beg_date flows) asOfDay assumps
@@ -354,7 +345,7 @@ instance Ast.Asset Mortgage where
                              (recovery_lag,recovery_rate) -- `debug` ("ppy rate"++ show ppy_rates)
        where
         beg_bal =  CF.mflowBegBalance $ head flows -- `debug` ("beg date"++show beg_date)
-        (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionRate (beg_date:cf_dates) assumps [] [] 0 0 -- `debug` ("Assumpt"++ show assumps)
+        (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (beg_date:cf_dates) assumps [] [] 0 0 -- `debug` ("Assumpt"++ show assumps)
         curve_dates_length =  recovery_lag + length flows
         temp_p = Lib.Monthly -- TODO to fix this hard code
         cf_dates = (map CF.getDate flows) ++ (genDates (CF.getDate (last flows)) temp_p recovery_lag)

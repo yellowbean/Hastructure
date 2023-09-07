@@ -5,7 +5,8 @@
 module Asset (Pool(..),calc_p_i_flow ,aggPool
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
-       ,buildAssumptionRate,calc_p_i_flow_even,calc_p_i_flow_i_p
+       ,calc_p_i_flow_even,calc_p_i_flow_i_p
+       ,buildAssumptionPpyDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset
 ) where
@@ -64,7 +65,7 @@ class Show a => Asset a where
   -- | get number of remaining payments
   getRemainTerms :: a -> Int
   -- | project asset cashflow under assumptions
-  projCashflow :: a -> Date -> [A.AssumptionBuilder] -> CF.CashFlowFrame
+  projCashflow :: a -> Date -> A.AssetPerfAssumption -> CF.CashFlowFrame
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
@@ -104,77 +105,75 @@ getIssuanceField Pool{issuanceStat = Nothing} _
 -- | calculate period payment (Annuity/Level mortgage)
 calcPmt :: Balance -> IRate -> Int -> Amount
 calcPmt bal periodRate periods =
-   let
-     periodRate1 = toRational periodRate
-     r1 =  ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1) -- `debug` ("PR>>"++show periodRate)
-     pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
-   in
-     mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
+  let
+    periodRate1 = toRational periodRate
+    r1 =  ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1) -- `debug` ("PR>>"++show periodRate)
+    pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
+  in
+    mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
 
--- | build pool performance curve from assumption passed in
-buildAssumptionRate :: [Date]-> [A.AssumptionBuilder] -> [Rate] -> [Rate] -> Rate -> Int -> ([Rate],[Rate],Rate,Int) -- prepay rates,default rates,
-buildAssumptionRate pDates (assump:assumps) _ppy_rates _def_rates _recovery_rate _recovery_lag = case assump of
-       A.DefaultConstant r ->
-           buildAssumptionRate pDates assumps _ppy_rates (replicate cf_dates_length r) _recovery_rate _recovery_lag
-       A.PrepaymentConstant r ->
-           buildAssumptionRate pDates assumps (replicate cf_dates_length r) _def_rates  _recovery_rate _recovery_lag
-       A.Recovery (rr,rl) ->
-           buildAssumptionRate pDates assumps _ppy_rates _def_rates  rr rl
-       A.DefaultCDR r ->
-           buildAssumptionRate pDates assumps _ppy_rates
-                                              (map (Util.toPeriodRateByInterval r)
-                                                   (getIntervalDays pDates))
-                                               _recovery_rate _recovery_lag
-       A.PrepaymentCPR r -> -- TODO need to convert to annualized rate
-           buildAssumptionRate pDates assumps (map (Util.toPeriodRateByInterval r)
-                                                   (getIntervalDays pDates))
-                                              _def_rates
-                                              _recovery_rate _recovery_lag
-       A.PrepaymentFactors _ts -> 
-           let
-             ppy_ts = zipTs pDates _ppy_rates
-             new_prepayment_rates = getTsVals $ multiplyTs Exc ppy_ts _ts 
-           in                   
-             buildAssumptionRate pDates assumps 
-                                              new_prepayment_rates
-                                              _def_rates
-                                              _recovery_rate _recovery_lag
+-- | apply ExtraStress on prepayment/default rates
+applyExtraStress :: Maybe A.ExtraStress -> [Date] -> [Rate] -> [Rate] -> ([Rate],[Rate])
+applyExtraStress Nothing _ ppy def = (ppy,def)
+applyExtraStress (Just (A.DefaultFactors ts)) ds ppy def =
+  let 
+    def_ts = zipTs ds def
+    newDef = getTsVals $ multiplyTs Exc def_ts ts   
+  in 
+    (ppy,newDef)
+applyExtraStress (Just (A.PrepaymentFactors ts)) ds ppy def =
+  let 
+    ppy_ts = zipTs ds ppy
+    newPpy = getTsVals $ multiplyTs Exc ppy_ts ts   
+  in 
+    (newPpy,def)
+applyExtraStress (Just (A.ExtraStresses ess)) ds ppy def = 
+  case ess of 
+    [] -> (ppy,def)
+    (es:_ess) -> case es of
+                   p@(A.PrepaymentFactors ts) -> applyExtraStress (Just (A.ExtraStresses _ess))
+                                                                ds
+                                                                (fst (applyExtraStress (Just p) ds ppy def))
+                                                                def
+                   p@(A.DefaultFactors ts) -> applyExtraStress (Just (A.ExtraStresses _ess))
+                                                               ds
+                                                               ppy
+                                                               (snd (applyExtraStress (Just p) ds ppy def))
+                   _ -> applyExtraStress (Just (A.ExtraStresses _ess)) ds ppy def
 
-       A.DefaultFactors _ts -> 
-           let
-             def_ts = zipTs pDates _def_rates
-             new_def_rates = getTsVals $ multiplyTs Exc def_ts _ts 
-           in                   
-             buildAssumptionRate pDates assumps 
-                                              _ppy_rates
-                                              new_def_rates
-                                              _recovery_rate _recovery_lag
 
-       A.PrepaymentVec vs ->  
-           let 
-             _new_ppy = paddingDefault 0.0 vs (pred (length pDates))
-             new_ppy = zipWith Util.toPeriodRateByInterval _new_ppy (getIntervalDays pDates)
-           in 
-             buildAssumptionRate pDates assumps new_ppy _def_rates _recovery_rate _recovery_lag
+-- | build pool assumption
+buildAssumptionPpyDefRecRate :: [Date] -> A.AssetPerfAssumption -> ([Rate],[Rate],Rate,Int)
+buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa _ mESa)
+  = (prepayRates2,defaultRates2,recoveryRate,recoveryLag)
+    where 
+      size = length ds
+      zeros = replicate size 0.0
+      prepayRates = case mPa of
+                      Nothing -> zeros
+                      Just (A.PrepaymentConstant r) -> replicate size r
+                      Just (A.PrepaymentCPR r) -> (map (Util.toPeriodRateByInterval r)
+                                                     (getIntervalDays ds))
+                      Just (A.PrepaymentVec vs) -> zipWith 
+                                                   Util.toPeriodRateByInterval
+                                                     (paddingDefault 0.0 vs (pred size))
+                                                     (getIntervalDays ds)
 
-       A.DefaultVec vs ->  
-           let 
-             _new_def = paddingDefault 0.0 vs (pred (length pDates))
-             new_def = zipWith Util.toPeriodRateByInterval _new_def (getIntervalDays pDates)
-           in 
-             buildAssumptionRate pDates assumps _ppy_rates new_def _recovery_rate _recovery_lag
+      defaultRates = case mDa of 
+                       Nothing -> zeros
+                       Just (A.DefaultConstant r) ->  replicate size r
+                       Just (A.DefaultCDR r) -> (map (Util.toPeriodRateByInterval r)
+                                                   (getIntervalDays ds))
+                       Just (A.DefaultVec vs) -> zipWith 
+                                                 Util.toPeriodRateByInterval
+                                                   (paddingDefault 0.0 vs (pred size))
+                                                   (getIntervalDays ds)
+      
+      (recoveryRate,recoveryLag) = case mRa of 
+                                     Nothing -> (0,0)
+                                     Just (A.Recovery (r,lag)) -> (r,lag)
 
-       _ -> buildAssumptionRate pDates assumps _ppy_rates _def_rates _recovery_rate _recovery_lag
-   where
-     cf_dates_length = length pDates
-
-buildAssumptionRate pDates [] _ppy_rates _def_rates _recovery_rate _recovery_lag 
-  = (paddingDefault 0.0 _ppy_rates stressSize
-     ,paddingDefault 0.0 _def_rates stressSize
-     ,_recovery_rate
-     ,_recovery_lag)
-   where 
-     stressSize = pred (length pDates)
+      (prepayRates2,defaultRates2) = applyExtraStress mESa ds prepayRates defaultRates
 
 
 
@@ -231,7 +230,7 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
     in 
       mulBR recoveryAmt <$> recoveryTiming
 
-priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssumptionLists -> PriceResult
+priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerfAssumption -> PriceResult
 priceAsset m d (PVCurve curve) assumps 
   = let 
       CF.CashFlowFrame txns = projCashflow m d assumps
