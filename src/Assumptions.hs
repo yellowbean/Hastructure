@@ -6,10 +6,14 @@
 module Assumptions (BondPricingInput(..)
                     ,AssumptionInput(..),ApplyAssumptionType(..)
                     ,lookupAssumptionByIdx,lookupRate,AssetPerfAssumption(..)
-                    ,ExtraStress(..)
+                    ,ExtraStress(..),RevolvingAssumption(..)
                     ,AssetPrepayAssumption(..),AssetDefaultAssumption(..),RecoveryAssumption(..)
                     ,getRateAssumption,projRates
-                    ,InterestAssumption(..)
+                    ,LeaseAssetGapAssump(..)
+                    ,LeaseAssetRentAssump(..)
+                    ,NonPerfAssumption(..)
+                    ,AssetDelinquencyAssumption(..)
+                    ,getCDR
                     )
 where
 
@@ -44,12 +48,23 @@ lookupAssumptionByIdx sbi i
         Just (_, aps ) ->  aps
         Nothing -> error ("Can't find idx"++ (show i)++"in starfication list"++ (show sbi))
 
-data ApplyAssumptionType = PoolLevel AssetPerfAssumption -- ^ assumption apply to all assets in the pool
-                         | ByIndex [StratificationByIdx] -- ^ assumption which only apply to a set of assets in the pool
+data ApplyAssumptionType = PoolLevel AssetPerfAssumption -- (Maybe [InterestAssumption])-- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratificationByIdx] -- (Maybe [InterestAssumption])-- ^ assumption which only apply to a set of assets in the pool
                          deriving (Show,Generic)
 
-data AssumptionInput = Single ApplyAssumptionType                          -- ^ one assumption request
-                     | Multiple (Map.Map String ApplyAssumptionType)       -- ^ multiple assumption request in a single request
+data NonPerfAssumption = NonPerfAssumption {
+  stopRunBy :: Maybe Date
+  ,projectedExpense :: Maybe (FeeName,Ts)
+  ,callWhen :: Maybe [C.CallOption]
+  ,revolving :: Maybe RevolvingAssumption
+  ,interest :: Maybe [RateAssumption]
+  ,inspectOn :: Maybe [(DatePattern,DealStats)]
+  ,buildFinancialReport :: Maybe DatePattern
+  ,pricing :: Maybe BondPricingInput
+} deriving (Show,Generic)
+
+data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request
+                     | Multiple (Map.Map String ApplyAssumptionType)  NonPerfAssumption       -- ^ multiple assumption request in a single request
                      deriving (Show,Generic)
 
 data AssetDefaultAssumption = DefaultConstant Rate
@@ -66,10 +81,6 @@ data AssetDelinquencyAssumption = DelinqCDR Rate Lag Rate Lag -- Annualized Rate
                                 | Dummy3
                                 deriving (Show,Generic)
 
-data InterestAssumption = InterestRateCurve Index Ts 
-                        | InterestRateConstant Index IRate
-                        deriving (Show,Generic)
-
 data LeaseAssetGapAssump = GapDays Int 
                          | GapDaysByAmount [(Amount,Int)] Int
                          deriving (Show,Generic)
@@ -78,69 +89,35 @@ data LeaseAssetRentAssump = BaseAnnualRate Rate
                           | BaseCurve Ts 
                           deriving (Show,Generic)
 
-data ExtraStress = DefaultFactors Ts 
-                 | PrepaymentFactors Ts
-                 | PoolHairCut PoolSource Rate
-                 | ExtraStresses [ExtraStress]
-                 deriving (Show,Generic)
+data ExtraStress = ExtraStress {
+                 defaultFactors :: Maybe Ts              -- ^ stress default rate via a time series based factor curve
+                 ,prepaymentFactors :: Maybe Ts          -- ^ stress prepayment rate via a time series based factor curve
+                 ,poolHairCut :: Maybe (PoolSource,Rate) -- ^ haircut on pool income source
+                 } deriving (Show,Generic)
 
-data RecoveryAssumption = Recovery (Rate,Int)
+data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, recovery lag
+                        | RecoveryTiming (Rate,[Rate])  -- ^ recovery rate, with distribution of recoveries
                         deriving (Show,Generic)
 
-data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe [InterestAssumption]) (Maybe ExtraStress)
-                         | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe [InterestAssumption]) (Maybe ExtraStress)
-                         | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate (Maybe [InterestAssumption]) (Maybe ExtraStress)
-                         | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe [InterestAssumption]) (Maybe ExtraStress)
-                         | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe [InterestAssumption]) (Maybe ExtraStress)
+data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)
+                         | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe ExtraStress)
+                         | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate  (Maybe ExtraStress)
+                         | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
+                         | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | DefaultedRecovery Rate Int [Rate]
                          deriving (Show,Generic)
 
-data ReovolvingAssumption = AvailableAssets RevolvingPool AssetPerfAssumption
+data RevolvingAssumption = AvailableAssets RevolvingPool AssetPerfAssumption
                           | Dummy4 
                           deriving (Show,Generic)
-
-data DealRunAssumption = StopRunBy Date
-                       | ProjectedExpense FeeName Ts
-                       | CallWhen [C.CallOption]
-                       deriving (Show,Generic)
-
-data QueryInput = InspectOn [(DatePattern,DealStats)]
-                | BuildFinancialReport DatePattern
-                deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
                       deriving (Show,Generic)
 
--- splitAssumptions :: [AssumptionBuilder] -> ([AssumptionBuilder],[AssumptionBuilder]) -> ([AssumptionBuilder],[AssumptionBuilder])
--- splitAssumptions (a:aps) (dealAssump,assetAssump)
---   = case a of
---     InterestRateConstant _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
---     InterestRateCurve _ _  -> splitAssumptions aps (a:dealAssump,assetAssump)
---     CallWhen _ -> splitAssumptions aps (a:dealAssump,assetAssump)
---     StopRunBy _ -> splitAssumptions aps (a:dealAssump,assetAssump)
---     InspectOn _ -> splitAssumptions aps (a:dealAssump,assetAssump)
---     PoolHairCut _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
---     BuildFinancialReport _ -> splitAssumptions aps (a:dealAssump,assetAssump)
---     AvailableAssets _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
---     ProjectedExpense _ _ -> splitAssumptions aps (a:dealAssump,assetAssump)
---     _  -> splitAssumptions aps (dealAssump,a:assetAssump)
-
--- splitAssumptions [] r = r
-
--- getCDR :: AssumptionLists -> Maybe Rate
--- getCDR [] = Nothing
--- getCDR (ap:aps) = 
---     case ap of 
---       DefaultCDR r -> Just r 
---       _ -> getCDR aps
--- 
--- getCPR :: AssumptionLists -> Maybe Rate
--- getCPR [] = Nothing
--- getCPR (ap:aps) = 
---     case ap of 
---       PrepaymentCPR r -> Just r 
---       _ -> getCPR aps
+getCDR :: Maybe AssetDefaultAssumption -> Maybe Rate
+getCDR (Just (DefaultCDR r)) = Just r
+getCDR _ = Nothing
 
 getIndexFromRateAssumption :: RateAssumption -> Index 
 getIndexFromRateAssumption (RateCurve idx _) = idx
@@ -153,16 +130,16 @@ lookupRate rAssumps (index,spd) d
       Just (RateFlat _ r) -> r + spd
       Nothing -> error $ "Failed to find Index "++show index
 
-getRateAssumption :: [InterestAssumption] -> Index -> Maybe InterestAssumption
+getRateAssumption :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumption assumps idx
   = find (\case
-           (InterestRateCurve _idx _) -> idx == _idx 
-           (InterestRateConstant _idx _) -> idx == _idx
+           (RateCurve _idx _) -> idx == _idx 
+           (RateFlat _idx _) -> idx == _idx
            _ -> False)
          assumps
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
-projRates :: RateType -> Maybe [InterestAssumption] -> [Date] -> [IRate]
+projRates :: RateType -> Maybe [RateAssumption] -> [Date] -> [IRate]
 projRates (Fix r) _ ds = replicate (length ds) r 
 projRates (Floater idx spd r dp rfloor rcap mr) (Just assumps) ds 
   = case getRateAssumption assumps idx of
@@ -171,8 +148,8 @@ projRates (Floater idx spd r dp rfloor rcap mr) (Just assumps) ds
         let 
           resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
           ratesFromCurve = case _rateAssumption of
-                             (InterestRateCurve _ ts)   -> (\x -> spd + (fromRational x) ) <$>  (getValByDates ts Inc resetDates)
-                             (InterestRateConstant _ v) -> (spd +) <$> replicate (length resetDates) v
+                             (RateCurve _ ts)   -> (\x -> spd + (fromRational x) ) <$>  (getValByDates ts Inc resetDates)
+                             (RateFlat _ v) -> (spd +) <$> replicate (length resetDates) v
                              _ -> error ("Invalid rate type "++ show _rateAssumption)
           ratesUsedByDates =  getValByDates
                                 (mkRateTs $ zip resetDates ratesFromCurve)
@@ -186,9 +163,7 @@ projRates (Floater idx spd r dp rfloor rcap mr) (Just assumps) ds
             (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
 
 
-$(deriveJSON defaultOptions ''InterestAssumption)
 $(deriveJSON defaultOptions ''BondPricingInput)
-$(deriveJSON defaultOptions ''AssumptionInput)
 $(deriveJSON defaultOptions ''ApplyAssumptionType)
 $(deriveJSON defaultOptions ''AssetPerfAssumption)
 $(deriveJSON defaultOptions ''AssetDefaultAssumption)
@@ -198,3 +173,5 @@ $(deriveJSON defaultOptions ''ExtraStress)
 $(deriveJSON defaultOptions ''AssetDelinquencyAssumption)
 $(deriveJSON defaultOptions ''LeaseAssetGapAssump)
 $(deriveJSON defaultOptions ''LeaseAssetRentAssump)
+$(deriveJSON defaultOptions ''RevolvingAssumption)
+$(deriveJSON defaultOptions ''NonPerfAssumption)

@@ -181,7 +181,6 @@ instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
 instance ToSchema Stmt.Direction
 instance ToSchema Stmt.TxnComment
-instance ToSchema AP.AssumptionBuilder
 instance ToSchema CF.TsRow
 instance ToSchema (TsPoint Balance)
 instance ToSchema (TsPoint IRate)
@@ -198,6 +197,17 @@ instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
 instance ToSchema (RoundingBy IRate)
 instance ToSchema (RoundingBy Balance)
+instance ToSchema AP.NonPerfAssumption
+instance ToSchema AP.RevolvingAssumption
+instance ToSchema AP.AssetPerfAssumption
+instance ToSchema AP.AssetDefaultAssumption
+instance ToSchema AP.AssetPrepayAssumption
+instance ToSchema AP.RecoveryAssumption
+instance ToSchema RateAssumption
+instance ToSchema AP.ExtraStress
+instance ToSchema AP.AssetDelinquencyAssumption
+instance ToSchema AP.LeaseAssetGapAssump
+instance ToSchema AP.LeaseAssetRentAssump
 
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
@@ -207,57 +217,58 @@ instance ToSchema Threshold
 
 type RunResp = (DealType , Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
-wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> Maybe AP.BondPricingInput -> RunResp
-wrapRun (MDeal d) mAssump mPricing = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing 
+wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
+wrapRun (MDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump 
                                      in 
                                        (MDeal _d,_pflow,_rs,_p) -- `debug` ("Run Done with deal->"++ show _d)
-wrapRun (RDeal d) mAssump mPricing = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
+wrapRun (RDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (RDeal _d,_pflow,_rs,_p)
-wrapRun (IDeal d) mAssump mPricing = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
+wrapRun (IDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (IDeal _d,_pflow,_rs,_p)
-wrapRun (LDeal d) mAssump mPricing = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mPricing
+wrapRun (LDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (LDeal _d,_pflow,_rs,_p)
 
-wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> CF.CashFlowFrame
-wrapRunPool (MPool p) assump = P.aggPool $ D.runPool p assump
-wrapRunPool (LPool p) assump = P.aggPool $ D.runPool p assump
-wrapRunPool (IPool p) assump = P.aggPool $ D.runPool p assump
-wrapRunPool (RPool p) assump = P.aggPool $ D.runPool p assump
+wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> CF.CashFlowFrame
+wrapRunPool (MPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
+wrapRunPool (LPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
+wrapRunPool (IPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
+wrapRunPool (RPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
 
-data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe PricingMethod)
+data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)
 
 instance ToSchema RunAssetReq
 
 wrapRunAsset :: RunAssetReq -> (CF.CashFlowFrame, Maybe [PriceResult])
-wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) Nothing) 
-  = (P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets, Nothing)
+wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates Nothing) 
+  = (P.aggPool $ (\a -> D.projAssetUnion a d assumps mRates) <$> assets, Nothing)
 
-wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) (Just pm)) 
+wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates (Just pm)) 
   = let 
-      assetCf = P.aggPool $ (\a -> D.projAssetUnion a d assumps) <$> assets 
-      pricingResult = (\a -> D.priceAssetUnion a d pm assumps) <$> assets
+      assetCf = P.aggPool $ (\a -> D.projAssetUnion a d assumps mRates ) <$> assets 
+      pricingResult = (\a -> D.priceAssetUnion a d pm assumps mRates) <$> assets
     in 
       (assetCf, Just pricingResult)
 
 --TODO implement on running via ByIndex
 
 type ScenarioName = String
-data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
-                | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
-                | MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) (Maybe AP.BondPricingInput)
+
+data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
+                | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
+                | MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
                 deriving(Show, Generic)
 
 instance ToSchema RunDealReq
-data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType)
-                | MultiScenarioRunPoolReq PoolType (Map.Map ScenarioName AP.ApplyAssumptionType)
+data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
+                | MultiScenarioRunPoolReq PoolType (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe [RateAssumption])
                 deriving(Show, Generic)
 
 instance ToSchema RunPoolReq
@@ -310,16 +321,13 @@ server2 = return engineSwagger
         where 
           showVersion = return version1 
           runAsset req = return $ wrapRunAsset req
-          runPool (SingleRunPoolReq pt passumption) = return $ wrapRunPool pt passumption
-          runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps) = return $ Map.map (\assump -> wrapRunPool pt (Just assump)) mAssumps
-          runDeal (SingleRunReq dt assump pricing) = let
-                                                       resp = wrapRun dt assump pricing 
-                                                     in 
-                                                       return resp  
-          runDealScenarios (MultiScenarioRunReq dt mAssumps pricing)
-            = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) pricing) mAssumps
-          runMultiDeals (MultiDealRunReq mDts assump pricing) 
-            = return $ Map.map (\singleDealType -> wrapRun singleDealType assump pricing) mDts
+          runPool (SingleRunPoolReq pt passumption mRates) = return $ wrapRunPool pt passumption mRates
+          runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPool pt (Just assump) mRates) mAssumps
+          runDeal (SingleRunReq dt assump nonPerfAssump) = return $ wrapRun dt assump nonPerfAssump 
+          runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump)
+            = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
+          runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
+            = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
           runDate (RunDateReq sd dp)
             = return $ U.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
 

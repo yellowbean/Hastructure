@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Asset (Pool(..),calc_p_i_flow ,aggPool
+module Asset (Pool(..),aggPool
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
        ,calc_p_i_flow_even,calc_p_i_flow_i_p
@@ -43,11 +43,12 @@ import Util
 import AssetClass.AssetBase
 
 import Debug.Trace
+import Assumptions (ExtraStress(ExtraStress))
 debug = flip trace
 
 class Show a => Asset a where
-  -- | project contractual cashflow of an asset
-  calcCashflow :: a -> Date -> CF.CashFlowFrame
+  -- | project contractual cashflow of an asset with interest assumptions
+  calcCashflow :: a -> Date -> Maybe [RateAssumption] -> CF.CashFlowFrame
   -- | Get current balance of an asset
   getCurrentBal :: a -> Balance
   -- | Get original balance of an asset
@@ -64,8 +65,8 @@ class Show a => Asset a where
   getPaymentDates :: a -> Int -> [Date]
   -- | get number of remaining payments
   getRemainTerms :: a -> Int
-  -- | project asset cashflow under assumptions
-  projCashflow :: a -> Date -> A.AssetPerfAssumption -> CF.CashFlowFrame
+  -- | project asset cashflow under credit stress and interest assumptions
+  projCashflow :: a -> Date -> A.AssetPerfAssumption -> Maybe [RateAssumption] -> CF.CashFlowFrame
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
@@ -115,36 +116,20 @@ calcPmt bal periodRate periods =
 -- | apply ExtraStress on prepayment/default rates
 applyExtraStress :: Maybe A.ExtraStress -> [Date] -> [Rate] -> [Rate] -> ([Rate],[Rate])
 applyExtraStress Nothing _ ppy def = (ppy,def)
-applyExtraStress (Just (A.DefaultFactors ts)) ds ppy def =
-  let 
-    def_ts = zipTs ds def
-    newDef = getTsVals $ multiplyTs Exc def_ts ts   
-  in 
-    (ppy,newDef)
-applyExtraStress (Just (A.PrepaymentFactors ts)) ds ppy def =
-  let 
-    ppy_ts = zipTs ds ppy
-    newPpy = getTsVals $ multiplyTs Exc ppy_ts ts   
-  in 
-    (newPpy,def)
-applyExtraStress (Just (A.ExtraStresses ess)) ds ppy def = 
-  case ess of 
-    [] -> (ppy,def)
-    (es:_ess) -> case es of
-                   p@(A.PrepaymentFactors ts) -> applyExtraStress (Just (A.ExtraStresses _ess))
-                                                                ds
-                                                                (fst (applyExtraStress (Just p) ds ppy def))
-                                                                def
-                   p@(A.DefaultFactors ts) -> applyExtraStress (Just (A.ExtraStresses _ess))
-                                                               ds
-                                                               ppy
-                                                               (snd (applyExtraStress (Just p) ds ppy def))
-                   _ -> applyExtraStress (Just (A.ExtraStresses _ess)) ds ppy def
+applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
+                                  ,A.prepaymentFactors = mPrepayFactor}) ds ppy def =
+  case (mPrepayFactor,mDefFactor) of
+    (Nothing,Nothing) -> (ppy,def)
+    (Nothing,Just defFactor) -> (ppy ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
+    (Just ppyFactor,Nothing) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor, def)
+    (Just ppyFactor,Just defFactor) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor
+                                       ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
 
 
--- | build pool assumption
+-- | build pool assumption rate (prepayment, defaults, recovery rate , recovery lag)
 buildAssumptionPpyDefRecRate :: [Date] -> A.AssetPerfAssumption -> ([Rate],[Rate],Rate,Int)
-buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa _ mESa)
+buildAssumptionPpyDefRecRate ds (A.LoanAssump mDa mPa mRa mESa) = buildAssumptionPpyDefRecRate ds ((A.MortgageAssump mDa mPa mRa mESa))
+buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
   = (prepayRates2,defaultRates2,recoveryRate,recoveryLag)
     where 
       size = length ds
@@ -153,21 +138,23 @@ buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa _ mESa)
                       Nothing -> zeros
                       Just (A.PrepaymentConstant r) -> replicate size r
                       Just (A.PrepaymentCPR r) -> (map (Util.toPeriodRateByInterval r)
-                                                     (getIntervalDays ds))
+                                                       (getIntervalDays ds))
                       Just (A.PrepaymentVec vs) -> zipWith 
-                                                   Util.toPeriodRateByInterval
+                                                     Util.toPeriodRateByInterval
                                                      (paddingDefault 0.0 vs (pred size))
                                                      (getIntervalDays ds)
+                      _ -> error ("failed to find prepayment type"++ show mPa)
 
       defaultRates = case mDa of 
                        Nothing -> zeros
                        Just (A.DefaultConstant r) ->  replicate size r
                        Just (A.DefaultCDR r) -> (map (Util.toPeriodRateByInterval r)
-                                                   (getIntervalDays ds))
+                                                     (getIntervalDays ds))
                        Just (A.DefaultVec vs) -> zipWith 
-                                                 Util.toPeriodRateByInterval
+                                                   Util.toPeriodRateByInterval
                                                    (paddingDefault 0.0 vs (pred size))
                                                    (getIntervalDays ds)
+                       _ -> error ("failed to find prepayment type"++ show mDa)
       
       (recoveryRate,recoveryLag) = case mRa of 
                                      Nothing -> (0,0)
@@ -176,24 +163,24 @@ buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa _ mESa)
       (prepayRates2,defaultRates2) = applyExtraStress mESa ds prepayRates defaultRates
 
 
-
-_calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
-_calc_p_i_flow pmt last_bal bals ps is [] = (bals,ps,is)
-_calc_p_i_flow pmt last_bal bals ps is (r:rs)
-  | last_bal < 0.01  =  (bals,ps,is)
-  | otherwise
-    = _calc_p_i_flow pmt new_bal (bals++[new_bal]) (ps++[new_prin]) (is++[new_int]) rs
-      where
-        new_int = mulBI last_bal r
-        new_prin = pmt - new_int
-        new_bal = last_bal - new_prin
-
-calc_p_i_flow :: Balance -> Amount -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
-calc_p_i_flow bal pmt dates r =
-  _calc_p_i_flow pmt bal [] [] [] period_r
-    where
-      size = length dates
-      period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
+-- calculate Level P&I type mortgage cashflow
+-- _calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
+-- _calc_p_i_flow pmt last_bal bals ps is [] = (bals,ps,is)
+-- _calc_p_i_flow pmt last_bal bals ps is (r:rs)
+--   | last_bal < 0.01  =  (bals,ps,is)
+--   | otherwise
+--     = _calc_p_i_flow pmt new_bal (bals++[new_bal]) (ps++[new_prin]) (is++[new_int]) rs
+--       where
+--         new_int = mulBI last_bal r
+--         new_prin = pmt - new_int
+--         new_bal = last_bal - new_prin
+-- 
+-- calc_p_i_flow :: Balance -> Amount -> Dates -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
+-- calc_p_i_flow bal pmt dates rs =
+--   _calc_p_i_flow pmt bal [] [] [] period_r
+--     where
+--       size = length dates
+--       period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
 
 _calc_p_i_flow_even :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow_even evenPrin last_bal bals ps is [] = (bals,ps,is) -- `debug` ("Return->"++show(bals)++show(is))
@@ -230,10 +217,10 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
     in 
       mulBR recoveryAmt <$> recoveryTiming
 
-priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerfAssumption -> PriceResult
-priceAsset m d (PVCurve curve) assumps 
+priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerfAssumption -> Maybe [RateAssumption] -> PriceResult
+priceAsset m d (PVCurve curve) assumps mRates
   = let 
-      CF.CashFlowFrame txns = projCashflow m d assumps
+      CF.CashFlowFrame txns = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
       pv = pv3 curve d ds amts
@@ -242,14 +229,14 @@ priceAsset m d (PVCurve curve) assumps
     in 
       AssetPrice pv wal (-1) (-1) (-1)
 
-priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps
+priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
     = 
       let 
         cb =  getCurrentBal m
         val = case isDefaulted m of 
                 False -> mulBR cb currentFactor 
                 True  -> mulBR cb defaultedFactor
-        CF.CashFlowFrame txns = projCashflow m d assumps
+        CF.CashFlowFrame txns = projCashflow m d assumps mRates
         ds = getDate <$> txns 
         amts = CF.tsTotalCash <$> txns 
         wal = calcWAL ByYear cb d (zip amts ds) 
