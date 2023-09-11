@@ -349,7 +349,7 @@ buyRevolvingPool d rs rp@(AssetCurve aus)
       (assetBought, rp)
 
 projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerfAssumption -> Maybe [RateAssumption] -> CF.CashFlowFrame
-projAssetUnion (ACM.MO ast) d assumps mRates = CF.cfInsertHead (CF.MortgageFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0 Nothing Nothing) $ P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.MO ast) d assumps mRates = CF.cfInsertHead (CF.MortgageFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0 0 Nothing Nothing) $ P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.LO ast) d assumps mRates = CF.cfInsertHead (CF.LoanFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0) $ P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.IL ast) d assumps mRates = CF.cfInsertHead (CF.LoanFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0) $ P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.LS ast) d assumps mRates = CF.cfInsertHead (CF.LeaseFlow d (P.getCurrentBal ast) 0 ) $ P.projCashflow ast d assumps mRates

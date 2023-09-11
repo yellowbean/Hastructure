@@ -70,7 +70,7 @@ projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rat
                     _survive_rate = ((1 - _def_rate) * (1 - _ppy_rate))  
                     _temp = _survive_rate * (toRational (1 - _new_prin / _new_bal_after_ppy))
                     _new_mbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
-                    tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay _new_default (head _current_rec) (head _current_loss) _rate _new_mbn Nothing --TODO missing ppy-penalty here
+                    tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay 0 _new_default (head _current_rec) (head _current_loss) _rate _new_mbn Nothing --TODO missing ppy-penalty here
 
 projectMortgageFlow trs _b mbn _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _ _lag_rate _p _pt
  = projectMortgageFlow
@@ -88,7 +88,7 @@ projectMortgageFlow trs _b mbn _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_a
     _p
     _pt
   where
-    tr = CF.MortgageFlow _pdate _b 0 0 0 0 _rec_amt _loss_amt 0.0 Nothing Nothing
+    tr = CF.MortgageFlow _pdate _b 0 0 0 0 0 _rec_amt _loss_amt 0.0 Nothing Nothing
 
 projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs  
 
@@ -115,7 +115,7 @@ projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) 
 
        _end_bal = max 0 $ _after_bal - _schedule_prin
 
-       tr = CF.MortgageFlow (CF.getDate flow) _end_bal _schedule_prin _schedule_int _ppy_amt _def_amt (head _rec_vector) (head _loss_vector) 0.0 Nothing Nothing --TODO missing ppy-penalty here
+       tr = CF.MortgageFlow (CF.getDate flow) _end_bal _schedule_prin _schedule_int _ppy_amt 0 _def_amt (head _rec_vector) (head _loss_vector) 0.0 Nothing Nothing --TODO missing ppy-penalty here
 
 projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,recovery_rate)
   = projectScheduleFlow
@@ -135,6 +135,7 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
       tr = CF.MortgageFlow
              flow_date
              last_bal
+             0
              0
              0
              0
@@ -263,10 +264,10 @@ instance Ast.Asset Mortgage where
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay (A.DefaultedRecovery rr lag timing) _ =
     let 
       (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+ length timing)
-      beforeRecoveryTxn = [  CF.MortgageFlow d cb 0 0 0 0 0 0 cr mbn Nothing | d <- cf_dates1 ]
+      beforeRecoveryTxn = [  CF.MortgageFlow d cb 0 0 0 0 0 0 0 cr mbn Nothing | d <- cf_dates1 ]
       recoveries = calcRecoveriesFromDefault cb rr timing
       bals = scanl (-) cb recoveries
-      _txns = [  CF.MortgageFlow d b 0 0 0 0 r 0 cr mbn Nothing | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
+      _txns = [  CF.MortgageFlow d b 0 0 0 0 0 r 0 cr mbn Nothing | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
       (_, txns) = splitByDate (beforeRecoveryTxn++_txns) asOfDay EqToRight -- `debug` ("AS OF Date"++show asOfDay)
     in 
       CF.CashFlowFrame txns
@@ -276,10 +277,10 @@ instance Ast.Asset Mortgage where
     = projCashflow (Mortgage mo cb cr rt mbn  (Defaulted (Just defaultedDate))) asOfDay assumps mRates
   -- project defaulted adjMortgage without a defaulted Date   
   projCashflow m@(AdjustRateMortgage _ _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
-    = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
+    = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 0 cr mbn Nothing ]
   -- project defaulted Mortgage    
   projCashflow m@(Mortgage _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
-    = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
+    = CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 0 cr mbn Nothing ]
 
   -- project current AdjMortgage
   projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) 
