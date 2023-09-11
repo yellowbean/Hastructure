@@ -22,19 +22,19 @@ import Debug.Trace
 debug = flip trace
 
 tm = AB.Mortgage
-     (AB.MortgageOriginalInfo 10000 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") AB.Level Nothing)
+     (AB.MortgageOriginalInfo 10000 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") AB.Level Nothing)
      8000 0.08 19 
      Nothing
      AB.Current
 
 tm1 = AB.Mortgage
-     (AB.MortgageOriginalInfo 240 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") AB.Even Nothing)
+     (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") AB.Even Nothing)
      240 0.08 19 
      Nothing
      AB.Current
 
 tm2 = AB.Mortgage
-     (AB.MortgageOriginalInfo 240 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") AB.Even Nothing)
+     (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") AB.Even Nothing)
      240 0.08 19 
      Nothing 
      (AB.Defaulted Nothing)
@@ -90,7 +90,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
 loanTests = 
     let 
       loan1 =  AB.PersonalLoan
-                 (AB.LoanOriginalInfo 180 (Fix 0.08) 36 L.Monthly (L.toDate "20200101") AB.I_P) 
+                 (AB.LoanOriginalInfo 180 (Fix DC_ACT_365F 0.08) 36 L.Monthly (L.toDate "20200101") AB.I_P) 
                  120
                  0.08
                  24
@@ -228,7 +228,7 @@ leaseTests =
 installmentTest = 
     let 
       loan1 =  AB.Installment
-                 (AB.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P)
+                 (AB.LoanOriginalInfo 1000 (Fix DC_ACT_365F 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P)
                  1000 
                  12 
                  AB.Current
@@ -236,7 +236,7 @@ installmentTest =
       loan1Cf = P.calcCashflow loan1 asofDate1 Nothing
 
       loan2 =  AB.Installment
-                 (AB.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
+                 (AB.LoanOriginalInfo 1000 (Fix DC_ACT_365F 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
                  500 
                  12
                  AB.Current
@@ -244,14 +244,14 @@ installmentTest =
 
       asofDate2 = (L.toDate "20220815")
       loan3 =  AB.Installment
-                 (AB.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
+                 (AB.LoanOriginalInfo 1000 (Fix DC_ACT_365F 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
                  416.69 
                  5
                  AB.Current
       loan3Cf = P.calcCashflow loan3 asofDate2 Nothing
 
       loan4 =  AB.Installment
-                 (AB.LoanOriginalInfo 1000 (Fix 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
+                 (AB.LoanOriginalInfo 1000 (Fix DC_ACT_365F 0.01) 12 L.Monthly (L.toDate "20220101") AB.F_P) 
                  208.35 
                  5
                  AB.Current
@@ -286,7 +286,7 @@ armTest =
     arm1 = AB.AdjustRateMortgage
             (AB.MortgageOriginalInfo 
               240 
-              (Floater SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20240801") 2) Nothing Nothing Nothing)
+              (Floater DC_ACT_365F SOFR3M 0.01 0.03 (EveryNMonth (L.toDate "20240801") 2) Nothing Nothing Nothing)
               30
               Monthly
               (L.toDate "20230501")
@@ -357,7 +357,7 @@ ppy_3_1 = Just $ AB.FixPct 0.01 (Just 2)
 ppy_4 = Just $ AB.Sliding 0.1 0.01
 ppy_5 = Just $ AB.StepDown [(2,0.5),(12,0.2)]
 
-origin_info = AB.MortgageOriginalInfo 10000 (Fix 0.08) 24 L.Monthly (L.toDate "20210101") AB.Level Nothing
+origin_info = AB.MortgageOriginalInfo 10000 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") AB.Level Nothing
 
 tm_ppy_1 = AB.Mortgage (origin_info { AB.prepaymentPenalty = ppy_1}) 10000 0.08 24 Nothing AB.Current
 tm_ppy_2 = AB.Mortgage (origin_info { AB.prepaymentPenalty = ppy_2}) 10000 0.08 24 Nothing AB.Current

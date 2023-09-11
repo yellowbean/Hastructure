@@ -5,7 +5,7 @@
 
 module InterestRate
   (ARM(..),RateType(..),runInterestRate2,runInterestRate
-  ,getRateResetDates)
+  ,getRateResetDates,getDayCount)
   
   where
 
@@ -25,6 +25,7 @@ import Types
       Period,
       Index,
       Floor,
+      DayCount,
       Spread,
       IRate,
       Dates,
@@ -46,9 +47,14 @@ type InitCap = Maybe IRate
 type ResetDates = [Date]
 type StartRate = IRate
 
-data RateType = Fix IRate
-              | Floater Index Spread IRate DatePattern RateFloor RateCap (Maybe (RoundingBy IRate))
+data RateType = Fix DayCount IRate
+              | Floater DayCount Index Spread IRate DatePattern RateFloor RateCap (Maybe (RoundingBy IRate))
               deriving (Show,Generic)
+
+getDayCount :: RateType -> DayCount
+getDayCount (Fix dc _) = dc
+getDayCount (Floater dc _ _ _ _ _ _ _ ) = dc
+
 
 data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
          | OtherARM
@@ -56,12 +62,11 @@ data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
 
 getRateResetDates :: Date -> Date -> Maybe RateType -> Dates
 getRateResetDates _ _ Nothing = []
-getRateResetDates _ _ (Just (Fix _)) = []
-getRateResetDates sd ed (Just (Floater _ _ _ dp _ _ _)) = genSerialDatesTill2 NO_IE sd dp ed 
-
+getRateResetDates _ _ (Just (Fix _ _)) = []
+getRateResetDates sd ed (Just (Floater _ _ _ _ dp _ _ _)) = genSerialDatesTill2 NO_IE sd dp ed 
 
 runInterestRate :: ARM -> StartRate -> RateType -> ResetDates -> Ts -> [IRate]
-runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater _ spd _ _ _ _ mRoundBy) resetDates rc
+runInterestRate (ARM ip icap pc lifeCap floor) sr (Floater _ _ spd _ _ _ _ mRoundBy) resetDates rc
   = sr:cappedRates
     where 
       fr:rrs = (spd +) . fromRational <$> getValByDates rc Inc resetDates

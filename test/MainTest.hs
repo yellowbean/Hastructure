@@ -30,7 +30,7 @@ main = defaultMain tests
 tests :: TestTree
 tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.mortgageCalcTests
-                           -- ,AT.loanTests
+                           ,AT.loanTests
                            ,AT.leaseTests
                            ,AT.leaseFunTests
                            ,AT.installmentTest

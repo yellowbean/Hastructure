@@ -13,7 +13,7 @@ module Assumptions (BondPricingInput(..)
                     ,LeaseAssetRentAssump(..)
                     ,NonPerfAssumption(..)
                     ,AssetDelinquencyAssumption(..)
-                    ,getCDR
+                    ,getCDR,calcResetDates
                     )
 where
 
@@ -140,8 +140,8 @@ getRateAssumption assumps idx
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
 projRates :: RateType -> Maybe [RateAssumption] -> [Date] -> [IRate]
-projRates (Fix r) _ ds = replicate (length ds) r 
-projRates (Floater idx spd r dp rfloor rcap mr) (Just assumps) ds 
+projRates (Fix _ r) _ ds = replicate (length ds) r 
+projRates (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
   = case getRateAssumption assumps idx of
       Nothing -> error ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
       Just _rateAssumption -> 
@@ -161,6 +161,14 @@ projRates (Floater idx spd r dp rfloor rcap mr) (Just assumps) ds
             (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
             (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
             (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
+
+-- ^ Given a list of rates, calcualte whether rates was reset
+calcResetDates :: [IRate] -> [Bool] -> [Bool]
+calcResetDates [] bs = bs
+calcResetDates (r:rs) bs 
+  | rs == [] = calcResetDates [] ([False]++bs)
+  | r == (head rs) = calcResetDates rs (bs++[False])
+  | otherwise = calcResetDates rs (bs++[True])
 
 
 $(deriveJSON defaultOptions ''BondPricingInput)

@@ -5,7 +5,7 @@
 module Asset (Pool(..),aggPool
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
-       ,calc_p_i_flow_even,calc_p_i_flow_i_p
+       ,calcPiFlow,calc_p_i_flow_even,calc_p_i_flow_i_p
        ,buildAssumptionPpyDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset
@@ -164,23 +164,30 @@ buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
 
 
 -- calculate Level P&I type mortgage cashflow
--- _calc_p_i_flow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
--- _calc_p_i_flow pmt last_bal bals ps is [] = (bals,ps,is)
--- _calc_p_i_flow pmt last_bal bals ps is (r:rs)
---   | last_bal < 0.01  =  (bals,ps,is)
---   | otherwise
---     = _calc_p_i_flow pmt new_bal (bals++[new_bal]) (ps++[new_prin]) (is++[new_int]) rs
---       where
---         new_int = mulBI last_bal r
---         new_prin = pmt - new_int
---         new_bal = last_bal - new_prin
--- 
--- calc_p_i_flow :: Balance -> Amount -> Dates -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
--- calc_p_i_flow bal pmt dates rs =
---   _calc_p_i_flow pmt bal [] [] [] period_r
---     where
---       size = length dates
---       period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
+_calcPiFlow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> [Bool] -> ([Balance],CF.Principals,CF.Interests)
+_calcPiFlow pmt last_bal bals ps is [] _ = (bals,ps,is)
+_calcPiFlow pmt last_bal bals ps is (r:rs) (flag:flags)
+  | last_bal < 0.01  =  (bals,ps,is)
+  | otherwise
+    = _calcPiFlow pmt new_bal (bals++[new_bal]) (ps++[new_prin]) (is++[new_int]) rs flags
+      where
+        new_int = mulBI last_bal r
+        new_prin = pmt - new_int
+        new_bal = last_bal - new_prin
+        new_pmt = if flag then 
+                    calcPmt new_bal (head rs) (length rs)
+                  else
+                    pmt
+                
+-- Dates -> include begining balance
+-- Rates -> length Dates - 1
+calcPiFlow :: DayCount -> Balance -> Amount -> [Date] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
+calcPiFlow dc bal pmt dates rs =
+  _calcPiFlow pmt bal [] [] [] period_r resetFlags
+    where
+      size = length dates
+      resetFlags = A.calcResetDates rs []
+      period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) (rs!!d) dc | d <- [0..size-2]]
 
 _calc_p_i_flow_even :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow_even evenPrin last_bal bals ps is [] = (bals,ps,is) -- `debug` ("Return->"++show(bals)++show(is))
@@ -212,10 +219,9 @@ calc_p_i_flow_i_p bal dates r
 
 calcRecoveriesFromDefault :: Balance -> Rate -> [Rate] -> [Amount]
 calcRecoveriesFromDefault bal recoveryRate recoveryTiming
-  = let
+  = mulBR recoveryAmt <$> recoveryTiming
+    where
       recoveryAmt = mulBR bal recoveryRate
-    in 
-      mulBR recoveryAmt <$> recoveryTiming
 
 priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerfAssumption -> Maybe [RateAssumption] -> PriceResult
 priceAsset m d (PVCurve curve) assumps mRates
@@ -230,18 +236,17 @@ priceAsset m d (PVCurve curve) assumps mRates
       AssetPrice pv wal (-1) (-1) (-1)  --TODO missing duration and convixity
 
 priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
-    = 
-      let 
-        cb =  getCurrentBal m
-        val = case isDefaulted m of 
-                False -> mulBR cb currentFactor 
-                True  -> mulBR cb defaultedFactor
-        CF.CashFlowFrame txns = projCashflow m d assumps mRates
-        ds = getDate <$> txns 
-        amts = CF.tsTotalCash <$> txns 
-        wal = calcWAL ByYear cb d (zip amts ds) 
-      in 
-        AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
+  = let 
+      cb =  getCurrentBal m
+      val = case isDefaulted m of 
+              False -> mulBR cb currentFactor 
+              True  -> mulBR cb defaultedFactor
+      CF.CashFlowFrame txns = projCashflow m d assumps mRates
+      ds = getDate <$> txns 
+      amts = CF.tsTotalCash <$> txns 
+      wal = calcWAL ByYear cb d (zip amts ds) 
+    in 
+      AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
 
 -- | Aggregate all cashflow into a single cashflow frame
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame

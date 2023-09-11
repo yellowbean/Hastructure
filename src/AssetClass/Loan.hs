@@ -86,15 +86,27 @@ projectLoanFlow trs _ _ [] _ _ [] [] _ _ _ _ = trs -- `debug` ("===>C") --  `deb
 
 instance Asset Loan where
   calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) _bal _rate _term _ ) asOfDay mRates 
-    = projCashflow pl asOfDay (A.LoanAssump Nothing Nothing Nothing Nothing) mRates
+    = CF.CashFlowFrame $ cutBy Inc Future asOfDay txns 
+      where
+        orate = getOriginRate pl
+        pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
+        cf_dates = lastN (_term + 1) $ sd:(getPaymentDates pl 0)
+        l = (length cf_dates) - 1
+        rates_used = A.projRates or mRates cf_dates
+        dc = getDayCount or
+        (b_flow,prin_flow,int_flow) = case ptype of
+                                        Level -> calcPiFlow dc _bal pmt cf_dates rates_used
+                                        Even  -> calc_p_i_flow_even (_bal / fromIntegral _term) _bal cf_dates _rate
+                                        I_P   -> calc_p_i_flow_i_p _bal cf_dates _rate
+        txns =  zipWith9 CF.LoanFlow (tail cf_dates) b_flow prin_flow int_flow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l _rate)  -- `debug` ("prin size "++ show (prin_flow)++ "date size"++ show (length cf_dates )++"int"++show (int_flow)++"ds"++ show (cf_dates))
 
   getCurrentBal pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
     = _bal
 
   getOriginRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
     = case or of
-        Fix _r -> _r
-        Floater _ _ _r _ _ _ _ -> _r 
+        Fix _ _r -> _r
+        Floater _ _ _ _r _ _ _ _ -> _r 
 
   getOriginBal pl@(PersonalLoan (LoanOriginalInfo ob _ _ _ _ _) _ _ _ _ ) = ob
 

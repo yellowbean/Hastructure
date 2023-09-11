@@ -93,8 +93,8 @@ updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPre
 updateLiqProviderRate t d ras liq = liq 
 
 evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
-evalFloaterRate _ _ (IR.Fix r) = r 
-evalFloaterRate d ras (IR.Floater idx spd _r _ mFloor mCap mRounding)
+evalFloaterRate _ _ (IR.Fix _ r) = r 
+evalFloaterRate d ras (IR.Floater _ idx spd _r _ mFloor mCap mRounding)
   = let 
       ra = AP.getRateAssumption ras idx 
       flooring (Just f) v = max f v 
@@ -106,7 +106,6 @@ evalFloaterRate d ras (IR.Floater idx spd _r _ mFloor mCap mRounding)
         Nothing -> error "Failed to find index rate in assumption"
         Just (RateFlat _ v) -> capping mCap $ flooring mFloor $ v + spd 
         Just (RateCurve _ curve) -> capping mCap $ flooring mFloor $ fromRational $ (getValByDate curve Inc d) + (toRational spd)
-
 
 applyFloatRate :: L.InterestInfo -> Date -> [RateAssumption] -> IRate
 applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
