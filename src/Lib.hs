@@ -34,10 +34,6 @@ import Types
 import Debug.Trace
 debug = flip trace
 
-data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
-
--- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
-
 annualRateToPeriodRate :: Period -> Float -> Float
 annualRateToPeriodRate p annualRate =
     1 - (1 - annualRate ) ** n
@@ -205,7 +201,6 @@ daysBetween sd ed = fromIntegral (T.diffDays ed sd)
 -- | Given a start date and a end date, return number of days between(Int)
 daysBetweenI :: Date -> Date -> Int 
 daysBetweenI sd ed = fromInteger $ T.diffDays ed sd
-
 
 genDates :: Date -> Period -> Int -> [Date]
 genDates start_day p n =

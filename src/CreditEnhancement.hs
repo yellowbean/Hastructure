@@ -70,7 +70,7 @@ buildLiqRateResetAction  :: [LiqFacility] -> Date -> [(String, Dates)] -> [(Stri
 buildLiqRateResetAction [] ed r = r
 buildLiqRateResetAction (liq:liqProviders) ed r = 
   case liq of 
-    liq@LiqFacility{liqRateType = rt, liqPremiumRateType = prt, liqName =ln , liqStart = sd} -> 
+    liq@LiqFacility{liqRateType = rt, liqPremiumRateType = prt, liqName = ln , liqStart = sd} -> 
        buildLiqRateResetAction 
         liqProviders 
         ed 
@@ -137,11 +137,11 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
          ,liqDueInt = newDueInt
          ,liqDuePremium = newDueFee }
     where 
+      lastAccDate = fromMaybe sd dueDate
       accureInt = case rate of 
                     Nothing -> 0
                     Just r -> 
                       let 
-                        lastAccDate = fromMaybe sd dueDate
                         bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns mStmt
                       in 
                         sum $ flip mulBIR r <$> bals
@@ -149,7 +149,6 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
                     Nothing -> 0 
                     Just r -> 
                       let 
-                        lastAccDate = fromMaybe sd dueDate
                         (_,_unAccTxns) = splitByDate (getTxns mStmt) lastAccDate EqToLeftKeepOne
                         accBals = getUnusedBal <$> _unAccTxns 
                         _ds = lastAccDate : tail (getDate <$> _unAccTxns)

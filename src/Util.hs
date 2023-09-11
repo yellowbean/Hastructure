@@ -4,10 +4,10 @@
 module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern
-    ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
-    ,calcInt,calcIntRate,calcIntRateCurve
+    ,genSerialDatesTill,genSerialDatesTill2,subDates,sliceDates,SliceType(..)      
+    ,calcInt,calcIntRate,calcIntRateCurve,divideBB
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
-    ,replace,paddingDefault, capWith, splitByDate
+    ,replace,paddingDefault, capWith, splitByDate, getTsDates
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval
@@ -52,6 +52,9 @@ mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
 
 divideBI :: Balance -> Int -> Balance
 divideBI b i = fromRational $ (toRational b) / (toRational i)
+
+divideBB :: Balance -> Balance -> Rational
+divideBB b1 b2 = toRational b1 / toRational b2
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
@@ -360,7 +363,6 @@ getValByDate (PricingCurve dps) _ d
 getIndexRateByDates :: RateAssumption  -> [Date] -> [IRate]
 getIndexRateByDates (RateCurve idx rc) ds = fromRational <$> getValByDates rc Inc ds
 getIndexRateByDates (RateFlat idx r) ds = replicate (length ds) r 
-
 
 getValByDates :: Ts -> CutoffType -> [Date] -> [Rational]
 getValByDates rc ct = map (getValByDate rc ct)

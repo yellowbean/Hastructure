@@ -41,11 +41,6 @@ import Debug.Trace
 debug = flip trace
 
 type Delinquent = Centi
-type Delinquent30 = Centi
-type Delinquent60 = Centi
-type Delinquent90 = Centi
-type Delinquent120 = Centi
-
 type Amounts = [Float]
 type Principals = [Principal]
 type Interests = [Interest]
@@ -77,7 +72,7 @@ getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
 getTsCashFlowFrame (CashFlowFrame ts) = ts
 
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
-getDatesCashFlowFrame (CashFlowFrame ts) = getDate <$> ts
+getDatesCashFlowFrame (CashFlowFrame ts) = getDates ts
 
 getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date)
 getDateRangeCashFlowFrame (CashFlowFrame trs)
@@ -432,8 +427,6 @@ lookupSource tr CollectedInterest = mflowInterest tr
 lookupSource tr CollectedPrepaymentPenalty = mflowPrepaymentPenalty tr
 lookupSource tr NewDefaults = mflowDefault tr
 lookupSource tr NewLosses = mflowLoss tr
-
-
 
 setPrepaymentPenalty :: Balance -> TsRow -> TsRow
 setPrepaymentPenalty bal (MortgageFlow a b c d e f g h i j k) = MortgageFlow a b c d e f g h i j (Just bal)

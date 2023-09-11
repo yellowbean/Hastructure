@@ -32,7 +32,6 @@ import Types
       Balance, DealStats )
 import Util
 import Lib
--- import qualified Assumptions as A
 
 import Debug.Trace
 debug = flip trace

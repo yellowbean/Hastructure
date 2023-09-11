@@ -92,19 +92,11 @@ updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPre
 
 updateLiqProviderRate t d ras liq = liq 
 
-getRateAssumptionByIndex :: [RateAssumption] -> Index -> Maybe RateAssumption
-getRateAssumptionByIndex ras idx
-  = find
-      (\case
-        (RateCurve _idx _ts) -> (_idx==idx)
-        (RateFlat _idx _rval) -> (_idx==idx))
-      ras
-
 evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
 evalFloaterRate _ _ (IR.Fix r) = r 
 evalFloaterRate d ras (IR.Floater idx spd _r _ mFloor mCap mRounding)
   = let 
-      ra = getRateAssumptionByIndex ras idx 
+      ra = AP.getRateAssumption ras idx 
       flooring (Just f) v = max f v 
       flooring Nothing v = v 
       capping (Just f) v = min f v 
@@ -128,11 +120,10 @@ applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
         Just (RateCurve _idx _ts) -> fromRational $ getValByDate _ts Exc d
         Just (RateFlat _idx _r) ->   _r
         Nothing -> 0.0
-      ra = getRateAssumptionByIndex ras idx
+      ra = AP.getRateAssumption ras idx
       _rate = idx_rate + spd
 
 applyFloatRate (L.CapRate ii _rate) d ras = min _rate (applyFloatRate ii d ras)
-
 applyFloatRate (L.FloorRate ii _rate) d ras = max _rate (applyFloatRate ii d ras)
 
 applicableAdjust :: L.Bond -> Bool
@@ -173,8 +164,8 @@ testCall t d opt =
        _ -> error ("failed to find call options"++ show opt)
 
 testCalls :: P.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
-testCalls t d [] = False  -- `debug` ("Empty call optns")
-testCalls t d opts = any (testCall t d) opts  -- `debug` ("testing call options"++ show opts)
+testCalls t d [] = False  
+testCalls t d opts = any (testCall t d) opts  
 
 queryTrigger :: P.Asset a => TestDeal a -> DealCycle -> [Trigger]
 queryTrigger t@TestDeal{ triggers = trgs } wt 
@@ -318,7 +309,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFl
                         (\a -> case a of
                                 (A.Account _ _ (Just (A.BankAccount _ _ _)) _ _ ) -> (A.depositInt a d)  -- `debug` ("int acc"++show accName)
                                 (A.Account _ _ (Just (A.InvestmentAccount idx _ _ _)) _ _ ) -> 
-                                  case getRateAssumptionByIndex (fromMaybe [] rates) idx of
+                                  case AP.getRateAssumption (fromMaybe [] rates) idx of
                                     Nothing -> a -- `debug` ("error..."++show accName)
                                     Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d  ) -- `debug` ("int acc"++show accName)
                         accName  
@@ -571,7 +562,7 @@ runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel ass
 -- contractual cashflow will use interest rate assumption
 runPool (P.Pool as _ asof _) Nothing  mRates = map (\x -> P.calcCashflow x asof mRates) as -- `debug` ("RUNPOOL-> calc cashflow")
 
-
+-- asset cashflow with credit stress
 runPool (P.Pool as Nothing asof _) (Just (AP.PoolLevel assumps)) mRates = map (\x -> P.projCashflow x asof assumps mRates) as  -- `debug` (">> Single Pool")
 runPool (P.Pool as Nothing asof _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
@@ -658,7 +649,6 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
                                     
 
     poolCf = P.aggPool $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump) -- `debug` ("agg pool flow")
-    -- poolCfTs = filter (\txn -> CF.getDate txn >= startDate) $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     pCollectionCfAfterCutoff = let 
                                  _poolflows = CF.aggTsByDates poolCfTs (getDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
@@ -678,19 +668,17 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
     newT = t {fees = newFeeMap} 
 
 
-
-
 depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
 depositInflow (W.Collect s an) d row amap 
   = Map.adjust (A.deposit amt d (PoolInflow s)) an amap
     where 
       amt = case s of 
-              W.CollectedInterest   -> CF.mflowInterest row
-              W.CollectedPrincipal  -> CF.mflowPrincipal row
-              W.CollectedRecoveries -> CF.mflowRecovery row
-              W.CollectedPrepayment -> CF.mflowPrepayment row
-              W.CollectedRental     -> CF.mflowRental row
-              W.CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty row
+              CollectedInterest   -> CF.mflowInterest row
+              CollectedPrincipal  -> CF.mflowPrincipal row
+              CollectedRecoveries -> CF.mflowRecovery row
+              CollectedPrepayment -> CF.mflowPrepayment row
+              CollectedRental     -> CF.mflowRental row
+              CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty row
 
 depositInflow (W.CollectByPct s splitRules) d row amap    --TODO need to check 100%
   = foldr
@@ -716,7 +704,7 @@ depositInflowByRules rs d row amap
       rs
 
 depositPoolInflow :: [W.CollectionRule] -> Date -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
-depositPoolInflow rules d (CF.CashFlowFrame []) amap = amap -- `debug` ("Deposit inflow Nothing")
+depositPoolInflow rules d (CF.CashFlowFrame []) amap = amap 
 depositPoolInflow rules d (CF.CashFlowFrame txn) amap = foldr (depositInflowByRules rules d) amap txn
 
 $(deriveJSON defaultOptions ''ExpectReturn)

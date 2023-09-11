@@ -227,7 +227,7 @@ priceAsset m d (PVCurve curve) assumps mRates
       cb =  getCurrentBal m
       wal = calcWAL ByYear cb d (zip amts ds)
     in 
-      AssetPrice pv wal (-1) (-1) (-1)
+      AssetPrice pv wal (-1) (-1) (-1)  --TODO missing duration and convixity
 
 priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
     = 
@@ -241,7 +241,7 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
         amts = CF.tsTotalCash <$> txns 
         wal = calcWAL ByYear cb d (zip amts ds) 
       in 
-        AssetPrice val wal (-1) (-1) (-1) 
+        AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
 
 -- | Aggregate all cashflow into a single cashflow frame
 aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame

@@ -48,19 +48,19 @@ lookupAssumptionByIdx sbi i
         Just (_, aps ) ->  aps
         Nothing -> error ("Can't find idx"++ (show i)++"in starfication list"++ (show sbi))
 
-data ApplyAssumptionType = PoolLevel AssetPerfAssumption -- (Maybe [InterestAssumption])-- ^ assumption apply to all assets in the pool
-                         | ByIndex [StratificationByIdx] -- (Maybe [InterestAssumption])-- ^ assumption which only apply to a set of assets in the pool
+data ApplyAssumptionType = PoolLevel AssetPerfAssumption -- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratificationByIdx] -- ^ assumption which only apply to a set of assets in the pool
                          deriving (Show,Generic)
 
 data NonPerfAssumption = NonPerfAssumption {
-  stopRunBy :: Maybe Date
-  ,projectedExpense :: Maybe (FeeName,Ts)
-  ,callWhen :: Maybe [C.CallOption]
-  ,revolving :: Maybe RevolvingAssumption
-  ,interest :: Maybe [RateAssumption]
-  ,inspectOn :: Maybe [(DatePattern,DealStats)]
-  ,buildFinancialReport :: Maybe DatePattern
-  ,pricing :: Maybe BondPricingInput
+  stopRunBy :: Maybe Date                            -- ^ optional stop day,which will stop cashflow projection
+  ,projectedExpense :: Maybe (FeeName,Ts)            -- ^ optional expense projection
+  ,callWhen :: Maybe [C.CallOption]                  -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
+  ,revolving :: Maybe RevolvingAssumption            -- ^ optional revolving assumption with revoving assets
+  ,interest :: Maybe [RateAssumption]                -- ^ optional interest rates assumptions
+  ,inspectOn :: Maybe [(DatePattern,DealStats)]      -- ^ optional tuple list to inspect variables during waterfall run
+  ,buildFinancialReport :: Maybe DatePattern         -- ^ optional dates to build financial reports
+  ,pricing :: Maybe BondPricingInput                 -- ^ optional bond pricing input( discount curve etc)
 } deriving (Show,Generic)
 
 data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request
@@ -81,8 +81,8 @@ data AssetDelinquencyAssumption = DelinqCDR Rate Lag Rate Lag -- Annualized Rate
                                 | Dummy3
                                 deriving (Show,Generic)
 
-data LeaseAssetGapAssump = GapDays Int 
-                         | GapDaysByAmount [(Amount,Int)] Int
+data LeaseAssetGapAssump = GapDays Int                         -- ^ days between leases, when creating dummy leases
+                         | GapDaysByAmount [(Amount,Int)] Int  -- ^ days depends on the size of leases, when a default a default days for size greater
                          deriving (Show,Generic)
 
 data LeaseAssetRentAssump = BaseAnnualRate Rate
@@ -90,10 +90,10 @@ data LeaseAssetRentAssump = BaseAnnualRate Rate
                           deriving (Show,Generic)
 
 data ExtraStress = ExtraStress {
-                 defaultFactors :: Maybe Ts              -- ^ stress default rate via a time series based factor curve
-                 ,prepaymentFactors :: Maybe Ts          -- ^ stress prepayment rate via a time series based factor curve
-                 ,poolHairCut :: Maybe (PoolSource,Rate) -- ^ haircut on pool income source
-                 } deriving (Show,Generic)
+                     defaultFactors :: Maybe Ts              -- ^ stress default rate via a time series based factor curve
+                     ,prepaymentFactors :: Maybe Ts          -- ^ stress prepayment rate via a time series based factor curve
+                     ,poolHairCut :: Maybe (PoolSource,Rate) -- ^ haircut on pool income source
+                   } deriving (Show,Generic)
 
 data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, recovery lag
                         | RecoveryTiming (Rate,[Rate])  -- ^ recovery rate, with distribution of recoveries

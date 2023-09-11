@@ -131,12 +131,12 @@ data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurob
               | DC_30_360_US     -- ^ 30/360 US Municipal , Bond basis
               deriving (Show, Eq, Generic)
 
-data DateType = ClosingDate
-              | CutoffDate
-              | FirstPayDate
-              | RevolvingEndDate
+data DateType = ClosingDate        -- ^ deal closing day
+              | CutoffDate         -- ^ after which, the pool cashflow was aggregated to SPV
+              | FirstPayDate       -- ^ first payment day for bond/waterfall to run with
+              | RevolvingEndDate  
               | RevolvingDate
-              | StatedMaturityDate      
+              | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
               deriving (Show,Ord,Eq,Generic,Read)
 
 data Period = Daily 
@@ -150,12 +150,12 @@ data Period = Daily
 type DateVector = (Date, DatePattern)
 
 data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
-                        --  cutoff pool       closing bond payment dates 
+              --  cutoff pool       closing bond payment dates 
               | CustomDates Date [ActionOnDate] Date [ActionOnDate]
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
-              --             cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
+              --  cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
               | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
-              --             (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
+              --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
               deriving (Show,Eq, Generic)
 
@@ -166,7 +166,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- sweep bank account i
                   | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
                   | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
                   | RunWaterfall Date String             -- ^ execute waterfall
-                  | DealClosed Date                      
+                  | DealClosed Date                      -- ^ actions to perform at the deal closing day
                   | InspectDS Date DealStats             -- ^ inspect formula
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
@@ -218,19 +218,19 @@ instance FromJSONKey DateType where
 data OverrideType = CustomActionOnDates [ActionOnDate]
                     deriving (Show,Generic)
 
-data DealStatus = DealAccelerated (Maybe Date)
-                | DealDefaulted (Maybe Date)
-                | Amortizing
+data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated status with optinal accerlerated date
+                | DealDefaulted (Maybe Date)        -- ^ Deal is defaulted status with optinal default date
+                | Amortizing                        -- ^ Deal is amortizing 
                 | Revolving
-                | Ended
-                | PreClosing
+                | Ended                             -- ^ Deal was marked as closed
+                | PreClosing                        -- ^ Deal was not closed
                 deriving (Show,Ord,Eq,Read, Generic)
 
-data DealCycle = EndCollection            
-               | EndCollectionWF
-               | BeginDistributionWF
-               | EndDistributionWF
-               | InWF
+data DealCycle = EndCollection         -- ^ | collection period <HERE> collection action , waterfall action
+               | EndCollectionWF       -- ^ | collection period  collection action <HERE>, waterfall action
+               | BeginDistributionWF   -- ^ | collection period  collection action , <HERE>waterfall action
+               | EndDistributionWF     -- ^ | collection period  collection action , waterfall action<HERE>
+               | InWF                  -- ^ | collection period  collection action , waterfall <HERE> action
                deriving (Show, Ord, Eq, Read, Generic)
 
 instance ToJSONKey DealCycle where
@@ -372,8 +372,8 @@ data DealStats = CurrentBondBalance
                | CurrentPoolBalance
                | CurrentPoolBegBalance
                | CurrentPoolDefaultedBalance
-               | CumulativePoolDefaultedBalance   -- Depreciated, use PoolCumCollection
-               | CumulativePoolRecoveriesBalance  -- Depreciated, use PoolCumCollection
+               | CumulativePoolDefaultedBalance   -- ^ Depreciated, use PoolCumCollection
+               | CumulativePoolRecoveriesBalance  -- ^ Depreciated, use PoolCumCollection
                | CumulativeNetLoss
                | CumulativePoolDefaultedRate
                | CumulativePoolDefaultedRateTill Int

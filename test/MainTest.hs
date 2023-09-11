@@ -1,6 +1,4 @@
 import Test.Tasty
--- import Test.Tasty.SmallCheck as SC
---import Test.Tasty.QuickCheck as QC
 import Test.Tasty.HUnit
 
 import Data.List
@@ -38,45 +36,45 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.installmentTest
                            ,AT.armTest
                            ,AT.ppyTest
-                           -- ,CFT.cfTests
-                           -- ,CFT.tsSplitTests
-                           -- ,CFT.testMergePoolCf
-                           -- ,CFT.combineTest
-                           -- ,BT.pricingTests
-                           -- ,BT.bndUtilTest
-                           -- ,LT.curveTests
-                           -- ,LT.pvTests
+                           ,CFT.cfTests
+                           ,CFT.tsSplitTests
+                           ,CFT.testMergePoolCf
+                           ,CFT.combineTest
+                           ,BT.pricingTests
+                           ,BT.bndUtilTest
+                           ,LT.curveTests
+                           ,LT.pvTests
                            -- --,LT.queryStmtTests
-                           -- ,LT.datesTests
-                           -- ,LT.prorataTests
-                           -- ,LT.tsOperationTests
-                           -- ,ET.expTests
-                           -- ,DT.queryTests
-                           -- ,DT.triggerTests
-                           -- ,DT.dateTests
-                           -- ,DT.liqProviderTest
-                           -- ,UtilT.daycountTests1
-                           -- ,UtilT.daycountTests2
-                           -- ,UtilT.daycountTests3
-                           -- ,UtilT.daycountTests4
-                           -- ,UtilT.tsTest
-                           -- ,UtilT.ts2Test
-                           -- ,UtilT.ts3Test
-                           -- ,UtilT.dateVectorPatternTest
-                           -- ,UtilT.paddingTest
-                           -- ,UtilT.dateSliceTest
-                           -- ,UtilT.capTest
-                           -- ,UtilT.roundingTest
-                           -- ,UtilT.sliceTest
-                           -- ,UtilT.splitTsTest
-                           -- ,AccT.intTests
-                           -- ,AccT.investTests
-                           -- ,AccT.reserveAccTest
-                           -- ,QT.queryTest
-                           -- ,ST.txnTest
-                           -- ,IRT.armResetTests
-                           -- ,IRT.interestRoundingTest
-                           -- ,AnalyticsT.walTest
-                           -- ,AnalyticsT.durationTest
-                           -- ,DealTest.baseTests
+                           ,LT.datesTests
+                           ,LT.prorataTests
+                           ,LT.tsOperationTests
+                           ,ET.expTests
+                           ,DT.queryTests
+                           ,DT.triggerTests
+                           ,DT.dateTests
+                           ,DT.liqProviderTest
+                           ,UtilT.daycountTests1
+                           ,UtilT.daycountTests2
+                           ,UtilT.daycountTests3
+                           ,UtilT.daycountTests4
+                           ,UtilT.tsTest
+                           ,UtilT.ts2Test
+                           ,UtilT.ts3Test
+                           ,UtilT.dateVectorPatternTest
+                           ,UtilT.paddingTest
+                           ,UtilT.dateSliceTest
+                           ,UtilT.capTest
+                           ,UtilT.roundingTest
+                           ,UtilT.sliceTest
+                           ,UtilT.splitTsTest
+                           ,AccT.intTests
+                           ,AccT.investTests
+                           ,AccT.reserveAccTest
+                           ,QT.queryTest
+                           ,ST.txnTest
+                           ,IRT.armResetTests
+                           ,IRT.interestRoundingTest
+                           ,AnalyticsT.walTest
+                           ,AnalyticsT.durationTest
+                           ,DealTest.baseTests
                            ]
