@@ -13,8 +13,7 @@ module Assumptions (BondPricingInput(..)
                     ,LeaseAssetRentAssump(..)
                     ,NonPerfAssumption(..)
                     ,AssetDelinquencyAssumption(..)
-                    ,getCDR,calcResetDates
-                    )
+                    ,getCDR,calcResetDates)
 where
 
 import Call as C
@@ -77,7 +76,7 @@ data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentVec [Rate] 
                            deriving (Show,Generic)
 
-data AssetDelinquencyAssumption = DelinqCDR Rate Lag Rate Lag -- Annualized Rate to Delinq status , period lag become defaulted, loss rate, period become loss
+data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)  -- Annualized Rate to Delinq status , period lag become defaulted, loss rate, period become loss
                                 | Dummy3
                                 deriving (Show,Generic)
 
@@ -100,7 +99,7 @@ data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, reco
                         deriving (Show,Generic)
 
 data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)
-                         | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe ExtraStress)
+                         | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate  (Maybe ExtraStress)
                          | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)

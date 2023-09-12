@@ -230,7 +230,6 @@ instance Ast.Asset Mortgage where
   getOriginDate (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) = sd
   getOriginDate (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) = sd
 
-
   getRemainTerms (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) = ct
   getRemainTerms (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) = ct
 
@@ -242,7 +241,7 @@ instance Ast.Asset Mortgage where
   updateOriginDate (AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd _type mpn) arm cb cr ct mbn st) nd 
     = AdjustRateMortgage (MortgageOriginalInfo ob or ot p nd _type mpn) arm cb cr ct mbn st
   
-  -- project current mortgage
+  -- project current mortgage(without delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams) 
@@ -253,12 +252,33 @@ instance Ast.Asset Mortgage where
       patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
     where
       last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
-      cf_dates_length = length cf_dates  -- `debug` ("Last Pay Date\n"++ show last_pay_date++"SD\n"++ show sd++"ot,ct\n"++show ot++","++show rt)
+      cf_dates_length = length cf_dates 
       
       rate_vector = A.projRates or mRates cf_dates
       
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) mars
       txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
+
+  -- project current mortgage(without delinq)
+  projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 
+               asOfDay 
+               mars@(A.DelinqCDR delinqRate (defaultLag,defaultPct)) 
+               mRates =
+    let 
+      futureTxns = cutBy Inc Future asOfDay txns 
+    in 
+      patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
+    where
+      last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
+      cf_dates_length = length cf_dates 
+      
+      rate_vector = A.projRates or mRates cf_dates
+      
+      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) mars
+      txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
+
+   
+
 
   -- project defaulted Mortgage    
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay (A.DefaultedRecovery rr lag timing) _ =
