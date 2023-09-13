@@ -6,7 +6,7 @@ module Asset (Pool(..),aggPool
        ,Asset(..),AggregationRule
        ,getIssuanceField,calcPmt
        ,calcPiFlow,calc_p_i_flow_even,calc_p_i_flow_i_p
-       ,buildAssumptionPpyDefRecRate
+       ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset
 ) where
@@ -131,7 +131,7 @@ buildPrepayRates ds mPa =
   case mPa of
     Just (A.PrepaymentConstant r) -> replicate size r
     Just (A.PrepaymentCPR r) -> (map (Util.toPeriodRateByInterval r)
-                                      (getIntervalDays ds))
+                                     (getIntervalDays ds))
     Just (A.PrepaymentVec vs) -> zipWith 
                                     Util.toPeriodRateByInterval
                                     (paddingDefault 0.0 vs (pred size))
