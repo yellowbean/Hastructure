@@ -377,6 +377,9 @@ instance Ast.Asset Mortgage where
     in 
       patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
     where
+      ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
+      passInitPeriod = (ot - rt) >= initPeriod 
+      firstResetDate = monthsAfter sd (toInteger (succ initPeriod))
       last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m recoveryLag)  
       cf_dates_length = length cf_dates 
       rate_curve = case or of
@@ -433,7 +436,7 @@ instance Ast.Asset Mortgage where
                             (defaultPct,defaultLag,recoveryRate,recoveryLag)
         where
           begBal =  CF.mflowBegBalance $ head flows -- `debug` ("beg date"++show beg_date)
-          (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) mars
+          (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (begDate:cfDates) assumps
           curveDatesLength =  recoveryLag + length flows
           temp_p = Lib.Monthly -- TODO to fix this hard code
           extraPeriods = defaultLag + recoveryLag
@@ -443,6 +446,7 @@ instance Ast.Asset Mortgage where
                        in 
                         [ CF.emptyTsRow d r | (d,r) <- zip extraDates _extraFlows ] 
           flowWithExtraDates = flows ++ extraFlows
+          cfDates = getDates flowWithExtraDates
         
 
   getBorrowerNum m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) cb cr rt mbn _ ) = fromMaybe 1 mbn
