@@ -5,24 +5,24 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf,sumTsCF
                 ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
-                ,mflowRental,mflowRate,sumPoolFlow
+                ,mflowRental,mflowRate,sumPoolFlow,splitTrs
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
-                ,lookupSource
+                ,lookupSource,reduceTs,tsSetDate
                 ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
-                ,splitCashFlowFrameByDate
+                ,splitCashFlowFrameByDate,emptyTsRow
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
                 ,tsDateLT,getDate,getTxnLatestAsOf
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
-                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow
+                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,splitTrs
                 ,TsRow(..),cfAt) where
 
 import Data.Time (Day)
 import Data.Fixed
 import Lib (weightedBy,toDate,getIntervalFactors,daysBetween)
-import Util (mulBR,splitByDate)
+import Util (mulBR,splitByDate,mulBInt,mulIR)
 import Types
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -352,9 +352,9 @@ appendCashFlow (CashFlowFrame _tsr) tsr
   = CashFlowFrame $ _tsr ++ tsr
 
 emptyTsRow :: Date -> TsRow -> TsRow 
-emptyTsRow _d (MortgageFlow a x c d e f g h i j k l) = (MortgageFlow _d 0 0 0 0 0 0 0 0 0 Nothing Nothing)
-emptyTsRow _d (LoanFlow a x c d e f g i j) = (LoanFlow _d 0 0 0 0 0 0 0 0)
-emptyTsRow _d (LeaseFlow a x c ) = (LeaseFlow _d 0 0 )
+emptyTsRow _d (MortgageFlow a x c d e f g h i j k l) = MortgageFlow _d 0 0 0 0 0 0 0 0 0 Nothing Nothing
+emptyTsRow _d (LoanFlow a x c d e f g i j) = LoanFlow _d 0 0 0 0 0 0 0 0
+emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
 
 -- | given a row ,build a new cf row with begin balance
 buildBegTsRow :: Date -> TsRow -> TsRow
@@ -425,6 +425,16 @@ setPrepaymentPenalty _ _ = error "prepay pental only applies to MortgageFlow"
 
 setPrepaymentPenaltyFlow :: [Balance] -> [TsRow] -> [TsRow]
 setPrepaymentPenaltyFlow bals trs = [ setPrepaymentPenalty bal tr | (bal,tr) <- zip bals trs]
+
+splitTs :: Rate -> TsRow -> TsRow 
+splitTs r (MortgageFlow d bal p i ppy delinq def recovery loss rate mB mPPN)
+  = MortgageFlow d (mulBR bal r) (mulBR p r) (mulBR i r) (mulBR ppy r)
+                 (mulBR delinq r) (mulBR def r) (mulBR recovery r) (mulBR loss r)
+                 rate ((\x -> round (toRational x * r)) <$> mB) ((`mulBR` r) <$> mPPN)
+splitTs _ tr = error $ "Not support for spliting TsRow"++show tr
+
+splitTrs :: Rate -> [TsRow] -> [TsRow]
+splitTrs r trs = splitTs r <$> trs 
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

@@ -79,48 +79,47 @@ projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs
 
 
 projectDelinqMortgageFlow :: [CF.TsRow] -> Balance -> Maybe Rational -> Date -> [Date] -> [Rate] -> [PrepaymentRate] -> [IRate] -> (Rate,Lag,Rate,Lag,Period,AmortPlan) -> ([Balance],[Balance],[Balance]) -> [CF.TsRow]
-projectDelinqMortgageFlow trs _ _ _ [] _ _ _ _ _ = sort trs --TODO to be sorted , merged need to recalc balance
+projectDelinqMortgageFlow trs _ _ _ [] _ _ _ _ _ = foldl CF.reduceTs [] $ sort trs
 projectDelinqMortgageFlow trs beginBal mBorrowerNum lastDate (pDate:pDates) (delinqRate:delinqRates) (ppyRate:ppyRates) (rate:rates) (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) (dBal:defaultVec,rAmt:recoveryVec,lAmt:lossVec)
   = projectDelinqMortgageFlow (trs++[tr]++backToPerfCfs) endingBal mNewBn pDate pDates delinqRates ppyRates rates (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) (newDefaultVec,newRecoveryVec,newLossVec) 
-  where 
-    remainTerms = 1 + max 0 (length pDates - recoveryLag) 
-    delinqBal = mulBR beginBal delinqRate
-    
-    defaultBal = mulBR delinqBal defaultPct 
-    backToPerf = mulBR delinqBal (1 - defaultPct)
-    
-    restPerfVector = replicate (length delinqRates) 0
-    restPerfBal = fromRational <$> restPerfVector
-    backToPerfCfs = projectDelinqMortgageFlow [] backToPerf Nothing pDate (drop defaultLag pDates) 
-                                              restPerfVector restPerfVector (rate:(drop defaultLag rates))
-                                              (0,0,0,0,p,prinType) 
-                                              (restPerfBal,restPerfBal,restPerfBal)
+    where 
+      remainTerms = 1 + max 0 (length pDates - recoveryLag) 
+      delinqBal = mulBR beginBal delinqRate
+      
+      defaultBal = mulBR delinqBal defaultPct 
+      backToPerf = mulBR delinqBal (1 - defaultPct)
+      
+      restPerfVector = replicate (length delinqRates) 0
+      restPerfBal = fromRational <$> restPerfVector
+      backToPerfCfs = projectDelinqMortgageFlow [] backToPerf Nothing pDate (drop defaultLag pDates) 
+                                                restPerfVector restPerfVector (rate:(drop defaultLag rates))
+                                                (0,0,0,0,p,prinType) 
+                                                (restPerfBal,restPerfBal,restPerfBal)
 
-    newDefaultVec = replace defaultVec defaultLag defaultBal
-    
-    recBal = mulBR dBal recoveryRate
-    lossBal = mulBR dBal (1 - recoveryRate)
-    newRecoveryVec = replace recoveryVec recoveryLag recBal
-    newLossVec = replace lossVec recoveryLag lossBal
-    
-    balAfterDelinq = beginBal - delinqBal
-    ppyAmt = mulBR balAfterDelinq ppyRate 
-    balAfterPpy  = balAfterDelinq - ppyAmt
-    periodRate = periodRateFromAnnualRate p rate
-    intAmt = mulBI balAfterPpy periodRate 
-    pmt = calcPmt balAfterPpy periodRate remainTerms
-    prinAmt = case prinType of
-                Level -> pmt - intAmt
-                Even ->  balAfterPpy / fromIntegral remainTerms
+      newDefaultVec = replace defaultVec defaultLag defaultBal
+      
+      recBal = mulBR dBal recoveryRate
+      lossBal = mulBR dBal (1 - recoveryRate)
+      newRecoveryVec = replace recoveryVec recoveryLag recBal
+      newLossVec = replace lossVec recoveryLag lossBal
+      
+      balAfterDelinq = beginBal - delinqBal
+      ppyAmt = mulBR balAfterDelinq ppyRate 
+      balAfterPpy  = balAfterDelinq - ppyAmt
+      periodRate = periodRateFromAnnualRate p rate
+      intAmt = mulBI balAfterPpy periodRate 
+      pmt = calcPmt balAfterPpy periodRate remainTerms
+      prinAmt = case prinType of
+                  Level -> pmt - intAmt
+                  Even ->  balAfterPpy / fromIntegral remainTerms
 
-    endingBal = beginBal - prinAmt - ppyAmt - delinqBal 
-    
-    
-    mNewBn = Nothing --TODO
-    tr = CF.MortgageFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate mNewBn Nothing 
+      endingBal = beginBal - prinAmt - ppyAmt - delinqBal 
+      mNewBn = Nothing --TODO
+      tr = CF.MortgageFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate mNewBn Nothing 
 
 
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
+projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs 
 projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss (recovery_lag,recovery_rate)
   = projectScheduleFlow (trs++[tr]) _survive_rate _end_bal flows _def_rates _ppy_rates (tail _rec_vector) (tail _loss_vector) (recovery_lag,recovery_rate) -- `debug` ("===>C")
      where
@@ -153,7 +152,34 @@ projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,rec
       flow_date = nextDate last_date Lib.Monthly
       tr = CF.MortgageFlow flow_date last_bal 0 0 0 0 0 r l 0.0 Nothing Nothing
 
-projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs 
+type DelinqRate = Rate
+projectScheduleDelinqFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DelinqRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [Amount] -> (Rate,Int,Rate,Int) -> [CF.TsRow]
+projectScheduleDelinqFlow trs _ _ _ _ _ [] [] [] _ = trs
+projectScheduleDelinqFlow trs surviveRate begBal (flow:flows) (delinqRate:delinqRates) (ppyRate:ppyRates) (defaultBal:defaultBals) (recoveryBal:recoveryBals) (lossBal:lossBals) (defaultPct,defaultLag,recoveryRate,recoveryLag)
+  = projectScheduleDelinqFlow (trs++[tr]++backToPerfCfs) newSurviveRate endBal flows delinqRates ppyRates newDefaultBals newRecoveryBals newLossBals (defaultPct,defaultLag,recoveryRate,recoveryLag)
+    where 
+      delinqAmt = mulBR begBal delinqRate
+      ppyAmt = mulBR (begBal - delinqAmt) ppyRate
+      newSurviveRate = (1-delinqRate) * (1-ppyRate) * surviveRate
+
+      scheduleBal = CF.mflowBalance flow
+      schedulePrin = mulBR (CF.mflowPrincipal flow) surviveRate
+      scheduleInt = mulBR (CF.mflowInterest flow) surviveRate
+
+      newDefaultBal = mulBR delinqAmt defaultPct
+      endBal = max 0 $ (begBal - delinqAmt - ppyAmt - schedulePrin)
+      backToPerfCfs = let 
+                        futureDs = drop defaultLag $ getDates flows
+                        splitPct = divideBB (mulBR delinqAmt (1-defaultPct)) begBal
+                        perfFlows = take (length flows - defaultLag) $ CF.splitTrs splitPct flows
+                      in 
+                        [ CF.tsSetDate f d | (d,f) <- zip futureDs perfFlows ]
+
+      newDefaultBals = replace defaultBals defaultLag newDefaultBal
+      newRecoveryBals = replace recoveryBals recoveryLag (mulBR defaultBal recoveryRate)
+      newLossBals =  replace lossBals recoveryLag (mulBR defaultBal (1-recoveryRate))
+
+      tr = CF.MortgageFlow (CF.getDate flow) endBal schedulePrin scheduleInt ppyAmt delinqAmt defaultBal recoveryBal lossBal 0.0 Nothing Nothing
 
 -- | implementation on prepayment penalty, which patch cashflow to cashflow frame
 patchPrepayPentalyFlow :: Mortgage -> CF.CashFlowFrame -> CF.CashFlowFrame
@@ -276,11 +302,9 @@ instance Ast.Asset Mortgage where
     in 
       patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
     where
-      last_pay_date:cf_dates = lastN (recoveryLag + rt + 1) $ sd:(getPaymentDates m recoveryLag)  
+      last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m recoveryLag)  
       cf_dates_length = length cf_dates 
-      
       rate_vector = A.projRates or mRates cf_dates
-      
       (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) mars
       
       txns = projectDelinqMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
@@ -343,23 +367,83 @@ instance Ast.Asset Mortgage where
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) mars 
       txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
 
-  projCashflow (ScheduleMortgageFlow beg_date flows) asOfDay assumps _
+  -- project current AdjMortgage with delinq
+  projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) 
+               asOfDay 
+               mars@(A.MortgageAssump amd amp amr ams) 
+               mRates =
+    let 
+      futureTxns = cutBy Inc Future asOfDay txns 
+    in 
+      patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
+    where
+      last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m recoveryLag)  
+      cf_dates_length = length cf_dates 
+      rate_curve = case or of
+                      IR.Fix _ r ->  error "ARM should have floater rate"
+                      IR.Floater _ idx sprd initRate dp _ _ mRoundBy ->
+                        let 
+                          resetDates = genSerialDatesTill2 IE firstResetDate dp (last cf_dates)
+                          projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
+                        in 
+                          case A.getRateAssumption (fromMaybe [] mRates) idx of
+                            Just (RateCurve idx curve) 
+                              -> projectFutureActualCurve curve -- `debug` ("Curve")
+                            Just (RateFlat idx v) 
+                              -> projectFutureActualCurve (mkRateTs [(getOriginDate m,v),(last cf_dates,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
+                            Nothing -> error $ "Failed to find index"++ show idx
+      
+      rate_vector = fromRational <$> getValByDates rate_curve Inc cf_dates -- `debug` ("RateCurve"++ show rate_curve)                                  
+
+      (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) mars
+      
+      txns = projectDelinqMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
+                                       (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType) 
+                                       ((replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0))
+ 
+  projCashflow (ScheduleMortgageFlow begDate flows) asOfDay assumps@(A.MortgageAssump {}) _
     = CF.CashFlowFrame $ projectScheduleFlow
                              []
                              1.0
-                             beg_bal
+                             begBal
                              flows
-                             def_rates
-                             ppy_rates
-                             (replicate curve_dates_length 0.0)
-                             (replicate curve_dates_length 0.0)
-                             (recovery_lag,recovery_rate) -- `debug` ("ppy rate"++ show ppy_rates)
+                             defRates
+                             ppyRates
+                             (replicate curveDatesLength 0.0)
+                             (replicate curveDatesLength 0.0)
+                             (recoveryLag,recoveryRate) -- `debug` ("ppy rate"++ show ppy_rates)
        where
-        beg_bal =  CF.mflowBegBalance $ head flows -- `debug` ("beg date"++show beg_date)
-        (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (beg_date:cf_dates) assumps 
-        curve_dates_length =  recovery_lag + length flows
-        temp_p = Lib.Monthly -- TODO to fix this hard code
-        cf_dates = (map CF.getDate flows) ++ (genDates (CF.getDate (last flows)) temp_p recovery_lag)
+         begBal =  CF.mflowBegBalance $ head flows -- `debug` ("beg date"++show beg_date)
+         (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate (begDate:cfDates) assumps 
+         curveDatesLength =  recoveryLag + length flows
+         temp_p = Lib.Monthly -- TODO to fix this hard code
+         cfDates = (map CF.getDate flows) ++ (genDates (CF.getDate (last flows)) temp_p recoveryLag)
+  
+  projCashflow (ScheduleMortgageFlow begDate flows) asOfDay assumps@(A.MortgageDeqAssump {}) mRates
+    = CF.CashFlowFrame $ projectScheduleDelinqFlow 
+                            []
+                            1.0
+                            begBal
+                            flowWithExtraDates
+                            delinqRates
+                            ppyRates
+                            (replicate curveDatesLength 0.0)
+                            (replicate curveDatesLength 0.0)
+                            (replicate curveDatesLength 0.0)
+                            (defaultPct,defaultLag,recoveryRate,recoveryLag)
+        where
+          begBal =  CF.mflowBegBalance $ head flows -- `debug` ("beg date"++show beg_date)
+          (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) mars
+          curveDatesLength =  recoveryLag + length flows
+          temp_p = Lib.Monthly -- TODO to fix this hard code
+          extraPeriods = defaultLag + recoveryLag
+          extraFlows = let 
+                         extraDates =  genDates (CF.getDate (last flows)) temp_p extraPeriods
+                         _extraFlows = replicate extraPeriods (last flows)
+                       in 
+                        [ CF.emptyTsRow d r | (d,r) <- zip extraDates _extraFlows ] 
+          flowWithExtraDates = flows ++ extraFlows
+        
 
   getBorrowerNum m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) cb cr rt mbn _ ) = fromMaybe 1 mbn
   getBorrowerNum m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) _ cb cr rt mbn _ ) = fromMaybe 1 mbn
