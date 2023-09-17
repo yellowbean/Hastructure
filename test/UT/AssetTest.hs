@@ -441,15 +441,21 @@ delinqScheduleCFTest =
                   (L.toDate "20230801")
                   Nothing
                   (Just MonthEnd)
-    poolCf = head $
-               D.runPool pool 
-                         (Just (A.PoolLevel 
-                                 (A.MortgageDeqAssump   
-                                   (Just (A.DelinqCDR 0.05 (5,0.3)))
-                                   Nothing 
-                                   Nothing 
-                                   Nothing)))
-                         Nothing
+    assump1 = Just (A.PoolLevel 
+                      (A.MortgageDeqAssump   
+                        (Just (A.DelinqCDR 0.05 (5,0.3)))
+                        Nothing 
+                        Nothing 
+                        Nothing))
+    assump2 = Just (A.PoolLevel 
+                      (A.MortgageDeqAssump   
+                        (Just (A.DelinqCDR 0.05 (5,0.3)))
+                        (Just (A.PrepaymentCPR 0.08))
+                        Nothing 
+                        Nothing))
+
+    poolCf = head $ D.runPool pool assump1 Nothing
+    poolCf2 = head $ D.runPool pool assump2 Nothing
   in 
     testGroup "delinq run on schedule flow" [
       testCase "case 01" $
@@ -480,4 +486,8 @@ delinqScheduleCFTest =
       --   assertEqual "first loss/recovery from default & first back to perf"
       --   (Just (CF.MortgageFlow (L.toDate "20240229") 492.36  0.0 0 0 0 1.25 0 1.25 0.0 Nothing Nothing))
       --   (CF.cfAt poolCf 7)
+      ,testCase "case with prepay assump" $
+        assertEqual "01"
+        (Just (CF.MortgageFlow (L.toDate "20230901") 988.64 0 0 7.02 4.34  0.0 0.0 0.0 0.08 Nothing Nothing))
+        (CF.cfAt poolCf2 0)
     ]
