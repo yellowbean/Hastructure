@@ -78,39 +78,43 @@ projectMortgageFlow trs _b mbn _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_a
 projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs  
 
 
-projectDelinqMortgageFlow :: [CF.TsRow] -> Balance -> Maybe Rational -> Date -> [Date] -> [Rate] -> [PrepaymentRate] -> [IRate] -> (Rate,Lag,Rate,Lag,Period,AmortPlan) -> ([Balance],[Balance],[Balance]) -> [CF.TsRow]
-projectDelinqMortgageFlow trs _ _ _ [] _ _ _ _ _ = foldl CF.reduceTs [] $ sort trs
-projectDelinqMortgageFlow trs beginBal mBorrowerNum lastDate (pDate:pDates) (delinqRate:delinqRates) (ppyRate:ppyRates) (rate:rates) (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) (dBal:defaultVec,rAmt:recoveryVec,lAmt:lossVec)
-  = projectDelinqMortgageFlow (trs++[tr]++backToPerfCfs) endingBal mNewBn pDate pDates delinqRates ppyRates rates (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) (newDefaultVec,newRecoveryVec,newLossVec) 
+projectDelinqMortgageFlow :: ([CF.TsRow],[CF.TsRow]) -> Balance -> Maybe Rational -> Date -> [Date] -> [Rate] -> [PrepaymentRate] -> [IRate] -> (Rate,Lag,Rate,Lag,Period,AmortPlan) -> ([Balance],[Balance],[Balance]) -> [CF.TsRow]
+projectDelinqMortgageFlow (trs,backToPerfs) _ _ _ [] _ _ _ _ _ = reverse $ foldl (CF.reduceTs2 CF.mflowAmortAmount2) [] $ sort trs --TODO
+projectDelinqMortgageFlow (trs,backToPerfs)beginBal mBorrowerNum lastDate (pDate:pDates) (delinqRate:delinqRates) (ppyRate:ppyRates) (rate:rates) 
+                          (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
+                          (dBal:defaultVec,rAmt:recoveryVec,lAmt:lossVec)
+  = projectDelinqMortgageFlow (trs++[tr],backToPerfs++newPerfCfs) endingBal mNewBn pDate pDates delinqRates ppyRates rates 
+                              (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
+                              (newDefaultVec,newRecoveryVec,newLossVec) 
     where 
-      remainTerms = 1 + max 0 (length pDates - recoveryLag) 
+      remainTerms = 1 + max 0 (length pDates - recoveryLag-defaultLag) 
       delinqBal = mulBR beginBal delinqRate
       
       defaultBal = mulBR delinqBal defaultPct 
+      recBal = mulBR defaultBal recoveryRate
+      lossBal = mulBR defaultBal (1 - recoveryRate)
+      
+      newDefaultVec = replace defaultVec defaultLag defaultBal
+      newRecoveryVec = replace recoveryVec (recoveryLag+defaultLag) recBal
+      newLossVec = replace lossVec (recoveryLag+defaultLag) lossBal
+      
       backToPerf = mulBR delinqBal (1 - defaultPct)
       
       restPerfVector = replicate (length delinqRates) 0
       restPerfBal = fromRational <$> restPerfVector
-      backToPerfCfs = projectDelinqMortgageFlow [] backToPerf Nothing pDate (drop defaultLag pDates) 
-                                                restPerfVector restPerfVector (rate:(drop defaultLag rates))
-                                                (0,0,0,0,p,prinType) 
-                                                (restPerfBal,restPerfBal,restPerfBal)
-
-      newDefaultVec = replace defaultVec defaultLag defaultBal
-      
-      recBal = mulBR dBal recoveryRate
-      lossBal = mulBR dBal (1 - recoveryRate)
-      newRecoveryVec = replace recoveryVec recoveryLag recBal
-      newLossVec = replace lossVec recoveryLag lossBal
+      newPerfCfs = projectDelinqMortgageFlow ([],[]) backToPerf Nothing pDate (drop defaultLag pDates) 
+                                             restPerfVector restPerfVector (rate:(drop defaultLag rates))
+                                             (0,0,0,0,p,prinType) 
+                                             (restPerfBal,restPerfBal,restPerfBal)
       
       balAfterDelinq = beginBal - delinqBal
       ppyAmt = mulBR balAfterDelinq ppyRate 
       balAfterPpy  = balAfterDelinq - ppyAmt
       periodRate = periodRateFromAnnualRate p rate
-      intAmt = mulBI balAfterPpy periodRate 
+      intAmt = mulBI balAfterPpy periodRate
       pmt = calcPmt balAfterPpy periodRate remainTerms
       prinAmt = case prinType of
-                  Level -> pmt - intAmt
+                  Level -> pmt - intAmt `debug` ("Pmt>>"++show pmt++">>used bal"++show balAfterPpy++">>"++show periodRate++">>remain term"++show remainTerms)
                   Even ->  balAfterPpy / fromIntegral remainTerms
 
       endingBal = beginBal - prinAmt - ppyAmt - delinqBal 
@@ -314,12 +318,12 @@ instance Ast.Asset Mortgage where
     in 
       patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
     where
-      last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m recoveryLag)  
-      cf_dates_length = length cf_dates 
+      last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m (recoveryLag+defaultLag))
+      cf_dates_length = length cf_dates + recoveryLag + defaultLag
       rate_vector = A.projRates or mRates cf_dates
       (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) mars
       
-      txns = projectDelinqMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
+      txns = projectDelinqMortgageFlow ([],[]) cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
                                        (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType) 
                                        ((replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0))
   -- project defaulted Mortgage    
@@ -412,7 +416,7 @@ instance Ast.Asset Mortgage where
 
       (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) mars
       
-      txns = projectDelinqMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
+      txns = projectDelinqMortgageFlow ([],[]) cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
                                        (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType) 
                                        ((replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0))
   -- schedule mortgage flow without delinq

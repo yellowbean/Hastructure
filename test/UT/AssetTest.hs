@@ -1,5 +1,5 @@
 module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,leaseFunTests,installmentTest,armTest,ppyTest
-                   ,delinqScheduleCFTest)
+                   ,delinqScheduleCFTest,delinqMortgageTest)
 where
 
 import Test.Tasty
@@ -490,4 +490,34 @@ delinqScheduleCFTest =
         assertEqual "01"
         (Just (CF.MortgageFlow (L.toDate "20230901") 988.64 0 0 7.02 4.34  0.0 0.0 0.0 0.08 Nothing Nothing))
         (CF.cfAt poolCf2 0)
+    ]
+
+delinqMortgageTest = 
+  let 
+    tm1 = AB.Mortgage
+           (AB.MortgageOriginalInfo 12 (Fix DC_ACT_365F 0.08) 12 L.Monthly (L.toDate "20210101") AB.Level Nothing)
+           240 0.08 3
+           Nothing
+           AB.Current
+    assump1 = (A.MortgageDeqAssump   
+                        (Just (A.DelinqCDR 0.05 (2,0.3)))
+                        -- (Just (A.PrepaymentCPR 0.08))
+                        Nothing
+                        Nothing 
+                        Nothing)
+    (CF.CashFlowFrame txns) = P.projCashflow tm1 (L.toDate "20200101") assump1 Nothing
+  in 
+    testGroup "Mortgage Delinq Projection" [
+      testCase "" $
+        assertEqual "Length of cf"
+        5
+        (length txns) `debug` ("Cfs->> MOrtgage Delinq cf-> "++ show txns)
+      ,testCase "first row" $
+        assertEqual "delinq = 1"
+        (CF.MortgageFlow (L.toDate "20211101") 159.84 79.12 1.59 0 1.04 0.0 0.0 0.0 0.08 Nothing Nothing)
+        (txns!!0)
+      ,testCase "last row" $
+        assertEqual "delinq = 1"
+        (CF.MortgageFlow (L.toDate "20220101") 0.0 79.51 0.53  0 0.34 0.0 0.0 0.0 0.08 Nothing Nothing)
+        (txns!!2)
     ]
