@@ -13,7 +13,7 @@ module Lib
     ,toDate,toDates,genDates,nextDate,isTsEmpty
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors
-    ,zipWith8,zipWith9,zipWith10,zipWith11
+    ,zipWith8,zipWith9,zipWith10,zipWith11,zipWith12
     ,weightedBy, mkTs, DealStatus(..)
     ,mkRateTs,Pre(..)
     ) where
@@ -33,10 +33,6 @@ import Data.Fixed
 import Types
 import Debug.Trace
 debug = flip trace
-
-data DealFlags = Flags Bool -- dummy , this data intends to provide boolean flags regards to a deal
-
--- data Interval = CalendarDiffDays 1 0 |CalendarDiffDays 3 0 | CalendarDiffDays 6 0 |CalendarDiffDays 12 0
 
 annualRateToPeriodRate :: Period -> Float -> Float
 annualRateToPeriodRate p annualRate =
@@ -179,6 +175,12 @@ zipWith11 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks
 zipWith11 _ _ _ _ _ _ _ _ _ _ _ _ = []
 
 
+zipWith12 :: (a->b->c->d->e->f->g->h->i->j->k->l->m) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]->[k]->[l]->[m]
+zipWith12 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks) (l:ls) (m:ms)
+                   = z a b c d e f g h j k l m: zipWith12 z as bs cs ds es fs gs hs js ks ls ms
+zipWith12 _ _ _ _ _ _ _ _ _ _ _ _ _ = []
+
+
 floatToFixed :: HasResolution a => Float -> Fixed a
 floatToFixed x = y where
   y = MkFixed (round (fromInteger (resolution y) * x))
@@ -199,7 +201,6 @@ daysBetween sd ed = fromIntegral (T.diffDays ed sd)
 -- | Given a start date and a end date, return number of days between(Int)
 daysBetweenI :: Date -> Date -> Int 
 daysBetweenI sd ed = fromInteger $ T.diffDays ed sd
-
 
 genDates :: Date -> Period -> Int -> [Date]
 genDates start_day p n =

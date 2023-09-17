@@ -14,7 +14,7 @@ import Debug.Trace
 debug = flip trace
 
 resetDates = toDates ["20230301","20230401","20230501"] 
-rt = Floater LPR5Y 0.01 0.03 QuarterEnd Nothing Nothing Nothing
+rt = Floater DC_ACT_365F LPR5Y 0.01 0.03 QuarterEnd Nothing Nothing Nothing
 rc = IRateCurve [TsPoint (toDate "20230301") 0.01
                 ,TsPoint (toDate "20230401") 0.02
                 ,TsPoint (toDate "20230501") 0.03]
@@ -56,7 +56,7 @@ armResetTests =  testGroup "ARM reset curve test"
   ]
 
 -- resetDates = toDates ["20230301","20230401","20230501"] 
-rt2 = Floater LPR5Y 0.01 0.03 QuarterEnd Nothing Nothing (Just (RoundFloor 0.02))
+rt2 = Floater DC_ACT_365F LPR5Y 0.01 0.03 QuarterEnd Nothing Nothing (Just (RoundFloor 0.02))
 
 interestRoundingTest =  testGroup "Interest Rounding"
   [

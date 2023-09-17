@@ -1,12 +1,13 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
-                  ,capTest,roundingTest,sliceTest)--,daycountTests3,daycountTests4)
+                  ,capTest,roundingTest,sliceTest,splitTsTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
 import Test.Tasty.HUnit
 
 import qualified Data.Time as T
+import qualified Cashflow as CF
 import Util
 import Lib
 import Types
@@ -482,3 +483,27 @@ sliceTest =
     [1,2,3]
     (slice 0 4 [1,2,3])
   ]
+
+splitTsTest = 
+  let 
+    cashflow = [CF.CashFlow (toDate "20230901") 10, CF.CashFlow (toDate "20231001") 10,CF.CashFlow (toDate "20231101") 10]
+  in 
+
+    testGroup "split times series test"
+    [ testCase "split before earliest" $
+       assertEqual "" 
+       ([],cashflow)
+       (splitBy (toDate "20230801") Inc cashflow )
+      ,testCase "split after latest" $
+       assertEqual "" 
+       (cashflow,[])
+       (splitBy (toDate "20231201") Inc cashflow )
+       ,testCase "split in middle,inclusive" $
+       assertEqual "" 
+       ([CF.CashFlow (toDate "20230901") 10, CF.CashFlow (toDate "20231001") 10],[CF.CashFlow (toDate "20231101") 10])
+       (splitBy (toDate "20231001") Inc cashflow )
+       ,testCase "split in middle,exclusive" $
+       assertEqual "" 
+       ([CF.CashFlow (toDate "20230901") 10],[CF.CashFlow (toDate "20231001") 10,CF.CashFlow (toDate "20231101") 10])
+       (splitBy (toDate "20231001") Exc cashflow )
+    ]

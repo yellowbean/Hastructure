@@ -18,7 +18,7 @@ import Data.Ratio
 import Debug.Trace
 debug = flip trace
 
-
+-- ^ calculate the Weighted Average Life of cashflow, with unit option to Monthly or Yearly
 calcWAL :: TimeHorizion -> Balance -> Date -> [(Balance,Date)] -> Balance 
 calcWAL th bal d ps = 
   let 
@@ -58,7 +58,7 @@ pv2 discount_rate today d amt =
     denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
     distance = daysBetween today d 
 
--- calcualte present value given a series of amount with dates
+-- ^ calcualte present value given a series of amount with dates
 pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
 pv3 pvCurve pricingDate ds vs 
   = let 

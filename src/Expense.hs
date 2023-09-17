@@ -39,14 +39,14 @@ data FeeType = AnnualRateFee DealStats FormulaRate   -- ^ annulized fee with a r
              deriving (Show,Eq, Generic)
 
 data Fee = Fee {
-  feeName :: String    -- ^ fee name
-  ,feeType :: FeeType  -- ^ fee type
-  ,feeStart :: Date    -- ^ when fee become effective
-  ,feeDue :: Balance   -- ^ outstanding due amount fee
-  ,feeDueDate :: Maybe Date  -- ^ the date when due amount was calculated
-  ,feeArrears :: Balance     -- ^ reserved
+  feeName :: String              -- ^ fee name
+  ,feeType :: FeeType            -- ^ fee type
+  ,feeStart :: Date              -- ^ when fee become effective
+  ,feeDue :: Balance             -- ^ outstanding due amount fee
+  ,feeDueDate :: Maybe Date      -- ^ the date when due amount was calculated
+  ,feeArrears :: Balance         -- ^ reserved
   ,feeLastPaidDay :: Maybe Date  -- ^ last paid date
-  ,feeStmt :: Maybe Statement     -- ^ transaction history
+  ,feeStmt :: Maybe Statement    -- ^ transaction history
 } deriving (Show,Eq, Generic)
 
 payFee :: Date   -- ^ When pay action happen
@@ -92,7 +92,6 @@ instance S.QueryByComment Fee where
     queryStmt Fee{feeStmt = Nothing} tc = []
     queryStmt Fee{feeStmt = Just (S.Statement txns)} tc
       = filter (\x -> S.getTxnComment x == tc) txns
-
 
 $(deriveJSON defaultOptions ''FeeType)
 $(deriveJSON defaultOptions ''Fee)

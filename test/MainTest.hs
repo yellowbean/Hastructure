@@ -1,6 +1,4 @@
 import Test.Tasty
--- import Test.Tasty.SmallCheck as SC
---import Test.Tasty.QuickCheck as QC
 import Test.Tasty.HUnit
 
 import Data.List
@@ -38,6 +36,8 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.installmentTest
                            ,AT.armTest
                            ,AT.ppyTest
+                           ,AT.delinqScheduleCFTest
+                           ,AT.delinqMortgageTest
                            ,CFT.cfTests
                            ,CFT.tsSplitTests
                            ,CFT.testMergePoolCf
@@ -46,7 +46,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,BT.bndUtilTest
                            ,LT.curveTests
                            ,LT.pvTests
-                           --,LT.queryStmtTests
+                           -- --,LT.queryStmtTests
                            ,LT.datesTests
                            ,LT.prorataTests
                            ,LT.tsOperationTests
@@ -68,6 +68,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.capTest
                            ,UtilT.roundingTest
                            ,UtilT.sliceTest
+                           ,UtilT.splitTsTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest

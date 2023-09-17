@@ -55,10 +55,10 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                       ,period :: Period
                                       ,startDate :: Date
                                       ,prinType :: AmortPlan }
-                  | LeaseInfo { startDate :: Date
-                              ,originTerm :: Int 
-                              ,paymentDates :: DatePattern
-                              ,originRental :: Amount}
+                  | LeaseInfo { startDate :: Date            -- ^ lease start date
+                              ,originTerm :: Int             -- ^ total terms
+                              ,paymentDates :: DatePattern   -- ^ payment dates pattern
+                              ,originRental :: Amount}       -- ^ rental by day
                   deriving (Show,Generic)
 
 
@@ -70,8 +70,8 @@ data LeaseStepUp = FlatRate DatePattern Rate
                  | ByRateCurve DatePattern [Rate]
                  deriving (Show,Generic)
 
-data Lease = RegularLease OriginalInfo Balance Int Status
-           | StepUpLease OriginalInfo LeaseStepUp Balance Int Status
+data Lease = RegularLease OriginalInfo Balance RemainTerms Status
+           | StepUpLease OriginalInfo LeaseStepUp Balance RemainTerms Status
            deriving (Show,Generic)
 
 data AccrualPeriod = AccrualPeriod Date DailyRate
@@ -89,7 +89,7 @@ data MortgageInsurance = MortgageInsurance Rate
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
-              | ScheduleMortgageFlow Date [CF.TsRow]
+              | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic)
 
 -- Base 

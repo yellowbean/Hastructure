@@ -45,7 +45,7 @@ data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) 
                   | StepUpFix IRate DayCount StepUpDates Spread           -- ^ rate steps up base on dates
                   | StepUpByDate IRate Date InterestInfo InterestInfo     -- ^ Rate can be selective base on `pre`
                   | InterestByYield IRate
-                  | RefRate IRate DealStats Float RateReset                     -- ^ interest rate depends to a formula
+                  | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
                   deriving (Show, Eq, Generic)
@@ -86,9 +86,9 @@ data Bond = Bond {
 
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
-  =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} -- `debug` ("Consoling stmt for "++ bn )
+  =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} 
 
-consolStmt b@Bond{bndName = bn, bndStmt = Nothing} =  b  -- `0debug` ("No stmt for bond" ++ bn)
+consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
 
 -- | if no any principal due and interest due /oustanding balance ,then the bond is paid off
 isPaidOff :: Bond -> Bool
@@ -107,7 +107,7 @@ payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt dueIntDate lpayIn
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDueInt=new_due, bndStmt=new_stmt, bndLastIntPay = Just d}
   where
-    new_due = dueInt - amt -- `debug` (">>pay INT to "++ show bn ++ ">>" ++ show amt)
+    new_due = dueInt - amt 
     new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn]))
 
 payYield :: Date -> Amount -> Bond -> Bond 
@@ -138,7 +138,7 @@ fv2 discount_rate today futureDay amt
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
-  | sum (S.getTxnAmt <$> futureCf) == 0 = PriceResult 0 0 0 0 0 0 -- `debug` ("Passing 0")
+  | sum (S.getTxnAmt <$> futureCf) == 0 = PriceResult 0 0 0 0 0 0 
   | otherwise = 
                 let
                   presentValue = foldr (\x acc -> acc + (pv rc d (S.getDate x) (S.getTxnAmt x))) 0 futureCf -- `debug` "PRICING -A"
@@ -146,10 +146,10 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
                                       Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
                                                  where
                                                   fstTxn = head txns
-                                      Just _txn -> S.getTxnBalance _txn   -- `debug` ("presentValue"++show presentValue++"Bond->"++bn)
+                                      Just _txn -> S.getTxnBalance _txn   
                   accruedInt = case _t of
                                   Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * (mulBI leftBal cr)
-                                  Just _ -> 0  -- `debug` ("all txn"++show(_t))-- `debug` ("l day, right"++show(leftPayDay)++show(d)++show(T.diffDays leftPayDay d))
+                                  Just _ -> 0 
                                 where
                                   _t = find (\x -> (S.getDate x) == d) txns
                                   leftTxns = takeWhile (\txn -> (S.getDate txn) < d) txns
@@ -167,8 +167,8 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
                                0.0
                                futureCf) / cutoffBalance) -- `debug` ("cut off balace"++show cutoffBalance)
                   duration = (foldr (\x acc ->
-                                       (mulBR  
-                                         ((pv rc d (S.getDate x) (S.getTxnAmt x)) / presentValue) 
+                                       ((*)  
+                                         (divideBB (pv rc d (S.getDate x) (S.getTxnAmt x)) presentValue) 
                                          (yearCountFraction DC_ACT_365F d (S.getDate x)))
                                        + acc)
                                 0

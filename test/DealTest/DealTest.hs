@@ -66,7 +66,7 @@ baseCase = D.TestDeal {
   ,D.pool = P.Pool {P.assets=[AB.Mortgage
                                          AB.MortgageOriginalInfo{
                                            AB.originBalance=4000
-                                           ,AB.originRate=Fix 0.085
+                                           ,AB.originRate=Fix DC_ACT_365F 0.085
                                            ,AB.originTerm=60
                                            ,AB.period=Monthly
                                            ,AB.startDate=(T.fromGregorian 2022 1 1)
@@ -90,7 +90,7 @@ baseCase = D.TestDeal {
 
 baseTests = 
   let 
-   (dealAfterRun,poolCf,_,_) = DR.runDeal baseCase  DealPoolFlowPricing Nothing Nothing
+   (dealAfterRun,poolCf,_,_) = DR.runDeal baseCase DealPoolFlowPricing Nothing (AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing )
   in 
    testGroup "Base Deal Test" 
    [ testCase "Dates pattern" $

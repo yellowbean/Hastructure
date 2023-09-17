@@ -6,7 +6,7 @@
 * :coffee: Easy integration with Java/C#/C++/JavaScript/Python with RESTful interface and Docker image ready
 * :bricks: A building block engine to model cashflows of structured product, all the formula and variables are exposed.
 * :car: In-house and white-label friendly.
-* :flags: No lockdown, all JSONs input/output, no private file formats.
+* :flags: No lock-in risk, all JSONs input/output, no proprietary file formats.
 * :snake: [Python wrapper](https://github.com/yellowbean/PyABS) on the way   
 
 ### Features

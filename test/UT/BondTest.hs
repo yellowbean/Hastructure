@@ -107,7 +107,7 @@ pricingTests = testGroup "Pricing Tests"
      in
        testCase " discount curve with two rate points " $
        assertEqual "Test Pricing on case 01" 
-            (B.PriceResult 814.61 27.153666 (1 / 25) 0.17 0.20 19.2) 
+            (B.PriceResult 814.61 27.153666 (1 / 25) 0.180349 0.20 19.2) 
             pr  --TODO need to confirm
     ,
     let

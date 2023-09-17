@@ -4,13 +4,13 @@
 module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN,yearCountFraction,genSerialDates
     ,getValByDate,getValByDates,projDatesByPattern
-    ,genSerialDatesTill,genSerialDatesTill2,subDates,getTsDates,sliceDates,SliceType(..)      
-    ,calcInt,calcIntRate,calcIntRateCurve
+    ,genSerialDatesTill,genSerialDatesTill2,subDates,sliceDates,SliceType(..)      
+    ,calcInt,calcIntRate,calcIntRateCurve,divideBB
     ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
-    ,replace,paddingDefault, capWith, splitByDate
+    ,replace,paddingDefault, capWith, splitByDate, getTsDates
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
-    ,floorWith,slice
+    ,floorWith,slice,toPeriodRateByInterval
     )
     where
 import qualified Data.Time as T
@@ -52,6 +52,9 @@ mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
 
 divideBI :: Balance -> Int -> Balance
 divideBI b i = fromRational $ (toRational b) / (toRational i)
+
+divideBB :: Balance -> Balance -> Rational
+divideBB b1 b2 = toRational b1 / toRational b2
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
@@ -361,7 +364,6 @@ getIndexRateByDates :: RateAssumption  -> [Date] -> [IRate]
 getIndexRateByDates (RateCurve idx rc) ds = fromRational <$> getValByDates rc Inc ds
 getIndexRateByDates (RateFlat idx r) ds = replicate (length ds) r 
 
-
 getValByDates :: Ts -> CutoffType -> [Date] -> [Rational]
 getValByDates rc ct = map (getValByDate rc ct)
 
@@ -445,7 +447,9 @@ projDatesByPattern dp sd ed
 
 -- | swap a value in list with index supplied
 replace :: [a] -> Int -> a -> [a]
-replace xs i e = case splitAt i xs of
+replace xs i e 
+  | i > pred (length xs) = error $ "index:"++show i++" is greater than size"++ show (length xs)
+  | otherwise = case splitAt i xs of
                    (before, _:after) -> before ++ e: after
                    _ -> xs
 
@@ -534,3 +538,9 @@ roundingByM (Just rb) x = roundingBy rb x
 
 slice :: Int -> Int -> [a] -> [a]
 slice from to xs = take (to - from ) (drop from xs)
+
+
+toPeriodRateByInterval :: Rate -> Int -> Rate
+toPeriodRateByInterval annualRate days
+  = toRational $ 1 - fromRational (1-annualRate) ** (fromIntegral days / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
+

@@ -27,6 +27,7 @@ import GHC.Generics
 import AssetClass.AssetBase
 
 import Debug.Trace
+import qualified Assumptions as A
 debug = flip trace
 
 type PeriodAmount = Balance
@@ -81,7 +82,7 @@ nextLease l@(StepUpLease (LeaseInfo sd ot dp dr) lsteupInfo bal rt _) (rcCurve,t
         nextDailyRate = dr + mulBR dr currentRateOnCurve*(fromRational yearsBetween)
         newBal = -1
 
-
+-- | create a new lease base on the lease in 1st argument, with new rental/term, a gap days, till the end date
 nextLeaseTill :: Lease -> (RentChangeCurve, TermChangeRate, DayGap) -> Date -> Date -> [Lease] -> [Lease]
 nextLeaseTill l (rsc,tc,mg) lastDate ed accum 
   | lastDate >= ed = accum 
@@ -89,16 +90,16 @@ nextLeaseTill l (rsc,tc,mg) lastDate ed accum
                 where 
                  (new_lease,new_lastDate) = nextLease l (rsc,tc,mg) 
 
-extractAssump :: [AP.AssumptionBuilder] -> (Rate,Ts,([(Amount,Int)],Int),DayGap,Date)-> (Rate,Ts,([(Amount,Int)],Int),DayGap,Date)
-extractAssump [] r = r
-extractAssump (ap:aps) (a,b,c,d,e) 
-  = case ap of 
-      (AP.LeaseProjectionEnd ed) -> extractAssump aps (a,b,c,d,ed)
-      (AP.LeaseGapDays mg) -> extractAssump aps (a,b,c,mg,e)
-      (AP.LeaseBaseAnnualRate r) -> extractAssump aps (r,b,c,d,e)
-      (AP.LeaseBaseCurve ts) -> extractAssump aps (a,ts,c,d,e)
-      (AP.LeaseGapDaysByAmount tbl rest) -> extractAssump aps (a,b,(tbl,rest),d,e)
-      _ -> extractAssump aps (a,b,c,d,e)
+-- extractAssump :: [AP.AssumptionBuilder] -> (Rate,Ts,([(Amount,Int)],Int),DayGap,Date)-> (Rate,Ts,([(Amount,Int)],Int),DayGap,Date)
+-- extractAssump [] r = r
+-- extractAssump (ap:aps) (a,b,c,d,e) 
+--   = case ap of 
+--       (AP.LeaseProjectionEnd ed) -> extractAssump aps (a,b,c,d,ed)
+--       (AP.LeaseGapDays mg) -> extractAssump aps (a,b,c,mg,e)
+--       (AP.LeaseBaseAnnualRate r) -> extractAssump aps (r,b,c,d,e)
+--       (AP.LeaseBaseCurve ts) -> extractAssump aps (a,ts,c,d,e)
+--       (AP.LeaseGapDaysByAmount tbl rest) -> extractAssump aps (a,b,(tbl,rest),d,e)
+--       _ -> extractAssump aps (a,b,c,d,e)
 
 getGapDaysByBalance :: Lease -> ([(Amount,Int)],Int) -> Int 
 getGapDaysByBalance l tbl@(rows,defaultVal) = 
@@ -121,6 +122,7 @@ projectCfDates dp sd ot
             [sd]++cf_dates_proj
 
 
+-- ^ return a lease contract with opening balance and a payment cashflow on each payment date
 patchBalance :: Lease -> (Lease,[Amount]) 
 patchBalance (RegularLease (LeaseInfo sd ot dp dr) bal rt st)
   = let 
@@ -164,29 +166,21 @@ patchBalance (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st)
 
 
 instance Asset Lease where 
-    calcCashflow l@(RegularLease _ _ _ _) d =
-        CF.CashFlowFrame flows  -- `debug` ("FLows for regular"++show flows)
+    calcCashflow l@(RegularLease {}) d _ =
+        CF.CashFlowFrame $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
       where 
         (RegularLease (LeaseInfo sd ot dp dr) bal rt st,pmts) = patchBalance l
         cf_dates = lastN (succ rt) $ projectCfDates dp sd ot
         daysBetween = getIntervalDays cf_dates -- `debug` (">>>>>> genSerialDates"++ show cf_dates)
         bals = tail $ scanl (-) bal pmts -- `debug` ("PMTS for regular"++show pmts)
-        (_,flows) = splitByDate 
-                      (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
-                      d
-                      EqToRight
 
-    calcCashflow l@(StepUpLease _ _ _ _ _) d =
-        CF.CashFlowFrame flows -- `debug` ("5_01"++show flows)
+    calcCashflow l@(StepUpLease {}) d _ =
+        CF.CashFlowFrame $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
       where 
-        (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st,pmts) = patchBalance l `debug` ("1")
+        (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st,pmts) = patchBalance l -- `debug` ("1")
         p_dates = projectCfDates dp sd ot -- `debug` ("2")
         cf_dates = lastN (succ rt) p_dates -- `debug` ("3")   -- `debug` ("P dates"++ show p_dates)
         bals = tail $ scanl (-) bal pmts -- `debug` ("4"++show pmts)     -- `debug` ("PMTS->"++ show pmts) 
-        (_,flows) = splitByDate 
-                      (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
-                      d
-                      EqToRight -- `debug` ("5"++show bals++">>"++show pmts)
 
     getPaymentDates l@(RegularLease (LeaseInfo sd ot dp _) _ rt _) _
         = genSerialDates dp sd ot 
@@ -201,31 +195,38 @@ instance Asset Lease where
     getRemainTerms (RegularLease (LeaseInfo sd ot dp _) _ rt _)  = rt
     
     updateOriginDate (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st) nd 
-      = (StepUpLease (LeaseInfo nd ot dp dr) lsu bal rt st)
+      = StepUpLease (LeaseInfo nd ot dp dr) lsu bal rt st
     updateOriginDate (RegularLease (LeaseInfo sd ot dp dr) bal rt st) nd 
-      = (RegularLease (LeaseInfo nd ot dp dr) bal rt st)
+      = RegularLease (LeaseInfo nd ot dp dr) bal rt st
 
-    projCashflow l asOfDay assumps = 
-        foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
+    projCashflow l asOfDay (AP.LeaseAssump gapAssump rentAssump ed exStress) mRates
+      = foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
       where 
-        currentCf = calcCashflow l asOfDay-- `debug` ("6")
-        (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump assumps (0.0,mkTs [],([(0.0,0)],0),0,epocDate)-- `debug` ("7")
+        currentCf = calcCashflow l asOfDay mRates
+        -- (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump (A.LeaseAssump gapAssump rentAssump) -- (0.0,mkTs [],([(0.0,0)],0),0,epocDate)-- `debug` ("7")
         pdates = getPaymentDates l 0  -- `debug` ("8")-- `debug` ("RCURVE"++show rcCurve)
-        rcCurveToUse = if isTsEmpty rcCurve then 
-                         mkTs [(epocDate,rc),(ed,rc)]
-                       else 
-                         rcCurve
-        gapDaysFromTbl = getGapDaysByBalance l mgTbl--  `debug` ("9")
-        newLeases = nextLeaseTill l (rcCurveToUse,0.0,max gapDays gapDaysFromTbl) (last pdates) ed [] -- `debug` ("10")
-        newCfs = [ calcCashflow l asOfDay | l <- newLeases ]--  `debug` ("11")-- `debug` ("new leases"++ show newLeases++ "MGap"++ show (gapDays,gapDaysFromTbl))
+        
+        -- get the rental increase curve
+        pickRentalCurveToUse (AP.BaseAnnualRate r) = mkTs [(epocDate,r),(ed,r)]
+        pickRentalCurveToUse (AP.BaseCurve rc) = rc
+        -- get the gap days between leases
+        pickGapDays (AP.GapDays days) = days
+        pickGapDays (AP.GapDaysByAmount tbl defaultDays) = getGapDaysByBalance l (tbl,defaultDays)
+        
+        newLeases = nextLeaseTill 
+                      l
+                      (pickRentalCurveToUse rentAssump ,0.0,pickGapDays gapAssump) 
+                      (last pdates) 
+                      ed 
+                      []
+        newCfs = [ calcCashflow l asOfDay mRates | l <- newLeases ]  -- `debug` ("new leases"++ show newLeases )
 
     getCurrentBal l = case l of 
                         StepUpLease _ _ bal _ _ -> bal
                         RegularLease _ bal _ _-> bal
 
-    getOriginRate l = case l of 
-                        StepUpLease (LeaseInfo sd ot dp dr) _ bal _ _ -> fromRational $ toRational dr
-                        RegularLease (LeaseInfo sd ot dp dr) bal _ _ ->  fromRational $ toRational dr
+    getOriginRate (StepUpLease (LeaseInfo _ _ _ dr) _ _ _ _) = fromRational $ toRational dr
+    getOriginRate (RegularLease (LeaseInfo _ _ _ dr) _ _ _) = fromRational $ toRational dr
 
     isDefaulted (StepUpLease _ _ _ rt Current) = False
     isDefaulted (StepUpLease _ _ _ rt _) = True
@@ -237,7 +238,7 @@ instance Asset Lease where
             _sd = case l of 
                 RegularLease (LeaseInfo sd ot dp dr) bal _ _ -> sd 
                 StepUpLease (LeaseInfo sd ot dp dr) _ bal _ _  -> sd 
-            CF.CashFlowFrame txns = calcCashflow l _sd
+            CF.CashFlowFrame txns = calcCashflow l _sd Nothing
         in  
             CF.mflowBegBalance $ head txns
 

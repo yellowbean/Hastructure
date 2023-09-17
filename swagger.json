@@ -204,794 +204,6 @@
                 ],
                 "type": "object"
             },
-            "AssumptionBuilder": {
-                "oneOf": [
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "maximum": 9223372036854775807,
-                                            "type": "integer",
-                                            "minimum": -9223372036854775808
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "items": {
-                                            "format": "float",
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "MortgageByAge"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "DefaultConstant"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Ts"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "DefaultCurve"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "DefaultCDR"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "format": "double",
-                                    "type": "number"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "DefaultVec"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentCPR"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "float",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "items": {
-                                            "format": "float",
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentDistribution"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "maximum": 9223372036854775807,
-                                            "type": "integer",
-                                            "minimum": -9223372036854775808
-                                        },
-                                        {
-                                            "format": "float",
-                                            "type": "number"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentByAging"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentConstant"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Ts"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentCurve"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "format": "double",
-                                    "type": "number"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentVec"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Index"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "InterestRateConstant"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Index"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Ts"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "InterestRateCurve"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Ts"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "DefaultFactors"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Ts"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PrepaymentFactors"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/PoolSource"
-                                    },
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "PoolHairCut"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/CallOption"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "CallWhen"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/RevolvingPool"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/AssumptionBuilder"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "AvailableAssets"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "LeaseProjectionEnd"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "LeaseBaseAnnualRate"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Ts"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "LeaseBaseCurve"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "maximum": 9223372036854775807,
-                                "type": "integer",
-                                "minimum": -9223372036854775808
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "LeaseGapDays"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "items": [
-                                                {
-                                                    "multipleOf": 1.0e-2,
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "maximum": 9223372036854775807,
-                                                    "type": "integer",
-                                                    "minimum": -9223372036854775808
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "LeaseGapDaysByAmount"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "Recovery"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "items": {
-                                            "format": "double",
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "RecoveryDistribution"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    },
-                                    {
-                                        "items": {
-                                            "format": "double",
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "DefaultedRecovery"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "float",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "EvenRecoveryOnDefault"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Ts"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "ProjectedExpense"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "StopRunBy"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "$ref": "#/components/schemas/DatePattern"
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/DealStats"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "InspectOn"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/DatePattern"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "BuildFinancialReport"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    }
-                ],
-                "type": "object"
-            },
             "RoundingBy_(Fixed_*_E2)": {
                 "oneOf": [
                     {
@@ -1594,6 +806,96 @@
                 "required": [
                     "csBalance"
                 ]
+            },
+            "ExtraStress": {
+                "type": "object",
+                "properties": {
+                    "defaultFactors": {
+                        "$ref": "#/components/schemas/Ts"
+                    },
+                    "prepaymentFactors": {
+                        "$ref": "#/components/schemas/Ts"
+                    },
+                    "poolHairCut": {
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/PoolSource"
+                            },
+                            {
+                                "format": "double",
+                                "type": "number"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "type": "array",
+                        "minItems": 2
+                    }
+                }
+            },
+            "AssetPrepayAssumption": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PrepaymentConstant"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PrepaymentCPR"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PrepaymentVec"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "TsRow": {
                 "oneOf": [
@@ -3527,6 +2829,124 @@
                     "NewLosses"
                 ]
             },
+            "LeaseAssetGapAssump": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "maximum": 9223372036854775807,
+                                "type": "integer",
+                                "minimum": -9223372036854775808
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "GapDays"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "multipleOf": 1.0e-2,
+                                                    "type": "number"
+                                                },
+                                                {
+                                                    "maximum": 9223372036854775807,
+                                                    "type": "integer",
+                                                    "minimum": -9223372036854775808
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "GapDaysByAmount"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "RevolvingAssumption": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/RevolvingPool"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetPerfAssumption"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AvailableAssets"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Dummy4"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "TxnComment": {
                 "oneOf": [
                     {
@@ -4885,6 +4305,65 @@
                 ],
                 "type": "object"
             },
+            "AssetDelinquencyAssumption": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DelinqCDR"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Dummy3"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "Version": {
                 "type": "object",
                 "properties": {
@@ -4909,6 +4388,48 @@
                 "maxItems": 2,
                 "type": "array",
                 "minItems": 2
+            },
+            "LeaseAssetRentAssump": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BaseAnnualRate"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Ts"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BaseCurve"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "Txn": {
                 "oneOf": [
@@ -8357,6 +7878,68 @@
                 ],
                 "type": "object"
             },
+            "RateAssumption": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Index"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RateCurve"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Index"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RateFlat"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "BalanceSheetReport": {
                 "type": "object",
                 "properties": {
@@ -8913,6 +8496,87 @@
                     }
                 ],
                 "type": "object"
+            },
+            "AssetDefaultAssumption": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultConstant"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultCDR"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultVec"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "RecoveryAssumption": {
+                "items": [
+                    {
+                        "format": "double",
+                        "type": "number"
+                    },
+                    {
+                        "maximum": 9223372036854775807,
+                        "type": "integer",
+                        "minimum": -9223372036854775808
+                    }
+                ],
+                "maxItems": 2,
+                "type": "array",
+                "minItems": 2
             },
             "ARM": {
                 "oneOf": [
@@ -9572,6 +9236,243 @@
                                 "type": "string",
                                 "enum": [
                                     "ZSpread"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "AssetPerfAssumption": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetPrepayAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RecoveryAssumption"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/RateAssumption"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraStress"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "type": "array",
+                                "minItems": 5
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MortgageAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetDelinquencyAssumption"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/RateAssumption"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraStress"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MortgageDeqAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/LeaseAssetGapAssump"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/LeaseAssetRentAssump"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/RateAssumption"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraStress"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "type": "array",
+                                "minItems": 5
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "LeaseAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetPrepayAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RecoveryAssumption"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/RateAssumption"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraStress"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "type": "array",
+                                "minItems": 5
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "LoanAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetPrepayAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RecoveryAssumption"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/RateAssumption"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraStress"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "type": "array",
+                                "minItems": 5
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "InstallmentAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "items": {
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultedRecovery"
                                 ]
                             }
                         },
@@ -10302,6 +10203,64 @@
                 ],
                 "type": "object"
             },
+            "NonPerfAssumption": {
+                "type": "object",
+                "properties": {
+                    "callWhen": {
+                        "items": {
+                            "$ref": "#/components/schemas/CallOption"
+                        },
+                        "type": "array"
+                    },
+                    "revolving": {
+                        "$ref": "#/components/schemas/RevolvingAssumption"
+                    },
+                    "projectedExpense": {
+                        "items": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Ts"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "type": "array",
+                        "minItems": 2
+                    },
+                    "interest": {
+                        "items": {
+                            "$ref": "#/components/schemas/RateAssumption"
+                        },
+                        "type": "array"
+                    },
+                    "inspectOn": {
+                        "items": {
+                            "items": [
+                                {
+                                    "$ref": "#/components/schemas/DatePattern"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DealStats"
+                                }
+                            ],
+                            "maxItems": 2,
+                            "type": "array",
+                            "minItems": 2
+                        },
+                        "type": "array"
+                    },
+                    "pricing": {
+                        "$ref": "#/components/schemas/BondPricingInput"
+                    },
+                    "stopRunBy": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "buildFinancialReport": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    }
+                }
+            },
             "RunDealReq": {
                 "oneOf": [
                     {
@@ -10316,7 +10275,7 @@
                                         "$ref": "#/components/schemas/ApplyAssumptionType"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/BondPricingInput"
+                                        "$ref": "#/components/schemas/NonPerfAssumption"
                                     }
                                 ],
                                 "maxItems": 3,
@@ -10350,7 +10309,7 @@
                                         }
                                     },
                                     {
-                                        "$ref": "#/components/schemas/BondPricingInput"
+                                        "$ref": "#/components/schemas/NonPerfAssumption"
                                     }
                                 ],
                                 "maxItems": 3,
@@ -10384,7 +10343,7 @@
                                         "$ref": "#/components/schemas/ApplyAssumptionType"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/BondPricingInput"
+                                        "$ref": "#/components/schemas/NonPerfAssumption"
                                     }
                                 ],
                                 "maxItems": 3,
@@ -11064,10 +11023,7 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/AssumptionBuilder"
-                                },
-                                "type": "array"
+                                "$ref": "#/components/schemas/AssetPerfAssumption"
                             },
                             "tag": {
                                 "type": "string",
@@ -11085,41 +11041,25 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "items": [
-                                                {
-                                                    "items": {
-                                                        "maximum": 9223372036854775807,
-                                                        "type": "integer",
-                                                        "minimum": -9223372036854775808
-                                                    },
-                                                    "type": "array"
-                                                },
-                                                {
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/AssumptionBuilder"
-                                                    },
-                                                    "type": "array"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
+                                "items": {
+                                    "items": [
+                                        {
+                                            "items": {
+                                                "maximum": 9223372036854775807,
+                                                "type": "integer",
+                                                "minimum": -9223372036854775808
+                                            },
+                                            "type": "array"
                                         },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/AssumptionBuilder"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "type": "array",
-                                "minItems": 2
+                                        {
+                                            "$ref": "#/components/schemas/AssetPerfAssumption"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "type": "string",
