@@ -517,7 +517,11 @@ delinqMortgageTest =
         (CF.MortgageFlow (L.toDate "20211101") 159.84 79.12 1.59 0 1.04 0.0 0.0 0.0 0.08 Nothing Nothing)
         (txns!!0)
       ,testCase "last row" $
-        assertEqual "delinq = 1"
-        (CF.MortgageFlow (L.toDate "20220101") 0.0 79.51 0.53  0 0.34 0.0 0.0 0.0 0.08 Nothing Nothing)
+        assertEqual "with first default/loss/recovery"
+        (CF.MortgageFlow (L.toDate "20220101") 0.0 79.51 0.53  0 0.34 0.31 0.0 0.31 0.08 Nothing Nothing)
         (txns!!2)
+      ,testCase "extend 1st flow" $
+        assertEqual "check default"
+        (CF.MortgageFlow (L.toDate "20220201") 0.0 0.0 0.0  0.0 0.0 0.20 0.0 0.2 0.08 Nothing Nothing)
+        (txns!!3)
     ]

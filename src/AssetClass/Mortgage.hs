@@ -94,9 +94,9 @@ projectDelinqMortgageFlow (trs,backToPerfs)beginBal mBorrowerNum lastDate (pDate
       recBal = mulBR defaultBal recoveryRate
       lossBal = mulBR defaultBal (1 - recoveryRate)
       
-      newDefaultVec = replace defaultVec defaultLag defaultBal
-      newRecoveryVec = replace recoveryVec (recoveryLag+defaultLag) recBal
-      newLossVec = replace lossVec (recoveryLag+defaultLag) lossBal
+      newDefaultVec = replace defaultVec (pred defaultLag) defaultBal
+      newRecoveryVec = replace recoveryVec (pred recoveryLag + defaultLag) recBal
+      newLossVec = replace lossVec (pred recoveryLag + defaultLag) lossBal
       
       backToPerf = mulBR delinqBal (1 - defaultPct)
       
