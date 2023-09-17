@@ -98,6 +98,8 @@ data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, reco
                         | RecoveryTiming (Rate,[Rate])  -- ^ recovery rate, with distribution of recoveries
                         deriving (Show,Generic)
 
+type ExtendCashflowDates = DatePattern
+
 data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)
                          | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate  (Maybe ExtraStress)
@@ -165,8 +167,8 @@ projRates (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
 calcResetDates :: [IRate] -> [Bool] -> [Bool]
 calcResetDates [] bs = bs
 calcResetDates (r:rs) bs 
-  | rs == [] = calcResetDates [] ([False]++bs)
-  | r == (head rs) = calcResetDates rs (bs++[False])
+  | null rs = calcResetDates [] (False:bs)
+  | r == head rs = calcResetDates rs (bs++[False])
   | otherwise = calcResetDates rs (bs++[True])
 
 

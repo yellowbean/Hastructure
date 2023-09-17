@@ -91,6 +91,7 @@ data Pool a = Pool {assets :: [a]                                           -- ^
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
                    ,asOfDate :: Date                                        -- ^ date of the assets/pool cashflow
                    ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)  -- ^ other misc balance data
+                   ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    }deriving (Show,Generic)
 
 -- | get stats of pool 
@@ -125,8 +126,8 @@ applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
     (Just ppyFactor,Just defFactor) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor
                                        ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
 
-buildPrepayRates :: [Date] -> (Maybe A.AssetPrepayAssumption) -> [Rate]
-buildPrepayRates ds Nothing = replicate (length ds) 0.0
+buildPrepayRates :: [Date] -> Maybe A.AssetPrepayAssumption -> [Rate]
+buildPrepayRates ds Nothing = replicate (pred (length ds)) 0.0
 buildPrepayRates ds mPa = 
   case mPa of
     Just (A.PrepaymentConstant r) -> replicate size r
@@ -141,7 +142,7 @@ buildPrepayRates ds mPa =
     size = length ds
 
 buildDefaultRates :: [Date] -> Maybe A.AssetDefaultAssumption -> [Rate]
-buildDefaultRates ds Nothing = replicate (length ds) 0.0
+buildDefaultRates ds Nothing = replicate (pred (length ds)) 0.0
 buildDefaultRates ds mDa = 
   case mDa of
     Just (A.DefaultConstant r) ->  replicate size r

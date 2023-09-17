@@ -447,7 +447,9 @@ projDatesByPattern dp sd ed
 
 -- | swap a value in list with index supplied
 replace :: [a] -> Int -> a -> [a]
-replace xs i e = case splitAt i xs of
+replace xs i e 
+  | i > pred (length xs) = error $ "index:"++show i++" is greater than size"++ show (length xs)
+  | otherwise = case splitAt i xs of
                    (before, _:after) -> before ++ e: after
                    _ -> xs
 

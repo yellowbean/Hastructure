@@ -555,15 +555,15 @@ calcDealStageDate _ = []
 
 runPool :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [CF.CashFlowFrame]
 -- schedule cashflow just ignores the interest rate assumption
-runPool (P.Pool [] (Just cf) asof _) Nothing _ = [cf]
-runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _) (Just (AP.PoolLevel assumps)) mRates = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn) asof assumps mRates) ] -- `debug` ("PROJ in schedule flow")
+runPool (P.Pool [] (Just cf) asof _ _) Nothing _ = [cf]
+runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates) ] -- `debug` ("PROJ in schedule flow")
 
 -- contractual cashflow will use interest rate assumption
-runPool (P.Pool as _ asof _) Nothing  mRates = map (\x -> P.calcCashflow x asof mRates) as -- `debug` ("RUNPOOL-> calc cashflow")
+runPool (P.Pool as _ asof _ _) Nothing  mRates = map (\x -> P.calcCashflow x asof mRates) as -- `debug` ("RUNPOOL-> calc cashflow")
 
 -- asset cashflow with credit stress
-runPool (P.Pool as Nothing asof _) (Just (AP.PoolLevel assumps)) mRates = map (\x -> P.projCashflow x asof assumps mRates) as  -- `debug` (">> Single Pool")
-runPool (P.Pool as Nothing asof _) (Just (AP.ByIndex idxAssumps)) mRates =
+runPool (P.Pool as Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates = map (\x -> P.projCashflow x asof assumps mRates) as  -- `debug` (">> Single Pool")
+runPool (P.Pool as Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
     numAssets = length as
     _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
@@ -571,8 +571,7 @@ runPool (P.Pool as Nothing asof _) (Just (AP.ByIndex idxAssumps)) mRates =
     zipWith (\x a -> P.projCashflow x asof a mRates) as _assumps
 
 
-getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption ->
-    (TestDeal a,[ActionOnDate], CF.CashFlowFrame)
+getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], CF.CashFlowFrame)
 getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
   = (newT, allActionDates, pCollectionCfAfterCutoff)   `debug` ("init done actions->"++ show (head allActionDates))
   where

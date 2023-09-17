@@ -89,7 +89,7 @@ data MortgageInsurance = MortgageInsurance Rate
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
-              | ScheduleMortgageFlow Date [CF.TsRow]
+              | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic)
 
 -- Base 

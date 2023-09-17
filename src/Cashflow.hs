@@ -2,21 +2,21 @@
 {-# LANGUAGE DeriveGeneric       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
-                ,combine,mergePoolCf,sumTsCF
+                ,combine,mergePoolCf,sumTsCF,tsSetDate
                 ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
-                ,lookupSource,reduceTs,tsSetDate
+                ,lookupSource,reduceTs,reduceTs2,combineTss
                 ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
-                ,splitCashFlowFrameByDate,emptyTsRow
+                ,splitCashFlowFrameByDate,emptyTsRow,mflowAmortAmount,mflowAmortAmount2
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
                 ,tsDateLT,getDate,getTxnLatestAsOf
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
-                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,splitTrs
+                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow
                 ,TsRow(..),cfAt) where
 
 import Data.Time (Day)
@@ -119,6 +119,15 @@ addTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1) tr@(LoanFlow _ b2 p2 i2 p
 addTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
   = (LeaseFlow d1 (b1 - mflowAmortAmount tr) (r1 + r2) )
 
+addTs2 :: (TsRow -> Balance) -> TsRow -> TsRow -> TsRow
+addTs2 f (MortgageFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1) tr@(MortgageFlow _ b2 p2 i2 prep2 delinq2 def2 rec2 los2 rat2 mbn2 pn2)
+  = let 
+      bn = (+) <$> mbn1 <*> mbn2
+      p =  (+) <$> pn1 <*> pn2
+      delinq = (+) delinq1 delinq2
+    in 
+      (MortgageFlow d1 (b1 - f tr) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (map toRational [rat1,rat2]))) bn p)
+
 combineTs :: TsRow -> TsRow -> TsRow     -- left is ealier ,right is later,combine TS from two cashflow
 combineTs (CashFlow d1 a1 ) (CashFlow _ a2 ) = CashFlow d1 (a1 + a2)
 combineTs (BondFlow d1 b1 p1 i1 ) tr@(BondFlow _ b2 p2 i2 ) = BondFlow d1 (b1 + b2) (p1 + p2) (i1 + i2)
@@ -133,6 +142,19 @@ combineTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1) tr@(LoanFlow _ b2 p2 
   = (LoanFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (map toRational [rat1,rat2]))))
 combineTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
   = (LeaseFlow d1 (b1 + b2) (r1 + r2) )
+
+-- combine two cashflows from two entities
+combineTss :: (TsRow -> Balance) -> [TsRow] -> [TsRow] -> [TsRow]
+combineTss f r [] = reverse r
+combineTss f [] (tr:trs) = combineTss f [tr] trs
+combineTss f (r:rs) (tr:trs)
+  | getDate r == getDate tr = combineTss f ((combineTs r tr):rs) trs
+  | getDate r < getDate tr = combineTss f ((appendTs2 f r tr):r:rs) trs 
+  | getDate r > getDate tr = combineTss f (tr:(appendTs2 f tr r):rs) trs 
+  
+appendTs2 :: (TsRow -> Balance) -> TsRow -> TsRow -> TsRow
+appendTs2 f (MortgageFlow d1 b1 p1 i1 prep1 _ def1 rec1 los1 rat1 mbn1 _) bn2@(MortgageFlow {})
+  = updateFlowBalance (b1 - f bn2) bn2
 
 appendTs :: TsRow -> TsRow -> TsRow --early row on left, later row on right, update right TS balance
 appendTs bn1@(BondFlow d1 b1 _ _ ) bn2@(BondFlow d2 b2 p2 i2 ) 
@@ -199,11 +221,20 @@ tsOffsetDate x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow (T.addDays
 tsOffsetDate x (LoanFlow _d a b c d e f g h) = LoanFlow (T.addDays x _d) a b c d e f g h
 tsOffsetDate x (LeaseFlow _d a b) = LeaseFlow (T.addDays x _d) a b
 
+
+-- ^ consolidate cashflow , update balance of newer cashflow record
 reduceTs :: [TsRow] -> TsRow -> [TsRow]
 reduceTs [] _tr = [_tr]
 reduceTs (tr:trs) _tr 
-  | sameDate tr _tr = addTs tr _tr : trs -- `debug` ("Same date for "++show tr ++ show _tr)
-  | otherwise = appendTs tr _tr : tr : trs  -- `debug` ("head of trs"++ show tr)
+  | sameDate tr _tr = addTs tr _tr : trs 
+  | otherwise = appendTs tr _tr : tr : trs 
+
+reduceTs2 :: (TsRow -> Balance) -> [TsRow] -> TsRow -> [TsRow]
+reduceTs2 f [] _tr = [_tr]
+reduceTs2 f (tr:trs) _tr 
+  | sameDate tr _tr = addTs2 f tr _tr : trs 
+  | otherwise = appendTs2 f tr _tr : tr : trs 
+
 
 firstDate :: CashFlowFrame -> Date 
 firstDate (CashFlowFrame rs) = getDate $ head rs
@@ -325,9 +356,13 @@ mflowDate (LoanFlow x _ _ _ _ _ _ _ _) = x
 mflowDate (LeaseFlow x _ _ ) = x
 
 mflowAmortAmount :: TsRow -> Balance
-mflowAmortAmount (MortgageFlow _ _ x _ y d z _ _ _ _ _) = x + y + d + z
+mflowAmortAmount (MortgageFlow _ _ p _ ppy _ def _ _ _ _ _) = p + ppy + def
 mflowAmortAmount (LoanFlow _ _ x _ y z _ _ _) = x + y + z
 mflowAmortAmount (LeaseFlow _ _ x ) = x
+
+-- ^ for cashflow with delinquency
+mflowAmortAmount2 :: TsRow -> Balance
+mflowAmortAmount2 (MortgageFlow _ _ p _ ppy delinq _ _ _ _ _ _) = p + ppy + delinq
 
 mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 mflowBorrowerNum (MortgageFlow _ _ _ _ _ _ _ _ _ _ x _) = x
@@ -345,16 +380,16 @@ mflowWeightAverageBalance sd ed trs
      txns = filter (\x -> (mflowDate x>=sd)&&(mflowDate x)<=ed) trs
      _ds = map mflowDate txns -- `debug` ("fee base txns"++show txns)
      _bals = map mflowBegBalance txns
-     _dfs =  getIntervalFactors $ [sd]++_ds
+     _dfs =  getIntervalFactors $ sd:_ds
 
 appendCashFlow :: CashFlowFrame -> [TsRow] -> CashFlowFrame
 appendCashFlow (CashFlowFrame _tsr) tsr 
   = CashFlowFrame $ _tsr ++ tsr
 
 emptyTsRow :: Date -> TsRow -> TsRow 
-emptyTsRow _d (MortgageFlow a x c d e f g h i j k l) = MortgageFlow _d 0 0 0 0 0 0 0 0 0 Nothing Nothing
-emptyTsRow _d (LoanFlow a x c d e f g i j) = LoanFlow _d 0 0 0 0 0 0 0 0
-emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
+emptyTsRow _d (MortgageFlow a x c d e f g h i j k l) = (MortgageFlow _d 0 0 0 0 0 0 0 0 0 Nothing Nothing)
+emptyTsRow _d (LoanFlow a x c d e f g i j) = (LoanFlow _d 0 0 0 0 0 0 0 0)
+emptyTsRow _d (LeaseFlow a x c ) = (LeaseFlow _d 0 0 )
 
 -- | given a row ,build a new cf row with begin balance
 buildBegTsRow :: Date -> TsRow -> TsRow

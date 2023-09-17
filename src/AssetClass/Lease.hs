@@ -219,15 +219,14 @@ instance Asset Lease where
                       (last pdates) 
                       ed 
                       []
-        newCfs = [ calcCashflow l asOfDay mRates | l <- newLeases ]  `debug` ("new leases"++ show newLeases )
+        newCfs = [ calcCashflow l asOfDay mRates | l <- newLeases ]  -- `debug` ("new leases"++ show newLeases )
 
     getCurrentBal l = case l of 
                         StepUpLease _ _ bal _ _ -> bal
                         RegularLease _ bal _ _-> bal
 
-    getOriginRate l = case l of 
-                        StepUpLease (LeaseInfo sd ot dp dr) _ bal _ _ -> fromRational $ toRational dr
-                        RegularLease (LeaseInfo sd ot dp dr) bal _ _ ->  fromRational $ toRational dr
+    getOriginRate (StepUpLease (LeaseInfo _ _ _ dr) _ _ _ _) = fromRational $ toRational dr
+    getOriginRate (RegularLease (LeaseInfo _ _ _ dr) _ _ _) = fromRational $ toRational dr
 
     isDefaulted (StepUpLease _ _ _ rt Current) = False
     isDefaulted (StepUpLease _ _ _ rt _) = True
