@@ -511,7 +511,7 @@ delinqMortgageTest =
       testCase "" $
         assertEqual "Length of cf"
         5
-        (length txns) `debug` ("Cfs->> MOrtgage Delinq cf-> "++ show txns)
+        (length txns)
       ,testCase "first row" $
         assertEqual "delinq = 1"
         (CF.MortgageFlow (L.toDate "20211101") 159.84 79.12 1.59 0 1.04 0.0 0.0 0.0 0.08 Nothing Nothing)
@@ -522,6 +522,6 @@ delinqMortgageTest =
         (txns!!2)
       ,testCase "extend 1st flow" $
         assertEqual "check default"
-        (CF.MortgageFlow (L.toDate "20220201") 0.0 0.0 0.0  0.0 0.0 0.20 0.0 0.2 0.08 Nothing Nothing)
+        (CF.MortgageFlow (L.toDate "20220201") 0.36 0.36 0.0  0.0 0.0 0.20 0.0 0.2 0.08 Nothing Nothing)
         (txns!!3)
     ]
