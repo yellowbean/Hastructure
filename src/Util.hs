@@ -11,6 +11,8 @@ module Util
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval
+    -- for debug
+    ,zyj
     )
     where
 import qualified Data.Time as T
@@ -544,3 +546,11 @@ toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
   = toRational $ 1 - fromRational (1-annualRate) ** (fromIntegral days / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
 
+----- DEBUG/PRINT
+-- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 
+zyj :: Show a => Maybe String -> [a] -> String
+zyj ms vs = 
+  let 
+    ss = show <$> vs
+  in 
+    "|" ++ (fromMaybe "" ms) ++ "|" ++ concat (intersperse " >> " ss) ++ "|"
