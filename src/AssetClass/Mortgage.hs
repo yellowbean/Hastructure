@@ -32,60 +32,64 @@ import Assumptions (AssetPerfAssumption(MortgageAssump))
 debug = flip trace
 
 projectMortgageFlow :: [CF.TsRow] -> Balance -> Maybe Rational -> Date -> Dates -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [IRate] -> (Int,Rate) -> Period -> AmortPlan -> [CF.TsRow]
-projectMortgageFlow trs _bal mbn _last_date (_pdate:_pdates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec_vector@(_rec_amt:_rec_amts) _loss_vector@(_loss_amt:_loss_amts) (_rate:_rates) (recovery_lag,recovery_rate) p pt
+projectMortgageFlow trs _bal mbn _last_date (pDate:pDates) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec_vector@(_rec_amt:_rec_amts) _loss_vector@(_loss_amt:_loss_amts) (_rate:_rates) (recovery_lag,recovery_rate) p pt
   | _bal > 0.01 = projectMortgageFlow
                     (trs++[tr])
-                    _end_bal
+                    endBal
                     ( toRational <$> _new_mbn)
-                    _pdate
-                    _pdates
+                    pDate
+                    pDates
                     _def_rates
                     _ppy_rates
-                    (tail _current_rec) 
-                    (tail _current_loss) 
+                    (tail currentRec) 
+                    (tail currentLoss) 
                     _rates
                     (recovery_lag,recovery_rate)
                     p
                     pt 
                   where
-                    _remain_terms = 1 + max 0 (length _pdates - recovery_lag) -- `debug` ("IN mortgage flow"++ show _remain_terms)
-                    _new_default = mulBR _bal _def_rate
-                    _new_bal_after_default = _bal - _new_default
-                    _new_prepay = mulBR _new_bal_after_default _ppy_rate
-                    _new_bal_after_ppy = _new_bal_after_default - _new_prepay
-                    _new_int = mulBI _new_bal_after_ppy (periodRateFromAnnualRate p _rate)  -- `debug` ("Balance"++show(_new_bal_after_ppy))
-                    _pmt = calcPmt _new_bal_after_ppy (periodRateFromAnnualRate p _rate) _remain_terms -- `debug` ("pmt->bal"++show _new_bal_after_ppy++"rate"++show _rate++"term"++show _remain_terms)
-                    _new_prin = case pt of
-                                    Level -> _pmt - _new_int -- `debug` ("PMT->"++ show _pmt)
-                                    Even ->  _new_bal_after_ppy / fromIntegral _remain_terms -- `debug` ("Dividing _remain"++show _remain_terms ) --(ob / (fromIntegral ot)) * (_new_bal_after_ppy / ob)
+                    remainTerms = 1 + max 0 (length pDates - recovery_lag) -- `debug` ("IN mortgage flow"++ show remainTerms)
+                    newDefault = mulBR _bal _def_rate
+                    newBalAfterDefault = _bal - newDefault
+                    newPrepay = mulBR newBalAfterDefault _ppy_rate
+                    newBalAfterPpy = newBalAfterDefault - newPrepay
+                    newInt = mulBI newBalAfterPpy (periodRateFromAnnualRate p _rate)  -- `debug` ("Balance"++show(newBalAfterPpy))
+                    pmt = calcPmt newBalAfterPpy (periodRateFromAnnualRate p _rate) remainTerms -- `debug` ("pmt->bal"++show newBalAfterPpy++"rate"++show _rate++"term"++show remainTerms)
+                    newPrin = case pt of
+                                    Level -> pmt - newInt -- `debug` ("PMT->"++ show pmt)
+                                    Even ->  newBalAfterPpy / fromIntegral remainTerms -- `debug` ("Dividing _remain"++show remainTerms ) --(ob / (fromIntegral ot)) * (newBalAfterPpy / ob)
 
-                    _new_rec = mulBR _new_default recovery_rate
-                    _new_loss = mulBR _new_default (1 - recovery_rate)
+                    newRec = mulBR newDefault recovery_rate
+                    newLoss = mulBR newDefault (1 - recovery_rate)
 
-                    _current_rec = replace _rec_vector recovery_lag _new_rec
-                    _current_loss = replace _loss_vector recovery_lag _new_loss
+                    currentRec = replace _rec_vector recovery_lag newRec
+                    currentLoss = replace _loss_vector recovery_lag newLoss
 
-                    _end_bal = _new_bal_after_ppy - _new_prin
+                    endBal = newBalAfterPpy - newPrin
                     _survive_rate = ((1 - _def_rate) * (1 - _ppy_rate))  
-                    _temp = _survive_rate * (toRational (1 - _new_prin / _new_bal_after_ppy))
+                    _temp = _survive_rate * (toRational (1 - newPrin / newBalAfterPpy))
                     _new_mbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
-                    tr = CF.MortgageFlow _pdate _end_bal _new_prin _new_int _new_prepay 0 _new_default (head _current_rec) (head _current_loss) _rate _new_mbn Nothing --TODO missing ppy-penalty here
+                    tr = CF.MortgageFlow pDate endBal newPrin newInt newPrepay 0 newDefault (head currentRec) (head currentLoss) _rate _new_mbn Nothing --TODO missing ppy-penalty here
 
-projectMortgageFlow trs _b mbn _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _ _lag_rate _p _pt
- = projectMortgageFlow (trs++[tr]) _b mbn _pdate _pdates [] [] _rec_amts _loss_amts [0.0] _lag_rate _p _pt
+projectMortgageFlow trs _b mbn _last_date (pDate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _ _lag_rate _p _pt
+ = projectMortgageFlow (trs++[tr]) _b mbn pDate _pdates [] [] _rec_amts _loss_amts [0.0] _lag_rate _p _pt
   where
-    tr = CF.MortgageFlow _pdate _b 0 0 0 0 0 _rec_amt _loss_amt 0.0 Nothing Nothing
+    tr = CF.MortgageFlow pDate _b 0 0 0 0 0 _rec_amt _loss_amt 0.0 Nothing Nothing
 projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs  
 
 
 projectDelinqMortgageFlow :: ([CF.TsRow],[CF.TsRow]) -> Balance -> Maybe Rational -> Date -> [Date] -> [Rate] -> [PrepaymentRate] -> [IRate] -> (Rate,Lag,Rate,Lag,Period,AmortPlan) -> ([Balance],[Balance],[Balance]) -> [CF.TsRow]
-projectDelinqMortgageFlow (trs,backToPerfs) _ _ _ [] _ _ _ _ _ = reverse $ foldl (CF.reduceTs2 CF.mflowAmortAmount2) [] $ sort trs --TODO
-projectDelinqMortgageFlow (trs,backToPerfs)beginBal mBorrowerNum lastDate (pDate:pDates) (delinqRate:delinqRates) (ppyRate:ppyRates) (rate:rates) 
+projectDelinqMortgageFlow (trs,backToPerfs) _ _ _ [] _ _ _ _ _ = 
+  let 
+    consolTxn = sort $ trs ++ backToPerfs
+  in 
+    CF.combineTss CF.mflowAmortAmount2 [] consolTxn
+projectDelinqMortgageFlow (trs,backToPerfs) beginBal mBorrowerNum lastDate (pDate:pDates) (delinqRate:delinqRates) (ppyRate:ppyRates) (rate:rates) 
                           (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
                           (dBal:defaultVec,rAmt:recoveryVec,lAmt:lossVec)
   = projectDelinqMortgageFlow (trs++[tr],backToPerfs++newPerfCfs) endingBal mNewBn pDate pDates delinqRates ppyRates rates 
                               (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
-                              (newDefaultVec,newRecoveryVec,newLossVec) 
+                              (newDefaultVec,newRecoveryVec,newLossVec) -- `debug` ("new flows>>>"++ show newPerfCfs)
     where 
       remainTerms = 1 + max 0 (length pDates - recoveryLag-defaultLag) 
       delinqBal = mulBR beginBal delinqRate
@@ -104,8 +108,8 @@ projectDelinqMortgageFlow (trs,backToPerfs)beginBal mBorrowerNum lastDate (pDate
       restPerfBal = fromRational <$> restPerfVector
       newPerfCfs = projectDelinqMortgageFlow ([],[]) backToPerf Nothing pDate (drop defaultLag pDates) 
                                              restPerfVector restPerfVector (rate:(drop defaultLag rates))
-                                             (0,0,0,0,p,prinType) 
-                                             (restPerfBal,restPerfBal,restPerfBal)
+                                             (0,0,0,0,p,prinType)
+                                             (restPerfBal,restPerfBal,restPerfBal) -- `debug` ("Starting new perf"++ show backToPerf)
       
       balAfterDelinq = beginBal - delinqBal
       ppyAmt = mulBR balAfterDelinq ppyRate 
@@ -114,12 +118,12 @@ projectDelinqMortgageFlow (trs,backToPerfs)beginBal mBorrowerNum lastDate (pDate
       intAmt = mulBI balAfterPpy periodRate
       pmt = calcPmt balAfterPpy periodRate remainTerms
       prinAmt = case prinType of
-                  Level -> pmt - intAmt `debug` ("Pmt>>"++show pmt++">>used bal"++show balAfterPpy++">>"++show periodRate++">>remain term"++show remainTerms)
+                  Level -> pmt - intAmt -- `debug` ("Pmt>>"++show pmt++">>used bal"++show balAfterPpy++">>"++show periodRate++">>remain term"++show remainTerms)
                   Even ->  balAfterPpy / fromIntegral remainTerms
 
-      endingBal = beginBal - prinAmt - ppyAmt - delinqBal 
+      endingBal = beginBal - prinAmt - ppyAmt - delinqBal -- `debug` ("DATE"++show pDate++">>>"++ show beginBal++">>"++show prinAmt ++ ">>" ++ show ppyAmt ++ ">>"++ show delinqBal)
       mNewBn = Nothing --TODO
-      tr = CF.MortgageFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate mNewBn Nothing 
+      tr = CF.MortgageFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate mNewBn Nothing -- `debug` ("Date"++ show pDate ++ "ENDING BAL AT"++ show endingBal)
 
 
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
@@ -138,10 +142,10 @@ projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) 
        _schedule_prin = mulBR (CF.mflowPrincipal flow) _survive_rate --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
        _schedule_int = mulBR (CF.mflowInterest flow) _survive_rate
 
-       _new_rec = mulBR _def_amt recovery_rate
+       newRec = mulBR _def_amt recovery_rate
        _new_loss = mulBR _def_amt (1 - recovery_rate)
 
-       _rec_vector = replace _rec recovery_lag _new_rec
+       _rec_vector = replace _rec recovery_lag newRec
        _loss_vector = replace _loss recovery_lag _new_loss
 
        _end_bal = max 0 $ _after_bal - _schedule_prin
@@ -193,9 +197,9 @@ projectScheduleDelinqFlow (trs,backToPerfCfs) surviveRate begBal (flow:flows) (d
 
       newDefaultBals = replace defaultBals (pred defaultLag) newDefaultBal  
       newRecoveryBals = replace recoveryBals (recoveryLag + pred defaultLag) (mulBR newDefaultBal recoveryRate)  
-      newLossBals =  replace lossBals (recoveryLag + pred defaultLag) (mulBR newDefaultBal (1-recoveryRate))  `debug` ("new loss def"++ show defaultBal++">>rate"++ show (1-recoveryRate) )
+      newLossBals =  replace lossBals (recoveryLag + pred defaultLag) (mulBR newDefaultBal (1-recoveryRate)) -- `debug` ("new loss def"++ show defaultBal++">>rate"++ show (1-recoveryRate) )
       tr = CF.MortgageFlow (CF.getDate flow) endBal schedulePrin scheduleInt ppyAmt delinqAmt defaultBal recoveryBal lossBal (CF.mflowRate flow) Nothing 
-                           Nothing `debug` ("Default Bal"++ show newDefaultBals ++ "Rec Bal"++ show newRecoveryBals ++ "Loss Bal"++ show newLossBals)
+                           Nothing -- `debug` ("Default Bal"++ show newDefaultBals ++ "Rec Bal"++ show newRecoveryBals ++ "Loss Bal"++ show newLossBals)
 
 -- | implementation on prepayment penalty, which patch cashflow to cashflow frame
 patchPrepayPentalyFlow :: Mortgage -> CF.CashFlowFrame -> CF.CashFlowFrame
