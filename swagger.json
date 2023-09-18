@@ -1002,6 +1002,10 @@
                                         "type": "number"
                                     },
                                     {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
@@ -1015,9 +1019,9 @@
                                         "type": "number"
                                     }
                                 ],
-                                "maxItems": 11,
+                                "maxItems": 12,
                                 "type": "array",
-                                "minItems": 11
+                                "minItems": 12
                             },
                             "tag": {
                                 "type": "string",
@@ -1139,6 +1143,9 @@
                     },
                     "futureCf": {
                         "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
                     },
                     "assets": {
                         "items": {
@@ -4107,6 +4114,23 @@
                     "originRate"
                 ]
             },
+            "DayCount": {
+                "type": "string",
+                "enum": [
+                    "DC_30E_360",
+                    "DC_30Ep_360",
+                    "DC_ACT_360",
+                    "DC_ACT_365",
+                    "DC_ACT_365A",
+                    "DC_ACT_365L",
+                    "DC_NL_365",
+                    "DC_ACT_365F",
+                    "DC_ACT_ACT",
+                    "DC_30_360_ISDA",
+                    "DC_30_360_German",
+                    "DC_30_360_US"
+                ]
+            },
             "Pool_Loan": {
                 "type": "object",
                 "properties": {
@@ -4122,6 +4146,9 @@
                     },
                     "futureCf": {
                         "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
                     },
                     "assets": {
                         "items": {
@@ -4317,23 +4344,25 @@
                                         "type": "number"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    },
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
+                                        "items": [
+                                            {
+                                                "maximum": 9223372036854775807,
+                                                "type": "integer",
+                                                "minimum": -9223372036854775808
+                                            },
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "type": "array",
+                                        "minItems": 2
                                     }
                                 ],
-                                "maxItems": 4,
+                                "maxItems": 2,
                                 "type": "array",
-                                "minItems": 4
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -6959,11 +6988,14 @@
                                             "$ref": "#/components/schemas/TsRow"
                                         },
                                         "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -6995,6 +7027,9 @@
                     },
                     "futureCf": {
                         "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
                     },
                     "assets": {
                         "items": {
@@ -8038,8 +8073,18 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "multipleOf": 1.0e-6,
-                                "type": "number"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DayCount"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -8058,6 +8103,9 @@
                         "properties": {
                             "contents": {
                                 "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DayCount"
+                                    },
                                     {
                                         "$ref": "#/components/schemas/Index"
                                     },
@@ -8084,9 +8132,9 @@
                                         "$ref": "#/components/schemas/RoundingBy_(Fixed_*_E6)"
                                     }
                                 ],
-                                "maxItems": 7,
+                                "maxItems": 8,
                                 "type": "array",
-                                "minItems": 7
+                                "minItems": 8
                             },
                             "tag": {
                                 "type": "string",
@@ -8563,20 +8611,73 @@
                 "type": "object"
             },
             "RecoveryAssumption": {
-                "items": [
+                "oneOf": [
                     {
-                        "format": "double",
-                        "type": "number"
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Recovery"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     },
                     {
-                        "maximum": 9223372036854775807,
-                        "type": "integer",
-                        "minimum": -9223372036854775808
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RecoveryTiming"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
-                "maxItems": 2,
-                "type": "array",
-                "minItems": 2
+                "type": "object"
             },
             "ARM": {
                 "oneOf": [
@@ -9264,18 +9365,12 @@
                                         "$ref": "#/components/schemas/RecoveryAssumption"
                                     },
                                     {
-                                        "items": {
-                                            "$ref": "#/components/schemas/RateAssumption"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/ExtraStress"
                                     }
                                 ],
-                                "maxItems": 5,
+                                "maxItems": 4,
                                 "type": "array",
-                                "minItems": 5
+                                "minItems": 4
                             },
                             "tag": {
                                 "type": "string",
@@ -9298,18 +9393,18 @@
                                         "$ref": "#/components/schemas/AssetDelinquencyAssumption"
                                     },
                                     {
-                                        "items": {
-                                            "$ref": "#/components/schemas/RateAssumption"
-                                        },
-                                        "type": "array"
+                                        "$ref": "#/components/schemas/AssetPrepayAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RecoveryAssumption"
                                     },
                                     {
                                         "$ref": "#/components/schemas/ExtraStress"
                                     }
                                 ],
-                                "maxItems": 3,
+                                "maxItems": 4,
                                 "type": "array",
-                                "minItems": 3
+                                "minItems": 4
                             },
                             "tag": {
                                 "type": "string",
@@ -9338,18 +9433,12 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
-                                        "items": {
-                                            "$ref": "#/components/schemas/RateAssumption"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/ExtraStress"
                                     }
                                 ],
-                                "maxItems": 5,
+                                "maxItems": 4,
                                 "type": "array",
-                                "minItems": 5
+                                "minItems": 4
                             },
                             "tag": {
                                 "type": "string",
@@ -9378,18 +9467,12 @@
                                         "$ref": "#/components/schemas/RecoveryAssumption"
                                     },
                                     {
-                                        "items": {
-                                            "$ref": "#/components/schemas/RateAssumption"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/ExtraStress"
                                     }
                                 ],
-                                "maxItems": 5,
+                                "maxItems": 4,
                                 "type": "array",
-                                "minItems": 5
+                                "minItems": 4
                             },
                             "tag": {
                                 "type": "string",
@@ -9418,18 +9501,12 @@
                                         "$ref": "#/components/schemas/RecoveryAssumption"
                                     },
                                     {
-                                        "items": {
-                                            "$ref": "#/components/schemas/RateAssumption"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/ExtraStress"
                                     }
                                 ],
-                                "maxItems": 5,
+                                "maxItems": 4,
                                 "type": "array",
-                                "minItems": 5
+                                "minItems": 4
                             },
                             "tag": {
                                 "type": "string",
@@ -9654,12 +9731,18 @@
                         "$ref": "#/components/schemas/ApplyAssumptionType"
                     },
                     {
+                        "items": {
+                            "$ref": "#/components/schemas/RateAssumption"
+                        },
+                        "type": "array"
+                    },
+                    {
                         "$ref": "#/components/schemas/PricingMethod"
                     }
                 ],
-                "maxItems": 4,
+                "maxItems": 5,
                 "type": "array",
-                "minItems": 4
+                "minItems": 5
             },
             "BondType": {
                 "oneOf": [
@@ -10473,11 +10556,17 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/ApplyAssumptionType"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/RateAssumption"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -10504,11 +10593,17 @@
                                         "additionalProperties": {
                                             "$ref": "#/components/schemas/ApplyAssumptionType"
                                         }
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/RateAssumption"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -10600,6 +10695,9 @@
                     },
                     "futureCf": {
                         "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
                     },
                     "assets": {
                         "items": {
