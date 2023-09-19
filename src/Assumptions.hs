@@ -109,7 +109,7 @@ data AssetDefaultedPerfAssumption = DefaultedRecovery Rate Int [Rate]
                                   | DummyDefaultAssump
                                   deriving (Show,Generic)
 
-data AssetDelinqPerfAssumption = DummyDeqlinqAssump
+data AssetDelinqPerfAssumption = DummyDelinqAssump
                                deriving (Show,Generic)
 
 data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)

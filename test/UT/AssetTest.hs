@@ -447,12 +447,11 @@ delinqScheduleCFTest =
                   Nothing
                   (Just MonthEnd)
     assump1 = Just (A.PoolLevel 
-                      (A.MortgageDeqAssump   
-                        (Just (A.DelinqCDR 0.05 (5,0.3))) Nothing Nothing Nothing)
+                      (A.MortgageDeqAssump (Just (A.DelinqCDR 0.05 (5,0.3))) Nothing Nothing Nothing
                       ,A.DummyDeqlinqAssump
-                      ,A.DummyDefaultAssump)
+                      ,A.DummyDefaultAssump))
     assump2 = Just (A.PoolLevel 
-                      (A.MortgageDeqAssump   (Just (A.DelinqCDR 0.05 (5,0.3))) (Just (A.PrepaymentCPR 0.08)) Nothing Nothing
+                      (A.MortgageDeqAssump (Just (A.DelinqCDR 0.05 (5,0.3))) (Just (A.PrepaymentCPR 0.08)) Nothing Nothing
                       ,A.DummyDeqlinqAssump
                       ,A.DummyDefaultAssump))
 
