@@ -310,7 +310,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arre
   b {L.bndDuePrin = bond_bal }
 
 
-priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerfAssumption -> Maybe [RateAssumption] -> PriceResult
+priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerf -> Maybe [RateAssumption] -> PriceResult
 priceAssetUnion (ACM.MO m) d pm aps = P.priceAsset m d pm aps 
 priceAssetUnion (ACM.LO m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.IL m) d pm aps = P.priceAsset m d pm aps
@@ -348,7 +348,7 @@ buyRevolvingPool d rs rp@(AssetCurve aus)
     in 
       (assetBought, rp)
 
-projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerfAssumption -> Maybe [RateAssumption] -> CF.CashFlowFrame
+projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerf -> Maybe [RateAssumption] -> CF.CashFlowFrame
 projAssetUnion (ACM.MO ast) d assumps mRates = CF.cfInsertHead (CF.MortgageFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0 0 Nothing Nothing) $ P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.LO ast) d assumps mRates = CF.cfInsertHead (CF.LoanFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0) $ P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.IL ast) d assumps mRates = CF.cfInsertHead (CF.LoanFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0) $ P.projCashflow ast d assumps mRates
@@ -356,7 +356,7 @@ projAssetUnion (ACM.LS ast) d assumps mRates = CF.cfInsertHead (CF.LeaseFlow d (
 
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
-                  ,revolvingAssump:: Maybe (RevolvingPool ,AP.AssetPerfAssumption)
+                  ,revolvingAssump:: Maybe (RevolvingPool ,AP.AssetPerf)
                   ,revolvingInterestRateAssump:: Maybe [RateAssumption]
                   }
 

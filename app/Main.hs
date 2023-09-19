@@ -200,6 +200,8 @@ instance ToSchema (RoundingBy Balance)
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.RevolvingAssumption
 instance ToSchema AP.AssetPerfAssumption
+instance ToSchema AP.AssetDelinqPerfAssumption
+instance ToSchema AP.AssetDefaultedPerfAssumption
 instance ToSchema AP.AssetDefaultAssumption
 instance ToSchema AP.AssetPrepayAssumption
 instance ToSchema AP.RecoveryAssumption

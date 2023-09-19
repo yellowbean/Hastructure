@@ -152,7 +152,7 @@ instance Asset Installment where
 
   projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd _) cb rt Current) 
                asOfDay 
-               pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump extraStressAssump)
+               pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump extraStressAssump,_,_)
                mRates
     = CF.CashFlowFrame $ cutBy Inc Future asOfDay flows 
       where 
@@ -167,7 +167,7 @@ instance Asset Installment where
           schedule_balances = scanl (-) ob (replicate ot opmt)
           current_schedule_bal = schedule_balances !! (ot - rt) -- `debug` ("RT->"++show rt)
 
-          (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) pAssump
+          (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.InstallmentAssump defaultAssump prepayAssump recoveryAssump extraStressAssump)
           flows = projectInstallmentFlow 
                            []
                            (opmt,ofee)
@@ -185,7 +185,7 @@ instance Asset Installment where
 
   projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd ptype) cb rt (Defaulted (Just defaultedDate))) 
                asOfDay 
-               (A.DefaultedRecovery rr lag timing)
+               (_,_,(A.DefaultedRecovery rr lag timing))
                mRates
     = let 
          (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+length timing)

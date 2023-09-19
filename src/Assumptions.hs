@@ -11,8 +11,9 @@ module Assumptions (BondPricingInput(..)
                     ,getRateAssumption,projRates
                     ,LeaseAssetGapAssump(..)
                     ,LeaseAssetRentAssump(..)
-                    ,NonPerfAssumption(..)
+                    ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
+                    ,AssetPerfAssumption(..),AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
                     ,getCDR,calcResetDates)
 where
 
@@ -39,16 +40,20 @@ import Debug.Trace
 import InterestRate
 debug = flip trace
 
-type StratificationByIdx = ([Int],AssetPerfAssumption)
+type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
+type StratPerfByIdx = ([Int],AssetPerf)
 
-lookupAssumptionByIdx :: [StratificationByIdx] -> Int -> AssetPerfAssumption
+lookupAssumptionByIdx :: [StratPerfByIdx] -> Int -> AssetPerf
 lookupAssumptionByIdx sbi i
   = case find (\(indxs,_) -> Set.member i  (Set.fromList indxs) ) sbi of
         Just (_, aps ) ->  aps
         Nothing -> error ("Can't find idx"++ (show i)++"in starfication list"++ (show sbi))
 
-data ApplyAssumptionType = PoolLevel AssetPerfAssumption -- ^ assumption apply to all assets in the pool
-                         | ByIndex [StratificationByIdx] -- ^ assumption which only apply to a set of assets in the pool
+
+data ApplyAssumptionType = PoolLevel AssetPerf
+                           -- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratPerfByIdx]
+                           -- ^ assumption which only apply to a set of assets in the pool
                          deriving (Show,Generic)
 
 data NonPerfAssumption = NonPerfAssumption {
@@ -100,15 +105,21 @@ data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, reco
 
 type ExtendCashflowDates = DatePattern
 
+data AssetDefaultedPerfAssumption = DefaultedRecovery Rate Int [Rate]
+                                  | DummyDefaultAssump
+                                  deriving (Show,Generic)
+
+data AssetDelinqPerfAssumption = DummyDeqlinqAssump
+                               deriving (Show,Generic)
+
 data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)
                          | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate  (Maybe ExtraStress)
                          | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
-                         | DefaultedRecovery Rate Int [Rate]
                          deriving (Show,Generic)
 
-data RevolvingAssumption = AvailableAssets RevolvingPool AssetPerfAssumption
+data RevolvingAssumption = AvailableAssets RevolvingPool AssetPerf
                           | Dummy4 
                           deriving (Show,Generic)
 
@@ -175,6 +186,8 @@ calcResetDates (r:rs) bs
 $(deriveJSON defaultOptions ''BondPricingInput)
 $(deriveJSON defaultOptions ''ApplyAssumptionType)
 $(deriveJSON defaultOptions ''AssetPerfAssumption)
+$(deriveJSON defaultOptions ''AssetDelinqPerfAssumption)
+$(deriveJSON defaultOptions ''AssetDefaultedPerfAssumption)
 $(deriveJSON defaultOptions ''AssetDefaultAssumption)
 $(deriveJSON defaultOptions ''AssetPrepayAssumption)
 $(deriveJSON defaultOptions ''RecoveryAssumption)
