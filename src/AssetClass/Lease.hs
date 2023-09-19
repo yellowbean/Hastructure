@@ -199,7 +199,7 @@ instance Asset Lease where
     updateOriginDate (RegularLease (LeaseInfo sd ot dp dr) bal rt st) nd 
       = RegularLease (LeaseInfo nd ot dp dr) bal rt st
 
-    projCashflow l asOfDay (AP.LeaseAssump gapAssump rentAssump ed exStress) mRates
+    projCashflow l asOfDay ((AP.LeaseAssump gapAssump rentAssump ed exStress),_,_) mRates
       = foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
       where 
         currentCf = calcCashflow l asOfDay mRates

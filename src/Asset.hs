@@ -66,7 +66,7 @@ class Show a => Asset a where
   -- | get number of remaining payments
   getRemainTerms :: a -> Int
   -- | project asset cashflow under credit stress and interest assumptions
-  projCashflow :: a -> Date -> A.AssetPerfAssumption -> Maybe [RateAssumption] -> CF.CashFlowFrame
+  projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> CF.CashFlowFrame
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
@@ -252,7 +252,7 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
     where
       recoveryAmt = mulBR bal recoveryRate
 
-priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerfAssumption -> Maybe [RateAssumption] -> PriceResult
+priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> PriceResult
 priceAsset m d (PVCurve curve) assumps mRates
   = let 
       CF.CashFlowFrame txns = projCashflow m d assumps mRates

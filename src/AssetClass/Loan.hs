@@ -127,7 +127,7 @@ instance Asset Loan where
   -- ^ <Special Case> Projection cashflow for loan with Interest only and bullet principal at end
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt Current) 
                asOfDay
-               assumps@(A.LoanAssump defaultAssump prepayAssump recoveryAssump Nothing)
+               (A.LoanAssump defaultAssump prepayAssump recoveryAssump Nothing,_,_)
                mRates
       = CF.CashFlowFrame $ cutBy Inc Future asOfDay txns 
     where
@@ -144,7 +144,7 @@ instance Asset Loan where
       lifetime_default_pct = toRational $ proj_years * cdr
       -- lifetime_prepayment_pct = toRational $ proj_years * cpr -- `debug` ("TOTAL DEF AMT"++show lifetime_default_pct)
       cf_factor = map (\x ->  (toRational x)  / (toRational sum_cf)) schedule_cf
-      (ppy_rates,_,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) assumps
+      (ppy_rates,_,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.LoanAssump defaultAssump prepayAssump recoveryAssump Nothing)
       adjusted_def_rates = map (\x -> (toRational x) * lifetime_default_pct) cf_factor -- `debug` ("Factors"++ show cf_factor ++ "SUM UP"++ show (sum cf_factor))
       txns = projectLoanFlow [] cb last_pay_date cf_dates adjusted_def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p I_P `debug` ("length>>"++show (length cf_dates)++ show (length adjusted_def_rates)++ show (length ppy_rates))
       
@@ -153,7 +153,7 @@ instance Asset Loan where
   -- ^ Project cashflow for loans with prepayment/default/loss and interest rate assumptions
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt Current) 
                asOfDay 
-               (A.LoanAssump defaultAssump prepayAssump recoveryAssump extraStress) 
+               ((A.LoanAssump defaultAssump prepayAssump recoveryAssump extraStress),_,_)
                mRate
       = CF.CashFlowFrame $ cutBy Inc Future asOfDay txns
     where
@@ -166,7 +166,7 @@ instance Asset Loan where
   -- ^ Project cashflow for defautled loans 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted (Just defaultedDate))) 
                asOfDay 
-               (A.DefaultedRecovery rr lag timing)
+               (_,_,(A.DefaultedRecovery rr lag timing))
                _
     = let 
         (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+ length timing)
