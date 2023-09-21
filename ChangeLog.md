@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.21.1
+### 2023-9-21
+* BREAK: seperate `performance assumption`
+* BREAK: add `delinquency` projection on mortgage as well as schedule mortgage cashflow
+
 ## 0.20.3
 ### 2023-9-4
 * ENHANCE: now user can include boolean/int/balance/rate type query in `inspect` field

@@ -18,7 +18,7 @@
   * Docker Support 
 * Asset class coverage (Mortgage/Student Loan/Auto Loan/Rentals/Corp Loan/Consumer Installment)
 * Pool Assumptions
-  * Mortgage (Prepay,Prepay Penalty,Default,Recovery Lag/Rate)
+  * Mortgage (Prepay, Prepay Penalty, Deliquency, Default,Recovery Lag/Rate)
   * Installment (Prepay Default Recovery Lag/Rate) 
   * Corp Loan (Prepay Default Recovery Lag/Rate)
   * Rentals (Gaps between leases,Rental Curve Assumption) 
@@ -50,10 +50,11 @@
   * Running multiple scenarios on single deal
   * Pricing on single asset 
   * Revoving Buy Analysis 
-* Formula Support 
+* Free Formula Support 
   * User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc.
 * Misc
   * Support user define pay dates & pool collection dates 
+
 ### Online Demo
 
 The demo only cover very limit features of this engine and subject to UI performance issue due to rapid prototype design of web component

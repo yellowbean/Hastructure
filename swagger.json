@@ -2918,7 +2918,20 @@
                                         "$ref": "#/components/schemas/RevolvingPool"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/AssetPerfAssumption"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/AssetPerfAssumption"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "type": "array",
+                                        "minItems": 3
                                     }
                                 ],
                                 "maxItems": 2,
@@ -4129,6 +4142,12 @@
                     "DC_30_360_ISDA",
                     "DC_30_360_German",
                     "DC_30_360_US"
+                ]
+            },
+            "AssetDelinqPerfAssumption": {
+                "type": "string",
+                "enum": [
+                    "DummyDelinqAssump"
                 ]
             },
             "Pool_Loan": {
@@ -7155,6 +7174,63 @@
                     "collects"
                 ]
             },
+            "AssetDefaultedPerfAssumption": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "items": {
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultedRecovery"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DummyDefaultAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "TestDeal_Installment": {
                 "type": "object",
                 "properties": {
@@ -9519,44 +9595,6 @@
                             "tag",
                             "contents"
                         ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    },
-                                    {
-                                        "items": {
-                                            "format": "double",
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "DefaultedRecovery"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
                     }
                 ],
                 "type": "object"
@@ -11121,7 +11159,20 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/AssetPerfAssumption"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetPerfAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -11150,7 +11201,20 @@
                                             "type": "array"
                                         },
                                         {
-                                            "$ref": "#/components/schemas/AssetPerfAssumption"
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/AssetPerfAssumption"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                                }
+                                            ],
+                                            "maxItems": 3,
+                                            "type": "array",
+                                            "minItems": 3
                                         }
                                     ],
                                     "maxItems": 2,
@@ -11483,7 +11547,7 @@
         }
     },
     "info": {
-        "version": "0.20.2",
+        "version": "0.21.1",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

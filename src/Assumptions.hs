@@ -47,7 +47,7 @@ lookupAssumptionByIdx :: [StratPerfByIdx] -> Int -> AssetPerf
 lookupAssumptionByIdx sbi i
   = case find (\(indxs,_) -> Set.member i  (Set.fromList indxs) ) sbi of
         Just (_, aps ) ->  aps
-        Nothing -> error ("Can't find idx"++ (show i)++"in starfication list"++ (show sbi))
+        Nothing -> error ("Can't find idx"++ show i ++"in starfication list"++ (show sbi))
 
 
 data ApplyAssumptionType = PoolLevel AssetPerf

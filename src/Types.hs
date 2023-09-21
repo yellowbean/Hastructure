@@ -484,6 +484,7 @@ getDealStatType (Avg dss) = getDealStatType (head dss)
 getDealStatType (Max dss) = getDealStatType (head dss)
 getDealStatType (Min dss) = getDealStatType (head dss)
 getDealStatType (Divide ds1 ds2) = getDealStatType ds1
+getDealStatType _ = RtnBalance
 
 
 dealStatType _ = RtnBalance

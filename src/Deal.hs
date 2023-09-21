@@ -366,7 +366,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFl
                   RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
                   RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
                   RtnInt -> InspectInt d ds $ queryDealInt t (patchDateToStats d ds) d
-                  _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds) `debug` ("getDealStatType"++show (getDealStatType ds)++ ">>>"++ show ds)
+                  _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds) -- `debug` ("getDealStatType"++show (getDealStatType ds)++ ">>>"++ show ds)
            in 
              run t poolFlow (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("Add log"++show newlog)
          
@@ -556,7 +556,7 @@ calcDealStageDate _ = []
 runPool :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [CF.CashFlowFrame]
 -- schedule cashflow just ignores the interest rate assumption
 runPool (P.Pool [] (Just cf) asof _ _) Nothing _ = [cf]
-runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates) ] -- `debug` ("PROJ in schedule flow")
+runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
 -- contractual cashflow will use interest rate assumption
 runPool (P.Pool as _ asof _ _) Nothing  mRates = map (\x -> P.calcCashflow x asof mRates) as -- `debug` ("RUNPOOL-> calc cashflow")
@@ -569,6 +569,7 @@ runPool (P.Pool as Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
     _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
   in
     zipWith (\x a -> P.projCashflow x asof a mRates) as _assumps
+runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], CF.CashFlowFrame)
