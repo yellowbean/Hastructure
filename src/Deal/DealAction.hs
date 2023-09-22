@@ -58,8 +58,6 @@ import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
 debug = flip trace
 
-calcDayToPoolDate :: TestDeal a -> Date -> Date 
-
 
 getPoolFlows :: TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
