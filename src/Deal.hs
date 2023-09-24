@@ -661,8 +661,10 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
     newFeeMap = case mNonPerfAssump of
                   Nothing -> feeMap
                   Just AP.NonPerfAssumption{AP.projectedExpense = Nothing } -> feeMap
-                  Just AP.NonPerfAssumption{AP.projectedExpense = Just (fn,projectedFlow) } 
-                    -> Map.adjust (\x -> x {F.feeType = F.FeeFlow projectedFlow}) fn feeMap
+                  -- Just AP.NonPerfAssumption{AP.projectedExpense = Just (fn,projectedFlow) } 
+                  --  -> Map.adjust (\x -> x {F.feeType = F.FeeFlow projectedFlow}) fn feeMap
+                  Just AP.NonPerfAssumption{AP.projectedExpense = Just pairs } 
+                    ->   foldr  (\(feeName,feeFlow) accM -> Map.adjust (\v -> v {F.feeType = F.FeeFlow feeFlow}) feeName accM)  feeMap pairs
 
     newT = t {fees = newFeeMap} 
 

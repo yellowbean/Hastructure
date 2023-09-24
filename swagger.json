@@ -10337,17 +10337,20 @@
                         "$ref": "#/components/schemas/RevolvingAssumption"
                     },
                     "projectedExpense": {
-                        "items": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Ts"
-                            }
-                        ],
-                        "maxItems": 2,
-                        "type": "array",
-                        "minItems": 2
+                        "items": {
+                            "items": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/Ts"
+                                }
+                            ],
+                            "maxItems": 2,
+                            "type": "array",
+                            "minItems": 2
+                        },
+                        "type": "array"
                     },
                     "interest": {
                         "items": {
@@ -11547,7 +11550,7 @@
         }
     },
     "info": {
-        "version": "0.21.1",
+        "version": "0.21.2",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

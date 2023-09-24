@@ -297,12 +297,14 @@ instance Ast.Asset Mortgage where
   -- project current mortgage(without delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 
                asOfDay 
-               mars@(A.MortgageAssump amd amp amr ams,_,_) 
+               mars@(A.MortgageAssump amd amp amr ams
+                     ,_
+                     ,_) 
                mRates =
     let 
       futureTxns = cutBy Inc Future asOfDay txns 
     in 
-      patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
+      applyHaircut ams $ patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
     where
       last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
       cf_dates_length = length cf_dates 
@@ -320,7 +322,7 @@ instance Ast.Asset Mortgage where
     let 
       futureTxns = cutBy Inc Future asOfDay txns 
     in 
-      patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
+      applyHaircut ams $ patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
     where
       last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m (recoveryLag+defaultLag))
       cf_dates_length = length cf_dates + recoveryLag + defaultLag
@@ -360,7 +362,7 @@ instance Ast.Asset Mortgage where
     let 
       futureTxns = cutBy Inc Future asOfDay txns 
     in 
-      patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns) 
+      applyHaircut ams $ patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns) 
     where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
@@ -396,7 +398,7 @@ instance Ast.Asset Mortgage where
     let 
       futureTxns = cutBy Inc Future asOfDay txns 
     in 
-      patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
+      applyHaircut ams $ patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
     where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
@@ -425,17 +427,17 @@ instance Ast.Asset Mortgage where
                                        (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType) 
                                        ((replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0))
   -- schedule mortgage flow without delinq
-  projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay assumps@(pAssump@(A.MortgageAssump {}),dAssump,fAssump) _
-    = CF.CashFlowFrame $ projectScheduleFlow
-                             []
-                             1.0
-                             begBal
-                             flows
-                             defRates
-                             ppyRates
-                             (replicate curveDatesLength 0.0)
-                             (replicate curveDatesLength 0.0)
-                             (recoveryLag,recoveryRate) 
+  projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay assumps@(pAssump@(A.MortgageAssump _ _ _ ams ),dAssump,fAssump) _
+    = applyHaircut ams $ CF.CashFlowFrame $ projectScheduleFlow
+                                             []
+                                             1.0
+                                             begBal
+                                             flows
+                                             defRates
+                                             ppyRates
+                                             (replicate curveDatesLength 0.0)
+                                             (replicate curveDatesLength 0.0)
+                                             (recoveryLag,recoveryRate) 
        where
          begBal =  CF.mflowBegBalance $ head flows 
          (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate (begDate:cfDates) pAssump 
