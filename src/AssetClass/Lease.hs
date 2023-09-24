@@ -200,7 +200,7 @@ instance Asset Lease where
       = RegularLease (LeaseInfo nd ot dp dr) bal rt st
 
     projCashflow l asOfDay ((AP.LeaseAssump gapAssump rentAssump ed exStress),_,_) mRates
-      = foldl CF.combineCashFlow currentCf newCfs  -- `debug` ("current cf->"++ show currentCf ++ "newCf>>"++show newCfs)
+      = (foldl CF.combineCashFlow currentCf newCfs, Map.empty)  
       where 
         currentCf = calcCashflow l asOfDay mRates
         -- (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump (A.LeaseAssump gapAssump rentAssump) -- (0.0,mkTs [],([(0.0,0)],0),0,epocDate)-- `debug` ("7")

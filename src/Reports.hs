@@ -23,7 +23,7 @@ import Types
       BookItem(..),
       RangeType(EI),
       DealStats(CurrentPoolBalance, CurrentPoolDefaultedBalance),
-      IssuanceFields(IssuanceBalance),
+      CutoffFields(IssuanceBalance),
       Date,sliceBy,
       Balance )
 import Deal.DealBase

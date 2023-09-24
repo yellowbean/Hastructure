@@ -66,7 +66,7 @@ class Show a => Asset a where
   -- | get number of remaining payments
   getRemainTerms :: a -> Int
   -- | project asset cashflow under credit stress and interest assumptions
-  projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> CF.CashFlowFrame
+  projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
@@ -78,7 +78,7 @@ class Show a => Asset a where
   calcAlignDate ast d = let 
                           payDates = getPaymentDates ast 0
                           remainTerms = getRemainTerms ast 
-                          benchDate = (reverse payDates)!!remainTerms
+                          benchDate = (reverse payDates)!!remainTerms   --TODO 24/24 raises error
                           offset = daysBetween benchDate d
                         in 
                           T.addDays offset $ getOriginDate ast
@@ -89,7 +89,7 @@ class Show a => Asset a where
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
-                   ,asOfDate :: Date                                        -- ^ date of the assets/pool cashflow
+                   ,asOfDate :: Date                                        -- ^ include cashflow after this date 
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    }deriving (Show,Generic)
@@ -283,7 +283,7 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
 priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> PriceResult
 priceAsset m d (PVCurve curve) assumps mRates
   = let 
-      CF.CashFlowFrame txns = projCashflow m d assumps mRates
+      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
       pv = pv3 curve d ds amts
@@ -295,10 +295,11 @@ priceAsset m d (PVCurve curve) assumps mRates
 priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
   = let 
       cb =  getCurrentBal m
-      val = case isDefaulted m of 
-              False -> mulBR cb currentFactor 
-              True  -> mulBR cb defaultedFactor
-      CF.CashFlowFrame txns = projCashflow m d assumps mRates
+      val = if isDefaulted m then 
+              mulBR cb currentFactor 
+            else
+              mulBR cb defaultedFactor
+      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
       wal = calcWAL ByYear cb d (zip amts ds) 
@@ -306,9 +307,16 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
       AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
 
 -- | Aggregate all cashflow into a single cashflow frame
-aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
-aggPool [] = CF.CashFlowFrame []
-aggPool xs = foldr1 CF.combine xs  
+aggPool :: [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]  -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+aggPool [] = (CF.CashFlowFrame [],Map.empty)
+aggPool xs 
+  = let
+      cfs = fst <$> xs
+      cf = foldr1 CF.combine cfs 
+      stats = foldr1 (Map.unionWith (+)) $ snd <$> xs
+    in
+      (cf,stats)
+    
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]

@@ -250,11 +250,11 @@ instance ToSchema RunAssetReq
 
 wrapRunAsset :: RunAssetReq -> (CF.CashFlowFrame, Maybe [PriceResult])
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates Nothing) 
-  = (P.aggPool $ (\a -> D.projAssetUnion a d assumps mRates) <$> assets, Nothing) 
+  = ( fst (P.aggPool ((\a -> D.projAssetUnion a d assumps mRates) <$> assets)), Nothing) 
 
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates (Just pm)) 
   = let 
-      assetCf = P.aggPool $ (\a -> D.projAssetUnion a d assumps mRates ) <$> assets 
+      assetCf = fst $ P.aggPool $ (\a -> D.projAssetUnion a d assumps mRates ) <$> assets 
       pricingResult = (\a -> D.priceAssetUnion a d pm assumps mRates) <$> assets
     in 
       (assetCf, Just pricingResult)

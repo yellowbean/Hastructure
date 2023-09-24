@@ -160,7 +160,7 @@ queryDealInt t s d =
     Max ss -> maximum' $ [ queryDealInt t s d | s <- ss ]
     Min ss -> minimum' $ [ queryDealInt t s d | s <- ss ]
 
-poolSourceToIssuanceField :: PoolSource -> IssuanceFields
+poolSourceToIssuanceField :: PoolSource -> CutoffFields
 poolSourceToIssuanceField CollectedInterest = HistoryInterest
 poolSourceToIssuanceField CollectedPrincipal = HistoryPrincipal
 poolSourceToIssuanceField CollectedRecoveries = HistoryRecoveries
