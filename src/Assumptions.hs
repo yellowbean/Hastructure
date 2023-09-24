@@ -58,7 +58,7 @@ data ApplyAssumptionType = PoolLevel AssetPerf
 
 data NonPerfAssumption = NonPerfAssumption {
   stopRunBy :: Maybe Date                            -- ^ optional stop day,which will stop cashflow projection
-  ,projectedExpense :: Maybe (FeeName,Ts)            -- ^ optional expense projection
+  ,projectedExpense :: Maybe [(FeeName,Ts)]          -- ^ optional expense projection
   ,callWhen :: Maybe [C.CallOption]                  -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
   ,revolving :: Maybe RevolvingAssumption            -- ^ optional revolving assumption with revoving assets
   ,interest :: Maybe [RateAssumption]                -- ^ optional interest rates assumptions
@@ -94,9 +94,9 @@ data LeaseAssetRentAssump = BaseAnnualRate Rate
                           deriving (Show,Generic)
 
 data ExtraStress = ExtraStress {
-                     defaultFactors :: Maybe Ts              -- ^ stress default rate via a time series based factor curve
-                     ,prepaymentFactors :: Maybe Ts          -- ^ stress prepayment rate via a time series based factor curve
-                     ,poolHairCut :: Maybe (PoolSource,Rate) -- ^ haircut on pool income source
+                     defaultFactors :: Maybe Ts                -- ^ stress default rate via a time series based factor curve
+                     ,prepaymentFactors :: Maybe Ts            -- ^ stress prepayment rate via a time series based factor curve
+                     ,poolHairCut :: Maybe [(PoolSource,Rate)] -- ^ haircut on pool income source
                    } deriving (Show,Generic)
 
 data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, recovery lag

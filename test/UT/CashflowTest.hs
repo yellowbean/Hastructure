@@ -1,4 +1,4 @@
-module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest)
+module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest,testHaircut)
 where
 
 import Test.Tasty
@@ -206,4 +206,43 @@ testMergePoolCf =
                            ,(CF.MortgageFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0 0.0 Nothing Nothing)]) 
         (CF.mergePoolCf cf1 cf2)
     ]
- 
+
+testHaircut = 
+  let 
+    cflow = CF.CashFlowFrame [(CF.MortgageFlow (L.toDate "20230101") 100 20 10 20 0 0 5  0 0.0 Nothing (Just 10))
+                             ,(CF.MortgageFlow (L.toDate "20230201") 200 30 20 30 0 0 10 0 0.0 Nothing (Just 15))
+                             ,(CF.MortgageFlow (L.toDate "20230301") 190 40 30 40 0 0 15 0 0.0 Nothing (Just 20))
+                             ,(CF.MortgageFlow (L.toDate "20230401") 180 50 40 50 0 0 20 0 0.0 Nothing (Just 30))]
+  in 
+    testGroup "Test on Haircut"
+    [ testCase "Haircut of Nothing" $
+        assertEqual "" 
+        cflow 
+        (P.applyHaircut Nothing cflow)
+    ,testCase "Haircut on principal" $
+        assertEqual "" 
+        (Just (CF.MortgageFlow (L.toDate "20230101") 100 10 10 20 0 0 5  0 0.0 Nothing (Just 10)))
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrincipal,0.5)]}) cflow) 0)
+    ,testCase "Haircut on interest" $
+        assertEqual "" 
+        (Just (CF.MortgageFlow (L.toDate "20230101") 100 20 7 20 0 0 5  0 0.0 Nothing (Just 10)))
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedInterest,0.3)]}) cflow) 0)
+    ,testCase "Haircut on prepayment" $
+        assertEqual "" 
+        (Just (CF.MortgageFlow (L.toDate "20230101") 100 20 10 12 0 0 5  0 0.0 Nothing (Just 10)))
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrepayment,0.4)]}) cflow) 0)
+    ,testCase "Haircut on recoveries" $
+        assertEqual "" 
+        (Just (CF.MortgageFlow (L.toDate "20230101") 100 20 10 20 0 0 4.5  0 0.0 Nothing (Just 10)))
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedRecoveries,0.1)]}) cflow) 0)
+    ,testCase "Haircut on prepay penalty" $
+        assertEqual "" 
+        (Just (CF.MortgageFlow (L.toDate "20230101") 100 20 10 20 0 0 5  0 0.0 Nothing (Just 8)))
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrepaymentPenalty,0.2)]}) cflow) 0)
+    ,testCase "Haircut on mix" $
+        assertEqual "" 
+        (Just (CF.MortgageFlow (L.toDate "20230101") 100 10 7 20 0 0 5  0 0.0 Nothing (Just 8)))
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrepaymentPenalty,0.2)
+                                                                          ,(CollectedPrincipal,0.5)
+                                                                          ,(CollectedInterest,0.3)]}) cflow) 0)
+    ]

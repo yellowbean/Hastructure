@@ -608,10 +608,10 @@ class TimeSeries ts where
     sliceBy :: RangeType -> StartDate -> EndDate -> [ts] -> [ts]
     sliceBy rt sd ed ts
       = case rt of 
-          II -> filter (\x -> (getDate x) >= sd && (getDate x) <= ed ) ts 
-          IE -> filter (\x -> (getDate x) >= sd  && (getDate x) < ed ) ts 
-          EI -> filter (\x -> (getDate x) > sd && (getDate x) <= ed) ts 
-          EE -> filter (\x -> (getDate x) > sd && (getDate x) < ed ) ts 
+          II -> filter (\x -> getDate x >= sd && getDate x <= ed ) ts 
+          IE -> filter (\x -> getDate x >= sd && getDate x < ed ) ts 
+          EI -> filter (\x -> getDate x > sd && getDate x <= ed) ts 
+          EE -> filter (\x -> getDate x > sd && getDate x < ed ) ts 
           _  -> error "Not support NO_IE for sliceBy in TimeSeries"
     cutBy :: CutoffType -> DateDirection -> Date -> [ts] -> [ts]
     cutBy ct dd d ts 

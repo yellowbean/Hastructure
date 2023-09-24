@@ -62,16 +62,14 @@ debug = flip trace
 getPoolFlows :: TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   case (sd,ed) of
-    (Nothing,Nothing) ->  _trs
-    (Nothing,Just _ed) -> case rt of 
-                             EI -> filter (\x -> CF.getDate x <= _ed) _trs
-    (Just _sd,Nothing) ->  cutBy Inc Future _sd _trs 
-    (Just _sd,Just _ed) -> case rt of 
-                             IE -> filter (\x -> (CF.getDate x >= _sd) && (CF.getDate x < _ed)) _trs
-                             EI -> filter (\x -> (CF.getDate x > _sd) && (CF.getDate x <= _ed)) _trs
+    (Nothing,Nothing)   ->  _trs
+    (Nothing,Just _ed)  ->  cutBy Inc Past _ed _trs
+    (Just _sd,Nothing)  ->  cutBy Inc Future _sd _trs 
+    (Just _sd,Just _ed) ->  case rt of 
+                              IE -> filter (\x -> (CF.getDate x >= _sd) && (CF.getDate x < _ed)) _trs
+                              EI -> filter (\x -> (CF.getDate x > _sd) && (CF.getDate x <= _ed)) _trs
   where
-    _projCf = fromMaybe (CF.CashFlowFrame []) (P.futureCf _pool)
-    _trs =  CF.getTsCashFlowFrame _projCf
+    (CF.CashFlowFrame _trs) = fromMaybe (CF.CashFlowFrame []) (P.futureCf _pool)
 
 
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
