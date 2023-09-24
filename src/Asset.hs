@@ -90,12 +90,12 @@ class Show a => Asset a where
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
                    ,asOfDate :: Date                                        -- ^ date of the assets/pool cashflow
-                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)  -- ^ other misc balance data
+                   ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    }deriving (Show,Generic)
 
 -- | get stats of pool 
-getIssuanceField :: Pool a -> IssuanceFields -> Centi
+getIssuanceField :: Pool a -> CutoffFields -> Centi
 getIssuanceField p@Pool{issuanceStat = Just m} s
   = case Map.lookup s m of
       Just r -> r

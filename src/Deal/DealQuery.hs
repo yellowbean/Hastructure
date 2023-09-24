@@ -71,7 +71,6 @@ patchDateToStats d t
          _ -> t
 
 
-
 queryDealRate :: P.Asset a => TestDeal a -> DealStats -> Micro
 queryDealRate t s =
   fromRational $ 
@@ -472,6 +471,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
       case trgs of 
         Just _trgs -> Trg.trgStatus $ (_trgs Map.! dealcycle) Map.! tName
         Nothing -> error "no trigger for this deal"
+    
     IsMostSenior bn bns ->
       let 
         bn1:bns1 =  (bndMap Map.!) <$> (bn:bns)
@@ -489,6 +489,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
                              L ->  testRate < r
                              LE -> testRate <= r
                              E ->  testRate == r
+    
+    IsDealStatus st -> status t == st
 
     TestAny b dss -> any (== b) [ queryDealBool t ds | ds <- dss ]
     TestAll b dss -> all (== b) [ queryDealBool t ds | ds <- dss ]

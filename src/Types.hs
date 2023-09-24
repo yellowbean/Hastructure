@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Types
-  (DayCount(..),DateType(..),OverrideType(..),IssuanceFields(..)
+  (DayCount(..),DateType(..),OverrideType(..),CutoffFields(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
@@ -341,18 +341,21 @@ parseTxn t = case tagName of
       tagName =  head sr!!1::String
       contents = head sr!!2::String
 
-data IssuanceFields = IssuanceBalance      -- ^ pool issuance balance
-                    | HistoryRecoveries    -- ^ cumulative recoveries
-                    | HistoryInterest      -- ^ cumulative interest collected
-                    | HistoryPrepayment    -- ^ cumulative prepayment collected
-                    | HistoryPrincipal     -- ^ cumulative principal collected
-                    | HistoryRental        -- ^ cumulative rental collected
-                    deriving (Show,Ord,Eq,Read,Generic)
+data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
+                  | HistoryRecoveries    -- ^ cumulative recoveries
+                  | HistoryInterest      -- ^ cumulative interest collected
+                  | HistoryPrepayment    -- ^ cumulative prepayment collected
+                  | HistoryPrincipal     -- ^ cumulative principal collected
+                  | HistoryRental        -- ^ cumulative rental collected
+                  | HistoryDefaults      -- ^ cumulative default balance
+                  | HistoryDelinquency   -- ^ cumulative delinquency balance
+                  | HistoryLoss          -- ^ cumulative loss/write-off balance
+                  deriving (Show,Ord,Eq,Read,Generic)
 
-instance ToJSONKey IssuanceFields where
+instance ToJSONKey CutoffFields where
   toJSONKey = toJSONKeyText (Text.pack . show)
 
-instance FromJSONKey IssuanceFields where
+instance FromJSONKey CutoffFields where
   fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
@@ -432,6 +435,7 @@ data DealStats = CurrentBondBalance
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatus DealCycle String
+               | IsDealStatus DealStatus
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
                | TestAll Bool [DealStats]
@@ -754,5 +758,5 @@ $(deriveJSON defaultOptions ''PricingMethod)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''RoundingBy)
-$(deriveJSON defaultOptions ''IssuanceFields)
+$(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''RateAssumption)
