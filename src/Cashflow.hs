@@ -309,7 +309,7 @@ mflowPrepayment (LoanFlow _ _ _ _ x _ _ _ _) = x
 mflowPrepayment _  = error "not supported"
 
 mflowDefault :: TsRow -> Balance
-mflowDefault (MortgageFlow _ _ _ _ _ _ _ x _ _ _ _) = x
+mflowDefault (MortgageFlow _ _ _ _ _ _ x _ _ _ _ _) = x
 mflowDefault (LoanFlow _ _ _ _ _ x _ _ _) = x
 mflowDefault _  = 0
 

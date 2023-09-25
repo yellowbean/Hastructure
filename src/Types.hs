@@ -224,6 +224,7 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | Revolving
                 | Ended                             -- ^ Deal was marked as closed
                 | PreClosing                        -- ^ Deal was not closed
+                | Called                            -- ^ Deal was called
                 deriving (Show,Ord,Eq,Read, Generic)
 
 data DealCycle = EndCollection         -- ^ | collection period <HERE> collection action , waterfall action

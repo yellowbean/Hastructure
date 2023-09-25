@@ -343,23 +343,23 @@ projAssetUnion (ACM.MO ast) d assumps mRates
   = let 
       (cf,m) = P.projCashflow ast d assumps mRates
     in 
-      (CF.insertBegTsRow d cf,m)
+      (cf,m)
         
 projAssetUnion (ACM.LO ast) d assumps mRates = 
     let 
       (cf,m) = P.projCashflow ast d assumps mRates
     in
-      (CF.insertBegTsRow d cf,m)
+      (cf,m)
 projAssetUnion (ACM.IL ast) d assumps mRates = 
     let 
       (cf,m) = P.projCashflow ast d assumps mRates
     in
-      (CF.insertBegTsRow d cf,m)
+      (cf,m)
 projAssetUnion (ACM.LS ast) d assumps mRates = 
     let 
       (cf,m) = P.projCashflow ast d assumps mRates
     in
-      (CF.insertBegTsRow d cf,m)
+      (cf,m)
 
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame

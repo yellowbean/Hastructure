@@ -250,8 +250,7 @@ instance ToSchema RunAssetReq
 
 wrapRunAsset :: RunAssetReq -> ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates Nothing) 
-  = (P.aggPool ((\a -> D.projAssetUnion a d assumps mRates) <$> assets)
-    , Nothing) 
+  = (P.aggPool ((\a -> D.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
 
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates (Just pm)) 
   = let 
@@ -287,7 +286,7 @@ $(deriveJSON defaultOptions ''RunDateReq)
 
 type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] ((CF.CashFlowFrame, Map.Map CutoffFields Balance),Maybe [PriceResult])
-            :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (CF.CashFlowFrame,Map.Map CutoffFields Balance)
+            :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (CF.CashFlowFrame, Map.Map CutoffFields Balance)
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName (CF.CashFlowFrame,Map.Map CutoffFields Balance))
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)

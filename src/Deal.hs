@@ -253,7 +253,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
 run :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe (RevolvingPool , AP.AssetPerf)-> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run t@TestDeal{status=Ended} pcf ads _ _ _ log  = (prepareDeal t,log) `debug` ("Deal Ended")
 run t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
-run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFlow (Just (ad:ads)) rates calls rAssump log
+run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus} poolFlow (Just (ad:ads)) rates calls rAssump log
   | (CF.sizeCashFlowFrame poolFlow == 0) && (queryDeal t  AllAccBalance == 0) 
      = let 
          _dealAfterCleanUp = foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal")
@@ -284,9 +284,10 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFl
                if testCalls dRunWithTrigger1 d callOpts then 
                  let 
                     dealAfterCleanUp = foldl (performAction d) dRunWithTrigger1 cleanUpActions 
+                    newStLogs = [DealStatusChangeTo d dStatus Called ] 
                     endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogs
                  in  
-                    (prepareDeal dealAfterCleanUp, endingLogs) -- `debug` ("Called ! "++ show d)
+                    (prepareDeal dealAfterCleanUp, endingLogs++newStLogs) -- `debug` ("Called ! "++ show d)
                else
                  run dRunWithTrigger1 (runPoolFlow newRc) (Just ads) rates calls rAssump newLogs -- `debug` ("status in run waterfall"++show (status dRunWithTrigger1))
              Nothing ->

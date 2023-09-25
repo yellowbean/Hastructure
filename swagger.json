@@ -817,18 +817,21 @@
                         "$ref": "#/components/schemas/Ts"
                     },
                     "poolHairCut": {
-                        "items": [
-                            {
-                                "$ref": "#/components/schemas/PoolSource"
-                            },
-                            {
-                                "format": "double",
-                                "type": "number"
-                            }
-                        ],
-                        "maxItems": 2,
-                        "type": "array",
-                        "minItems": 2
+                        "items": {
+                            "items": [
+                                {
+                                    "$ref": "#/components/schemas/PoolSource"
+                                },
+                                {
+                                    "format": "double",
+                                    "type": "number"
+                                }
+                            ],
+                            "maxItems": 2,
+                            "type": "array",
+                            "minItems": 2
+                        },
+                        "type": "array"
                     }
                 }
             },
@@ -6136,6 +6139,24 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "$ref": "#/components/schemas/DealStatus"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "IsDealStatus"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/DealStats"
@@ -9989,6 +10010,20 @@
                         "required": [
                             "tag"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Called"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -11266,7 +11301,21 @@
                                 "schema": {
                                     "type": "object",
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/CashFlowFrame"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/CashFlowFrame"
+                                            },
+                                            {
+                                                "type": "object",
+                                                "additionalProperties": {
+                                                    "multipleOf": 1.0e-2,
+                                                    "type": "number"
+                                                }
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "type": "array",
+                                        "minItems": 2
                                     }
                                 }
                             }
@@ -11326,7 +11375,21 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
                                 }
                             }
                         },
@@ -11528,7 +11591,21 @@
                                 "schema": {
                                     "items": [
                                         {
-                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                        "multipleOf": 1.0e-2,
+                                                        "type": "number"
+                                                    }
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
                                         },
                                         {
                                             "items": {

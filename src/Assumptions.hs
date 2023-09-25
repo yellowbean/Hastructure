@@ -50,10 +50,8 @@ lookupAssumptionByIdx sbi i
         Nothing -> error ("Can't find idx"++ show i ++"in starfication list"++ (show sbi))
 
 
-data ApplyAssumptionType = PoolLevel AssetPerf
-                           -- ^ assumption apply to all assets in the pool
-                         | ByIndex [StratPerfByIdx]
-                           -- ^ assumption which only apply to a set of assets in the pool
+data ApplyAssumptionType = PoolLevel AssetPerf      -- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratPerfByIdx] -- ^ assumption which only apply to a set of assets in the pool
                          deriving (Show,Generic)
 
 data NonPerfAssumption = NonPerfAssumption {
