@@ -338,11 +338,28 @@ buyRevolvingPool d rs rp@(AssetCurve aus)
     in 
       (assetBought, rp)
 
-projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerf -> Maybe [RateAssumption] -> CF.CashFlowFrame
-projAssetUnion (ACM.MO ast) d assumps mRates = CF.cfInsertHead (CF.MortgageFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0 0 Nothing Nothing) $ fst $ P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.LO ast) d assumps mRates = CF.cfInsertHead (CF.LoanFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0) $ fst $ P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.IL ast) d assumps mRates = CF.cfInsertHead (CF.LoanFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0) $ fst $ P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.LS ast) d assumps mRates = CF.cfInsertHead (CF.LeaseFlow d (P.getCurrentBal ast) 0 ) $ fst $ P.projCashflow ast d assumps mRates
+projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+projAssetUnion (ACM.MO ast) d assumps mRates 
+  = let 
+      (cf,m) = P.projCashflow ast d assumps mRates
+    in 
+      (CF.insertBegTsRow d cf,m)
+        
+projAssetUnion (ACM.LO ast) d assumps mRates = 
+    let 
+      (cf,m) = P.projCashflow ast d assumps mRates
+    in
+      (CF.insertBegTsRow d cf,m)
+projAssetUnion (ACM.IL ast) d assumps mRates = 
+    let 
+      (cf,m) = P.projCashflow ast d assumps mRates
+    in
+      (CF.insertBegTsRow d cf,m)
+projAssetUnion (ACM.LS ast) d assumps mRates = 
+    let 
+      (cf,m) = P.projCashflow ast d assumps mRates
+    in
+      (CF.insertBegTsRow d cf,m)
 
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
@@ -426,7 +443,7 @@ performActionWrap d
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
       -- newBoughtPcf = (CF.shiftCfToStartDate d) <$> [ projAssetUnion ast d perfAssumps | ast <- assetBought ]
-      newBoughtPcf = [ projAssetUnion (updateOriginDate2 d ast) d perfAssumps mRates | ast <- assetBought ]
+      newBoughtPcf = fst <$> [ projAssetUnion (updateOriginDate2 d ast) d perfAssumps mRates | ast <- assetBought ]
       poolCurrentTr = CF.buildBegTsRow d tr
       currentPoolFlow = CF.cfInsertHead poolCurrentTr pcf
       --newPcf = foldl CF.mergePoolCf pcf newBoughtPcf  `debug` ("reolvoing cf"++show d++"\n"++show newBoughtPcf++"\n"++"pool cf 1st"++show (CF.cfAt pcf 0))

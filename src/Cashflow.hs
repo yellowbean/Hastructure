@@ -16,7 +16,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsDateLT,getDate,getTxnLatestAsOf
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
-                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow
+                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,TsRow(..),cfAt,cutoffTrs) where
 
 import Data.Time (Day)
@@ -401,6 +401,13 @@ buildBegTsRow :: Date -> TsRow -> TsRow
 buildBegTsRow d tr 
   = (tsSetBalance (mflowBalance tr + mflowAmortAmount tr)) (emptyTsRow d tr)
 
+insertBegTsRow :: Date -> CashFlowFrame -> CashFlowFrame
+insertBegTsRow d (CashFlowFrame []) = CashFlowFrame []
+insertBegTsRow d (CashFlowFrame (txn:txns))
+  = let
+      begRow = buildBegTsRow d txn
+    in 
+      CashFlowFrame (begRow:txn:txns)
 
 combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combineCashFlow cf1 (CashFlowFrame txn) 

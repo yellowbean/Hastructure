@@ -552,7 +552,7 @@ calcDealStageDate (CurrentDates _ Nothing endDate _ _) = [(endDate,Ended)]
 calcDealStageDate (CurrentDates _ (Just revolvingEndDate) endDate _ _) = [(endDate,Ended)]
 calcDealStageDate _ = []
 
-
+-- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
 runPool :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance )]
 -- schedule cashflow just ignores the interest rate assumption
 runPool (P.Pool [] (Just cf) asof _ _) Nothing _ = [(cf, Map.empty)]
