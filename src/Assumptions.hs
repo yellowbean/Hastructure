@@ -158,8 +158,8 @@ projRates (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
         let 
           resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
           ratesFromCurve = case _rateAssumption of
-                             (RateCurve _ ts)   -> (\x -> spd + (fromRational x) ) <$>  (getValByDates ts Inc resetDates)
-                             (RateFlat _ v) -> (spd +) <$> replicate (length resetDates) v
+                             (RateCurve _ ts)  -> (\x -> spd + (fromRational x) ) <$>  (getValByDates ts Inc resetDates)
+                             (RateFlat _ v)    -> (spd +) <$> replicate (length resetDates) v
                              _ -> error ("Invalid rate type "++ show _rateAssumption)
           ratesUsedByDates =  getValByDates
                                 (mkRateTs $ zip resetDates ratesFromCurve)

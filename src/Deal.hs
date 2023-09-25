@@ -650,7 +650,8 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
                          Just AP.NonPerfAssumption{AP.stopRunBy = Just d} -> cutBy Exc Past d _actionDates
                                     
 
-    (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump) -- `debug` ("agg pool flow")
+    (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump))
+    -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
     poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     pCollectionCfAfterCutoff = let 
                                  _poolflows = CF.aggTsByDates poolCfTs (getDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )

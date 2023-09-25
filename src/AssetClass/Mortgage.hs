@@ -312,8 +312,8 @@ instance Ast.Asset Mortgage where
       
       rate_vector = A.projRates or mRates cf_dates
       
-      (ppy_rates,def_rates,recovery_rate,recovery_lag) = Ast.buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.MortgageAssump amd amp amr ams)
-      txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType 
+      (ppy_rates,def_rates,recovery_rate,recovery_lag) = Ast.buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.MortgageAssump amd amp amr ams) -- `debug` ("Rate vector"++ show rate_vector)
+      txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType  --  `debug` ("Rate vector"++ show rate_vector)
 
   -- project current mortgage(with delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 

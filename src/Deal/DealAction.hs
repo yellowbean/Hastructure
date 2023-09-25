@@ -88,32 +88,30 @@ pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
 
 calcLiquidationAmount :: PricingMethod -> P.Pool a -> Date -> Amount
-calcLiquidationAmount alm pool d 
-  = case alm of 
-      BalanceFactor currentFactor defaultFactor ->
-          case P.futureCf pool of 
-            Nothing -> 0  -- `debug` ("No futureCF")
-            Just _futureCf@(CashFlowFrame trs) ->
-              let 
-                earlierTxns = cutBy Inc Past d trs
-                currentCumulativeDefaultBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
-              in 
-                case earlierTxns of 
-                  [] -> 0  -- `debug` ("No pool Inflow")
-                  _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor) 
-                  -- TODO need to check if missing last row
+calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
+  = case P.futureCf pool of 
+      Nothing -> 0  -- `debug` ("No futureCF")
+      Just _futureCf@(CashFlowFrame trs) ->
+        let 
+          earlierTxns = cutBy Inc Past d trs
+          currentCumulativeDefaultBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
+        in 
+          case earlierTxns of 
+            [] -> 0  -- `debug` ("No pool Inflow")
+            _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor) 
+            -- TODO need to check if missing last row
 
-      PV discountRate recoveryPct ->
-          case P.futureCf pool of
-            Nothing -> 0 
-            Just (CashFlowFrame trs) ->
-                let 
-                  futureTxns = cutBy Inc Future d trs
-                  earlierTxns = cutBy Exc Past d trs 
-                  pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
-                  currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
-                in 
-                  pvCf + mulBI currentDefaulBal recoveryPct
+calcLiquidationAmount (PV discountRate recoveryPct) pool d 
+  = case P.futureCf pool of
+      Nothing -> 0 
+      Just (CashFlowFrame trs) ->
+          let 
+            futureTxns = cutBy Inc Future d trs
+            earlierTxns = cutBy Exc Past d trs 
+            pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
+            currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
+          in 
+            pvCf + mulBI currentDefaulBal recoveryPct
 
 liquidatePool :: PricingMethod -> T.Day -> String -> TestDeal a -> TestDeal a
 liquidatePool lq d accName t =
@@ -339,27 +337,10 @@ buyRevolvingPool d rs rp@(AssetCurve aus)
       (assetBought, rp)
 
 projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-projAssetUnion (ACM.MO ast) d assumps mRates 
-  = let 
-      (cf,m) = P.projCashflow ast d assumps mRates
-    in 
-      (cf,m)
-        
-projAssetUnion (ACM.LO ast) d assumps mRates = 
-    let 
-      (cf,m) = P.projCashflow ast d assumps mRates
-    in
-      (cf,m)
-projAssetUnion (ACM.IL ast) d assumps mRates = 
-    let 
-      (cf,m) = P.projCashflow ast d assumps mRates
-    in
-      (cf,m)
-projAssetUnion (ACM.LS ast) d assumps mRates = 
-    let 
-      (cf,m) = P.projCashflow ast d assumps mRates
-    in
-      (cf,m)
+projAssetUnion (ACM.MO ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.LO ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.IL ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.LS ast) d assumps mRates = P.projCashflow ast d assumps mRates
 
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
