@@ -28,7 +28,7 @@ import AssetClass.AssetBase
 
 data RevolvingPool = ConstantAsset [AssetUnion]          -- ^ Assets in revolving pool stays constant after being bought
                    | StaticAsset [AssetUnion]            -- ^ Assets in revolving pool will decrease afeter being bought
-                   | AssetCurve [TsPoint [AssetUnion]]   -- ^ Assets are change by dates
+                   | AssetCurve [TsPoint [AssetUnion]]   -- ^ Assets are changing by dates
                    deriving (Show,Generic)
 
 
