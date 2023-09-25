@@ -461,7 +461,7 @@ instance Ast.Asset Mortgage where
 
   
   -- schedule mortgage flow WITH delinq
-  projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay assumps@(pAssump@(A.MortgageAssump _ _ _ ams),dAssump,fAssump) mRates
+  projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay assumps@(pAssump@(A.MortgageDeqAssump _ _ _ ams),dAssump,fAssump) mRates
     = let 
         (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
       in 
@@ -491,7 +491,8 @@ instance Ast.Asset Mortgage where
                  (replicate curveDatesLength 0.0)
                  (replicate curveDatesLength 0.0)
                  (defaultPct,defaultLag,recoveryRate,recoveryLag) -- `debug` ("curveDatesLength"++ show curveDatesLength)
-
+  
+  projCashflow a b c d = error $ "Failed to match when proj mortgage>>" ++ show a ++ show b ++ show c ++ show d
         
 
   getBorrowerNum m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) cb cr rt mbn _ ) = fromMaybe 1 mbn

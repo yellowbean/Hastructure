@@ -455,8 +455,8 @@ delinqScheduleCFTest =
                       ,A.DummyDelinqAssump
                       ,A.DummyDefaultAssump))
 
-    poolCf = head $ D.runPool pool assump1 Nothing
-    poolCf2 = head $ D.runPool pool assump2 Nothing
+    poolCf = fst . head $ D.runPool pool assump1 Nothing
+    poolCf2 = fst . head $ D.runPool pool assump2 Nothing
   in 
     testGroup "delinq run on schedule flow" [
       testCase "case 01" $
