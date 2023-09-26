@@ -1,5 +1,14 @@
 # Changelog for Hastructure
 
+## 0.21.3
+### 2023-9-26
+* NEW: include a default/delinq/loss status map when projecting cashflow
+* NEW: implement `haircut` as extra stress projecting `mortgage` 
+* ENHANCE: include `called` deal status, which will be set when deal was triggered with a clean up call assumption
+* ENHANCE: expose `runAsset` endpoint
+* ENHANCE: expose formula query on `deal status` as well as `trigger status`
+* FIX: adjust bond reset date from `cutoff date` to `closing date`
+
 ## 0.21.1
 ### 2023-9-21
 * BREAK: seperate `performance assumption`
@@ -135,7 +144,7 @@
 
 ## 0.15.4
 #### 2023-5-6
-* Fix cashflow projection logic for `Installment`
+* FIX: Fix cashflow projection logic for `Installment`
 * Include `DefaultedRecovery` assumption for defaulted assets.
 
 ## 0.15
