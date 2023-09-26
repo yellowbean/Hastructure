@@ -8,7 +8,7 @@ module Asset (Pool(..),aggPool
        ,calcPiFlow,calc_p_i_flow_even,calc_p_i_flow_i_p
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
-       ,priceAsset
+       ,priceAsset,applyHaircut
 ) where
 
 import qualified Data.Time as T
@@ -66,7 +66,7 @@ class Show a => Asset a where
   -- | get number of remaining payments
   getRemainTerms :: a -> Int
   -- | project asset cashflow under credit stress and interest assumptions
-  projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> CF.CashFlowFrame
+  projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
@@ -78,7 +78,7 @@ class Show a => Asset a where
   calcAlignDate ast d = let 
                           payDates = getPaymentDates ast 0
                           remainTerms = getRemainTerms ast 
-                          benchDate = (reverse payDates)!!remainTerms
+                          benchDate = (reverse payDates)!!remainTerms   --TODO 24/24 raises error
                           offset = daysBetween benchDate d
                         in 
                           T.addDays offset $ getOriginDate ast
@@ -89,13 +89,13 @@ class Show a => Asset a where
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
-                   ,asOfDate :: Date                                        -- ^ date of the assets/pool cashflow
-                   ,issuanceStat :: Maybe (Map.Map IssuanceFields Balance)  -- ^ other misc balance data
+                   ,asOfDate :: Date                                        -- ^ include cashflow after this date 
+                   ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    }deriving (Show,Generic)
 
 -- | get stats of pool 
-getIssuanceField :: Pool a -> IssuanceFields -> Centi
+getIssuanceField :: Pool a -> CutoffFields -> Centi
 getIssuanceField p@Pool{issuanceStat = Just m} s
   = case Map.lookup s m of
       Just r -> r
@@ -106,6 +106,7 @@ getIssuanceField Pool{issuanceStat = Nothing} _
 
 -- | calculate period payment (Annuity/Level mortgage)
 calcPmt :: Balance -> IRate -> Int -> Amount
+calcPmt bal 0.0 periods = divideBI bal periods
 calcPmt bal periodRate periods =
   let
     periodRate1 = toRational periodRate
@@ -125,6 +126,37 @@ applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
     (Just ppyFactor,Nothing) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor, def)
     (Just ppyFactor,Just defFactor) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor
                                        ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
+
+
+-- | apply haircuts to cashflow from a stress map
+
+applyHaircut :: Maybe A.ExtraStress -> CF.CashFlowFrame -> CF.CashFlowFrame
+applyHaircut Nothing cf = cf 
+applyHaircut (Just ExtraStress{A.poolHairCut = Nothing}) cf = cf
+applyHaircut (Just ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFrame txns)
+  = CF.CashFlowFrame $ 
+      (\txn -> foldr 
+                 (\fn acc -> fn acc ) 
+                 txn 
+                 (applyHaircutTxn <$> haircuts) ) <$> txns
+    where
+      applyHaircutTxn (CollectedInterest,r) 
+                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal prin (mulBR interest (1-r)) ppy delinq def recovery loss irate mbn mppn
+      applyHaircutTxn (CollectedPrincipal,r)
+                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal (mulBR prin (1-r)) interest ppy delinq def recovery loss irate mbn mppn
+      applyHaircutTxn (CollectedRecoveries,r)
+                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal prin interest ppy delinq def (mulBR recovery (1-r)) loss irate mbn mppn
+      applyHaircutTxn (CollectedPrepayment,r)
+                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal prin interest (mulBR ppy (1-r)) delinq def recovery loss irate mbn mppn
+      applyHaircutTxn (CollectedPrepaymentPenalty,r)
+                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn)
+      applyHaircutTxn x y = y
+        
 
 buildPrepayRates :: [Date] -> Maybe A.AssetPrepayAssumption -> [Rate]
 buildPrepayRates ds Nothing = replicate (pred (length ds)) 0.0
@@ -255,7 +287,7 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
 priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> PriceResult
 priceAsset m d (PVCurve curve) assumps mRates
   = let 
-      CF.CashFlowFrame txns = projCashflow m d assumps mRates
+      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
       pv = pv3 curve d ds amts
@@ -267,10 +299,11 @@ priceAsset m d (PVCurve curve) assumps mRates
 priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
   = let 
       cb =  getCurrentBal m
-      val = case isDefaulted m of 
-              False -> mulBR cb currentFactor 
-              True  -> mulBR cb defaultedFactor
-      CF.CashFlowFrame txns = projCashflow m d assumps mRates
+      val = if isDefaulted m then 
+              mulBR cb currentFactor 
+            else
+              mulBR cb defaultedFactor
+      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
       wal = calcWAL ByYear cb d (zip amts ds) 
@@ -278,9 +311,16 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
       AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
 
 -- | Aggregate all cashflow into a single cashflow frame
-aggPool :: [CF.CashFlowFrame]  -> CF.CashFlowFrame
-aggPool [] = CF.CashFlowFrame []
-aggPool xs = foldr1 CF.combine xs  
+aggPool :: [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]  -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+aggPool [] = (CF.CashFlowFrame [],Map.empty)
+aggPool xs 
+  = let
+      cfs = fst <$> xs
+      cf = foldr1 CF.combine cfs 
+      stats = foldr1 (Map.unionWith (+)) $ snd <$> xs
+    in
+      (cf,stats)
+    
 
 data AggregationRule = Regular Date Period
                      | Custom Date [Date]

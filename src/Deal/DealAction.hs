@@ -58,26 +58,18 @@ import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
 debug = flip trace
 
-calcDayToPoolDate :: TestDeal a -> Date -> Date 
-calcDayToPoolDate t calcDay 
-  = CF.mflowDate $ last pFlows -- `debug` ("calDayToPoolDate"++show calcDay ++">>>>>"++show pFlows)
-    where 
-      pFlows = getPoolFlows t Nothing (Just calcDay) EI  -- II here is not being used
-
 
 getPoolFlows :: TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   case (sd,ed) of
-    (Nothing,Nothing) ->  _trs
-    (Nothing,Just _ed) -> case rt of 
-                             EI -> filter (\x -> CF.getDate x <= _ed) _trs
-    (Just _sd,Nothing) ->  cutBy Inc Future _sd _trs 
-    (Just _sd,Just _ed) -> case rt of 
-                             IE -> filter (\x -> (CF.getDate x >= _sd) && (CF.getDate x < _ed)) _trs
-                             EI -> filter (\x -> (CF.getDate x > _sd) && (CF.getDate x <= _ed)) _trs
+    (Nothing,Nothing)   ->  _trs
+    (Nothing,Just _ed)  ->  cutBy Inc Past _ed _trs
+    (Just _sd,Nothing)  ->  cutBy Inc Future _sd _trs 
+    (Just _sd,Just _ed) ->  case rt of 
+                              IE -> filter (\x -> (CF.getDate x >= _sd) && (CF.getDate x < _ed)) _trs
+                              EI -> filter (\x -> (CF.getDate x > _sd) && (CF.getDate x <= _ed)) _trs
   where
-    _projCf = fromMaybe (CF.CashFlowFrame []) (P.futureCf _pool)
-    _trs =  CF.getTsCashFlowFrame _projCf
+    (CF.CashFlowFrame _trs) = fromMaybe (CF.CashFlowFrame []) (P.futureCf _pool)
 
 
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
@@ -96,32 +88,30 @@ pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
 
 calcLiquidationAmount :: PricingMethod -> P.Pool a -> Date -> Amount
-calcLiquidationAmount alm pool d 
-  = case alm of 
-      BalanceFactor currentFactor defaultFactor ->
-          case P.futureCf pool of 
-            Nothing -> 0  -- `debug` ("No futureCF")
-            Just _futureCf@(CashFlowFrame trs) ->
-              let 
-                earlierTxns = cutBy Inc Past d trs
-                currentCumulativeDefaultBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
-              in 
-                case earlierTxns of 
-                  [] -> 0  -- `debug` ("No pool Inflow")
-                  _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor) 
-                  -- TODO need to check if missing last row
+calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
+  = case P.futureCf pool of 
+      Nothing -> 0  -- `debug` ("No futureCF")
+      Just _futureCf@(CashFlowFrame trs) ->
+        let 
+          earlierTxns = cutBy Inc Past d trs
+          currentCumulativeDefaultBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
+        in 
+          case earlierTxns of 
+            [] -> 0  -- `debug` ("No pool Inflow")
+            _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor) 
+            -- TODO need to check if missing last row
 
-      PV discountRate recoveryPct ->
-          case P.futureCf pool of
-            Nothing -> 0 
-            Just (CashFlowFrame trs) ->
-                let 
-                  futureTxns = cutBy Inc Future d trs
-                  earlierTxns = cutBy Exc Past d trs 
-                  pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
-                  currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
-                in 
-                  pvCf + mulBI currentDefaulBal recoveryPct
+calcLiquidationAmount (PV discountRate recoveryPct) pool d 
+  = case P.futureCf pool of
+      Nothing -> 0 
+      Just (CashFlowFrame trs) ->
+          let 
+            futureTxns = cutBy Inc Future d trs
+            earlierTxns = cutBy Exc Past d trs 
+            pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
+            currentDefaulBal = sum $ map (\x -> (CF.mflowDefault x) - (CF.mflowRecovery x) - (CF.mflowLoss x)) earlierTxns
+          in 
+            pvCf + mulBI currentDefaulBal recoveryPct
 
 liquidatePool :: PricingMethod -> T.Day -> String -> TestDeal a -> TestDeal a
 liquidatePool lq d accName t =
@@ -144,17 +134,15 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lp
   | otherwise = f 
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase _r) fs fd (Just _fdDay) fa lpd _)
-  = f{ F.feeDue=fd+newDue, F.feeDueDate = Just newDueDay }  -- `debug` ("Fee DUE new Due "++show calcDay ++show baseBal ++show(newDue))                   
+  = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show calcDay ++show baseBal ++show(newDue))                   
       where 
         accrueStart = _fdDay
-        collectionEndDay = calcDayToPoolDate t calcDay
-        (baseBal,newDueDay) = case feeBase of
-                                CurrentPoolBalance ->  (CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing II,collectionEndDay)-- `debug` ("FeeBase" ++ show (getPoolFlows t Nothing Nothing II))
-                                -- CurrentPoolBegBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing
-                                OriginalPoolBalance -> (mulBR (P.getIssuanceField (pool t) IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),collectionEndDay)
-                                OriginalBondBalance -> (mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay),calcDay)
-                                CurrentBondBalance -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t),calcDay)
-                                CurrentBondBalanceOf bns -> (Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns)),calcDay)
+        baseBal = case feeBase of
+                    CurrentPoolBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing II
+                    OriginalPoolBalance -> mulBR (P.getIssuanceField (pool t) IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
+                    OriginalBondBalance -> mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
+                    CurrentBondBalance -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t)
+                    CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns))
         r = toRational $ queryDealRate t _r 
         newDue = mulBR baseBal r
 
@@ -257,6 +245,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just 
                 dc = case bi of 
                        L.Floater _ _ _ _ _dc _ _ -> _dc 
                        L.Fix _ _dc -> _dc 
+                       _ -> DC_ACT_365F
                 new_due_int = calcInt (bond_bal+int_due) int_due_date calc_date bond_rate dc  -- `debug` ("Bond bal"++show bond_bal++">>"++show int_due_date++">>"++ show calc_date++">>"++show bond_rate)
 
 
@@ -348,11 +337,11 @@ buyRevolvingPool d rs rp@(AssetCurve aus)
     in 
       (assetBought, rp)
 
-projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerf -> Maybe [RateAssumption] -> CF.CashFlowFrame
-projAssetUnion (ACM.MO ast) d assumps mRates = CF.cfInsertHead (CF.MortgageFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0 0 Nothing Nothing) $ P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.LO ast) d assumps mRates = CF.cfInsertHead (CF.LoanFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0) $ P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.IL ast) d assumps mRates = CF.cfInsertHead (CF.LoanFlow d (P.getCurrentBal ast) 0 0 0 0 0 0 0) $ P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.LS ast) d assumps mRates = CF.cfInsertHead (CF.LeaseFlow d (P.getCurrentBal ast) 0 ) $ P.projCashflow ast d assumps mRates
+projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+projAssetUnion (ACM.MO ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.LO ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.IL ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.LS ast) d assumps mRates = P.projCashflow ast d assumps mRates
 
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
@@ -436,7 +425,7 @@ performActionWrap d
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
       -- newBoughtPcf = (CF.shiftCfToStartDate d) <$> [ projAssetUnion ast d perfAssumps | ast <- assetBought ]
-      newBoughtPcf = [ projAssetUnion (updateOriginDate2 d ast) d perfAssumps mRates | ast <- assetBought ]
+      newBoughtPcf = fst <$> [ projAssetUnion (updateOriginDate2 d ast) d perfAssumps mRates | ast <- assetBought ]
       poolCurrentTr = CF.buildBegTsRow d tr
       currentPoolFlow = CF.cfInsertHead poolCurrentTr pcf
       --newPcf = foldl CF.mergePoolCf pcf newBoughtPcf  `debug` ("reolvoing cf"++show d++"\n"++show newBoughtPcf++"\n"++"pool cf 1st"++show (CF.cfAt pcf 0))

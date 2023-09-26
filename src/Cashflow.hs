@@ -16,8 +16,8 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsDateLT,getDate,getTxnLatestAsOf
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
-                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow
-                ,TsRow(..),cfAt) where
+                ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
+                ,TsRow(..),cfAt,cutoffTrs) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -38,6 +38,7 @@ import Data.Aeson.Types
 import Text.Printf
 
 import Debug.Trace
+import qualified Control.Lens as Map
 debug = flip trace
 
 type Delinquent = Centi
@@ -86,8 +87,7 @@ cfAt (CashFlowFrame trs) idx =
         Just (trs!!idx)
 
 cfInsertHead :: TsRow -> CashFlowFrame -> CashFlowFrame
-cfInsertHead tr (CashFlowFrame trs)
-  = CashFlowFrame $ tr:trs
+cfInsertHead tr (CashFlowFrame trs) = CashFlowFrame $ tr:trs
 
 getSingleTsCashFlowFrame :: CashFlowFrame -> Date -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame trs) d
@@ -309,9 +309,9 @@ mflowPrepayment (LoanFlow _ _ _ _ x _ _ _ _) = x
 mflowPrepayment _  = error "not supported"
 
 mflowDefault :: TsRow -> Balance
-mflowDefault (MortgageFlow _ _ _ _ _ _ _ x _ _ _ _) = x
+mflowDefault (MortgageFlow _ _ _ _ _ _ x _ _ _ _ _) = x
 mflowDefault (LoanFlow _ _ _ _ _ x _ _ _) = x
-mflowDefault _  = error "not supported"
+mflowDefault _  = 0
 
 mflowRecovery :: TsRow -> Balance
 mflowRecovery (MortgageFlow _ _ _ _ _ _ _ x _ _ _ _) = x
@@ -342,6 +342,11 @@ mflowBegBalance (LeaseFlow _ b r) = b + r
 mflowLoss :: TsRow -> Balance
 mflowLoss (MortgageFlow _ _ _ _ _ _ _ _ x _ _ _) = x
 mflowLoss (LoanFlow _ _ _ _ _ _ _ x _) = x
+mflowLoss _ = 0
+
+mflowDelinq :: TsRow -> Balance
+mflowDelinq (MortgageFlow _ _ _ _ _ x _ _ _ _ _ _) = x
+mflowDelinq _ = 0
 
 mflowRate :: TsRow -> IRate
 mflowRate (MortgageFlow _ _ _ _ _ _ _ _ _ x _ _) = x
@@ -396,6 +401,13 @@ buildBegTsRow :: Date -> TsRow -> TsRow
 buildBegTsRow d tr 
   = (tsSetBalance (mflowBalance tr + mflowAmortAmount tr)) (emptyTsRow d tr)
 
+insertBegTsRow :: Date -> CashFlowFrame -> CashFlowFrame
+insertBegTsRow d (CashFlowFrame []) = CashFlowFrame []
+insertBegTsRow d (CashFlowFrame (txn:txns))
+  = let
+      begRow = buildBegTsRow d txn
+    in 
+      CashFlowFrame (begRow:txn:txns)
 
 combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combineCashFlow cf1 (CashFlowFrame txn) 
@@ -470,6 +482,21 @@ splitTs _ tr = error $ "Not support for spliting TsRow"++show tr
 
 splitTrs :: Rate -> [TsRow] -> [TsRow]
 splitTrs r trs = splitTs r <$> trs 
+
+-- ^ split cashflow by rate while build missing defaults/losses stats
+cutoffTrs :: Date -> [TsRow] -> ([TsRow],Map.Map CutoffFields Balance)
+cutoffTrs d [] = ([],Map.empty)
+cutoffTrs d trs 
+  = let 
+      afterTrs  = cutBy Inc Future d trs
+      beforeTrs = cutBy Exc Past d trs
+      cumuDefaults = sum $ mflowDefault <$> beforeTrs 
+      cumuDelinquency = sum $ mflowDelinq <$> beforeTrs  
+      cumuLoss = sum $ mflowLoss <$> beforeTrs 
+      m = Map.fromList [(HistoryDefaults,cumuDefaults),(HistoryDelinquency,cumuDelinquency),(HistoryLoss,cumuLoss)]
+    in
+      (afterTrs, m)
+
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

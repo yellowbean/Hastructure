@@ -253,7 +253,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
 run :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe (RevolvingPool , AP.AssetPerf)-> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run t@TestDeal{status=Ended} pcf ads _ _ _ log  = (prepareDeal t,log) `debug` ("Deal Ended")
 run t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
-run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFlow (Just (ad:ads)) rates calls rAssump log
+run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus} poolFlow (Just (ad:ads)) rates calls rAssump log
   | (CF.sizeCashFlowFrame poolFlow == 0) && (queryDeal t  AllAccBalance == 0) 
      = let 
          _dealAfterCleanUp = foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal")
@@ -284,9 +284,10 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFl
                if testCalls dRunWithTrigger1 d callOpts then 
                  let 
                     dealAfterCleanUp = foldl (performAction d) dRunWithTrigger1 cleanUpActions 
+                    newStLogs = [DealStatusChangeTo d dStatus Called ] 
                     endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogs
                  in  
-                    (prepareDeal dealAfterCleanUp, endingLogs) -- `debug` ("Called ! "++ show d)
+                    (prepareDeal dealAfterCleanUp, endingLogs++newStLogs) -- `debug` ("Called ! "++ show d)
                else
                  run dRunWithTrigger1 (runPoolFlow newRc) (Just ads) rates calls rAssump newLogs -- `debug` ("status in run waterfall"++show (status dRunWithTrigger1))
              Nothing ->
@@ -366,7 +367,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap} poolFl
                   RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
                   RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
                   RtnInt -> InspectInt d ds $ queryDealInt t (patchDateToStats d ds) d
-                  _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds) `debug` ("getDealStatType"++show (getDealStatType ds)++ ">>>"++ show ds)
+                  _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds) -- `debug` ("getDealStatType"++show (getDealStatType ds)++ ">>>"++ show ds)
            in 
              run t poolFlow (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("Add log"++show newlog)
          
@@ -552,14 +553,14 @@ calcDealStageDate (CurrentDates _ Nothing endDate _ _) = [(endDate,Ended)]
 calcDealStageDate (CurrentDates _ (Just revolvingEndDate) endDate _ _) = [(endDate,Ended)]
 calcDealStageDate _ = []
 
-
-runPool :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [CF.CashFlowFrame]
+-- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
+runPool :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance )]
 -- schedule cashflow just ignores the interest rate assumption
-runPool (P.Pool [] (Just cf) asof _ _) Nothing _ = [cf]
-runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ (P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates) ] -- `debug` ("PROJ in schedule flow")
+runPool (P.Pool [] (Just cf) asof _ _) Nothing _ = [(cf, Map.empty)]
+runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
 -- contractual cashflow will use interest rate assumption
-runPool (P.Pool as _ asof _ _) Nothing  mRates = map (\x -> P.calcCashflow x asof mRates) as -- `debug` ("RUNPOOL-> calc cashflow")
+runPool (P.Pool as _ asof _ _) Nothing  mRates = map (\x -> (P.calcCashflow x asof mRates,Map.empty)) as -- `debug` ("RUNPOOL-> calc cashflow")
 
 -- asset cashflow with credit stress
 runPool (P.Pool as Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates = map (\x -> P.projCashflow x asof assumps mRates) as  -- `debug` (">> Single Pool")
@@ -569,6 +570,9 @@ runPool (P.Pool as Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
     _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
   in
     zipWith (\x a -> P.projCashflow x asof a mRates) as _assumps
+
+-- safe net to catch other cases
+runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], CF.CashFlowFrame)
@@ -626,7 +630,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
     -- bond rate resets 
     bndRateResets = let 
                       rateAdjBnds = Map.filter applicableAdjust $ bonds t
-                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates (L.bndInterestInfo b) startDate endDate) rateAdjBnds
+                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates (L.bndInterestInfo b) closingDate endDate) rateAdjBnds
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate , bdate     <- bdates ]
 
@@ -646,7 +650,8 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
                          Just AP.NonPerfAssumption{AP.stopRunBy = Just d} -> cutBy Exc Past d _actionDates
                                     
 
-    poolCf = P.aggPool $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump) -- `debug` ("agg pool flow")
+    (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
+    -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
     poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     pCollectionCfAfterCutoff = let 
                                  _poolflows = CF.aggTsByDates poolCfTs (getDates pActionDates)  -- `debug`  (("poolCf "++ show poolCfTs) )
@@ -660,10 +665,12 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
     newFeeMap = case mNonPerfAssump of
                   Nothing -> feeMap
                   Just AP.NonPerfAssumption{AP.projectedExpense = Nothing } -> feeMap
-                  Just AP.NonPerfAssumption{AP.projectedExpense = Just (fn,projectedFlow) } 
-                    -> Map.adjust (\x -> x {F.feeType = F.FeeFlow projectedFlow}) fn feeMap
-
-    newT = t {fees = newFeeMap} 
+                  -- Just AP.NonPerfAssumption{AP.projectedExpense = Just (fn,projectedFlow) } 
+                  --  -> Map.adjust (\x -> x {F.feeType = F.FeeFlow projectedFlow}) fn feeMap
+                  Just AP.NonPerfAssumption{AP.projectedExpense = Just pairs } 
+                    ->   foldr  (\(feeName,feeFlow) accM -> Map.adjust (\v -> v {F.feeType = F.FeeFlow feeFlow}) feeName accM)  feeMap pairs
+    newPoolStat = Map.unionWith (+) (fromMaybe Map.empty (P.issuanceStat thePool)) historyStats
+    newT = t {fees = newFeeMap, pool = thePool {P.issuanceStat = Just newPoolStat } } 
 
 
 depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account

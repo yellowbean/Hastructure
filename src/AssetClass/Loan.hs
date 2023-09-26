@@ -92,7 +92,7 @@ instance Asset Loan where
         pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
         cf_dates = lastN (_term + 1) $ sd:(getPaymentDates pl 0)
         l = (length cf_dates) - 1
-        rates_used = A.projRates or mRates cf_dates
+        rates_used = A.projRates _rate or mRates cf_dates
         dc = getDayCount or
         (b_flow,prin_flow,int_flow) = case ptype of
                                         Level -> calcPiFlow dc _bal pmt cf_dates rates_used
@@ -127,13 +127,17 @@ instance Asset Loan where
   -- ^ <Special Case> Projection cashflow for loan with Interest only and bullet principal at end
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt Current) 
                asOfDay
-               (A.LoanAssump defaultAssump prepayAssump recoveryAssump Nothing,_,_)
-               mRates
-      = CF.CashFlowFrame $ cutBy Inc Future asOfDay txns 
+               (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
+               mRates 
+    = let 
+        (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
+      in 
+        (applyHaircut ams (CF.CashFlowFrame futureTxns)
+        ,historyM)
     where
       last_pay_date:cf_dates =  lastN (1 + rt + recovery_lag) $ sd:getPaymentDates pl recovery_lag
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
-      rate_vector = A.projRates or mRates cf_dates
+      rate_vector = A.projRates cr or mRates cf_dates
       schedule_flow = calcCashflow pl asOfDay mRates
       schedule_cf = map CF.tsTotalCash $ CF.getTsCashFlowFrame schedule_flow
       sum_cf = sum schedule_cf
@@ -153,14 +157,18 @@ instance Asset Loan where
   -- ^ Project cashflow for loans with prepayment/default/loss and interest rate assumptions
   projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt Current) 
                asOfDay 
-               ((A.LoanAssump defaultAssump prepayAssump recoveryAssump extraStress),_,_)
-               mRate
-      = CF.CashFlowFrame $ cutBy Inc Future asOfDay txns
+               ((A.LoanAssump defaultAssump prepayAssump recoveryAssump ams),_,_)
+               mRate 
+    = let 
+        (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
+      in 
+        (applyHaircut ams (CF.CashFlowFrame futureTxns)
+        ,historyM)
     where
       last_pay_date:cf_dates = lastN (rt + recovery_lag + 1) $ sd:getPaymentDates pl recovery_lag
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
-      rate_vector = A.projRates or mRate cf_dates
-      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.LoanAssump defaultAssump prepayAssump recoveryAssump extraStress)
+      rate_vector = A.projRates cr or mRate cf_dates
+      (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams)
       txns = projectLoanFlow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType  -- `debug` ("rate"++show rate_vector)
 
   -- ^ Project cashflow for defautled loans 
@@ -175,11 +183,12 @@ instance Asset Loan where
         bals = scanl (-) cb recoveries
         _txns = [  CF.LoanFlow d b 0 0 0 0 r 0 cr | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
         (_, txns) = splitByDate (beforeRecoveryTxn++_txns) asOfDay EqToRight -- `debug` ("AS OF Date"++show asOfDay)
+        (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
       in 
-        CF.CashFlowFrame txns
+        (CF.CashFlowFrame futureTxns, historyM)
 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted Nothing)) asOfDay assumps _
-    = CF.CashFlowFrame [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr]
+    = (CF.CashFlowFrame [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr],Map.empty)
   
   splitWith l@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt st) rs
     = [ PersonalLoan (LoanOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) (mulBR cb ratio) cr rt st | ratio <- rs ]

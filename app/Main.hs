@@ -89,7 +89,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.21.0"
+version1 = Version "0.21.3"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -191,7 +191,7 @@ instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
 instance ToSchema AB.AssetUnion
-instance ToSchema IssuanceFields
+instance ToSchema CutoffFields
 instance ToSchema PricingMethod
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
@@ -237,7 +237,7 @@ wrapRun (LDeal d) mAssump mNonPerfAssump = let
                                      in 
                                        (LDeal _d,_pflow,_rs,_p)
 
-wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> CF.CashFlowFrame
+wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
 wrapRunPool (MPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
 wrapRunPool (LPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
 wrapRunPool (IPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
@@ -248,16 +248,16 @@ data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Mayb
 
 instance ToSchema RunAssetReq
 
-wrapRunAsset :: RunAssetReq -> (CF.CashFlowFrame, Maybe [PriceResult])
+wrapRunAsset :: RunAssetReq -> ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates Nothing) 
-  = (P.aggPool $ (\a -> D.projAssetUnion a d assumps mRates) <$> assets, Nothing)
+  = (P.aggPool ((\a -> D.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
 
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates (Just pm)) 
   = let 
       assetCf = P.aggPool $ (\a -> D.projAssetUnion a d assumps mRates ) <$> assets 
       pricingResult = (\a -> D.priceAssetUnion a d pm assumps mRates) <$> assets
-    in 
-      (assetCf, Just pricingResult)
+    in
+      (assetCf , Just pricingResult)
 
 --TODO implement on running via ByIndex
 
@@ -285,9 +285,9 @@ $(deriveJSON defaultOptions ''RunAssetReq)
 $(deriveJSON defaultOptions ''RunDateReq)
 
 type EngineAPI = "version" :> Get '[JSON] Version
-            :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] (CF.CashFlowFrame,Maybe [PriceResult])
-            :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] CF.CashFlowFrame
-            :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName CF.CashFlowFrame)
+            :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] ((CF.CashFlowFrame, Map.Map CutoffFields Balance),Maybe [PriceResult])
+            :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+            :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName (CF.CashFlowFrame,Map.Map CutoffFields Balance))
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
@@ -309,8 +309,8 @@ engineSwagger = toOpenApi engineAPI
   & info.description ?~ "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
   & info.license ?~ "BSD 3"
 
-server2 :: Server API
-server2 = return engineSwagger 
+myServer :: Server API
+myServer = return engineSwagger 
       :<|> showVersion 
       :<|> runAsset
       :<|> runPool
@@ -351,6 +351,6 @@ main =
                         Right c -> c
     run _p 
       $ errorMwDefJson
-      $ serve (Proxy :: Proxy API) server2
+      $ serve (Proxy :: Proxy API) myServer
 
 $(deriveJSON defaultOptions ''DealType)

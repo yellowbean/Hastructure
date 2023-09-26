@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Types
-  (DayCount(..),DateType(..),OverrideType(..),IssuanceFields(..)
+  (DayCount(..),DateType(..),OverrideType(..),CutoffFields(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Pre(..),Ts(..),TsPoint(..),PoolSource(..)
@@ -224,6 +224,7 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | Revolving
                 | Ended                             -- ^ Deal was marked as closed
                 | PreClosing                        -- ^ Deal was not closed
+                | Called                            -- ^ Deal was called
                 deriving (Show,Ord,Eq,Read, Generic)
 
 data DealCycle = EndCollection         -- ^ | collection period <HERE> collection action , waterfall action
@@ -341,18 +342,21 @@ parseTxn t = case tagName of
       tagName =  head sr!!1::String
       contents = head sr!!2::String
 
-data IssuanceFields = IssuanceBalance      -- ^ pool issuance balance
-                    | HistoryRecoveries    -- ^ cumulative recoveries
-                    | HistoryInterest      -- ^ cumulative interest collected
-                    | HistoryPrepayment    -- ^ cumulative prepayment collected
-                    | HistoryPrincipal     -- ^ cumulative principal collected
-                    | HistoryRental        -- ^ cumulative rental collected
-                    deriving (Show,Ord,Eq,Read,Generic)
+data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
+                  | HistoryRecoveries    -- ^ cumulative recoveries
+                  | HistoryInterest      -- ^ cumulative interest collected
+                  | HistoryPrepayment    -- ^ cumulative prepayment collected
+                  | HistoryPrincipal     -- ^ cumulative principal collected
+                  | HistoryRental        -- ^ cumulative rental collected
+                  | HistoryDefaults      -- ^ cumulative default balance
+                  | HistoryDelinquency   -- ^ cumulative delinquency balance
+                  | HistoryLoss          -- ^ cumulative loss/write-off balance
+                  deriving (Show,Ord,Eq,Read,Generic)
 
-instance ToJSONKey IssuanceFields where
+instance ToJSONKey CutoffFields where
   toJSONKey = toJSONKeyText (Text.pack . show)
 
-instance FromJSONKey IssuanceFields where
+instance FromJSONKey CutoffFields where
   fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
@@ -432,6 +436,7 @@ data DealStats = CurrentBondBalance
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatus DealCycle String
+               | IsDealStatus DealStatus
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
                | TestAll Bool [DealStats]
@@ -476,6 +481,8 @@ getDealStatType CurrentPoolBorrowerNum = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
 
 getDealStatType (IsMostSenior _ _) = RtnBool
+getDealStatType (TriggersStatus _ _)= RtnBool
+getDealStatType (IsDealStatus _)= RtnBool
 getDealStatType TestRate {} = RtnBool
 getDealStatType (TestAny _ _) = RtnBool
 getDealStatType (TestAll _ _) = RtnBool
@@ -484,6 +491,7 @@ getDealStatType (Avg dss) = getDealStatType (head dss)
 getDealStatType (Max dss) = getDealStatType (head dss)
 getDealStatType (Min dss) = getDealStatType (head dss)
 getDealStatType (Divide ds1 ds2) = getDealStatType ds1
+getDealStatType _ = RtnBalance
 
 
 dealStatType _ = RtnBalance
@@ -537,7 +545,11 @@ data Ts = FloatCurve [TsPoint Rational]
         | PricingCurve [TsPoint Rational] 
         deriving (Show,Eq,Ord,Read,Generic)
 
-data RangeType = II | IE | EI | EE | NO_IE
+data RangeType = II     -- ^ include both start and end date
+               | IE     -- ^ include start date ,but not end date
+               | EI     -- ^ exclude start date but include end date
+               | EE     -- ^ exclude either start date and end date 
+               | NO_IE  -- ^ no handling on start date and end date
 
 data CutoffType = Inc | Exc
 
@@ -554,7 +566,7 @@ data BalanceSheetReport = BalanceSheetReport {
                             asset :: BookItems
                             ,liability :: BookItems
                             ,equity :: BookItems
-                            ,reportDate :: Date}
+                            ,reportDate :: Date}         -- ^ snapshot date of the balance sheet
                             deriving (Show,Read,Generic)
  
 data CashflowReport = CashflowReport {
@@ -565,7 +577,7 @@ data CashflowReport = CashflowReport {
                         ,endDate :: Date }
                         deriving (Show,Read,Generic)
 
-data ResultComponent = CallAt Date
+data ResultComponent = CallAt Date                                    -- ^ the date when deal called
                      | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed
                      | BondOutstanding String Balance Balance         -- ^ when deal ends,calculate oustanding principal balance 
                      | BondOutstandingInt String Balance Balance      -- ^ when deal ends,calculate oustanding interest due 
@@ -607,10 +619,10 @@ class TimeSeries ts where
     sliceBy :: RangeType -> StartDate -> EndDate -> [ts] -> [ts]
     sliceBy rt sd ed ts
       = case rt of 
-          II -> filter (\x -> (getDate x) >= sd && (getDate x) <= ed ) ts 
-          IE -> filter (\x -> (getDate x) >= sd  && (getDate x) < ed ) ts 
-          EI -> filter (\x -> (getDate x) > sd && (getDate x) <= ed) ts 
-          EE -> filter (\x -> (getDate x) > sd && (getDate x) < ed ) ts 
+          II -> filter (\x -> getDate x >= sd && getDate x <= ed ) ts 
+          IE -> filter (\x -> getDate x >= sd && getDate x < ed ) ts 
+          EI -> filter (\x -> getDate x > sd && getDate x <= ed) ts 
+          EE -> filter (\x -> getDate x > sd && getDate x < ed ) ts 
           _  -> error "Not support NO_IE for sliceBy in TimeSeries"
     cutBy :: CutoffType -> DateDirection -> Date -> [ts] -> [ts]
     cutBy ct dd d ts 
@@ -677,16 +689,16 @@ lookupTable (ThresholdTable rows) lkupType lkupVal notFound
                       Downward  -> (<)
                       DownwardInclude -> (<=)
 
-data RateAssumption = RateCurve Index Ts
-                    | RateFlat Index IRate
+data RateAssumption = RateCurve Index Ts     -- ^ a rate curve ,which value of rates depends on time
+                    | RateFlat Index IRate   -- ^ a rate constant
                     deriving (Show,Generic)
 
-data PricingMethod = BalanceFactor Rate Rate -- [balance] by performing & default balace
-                   | BalanceFactor2 Rate Rate Rate --[balance] by performing/delinq/default factor
-                   | DefaultedBalance Rate  --[balance] only liquidate defaulted balance
-                   | PV IRate IRate -- discount factor, recovery pct on default
-                   | PVCurve Ts --[CF] Pricing cashflow with a Curve
-                   | Custom Rate -- custom amount
+data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
+                   | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
+                   | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
+                   | PV IRate IRate                   -- ^ discount factor, recovery pct on default
+                   | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
+                   | Custom Rate                      -- ^ custom amount
                    deriving (Show, Eq ,Generic)
 
 type Valuation = Centi
@@ -708,16 +720,16 @@ data TimeHorizion = ByMonth
                   | ByYear
                   | ByQuarter
 
-data Limit = DuePct Rate  --
-           | DueCapAmt Balance  -- due fee
-           | KeepBalAmt DealStats -- pay till a certain amount remains in an account
-           | DS DealStats
-           | ClearLedger String
-           | BookLedger String
-           | RemainBalPct Rate -- pay till remain balance equals to a percentage of `stats`
-           | TillTarget
-           | TillSource
-           | Multiple Limit Float -- factor of a limit
+data Limit = DuePct Rate            -- ^ up to % of total amount due
+           | DueCapAmt Balance      -- ^ up to $ amount 
+           | KeepBalAmt DealStats   -- ^ pay till a certain amount remains in an account
+           | DS DealStats           -- ^ transfer with limit described by a `DealStats`
+           | ClearLedger String     -- ^ when transfer, clear the ledger by transfer amount
+           | BookLedger String      -- ^ when transfer, book the ledger by the transfer amount
+           | RemainBalPct Rate      -- ^ pay till remain balance equals to a percentage of `stats`
+           | TillTarget             -- ^ transfer amount which make target account up reach reserve balanace
+           | TillSource             -- ^ transfer amount out till source account down back to reserve balance
+           | Multiple Limit Float   -- ^ factor of a limit
            deriving (Show,Ord,Eq,Read,Generic)
 
 data RoundingBy a = RoundCeil a 
@@ -753,5 +765,5 @@ $(deriveJSON defaultOptions ''PricingMethod)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''RoundingBy)
-$(deriveJSON defaultOptions ''IssuanceFields)
+$(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''RateAssumption)
