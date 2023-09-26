@@ -106,6 +106,7 @@ getIssuanceField Pool{issuanceStat = Nothing} _
 
 -- | calculate period payment (Annuity/Level mortgage)
 calcPmt :: Balance -> IRate -> Int -> Amount
+calcPmt bal 0.0 periods = divideBI bal periods
 calcPmt bal periodRate periods =
   let
     periodRate1 = toRational periodRate
@@ -125,6 +126,9 @@ applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
     (Just ppyFactor,Nothing) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor, def)
     (Just ppyFactor,Just defFactor) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor
                                        ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
+
+
+-- | apply haircuts to cashflow from a stress map
 
 applyHaircut :: Maybe A.ExtraStress -> CF.CashFlowFrame -> CF.CashFlowFrame
 applyHaircut Nothing cf = cf 

@@ -92,7 +92,7 @@ instance Asset Loan where
         pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
         cf_dates = lastN (_term + 1) $ sd:(getPaymentDates pl 0)
         l = (length cf_dates) - 1
-        rates_used = A.projRates or mRates cf_dates
+        rates_used = A.projRates _rate or mRates cf_dates
         dc = getDayCount or
         (b_flow,prin_flow,int_flow) = case ptype of
                                         Level -> calcPiFlow dc _bal pmt cf_dates rates_used
@@ -137,7 +137,7 @@ instance Asset Loan where
     where
       last_pay_date:cf_dates =  lastN (1 + rt + recovery_lag) $ sd:getPaymentDates pl recovery_lag
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
-      rate_vector = A.projRates or mRates cf_dates
+      rate_vector = A.projRates cr or mRates cf_dates
       schedule_flow = calcCashflow pl asOfDay mRates
       schedule_cf = map CF.tsTotalCash $ CF.getTsCashFlowFrame schedule_flow
       sum_cf = sum schedule_cf
@@ -167,7 +167,7 @@ instance Asset Loan where
     where
       last_pay_date:cf_dates = lastN (rt + recovery_lag + 1) $ sd:getPaymentDates pl recovery_lag
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
-      rate_vector = A.projRates or mRate cf_dates
+      rate_vector = A.projRates cr or mRate cf_dates
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams)
       txns = projectLoanFlow [] cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType  -- `debug` ("rate"++show rate_vector)
 

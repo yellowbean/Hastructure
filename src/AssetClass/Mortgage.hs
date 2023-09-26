@@ -310,10 +310,12 @@ instance Ast.Asset Mortgage where
       last_pay_date:cf_dates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
       cf_dates_length = length cf_dates 
       
-      rate_vector = A.projRates or mRates cf_dates
+      rate_vector = A.projRates cr or mRates cf_dates 
       
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = Ast.buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.MortgageAssump amd amp amr ams) -- `debug` ("Rate vector"++ show rate_vector)
-      txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType  --  `debug` ("Rate vector"++ show rate_vector)
+      txns = projectMortgageFlow [] cb (toRational <$> mbn) last_pay_date cf_dates def_rates ppy_rates 
+                                 (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector 
+                                 (recovery_lag,recovery_rate) p prinPayType   
 
   -- project current mortgage(with delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 
@@ -328,7 +330,7 @@ instance Ast.Asset Mortgage where
     where
       last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m (recoveryLag+defaultLag))
       cf_dates_length = length cf_dates + recoveryLag + defaultLag
-      rate_vector = A.projRates or mRates cf_dates
+      rate_vector = A.projRates cr or mRates cf_dates
       (ppyRates,delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) (A.MortgageDeqAssump amd amp amr ams)
       
       txns = projectDelinqMortgageFlow ([],[]) cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
