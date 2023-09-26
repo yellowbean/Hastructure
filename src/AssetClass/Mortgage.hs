@@ -252,6 +252,7 @@ instance Ast.Asset Mortgage where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype _)  _bal _rate _term _mbn Current) d mRates
     = fst (projCashflow m d (MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) mRates)
 
+
   calcCashflow s@(ScheduleMortgageFlow beg_date flows _)  d _ = CF.CashFlowFrame flows
   calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates = error "TBD"
   
@@ -330,7 +331,9 @@ instance Ast.Asset Mortgage where
     where
       last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m (recoveryLag+defaultLag))
       cf_dates_length = length cf_dates + recoveryLag + defaultLag
+
       rate_vector = A.projRates cr or mRates cf_dates
+
       (ppyRates,delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) (A.MortgageDeqAssump amd amp amr ams)
       
       txns = projectDelinqMortgageFlow ([],[]) cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
@@ -361,6 +364,7 @@ instance Ast.Asset Mortgage where
   projCashflow m@(Mortgage _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
     = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 0 cr mbn Nothing ]
       ,Map.empty)
+
   -- project current AdjMortgage
   projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) 
                asOfDay 
@@ -495,7 +499,7 @@ instance Ast.Asset Mortgage where
                  (defaultPct,defaultLag,recoveryRate,recoveryLag) -- `debug` ("curveDatesLength"++ show curveDatesLength)
   
   projCashflow a b c d = error $ "Failed to match when proj mortgage>>" ++ show a ++ show b ++ show c ++ show d
-        
+
 
   getBorrowerNum m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) cb cr rt mbn _ ) = fromMaybe 1 mbn
   getBorrowerNum m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) _ cb cr rt mbn _ ) = fromMaybe 1 mbn
