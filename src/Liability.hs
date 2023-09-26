@@ -99,31 +99,31 @@ isPaidOff b@Bond{bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
 payInt d amt bnd@(Bond bn Equity oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd { bndDueInt=new_due, bndStmt = new_stmt}
+  = bnd { bndDueInt=newDue, bndStmt = newStmt}
   where
-    new_due = dueInt - amt
-    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
+    newDue = dueInt - amt
+    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payInt d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndDueInt=new_due, bndStmt=new_stmt, bndLastIntPay = Just d}
+  = bnd {bndDueInt=newDue, bndStmt=newStmt, bndLastIntPay = Just d}
   where
-    new_due = dueInt - amt 
-    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn]))
+    newDue = dueInt - amt 
+    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn]))
 
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndStmt= new_stmt}
+  = bnd {bndStmt= newStmt}
   where
-    new_stmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
+    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
 payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndDuePrin =new_due, bndBalance = new_bal , bndStmt=new_stmt}
+  = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newStmt}
   where
-    new_bal = bal - amt
-    new_due = duePrin - amt
-    new_stmt = S.appendStmt stmt (S.BondTxn d new_bal 0 amt 0 amt (S.PayPrin [bn] ))
+    newBal = bal - amt
+    newDue = duePrin - amt
+    newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 amt 0 amt (S.PayPrin [bn] ))
 
 convertToFace :: Balance -> Bond -> Balance
 convertToFace bal b@Bond{bndOriginInfo = info}
