@@ -257,6 +257,7 @@ getFlow comment =
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow
       PurchaseAsset -> Outflow
+      TransferBy _ _ _ -> Interflow
       TxnComments cmts -> 
         let 
           directionList = getFlow <$> cmts 
@@ -267,6 +268,7 @@ getFlow comment =
             Inflow
           else
             Noneflow
+      _ -> error $ "Failed to match TxnComment" ++ show comment
 
 instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ ) = compare d1 d2
