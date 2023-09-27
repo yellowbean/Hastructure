@@ -2,11 +2,12 @@
 
 ## 0.21.3
 ### 2023-9-26
-* NEW: include a default/delinq/loss status map when projecting cashflow
+* NEW: include a `default`/`delinq`/`loss` status map when projecting cashflow
 * NEW: implement `haircut` as extra stress projecting `mortgage` 
 * ENHANCE: include `called` deal status, which will be set when deal was triggered with a clean up call assumption
 * ENHANCE: expose `runAsset` endpoint
 * ENHANCE: expose formula query on `deal status` as well as `trigger status`
+* ENHANCE: add `rampUp` deal status
 * FIX: adjust bond reset date from `cutoff date` to `closing date`
 
 ## 0.21.1

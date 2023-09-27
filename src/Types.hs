@@ -221,7 +221,8 @@ data OverrideType = CustomActionOnDates [ActionOnDate]
 data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated status with optinal accerlerated date
                 | DealDefaulted (Maybe Date)        -- ^ Deal is defaulted status with optinal default date
                 | Amortizing                        -- ^ Deal is amortizing 
-                | Revolving
+                | Revolving                         -- ^ Deal is revolving
+                | RampUp                            -- ^ Deal is being ramping up
                 | Ended                             -- ^ Deal was marked as closed
                 | PreClosing                        -- ^ Deal was not closed
                 | Called                            -- ^ Deal was called
