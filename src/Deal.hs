@@ -578,7 +578,7 @@ runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], CF.CashFlowFrame)
 getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
-  = (newT, allActionDates, pCollectionCfAfterCutoff)   `debug` ("init done actions->"++ show (head allActionDates))
+  = (newT, allActionDates, pCollectionCfAfterCutoff)   -- `debug` ("init done actions->"++ show (head allActionDates))
   where
     (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)
     dealStatusDates = calcDealStageDate (dates t) 

@@ -184,8 +184,12 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     OriginalPoolBalance ->
       case P.issuanceStat (pool t) of
-        Just m -> Map.findWithDefault (-1) IssuanceBalance m -- `debug` (">>>>"++show(m))
-        Nothing -> foldl (\acc x -> acc + P.getOriginBal x) 0.0 (P.assets (pool t)) 
+        -- use issuance balance from map if the map exists
+        Just m -> 
+          case Map.lookup IssuanceBalance m of 
+            Just v -> v
+            Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
+        Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
     
     CurrentPoolBorrowerNum ->
       fromRational $ toRational $ foldl (\acc x -> acc + P.getBorrowerNum x) 0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
@@ -251,9 +255,12 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           futureDefaults = case P.futureCf (pool t) of
                              Just (CF.CashFlowFrame _historyTxn) -> sum $ CF.tsDefaultBal <$> _historyTxn
                              Nothing -> 0.0  -- `debug` ("Geting future defaults"++show futureDefaults)
-          currentDefaults = queryDeal t CurrentPoolDefaultedBalance
+
+          historyDefaults = case P.issuanceStat (pool t) of
+                                Just m -> Map.findWithDefault 0.0 HistoryDefaults m 
+                                Nothing -> 0.0
         in
-          futureDefaults + currentDefaults
+          futureDefaults + historyDefaults -- `debug` ("history defaults"++ show historyDefaults)
 
     CumulativePoolRecoveriesBalance ->
         let 
