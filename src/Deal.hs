@@ -343,11 +343,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         
          DealClosed d ->
            let 
+             (PreClosing newSt) = status t
              w = Map.findWithDefault [] W.OnClosingDay (waterfall t)  -- `debug` ("DDD0")
              rc = RunContext poolFlow rAssump rates  -- `debug` ("DDD1")
-             (newDeal,newRc, newLog) = foldl (performActionWrap d) (t, rc, log) w  -- `debug` ("ClosingDay Action:"++show w)
+             (newDeal, newRc, newLog) = foldl (performActionWrap d) (t, rc, log) w  -- `debug` ("ClosingDay Action:"++show w)
            in 
-             run newDeal (runPoolFlow newRc) (Just ads) rates calls rAssump newLog -- `debug` ("New pool flow"++show (runPoolFlow newRc))
+             run newDeal{status=newSt} (runPoolFlow newRc) (Just ads) rates calls rAssump (newLog++[DealStatusChangeTo d (PreClosing newSt) newSt]) -- `debug` ("New pool flow"++show (runPoolFlow newRc))
 
          ChangeDealStatusTo d s -> run (t{status=s}) poolFlow (Just ads) rates calls rAssump log
 
@@ -641,7 +642,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
                                                    ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] -- `debug` ("fee acc dates"++show feeAccrueDates)
                                       in
                                         case dates t of 
-                                          (PreClosingDates {}) -> sortBy sortActionOnDate $ (DealClosed closingDate):a  -- `debug` ("add a closing date"++show closingDate)
+                                          (PreClosingDates {}) -> sortBy sortActionOnDate $ (DealClosed closingDate ):a  -- `debug` ("add a closing date"++show closingDate)
                                           _ -> sortBy sortActionOnDate a
                      in 
                        case mNonPerfAssump of
@@ -669,8 +670,9 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
                   --  -> Map.adjust (\x -> x {F.feeType = F.FeeFlow projectedFlow}) fn feeMap
                   Just AP.NonPerfAssumption{AP.projectedExpense = Just pairs } 
                     ->   foldr  (\(feeName,feeFlow) accM -> Map.adjust (\v -> v {F.feeType = F.FeeFlow feeFlow}) feeName accM)  feeMap pairs
-    newPoolStat = Map.unionWith (+) (fromMaybe Map.empty (P.issuanceStat thePool)) historyStats
-    newT = t {fees = newFeeMap, pool = thePool {P.issuanceStat = Just newPoolStat } } 
+    -- newPoolStat = Map.unionWith (+) (fromMaybe Map.empty (P.issuanceStat thePool)) historyStats
+    -- newT = t {fees = newFeeMap, pool = thePool {P.issuanceStat = Just newPoolStat } } `debug` ("init with new pool stats"++ show newPoolStat)
+    newT = t {fees = newFeeMap } -- `debug` ("init with new pool stats"++ show newPoolStat)
 
 
 depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account

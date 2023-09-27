@@ -159,14 +159,14 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
               deriving (Show,Eq, Generic)
 
-data ActionOnDate = EarnAccInt Date AccName              -- sweep bank account interest
+data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
                   | AccrueFee Date FeeName               -- ^ accure fee
                   | ResetLiqProvider Date String         -- ^ reset credit for liquidity provider
                   | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
                   | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
                   | RunWaterfall Date String             -- ^ execute waterfall
-                  | DealClosed Date                      -- ^ actions to perform at the deal closing day
+                  | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
                   | InspectDS Date DealStats             -- ^ inspect formula
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
@@ -180,7 +180,7 @@ instance TimeSeries ActionOnDate where
     getDate (PoolCollection d _) = d
     getDate (EarnAccInt d _) = d
     getDate (AccrueFee d _) = d
-    getDate (DealClosed d ) = d
+    getDate (DealClosed d) = d
     getDate (ChangeDealStatusTo d _ ) = d
     getDate (InspectDS d _ ) = d
     getDate (ResetIRSwapRate d _ ) = d
@@ -223,9 +223,9 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | Amortizing                        -- ^ Deal is amortizing 
                 | Revolving                         -- ^ Deal is revolving
                 | RampUp                            -- ^ Deal is being ramping up
-                | Ended                             -- ^ Deal was marked as closed
-                | PreClosing                        -- ^ Deal was not closed
-                | Called                            -- ^ Deal was called
+                | Ended                             -- ^ Deal is marked as closed
+                | PreClosing DealStatus             -- ^ Deal is not closed
+                | Called                            -- ^ Deal is called
                 deriving (Show,Ord,Eq,Read, Generic)
 
 data DealCycle = EndCollection         -- ^ | collection period <HERE> collection action , waterfall action
