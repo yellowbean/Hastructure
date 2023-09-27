@@ -42,6 +42,7 @@ tm2 = AB.Mortgage
      (AB.Defaulted Nothing)
 
 asOfDate = L.toDate "20210605"
+
 (tmcf_00,_) = P.projCashflow tm asOfDate ((A.MortgageAssump Nothing Nothing Nothing Nothing),A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
 trs = CF.getTsCashFlowFrame tmcf_00
 (tmcf_default,_) = P.projCashflow 
@@ -167,7 +168,6 @@ leaseTests =
                 AB.Current
       cf3_0 = P.calcCashflow lease3 (L.toDate "20230415") Nothing
       cf3 = P.calcCashflow lease3 asofDate Nothing
-
       (cf4,_) = P.projCashflow lease1 asofDate 
                   (A.LeaseAssump (A.GapDays 45)
                                  (A.BaseAnnualRate 0.0)
@@ -313,6 +313,7 @@ armTest =
     (arm1_cf,_) = P.projCashflow arm1 (L.toDate "20230601") (A.MortgageAssump Nothing Nothing Nothing Nothing
                                                             ,A.DummyDelinqAssump,A.DummyDefaultAssump) 
                                                             (Just [assump1])
+
   in 
     testGroup "ARM cashflow tests" [
       testCase "ARM case 1/ cf length" $
@@ -377,6 +378,7 @@ tm_ppy_5 = AB.Mortgage (origin_info { AB.prepaymentPenalty = ppy_5}) 10000 0.08 
 ppyTest = 
   let 
     assump1 = (A.MortgageAssump Nothing (Just (A.PrepaymentCPR 0.03)) Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump)
+
     (ppy_cf_1,_) = P.projCashflow tm_ppy_1 (L.toDate "20210101") assump1 Nothing
     (ppy_cf_2,_) = P.projCashflow tm_ppy_2 (L.toDate "20210101") assump1 Nothing
     (ppy_cf_2_1,_) = P.projCashflow tm_ppy_2_1 (L.toDate "20210101") assump1 Nothing
@@ -384,6 +386,7 @@ ppyTest =
     (ppy_cf_3_1,_) = P.projCashflow tm_ppy_3_1 (L.toDate "20210101") assump1 Nothing
     (ppy_cf_4,_) = P.projCashflow tm_ppy_4 (L.toDate "20210101") assump1 Nothing
     (ppy_cf_5,_) = P.projCashflow tm_ppy_5 (L.toDate "20210101") assump1 Nothing
+
   in 
     testGroup "Prepay Penalty tests" [
       testCase "ppy case 1" $
@@ -508,6 +511,7 @@ delinqMortgageTest =
                         Nothing
               ,A.DummyDelinqAssump,A.DummyDefaultAssump)
     (CF.CashFlowFrame txns,m) = P.projCashflow tm1 (L.toDate "20200101") assump1 Nothing
+
   in 
     testGroup "Mortgage Delinq Projection" [
       testCase "" $
