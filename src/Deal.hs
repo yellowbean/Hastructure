@@ -412,8 +412,17 @@ run2 t (CF.CashFlowFrame []) _ _ _ _ log = (prepareDeal t,log) -- `debug` ("End 
 patchFinancialReports :: P.Asset a => TestDeal a -> Date -> [ResultComponent] -> [ResultComponent]
 patchFinancialReports t d [] = []
 patchFinancialReports t d logs 
-  = case (find (\(FinancialReport _ _ _ _) -> True) (reverse logs)) of 
-      Nothing -> []
+--   = case (find (\(FinancialReport _ _ _ _) -> True) (reverse logs)) of 
+--       Nothing -> logs
+--       Just (FinancialReport sd ed bs cash) 
+--         -> let
+--              bsReport = buildBalanceSheet t d
+--              cashReport = buildCashReport t ed d
+--              newlog = FinancialReport ed d bsReport cashReport
+--            in
+--              logs++[newlog] 
+  = case (find pickReportLog (reverse logs)) of 
+      Nothing -> logs
       Just (FinancialReport sd ed bs cash) 
         -> let
              bsReport = buildBalanceSheet t d
@@ -421,6 +430,10 @@ patchFinancialReports t d logs
              newlog = FinancialReport ed d bsReport cashReport
            in
              logs++[newlog] 
+      where 
+        pickReportLog FinancialReport {} = True
+        pickReportLog _ = False
+
 
 data ExpectReturn = DealStatus
                   | DealPoolFlow
