@@ -76,6 +76,7 @@ import qualified Triggers as TRG
 import qualified Revolving as RV
 import qualified Lib
 import qualified Util as U
+import qualified DateUtil as DU
 
 
 import Debug.Trace
@@ -331,7 +332,7 @@ myServer = return engineSwagger
           runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
             = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
           runDate (RunDateReq sd dp)
-            = return $ U.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+            = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
 
 
 writeSwaggerJSON :: IO ()

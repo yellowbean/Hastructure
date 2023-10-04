@@ -8,6 +8,7 @@ module Analytics (calcDuration,pv,calcWAL,pv2,pv3)
 import Types
 import Lib
 import Util
+import DateUtil
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH

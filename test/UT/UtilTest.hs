@@ -9,6 +9,7 @@ import Test.Tasty.HUnit
 import qualified Data.Time as T
 import qualified Cashflow as CF
 import Util
+import DateUtil
 import Lib
 import Types
 import Data.Fixed

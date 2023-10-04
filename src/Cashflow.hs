@@ -22,7 +22,8 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
 import Data.Time (Day)
 import Data.Fixed
 import Lib (weightedBy,toDate,getIntervalFactors,daysBetween)
-import Util (mulBR,splitByDate,mulBInt,mulIR)
+import Util (mulBR,mulBInt,mulIR)
+import DateUtil ( splitByDate )
 import Types
 import qualified Data.Map as Map
 import qualified Data.Time as T
