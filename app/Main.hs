@@ -6,6 +6,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where 
@@ -30,7 +31,7 @@ import qualified Data.Text as T
 --import Data.Swagger
 import Data.Maybe
 import Data.Yaml as Y
-import Data.OpenApi hiding (Server)
+import Data.OpenApi hiding (Server,contentType)
 import qualified Data.Map as Map
 import Data.String.Conversions
 import Data.Time.Calendar
@@ -41,7 +42,7 @@ import qualified Data.ByteString.Char8 as BS
 import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
-import Network.Wai.Middleware.Servant.Errors (errorMwDefJson, HasErrorBody(..))
+import Network.Wai.Middleware.Servant.Errors (errorMw, HasErrorBody(..),errorMwDefJson)
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
@@ -49,6 +50,7 @@ import Language.Haskell.TH
 import Servant.OpenApi
 import Servant
 import Servant.Types.SourceT (source)
+import Servant.API.ContentTypes (contentType)
 
 import Types 
 import qualified Deal as D
@@ -338,8 +340,33 @@ myServer = return engineSwagger
 writeSwaggerJSON :: IO ()
 writeSwaggerJSON = BL8.writeFile "swagger.json" (encodePretty engineSwagger)
 
-data Config = Config { port :: Int} deriving (Show,Generic)
+data Config = Config { port :: Int} 
+            deriving (Show,Generic)
+
 instance FromJSON Config
+
+-- data Ctyp a
+-- 
+-- {-
+--  if you are using GHC 8.6 and above you can make use of deriving Via
+--  for creating the Accept Instance
+-- 
+--  >> data Ctyp a
+--  >>   deriving Accept via JSON
+-- -}
+-- 
+-- instance Accept (Ctyp JSON) where
+--   contentType _ = contentType (Proxy @JSON)
+-- 
+-- instance HasErrorBody (Ctyp JSON) '[] where
+--   encodeError = undefined -- write your custom implementation
+-- 
+-- -- | Example Middleware with a different 'HasErrorBody' instance for JSON
+-- errorMwJson :: Application -> Application
+-- errorMwJson =  errorMw @(Ctyp JSON) @'[]
+
+--instance HasErrorBody (Ctyp JSON) '["error","warning","resp"] where
+--  encodeError = error
 
 main :: IO ()
 main = 
@@ -351,6 +378,7 @@ main =
                         Left exp -> Config 8081
                         Right c -> c
     run _p 
+      -- $ errorMwJson @JSON @'["error","warning","status"]
       $ errorMwDefJson
       $ serve (Proxy :: Proxy API) myServer
 

@@ -1,5 +1,11 @@
 # Changelog for Hastructure
 
+## 0.21.4
+### 2023-9-27
+* ENHANCE: require a new status when defining a deal in `preClosing` stage
+* FIX: fix a bug when reading financial report logs 
+
+
 ## 0.21.3
 ### 2023-9-26
 * NEW: include a `default`/`delinq`/`loss` status map when projecting cashflow

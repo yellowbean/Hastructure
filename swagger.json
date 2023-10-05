@@ -9989,7 +9989,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "Ended"
+                                    "RampUp"
                                 ]
                             }
                         },
@@ -10003,12 +10003,30 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "PreClosing"
+                                    "Ended"
                                 ]
                             }
                         },
                         "required": [
                             "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStatus"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PreClosing"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -11627,7 +11645,7 @@
         }
     },
     "info": {
-        "version": "0.21.2",
+        "version": "0.21.4",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
