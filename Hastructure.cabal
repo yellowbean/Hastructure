@@ -38,6 +38,7 @@ library
       Call
       Cashflow
       CreditEnhancement
+      DateUtil
       Deal
       Deal.DealAction
       Deal.DealBase
