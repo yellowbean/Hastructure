@@ -1005,6 +1005,72 @@
                                         "type": "number"
                                     },
                                     {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 11,
+                                "type": "array",
+                                "minItems": 11
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MortgageFlow"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
                                         "multipleOf": 1.0e-2,
                                         "type": "number"
                                     },
@@ -1029,7 +1095,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "MortgageFlow"
+                                    "MortgageDelinqFlow"
                                 ]
                             }
                         },
@@ -2921,20 +2987,7 @@
                                         "$ref": "#/components/schemas/RevolvingPool"
                                     },
                                     {
-                                        "items": [
-                                            {
-                                                "$ref": "#/components/schemas/AssetPerfAssumption"
-                                            },
-                                            {
-                                                "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
-                                            },
-                                            {
-                                                "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
-                                            }
-                                        ],
-                                        "maxItems": 3,
-                                        "type": "array",
-                                        "minItems": 3
+                                        "$ref": "#/components/schemas/ApplyAssumptionType"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -11645,7 +11698,7 @@
         }
     },
     "info": {
-        "version": "0.21.4",
+        "version": "0.21.5",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

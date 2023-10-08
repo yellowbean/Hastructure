@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.21.5
+### 2023-10-8
+* ENHANCE: in the revolving buy , now buy amount is no longer a multipler of revolving assets face value
+* FIX: now revolving asset may have remtain term ==  original term
+
 ## 0.21.4
 ### 2023-9-27
 * ENHANCE: require a new status when defining a deal in `preClosing` stage
