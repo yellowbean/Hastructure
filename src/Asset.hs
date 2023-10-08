@@ -141,21 +141,38 @@ applyHaircut (Just ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFrame
                  (applyHaircutTxn <$> haircuts) ) <$> txns
     where
       applyHaircutTxn (CollectedInterest,r) 
-                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal prin (mulBR interest (1-r)) ppy delinq def recovery loss irate mbn mppn
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageDelinqFlow d bal prin (mulBR interest (1-r)) ppy delinq def recovery loss irate mbn mppn
       applyHaircutTxn (CollectedPrincipal,r)
-                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal (mulBR prin (1-r)) interest ppy delinq def recovery loss irate mbn mppn
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageDelinqFlow d bal (mulBR prin (1-r)) interest ppy delinq def recovery loss irate mbn mppn
       applyHaircutTxn (CollectedRecoveries,r)
-                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal prin interest ppy delinq def (mulBR recovery (1-r)) loss irate mbn mppn
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageDelinqFlow d bal prin interest ppy delinq def (mulBR recovery (1-r)) loss irate mbn mppn
       applyHaircutTxn (CollectedPrepayment,r)
-                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal prin interest (mulBR ppy (1-r)) delinq def recovery loss irate mbn mppn
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageDelinqFlow d bal prin interest (mulBR ppy (1-r)) delinq def recovery loss irate mbn mppn
       applyHaircutTxn (CollectedPrepaymentPenalty,r)
-                      (CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal prin interest ppy delinq def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn)
-      applyHaircutTxn x y = y
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
+        = CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn)
+      
+      applyHaircutTxn (CollectedInterest,r) 
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal prin (mulBR interest (1-r)) ppy def recovery loss irate mbn mppn
+      applyHaircutTxn (CollectedPrincipal,r)
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal (mulBR prin (1-r)) interest ppy def recovery loss irate mbn mppn
+      applyHaircutTxn (CollectedRecoveries,r)
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal prin interest ppy def (mulBR recovery (1-r)) loss irate mbn mppn
+      applyHaircutTxn (CollectedPrepayment,r)
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn) 
+        = CF.MortgageFlow d bal prin interest (mulBR ppy (1-r)) def recovery loss irate mbn mppn
+      applyHaircutTxn (CollectedPrepaymentPenalty,r)
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn)
+        = CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn)
+      
+      applyHaircutTxn _ _ = error "Not implemented"
         
 
 buildPrepayRates :: [Date] -> Maybe A.AssetPrepayAssumption -> [Rate]
@@ -290,7 +307,7 @@ priceAsset m d (PVCurve curve) assumps mRates
       (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
-      pv = pv3 curve d ds amts
+      pv = pv3 curve d ds amts `debug` ("pricing"++ show d++ show ds++ show amts)
       cb =  getCurrentBal m
       wal = calcWAL ByYear cb d (zip amts ds)
     in 
@@ -300,13 +317,13 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
   = let 
       cb =  getCurrentBal m
       val = if isDefaulted m then 
-              mulBR cb currentFactor 
+              mulBR cb defaultedFactor `debug` ("Defulat CB"++ show cb)
             else
-              mulBR cb defaultedFactor
+              mulBR cb currentFactor  `debug` ("CB"++ show cb)
       (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
-      wal = calcWAL ByYear cb d (zip amts ds) 
+      wal = calcWAL ByYear cb d (zip amts ds) `debug` ("pricing"++ show d++ show ds++ show amts)
     in 
       AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
 

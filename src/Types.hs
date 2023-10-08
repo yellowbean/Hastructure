@@ -44,6 +44,7 @@ import Data.Fixed
 import Data.Ix
 
 import Data.List
+-- import Cashflow (CashFlowFrame)
 
 type BondName = String
 type BondNames = [String]
@@ -587,6 +588,7 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      | InspectRate Date DealStats Micro
                      | InspectBool Date DealStats Bool
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
+                     -- | SnapshotCashflow Date String CashFlowFrame
                      deriving (Show, Generic)
 
 data Threshold = Below
