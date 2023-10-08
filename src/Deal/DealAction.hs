@@ -438,22 +438,22 @@ performActionWrap d
                       ConstantAsset _ -> availBal 
                       AssetCurve _ -> min availBal valuationOnAvailableAssets   
 
-      purchaseRatio = purchaseAmt / valuationOnAvailableAssets -- `debug` ("Purchase Amt"++show valuationOnAvailableAssets)
+      purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets -- `debug` ("Purchase Amt"++show purchaseAmt)
       purchaseRatios = toRational <$> [purchaseRatio,1-purchaseRatio]
 
-      (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale
+      (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
       -- newBoughtPcf = (CF.shiftCfToStartDate d) <$> [ projAssetUnion ast d perfAssumps | ast <- assetBought ]
-      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates 
+      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates -- `debug` ("Asset bought"++ show assetBought)
       -- poolCurrentTr = CF.buildBegTsRow d tr
       -- currentPoolFlow = CF.cfInsertHead poolCurrentTr pcf -- `debug` ("Inserting new tr"++ show poolCurrentTr)
       -- currentPoolFlow = CF.patchBeginBalance d pcf
       --newPcf = foldl CF.mergePoolCf pcf newBoughtPcf  `debug` ("reolvoing cf"++show d++"\n"++show newBoughtPcf++"\n"++"pool cf 1st"++show (CF.cfAt pcf 0))
       -- newPcf = CF.CashFlowFrame $ CF.mergePoolCf currentPoolFlow newBoughtPcf --  `debug` ("reolvoing after insert"++ show currentPoolFlow)
-      newPcf = CF.CashFlowFrame $ CF.combineTss [] (tr:trs) newBoughtTxn --  `debug` ("reolvoing after insert"++ show currentPoolFlow)
+      newPcf = CF.CashFlowFrame $ CF.combineTss [] (tr:trs) newBoughtTxn  -- `debug` ("reolvoing first txn\n"++ show (head newBoughtTxn))
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (poolAfterBought, perfAssumps)}  -- `debug` ("new pool flow"++show newPcf++"\n")
+                 ,revolvingAssump = Just (poolAfterBought, perfAssumps)}  -- `debug` ("new pool flow\n"++show newPcf++"\n")
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
   = (t, rc, newLogs ++ logs)

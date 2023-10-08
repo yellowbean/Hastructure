@@ -153,7 +153,7 @@ getRateAssumption assumps idx
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
 projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> [IRate]
-projRates sr (Fix _ r) _ ds = replicate (length ds) r 
+projRates sr (Fix _ r) _ ds = replicate (length ds) sr 
 projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
   = case getRateAssumption assumps idx of
       Nothing -> error ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
