@@ -186,6 +186,11 @@ appendTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1) bn2@(LoanFlow _ b2 p2 
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs (LeaseFlow d1 b1 r1) bn2@(LeaseFlow d2 b2 r2) 
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+appendTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 _ def1 rec1 los1 rat1 mbn1 _) bn2@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 _)
+  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+appendTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 _) bn2@(MortgageDelinqFlow _ b2 p2 i2 prep2 _ def2 rec2 los2 rat2 mbn2 _)
+  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+appendTs _1 _2 = error $ "appendTs failed with "++ show _1 ++ ">>" ++ show _2
 
 addTsCF :: TsRow -> TsRow -> TsRow
 -- ^ add up TsRow from same entity

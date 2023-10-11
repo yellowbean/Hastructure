@@ -190,7 +190,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           case Map.lookup IssuanceBalance m of 
             Just v -> v
             Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
-        Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
+        Nothing -> error ("No stat found in the pool, pls specify it in the pool stats map `issuanceStat` Deal:" ++ show (name t))
     
     CurrentPoolBorrowerNum ->
       fromRational $ toRational $ foldl (\acc x -> acc + P.getBorrowerNum x) 0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
@@ -250,6 +250,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
                           sliceBy II fromDay asOfDay trs
                         else 
                           sliceBy EI fromDay asOfDay trs
+                    _ -> []
 
     CumulativePoolDefaultedBalance ->
         let

@@ -257,7 +257,7 @@ run t pcf (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty Ac
 run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus} poolFlow (Just (ad:ads)) rates calls rAssump log
   | (CF.sizeCashFlowFrame poolFlow == 0) && (queryDeal t  AllAccBalance == 0) 
      = let 
-         _dealAfterCleanUp = foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal")
+         _dealAfterCleanUp = foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal:"++ (name t))
        in 
          (prepareDeal _dealAfterCleanUp,log) `debug` "End with pool cf == 0 and all account bals are 0" -- ++ "> Remain Actions" ++ show (ad:ads))
   | otherwise
@@ -309,10 +309,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              newAcc = Map.adjust 
                         (\a -> case a of
                                 (A.Account _ _ (Just (A.BankAccount {})) _ _ ) -> (A.depositInt a d)  -- `debug` ("int acc"++show accName)
-                                (A.Account _ _ (Just (A.InvestmentAccount idx _ _ _)) _ _ ) -> 
+                                (A.Account _ _ (Just (A.InvestmentAccount idx _ lastAccureDate _)) _ _ ) -> 
                                   case AP.getRateAssumption (fromMaybe [] rates) idx of
                                     Nothing -> a -- `debug` ("error..."++show accName)
-                                    Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d  ) -- `debug` ("int acc"++show accName)
+                                    Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d 
+                                    Just (RateFlat _ r )   -> A.depositIntByCurve a (mkRateTs [(lastAccureDate,r),(d,r)]) d
+                                    _ -> error ("Failed to match index "++show idx++" In rate assumpt" ++ (name t)) ) -- `debug` ("int acc"++show accName)
                         accName  
                         accMap
            in 
@@ -344,7 +346,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         
          DealClosed d ->
            let 
-             (PreClosing newSt) = status t
+             (PreClosing newSt) = status t `debug` (">>>>>>"++ show (status t))
              w = Map.findWithDefault [] W.OnClosingDay (waterfall t)  -- `debug` ("DDD0")
              rc = RunContext poolFlow rAssump rates  -- `debug` ("DDD1")
              (newDeal, newRc, newLog) = foldl (performActionWrap d) (t, rc, log) w  -- `debug` ("ClosingDay Action:"++show w)
@@ -376,7 +378,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          ResetBondRate d bn -> 
              let 
                newBndMap = case rates of 
-                             Nothing -> error ("No rate assumption for floating bond:"++bn)
+                             Nothing -> error ("No rate assumption for floating bond:"++bn++"Deal"++ (name t))
                              (Just _rates) -> Map.adjustWithKey 
                                               (\k v-> setBondNewRate t d _rates v)
                                               bn

@@ -92,7 +92,7 @@ data Pool a = Pool {assets :: [a]                                           -- ^
                    ,asOfDate :: Date                                        -- ^ include cashflow after this date 
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
-                   }deriving (Show,Generic)
+                   } deriving (Show,Generic)
 
 -- | get stats of pool 
 getIssuanceField :: Pool a -> CutoffFields -> Centi
@@ -307,7 +307,7 @@ priceAsset m d (PVCurve curve) assumps mRates
       (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
-      pv = pv3 curve d ds amts `debug` ("pricing"++ show d++ show ds++ show amts)
+      pv = pv3 curve d ds amts -- `debug` ("pricing"++ show d++ show ds++ show amts)
       cb =  getCurrentBal m
       wal = calcWAL ByYear cb d (zip amts ds)
     in 
@@ -317,13 +317,13 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
   = let 
       cb =  getCurrentBal m
       val = if isDefaulted m then 
-              mulBR cb defaultedFactor `debug` ("Defulat CB"++ show cb)
+              mulBR cb defaultedFactor -- `debug` ("Defulat CB"++ show cb)
             else
-              mulBR cb currentFactor  `debug` ("CB"++ show cb)
+              mulBR cb currentFactor  -- `debug` ("CB"++ show cb)
       (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
-      wal = calcWAL ByYear cb d (zip amts ds) `debug` ("pricing"++ show d++ show ds++ show amts)
+      wal = calcWAL ByYear cb d (zip amts ds) -- `debug` ("pricing"++ show d++ show ds++ show amts)
     in 
       AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
 

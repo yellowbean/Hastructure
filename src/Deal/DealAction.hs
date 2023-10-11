@@ -455,6 +455,15 @@ performActionWrap d
       newRc = rc {runPoolFlow = newPcf
                  ,revolvingAssump = Just (poolAfterBought, perfAssumps)}  -- `debug` ("new pool flow\n"++show newPcf++"\n")
 
+performActionWrap d 
+                  (t
+                  ,rc@RunContext{runPoolFlow=pcf@(CF.CashFlowFrame (tr:trs))
+                                ,revolvingAssump=Nothing
+                                ,revolvingInterestRateAssump = mRates}
+                  ,logs)
+                  (W.BuyAsset ml pricingMethod accName)
+  = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ show (name t)
+
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
   = (t, rc, newLogs ++ logs)
     where 
@@ -834,4 +843,4 @@ performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tName)
     where 
       newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
 
-performAction d t action =  error $ "failed to match action"++show action
+performAction d t action =  error $ "failed to match action"++show action++"Deal"++show (name t)
