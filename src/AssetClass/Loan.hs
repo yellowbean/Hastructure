@@ -178,18 +178,17 @@ instance Asset Loan where
                (_,_,(A.DefaultedRecovery rr lag timing))
                _
     = let 
-        (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+ length timing)
+        (cf_dates1,cf_dates2) = splitAt (pred lag) $ genDates defaultedDate p (lag+ length timing)
         beforeRecoveryTxn = [  CF.LoanFlow d cb 0 0 0 0 0 0 cr | d <- cf_dates1 ]
         recoveries = calcRecoveriesFromDefault cb rr timing
-        bals = scanl (-) cb recoveries
-        _txns = [  CF.LoanFlow d b 0 0 0 0 r 0 cr | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
+        _txns = [  CF.LoanFlow d 0 0 0 0 0 r 0 cr | (d,r) <- zip cf_dates2 recoveries ]
         (_, txns) = splitByDate (beforeRecoveryTxn++_txns) asOfDay EqToRight -- `debug` ("AS OF Date"++show asOfDay)
         (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
       in 
         (CF.CashFlowFrame futureTxns, historyM)
 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted Nothing)) asOfDay assumps _
-    = (CF.CashFlowFrame [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 cr],Map.empty)
+    = (CF.CashFlowFrame [CF.LoanFlow asOfDay 0 0 0 0 0 0 0 cr],Map.empty)
   
   splitWith l@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt st) rs
     = [ PersonalLoan (LoanOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) (mulBR cb ratio) cr rt st | ratio <- rs ]

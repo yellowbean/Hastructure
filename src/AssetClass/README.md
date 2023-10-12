@@ -1,6 +1,6 @@
 ## How Cashflow Projection Work
 
-### Steps
+### Mortgage/Loan
 
 * determine the projection dates
   

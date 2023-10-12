@@ -370,11 +370,10 @@ instance Ast.Asset Mortgage where
                asOfDay
                (_,_,A.DefaultedRecovery rr lag timing) _ =
     let 
-      (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+ length timing)
-      beforeRecoveryTxn = [ CF.MortgageDelinqFlow d cb 0 0 0 0 0 0 0 cr mbn Nothing | d <- cf_dates1 ]
+      (emptyDates,recoveryDates) = splitAt (pred lag) $ genDates defaultedDate p (lag + length timing)
+      beforeRecoveryTxn = [ CF.MortgageFlow d 0 0 0 0 0 0 0 cr mbn Nothing | d <- emptyDates ]
       recoveries = calcRecoveriesFromDefault cb rr timing
-      bals = scanl (-) cb recoveries
-      txns = [ CF.MortgageFlow d b 0 0 0 0 r 0 cr mbn Nothing | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
+      txns = [ CF.MortgageFlow d 0 0 0 0 0 r 0 cr mbn Nothing | (d,r) <- zip recoveryDates recoveries ]
     in 
       (CF.CashFlowFrame $ cutBy Inc Future asOfDay (beforeRecoveryTxn ++ txns)
       ,Map.empty)
@@ -384,11 +383,11 @@ instance Ast.Asset Mortgage where
     = projCashflow (Mortgage mo cb cr rt mbn  (Defaulted (Just defaultedDate))) asOfDay assumps mRates
   -- project defaulted adjMortgage without a defaulted Date   
   projCashflow m@(AdjustRateMortgage _ _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
-    = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
+    = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing ]
       ,Map.empty)
   -- project defaulted Mortgage    
   projCashflow m@(Mortgage _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
-    = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay cb 0 0 0 0 0 0 cr mbn Nothing ]
+    = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing ]
       ,Map.empty)
 
   -- project current AdjMortgage
