@@ -1,0 +1,36 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../PyABS"
+		},
+		{
+			"path": "../pyabs-doc"
+		},
+		{
+			"path": "../absbox-doc"
+		},
+		{
+			"path": "../absbox.work"
+		},
+		{
+			"path": "../absbox.org"
+		}
+	],
+	"settings": {
+		"esbonio.sphinx.confDir": "",
+		"sqltools.connections": [
+			{
+				"previewLimit": 50,
+				"driver": "SQLite",
+				"name": "a",
+				"database": "${workspaceFolder:absbox.work}/data/chinabond/DB.db"
+			}
+		],
+		"files.exclude": {
+			"**/.ipynb": true
+		}
+	}
+}

@@ -15,6 +15,7 @@ import Data.Aeson.TH
 import Data.Maybe
 import Data.Fixed
 import GHC.Generics
+import DateUtil
 
 import Types
     ( RoundingBy,

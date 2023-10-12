@@ -191,7 +191,7 @@ getFlow comment =
             Inflow
           else
             Noneflow
-      TransferBy {} -> Noneflow
+      TransferBy {} -> Interflow
       _ -> error ("Missing in GetFlow >> "++ show comment)
 
 instance Ord Txn where

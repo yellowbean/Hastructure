@@ -817,18 +817,21 @@
                         "$ref": "#/components/schemas/Ts"
                     },
                     "poolHairCut": {
-                        "items": [
-                            {
-                                "$ref": "#/components/schemas/PoolSource"
-                            },
-                            {
-                                "format": "double",
-                                "type": "number"
-                            }
-                        ],
-                        "maxItems": 2,
-                        "type": "array",
-                        "minItems": 2
+                        "items": {
+                            "items": [
+                                {
+                                    "$ref": "#/components/schemas/PoolSource"
+                                },
+                                {
+                                    "format": "double",
+                                    "type": "number"
+                                }
+                            ],
+                            "maxItems": 2,
+                            "type": "array",
+                            "minItems": 2
+                        },
+                        "type": "array"
                     }
                 }
             },
@@ -1002,6 +1005,72 @@
                                         "type": "number"
                                     },
                                     {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 11,
+                                "type": "array",
+                                "minItems": 11
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MortgageFlow"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
                                         "multipleOf": 1.0e-2,
                                         "type": "number"
                                     },
@@ -1026,7 +1095,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "MortgageFlow"
+                                    "MortgageDelinqFlow"
                                 ]
                             }
                         },
@@ -2918,7 +2987,7 @@
                                         "$ref": "#/components/schemas/RevolvingPool"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/AssetPerfAssumption"
+                                        "$ref": "#/components/schemas/ApplyAssumptionType"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -4129,6 +4198,12 @@
                     "DC_30_360_ISDA",
                     "DC_30_360_German",
                     "DC_30_360_US"
+                ]
+            },
+            "AssetDelinqPerfAssumption": {
+                "type": "string",
+                "enum": [
+                    "DummyDelinqAssump"
                 ]
             },
             "Pool_Loan": {
@@ -6117,6 +6192,24 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "$ref": "#/components/schemas/DealStatus"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "IsDealStatus"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/DealStats"
@@ -7154,6 +7247,63 @@
                     "waterfall",
                     "collects"
                 ]
+            },
+            "AssetDefaultedPerfAssumption": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "items": {
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultedRecovery"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DummyDefaultAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "TestDeal_Installment": {
                 "type": "object",
@@ -9519,44 +9669,6 @@
                             "tag",
                             "contents"
                         ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "type": "integer",
-                                        "minimum": -9223372036854775808
-                                    },
-                                    {
-                                        "items": {
-                                            "format": "double",
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "type": "array",
-                                "minItems": 3
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "DefaultedRecovery"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
                     }
                 ],
                 "type": "object"
@@ -9930,7 +10042,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "Ended"
+                                    "RampUp"
                                 ]
                             }
                         },
@@ -9944,7 +10056,39 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "Ended"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStatus"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "PreClosing"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Called"
                                 ]
                             }
                         },
@@ -10299,17 +10443,20 @@
                         "$ref": "#/components/schemas/RevolvingAssumption"
                     },
                     "projectedExpense": {
-                        "items": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Ts"
-                            }
-                        ],
-                        "maxItems": 2,
-                        "type": "array",
-                        "minItems": 2
+                        "items": {
+                            "items": [
+                                {
+                                    "type": "string"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/Ts"
+                                }
+                            ],
+                            "maxItems": 2,
+                            "type": "array",
+                            "minItems": 2
+                        },
+                        "type": "array"
                     },
                     "interest": {
                         "items": {
@@ -11121,7 +11268,20 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/AssetPerfAssumption"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetPerfAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -11150,7 +11310,20 @@
                                             "type": "array"
                                         },
                                         {
-                                            "$ref": "#/components/schemas/AssetPerfAssumption"
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/AssetPerfAssumption"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                                }
+                                            ],
+                                            "maxItems": 3,
+                                            "type": "array",
+                                            "minItems": 3
                                         }
                                     ],
                                     "maxItems": 2,
@@ -11199,7 +11372,21 @@
                                 "schema": {
                                     "type": "object",
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/CashFlowFrame"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/CashFlowFrame"
+                                            },
+                                            {
+                                                "type": "object",
+                                                "additionalProperties": {
+                                                    "multipleOf": 1.0e-2,
+                                                    "type": "number"
+                                                }
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "type": "array",
+                                        "minItems": 2
                                     }
                                 }
                             }
@@ -11259,7 +11446,21 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                        },
+                                        {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
                                 }
                             }
                         },
@@ -11461,7 +11662,21 @@
                                 "schema": {
                                     "items": [
                                         {
-                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                },
+                                                {
+                                                    "type": "object",
+                                                    "additionalProperties": {
+                                                        "multipleOf": 1.0e-2,
+                                                        "type": "number"
+                                                    }
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
                                         },
                                         {
                                             "items": {
@@ -11483,7 +11698,7 @@
         }
     },
     "info": {
-        "version": "0.20.2",
+        "version": "0.21.7",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

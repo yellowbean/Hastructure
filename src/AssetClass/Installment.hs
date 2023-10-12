@@ -14,6 +14,7 @@ import Language.Haskell.TH
 import Data.Maybe
 import Data.List
 import Data.Aeson.TH
+import qualified Data.Map as Map
 import Data.Aeson.Types
 import GHC.Generics
 
@@ -23,6 +24,7 @@ import qualified Assumptions as A
 import Types 
 import Lib
 import Util
+import DateUtil
 import qualified Cashflow as CF
 
 import AssetClass.AssetBase
@@ -152,11 +154,14 @@ instance Asset Installment where
 
   projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd _) cb rt Current) 
                asOfDay 
-               pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump extraStressAssump,_,_)
+               pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRates
-    = CF.CashFlowFrame $ cutBy Inc Future asOfDay flows 
-      where 
-          -- last_pay_date:cf_dates = sliceDates (SliceAfterKeepPrevious asOfDay) $ sd:getPaymentDates inst recovery_lag
+      = let 
+          (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
+        in 
+          (applyHaircut ams (CF.CashFlowFrame futureTxns)
+          ,historyM)
+        where 
           last_pay_date:cf_dates = lastN (rt + recovery_lag +1) $ sd:getPaymentDates inst recovery_lag
           cf_dates_length = length cf_dates  -- `debug` ("Dates->>"++show cf_dates)
           rt_with_lag = rt - recovery_lag -- `debug` ("CF Length"++ show (length cf_dates))
@@ -167,8 +172,8 @@ instance Asset Installment where
           schedule_balances = scanl (-) ob (replicate ot opmt)
           current_schedule_bal = schedule_balances !! (ot - rt) -- `debug` ("RT->"++show rt)
 
-          (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.InstallmentAssump defaultAssump prepayAssump recoveryAssump extraStressAssump)
-          flows = projectInstallmentFlow 
+          (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.InstallmentAssump defaultAssump prepayAssump recoveryAssump ams)
+          txns = projectInstallmentFlow 
                            []
                            (opmt,ofee)
                            cb
@@ -193,13 +198,13 @@ instance Asset Installment where
          recoveries = calcRecoveriesFromDefault cb rr timing
          bals = scanl (-) cb recoveries
          _txns = [  CF.LoanFlow d b 0 0 0 0 r 0 cr | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
-       in 
-         CF.CashFlowFrame $ cutBy Inc Future asOfDay (beforeRecoveryTxn++_txns)
+      in 
+         (CF.CashFlowFrame $ cutBy Inc Future asOfDay (beforeRecoveryTxn++_txns),Map.empty)
       where 
         cr = getOriginRate inst
   
   projCashflow inst@(Installment _ cb rt (Defaulted Nothing)) asOfDay assumps _
-    = CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 (getOriginRate inst)]
+    = (CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 (getOriginRate inst)],Map.empty)
         
   splitWith (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) rs
     = [ Installment (LoanOriginalInfo (mulBR ob ratio) or ot p sd _type) (mulBR cb ratio) rt st | ratio <- rs ]

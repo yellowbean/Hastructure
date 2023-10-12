@@ -45,26 +45,24 @@ class SPV a where
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
   getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
   
-data TestDeal a = TestDeal {
-  name :: String
-  ,status :: DealStatus
-  ,dates :: DateDesp
-  ,accounts :: Map.Map AccountName A.Account
-  ,fees :: Map.Map FeeName F.Fee
-  ,bonds :: Map.Map BondName L.Bond
-  ,pool ::  P.Pool a 
-  ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
-  ,collects :: [W.CollectionRule]
-  ,call :: Maybe [C.CallOption]
-  ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
-  ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
-  ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
-  ,custom:: Maybe (Map.Map String CustomDataType)
-  ,triggers :: Maybe (Map.Map DealCycle 
-                              (Map.Map String Trigger))
-  ,overrides :: Maybe [OverrideType]
-  ,ledgers :: Maybe (Map.Map String LD.Ledger)
-} deriving (Show,Generic)
+data TestDeal a = TestDeal { name :: String
+                             ,status :: DealStatus
+                             ,dates :: DateDesp
+                             ,accounts :: Map.Map AccountName A.Account
+                             ,fees :: Map.Map FeeName F.Fee
+                             ,bonds :: Map.Map BondName L.Bond
+                             ,pool ::  P.Pool a 
+                             ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
+                             ,collects :: [W.CollectionRule]
+                             ,call :: Maybe [C.CallOption]
+                             ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
+                             ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
+                             ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
+                             ,custom:: Maybe (Map.Map String CustomDataType)
+                             ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
+                             ,overrides :: Maybe [OverrideType]
+                             ,ledgers :: Maybe (Map.Map String LD.Ledger)
+                           } deriving (Show,Generic)
 
 instance SPV (TestDeal a) where
   getBondByName t bns

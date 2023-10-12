@@ -13,13 +13,14 @@ module Assumptions (BondPricingInput(..)
                     ,LeaseAssetRentAssump(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
-                    ,AssetPerfAssumption(..),AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
+                    ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
                     ,getCDR,calcResetDates)
 where
 
 import Call as C
 import Lib (Ts(..),TsPoint(..),toDate,mkRateTs)
 import Util
+import DateUtil
 import qualified Data.Map as Map 
 import Data.List
 import qualified Data.Set as Set
@@ -57,14 +58,14 @@ data ApplyAssumptionType = PoolLevel AssetPerf
                          deriving (Show,Generic)
 
 data NonPerfAssumption = NonPerfAssumption {
-  stopRunBy :: Maybe Date                            -- ^ optional stop day,which will stop cashflow projection
-  ,projectedExpense :: Maybe (FeeName,Ts)            -- ^ optional expense projection
-  ,callWhen :: Maybe [C.CallOption]                  -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
-  ,revolving :: Maybe RevolvingAssumption            -- ^ optional revolving assumption with revoving assets
-  ,interest :: Maybe [RateAssumption]                -- ^ optional interest rates assumptions
-  ,inspectOn :: Maybe [(DatePattern,DealStats)]      -- ^ optional tuple list to inspect variables during waterfall run
-  ,buildFinancialReport :: Maybe DatePattern         -- ^ optional dates to build financial reports
-  ,pricing :: Maybe BondPricingInput                 -- ^ optional bond pricing input( discount curve etc)
+  stopRunBy :: Maybe Date                              -- ^ optional stop day,which will stop cashflow projection
+  ,projectedExpense :: Maybe [(FeeName,Ts)]            -- ^ optional expense projection
+  ,callWhen :: Maybe [C.CallOption]                    -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
+  ,revolving :: Maybe RevolvingAssumption              -- ^ optional revolving assumption with revoving assets
+  ,interest :: Maybe [RateAssumption]                  -- ^ optional interest rates assumptions
+  ,inspectOn :: Maybe [(DatePattern,DealStats)]        -- ^ optional tuple list to inspect variables during waterfall run
+  ,buildFinancialReport :: Maybe DatePattern           -- ^ optional dates to build financial reports
+  ,pricing :: Maybe BondPricingInput                   -- ^ optional bond pricing input( discount curve etc)
 } deriving (Show,Generic)
 
 data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request
@@ -81,7 +82,7 @@ data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentVec [Rate] 
                            deriving (Show,Generic)
 
-data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)  -- Annualized Rate to Delinq status , period lag become defaulted, loss rate, period become loss
+data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)  -- Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
                                 | Dummy3
                                 deriving (Show,Generic)
 
@@ -94,9 +95,9 @@ data LeaseAssetRentAssump = BaseAnnualRate Rate
                           deriving (Show,Generic)
 
 data ExtraStress = ExtraStress {
-                     defaultFactors :: Maybe Ts              -- ^ stress default rate via a time series based factor curve
-                     ,prepaymentFactors :: Maybe Ts          -- ^ stress prepayment rate via a time series based factor curve
-                     ,poolHairCut :: Maybe (PoolSource,Rate) -- ^ haircut on pool income source
+                     defaultFactors :: Maybe Ts                 -- ^ stress default rate via a time series based factor curve
+                     ,prepaymentFactors :: Maybe Ts             -- ^ stress prepayment rate via a time series based factor curve
+                     ,poolHairCut :: Maybe [(PoolSource, Rate)] -- ^ haircut on pool income source
                    } deriving (Show,Generic)
 
 data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, recovery lag
@@ -119,9 +120,9 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          deriving (Show,Generic)
 
-data RevolvingAssumption = AvailableAssets RevolvingPool AssetPerf
-                          | Dummy4 
-                          deriving (Show,Generic)
+data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
+                         | Dummy4 
+                         deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
@@ -140,7 +141,7 @@ lookupRate rAssumps (index,spd) d
   = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
       Just (RateCurve _ ts) -> spd + fromRational (getValByDate ts Inc d)
       Just (RateFlat _ r) -> r + spd
-      Nothing -> error $ "Failed to find Index "++show index
+      Nothing -> error $ "Failed to find Index " ++ show index
 
 getRateAssumption :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumption assumps idx
@@ -151,28 +152,30 @@ getRateAssumption assumps idx
          assumps
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
-projRates :: RateType -> Maybe [RateAssumption] -> [Date] -> [IRate]
-projRates (Fix _ r) _ ds = replicate (length ds) r 
-projRates (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
+projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> [IRate]
+projRates sr (Fix _ r) _ ds = replicate (length ds) sr 
+projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
   = case getRateAssumption assumps idx of
       Nothing -> error ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
       Just _rateAssumption -> 
         let 
           resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
           ratesFromCurve = case _rateAssumption of
-                             (RateCurve _ ts)   -> (\x -> spd + (fromRational x) ) <$>  (getValByDates ts Inc resetDates)
-                             (RateFlat _ v) -> (spd +) <$> replicate (length resetDates) v
+                             (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
+                             (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
                              _ -> error ("Invalid rate type "++ show _rateAssumption)
           ratesUsedByDates =  getValByDates
-                                (mkRateTs $ zip resetDates ratesFromCurve)
+                                (mkRateTs $ zip ((head ds):resetDates) (sr:ratesFromCurve))
                                 Inc
-                                ds
+                                ds 
         in 
           case (rfloor,rcap) of 
-            (Nothing, Nothing) -> fromRational <$> ratesUsedByDates 
+            (Nothing, Nothing) -> fromRational <$> ratesUsedByDates  
             (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
             (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
             (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
+projRates _ rt rassump ds = error ("Invalid rate type: "++ show rt++" assump"++ show rassump)
+
 
 -- ^ Given a list of rates, calcualte whether rates was reset
 calcResetDates :: [IRate] -> [Bool] -> [Bool]

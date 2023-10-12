@@ -42,13 +42,14 @@ tm2 = AB.Mortgage
      (AB.Defaulted Nothing)
 
 asOfDate = L.toDate "20210605"
-tmcf_00 = P.projCashflow tm asOfDate ((A.MortgageAssump Nothing Nothing Nothing Nothing),A.DummyDeqlinqAssump,A.DummyDefaultAssump) Nothing
+
+(tmcf_00,_) = P.projCashflow tm asOfDate ((A.MortgageAssump Nothing Nothing Nothing Nothing),A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
 trs = CF.getTsCashFlowFrame tmcf_00
-tmcf_default = P.projCashflow 
-               tm 
-               asOfDate 
-               (A.MortgageAssump (Just (A.DefaultConstant 0.015)) Nothing Nothing Nothing ,A.DummyDeqlinqAssump,A.DummyDefaultAssump)
-               Nothing
+(tmcf_default,_) = P.projCashflow 
+                     tm 
+                     asOfDate 
+                     (A.MortgageAssump (Just (A.DefaultConstant 0.015)) Nothing Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump)
+                     Nothing
 
 
 mortgageCalcTests = testGroup "Mortgage Calc Test" 
@@ -80,7 +81,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
      testCase "Default asset won't have cashflow if no assumption" $
      let
         asDay = (L.toDate "20220101")
-        tm2cf_00 = P.projCashflow tm2 asDay (A.MortgageAssump Nothing Nothing Nothing Nothing ,A.DummyDeqlinqAssump,A.DummyDefaultAssump) Nothing
+        (tm2cf_00,_) = P.projCashflow tm2 asDay (A.MortgageAssump Nothing Nothing Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
         trs = CF.getTsCashFlowFrame tm2cf_00
      in
         assertEqual "Empty for principal"
@@ -100,7 +101,7 @@ loanTests =
                  AB.Current
       asofDate = L.toDate "20200615"
       loan1Cf = P.calcCashflow loan1 asofDate Nothing
-      loan2Cf = P.projCashflow loan1 asofDate (A.LoanAssump Nothing Nothing Nothing Nothing ,A.DummyDeqlinqAssump,A.DummyDefaultAssump) Nothing
+      (loan2Cf,_) = P.projCashflow loan1 asofDate (A.LoanAssump Nothing Nothing Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
     in 
       testGroup "Loan cashflow Tests" [ 
        testCase "Loan 1" $
@@ -167,21 +168,20 @@ leaseTests =
                 AB.Current
       cf3_0 = P.calcCashflow lease3 (L.toDate "20230415") Nothing
       cf3 = P.calcCashflow lease3 asofDate Nothing
-
-      cf4 = P.projCashflow lease1 asofDate 
-                (A.LeaseAssump (A.GapDays 45)
-                               (A.BaseAnnualRate 0.0)
-                               (L.toDate "20240601")
-                               Nothing
-                 ,A.DummyDeqlinqAssump,A.DummyDefaultAssump)
-                Nothing
-      cf5 =  P.projCashflow lease1 asofDate 
-             (A.LeaseAssump (A.GapDaysByAmount [(0.5,12),(1,22),(2,62),(3,82)] 92)
-                            (A.BaseAnnualRate 0.0)
-                            (L.toDate "20240601")
-                            Nothing
-             ,A.DummyDeqlinqAssump,A.DummyDefaultAssump)
-             Nothing
+      (cf4,_) = P.projCashflow lease1 asofDate 
+                  (A.LeaseAssump (A.GapDays 45)
+                                 (A.BaseAnnualRate 0.0)
+                                 (L.toDate "20240601")
+                                 Nothing
+                   ,A.DummyDelinqAssump,A.DummyDefaultAssump)
+                   Nothing
+      (cf5,_) =  P.projCashflow lease1 asofDate 
+                   (A.LeaseAssump (A.GapDaysByAmount [(0.5,12),(1,22),(2,62),(3,82)] 92)
+                                  (A.BaseAnnualRate 0.0)
+                                  (L.toDate "20240601")
+                                  Nothing
+                   ,A.DummyDelinqAssump,A.DummyDefaultAssump)
+                   Nothing
     in 
       testGroup "Lease CF Test" [
         testCase "1 year Regular Lease sum of rentals" $
@@ -310,9 +310,10 @@ armTest =
                             ,TsPoint (L.toDate "20251001") 0.12
                             ])
                 
-    arm1_cf = P.projCashflow arm1 (L.toDate "20230601") (A.MortgageAssump Nothing Nothing Nothing Nothing
-                                                         ,A.DummyDeqlinqAssump,A.DummyDefaultAssump) 
-                                                        (Just [assump1])
+    (arm1_cf,_) = P.projCashflow arm1 (L.toDate "20230601") (A.MortgageAssump Nothing Nothing Nothing Nothing
+                                                            ,A.DummyDelinqAssump,A.DummyDefaultAssump) 
+                                                            (Just [assump1])
+
   in 
     testGroup "ARM cashflow tests" [
       testCase "ARM case 1/ cf length" $
@@ -321,35 +322,35 @@ armTest =
         (CF.sizeCashFlowFrame arm1_cf)
       ,testCase "ARM case 1/ first cash" $
         assertEqual "first cash row"
-        (Just (CF.MortgageFlow (L.toDate "20240501") 227.66 12.34 0.6 0 0 0 0 0 0.03 Nothing Nothing ))
+        (Just (CF.MortgageFlow (L.toDate "20240501") 227.66 12.34 0.6 0 0 0 0 0.03 Nothing Nothing ))
         (CF.cfAt arm1_cf 0)
       ,testCase "ARM case 1/ frist reset" $
         assertEqual "first rate"
-        (Just (CF.MortgageFlow (L.toDate "20240601") 215.41 12.25 0.85 0 0 0 0 0 0.045 Nothing Nothing ))
+        (Just (CF.MortgageFlow (L.toDate "20240601") 215.41 12.25 0.85 0 0 0 0 0.045 Nothing Nothing ))
         (CF.cfAt arm1_cf 1)
       ,testCase "ARM case 1/periodic reset " $
         assertEqual "first rate"
-        (Just (CF.MortgageFlow (L.toDate "20240801") 190.85 12.26 0.93 0 0 0 0 0 0.055 Nothing Nothing ))
+        (Just (CF.MortgageFlow (L.toDate "20240801") 190.85 12.26 0.93 0 0 0 0 0.055 Nothing Nothing ))
         (CF.cfAt arm1_cf 3)
       ,testCase "ARM case 1/remains same before next reset" $
         assertEqual "period before first reset"
-        (Just (CF.MortgageFlow (L.toDate "20240901") 178.53 12.32 0.87 0 0 0 0 0 0.055 Nothing Nothing ))
+        (Just (CF.MortgageFlow (L.toDate "20240901") 178.53 12.32 0.87 0 0 0 0 0.055 Nothing Nothing ))
         (CF.cfAt arm1_cf 4)
       ,testCase "ARM case 1" $
         assertEqual "reset with periodic cap"
-        (Just (CF.MortgageFlow (L.toDate "20241201") 141.47 12.38 0.96 0 0 0 0 0 0.075 Nothing Nothing))
+        (Just (CF.MortgageFlow (L.toDate "20241201") 141.47 12.38 0.96 0 0 0 0 0.075 Nothing Nothing))
         (CF.cfAt arm1_cf 7)
       ,testCase "ARM case 1" $
         assertEqual "Period 9"
-        (Just (CF.MortgageFlow (L.toDate "20250101") 129.01 12.46 0.88 0 0 0 0 0 0.075 Nothing Nothing ))
+        (Just (CF.MortgageFlow (L.toDate "20250101") 129.01 12.46 0.88 0 0 0 0 0.075 Nothing Nothing ))
         (CF.cfAt arm1_cf 8)
       ,testCase "ARM case 1" $
         assertEqual "Period 10"
-        (Just (CF.MortgageFlow (L.toDate "20250201") 116.49 12.52 0.85 0 0 0 0 0 0.08 Nothing Nothing ))
+        (Just (CF.MortgageFlow (L.toDate "20250201") 116.49 12.52 0.85 0 0 0 0 0.08 Nothing Nothing ))
         (CF.cfAt arm1_cf 9)
       ,testCase "ARM case 1" $
         assertEqual "life cap"
-        (Just (CF.MortgageFlow (L.toDate "20250401") 91.24 12.65 0.77 0 0 0 0 0 0.09 Nothing Nothing ))
+        (Just (CF.MortgageFlow (L.toDate "20250401") 91.24 12.65 0.77 0 0 0 0 0.09 Nothing Nothing ))
         (CF.cfAt arm1_cf 11)
 
     ]
@@ -376,70 +377,72 @@ tm_ppy_5 = AB.Mortgage (origin_info { AB.prepaymentPenalty = ppy_5}) 10000 0.08 
 
 ppyTest = 
   let 
-    assump1 = (A.MortgageAssump Nothing (Just (A.PrepaymentCPR 0.03)) Nothing Nothing,A.DummyDeqlinqAssump,A.DummyDefaultAssump)
-    ppy_cf_1 = P.projCashflow tm_ppy_1 (L.toDate "20210101") assump1 Nothing
-    ppy_cf_2 = P.projCashflow tm_ppy_2 (L.toDate "20210101") assump1 Nothing
-    ppy_cf_2_1 = P.projCashflow tm_ppy_2_1 (L.toDate "20210101") assump1 Nothing
-    ppy_cf_3 = P.projCashflow tm_ppy_3 (L.toDate "20210101") assump1 Nothing
-    ppy_cf_3_1 = P.projCashflow tm_ppy_3_1 (L.toDate "20210101") assump1 Nothing
-    ppy_cf_4 = P.projCashflow tm_ppy_4 (L.toDate "20210101") assump1 Nothing
-    ppy_cf_5 = P.projCashflow tm_ppy_5 (L.toDate "20210101") assump1 Nothing
+    assump1 = (A.MortgageAssump Nothing (Just (A.PrepaymentCPR 0.03)) Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump)
+
+    (ppy_cf_1,_) = P.projCashflow tm_ppy_1 (L.toDate "20210101") assump1 Nothing
+    (ppy_cf_2,_) = P.projCashflow tm_ppy_2 (L.toDate "20210101") assump1 Nothing
+    (ppy_cf_2_1,_) = P.projCashflow tm_ppy_2_1 (L.toDate "20210101") assump1 Nothing
+    (ppy_cf_3,_) = P.projCashflow tm_ppy_3 (L.toDate "20210101") assump1 Nothing
+    (ppy_cf_3_1,_) = P.projCashflow tm_ppy_3_1 (L.toDate "20210101") assump1 Nothing
+    (ppy_cf_4,_) = P.projCashflow tm_ppy_4 (L.toDate "20210101") assump1 Nothing
+    (ppy_cf_5,_) = P.projCashflow tm_ppy_5 (L.toDate "20210101") assump1 Nothing
+
   in 
     testGroup "Prepay Penalty tests" [
       testCase "ppy case 1" $
         assertEqual " using rate0"
-        (Just (CF.MortgageFlow (L.toDate "20210201") 9589.55 384.62 66.48 25.83 0 0 0 0 0.08 Nothing (Just 2.58)))
+        (Just (CF.MortgageFlow (L.toDate "20210201") 9589.55 384.62 66.48 25.83 0 0 0 0.08 Nothing (Just 2.58)))
         (CF.cfAt ppy_cf_1 0)
       ,testCase "ppy case 1" $
         assertEqual " using rate1"
-        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0 0.08 Nothing (Just 0.21 )))
+        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0.08 Nothing (Just 0.21 )))
         (CF.cfAt ppy_cf_1 3)
       ,testCase "ppy case 2" $
         assertEqual " using fix amount"
-        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0 0.08 Nothing (Just 100 )))
+        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0.08 Nothing (Just 100 )))
         (CF.cfAt ppy_cf_2 3)
       ,testCase "ppy case 2 1_0" $
         assertEqual " using fix amount in period"
-        (Just (CF.MortgageFlow (L.toDate "20210201")  9589.55 384.62 66.48 25.83 0 0 0 0 0.08 Nothing  (Just 100 )))
+        (Just (CF.MortgageFlow (L.toDate "20210201")  9589.55 384.62 66.48 25.83 0 0 0 0.08 Nothing  (Just 100 )))
         (CF.cfAt ppy_cf_2_1 0)
       ,testCase "ppy case 2 1" $
         assertEqual " using fix amount out of period"
-        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0 0.08 Nothing (Just 0 )))
+        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0.08 Nothing (Just 0 )))
         (CF.cfAt ppy_cf_2_1 3)
       ,testCase "ppy case 3" $
         assertEqual " using life time pct"
-        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0 0.08 Nothing (Just 0.21 )))
+        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0.08 Nothing (Just 0.21 )))
         (CF.cfAt ppy_cf_3 3)
       ,testCase "ppy case 3 1_0" $
         assertEqual " using pct in period"
-        (Just (CF.MortgageFlow (L.toDate "20210201")  9589.55 384.62 66.48 25.83 0 0 0 0 0.08 Nothing  (Just 0.25 )))
+        (Just (CF.MortgageFlow (L.toDate "20210201")  9589.55 384.62 66.48 25.83 0 0 0 0.08 Nothing  (Just 0.25 )))
         (CF.cfAt ppy_cf_3_1 0)
       ,testCase "ppy case 3 1" $
         assertEqual " using pct out of period"
-        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0 0.08 Nothing (Just 0 )))
+        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0.08 Nothing (Just 0 )))
         (CF.cfAt ppy_cf_3_1 3)
       ,testCase "ppy case 4" $
         assertEqual " using slide at period 0"
-        (Just (CF.MortgageFlow (L.toDate "20210201")  9589.55 384.62 66.48 25.83 0 0 0 0 0.08 Nothing  (Just 2.58 )))
+        (Just (CF.MortgageFlow (L.toDate "20210201")  9589.55 384.62 66.48 25.83 0 0 0 0.08 Nothing  (Just 2.58 )))
         (CF.cfAt ppy_cf_4 0)
       ,testCase "ppy case 4 1" $
         assertEqual " using slide at period 1"
-        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0 0.08 Nothing (Just (0.07*21.92))))
+        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0.08 Nothing (Just (0.07*21.92))))
         (CF.cfAt ppy_cf_4 3)     
       ,testCase "ppy case 5" $
         assertEqual " using rate 0 before 2 periods"
-        (Just (CF.MortgageFlow (L.toDate "20210201")  9589.55 384.62 66.48 25.83 0 0 0 0 0.08 Nothing  (Just (25.83*0.5) )))
+        (Just (CF.MortgageFlow (L.toDate "20210201")  9589.55 384.62 66.48 25.83 0 0 0 0.08 Nothing  (Just (25.83*0.5) )))
         (CF.cfAt ppy_cf_5 0)
       ,testCase "ppy case 5 1" $
         assertEqual " using rate 1 after 2 periods"
-        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0 0.08 Nothing (Just (0.2*21.92))))
+        (Just (CF.MortgageFlow (L.toDate "20210501") 8357.98 389.45 58.31 21.92 0 0 0 0.08 Nothing (Just (0.2*21.92))))
         (CF.cfAt ppy_cf_5 3)   
     ]
 
 delinqScheduleCFTest = 
   let 
-    cfs = [CF.MortgageFlow (L.toDate "20230901") 1000  0 0 0 0 0 0 0 0.08 Nothing Nothing
-          ,CF.MortgageFlow (L.toDate "20231001") 500 500 0 0 0 0 0 0 0.08 Nothing Nothing
+    cfs = [CF.MortgageDelinqFlow (L.toDate "20230901") 1000  0 0 0 0 0 0 0 0.08 Nothing Nothing
+          ,CF.MortgageDelinqFlow (L.toDate "20231001") 500 500 0 0 0 0 0 0 0.08 Nothing Nothing
           ]
     pool = P.Pool ([]::[AB.Mortgage])
                   (Just (CF.CashFlowFrame cfs))
@@ -448,40 +451,44 @@ delinqScheduleCFTest =
                   (Just MonthEnd)
     assump1 = Just (A.PoolLevel 
                       (A.MortgageDeqAssump (Just (A.DelinqCDR 0.05 (5,0.3))) Nothing Nothing Nothing
-                      ,A.DummyDeqlinqAssump
+                      ,A.DummyDelinqAssump
                       ,A.DummyDefaultAssump))
     assump2 = Just (A.PoolLevel 
                       (A.MortgageDeqAssump (Just (A.DelinqCDR 0.05 (5,0.3))) (Just (A.PrepaymentCPR 0.08)) Nothing Nothing
-                      ,A.DummyDeqlinqAssump
+                      ,A.DummyDelinqAssump
                       ,A.DummyDefaultAssump))
 
-    poolCf = head $ D.runPool pool assump1 Nothing
-    poolCf2 = head $ D.runPool pool assump2 Nothing
+    poolCf = fst . head $ D.runPool pool assump1 Nothing
+    poolCf2 = fst . head $ D.runPool pool assump2 Nothing
   in 
     testGroup "delinq run on schedule flow" [
       testCase "case 01" $
         assertEqual "size of cashflow" 
         7
-        (CF.sizeCashFlowFrame poolCf) 
+        (CF.sizeCashFlowFrame poolCf) -- `debug` ("\n>>>>> Pool cf from test schedule delinq\n >>>>"++ show poolCf)
+      ,testCase "case 01_Dates" $
+        assertEqual "Dates of cashflow" 
+        (L.toDate <$> ["20230901","20231001","20231031","20231130","20231231","20240131","20240229"])
+        (CF.getDatesCashFlowFrame poolCf)
       ,testCase "case 02" $
         assertEqual "first row of cf"
-        (Just (CF.MortgageFlow (L.toDate "20230901") 995.66  0 0 0 4.34 0 0 0 0.08 Nothing Nothing))
+        (Just (CF.MortgageDelinqFlow (L.toDate "20230901") 995.66  0 0 0 4.34 0 0 0 0.08 Nothing Nothing))
         (CF.cfAt poolCf 0)
       ,testCase "case 03" $
         assertEqual "second row of cf"
-        (Just (CF.MortgageFlow (L.toDate "20231001") 493.66  497.82 0 0 4.18 0 0 0 0.08 Nothing Nothing))
+        (Just (CF.MortgageDelinqFlow (L.toDate "20231001") 493.66  497.82 0 0 4.18 0 0 0 0.08 Nothing Nothing))
         (CF.cfAt poolCf 1)
       ,testCase "case 04" $
         assertEqual "first extended cf, nothing"
-        (Just (CF.MortgageFlow (L.toDate "20231031") 493.66  0.0 0 0 0 0 0 0 0.00 Nothing Nothing))
+        (Just (CF.MortgageDelinqFlow (L.toDate "20231031") 493.66  0.0 0 0 0 0 0 0 0.00 Nothing Nothing))
         (CF.cfAt poolCf 2)
       ,testCase "case 05" $
         assertEqual "first default from delinq"
-        (Just (CF.MortgageFlow (L.toDate "20240131") 496.69  0.0 0 0 0 1.3 0 1.3 0.000488 Nothing Nothing))
+        (Just (CF.MortgageDelinqFlow (L.toDate "20240131") 499.61  0.0 0 0 0 1.3 0 1.3 0.000952 Nothing Nothing))
         (CF.cfAt poolCf 5)
       ,testCase "case 06" $
         assertEqual "first loss/recovery from default & first back to perf"
-        (Just (CF.MortgageFlow (L.toDate "20240229") 499.66  2.97 0 0 0 1.25 0 1.25 0.000475 Nothing Nothing))
+        (Just (CF.MortgageDelinqFlow (L.toDate "20240229") 496.64  2.97 0 0 0 1.25 0 1.25 0.000480 Nothing Nothing))
         (CF.cfAt poolCf 6)
       -- ,testCase "case 07" $
       --   assertEqual "first loss/recovery from default & first back to perf"
@@ -489,7 +496,7 @@ delinqScheduleCFTest =
       --   (CF.cfAt poolCf 7)
       ,testCase "case with prepay assump" $
         assertEqual "01"
-        (Just (CF.MortgageFlow (L.toDate "20230901") 988.64 0 0 7.02 4.34  0.0 0.0 0.0 0.08 Nothing Nothing))
+        (Just (CF.MortgageDelinqFlow (L.toDate "20230901") 988.64 0 0 7.02 4.34  0.0 0.0 0.0 0.08 Nothing Nothing))
         (CF.cfAt poolCf2 0)
     ]
 
@@ -506,24 +513,37 @@ delinqMortgageTest =
                         Nothing
                         Nothing 
                         Nothing
-              ,A.DummyDeqlinqAssump,A.DummyDefaultAssump)
-    (CF.CashFlowFrame txns) = P.projCashflow tm1 (L.toDate "20200101") assump1 Nothing
+              ,A.DummyDelinqAssump,A.DummyDefaultAssump)
+    (CF.CashFlowFrame txns,m) = P.projCashflow tm1 (L.toDate "20200101") assump1 Nothing
+
   in 
     testGroup "Mortgage Delinq Projection" [
       testCase "" $
         assertEqual "Length of cf"
         5
-        (length txns)
+        (length txns) -- `debug` ("Delinq CF"++show txns)
       ,testCase "first row" $
         assertEqual "delinq = 1"
-        (CF.MortgageFlow (L.toDate "20211101") 159.84 79.12 1.59 0 1.04 0.0 0.0 0.0 0.08 Nothing Nothing)
+        (CF.MortgageDelinqFlow (L.toDate "20211101") 159.84 79.12 1.59 0 1.04 0.0 0.0 0.0 0.08 Nothing Nothing)
         (txns!!0)
+      ,testCase "second row" $
+        assertEqual "with first default/loss/recovery"
+        (CF.MortgageDelinqFlow (L.toDate "20211201") 79.85 79.32 1.06  0 0.67 0.0 0.0 0.0 0.08 Nothing Nothing)
+        (txns!!1)
       ,testCase "last row" $
         assertEqual "with first default/loss/recovery"
-        (CF.MortgageFlow (L.toDate "20220101") 0.0 79.51 0.53  0 0.34 0.31 0.0 0.31 0.08 Nothing Nothing)
+        (CF.MortgageDelinqFlow (L.toDate "20220101") 1.17 79.75 0.53  0 0.34 0.31 0.0 0.31 0.08 Nothing Nothing)
         (txns!!2)
       ,testCase "extend 1st flow" $
         assertEqual "check default"
-        (CF.MortgageFlow (L.toDate "20220201") 0.36 0.36 0.0  0.0 0.0 0.20 0.0 0.2 0.08 Nothing Nothing)
+        (CF.MortgageDelinqFlow (L.toDate "20220201") 0.70 0.47 0.0  0.0 0.0 0.20 0.0 0.2 0.08 Nothing Nothing)
         (txns!!3)
+      -- ,testCase "extend 2st flow" $
+      --   assertEqual "check default"
+      --   (CF.MortgageDelinqFlow (L.toDate "20220201") 1.08 0.36 0.0  0.0 0.0 0.11 0.0 0.11 0.08 Nothing Nothing)
+      --   (txns!!4)
+      -- ,testCase "extend 3st flow" $
+      --   assertEqual "check default"
+      --   (CF.MortgageDelinqFlow (L.toDate "20220201") 1.08 0.36 0.0  0.0 0.0 0.0 0.0 0.0 0.08 Nothing Nothing)
+      --   (txns!!5)
     ]

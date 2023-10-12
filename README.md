@@ -1,13 +1,25 @@
 [![Actions Status](https://github.com/yellowbean/Hastructure/workflows/Haskell%20CI/badge.svg)](https://github.com/yellowbean/Hastructure/actions)
 [![Docker Build](https://img.shields.io/docker/v/yellowbean/hastructure?color=green&label=docker)](https://hub.docker.com/r/yellowbean/hastructure)
 
+# What is Hastructure ?
+
+``Hastructure`` names after ``Haskell`` and ``Structured Finance``, aims to provide cashflow projection for deal/transactions describled in either Haskell structure or ``JSON`` via REST Service, with inputs:
+
+* deal components (bonds,assets,accounts,waterfall,trigger,fees etc.) 
+* pool performance prediction input as well as interest rate assumption
+
+the engine will yields outputs:
+
+* cashflow of bonds/accounts/fees
+* pricing of bonds
+* or other outputs make your lose all of the money faster :sunglasses:
+
 # Why Hastructure ?
-* :dollar: A structured finance cashflow engine written in Haskell 
 * :coffee: Easy integration with Java/C#/C++/JavaScript/Python with RESTful interface and Docker image ready
 * :bricks: A building block engine to model cashflows of structured product, all the formula and variables are exposed.
 * :car: In-house and white-label friendly.
 * :flags: No lock-in risk, all JSONs input/output, no proprietary file formats.
-* :snake: [Python wrapper](https://github.com/yellowbean/PyABS) on the way   
+* :snake: [Python wrapper](https://github.com/yellowbean/PyABS) is in ``Beta`` now !  
 
 ### Features
 * Integration
@@ -18,7 +30,7 @@
   * Docker Support 
 * Asset class coverage (Mortgage/Student Loan/Auto Loan/Rentals/Corp Loan/Consumer Installment)
 * Pool Assumptions
-  * Mortgage (Prepay,Prepay Penalty,Default,Recovery Lag/Rate)
+  * Mortgage (Prepay, Prepay Penalty, Deliquency, Default,Recovery Lag/Rate)
   * Installment (Prepay Default Recovery Lag/Rate) 
   * Corp Loan (Prepay Default Recovery Lag/Rate)
   * Rentals (Gaps between leases,Rental Curve Assumption) 
@@ -50,10 +62,11 @@
   * Running multiple scenarios on single deal
   * Pricing on single asset 
   * Revoving Buy Analysis 
-* Formula Support 
+* Free Formula Support 
   * User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc.
 * Misc
   * Support user define pay dates & pool collection dates 
+
 ### Online Demo
 
 The demo only cover very limit features of this engine and subject to UI performance issue due to rapid prototype design of web component
