@@ -34,6 +34,8 @@ fi
 echo "<PUBLISH> Tagging"
 git add app/Main.hs
 git add swagger.json
+git add Hastructure.cabal
+git add ChangeLog.md
 git commit -m "bump version to-> < $2 >"
 git tag -a $1$2 -m "$3"
 

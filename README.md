@@ -1,13 +1,25 @@
 [![Actions Status](https://github.com/yellowbean/Hastructure/workflows/Haskell%20CI/badge.svg)](https://github.com/yellowbean/Hastructure/actions)
 [![Docker Build](https://img.shields.io/docker/v/yellowbean/hastructure?color=green&label=docker)](https://hub.docker.com/r/yellowbean/hastructure)
 
+# What is Hastructure ?
+
+``Hastructure`` names after ``Haskell`` and ``Structured Finance``, aims to provide cashflow projection for deal/transactions describled in either Haskell structure or ``JSON`` via REST Service, with inputs:
+
+* deal components (bonds,assets,accounts,waterfall,trigger,fees etc.) 
+* pool performance prediction input as well as interest rate assumption
+
+the engine will yields outputs:
+
+* cashflow of bonds/accounts/fees
+* pricing of bonds
+* or other outputs make your lose all of the money faster :sunglasses:
+
 # Why Hastructure ?
-* :dollar: A structured finance cashflow engine written in Haskell 
 * :coffee: Easy integration with Java/C#/C++/JavaScript/Python with RESTful interface and Docker image ready
 * :bricks: A building block engine to model cashflows of structured product, all the formula and variables are exposed.
 * :car: In-house and white-label friendly.
 * :flags: No lock-in risk, all JSONs input/output, no proprietary file formats.
-* :snake: [Python wrapper](https://github.com/yellowbean/PyABS) on the way   
+* :snake: [Python wrapper](https://github.com/yellowbean/PyABS) is in ``Beta`` now !  
 
 ### Features
 * Integration

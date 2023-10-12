@@ -5,7 +5,8 @@
 
 module Deal.DealAction (performActionWrap,performAction,calcDueFee
                        ,testTrigger,RunContext(..),updateLiqProvider
-                       ,calcDueInt,projAssetUnion,priceAssetUnion) 
+                       ,calcDueInt,projAssetUnion,priceAssetUnion
+                       ,priceAssetUnionList) 
   where
 
 import qualified Accounts as A
@@ -34,6 +35,7 @@ import Deal.DealDate
 import Stmt
 import Lib
 import Util
+import DateUtil
 import Types
 import Revolving
 import Triggers
@@ -305,6 +307,13 @@ priceAssetUnion (ACM.LO m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.IL m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.LS m) d pm aps = P.priceAsset m d pm aps
 
+priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [PriceResult]
+priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates = 
+  let 
+    assetPrices = [ priceAssetUnion asset d pm assetPerf mRates | asset <- assetList ]
+  in 
+    assetPrices -- `debug` ("AP"++show assetPrices)
+
 
 -- | this would used in `static` revolving ,which assumes the revolving pool will decrease
 splitAssetUnion :: [Rate] -> ACM.AssetUnion -> [ACM.AssetUnion]
@@ -343,9 +352,20 @@ projAssetUnion (ACM.LO ast) d assumps mRates = P.projCashflow ast d assumps mRat
 projAssetUnion (ACM.IL ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.LS ast) d assumps mRates = P.projCashflow ast d assumps mRates
 
+projAssetUnionList :: [ACM.AssetUnion] -> Date -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+projAssetUnionList assets d (AP.PoolLevel assetPerf) mRate =
+  let 
+    results = [ projAssetUnion asset d assetPerf mRate | asset <- assets ]
+    cfs = fst <$> results
+    bals = snd <$> results
+  in 
+    (foldl1 CF.mergePoolCf cfs, Map.unionsWith (+) bals)
+
+projAssetUnionList assets d _ mRate = error " not implemented on asset level assumption for revolving pool"
+
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame
-                  ,revolvingAssump:: Maybe (RevolvingPool ,AP.AssetPerf)
+                  ,revolvingAssump:: Maybe (RevolvingPool ,AP.ApplyAssumptionType)
                   ,revolvingInterestRateAssump:: Maybe [RateAssumption]
                   }
 
@@ -403,35 +423,46 @@ performActionWrap d
    = (t { accounts = newAccMap }, newRc, logs )
     where 
       _assets = lookupAssetAvailable assetForSale d
-      assets = updateOriginDate2 d <$> _assets 
+      assets = updateOriginDate2 d <$> _assets -- `debug` ("Asset on revolv"++ show _assets)
                 
-      valuationOnAvailableAssets = sum [ getPriceValue (priceAssetUnion ast d pricingMethod perfAssumps mRates)  | ast <- assets ]  -- `debug` ("Revolving >> after shift "++ show assets)
+      valuationOnAvailableAssets = sum $ getPriceValue <$> priceAssetUnionList assets d pricingMethod perfAssumps mRates 
       accBal = A.accBalance $ accsMap Map.! accName -- `debug` ("Av")
       limitAmt = case ml of 
                    Just (DS ds) -> queryDeal t (patchDateToStats d ds)
                    Just (DueCapAmt amt) -> amt
                    Nothing -> accBal
 
-      availBal = min limitAmt accBal
+      availBal = min limitAmt accBal -- `debug` ("Value on r -asset "++ show valuationOnAvailableAssets)
       purchaseAmt = case assetForSale of 
-                    (StaticAsset _) -> min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
-                    ConstantAsset _ -> availBal 
-                    AssetCurve _ -> min availBal valuationOnAvailableAssets   
+                      (StaticAsset _) -> min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
+                      ConstantAsset _ -> availBal 
+                      AssetCurve _ -> min availBal valuationOnAvailableAssets   
 
-      purchaseRatio = purchaseAmt / valuationOnAvailableAssets
+      purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets -- `debug` ("Purchase Amt"++show purchaseAmt)
       purchaseRatios = toRational <$> [purchaseRatio,1-purchaseRatio]
 
-      (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale
+      (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
       -- newBoughtPcf = (CF.shiftCfToStartDate d) <$> [ projAssetUnion ast d perfAssumps | ast <- assetBought ]
-      newBoughtPcf = fst <$> [ projAssetUnion (updateOriginDate2 d ast) d perfAssumps mRates | ast <- assetBought ]
-      poolCurrentTr = CF.buildBegTsRow d tr
-      currentPoolFlow = CF.cfInsertHead poolCurrentTr pcf
+      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates -- `debug` ("Asset bought"++ show assetBought)
+      -- poolCurrentTr = CF.buildBegTsRow d tr
+      -- currentPoolFlow = CF.cfInsertHead poolCurrentTr pcf -- `debug` ("Inserting new tr"++ show poolCurrentTr)
+      -- currentPoolFlow = CF.patchBeginBalance d pcf
       --newPcf = foldl CF.mergePoolCf pcf newBoughtPcf  `debug` ("reolvoing cf"++show d++"\n"++show newBoughtPcf++"\n"++"pool cf 1st"++show (CF.cfAt pcf 0))
-      newPcf = foldl CF.mergePoolCf currentPoolFlow newBoughtPcf -- `debug` ("reolvoing cf"++show d++"\n"++show newBoughtPcf++"\n"++"pool cf 1st"++show (CF.cfAt pcf 0))
+      -- newPcf = CF.CashFlowFrame $ CF.mergePoolCf currentPoolFlow newBoughtPcf --  `debug` ("reolvoing after insert"++ show currentPoolFlow)
+      newPcf = CF.CashFlowFrame $ CF.combineTss [] (tr:trs) newBoughtTxn  -- `debug` ("reolvoing first txn\n"++ show (head newBoughtTxn))
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (poolAfterBought,perfAssumps)} -- `debug` ("new pool flow"++show newPcf)
+                 ,revolvingAssump = Just (poolAfterBought, perfAssumps)}  -- `debug` ("new pool flow\n"++show newPcf++"\n")
+
+performActionWrap d 
+                  (t
+                  ,rc@RunContext{runPoolFlow=pcf@(CF.CashFlowFrame (tr:trs))
+                                ,revolvingAssump=Nothing
+                                ,revolvingInterestRateAssump = mRates}
+                  ,logs)
+                  (W.BuyAsset ml pricingMethod accName)
+  = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ show (name t)
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
   = (t, rc, newLogs ++ logs)
@@ -773,7 +804,7 @@ performAction d t@TestDeal{liqProvider = Just _liqProvider} (W.LiqAccrue n)
 performAction d t@TestDeal{rateSwap = Just rtSwap } (W.SwapAccrue sName)
   = t { rateSwap = Just newRtSwap } 
     where 
-        refBal = case  (HE.rsNotional (rtSwap Map.! sName)) of 
+        refBal = case  HE.rsNotional (rtSwap Map.! sName) of 
                    (HE.Fixed b) -> b
                    (HE.Base ds) -> queryDeal t (patchDateToStats d ds)
                    (HE.Schedule ts) -> fromRational $ getValByDate ts Inc d
@@ -812,4 +843,4 @@ performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tName)
     where 
       newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
 
-performAction d t action =  error $ "failed to match action"++show action
+performAction d t action =  error $ "failed to match action"++show action++"Deal"++show (name t)

@@ -13,13 +13,14 @@ module Assumptions (BondPricingInput(..)
                     ,LeaseAssetRentAssump(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
-                    ,AssetPerfAssumption(..),AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
+                    ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
                     ,getCDR,calcResetDates)
 where
 
 import Call as C
 import Lib (Ts(..),TsPoint(..),toDate,mkRateTs)
 import Util
+import DateUtil
 import qualified Data.Map as Map 
 import Data.List
 import qualified Data.Set as Set
@@ -81,7 +82,7 @@ data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentVec [Rate] 
                            deriving (Show,Generic)
 
-data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)  -- Annualized Rate to Delinq status , period lag become defaulted, loss rate, period become loss
+data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)  -- Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
                                 | Dummy3
                                 deriving (Show,Generic)
 
@@ -119,9 +120,9 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          deriving (Show,Generic)
 
-data RevolvingAssumption = AvailableAssets RevolvingPool AssetPerf
-                          | Dummy4 
-                          deriving (Show,Generic)
+data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
+                         | Dummy4 
+                         deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
@@ -140,7 +141,7 @@ lookupRate rAssumps (index,spd) d
   = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
       Just (RateCurve _ ts) -> spd + fromRational (getValByDate ts Inc d)
       Just (RateFlat _ r) -> r + spd
-      Nothing -> error $ "Failed to find Index "++show index
+      Nothing -> error $ "Failed to find Index " ++ show index
 
 getRateAssumption :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumption assumps idx
@@ -152,7 +153,7 @@ getRateAssumption assumps idx
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
 projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> [IRate]
-projRates sr (Fix _ r) _ ds = replicate (length ds) r 
+projRates sr (Fix _ r) _ ds = replicate (length ds) sr 
 projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
   = case getRateAssumption assumps idx of
       Nothing -> error ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
@@ -173,6 +174,8 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
             (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
             (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
             (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
+projRates _ rt rassump ds = error ("Invalid rate type: "++ show rt++" assump"++ show rassump)
+
 
 -- ^ Given a list of rates, calcualte whether rates was reset
 calcResetDates :: [IRate] -> [Bool] -> [Bool]

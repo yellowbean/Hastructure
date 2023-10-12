@@ -6,6 +6,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Main where 
@@ -30,7 +31,7 @@ import qualified Data.Text as T
 --import Data.Swagger
 import Data.Maybe
 import Data.Yaml as Y
-import Data.OpenApi hiding (Server)
+import Data.OpenApi hiding (Server,contentType)
 import qualified Data.Map as Map
 import Data.String.Conversions
 import Data.Time.Calendar
@@ -41,7 +42,7 @@ import qualified Data.ByteString.Char8 as BS
 import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
-import Network.Wai.Middleware.Servant.Errors (errorMwDefJson, HasErrorBody(..))
+import Network.Wai.Middleware.Servant.Errors (errorMw, HasErrorBody(..),errorMwDefJson)
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
@@ -49,6 +50,7 @@ import Language.Haskell.TH
 import Servant.OpenApi
 import Servant
 import Servant.Types.SourceT (source)
+import Servant.API.ContentTypes (contentType)
 
 import Types 
 import qualified Deal as D
@@ -76,6 +78,7 @@ import qualified Triggers as TRG
 import qualified Revolving as RV
 import qualified Lib
 import qualified Util as U
+import qualified DateUtil as DU
 
 
 import Debug.Trace
@@ -89,7 +92,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.21.3"
+version1 = Version "0.21.9"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -331,14 +334,39 @@ myServer = return engineSwagger
           runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
             = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
           runDate (RunDateReq sd dp)
-            = return $ U.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+            = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
 
 
 writeSwaggerJSON :: IO ()
 writeSwaggerJSON = BL8.writeFile "swagger.json" (encodePretty engineSwagger)
 
-data Config = Config { port :: Int} deriving (Show,Generic)
+data Config = Config { port :: Int} 
+            deriving (Show,Generic)
+
 instance FromJSON Config
+
+-- data Ctyp a
+-- 
+-- {-
+--  if you are using GHC 8.6 and above you can make use of deriving Via
+--  for creating the Accept Instance
+-- 
+--  >> data Ctyp a
+--  >>   deriving Accept via JSON
+-- -}
+-- 
+-- instance Accept (Ctyp JSON) where
+--   contentType _ = contentType (Proxy @JSON)
+-- 
+-- instance HasErrorBody (Ctyp JSON) '[] where
+--   encodeError = undefined -- write your custom implementation
+-- 
+-- -- | Example Middleware with a different 'HasErrorBody' instance for JSON
+-- errorMwJson :: Application -> Application
+-- errorMwJson =  errorMw @(Ctyp JSON) @'[]
+
+--instance HasErrorBody (Ctyp JSON) '["error","warning","resp"] where
+--  encodeError = error
 
 main :: IO ()
 main = 
@@ -350,6 +378,7 @@ main =
                         Left exp -> Config 8081
                         Right c -> c
     run _p 
+      -- $ errorMwJson @JSON @'["error","warning","status"]
       $ errorMwDefJson
       $ serve (Proxy :: Proxy API) myServer
 
