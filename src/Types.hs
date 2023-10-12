@@ -370,7 +370,8 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
                 | CollectedRental                 -- ^ rental from pool
                 | NewDefaults                     -- ^ new defaults in balance
-                | NewLosses                       -- ^ new loss in balance
+                | NewLosses                       -- ^ new losses in balance
+                | NewDelinquencies                -- ^ new delinquencies in balance
                 deriving (Show,Ord,Read,Eq, Generic)
 
 

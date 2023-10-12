@@ -478,7 +478,12 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
   case ds of 
     TriggersStatus dealcycle tName -> 
       case trgs of 
-        Just _trgs -> Trg.trgStatus $ (_trgs Map.! dealcycle) Map.! tName
+        Just _trgsM -> case (Map.lookup dealcycle _trgsM ) of 
+                         Nothing -> error ("no trigger cycle for this deal" ++ show dealcycle)
+                         Just triggerMatCycle -> 
+                           case (Map.lookup tName triggerMatCycle) of 
+                             Nothing -> error ("no trigger for this deal" ++ show tName ++ " in cycle " ++ show triggerMatCycle)
+                             Just trigger -> Trg.trgStatus trigger 
         Nothing -> error "no trigger for this deal"
     
     IsMostSenior bn bns ->

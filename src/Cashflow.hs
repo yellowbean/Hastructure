@@ -528,6 +528,9 @@ sumPoolFlow (CashFlowFrame trs) ps
       lookup CollectedRecoveries = mflowRecovery
       lookup CollectedRental = mflowRental
       lookup CollectedInterest = mflowInterest
+      lookup NewDefaults = mflowDefault
+      lookup NewLosses = mflowLoss
+      lookup NewDelinquencies = mflowDelinq
 
 lookupSource :: TsRow -> PoolSource -> Balance 
 lookupSource tr CollectedPrepayment  = mflowPrepayment tr
@@ -536,6 +539,7 @@ lookupSource tr CollectedRecoveries = mflowRecovery tr
 lookupSource tr CollectedRental = mflowRental tr
 lookupSource tr CollectedInterest = mflowInterest tr
 lookupSource tr CollectedPrepaymentPenalty = mflowPrepaymentPenalty tr
+lookupSource tr NewDelinquencies = mflowDelinq tr
 lookupSource tr NewDefaults = mflowDefault tr
 lookupSource tr NewLosses = mflowLoss tr
 
