@@ -37,6 +37,8 @@ jobs:
           rm -rf ./* || true
           rm -rf ./.??* || true
           ls -la ./
+          rm -rf /opt/ghc
+          rm -rf /opt/hostedtoolcache          
       -
         name: Build and push - latest
         uses: docker/build-push-action@v3
