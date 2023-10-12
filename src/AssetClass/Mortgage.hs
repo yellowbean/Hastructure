@@ -30,6 +30,7 @@ import AssetClass.AssetBase
 
 import Debug.Trace
 import Assumptions (AssetPerfAssumption(MortgageAssump))
+import GHC.Float.RealFracMethods (truncateFloatInteger)
 debug = flip trace
 
 projectMortgageFlow :: [CF.TsRow] -> Balance -> Maybe Rational -> Date -> Dates -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [IRate] -> (Int,Rate) -> Period -> AmortPlan -> [CF.TsRow]
@@ -37,7 +38,7 @@ projectMortgageFlow trs _bal mbn _last_date (pDate:pDates) (_def_rate:_def_rates
   | _bal > 0.01 = projectMortgageFlow
                     (trs++[tr])
                     endBal
-                    ( toRational <$> _new_mbn)
+                    ( toRational <$> newMbn)
                     pDate
                     pDates
                     _def_rates
@@ -69,8 +70,8 @@ projectMortgageFlow trs _bal mbn _last_date (pDate:pDates) (_def_rate:_def_rates
                     endBal = newBalAfterPpy - newPrin
                     _survive_rate = ((1 - _def_rate) * (1 - _ppy_rate))  
                     _temp = _survive_rate * (toRational (1 - newPrin / newBalAfterPpy))
-                    _new_mbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
-                    tr = CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault (head currentRec) (head currentLoss) _rate _new_mbn Nothing --TODO missing ppy-penalty here
+                    newMbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
+                    tr = CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault (head currentRec) (head currentLoss) _rate newMbn Nothing --TODO missing ppy-penalty here
 
 projectMortgageFlow trs _b mbn _last_date (pDate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _ _lag_rate _p _pt
  = projectMortgageFlow (trs++[tr]) _b mbn pDate _pdates [] [] _rec_amts _loss_amts [0.0] _lag_rate _p _pt
@@ -89,7 +90,7 @@ projectDelinqMortgageFlow (trs,backToPerfs) _ _ _ [] _ _ _ _ _ =
   in 
     trsKeep ++ mergedTrs -- `debug` ("\n MergedTrs \n"++ show mergedTrs)
 
-projectDelinqMortgageFlow (trs,backToPerfs) beginBal mBorrowerNum lastDate (pDate:pDates) (delinqRate:delinqRates) (ppyRate:ppyRates) (rate:rates) 
+projectDelinqMortgageFlow (trs,backToPerfs) beginBal mbn lastDate (pDate:pDates) (delinqRate:delinqRates) (ppyRate:ppyRates) (rate:rates) 
                           (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
                           (dBal:defaultVec,rAmt:recoveryVec,lAmt:lossVec)
   -- | beginBal < 0.01 = let
@@ -97,7 +98,7 @@ projectDelinqMortgageFlow (trs,backToPerfs) beginBal mBorrowerNum lastDate (pDat
   --                       mergedTrs = CF.combineTss [] trsMerge backToPerfs `debug` ("trsMerge"++show trsMerge++"defalt/rec/loss"++show (dBal,rAmt,lAmt))
   --                     in 
   --                       trsKeep ++ mergedTrs `debug` ("MErgeed \n \n "++ show mergedTrs)
-  | otherwise = projectDelinqMortgageFlow (trs++[tr],CF.combineTss [] backToPerfs newPerfCfs) endingBal mNewBorrowerNum pDate pDates delinqRates ppyRates rates 
+  | otherwise = projectDelinqMortgageFlow (trs++[tr],CF.combineTss [] backToPerfs newPerfCfs) endingBal ( (downFactor *) <$> mbn) pDate pDates delinqRates ppyRates rates 
                               (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
                               (newDefaultVec,newRecoveryVec,newLossVec) -- `debug` ("\n calc Date"++ show pDate ++"\n from new perf"++ show backToPerfBal ++"\n new cfs >>> \n"++ show newPerfCfs)
                 where 
@@ -137,9 +138,12 @@ projectDelinqMortgageFlow (trs,backToPerfs) beginBal mBorrowerNum lastDate (pDat
                               Even ->  balAfterPpy / fromIntegral remainTerms
 
                   endingBal = beginBal - prinAmt - ppyAmt - delinqBal -- `debug` ("DATE"++show pDate++">>>"++ show beginBal++">>"++show prinAmt ++ ">>" ++ show ppyAmt ++ ">>"++ show delinqBal)
-                  -- mNewBn = (round . fromRational) <$> (divideBB beginBal endingBal *) <$> mBorrowerNum
-                  mNewBorrowerNum = Nothing
-                  tr = CF.MortgageDelinqFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate mNewBorrowerNum Nothing -- `debug` ("Date"++ show pDate ++ "ENDING BAL AT"++ show endingBal)
+                  downFactor = divideBB beginBal endingBal
+                  newMbn = case mbn of 
+                             Just bn -> Just (((fromInteger . round) ((divideBB beginBal endingBal) * bn))::Int)
+                             Nothing -> Nothing
+                  -- mNewBorrowerNum = (fromIntegral . toInteger . fromRational) <$> ((divideBB beginBal endingBal) *) <$> mBorrowerNum
+                  tr = CF.MortgageDelinqFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate newMbn Nothing -- `debug` ("Date"++ show pDate ++ "ENDING BAL AT"++ show endingBal)
 
 
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
