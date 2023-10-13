@@ -347,7 +347,9 @@ instance Ast.Asset Mortgage where
   -- project current mortgage(with delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 
                asOfDay 
-               mars@(A.MortgageDeqAssump amd amp amr ams,_,_) 
+               mars@(A.MortgageDeqAssump amd amp amr ams
+                    ,_
+                    ,_) 
                mRates =
     let 
       (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 

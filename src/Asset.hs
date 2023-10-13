@@ -225,6 +225,7 @@ buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
 
 -- | build prepayment rates/ delinq rates and (%,lag) convert to default, recovery rate, recovery lag
 buildAssumptionPpyDelinqDefRecRate :: [Date] -> A.AssetPerfAssumption -> ([Rate],[Rate],(Rate,Lag),Rate,Int)
+buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa (Just _)) = error "Delinq assumption doesn't support extra stress"
 buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa Nothing)
   = (prepayRates,delinqRates,(defaultPct,defaultLag),recoveryRate, recoveryLag)
     where 
