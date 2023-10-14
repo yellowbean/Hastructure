@@ -148,37 +148,36 @@ projectDelinqMortgageFlow (trs,backToPerfs) beginBal mbn lastDate (pDate:pDates)
 
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
 projectScheduleFlow trs _ last_bal [] _ _ [] [] (_,_) = trs 
-projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss (recovery_lag,recovery_rate)
-  = projectScheduleFlow (trs++[tr]) _survive_rate _end_bal flows _def_rates _ppy_rates (tail _rec_vector) (tail _loss_vector) (recovery_lag,recovery_rate) -- `debug` ("===>C")
+projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) (_ppy_rate:_ppy_rates) _rec _loss (recoveryLag,recoveryRate)
+  = projectScheduleFlow (trs++[tr]) _survive_rate endBal flows _def_rates _ppy_rates (tail recVector) (tail lossVector) (recoveryLag,recoveryRate) -- `debug` ("===>C")
      where
-       _start_bal = last_bal
-       _def_amt = mulBR _start_bal _def_rate
-       _ppy_amt = mulBR (_start_bal - _def_amt) _ppy_rate -- `debug` (">>>"++ show (_start_bal - _def_amt)++">>>"++ show (fromRational _ppy_rate) ++">>>"++ show ((_start_bal - _def_amt) * (fromRational _ppy_rate)))      -- `debug` (show _start_bal ++">>"++ show (fromRational _def_rate) ++ ">>" ++"DEF AMT"++ show _def_amt)-- `debug` ("Def amt"++show(_def_amt)++"Def rate"++show(_def_rate))
-       _after_bal = _start_bal - _def_amt - _ppy_amt   -- `debug` ("PPY AMT"++ show _ppy_amt ++ ">>>" ++ show (fromRational _ppy_rate))
+       startBal = last_bal
+       defAmt = mulBR startBal _def_rate
+       ppyAmt = mulBR (startBal - defAmt) _ppy_rate -- `debug` (">>>"++ show (_start_bal - _def_amt)++">>>"++ show (fromRational _ppy_rate) ++">>>"++ show ((_start_bal - _def_amt) * (fromRational _ppy_rate)))      -- `debug` (show _start_bal ++">>"++ show (fromRational _def_rate) ++ ">>" ++"DEF AMT"++ show _def_amt)-- `debug` ("Def amt"++show(_def_amt)++"Def rate"++show(_def_rate))
+       afterBal = startBal - defAmt - ppyAmt   -- `debug` ("PPY AMT"++ show _ppy_amt ++ ">>>" ++ show (fromRational _ppy_rate))
+       
        _survive_rate = (1 - _def_rate) * (1 - _ppy_rate) * bal_factor -- `debug` ("Bal factor"++show(bal_factor))
-
        _schedule_bal = CF.mflowBalance flow
-
        _schedule_prin = mulBR (CF.mflowPrincipal flow) _survive_rate --TODO round trip  -- `debug` ("Schedule Principal"++(printf "%.2f" (CF.mflowPrincipal flow))++" Rate"++show(_schedule_rate))
        _schedule_int = mulBR (CF.mflowInterest flow) _survive_rate
 
-       newRec = mulBR _def_amt recovery_rate
-       _new_loss = mulBR _def_amt (1 - recovery_rate)
+       newRec = mulBR defAmt recoveryRate
+       newLoss = mulBR defAmt (1 - recoveryRate)
 
-       _rec_vector = replace _rec recovery_lag newRec
-       _loss_vector = replace _loss recovery_lag _new_loss
+       recVector = replace _rec recoveryLag newRec
+       lossVector = replace _loss recoveryLag newLoss
 
-       _end_bal = max 0 $ _after_bal - _schedule_prin
+       endBal = max 0 $ afterBal - _schedule_prin
 
-       tr = CF.MortgageFlow (CF.getDate flow) _end_bal _schedule_prin _schedule_int _ppy_amt _def_amt (head _rec_vector) (head _loss_vector) 0.0 Nothing Nothing --TODO missing ppy-penalty here
+       tr = CF.MortgageFlow (CF.getDate flow) endBal _schedule_prin _schedule_int ppyAmt defAmt (head recVector) (head lossVector) 0.0 Nothing Nothing --TODO missing ppy-penalty here
 
-projectScheduleFlow trs b_factor last_bal [] _ _ (r:rs) (l:ls) (recovery_lag,recovery_rate)
-  = projectScheduleFlow (trs++[tr]) b_factor last_bal [] [] [] rs ls (recovery_lag - 1,recovery_rate) 
+projectScheduleFlow trs b_factor lastBal [] _ _ (r:rs) (l:ls) (recovery_lag,recovery_rate)
+  = projectScheduleFlow (trs++[tr]) b_factor lastBal [] [] [] rs ls (recovery_lag - 1,recovery_rate) 
    where
       remain_length = length rs
-      last_date = CF.getDate (last trs)
-      flow_date = nextDate last_date Lib.Monthly
-      tr = CF.MortgageFlow flow_date last_bal 0 0 0 0 r l 0.0 Nothing Nothing
+      lastDate = CF.getDate (last trs)
+      flowDate = nextDate lastDate Lib.Monthly
+      tr = CF.MortgageFlow flowDate lastBal 0 0 0 0 r l 0.0 Nothing Nothing
 
 type DelinqRate = Rate
 projectScheduleDelinqFlow :: ([CF.TsRow],[CF.TsRow]) -> Rate -> Balance -> [CF.TsRow] -> [DelinqRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [Amount] -> (Rate,Int,Rate,Int) -> [CF.TsRow]
@@ -304,8 +303,8 @@ instance Ast.Asset Mortgage where
 
   isDefaulted (Mortgage _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (AdjustRateMortgage _ _ _ _ _ _ (Defaulted _)) = True
-  isDefaulted (Mortgage {}) = False
-  isDefaulted (AdjustRateMortgage {}) = False
+  isDefaulted Mortgage {} = False
+  isDefaulted AdjustRateMortgage {} = False
   
   getOriginDate (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) = sd
   getOriginDate (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) = sd
@@ -334,15 +333,15 @@ instance Ast.Asset Mortgage where
       (applyHaircut ams $ patchPrepayPentalyFlow m (CF.CashFlowFrame futureTxns)
       ,historyM)
     where
-      lastPayDate:cfDates = lastN (recovery_lag + rt + 1) $ sd:(getPaymentDates m recovery_lag)  
-      cf_dates_length = length cfDates 
+      (ppy_rates,def_rates,recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams) -- `debug` ("Rate vector"++ show rate_vector)
+      lastPayDate:cfDates = lastN (recoveryLag + rt + 1) $ sd:getPaymentDates m recoveryLag  
+      cfDatesLength = length cfDates 
       
-      rate_vector = A.projRates cr or mRates cfDates 
+      rateVector = A.projRates cr or mRates cfDates 
       
-      (ppy_rates,def_rates,recovery_rate,recovery_lag) = Ast.buildAssumptionPpyDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams) -- `debug` ("Rate vector"++ show rate_vector)
       txns = projectMortgageFlow [] cb (toRational <$> mbn) lastPayDate cfDates def_rates ppy_rates 
-                                 (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector 
-                                 (recovery_lag,recovery_rate) p prinPayType   
+                                 (replicate cfDatesLength 0.0) (replicate cfDatesLength 0.0) rateVector 
+                                 (recoveryLag,recoveryRate) p prinPayType   
 
   -- project current mortgage(with delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 
@@ -409,7 +408,7 @@ instance Ast.Asset Mortgage where
 
       lastPayDate:cfDates = sliceDates (SliceOnAfterKeepPrevious asOfDay)  $ lastN (rt + recoveryLag + 1) $ sd:(getPaymentDates m recoveryLag) 
       
-      cf_dates_length = length cfDates -- `debug` (" cf dates >>" ++ show (last_pay_date:cf_dates ))
+      cfDatesLength = length cfDates -- `debug` (" cf dates >>" ++ show (last_pay_date:cf_dates ))
       rateCurve = case or of
                       IR.Fix _ r ->  error "ARM should have floater rate"
                       IR.Floater _ idx sprd initRate dp _ _ mRoundBy ->
@@ -427,7 +426,7 @@ instance Ast.Asset Mortgage where
       rate_vector = fromRational <$> getValByDates rateCurve Inc cfDates -- `debug` ("RateCurve"++ show rate_curve)
 
       (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams)
-      txns = projectMortgageFlow [] cb (toRational <$> mbn) lastPayDate cfDates defRates ppyRates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recoveryLag,recoveryRate) p prinPayType 
+      txns = projectMortgageFlow [] cb (toRational <$> mbn) lastPayDate cfDates defRates ppyRates (replicate cfDatesLength 0.0) (replicate cfDatesLength 0.0) rate_vector (recoveryLag,recoveryRate) p prinPayType 
 
   -- project current AdjMortgage with delinq
   projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) 
@@ -443,29 +442,29 @@ instance Ast.Asset Mortgage where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
       firstResetDate = monthsAfter sd (toInteger (succ initPeriod))
-      last_pay_date:cf_dates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m recoveryLag)  
-      cf_dates_length = length cf_dates 
-      rate_curve = case or of
+      lastPayDate:cfDates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:(getPaymentDates m recoveryLag)  
+      cfDatesLength = length cfDates 
+      rateCurve = case or of
                       IR.Fix _ r ->  error "ARM should have floater rate"
                       IR.Floater _ idx sprd initRate dp _ _ mRoundBy ->
                         let 
-                          resetDates = genSerialDatesTill2 IE firstResetDate dp (last cf_dates)
+                          resetDates = genSerialDatesTill2 IE firstResetDate dp (last cfDates)
                           projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
                         in 
                           case A.getRateAssumption (fromMaybe [] mRates) idx of
                             Just (RateCurve idx curve) 
                               -> projectFutureActualCurve curve -- `debug` ("Curve")
                             Just (RateFlat idx v) 
-                              -> projectFutureActualCurve (mkRateTs [(getOriginDate m,v),(last cf_dates,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
+                              -> projectFutureActualCurve (mkRateTs [(getOriginDate m,v),(last cfDates,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
                             Nothing -> error $ "Failed to find index"++ show idx
       
-      rate_vector = fromRational <$> getValByDates rate_curve Inc cf_dates -- `debug` ("RateCurve"++ show rate_curve)                                  
+      rate_vector = fromRational <$> getValByDates rateCurve Inc cfDates -- `debug` ("RateCurve"++ show rate_curve)                                  
 
-      (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (last_pay_date:cf_dates) (A.MortgageAssump amd amp amr ams)
+      (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams)
       
-      txns = projectDelinqMortgageFlow ([],[]) cb (toRational <$> mbn) last_pay_date cf_dates delinqRates  ppyRates rate_vector 
+      txns = projectDelinqMortgageFlow ([],[]) cb (toRational <$> mbn) lastPayDate cfDates delinqRates ppyRates rate_vector 
                                        (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType) 
-                                       ((replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0),(replicate cf_dates_length 0.0))
+                                       ((replicate cfDatesLength 0.0),(replicate cfDatesLength 0.0),(replicate cfDatesLength 0.0))
   -- schedule mortgage flow without delinq
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay assumps@(pAssump@(A.MortgageAssump _ _ _ ams ),dAssump,fAssump) _
     = let 

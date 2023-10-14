@@ -130,13 +130,11 @@ data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurob
               | DC_30_360_ISDA   -- ^ IDSA
               | DC_30_360_German -- ^ Gernman
               | DC_30_360_US     -- ^ 30/360 US Municipal , Bond basis
-              deriving (Show, Eq, Generic)
+              deriving (Show,Eq,Generic)
 
 data DateType = ClosingDate        -- ^ deal closing day
               | CutoffDate         -- ^ after which, the pool cashflow was aggregated to SPV
               | FirstPayDate       -- ^ first payment day for bond/waterfall to run with
-              | RevolvingEndDate  
-              | RevolvingDate
               | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
               deriving (Show,Ord,Eq,Generic,Read)
 
@@ -146,7 +144,7 @@ data Period = Daily
             | Quarterly 
             | SemiAnnually 
             | Annually
-            deriving (Show,Eq, Generic)
+            deriving (Show,Eq,Generic)
 
 type DateVector = (Date, DatePattern)
 
@@ -191,10 +189,10 @@ instance TimeSeries ActionOnDate where
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
 sortActionOnDate a1 a2 
   | d1 == d2 = case (a1,a2) of
-                 (BuildReport sd1 ed1 ,_) -> GT 
-                 (_ , BuildReport sd1 ed1) -> LT
-                 (ResetIRSwapRate _ _ ,_) -> LT 
-                 (_ , ResetIRSwapRate _ _) -> GT
+                 (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
+                 (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
+                 (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
+                 (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
                  (_,_) -> EQ 
   | otherwise = compare d1 d2
   where 
@@ -554,9 +552,13 @@ data RangeType = II     -- ^ include both start and end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
 
-data CutoffType = Inc | Exc
+data CutoffType = Inc 
+                | Exc
+                deriving (Show,Read,Generic)
 
-data DateDirection = Future | Past
+data DateDirection = Future 
+                   | Past
+                   deriving (Show,Read,Generic)
 
 type BookItems = [BookItem]
 

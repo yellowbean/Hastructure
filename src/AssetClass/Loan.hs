@@ -112,7 +112,7 @@ instance Asset Loan where
   getOriginBal pl@(PersonalLoan (LoanOriginalInfo ob _ _ _ _ _) _ _ _ _ ) = ob
 
   isDefaulted pl@(PersonalLoan _ _ _ _ (Defaulted _)) = True
-  isDefaulted pl@(PersonalLoan {}) = False
+  isDefaulted PersonalLoan {} = False
  
   getOriginInfo (PersonalLoan oi cb cr rt st) = oi
   getOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = sd

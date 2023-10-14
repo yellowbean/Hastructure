@@ -85,14 +85,12 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           deriving (Show,Generic)
 
 -- Mortgage
-data MortgageInsurance = MortgageInsurance Rate
-
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic)
 
--- Base 
+-- Base type to hold all asset types
 data AssetUnion = MO Mortgage
                 | LO Loan
                 | IL Installment
