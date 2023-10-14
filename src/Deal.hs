@@ -68,15 +68,15 @@ setBondNewRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond 
 setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
   = b { L.bndRate = currentRate + spd }
 
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpByDate _ p f1 f2) _ currentRate _ _ _ _ _ _)
-  | d < p = b {L.bndRate = applyFloatRate f1 d ras}
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpPre _ p f1 f2) _ currentRate _ _ _ _ _ _)
+  | testPre d t p = b {L.bndRate = applyFloatRate f1 d ras}
   | otherwise = b {L.bndRate = applyFloatRate f2 d ras}
 
 setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _) 
   = let 
       rate = queryDealRate t (patchDateToStats d ds)
     in 
-      b {L.bndRate = fromRational ((toRational rate) * (toRational factor)) }
+      b {L.bndRate = fromRational (toRational rate * toRational factor) }
 
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
