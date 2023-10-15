@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.22.0
+### 2023-10-15
+* ENHANCE: expose `inspect` variables during a waterfall execution
+* ENHANCE: stepup now accpet a `pre` instead of a `date` to switch rate
+
 ## 0.21.5
 ### 2023-10-8
 * ENHANCE: in the revolving buy , now buy amount is no longer a multipler of revolving assets face value
