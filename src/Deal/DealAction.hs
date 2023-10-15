@@ -6,7 +6,7 @@
 module Deal.DealAction (performActionWrap,performAction,calcDueFee
                        ,testTrigger,RunContext(..),updateLiqProvider
                        ,calcDueInt,projAssetUnion,priceAssetUnion
-                       ,priceAssetUnionList) 
+                       ,priceAssetUnionList,inspectVars) 
   where
 
 import qualified Accounts as A
@@ -205,7 +205,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.TargetBalanceFee dsDue dsPaid) fs fd _ fa lp
     where
       dsDueD = patchDateToStats calcDay dsDue 
       dsPaidD = patchDateToStats calcDay dsPaid
-      dueAmt = max 0 $ (queryDeal t dsDueD) - (queryDeal t dsPaidD)
+      dueAmt = max 0 $ queryDeal t dsDueD - queryDeal t dsPaidD
 
 disableLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate } 
@@ -412,6 +412,21 @@ drawExtraSupport d amt (W.MultiSupport supports) t
       (t,amt) 
       supports
 
+inspectVars :: P.Asset a => TestDeal a -> Date -> DealStats -> ResultComponent
+inspectVars t d ds =                     
+  case getDealStatType ds of 
+    RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
+    RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
+    RtnInt  -> InspectInt d ds $ queryDealInt t (patchDateToStats d ds) d
+    _       -> InspectBal d ds $ queryDeal t (patchDateToStats d ds)
+
+showInspection :: ResultComponent -> String
+showInspection (InspectRate d ds r) = show r
+showInspection (InspectBool d ds r) = show r
+showInspection (InspectInt d ds r) = show r
+showInspection (InspectBal d ds r) = show r
+showInspection x = error $ "not implemented for showing ResultComponent " ++ show x
+
 performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
@@ -465,9 +480,9 @@ performActionWrap d
   = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ show (name t)
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
-  = (t, rc, newLogs ++ logs)
+  = (t, rc, logs ++ [newLog])
     where 
-      newLogs = [ InspectBal d ds (queryDeal t ds) | ds <- dss ] 
+      newLog =  InspectWaterfall d ms dss $ [ showInspection (inspectVars t d ds) | ds <- dss ] 
 
 performActionWrap d (t, rc, logs) (W.ActionWithPre p actions) 
   | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actions

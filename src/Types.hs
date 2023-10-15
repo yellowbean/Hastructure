@@ -582,6 +582,7 @@ data CashflowReport = CashflowReport {
                         ,endDate :: Date }
                         deriving (Show,Read,Generic)
 
+
 data ResultComponent = CallAt Date                                    -- ^ the date when deal called
                      | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed
                      | BondOutstanding String Balance Balance         -- ^ when deal ends,calculate oustanding principal balance 
@@ -591,6 +592,9 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      | InspectRate Date DealStats Micro
                      | InspectBool Date DealStats Bool
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
+                     | InspectWaterfall Date (Maybe String) [DealStats] [String]
+                     | ErrorMsg String
+                     | WarningMsg String
                      -- | SnapshotCashflow Date String CashFlowFrame
                      deriving (Show, Generic)
 

@@ -226,8 +226,6 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
     triggeredNames = Map.keys triggeredTrgs
 
     newTriggers = Map.union (Map.map setTriggered triggeredTrgs) trgsMap
-                    
-
 
   
 -- newtype RunContext a = [TestDeal a, CF.CashFlowFrame , [ActionOnDate] , [RateAssumption] , [C.CallOption] , Maybe RevolvingAssumption]
@@ -366,12 +364,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
 
          InspectDS d ds -> 
            let 
-             newlog = 
-                case getDealStatType ds of 
-                  RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
-                  RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
-                  RtnInt -> InspectInt d ds $ queryDealInt t (patchDateToStats d ds) d
-                  _ -> InspectBal d ds $ queryDeal t (patchDateToStats d ds) -- `debug` ("getDealStatType"++show (getDealStatType ds)++ ">>>"++ show ds)
+             newlog = inspectVars t d ds 
            in 
              run t poolFlow (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("Add log"++show newlog)
          

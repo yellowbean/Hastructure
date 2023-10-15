@@ -419,7 +419,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in
         sum $ map ex stmts
 
-    CurrentDueBondInt bns -> sum $ L.bndDueInt <$> (bndMap Map.!) <$> bns
+    CurrentDueBondInt bns -> 
+      sum $ L.bndDueInt <$> (bndMap Map.!) <$> bns -- `debug` ("bond due int" ++ show ((bndMap Map.!) <$> bns ))
 
     CurrentDueFee fns -> sum $ F.feeDue <$> (feeMap Map.!) <$> fns
 
