@@ -5,7 +5,7 @@
 {-# LANGUAGE GADTs #-}
 
 module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
-            ,applicableAdjust,performAction,queryDeal
+            ,performAction,queryDeal
             ,setFutureCF,populateDealDates
             ,calcTargetAmount,updateLiqProvider
             ,projAssetUnion,priceAssetUnion
@@ -32,6 +32,7 @@ import qualified InterestRate as IR
 import Deal.DealBase
 import Deal.DealQuery
 import Deal.DealAction
+import qualified Deal.DealValidation as V
 import Stmt
 import Lib
 import Util
@@ -59,7 +60,6 @@ import GHC.Generics
 import Debug.Trace
 import Hedge (RateSwap(rsRefBalance))
 import Cashflow (buildBegTsRow)
-import qualified Assumptions as AP
 import Assumptions (NonPerfAssumption(NonPerfAssumption))
 debug = flip trace
 
@@ -125,11 +125,6 @@ applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
 
 applyFloatRate (L.CapRate ii _rate) d ras = min _rate (applyFloatRate ii d ras)
 applyFloatRate (L.FloorRate ii _rate) d ras = max _rate (applyFloatRate ii d ras)
-
-applicableAdjust :: L.Bond -> Bool
-applicableAdjust (L.Bond _ _ _ (L.Fix _ _ ) _ _ _ _ _ _ _ _ ) = False
-applicableAdjust (L.Bond _ _ _ (L.InterestByYield _ ) _ _ _ _ _ _ _ _ ) = False
-applicableAdjust (L.Bond _ _ _ ii _ _ _ _ _ _ _ _ ) = True
 
 
 updateRateSwapRate :: [RateAssumption] -> Date -> HE.RateSwap -> HE.RateSwap
@@ -431,27 +426,29 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                                                            ,AP.pricing   = mPricing
                                                            ,AP.revolving = mRevolving
                                                            ,AP.interest  = mInterest} 
-    = (finalDeal, Just pcf, Just (getRunResult finalDeal++logs), bndPricing) -- `debug` ("Run Deal end with")
-  where
-    -- getinits() will get (new deal snapshot, actions, pool cashflows)
-    (newT, ads, pcf) = getInits t perfAssumps (Just nonPerfAssumps) -- `debug` ("runDeal init line") 
-    -- extract Revolving Assumption
-    mRevolvingCtx = case mRevolving of
-                      Nothing -> Nothing
-                      Just (AP.AvailableAssets rp rperf) -> Just (rp,rperf)
-                      Just _ -> error ("Failed to match revolving assumption"++show mRevolving)
-    -- run() is a recusive function loop over all actions till deal end conditions are met
-    (finalDeal, logs) = run (removePoolCf newT) 
-                            pcf 
-                            (Just ads) 
-                            mInterest
-                            opts
-                            mRevolvingCtx
-                            [] -- `debug` ("start status"++show (status t) )-- `debug` ("run rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
-    -- bond pricing if any                            
-    bndPricing = case mPricing of
-                   Nothing -> Nothing   --  `debug` ("pricing bpi with Nothing")
-                   Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with")
+  | not runFlag = (t, Nothing, Just valLogs, Nothing)
+  | otherwise = (finalDeal, Just pcf, Just (getRunResult finalDeal++logs), bndPricing) -- `debug` ("Run Deal end with")
+    where
+      (runFlag,valLogs) = V.validatePreRun t
+      -- getinits() will get (new deal snapshot, actions, pool cashflows)
+      (newT, ads, pcf) = getInits t perfAssumps (Just nonPerfAssumps) -- `debug` ("runDeal init line") 
+      -- extract Revolving Assumption
+      mRevolvingCtx = case mRevolving of
+                        Nothing -> Nothing
+                        Just (AP.AvailableAssets rp rperf) -> Just (rp,rperf)
+                        Just _ -> error ("Failed to match revolving assumption"++show mRevolving)
+      -- run() is a recusive function loop over all actions till deal end conditions are met
+      (finalDeal, logs) = run (removePoolCf newT) 
+                              pcf 
+                              (Just ads) 
+                              mInterest
+                              opts
+                              mRevolvingCtx
+                              [] -- `debug` ("start status"++show (status t) )-- `debug` ("run rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
+      -- bond pricing if any                            
+      bndPricing = case mPricing of
+                     Nothing -> Nothing   --  `debug` ("pricing bpi with Nothing")
+                     Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with")
 
 getRunResult :: TestDeal a -> [ResultComponent]
 -- ^ get bond principal and interest shortfalls from a deal
@@ -629,7 +626,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool} mAssumps mNonPerfAssump
                                                  rsm
     -- bond rate resets 
     bndRateResets = let 
-                      rateAdjBnds = Map.filter applicableAdjust $ bonds t
+                      rateAdjBnds = Map.filter (L.isAdjustble . L.bndInterestInfo) $ bonds t
                       bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates (L.bndInterestInfo b) closingDate endDate) rateAdjBnds
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate , bdate     <- bdates ]

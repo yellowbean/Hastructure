@@ -9,7 +9,8 @@ module Liability
   ,payInt,payPrin,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,fv2,calcZspread,payYield
-  ,buildRateResetDates,convertToFace,isPaidOff)
+  ,buildRateResetDates,convertToFace,isPaidOff
+  ,isAdjustble)
   where
 
 import Language.Haskell.TH
