@@ -4,6 +4,8 @@
 ### 2023-10-15
 * ENHANCE: expose `inspect` variables during a waterfall execution
 * ENHANCE: stepup now accpet a `pre` instead of a `date` to switch rate
+* ENHANCE: implement `pre-run check` and `post-run check`, patch check logs in result
+* FIX: fix bug on `prepay penalty` when using `stepDown`
 
 ## 0.21.5
 ### 2023-10-8

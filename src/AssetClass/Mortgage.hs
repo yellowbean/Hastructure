@@ -268,7 +268,7 @@ patchPrepayPentalyFlow m mflow@(CF.CashFlowFrame trs)
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (StepDown ps) ->
           let 
-            rs = lastN flowSize $ concat [ replicate n r | (n,r) <- ps]
+            rs = lastN flowSize $ paddingDefault 0 (concat [ replicate n r | (n,r) <- ps]) ot
           in 
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
 

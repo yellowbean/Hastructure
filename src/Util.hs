@@ -67,8 +67,6 @@ zipLeftover (x:xs) (y:ys) = zipLeftover xs ys
 lastN :: Int -> [a] -> [a]
 lastN n xs = zipLeftover (drop n xs) xs
 
-
-
 tsPointVal :: TsPoint a -> a 
 tsPointVal (TsPoint d v) = v
 
@@ -186,8 +184,6 @@ multiplyTs :: CutoffType -> Ts -> Ts -> Ts
 multiplyTs ct (FloatCurve ts1) ts2
   = FloatCurve [(TsPoint d (v * (getValByDate ts2 ct d))) | (TsPoint d v) <- ts1 ] 
 
-
-
 -- | swap a value in list with index supplied
 replace :: [a] -> Int -> a -> [a]
 replace xs i e 
@@ -195,7 +191,8 @@ replace xs i e
   | otherwise = case splitAt i xs of
                    (before, _:after) -> before ++ e: after
                    _ -> xs
-
+                   
+-- ^ padding default value to list ,make it length with N
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 
   | length xs > s = take s xs
@@ -213,8 +210,7 @@ floorWith floor xs = [ max x floor | x <- xs]
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
 
-
-    
+   
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
 
