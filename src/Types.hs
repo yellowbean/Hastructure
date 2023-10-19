@@ -21,6 +21,7 @@ module Types
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
+  ,Liable(..)
   )
   
   where
@@ -672,12 +673,11 @@ class TimeSeries ts where
 class Liable lb where 
 
   -- must implement
-  getDue :: lb -> Balance
-  getLastPaidDate :: lb -> Date 
+  isPaidOff :: lb -> Bool
 
   -- optional implement
-  getTotalDue :: [lb] -> Balance
-  getTotalDue lbs =  sum $ getDue <$> lbs
+  -- getTotalDue :: [lb] -> Balance
+  -- getTotalDue lbs =  sum $ getDue <$> lbs
 
 data LookupType = Upward 
                 | Downward

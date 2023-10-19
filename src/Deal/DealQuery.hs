@@ -491,7 +491,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
       let 
         bn1:bns1 =  (bndMap Map.!) <$> (bn:bns)
       in
-        case (L.isPaidOff bn1,all L.isPaidOff bns1) of
+        case (isPaidOff bn1,all isPaidOff bns1) of
           (False,True) -> True
           _ -> False
     

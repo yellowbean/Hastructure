@@ -9,7 +9,7 @@ module Liability
   ,payInt,payPrin,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,fv2,calcZspread,payYield
-  ,buildRateResetDates,convertToFace,isPaidOff
+  ,buildRateResetDates,convertToFace
   ,isAdjustble)
   where
 
@@ -101,12 +101,6 @@ consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
   =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} 
 
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
-
--- | if no any principal due and interest due /oustanding balance ,then the bond is paid off
-isPaidOff :: Bond -> Bool
-isPaidOff b@Bond{bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
-  | bal==0 && dp==0 && di==0 = True 
-  | otherwise = False 
 
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -313,9 +307,15 @@ buildRateResetDates ii sd ed
 
 
 instance S.QueryByComment Bond where 
-    queryStmt Bond{bndStmt = Nothing} tc = []
-    queryStmt Bond{bndStmt = Just (S.Statement txns)} tc
-      = filter (\x -> S.getTxnComment x == tc) txns
+  queryStmt Bond{bndStmt = Nothing} tc = []
+  queryStmt Bond{bndStmt = Just (S.Statement txns)} tc
+    = filter (\x -> S.getTxnComment x == tc) txns
+
+instance Liable Bond where 
+  isPaidOff b@Bond{bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
+    | bal==0 && dp==0 && di==0 = True 
+    | otherwise = False
+
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

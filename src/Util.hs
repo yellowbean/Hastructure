@@ -5,7 +5,7 @@ module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN
     ,getValByDate,getValByDates 
     ,calcInt,calcIntRate,calcIntRateCurve,divideBB
-    ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
+    ,multiplyTs,zipTs,getTsVals,getTsSize,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, getTsDates
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
@@ -105,6 +105,19 @@ getValByDate (IRateCurve dps) Inc d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
+getValByDate (RatioCurve dps) Exc d
+  = case find (\(TsPoint _d _) -> d > _d) (reverse dps)  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+getValByDate (RatioCurve dps) Inc d
+  = case find (\(TsPoint _d _) -> d >= _d) (reverse dps)  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+
+
+
 getValByDate (ThresholdCurve dps) Inc d
   = case find (\(TsPoint _d _) -> d <= _d) dps  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
@@ -151,12 +164,19 @@ getValByDates rc ct = map (getValByDate rc ct)
 
 getTsVals :: Ts -> [Rational]
 getTsVals (FloatCurve ts) = [ v | (TsPoint d v) <- ts ]
+getTsVals (RatioCurve ts) = [ v | (TsPoint d v) <- ts ]
+getTsVals (BalanceCurve ts) = [ toRational v | (TsPoint d v) <- ts ]
+getTsVals (IRateCurve ts) = [ toRational v | (TsPoint d v) <- ts ]
 
 getTsDates :: Ts -> [Date]
 getTsDates (IRateCurve tps) =  map getDate tps
+getTsDates (RatioCurve tps) =  map getDate tps
 getTsDates (FloatCurve tps) =  map getDate tps
 getTsDates (PricingCurve tps) =  map getDate tps
 getTsDates (BalanceCurve tps) =  map getDate tps
+
+getTsSize :: Ts -> Int 
+getTsSize ts = length (getTsVals ts)
 
 
 calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
@@ -191,7 +211,7 @@ replace xs i e
   | otherwise = case splitAt i xs of
                    (before, _:after) -> before ++ e: after
                    _ -> xs
-                   
+
 -- ^ padding default value to list ,make it length with N
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 

@@ -427,7 +427,7 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                                                            ,AP.revolving = mRevolving
                                                            ,AP.interest  = mInterest} 
   | not runFlag = (t, Nothing, Just valLogs, Nothing)
-  | otherwise = (finalDeal, Just pcf, Just (getRunResult finalDeal++logs), bndPricing) -- `debug` ("Run Deal end with")
+  | otherwise = (finalDeal, Just pcf, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
     where
       (runFlag,valLogs) = V.validatePreRun t
       -- getinits() will get (new deal snapshot, actions, pool cashflows)
@@ -450,8 +450,8 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                      Nothing -> Nothing   --  `debug` ("pricing bpi with Nothing")
                      Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with")
 
+-- | get bond principal and interest shortfalls from a deal
 getRunResult :: TestDeal a -> [ResultComponent]
--- ^ get bond principal and interest shortfalls from a deal
 getRunResult t = os_bn_i ++ os_bn_b
   where 
     bs = Map.elems $ bonds t

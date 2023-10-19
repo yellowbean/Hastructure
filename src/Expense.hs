@@ -94,5 +94,11 @@ instance S.QueryByComment Fee where
     queryStmt Fee{feeStmt = Just (S.Statement txns)} tc
       = filter (\x -> S.getTxnComment x == tc) txns
 
+instance Liable Fee where 
+  isPaidOff f@Fee{feeDue=bal,feeArrears=fa}
+    | bal==0 && fa==0 = True 
+    | otherwise = False
+
+
 $(deriveJSON defaultOptions ''FeeType)
 $(deriveJSON defaultOptions ''Fee)

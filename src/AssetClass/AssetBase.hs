@@ -21,11 +21,11 @@ import qualified Cashflow as CF
 
 type DailyRate = Balance
 
-data AmortPlan = Level                -- ^ for mortgage / french system  -> fixed payment each period which consist of increasing princial and decreasing interest.
-               | Even                 -- ^ for linear mortgage   -> evenly distributed principal repayment
-               | I_P                  -- ^ interest only and principal due at last payment
-               | F_P                  -- ^ fee based 
-               | ScheduleRepayment Ts -- ^ custom principal follow
+data AmortPlan = Level                   -- ^ for mortgage / french system  -> fixed payment each period which consist of increasing princial and decreasing interest.
+               | Even                    -- ^ for linear mortgage   -> evenly distributed principal repayment
+               | I_P                     -- ^ interest only and principal due at last payment
+               | F_P                     -- ^ fee based 
+               | ScheduleRepayment Ts (Maybe DatePattern)   -- ^ custom principal follow
                deriving (Show,Generic)
 
 data Status = Current

@@ -174,7 +174,7 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
             (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
             (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
             (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
-projRates _ rt rassump ds = error ("Invalid rate type: "++ show rt++" assump"++ show rassump)
+projRates _ rt rassump ds = error ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
 
 
 -- ^ Given a list of rates, calcualte whether rates was reset

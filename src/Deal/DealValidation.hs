@@ -10,9 +10,13 @@ import Deal.DealBase
 import Types
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import qualified Waterfall as W
 import Data.ByteString (intercalate)
 import qualified Types as Set
+
+import qualified Waterfall as W
+import qualified Liability as L
+import qualified Accounts as A
+import qualified Expense as F
 
 validateAction :: [W.Action] -> [ResultComponent] -> Set.Set String -> Set.Set String -> Set.Set String-> Set.Set String-> Set.Set String -> Set.Set String -> [ResultComponent]
 validateAction [] rs _ _ _ _ _ _ = rs
@@ -149,28 +153,28 @@ validatePreRun t@TestDeal{waterfall=waterfallM
       flag = True
       -- date check
 
-      -- waterfall key not exists test error
       accKeys = Map.keysSet accM
       bndKeys = Map.keysSet bondM 
       feeKeys = Map.keysSet feeM
       waterfallKeys = Map.keysSet waterfallM
       liqProviderKeys = maybe Set.empty Map.keysSet liqProviderM
       rateSwapKeys = maybe Set.empty Map.keysSet rsM
-      ---- triggerKeys = Map.keys <$> triggerM
       ledgerKeys = maybe Set.empty Map.keysSet ledgerM
-      errors2 = concat $ (\x -> validateAction x [] accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys) <$> (Map.elems waterfallM) 
+      triggerKeys = maybe Set.empty Map.keysSet triggerM
+
+      -- waterfall key not exists test error
+      errors2 = concat $ (\x -> validateAction x [] accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys) <$> Map.elems waterfallM 
 
       -- waterfall action coverage check 
 
       -- run result scan
     in 
       if null errors2 then 
-        (True, warnings)
+        (True, warnings) -- Valiation Pass
       else 
-        (False, errors2 ++ warnings)
+        (False, errors2 ++ warnings) -- Validation Failed
 
-
-validateRun :: TestDeal a -> Date -> [ResultComponent]
+validateRun :: TestDeal a -> [ResultComponent]
 validateRun t@TestDeal{waterfall=waterfallM
                       ,accounts =accM 
                       ,fees = feeM 
@@ -179,14 +183,21 @@ validateRun t@TestDeal{waterfall=waterfallM
                       ,liqProvider = liqProviderM 
                       ,rateSwap = rsM 
                       ,triggers = triggerM
-                      ,ledgers = ledgerM} d 
+                      ,ledgers = ledgerM} 
   = let 
-      errors = []
-      warnings = []
       -- oustanding liability
       --- bond
+      bondWarnings = [ WarningMsg ("Bond "++bn++ " is not paid off")  | bn <- Map.elems (Map.map L.bndName $ Map.filter (not . isPaidOff)  bondM) ]
       --- fee
+      feeWarnings = [ WarningMsg ("Fee "++fn++ " is not paid off")  | fn <- Map.elems (Map.map F.feeName $ Map.filter (not . isPaidOff) feeM) ]
+      --- liquidity provider 
+      
+      --- rate swap
+      -- oustanding assets
+      --- account
+      accWarnings = [ WarningMsg ("Account "++an++ " has cash to be distributed")  | an <- Map.elems (Map.map A.accName $ Map.filter (\x -> A.accBalance x > 0) accM)]
+      --- uncollected pool cash
 
       -- run result scan
     in 
-      errors ++ warnings
+      bondWarnings ++ feeWarnings ++ accWarnings
