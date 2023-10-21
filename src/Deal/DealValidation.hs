@@ -2,6 +2,10 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 module Deal.DealValidation (validateRun,validatePreRun)
   where 
@@ -11,12 +15,20 @@ import Types
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.ByteString (intercalate)
-import qualified Types as Set
 
 import qualified Waterfall as W
+import qualified CreditEnhancement as CE
 import qualified Liability as L
 import qualified Accounts as A
 import qualified Expense as F
+import qualified Asset as P
+
+
+import Data.Maybe
+
+isPreClosing :: TestDeal a -> Bool
+isPreClosing t@TestDeal{ status = PreClosing _ } = True
+isPreClosing _ = False
 
 validateAction :: [W.Action] -> [ResultComponent] -> Set.Set String -> Set.Set String -> Set.Set String-> Set.Set String-> Set.Set String -> Set.Set String -> [ResultComponent]
 validateAction [] rs _ _ _ _ _ _ = rs
@@ -146,13 +158,11 @@ validatePreRun t@TestDeal{waterfall=waterfallM
                       ,liqProvider = liqProviderM 
                       ,rateSwap = rsM 
                       ,triggers = triggerM
-                      ,ledgers = ledgerM} 
+                      ,ledgers = ledgerM
+                      ,pool = pool 
+                      ,dates = dates
+                      ,status = status} 
   = let 
-      errors = []
-      warnings = []
-      flag = True
-      -- date check
-
       accKeys = Map.keysSet accM
       bndKeys = Map.keysSet bondM 
       feeKeys = Map.keysSet feeM
@@ -161,18 +171,33 @@ validatePreRun t@TestDeal{waterfall=waterfallM
       rateSwapKeys = maybe Set.empty Map.keysSet rsM
       ledgerKeys = maybe Set.empty Map.keysSet ledgerM
       triggerKeys = maybe Set.empty Map.keysSet triggerM
+      -- date check
+
+      -- issuance balance check 
+      issuanceBalCheck CurrentDates {} = case Map.lookup IssuanceBalance <$> P.issuanceStat pool of
+                                           Nothing -> [ErrorMsg "Issuance balance not found for a Ongoing Deal"]
+                                           Just _ -> []
+      issuanceBalCheck _ = []
 
       -- waterfall key not exists test error
-      errors2 = concat $ (\x -> validateAction x [] accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys) <$> Map.elems waterfallM 
+      errors = concat $ (\x -> validateAction x [] accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys) <$> Map.elems waterfallM 
 
       -- waterfall action coverage check 
 
       -- run result scan
+
+      allErrors = errors ++ issuanceBalCheck dates
+      -- check issuance balance 
+      w1 = if (not (isPreClosing t)) && (isJust (P.issuanceStat pool)) then
+             [WarningMsg "Deal passes PreClosing status, but not cumulative defaults/delinq at cutoff date?"]
+           else 
+             []
+      warnings = w1
     in 
-      if null errors2 then 
+      if null allErrors then 
         (True, warnings) -- Valiation Pass
       else 
-        (False, errors2 ++ warnings) -- Validation Failed
+        (False, allErrors ++ warnings) -- Validation Failed
 
 validateRun :: TestDeal a -> [ResultComponent]
 validateRun t@TestDeal{waterfall=waterfallM
@@ -191,8 +216,14 @@ validateRun t@TestDeal{waterfall=waterfallM
       --- fee
       feeWarnings = [ WarningMsg ("Fee "++fn++ " is not paid off")  | fn <- Map.elems (Map.map F.feeName $ Map.filter (not . isPaidOff) feeM) ]
       --- liquidity provider 
-      
+      liqWarnings = case liqProviderM of 
+                      Nothing -> []
+                      Just liqM -> [ WarningMsg ("LiquidityProvider "++bn++ " is not paid off")  | bn <- Map.elems (Map.map CE.liqName $ Map.filter (not . isPaidOff)  liqM) ]
       --- rate swap
+      rsWarnings = case rsM of 
+                     Nothing -> []
+                     Just rsM -> []   -- TODO [ WarningMsg ("LiquidityProvider "++bn++ " is not paid off")  | bn <- Map.elems (Map.map CE.liqName $ Map.filter (not . isPaidOff)  rsM) ]
+
       -- oustanding assets
       --- account
       accWarnings = [ WarningMsg ("Account "++an++ " has cash to be distributed")  | an <- Map.elems (Map.map A.accName $ Map.filter (\x -> A.accBalance x > 0) accM)]
@@ -200,4 +231,4 @@ validateRun t@TestDeal{waterfall=waterfallM
 
       -- run result scan
     in 
-      bondWarnings ++ feeWarnings ++ accWarnings
+      bondWarnings ++ feeWarnings ++ accWarnings ++ liqWarnings ++ rsWarnings

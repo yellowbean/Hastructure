@@ -98,6 +98,10 @@ instance QueryByComment RateSwap where
     queryStmt RateSwap{rsStmt = Just (Statement txns)} tc
       = filter (\x -> getTxnComment x == tc) txns
 
+instance Liable RateSwap where 
+  isPaidOff rs@RateSwap{rsNetCash=bal}
+    | bal == 0 = True
+    | otherwise = False
 
 data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating rate and receiving Floating Rate
                   | FloatingToFixed  Floater IRate        -- ^ Paying Floating Rate and receiving Fixed Rate

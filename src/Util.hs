@@ -22,7 +22,6 @@ import Data.Ix
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Set as S
-import DateUtil 
 import Lib
 import Types
 import DateUtil

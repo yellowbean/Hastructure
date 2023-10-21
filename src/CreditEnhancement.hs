@@ -177,6 +177,15 @@ instance QueryByComment LiqFacility where
     queryStmt liq@LiqFacility{liqStmt = (Just (Statement txns))} tc
       = filter (\x -> getTxnComment x == tc) txns
 
+instance Liable LiqFacility where 
+  isPaidOff liq@LiqFacility{liqBalance=bal,liqDueInt=dueInt,liqDuePremium=duePremium}
+    | bal==0 && dueInt==0 && duePremium==0 = True
+    | otherwise = False
+
+
+
+
+
 
 $(deriveJSON defaultOptions ''LiqRepayType)
 $(deriveJSON defaultOptions ''LiqDrawType)

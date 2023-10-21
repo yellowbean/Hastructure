@@ -2,8 +2,10 @@
 
 ## 0.22.0
 ### 2023-10-15
-* ENHANCE: expose `inspect` variables during a waterfall execution
-* ENHANCE: stepup now accpet a `pre` instead of a `date` to switch rate
+* BREAK: cashflow now with `Cumulative Stats` ( cumulative default/delinq/loss/prepayment/principal/recovery)
+* NEW: expose `inspect` in waterfall action to observe variables during a waterfall execution
+* NEW: `stepup` now accpet a `pre` instead of a `date` to switch rate
+* ENHANCE: auto patch `issuance balance` for `PreClosing` Deal
 * ENHANCE: implement `pre-run check` and `post-run check`, patch check logs in result
 * FIX: fix bug on `prepay penalty` when using `stepDown`
 
@@ -16,7 +18,6 @@
 ### 2023-9-27
 * ENHANCE: require a new status when defining a deal in `preClosing` stage
 * FIX: fix a bug when reading financial report logs 
-
 
 ## 0.21.3
 ### 2023-9-26

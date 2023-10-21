@@ -21,7 +21,7 @@ module Types
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
-  ,Liable(..)
+  ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery
   )
   
   where
@@ -78,6 +78,13 @@ type Prepayment = Centi
 type Rental = Centi
 type Cap = Micro
 type PrepaymentPenalty = Centi
+
+type CumPrepay = Centi
+type CumPrincipal = Centi
+type CumDefault = Centi
+type CumDelinq = Centi
+type CumLoss = Centi
+type CumRecovery = Centi
 
 type PrepaymentRate = Rate
 type DefaultRate = Rate
@@ -194,6 +201,14 @@ sortActionOnDate a1 a2
                  (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
                  (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
                  (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
+                 (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
+                 (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
+                 (EarnAccInt {} ,_) -> LT  -- earn should be first
+                 (_ , EarnAccInt {}) -> GT -- earn should be first
+                 (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
+                 (_ , ResetLiqProvider {}) -> GT -- reset liq be first
+                 (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
+                 (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
                  (_,_) -> EQ 
   | otherwise = compare d1 d2
   where 

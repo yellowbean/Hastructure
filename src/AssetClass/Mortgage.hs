@@ -71,12 +71,12 @@ projectMortgageFlow trs _bal mbn _last_date (pDate:pDates) (_def_rate:_def_rates
                     _survive_rate = ((1 - _def_rate) * (1 - _ppy_rate))  
                     _temp = _survive_rate * (toRational (1 - newPrin / newBalAfterPpy))
                     newMbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
-                    tr = CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault (head currentRec) (head currentLoss) _rate newMbn Nothing --TODO missing ppy-penalty here
+                    tr = CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault (head currentRec) (head currentLoss) _rate newMbn Nothing Nothing
 
 projectMortgageFlow trs _b mbn _last_date (pDate:_pdates) _  _ (_rec_amt:_rec_amts) (_loss_amt:_loss_amts) _ _lag_rate _p _pt
  = projectMortgageFlow (trs++[tr]) _b mbn pDate _pdates [] [] _rec_amts _loss_amts [0.0] _lag_rate _p _pt
   where
-    tr = CF.MortgageFlow pDate _b 0 0 0 0 _rec_amt _loss_amt 0.0 Nothing Nothing
+    tr = CF.MortgageFlow pDate _b 0 0 0 0 _rec_amt _loss_amt 0.0 Nothing Nothing Nothing
 projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs  
 
 
@@ -143,7 +143,7 @@ projectDelinqMortgageFlow (trs,backToPerfs) beginBal mbn lastDate (pDate:pDates)
                              Just bn -> Just (((fromInteger . round) ((divideBB beginBal endingBal) * bn))::Int)
                              Nothing -> Nothing
                   -- mNewBorrowerNum = (fromIntegral . toInteger . fromRational) <$> ((divideBB beginBal endingBal) *) <$> mBorrowerNum
-                  tr = CF.MortgageDelinqFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate newMbn Nothing -- `debug` ("Date"++ show pDate ++ "ENDING BAL AT"++ show endingBal)
+                  tr = CF.MortgageDelinqFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate newMbn Nothing Nothing-- `debug` ("Date"++ show pDate ++ "ENDING BAL AT"++ show endingBal)
 
 
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
@@ -169,7 +169,7 @@ projectScheduleFlow trs bal_factor last_bal (flow:flows) (_def_rate:_def_rates) 
 
        endBal = max 0 $ afterBal - _schedule_prin
 
-       tr = CF.MortgageFlow (CF.getDate flow) endBal _schedule_prin _schedule_int ppyAmt defAmt (head recVector) (head lossVector) 0.0 Nothing Nothing --TODO missing ppy-penalty here
+       tr = CF.MortgageFlow (CF.getDate flow) endBal _schedule_prin _schedule_int ppyAmt defAmt (head recVector) (head lossVector) 0.0 Nothing Nothing Nothing--TODO missing ppy-penalty here
 
 projectScheduleFlow trs b_factor lastBal [] _ _ (r:rs) (l:ls) (recovery_lag,recovery_rate)
   = projectScheduleFlow (trs++[tr]) b_factor lastBal [] [] [] rs ls (recovery_lag - 1,recovery_rate) 
@@ -177,22 +177,22 @@ projectScheduleFlow trs b_factor lastBal [] _ _ (r:rs) (l:ls) (recovery_lag,reco
       remain_length = length rs
       lastDate = CF.getDate (last trs)
       flowDate = nextDate lastDate Lib.Monthly
-      tr = CF.MortgageFlow flowDate lastBal 0 0 0 0 r l 0.0 Nothing Nothing
+      tr = CF.MortgageFlow flowDate lastBal 0 0 0 0 r l 0.0 Nothing Nothing Nothing
 
 type DelinqRate = Rate
 projectScheduleDelinqFlow :: ([CF.TsRow],[CF.TsRow]) -> Rate -> Balance -> [CF.TsRow] -> [DelinqRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> [Amount] -> (Rate,Int,Rate,Int) -> [CF.TsRow]
 projectScheduleDelinqFlow (trs,[]) _ begBal flows [] [] defaults recoveries losses _ = 
   let 
-    patchedFlows = [ CF.MortgageDelinqFlow d begBal prin int prepay delinq defVal recVal lossVal rate mB mPPN   
-                    | (CF.MortgageDelinqFlow d bal prin int prepay delinq _ _ _ rate mB mPPN,defVal,recVal,lossVal) <- zip4 flows defaults recoveries losses] -- `debug` ("Length of default"++ show defaults++">>recovery>>"++ show recoveries++">>loss>>"++ show losses)
+    patchedFlows = [ CF.MortgageDelinqFlow d begBal prin int prepay delinq defVal recVal lossVal rate mB mPPN Nothing
+                    | (CF.MortgageDelinqFlow d bal prin int prepay delinq _ _ _ rate mB mPPN Nothing,defVal,recVal,lossVal) <- zip4 flows defaults recoveries losses] -- `debug` ("Length of default"++ show defaults++">>recovery>>"++ show recoveries++">>loss>>"++ show losses)
     r1 = sort $ trs ++ patchedFlows -- `debug` ("Patched rows\n"++show patchedFlows)
   in 
     r1
     
 projectScheduleDelinqFlow (trs,newPerfs) _ begBal flows [] [] defaults recoveries losses _ = 
   let 
-    patchedFlows = [ CF.MortgageDelinqFlow d begBal prin int prepay delinq defVal recVal lossVal rate mB mPPN   
-                    | (CF.MortgageDelinqFlow d bal prin int prepay delinq _ _ _ rate mB mPPN,defVal,recVal,lossVal) <- zip4 flows defaults recoveries losses] -- `debug` ("Length of default"++ show defaults++">>recovery>>"++ show recoveries++">>loss>>"++ show losses)
+    patchedFlows = [ CF.MortgageDelinqFlow d begBal prin int prepay delinq defVal recVal lossVal rate mB mPPN Nothing  
+                    | (CF.MortgageDelinqFlow d bal prin int prepay delinq _ _ _ rate mB mPPN Nothing,defVal,recVal,lossVal) <- zip4 flows defaults recoveries losses] -- `debug` ("Length of default"++ show defaults++">>recovery>>"++ show recoveries++">>loss>>"++ show losses)
     r1 = sort $ trs ++ patchedFlows -- `debug` ("Patched rows\n"++show patchedFlows)
     r3 = CF.aggregateTsByDate [] $ sort newPerfs -- `debug` ("New Perfs\n"++ show newPerfs)
     (r1keep, r1merge) = splitByDate r1 (getDate  (head r3)) EqToRight  -- `debug` ("r3 \n"++ show r3)
@@ -224,7 +224,7 @@ projectScheduleDelinqFlow (trs,backToPerfCfs) surviveRate begBal (flow:flows) (d
       newRecoveryBals = replace recoveryBals (recoveryLag + pred defaultLag) (mulBR newDefaultBal recoveryRate)  
       newLossBals =  replace lossBals (recoveryLag + pred defaultLag) (mulBR newDefaultBal (1-recoveryRate)) -- `debug` ("new loss def"++ show defaultBal++">>rate"++ show (1-recoveryRate) )
       tr = CF.MortgageDelinqFlow (CF.getDate flow) endBal schedulePrin scheduleInt ppyAmt delinqAmt defaultBal recoveryBal lossBal (CF.mflowRate flow) Nothing 
-                                 Nothing -- `debug` ("|||>>> proj at date"++ show (CF.getDate flow))
+                                 Nothing Nothing -- `debug` ("|||>>> proj at date"++ show (CF.getDate flow))
 
 -- | implementation on prepayment penalty, which patch cashflow to cashflow frame
 patchPrepayPentalyFlow :: Mortgage -> CF.CashFlowFrame -> CF.CashFlowFrame
@@ -372,9 +372,9 @@ instance Ast.Asset Mortgage where
                (_,_,A.DefaultedRecovery rr lag timing) _ =
     let 
       (emptyDates,recoveryDates) = splitAt (pred lag) $ genDates defaultedDate p (lag + length timing)
-      beforeRecoveryTxn = [ CF.MortgageFlow d 0 0 0 0 0 0 0 cr mbn Nothing | d <- emptyDates ]
+      beforeRecoveryTxn = [ CF.MortgageFlow d 0 0 0 0 0 0 0 cr mbn Nothing Nothing | d <- emptyDates ]
       recoveries = calcRecoveriesFromDefault cb rr timing
-      txns = [ CF.MortgageFlow d 0 0 0 0 0 r 0 cr mbn Nothing | (d,r) <- zip recoveryDates recoveries ]
+      txns = [ CF.MortgageFlow d 0 0 0 0 0 r 0 cr mbn Nothing Nothing | (d,r) <- zip recoveryDates recoveries ]
     in 
       (CF.CashFlowFrame $ cutBy Inc Future asOfDay (beforeRecoveryTxn ++ txns)
       ,Map.empty)
@@ -384,11 +384,11 @@ instance Ast.Asset Mortgage where
     = projCashflow (Mortgage mo cb cr rt mbn  (Defaulted (Just defaultedDate))) asOfDay assumps mRates
   -- project defaulted adjMortgage without a defaulted Date   
   projCashflow m@(AdjustRateMortgage _ _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
-    = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing ]
+    = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing Nothing]
       ,Map.empty)
   -- project defaulted Mortgage    
   projCashflow m@(Mortgage _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
-    = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing ]
+    = (CF.CashFlowFrame $ [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing Nothing]
       ,Map.empty)
 
   -- project current AdjMortgage

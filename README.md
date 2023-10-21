@@ -15,11 +15,17 @@ the engine will yields outputs:
 * or other outputs make your lose all of the money faster :sunglasses:
 
 # Why Hastructure ?
-* :coffee: Easy integration with Java/C#/C++/JavaScript/Python with RESTful interface and Docker image ready
+
 * :bricks: A building block engine to model cashflows of structured product, all the formula and variables are exposed.
 * :car: In-house and white-label friendly.
 * :flags: No lock-in risk, all JSONs input/output, no proprietary file formats.
-* :snake: [Python wrapper](https://github.com/yellowbean/PyABS) is in ``Beta`` now !  
+
+# I'm using language XXX
+
+* :snake: [Python wrapper](https://github.com/yellowbean/PyABS) is in ``Beta`` now !
+* :coffee: Easy integration with ``Java/C#/C++/JavaScript/Python`` with ``RESTful`` interface and Docker image are ready. 
+* C/Cpp wrapper : Working on this !
+  * Java  : Just use JNI and call C Api 
 
 ### Features
 * Integration
@@ -66,6 +72,10 @@ the engine will yields outputs:
   * User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc.
 * Misc
   * Support user define pay dates & pool collection dates 
+
+### Documentation
+
+* see what `Hastructure` is capable of -> [Here](https://absbox-doc.readthedocs.io/en/latest/)
 
 ### Online Demo
 

@@ -1016,11 +1016,42 @@
                                     {
                                         "multipleOf": 1.0e-2,
                                         "type": "number"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 6,
+                                        "type": "array",
+                                        "minItems": 6
                                     }
                                 ],
-                                "maxItems": 11,
+                                "maxItems": 12,
                                 "type": "array",
-                                "minItems": 11
+                                "minItems": 12
                             },
                             "tag": {
                                 "type": "string",
@@ -1086,11 +1117,42 @@
                                     {
                                         "multipleOf": 1.0e-2,
                                         "type": "number"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 6,
+                                        "type": "array",
+                                        "minItems": 6
                                     }
                                 ],
-                                "maxItems": 12,
+                                "maxItems": 13,
                                 "type": "array",
-                                "minItems": 12
+                                "minItems": 13
                             },
                             "tag": {
                                 "type": "string",
@@ -1143,11 +1205,42 @@
                                     {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 6,
+                                        "type": "array",
+                                        "minItems": 6
                                     }
                                 ],
-                                "maxItems": 9,
+                                "maxItems": 10,
                                 "type": "array",
-                                "minItems": 9
+                                "minItems": 10
                             },
                             "tag": {
                                 "type": "string",
@@ -11010,7 +11103,17 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Ts"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
