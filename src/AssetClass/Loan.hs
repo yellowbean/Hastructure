@@ -88,21 +88,28 @@ projectLoanFlow trs _factor _b _last_date (_pdate:_pdates) _  _ (_rec_amt:_rec_a
 projectLoanFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs -- `debug` ("===>C") --  `debug` ("End at "++show(trs))
 
 instance Asset Loan where
-  calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) _bal _rate _term _ ) asOfDay mRates 
+  calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) bal rate term _ ) asOfDay mRates 
     = CF.CashFlowFrame $ cutBy Inc Future asOfDay txns 
       where
         orate = getOriginRate pl
-        pmt = calcPmt _bal (periodRateFromAnnualRate p _rate) _term
-        cf_dates = lastN (_term + 1) $ sd:(getPaymentDates pl 0)
-        l = pred (length cf_dates)
-        rates_used = A.projRates _rate or mRates cf_dates
+        pmt = calcPmt bal (periodRateFromAnnualRate p rate) term
+        cfDates = lastN (term + 1) $ sd:getPaymentDates pl 0
+        l = pred (length cfDates)
+        ratesUsed = A.projRates rate or mRates cfDates
         dc = getDayCount or
-        (b_flow,prin_flow,int_flow) = case ptype of
-                                        Level -> calcPiFlow dc _bal pmt cf_dates rates_used
-                                        Even  -> calc_p_i_flow_even (_bal / fromIntegral _term) _bal cf_dates _rate
-                                        I_P   -> calc_p_i_flow_i_p _bal cf_dates _rate
-                                        -- ScheduleRepayment -> ([],[],[])
-        txns =  zipWith10 CF.LoanFlow (tail cf_dates) b_flow prin_flow int_flow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l _rate) (replicate l Nothing) -- `debug` ("prin size "++ show (prin_flow)++ "date size"++ show (length cf_dates )++"int"++show (int_flow)++"ds"++ show (cf_dates))
+        (bFlow,prinFlow,intFlow) = case ptype of
+                                        Level -> calcPiFlow dc bal pmt cfDates ratesUsed
+                                        Even  -> calc_p_i_flow_even (bal / fromIntegral term) bal cfDates rate
+                                        I_P   -> calc_p_i_flow_i_p bal cfDates rate
+                                        ScheduleRepayment cf _ -> 
+                                          let 
+                                            periodIntervals = getIntervalFactors (sd:getTsDates cf)
+                                            schedulePrin = fromRational <$> getTsVals cf
+                                            bals = scanl (-) ob schedulePrin
+                                            ints = [  mulBIR (mulBR b f) r   | (b,f,r) <- zip3 bals periodIntervals ratesUsed ]
+                                          in 
+                                            (lastN term bals,lastN term schedulePrin,lastN term ints)
+        txns =  zipWith10 CF.LoanFlow (tail cfDates) bFlow prinFlow intFlow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l rate) (replicate l Nothing) -- `debug` ("prin size "++ show (prin_flow)++ "date size"++ show (length cf_dates )++"int"++show (int_flow)++"ds"++ show (cf_dates))
 
   getCurrentBal pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
     = _bal
