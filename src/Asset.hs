@@ -46,7 +46,7 @@ import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
 debug = flip trace
 
-class Show a => Asset a where
+class (Show a,IR.UseRate a) => Asset a where
   -- | project contractual cashflow of an asset with interest assumptions
   calcCashflow :: a -> Date -> Maybe [RateAssumption] -> CF.CashFlowFrame
   -- | Get current balance of an asset

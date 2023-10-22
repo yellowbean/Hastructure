@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
@@ -111,6 +113,10 @@ instance IR.UseRate Installment where
   getIndex (Installment oi@LoanOriginalInfo{originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _) = Just idx 
   getIndex (Installment {}) = Nothing
   
+instance IR.UseRate Lease where
+  getIndex :: Lease -> Maybe Index
+  getIndex _ = Nothing
+
 
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''AmortPlan)

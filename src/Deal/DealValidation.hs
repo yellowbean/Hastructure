@@ -152,17 +152,17 @@ validateAction ((W.ActionWithPre2 p subActionList1 subActionList2):as) rs accKey
 validateAction (action:as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys
   = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys
 
-extractRequiredRates :: TestDeal a -> Set.Set Index
+extractRequiredRates :: IR.UseRate a => TestDeal a -> Set.Set Index
 extractRequiredRates t@TestDeal{accounts = accM 
                                ,fees = feeM 
                                ,bonds = bondM 
                                ,liqProvider = mliqProviderM 
                                ,rateSwap = mrsM 
                                ,pool = pool}
-  -- = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
-  = Set.fromList $ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
+  = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
+  -- = Set.fromList $ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
     where 
-      -- TODO assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
+      assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
       
       accIndex = catMaybes $ IR.getIndex <$> Map.elems accM 
       bondIndex = catMaybes $ IR.getIndex <$> Map.elems bondM 
