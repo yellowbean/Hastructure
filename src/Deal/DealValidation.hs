@@ -14,6 +14,7 @@ import Deal.DealBase
 import Types
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Maybe
 import Data.ByteString (intercalate)
 
 import qualified Waterfall as W
@@ -22,6 +23,8 @@ import qualified Liability as L
 import qualified Accounts as A
 import qualified Expense as F
 import qualified Asset as P
+import qualified Assumptions as AP
+import qualified InterestRate as IR
 
 
 import Data.Maybe
@@ -148,6 +151,30 @@ validateAction ((W.ActionWithPre2 p subActionList1 subActionList2):as) rs accKey
 
 validateAction (action:as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys
   = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys
+
+extractRequiredRates :: TestDeal a -> Set.Set Index
+extractRequiredRates t@TestDeal{accounts = accM 
+                               ,fees = feeM 
+                               ,bonds = bondM 
+                               ,liqProvider = mliqProviderM 
+                               ,rateSwap = mrsM 
+                               ,pool = pool}
+  = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
+    where 
+      assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
+      accIndex = catMaybes $ IR.getIndex <$> Map.elems accM 
+      bondIndex = catMaybes $ IR.getIndex <$> Map.elems bondM 
+      liqProviderIndex = case mliqProviderM of 
+                           Just liqProviderM -> concat $ catMaybes $ IR.getIndexes <$> Map.elems liqProviderM
+                           Nothing -> [] 
+      rsIndex = case mrsM of 
+                  Just rsM -> concat $ catMaybes $ IR.getIndexes <$> Map.elems rsM
+                  Nothing -> []
+      -- note fee is not tested
+      
+
+validateReq :: TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
+validateReq t assump = (True,[])
 
 validatePreRun :: TestDeal a -> (Bool,[ResultComponent])
 validatePreRun t@TestDeal{waterfall=waterfallM

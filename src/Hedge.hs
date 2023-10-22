@@ -26,6 +26,8 @@ import Util
 import Stmt
 import DateUtil
 
+import qualified InterestRate as IR
+
 import Debug.Trace
 debug = flip trace
 
@@ -112,6 +114,13 @@ data CurrencySwap = CurrencySwap {
                     csBalance :: Balance
                     } deriving (Show,Generic)
 
+instance IR.UseRate RateSwap where 
+  getIndexes rs@RateSwap{rsType = rstype}
+    = case rstype of
+        FloatingToFloating (idx1,_) (idx2,_) -> Just [idx1,idx2]
+        FloatingToFixed (idx1,_) _ -> Just [idx1]
+        FixedToFloating _ (idx1,_) -> Just [idx1]
+        _ -> Nothing
 
 
 $(deriveJSON defaultOptions ''RateSwap)

@@ -19,6 +19,8 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 
+import qualified InterestRate as IR
+
 import Debug.Trace
 debug = flip trace
 
@@ -142,6 +144,15 @@ queryTrasnferBalance a@Account{accName = fromAccName, accStmt = Just (Statement 
 instance QueryByComment Account where 
     queryStmt (Account _ _ _ _ Nothing) tc = []
     queryStmt (Account _ _ _ _ (Just (Statement txns))) tc = filter (\x -> getTxnComment x == tc) txns
+
+instance IR.UseRate Account where 
+  isAdjustbleRate (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _) = True
+  isAdjustbleRate _ = False
+
+  getIndex (Account _ an (Just (InvestmentAccount idx _ _ _)) _ _) = Just idx
+  getIndex _ = Nothing 
+  
+  
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)

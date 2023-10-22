@@ -24,6 +24,7 @@ import Types
 import Util
 import DateUtil
 import qualified Stmt as S
+import qualified InterestRate as IR
 
 import Debug.Trace
 debug = flip trace
@@ -99,6 +100,9 @@ instance Liable Fee where
     | bal==0 && fa==0 = True 
     | otherwise = False
 
+instance IR.UseRate Fee where
+  isAdjustbleRate x = False
+  getIndex x = Nothing 
 
 $(deriveJSON defaultOptions ''FeeType)
 $(deriveJSON defaultOptions ''Fee)

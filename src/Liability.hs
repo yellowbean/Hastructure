@@ -3,6 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
@@ -32,10 +33,13 @@ import qualified Stmt as S
 
 import Data.List (findIndex,zip6,find)
 import qualified Cashflow as CF
+import qualified InterestRate as IR
 
 import GHC.Generics
 
+
 import Debug.Trace
+import InterestRate (UseRate(getIndexes))
 debug = flip trace
 
 type RateReset = DatePattern 
@@ -60,6 +64,17 @@ isAdjustble Fix {} = False
 isAdjustble InterestByYield {} = False
 isAdjustble (CapRate r _ ) = isAdjustble r
 isAdjustble (FloorRate r _ ) = isAdjustble r
+
+getIndexFromInfo :: InterestInfo -> Maybe [Index]
+getIndexFromInfo (Floater _ idx _ _  _ _ _) = Just [idx]
+getIndexFromInfo Fix {} = Nothing 
+getIndexFromInfo InterestByYield {} = Nothing 
+getIndexFromInfo RefRate {} = Nothing 
+getIndexFromInfo StepUpFix {} = Nothing
+getIndexFromInfo (StepUpPre _ _ i1 i2) = getIndexFromInfo i1 <> getIndexFromInfo i2
+getIndexFromInfo (CapRate info _) = getIndexFromInfo info
+getIndexFromInfo (FloorRate info _) = getIndexFromInfo info
+
 
 
 data OriginalInfo = OriginalInfo {
@@ -316,6 +331,12 @@ instance Liable Bond where
     | bal==0 && dp==0 && di==0 = True 
     | otherwise = False
 
+instance IR.UseRate Bond where 
+  isAdjustbleRate :: Bond -> Bool
+  isAdjustbleRate Bond{bndInterestInfo = iinfo} = isAdjustble iinfo
+  -- getIndex Bond{bndInterestInfo = iinfo }
+  getIndexes Bond{bndInterestInfo = iinfo}  = getIndexFromInfo iinfo
+     
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

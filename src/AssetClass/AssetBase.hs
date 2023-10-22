@@ -97,6 +97,20 @@ data AssetUnion = MO Mortgage
                 | LS Lease
                 deriving (Show, Generic)
 
+instance IR.UseRate Mortgage where 
+  getIndex (Mortgage oi@MortgageOriginalInfo{ originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _ _) = Just idx 
+  getIndex Mortgage {} = Nothing
+  getIndex (AdjustRateMortgage oi@MortgageOriginalInfo{ originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _ _ _) = Just idx 
+  getIndex AdjustRateMortgage {} = Nothing
+
+instance IR.UseRate Loan where
+  getIndex (PersonalLoan oi@LoanOriginalInfo{originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _) = Just idx 
+  getIndex (PersonalLoan {}) = Nothing
+
+instance IR.UseRate Installment where 
+  getIndex (Installment oi@LoanOriginalInfo{originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _) = Just idx 
+  getIndex (Installment {}) = Nothing
+  
 
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''AmortPlan)

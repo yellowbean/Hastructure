@@ -25,6 +25,7 @@ import Types
 import Util
 import DateUtil
 import Stmt
+import qualified InterestRate as IR
 
 type LiquidityProviderName = String
 
@@ -182,9 +183,14 @@ instance Liable LiqFacility where
     | bal==0 && dueInt==0 && duePremium==0 = True
     | otherwise = False
 
-
-
-
+instance IR.UseRate LiqFacility where 
+  getIndexes liq@LiqFacility{liqRateType = mRt,liqPremiumRateType = mPrt} 
+    =  case (mRt,mPrt) of 
+         (Nothing, Nothing) -> Nothing
+         (Just (IR.Floater _ idx _ _ _ _ _ _), Nothing ) -> Just [idx]
+         (Nothing, Just (IR.Floater _ idx _ _ _ _ _ _)) -> Just [idx]
+         (Just (IR.Floater _ idx1 _ _ _ _ _ _), Just (IR.Floater _ idx2 _ _ _ _ _ _)) -> Just [idx1,idx2]
+         _ -> Nothing
 
 
 $(deriveJSON defaultOptions ''LiqRepayType)
