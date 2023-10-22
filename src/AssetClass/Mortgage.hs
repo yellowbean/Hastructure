@@ -68,7 +68,7 @@ projectMortgageFlow trs _bal mbn _last_date (pDate:pDates) (_def_rate:_def_rates
                     currentLoss = replace _loss_vector recovery_lag newLoss
 
                     endBal = newBalAfterPpy - newPrin
-                    _survive_rate = ((1 - _def_rate) * (1 - _ppy_rate))  
+                    _survive_rate = (1 - _def_rate) * (1 - _ppy_rate)  
                     _temp = _survive_rate * (toRational (1 - newPrin / newBalAfterPpy))
                     newMbn = (\y -> fromInteger (round (_temp * (toRational y)))) <$> mbn
                     tr = CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault (head currentRec) (head currentLoss) _rate newMbn Nothing Nothing
@@ -93,57 +93,51 @@ projectDelinqMortgageFlow (trs,backToPerfs) _ _ _ [] _ _ _ _ _ =
 projectDelinqMortgageFlow (trs,backToPerfs) beginBal mbn lastDate (pDate:pDates) (delinqRate:delinqRates) (ppyRate:ppyRates) (rate:rates) 
                           (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
                           (dBal:defaultVec,rAmt:recoveryVec,lAmt:lossVec)
-  -- | beginBal < 0.01 = let
-  --                       (trsKeep,trsMerge) = splitByDate trs (getDate (head backToPerfs)) EqToRight
-  --                       mergedTrs = CF.combineTss [] trsMerge backToPerfs `debug` ("trsMerge"++show trsMerge++"defalt/rec/loss"++show (dBal,rAmt,lAmt))
-  --                     in 
-  --                       trsKeep ++ mergedTrs `debug` ("MErgeed \n \n "++ show mergedTrs)
-  | otherwise = projectDelinqMortgageFlow (trs++[tr],CF.combineTss [] backToPerfs newPerfCfs) endingBal ( (downFactor *) <$> mbn) pDate pDates delinqRates ppyRates rates 
-                              (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
-                              (newDefaultVec,newRecoveryVec,newLossVec) -- `debug` ("\n calc Date"++ show pDate ++"\n from new perf"++ show backToPerfBal ++"\n new cfs >>> \n"++ show newPerfCfs)
-                where 
-                  remainTerms = 1 + max 0 (length pDates - recoveryLag - defaultLag) 
-                  -- remainTerms = 1 + length (pDates) - recoveryLag - defaultLag
-                  delinqBal = mulBR beginBal delinqRate
-                  
-                  defaultBal = mulBR delinqBal defaultPct 
-                  recBal = mulBR defaultBal recoveryRate
-                  lossBal = mulBR defaultBal (1 - recoveryRate)
-                  
-                  newDefaultVec = replace defaultVec (pred defaultLag) defaultBal
-                  newRecoveryVec = replace recoveryVec (pred recoveryLag + defaultLag) recBal
-                  newLossVec = replace lossVec (pred recoveryLag + defaultLag) lossBal
-                  
-                  backToPerfBal = mulBR delinqBal (1 - defaultPct)
-                  
-                  restPerfVector = replicate (succ (length delinqRates)) 0
-                  restPerfBal = fromRational <$> restPerfVector -- `debug` ("Dates"++show (pDate:pDates))
-                  newPerfCfs = if backToPerfBal > 0.0 then
-                                 projectDelinqMortgageFlow ([],[]) backToPerfBal Nothing (pDates!!(defaultLag)) (drop defaultLag (pDate:pDates))
-                                                           restPerfVector restPerfVector 
-                                                           (drop defaultLag (rate:rates))
-                                                           (0,0,0,0,p,prinType)
-                                                           (restPerfBal,restPerfBal,restPerfBal) -- `debug` ("\nStarting new perf >>> \n"++ show backToPerfBal)
-                               else
-                                 []
-                  
-                  balAfterDelinq = beginBal - delinqBal
-                  ppyAmt = mulBR balAfterDelinq ppyRate 
-                  balAfterPpy  = balAfterDelinq - ppyAmt
-                  periodRate = periodRateFromAnnualRate p rate
-                  intAmt = mulBI balAfterPpy periodRate
-                  pmt = calcPmt balAfterPpy periodRate remainTerms
-                  prinAmt = case prinType of
-                              Level -> pmt - intAmt  -- `debug` ("Pmt>> \n"++show pmt++">>used bal"++show balAfterPpy++">>"++show periodRate++">>remain term"++show remainTerms)
-                              Even ->  balAfterPpy / fromIntegral remainTerms
+   = projectDelinqMortgageFlow (trs++[tr],CF.combineTss [] backToPerfs newPerfCfs) endingBal ( (downFactor *) <$> mbn) pDate pDates delinqRates ppyRates rates 
+                   (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinType) 
+                   (newDefaultVec,newRecoveryVec,newLossVec) -- `debug` ("\n calc Date"++ show pDate ++"\n from new perf"++ show backToPerfBal ++"\n new cfs >>> \n"++ show newPerfCfs)
+     where 
+       remainTerms = 1 + max 0 (length pDates - recoveryLag - defaultLag) 
+       delinqBal = mulBR beginBal delinqRate
+       
+       defaultBal = mulBR delinqBal defaultPct 
+       recBal = mulBR defaultBal recoveryRate
+       lossBal = mulBR defaultBal (1 - recoveryRate)
+       
+       newDefaultVec = replace defaultVec (pred defaultLag) defaultBal
+       newRecoveryVec = replace recoveryVec (pred recoveryLag + defaultLag) recBal
+       newLossVec = replace lossVec (pred recoveryLag + defaultLag) lossBal
+       
+       backToPerfBal = mulBR delinqBal (1 - defaultPct)
+       
+       restPerfVector = replicate (succ (length delinqRates)) 0
+       restPerfBal = fromRational <$> restPerfVector -- `debug` ("Dates"++show (pDate:pDates))
+       newPerfCfs = if backToPerfBal > 0.0 then
+                      projectDelinqMortgageFlow ([],[]) backToPerfBal Nothing (pDates!!(defaultLag)) (drop defaultLag (pDate:pDates))
+                                                restPerfVector restPerfVector 
+                                                (drop defaultLag (rate:rates))
+                                                (0,0,0,0,p,prinType)
+                                                (restPerfBal,restPerfBal,restPerfBal) -- `debug` ("\nStarting new perf >>> \n"++ show backToPerfBal)
+                    else
+                      []
+       
+       balAfterDelinq = beginBal - delinqBal
+       ppyAmt = mulBR balAfterDelinq ppyRate 
+       balAfterPpy  = balAfterDelinq - ppyAmt
+       periodRate = periodRateFromAnnualRate p rate
+       intAmt = mulBI balAfterPpy periodRate
+       pmt = calcPmt balAfterPpy periodRate remainTerms
+       prinAmt = case prinType of
+                   Level -> pmt - intAmt  -- `debug` ("Pmt>> \n"++show pmt++">>used bal"++show balAfterPpy++">>"++show periodRate++">>remain term"++show remainTerms)
+                   Even ->  balAfterPpy / fromIntegral remainTerms
 
-                  endingBal = beginBal - prinAmt - ppyAmt - delinqBal -- `debug` ("DATE"++show pDate++">>>"++ show beginBal++">>"++show prinAmt ++ ">>" ++ show ppyAmt ++ ">>"++ show delinqBal)
-                  downFactor = divideBB beginBal endingBal
-                  newMbn = case mbn of 
-                             Just bn -> Just (((fromInteger . round) ((divideBB beginBal endingBal) * bn))::Int)
-                             Nothing -> Nothing
-                  -- mNewBorrowerNum = (fromIntegral . toInteger . fromRational) <$> ((divideBB beginBal endingBal) *) <$> mBorrowerNum
-                  tr = CF.MortgageDelinqFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate newMbn Nothing Nothing-- `debug` ("Date"++ show pDate ++ "ENDING BAL AT"++ show endingBal)
+       endingBal = beginBal - prinAmt - ppyAmt - delinqBal -- `debug` ("DATE"++show pDate++">>>"++ show beginBal++">>"++show prinAmt ++ ">>" ++ show ppyAmt ++ ">>"++ show delinqBal)
+       downFactor = divideBB beginBal endingBal
+       newMbn = case mbn of 
+                  Just bn -> Just (((fromInteger . round) ((divideBB beginBal endingBal) * bn))::Int)
+                  Nothing -> Nothing
+       -- mNewBorrowerNum = (fromIntegral . toInteger . fromRational) <$> ((divideBB beginBal endingBal) *) <$> mBorrowerNum
+       tr = CF.MortgageDelinqFlow pDate endingBal prinAmt intAmt ppyAmt delinqBal dBal rAmt lAmt rate newMbn Nothing Nothing-- `debug` ("Date"++ show pDate ++ "ENDING BAL AT"++ show endingBal)
 
 
 projectScheduleFlow :: [CF.TsRow] -> Rate -> Balance -> [CF.TsRow] -> [DefaultRate] -> [PrepaymentRate] -> [Amount] -> [Amount] -> (Int, Rate) -> [CF.TsRow]
@@ -239,7 +233,7 @@ patchPrepayPentalyFlow m mflow@(CF.CashFlowFrame trs)
         Nothing -> mflow
         Just (ByTerm cutoff rate0 rate1) -> 
           let 
-            rs = lastN flowSize $ (replicate cutoff rate0) ++ replicate (ot-cutoff) rate1
+            rs = lastN flowSize $ replicate cutoff rate0 ++ replicate (ot-cutoff) rate1
           in 
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (FixAmount amt mCutoff) -> 
@@ -258,7 +252,7 @@ patchPrepayPentalyFlow m mflow@(CF.CashFlowFrame trs)
           let 
             rs = case mCutoff of 
                    Nothing -> replicate flowSize r
-                   Just cutoff -> lastN flowSize $ replicate cutoff r ++ (replicate (ot-cutoff) 0)
+                   Just cutoff -> lastN flowSize $ replicate cutoff r ++ replicate (ot-cutoff) 0
           in
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (Sliding sr changeRate) -> 

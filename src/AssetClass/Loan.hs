@@ -153,24 +153,15 @@ instance Asset Loan where
         (applyHaircut ams (CF.CashFlowFrame futureTxns)
         ,historyM)
     where
-      last_pay_date:cf_dates =  lastN (1 + rt + recovery_lag) $ sd:getPaymentDates pl recovery_lag -- `debug` ("Pdays for IP" ++ show (getPaymentDates pl 0))
-      cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
-      rate_vector = A.projRates cr or mRates cf_dates
-      schedule_flow = calcCashflow pl asOfDay mRates
-      schedule_cf = map CF.tsTotalCash $ CF.getTsCashFlowFrame schedule_flow
-      sum_cf = sum schedule_cf
-      pdates = CF.getDatesCashFlowFrame schedule_flow
-      cdr = fromMaybe 0.0 $ A.getCDR defaultAssump
-      -- cpr = fromMaybe 0.0 $ A.getCPR assumps
-      proj_years = yearCountFraction DC_ACT_365F last_pay_date (last pdates)
-      lifetime_default_pct = toRational $ proj_years * cdr
-      -- lifetime_prepayment_pct = toRational $ proj_years * cpr -- `debug` ("TOTAL DEF AMT"++show lifetime_default_pct)
-      cf_factor = map (\x ->  (toRational x)  / (toRational sum_cf)) schedule_cf
-      (ppy_rates,_,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate 
-                                                         (last_pay_date:cf_dates) 
-                                                         (A.LoanAssump defaultAssump prepayAssump recoveryAssump Nothing)
-      adjusted_def_rates = map (\x -> (toRational x) * lifetime_default_pct) cf_factor -- `debug` ("Factors"++ show cf_factor ++ "SUM UP"++ show (sum cf_factor))
-      txns = projectLoanFlow [] 1.0 cb last_pay_date cf_dates adjusted_def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p I_P -- `debug` ("length>>"++show (length cf_dates)++ show (length adjusted_def_rates)++ show (length ppy_rates))
+      (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate 
+                                                       (lastPayDate:cfDates) 
+                                                       (A.LoanAssump defaultAssump prepayAssump recoveryAssump Nothing)
+
+      lastPayDate:cfDates =  lastN (1 + rt + recoveryLag) $ sd:getPaymentDates pl recoveryLag -- `debug` ("Pdays for IP" ++ show (getPaymentDates pl 0))
+      cfDatesLength = length cfDates  --  `debug` ("incoming assumption "++ show assumps)
+      rateVector = A.projRates cr or mRates cfDates
+      
+      txns = projectLoanFlow [] 1.0 cb lastPayDate cfDates defRates ppyRates (replicate cfDatesLength 0.0) (replicate cfDatesLength 0.0) rateVector (recoveryLag,recoveryRate) p I_P -- `debug` ("length>>"++show (length cf_dates)++ show (length adjusted_def_rates)++ show (length ppy_rates))
       
       -- adjusted_ppy_rates = map (\x -> (toRational x) * lifetime_prepayment_pct) cf_factor
 
