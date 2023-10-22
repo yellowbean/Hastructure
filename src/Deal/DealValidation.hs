@@ -7,7 +7,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-module Deal.DealValidation (validateRun,validatePreRun)
+module Deal.DealValidation (validateRun,validatePreRun,validateReq)
   where 
 
 import Deal.DealBase
@@ -28,6 +28,7 @@ import qualified InterestRate as IR
 
 
 import Data.Maybe
+import qualified Assumptions as A
 
 isPreClosing :: TestDeal a -> Bool
 isPreClosing t@TestDeal{ status = PreClosing _ } = True
@@ -165,7 +166,7 @@ extractRequiredRates t@TestDeal{accounts = accM
       assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
       
       accIndex = catMaybes $ IR.getIndex <$> Map.elems accM 
-      bondIndex = catMaybes $ IR.getIndex <$> Map.elems bondM 
+      bondIndex = concat $ catMaybes $ IR.getIndexes <$> Map.elems bondM 
       liqProviderIndex = case mliqProviderM of 
                            Just liqProviderM -> concat $ catMaybes $ IR.getIndexes <$> Map.elems liqProviderM
                            Nothing -> [] 
@@ -175,10 +176,26 @@ extractRequiredRates t@TestDeal{accounts = accM
       -- note fee is not tested
       
 
-validateReq :: TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
-validateReq t assump = (True,[])
+validateReq :: IR.UseRate a => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
+validateReq t assump@A.NonPerfAssumption{A.interest = intM} 
+  = let 
+      ratesRequired = extractRequiredRates t
+      ratesSupplied = case intM of 
+                        Nothing -> Set.empty
+                        Just intLst -> Set.fromList $ [ idx | RateFlat idx _ <- intLst ] ++ [ idx | RateCurve idx _ <- intLst ]
+      missingIndex = Set.difference ratesRequired ratesSupplied
+      missingIndexError = if null missingIndex then 
+                            []
+                          else
+                            [ErrorMsg ("Failed to find index "++show missingIndex++"in assumption rates"++ show ratesSupplied)]
 
-validatePreRun :: TestDeal a -> (Bool,[ResultComponent])
+      (dealWarnings,dealErrors) = validatePreRun t 
+      finalErrors = missingIndexError ++ dealErrors                          
+      finalWarnings = dealWarnings
+    in 
+      (null finalErrors,finalErrors++finalWarnings)
+
+validatePreRun :: TestDeal a -> ([ResultComponent],[ResultComponent])
 validatePreRun t@TestDeal{waterfall=waterfallM
                       ,accounts =accM 
                       ,fees = feeM 
@@ -223,10 +240,7 @@ validatePreRun t@TestDeal{waterfall=waterfallM
              []
       warnings = w1
     in 
-      if null allErrors then 
-        (True, warnings) -- Valiation Pass
-      else 
-        (False, allErrors ++ warnings) -- Validation Failed
+      (warnings,allErrors) -- Valiation Pass
 
 validateRun :: TestDeal a -> [ResultComponent]
 validateRun t@TestDeal{waterfall=waterfallM

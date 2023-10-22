@@ -434,7 +434,7 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
   | not runFlag = (t, Nothing, Just valLogs, Nothing)
   | otherwise = (finalDeal, Just pcf, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
     where
-      (runFlag,valLogs) = V.validatePreRun t
+      (runFlag,valLogs) = V.validateReq t nonPerfAssumps
       -- getinits() will get (new deal snapshot, actions, pool cashflows)
       (newT, ads, pcf) = getInits t perfAssumps (Just nonPerfAssumps) -- `debug` ("runDeal init line") 
       -- extract Revolving Assumption
