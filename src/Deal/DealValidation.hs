@@ -159,9 +159,11 @@ extractRequiredRates t@TestDeal{accounts = accM
                                ,liqProvider = mliqProviderM 
                                ,rateSwap = mrsM 
                                ,pool = pool}
-  = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
+  -- = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
+  = Set.fromList $ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
     where 
-      assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
+      -- TODO assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
+      
       accIndex = catMaybes $ IR.getIndex <$> Map.elems accM 
       bondIndex = catMaybes $ IR.getIndex <$> Map.elems bondM 
       liqProviderIndex = case mliqProviderM of 
