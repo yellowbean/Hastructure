@@ -3,20 +3,20 @@
 
 # What is Hastructure ?
 
-``Hastructure`` names after ``Haskell`` and ``Structured Finance``, aims to provide cashflow projection for deal/transactions describled in either Haskell structure or ``JSON`` via REST Service, with inputs:
+``Hastructure`` names after ``Haskell`` and ``Structured Finance``, targets to provide cashflow projection for deal/transactions describled in either Haskell structure or ``JSON`` via RESTful Service, given inputs from below:
 
 * deal components (bonds,assets,accounts,waterfall,trigger,fees etc.) 
-* pool performance prediction input as well as interest rate assumption
+* pool performance assumption input as well as interest rate assumption
 
-the engine will yields outputs:
+``Hastructure`` will generate outputs:
 
 * cashflow of bonds/accounts/fees
 * pricing of bonds
-* or other outputs make your lose all of the money faster :sunglasses:
+* or other outputs make your lose money faster :sunglasses:
 
 # Why Hastructure ?
 
-* :bricks: A building block engine to model cashflows of structured product, all the formula and variables are exposed.
+* :bricks: A collection of building blocks to build cashflows model for structured product. User just need to `compose` them together.
 * :car: In-house and white-label friendly.
 * :flags: No lock-in risk, all JSONs input/output, no proprietary file formats.
 
