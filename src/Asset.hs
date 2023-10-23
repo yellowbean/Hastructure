@@ -46,7 +46,7 @@ import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
 debug = flip trace
 
-class Show a => Asset a where
+class (Show a,IR.UseRate a) => Asset a where
   -- | project contractual cashflow of an asset with interest assumptions
   calcCashflow :: a -> Date -> Maybe [RateAssumption] -> CF.CashFlowFrame
   -- | Get current balance of an asset
@@ -141,36 +141,36 @@ applyHaircut (Just ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFrame
                  (applyHaircutTxn <$> haircuts) ) <$> txns
     where
       applyHaircutTxn (CollectedInterest,r) 
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageDelinqFlow d bal prin (mulBR interest (1-r)) ppy delinq def recovery loss irate mbn mppn
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
+        = CF.MortgageDelinqFlow d bal prin (mulBR interest (1-r)) ppy delinq def recovery loss irate mbn mppn mst
       applyHaircutTxn (CollectedPrincipal,r)
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageDelinqFlow d bal (mulBR prin (1-r)) interest ppy delinq def recovery loss irate mbn mppn
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
+        = CF.MortgageDelinqFlow d bal (mulBR prin (1-r)) interest ppy delinq def recovery loss irate mbn mppn mst
       applyHaircutTxn (CollectedRecoveries,r)
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageDelinqFlow d bal prin interest ppy delinq def (mulBR recovery (1-r)) loss irate mbn mppn
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
+        = CF.MortgageDelinqFlow d bal prin interest ppy delinq def (mulBR recovery (1-r)) loss irate mbn mppn mst
       applyHaircutTxn (CollectedPrepayment,r)
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageDelinqFlow d bal prin interest (mulBR ppy (1-r)) delinq def recovery loss irate mbn mppn
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
+        = CF.MortgageDelinqFlow d bal prin interest (mulBR ppy (1-r)) delinq def recovery loss irate mbn mppn mst
       applyHaircutTxn (CollectedPrepaymentPenalty,r)
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn) 
-        = CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn)
+                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
+        = CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn) mst
       
       applyHaircutTxn (CollectedInterest,r) 
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal prin (mulBR interest (1-r)) ppy def recovery loss irate mbn mppn
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst) 
+        = CF.MortgageFlow d bal prin (mulBR interest (1-r)) ppy def recovery loss irate mbn mppn mst
       applyHaircutTxn (CollectedPrincipal,r)
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal (mulBR prin (1-r)) interest ppy def recovery loss irate mbn mppn
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst) 
+        = CF.MortgageFlow d bal (mulBR prin (1-r)) interest ppy def recovery loss irate mbn mppn mst
       applyHaircutTxn (CollectedRecoveries,r)
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal prin interest ppy def (mulBR recovery (1-r)) loss irate mbn mppn
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst) 
+        = CF.MortgageFlow d bal prin interest ppy def (mulBR recovery (1-r)) loss irate mbn mppn mst
       applyHaircutTxn (CollectedPrepayment,r)
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn) 
-        = CF.MortgageFlow d bal prin interest (mulBR ppy (1-r)) def recovery loss irate mbn mppn
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst) 
+        = CF.MortgageFlow d bal prin interest (mulBR ppy (1-r)) def recovery loss irate mbn mppn mst
       applyHaircutTxn (CollectedPrepaymentPenalty,r)
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn)
-        = CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn)
+                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst)
+        = CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn) mst
       
       applyHaircutTxn _ _ = error "Not implemented"
         
@@ -225,6 +225,7 @@ buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
 
 -- | build prepayment rates/ delinq rates and (%,lag) convert to default, recovery rate, recovery lag
 buildAssumptionPpyDelinqDefRecRate :: [Date] -> A.AssetPerfAssumption -> ([Rate],[Rate],(Rate,Lag),Rate,Int)
+buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa (Just _)) = error "Delinq assumption doesn't support extra stress"
 buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa Nothing)
   = (prepayRates,delinqRates,(defaultPct,defaultLag),recoveryRate, recoveryLag)
     where 

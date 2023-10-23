@@ -48,7 +48,7 @@ lookupAssumptionByIdx :: [StratPerfByIdx] -> Int -> AssetPerf
 lookupAssumptionByIdx sbi i
   = case find (\(indxs,_) -> Set.member i  (Set.fromList indxs) ) sbi of
         Just (_, aps ) ->  aps
-        Nothing -> error ("Can't find idx"++ (show i)++"in starfication list"++ (show sbi))
+        Nothing -> error ("Can't find idx"++ show i ++"in starfication list"++ show sbi)
 
 
 data ApplyAssumptionType = PoolLevel AssetPerf
@@ -82,7 +82,7 @@ data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentVec [Rate] 
                            deriving (Show,Generic)
 
-data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)  -- Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
+data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)    -- ^ Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
                                 | Dummy3
                                 deriving (Show,Generic)
 
@@ -174,7 +174,7 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
             (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
             (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
             (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
-projRates _ rt rassump ds = error ("Invalid rate type: "++ show rt++" assump"++ show rassump)
+projRates _ rt rassump ds = error ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
 
 
 -- ^ Given a list of rates, calcualte whether rates was reset

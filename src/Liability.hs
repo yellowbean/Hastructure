@@ -3,13 +3,15 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,fv2,calcZspread,payYield
-  ,buildRateResetDates,convertToFace,isPaidOff)
+  ,buildRateResetDates,convertToFace
+  ,isAdjustble)
   where
 
 import Language.Haskell.TH
@@ -31,25 +33,49 @@ import qualified Stmt as S
 
 import Data.List (findIndex,zip6,find)
 import qualified Cashflow as CF
+import qualified InterestRate as IR
 
 import GHC.Generics
 
+
 import Debug.Trace
+import InterestRate (UseRate(getIndexes))
 debug = flip trace
 
 type RateReset = DatePattern 
-type StepUpDates = DatePattern 
-
 
 data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount                                    -- ^ fixed rate
-                  | StepUpFix IRate DayCount StepUpDates Spread           -- ^ rate steps up base on dates
-                  | StepUpByDate IRate Date InterestInfo InterestInfo     -- ^ Rate can be selective base on `pre`
+                  | StepUpFix IRate DayCount RateReset Spread           -- ^ rate steps up base on dates
+                  | StepUpPre IRate Pre  InterestInfo InterestInfo        -- ^ Rate can be selective base on `pre`
                   | InterestByYield IRate
                   | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
                   deriving (Show, Eq, Generic)
+                  
+-- | test if a bond may changes its interest rate
+isAdjustble :: InterestInfo -> Bool 
+isAdjustble Floater {} = True
+isAdjustble StepUpPre {} = True
+isAdjustble StepUpFix {} = True
+isAdjustble RefRate {} = True
+isAdjustble Fix {} = False
+isAdjustble InterestByYield {} = False
+isAdjustble (CapRate r _ ) = isAdjustble r
+isAdjustble (FloorRate r _ ) = isAdjustble r
+
+getIndexFromInfo :: InterestInfo -> Maybe [Index]
+getIndexFromInfo (Floater _ idx _ _  _ _ _) = Just [idx]
+getIndexFromInfo Fix {} = Nothing 
+getIndexFromInfo InterestByYield {} = Nothing 
+getIndexFromInfo RefRate {} = Nothing 
+getIndexFromInfo StepUpFix {} = Nothing
+getIndexFromInfo (StepUpPre _ _ i1 i2) = getIndexFromInfo i1 <> getIndexFromInfo i2
+getIndexFromInfo (CapRate info _) = getIndexFromInfo info
+getIndexFromInfo (FloorRate info _) = getIndexFromInfo info
+
+
 
 data OriginalInfo = OriginalInfo {
   originBalance::Balance           -- ^ issuance balance
@@ -90,12 +116,6 @@ consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
   =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} 
 
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
-
--- | if no any principal due and interest due /oustanding balance ,then the bond is paid off
-isPaidOff :: Bond -> Bool
-isPaidOff b@Bond{bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
-  | bal==0 && dp==0 && di==0 = True 
-  | otherwise = False 
 
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d 0 bnd@(Bond bn bt oi iinfo 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -192,7 +212,8 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
                 in 
                   PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt -- `debug` ("Obal->"++ show obal++"Rate>>"++ show (bndRate b))
   where 
-    futureCf = filter (\x -> (S.getDate x) > d) txns
+    -- futureCf = filter (\x -> (S.getDate x) > d) txns
+    futureCf = cutBy Exc Future d txns
 
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
@@ -234,7 +255,7 @@ weightAverageBalance sd ed b@(Bond _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
   = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
     where
      _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
-     _bals = [currentBalance] ++ map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
+     _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
      _ds = S.getDates txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
      _b = consolStmt b   
      txns =  case S.sliceStmt (bndStmt _b) sd ed of
@@ -255,7 +276,7 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
 
       pvCurve = shiftTsByAmt riskFreeCurve spd -- `debug` ("Shfiting using spd"++ show (fromRational spd))
       pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ] -- `debug` (" using pv curve"++ show pvCurve)
-      newPrice = 100 * (sum pvs) -- `debug` ("PVS->>"++ show pvs)
+      newPrice = 100 * sum pvs -- `debug` ("PVS->>"++ show pvs)
       pricingFaceVal = toRational $ newPrice / oBalance -- `debug` ("new price"++ show newPrice)
       gap = (pricingFaceVal - tradePrice) -- `debug` ("Face val"++show pricingFaceVal++"T price"++show tradePrice)
       newSpd = case [gap ==0 ,gap > 0, spd > 0] of
@@ -290,20 +311,32 @@ buildRateResetDates ii sd ed
   = case ii of 
       (StepUpFix _ _ dp _ ) -> genSerialDatesTill2 NO_IE sd dp ed
       (Floater _ _ _ dp _ _ _) -> genSerialDatesTill2 NO_IE sd dp ed
-      (StepUpByDate _ d (Floater _ _ _ dp1 _ _ _) (Floater _ _ _ dp2 _ _ _)) -> genSerialDatesTill2 NO_IE sd (AllDatePattern [dp1,dp2]) ed
-      (StepUpByDate _ d _ (Floater _ _ _ dp _ _ _)) -> genSerialDatesTill2 NO_IE sd dp ed
-      (StepUpByDate _ d (Floater _ _ _ dp _ _ _) _ ) -> genSerialDatesTill2 NO_IE sd dp ed
-      (CapRate _ii _)  -> buildRateResetDates _ii sd ed 
-      (FloorRate _ii _)  -> buildRateResetDates _ii sd ed 
+      (StepUpPre _ d (Floater _ _ _ dp1 _ _ _) (Floater _ _ _ dp2 _ _ _)) -> genSerialDatesTill2 NO_IE sd (AllDatePattern [dp1,dp2]) ed
+      (StepUpPre _ d ii (Floater _ _ _ dp _ _ _)) -> genSerialDatesTill2 NO_IE sd dp ed ++ buildRateResetDates ii sd ed
+      (StepUpPre _ d (Floater _ _ _ dp _ _ _) ii ) -> genSerialDatesTill2 NO_IE sd dp ed ++ buildRateResetDates ii sd ed
+      (CapRate ii _)  -> buildRateResetDates ii sd ed 
+      (FloorRate ii _)  -> buildRateResetDates ii sd ed 
       (RefRate _ _ _ dp)  -> genSerialDatesTill2 NO_IE sd dp ed 
-      _ -> error "Failed to mach interest info when building rate reset dates"  
+      _ -> []
        
 
 
 instance S.QueryByComment Bond where 
-    queryStmt Bond{bndStmt = Nothing} tc = []
-    queryStmt Bond{bndStmt = Just (S.Statement txns)} tc
-      = filter (\x -> S.getTxnComment x == tc) txns
+  queryStmt Bond{bndStmt = Nothing} tc = []
+  queryStmt Bond{bndStmt = Just (S.Statement txns)} tc
+    = filter (\x -> S.getTxnComment x == tc) txns
+
+instance Liable Bond where 
+  isPaidOff b@Bond{bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
+    | bal==0 && dp==0 && di==0 = True 
+    | otherwise = False
+
+instance IR.UseRate Bond where 
+  isAdjustbleRate :: Bond -> Bool
+  isAdjustbleRate Bond{bndInterestInfo = iinfo} = isAdjustble iinfo
+  -- getIndex Bond{bndInterestInfo = iinfo }
+  getIndexes Bond{bndInterestInfo = iinfo}  = getIndexFromInfo iinfo
+     
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)

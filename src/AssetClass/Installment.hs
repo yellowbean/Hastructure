@@ -80,7 +80,7 @@ projectInstallmentFlow trs (opmt,ofee) cb last_pay_date (pdate:pdates) (sb:sbs) 
                   _rec:_recs = replace rec_vec recovery_lag _new_rec 
                   _loss:_losses = replace loss_vec recovery_lag _new_loss 
                   end_bal = _b_after_ppy - _prin  -- `debug` ("D:"++show _b_after_ppy)
-                  tr = CF.LoanFlow pdate end_bal _prin _new_int _new_ppy _new_default _rec _loss 0.0
+                  tr = CF.LoanFlow pdate end_bal _prin _new_int _new_ppy _new_default _rec _loss 0.0 Nothing
 
 
 projectInstallmentFlow trs oi cb last_pay_date (pdate:pdates) _sbs defVec  ppyVec  (rec_amt:rec_amts) (loss_amt:loss_amts) recVec p
@@ -98,7 +98,7 @@ projectInstallmentFlow trs oi cb last_pay_date (pdate:pdates) _sbs defVec  ppyVe
                   recVec
                   p
                  where 
-                   tr = CF.LoanFlow pdate cb 0 0 0 0 rec_amt loss_amt 0.0
+                   tr = CF.LoanFlow pdate cb 0 0 0 0 rec_amt loss_amt 0.0 Nothing
 
 
 instance Asset Installment where
@@ -123,7 +123,7 @@ instance Asset Installment where
         stressed_bal_flow = map (* factor)  $ lastN rt schedule_balances
         prin_flow = replicate rt cpmt 
         int_flow =  replicate rt cfee
-        _flows = zipWith9 CF.LoanFlow cf_dates stressed_bal_flow prin_flow int_flow (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt orate) 
+        _flows = zipWith10 CF.LoanFlow cf_dates stressed_bal_flow prin_flow int_flow (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt orate) (replicate rt Nothing)
         (_,flows) = splitByDate 
                       _flows
                       asOfDay
@@ -194,17 +194,17 @@ instance Asset Installment where
                mRates
     = let 
          (cf_dates1,cf_dates2) = splitAt lag $ genDates defaultedDate p (lag+length timing)
-         beforeRecoveryTxn = [  CF.LoanFlow d cb 0 0 0 0 0 0 cr | d <- cf_dates1 ]
+         beforeRecoveryTxn = [  CF.LoanFlow d cb 0 0 0 0 0 0 cr Nothing | d <- cf_dates1 ]
          recoveries = calcRecoveriesFromDefault cb rr timing
          bals = scanl (-) cb recoveries
-         _txns = [  CF.LoanFlow d b 0 0 0 0 r 0 cr | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
+         _txns = [  CF.LoanFlow d b 0 0 0 0 r 0 cr Nothing | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
       in 
          (CF.CashFlowFrame $ cutBy Inc Future asOfDay (beforeRecoveryTxn++_txns),Map.empty)
       where 
         cr = getOriginRate inst
   
   projCashflow inst@(Installment _ cb rt (Defaulted Nothing)) asOfDay assumps _
-    = (CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 (getOriginRate inst)],Map.empty)
+    = (CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 (getOriginRate inst) Nothing],Map.empty)
         
   splitWith (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) rs
     = [ Installment (LoanOriginalInfo (mulBR ob ratio) or ot p sd _type) (mulBR cb ratio) rt st | ratio <- rs ]

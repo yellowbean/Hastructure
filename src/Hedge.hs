@@ -26,6 +26,8 @@ import Util
 import Stmt
 import DateUtil
 
+import qualified InterestRate as IR
+
 import Debug.Trace
 debug = flip trace
 
@@ -98,6 +100,10 @@ instance QueryByComment RateSwap where
     queryStmt RateSwap{rsStmt = Just (Statement txns)} tc
       = filter (\x -> getTxnComment x == tc) txns
 
+instance Liable RateSwap where 
+  isPaidOff rs@RateSwap{rsNetCash=bal}
+    | bal == 0 = True
+    | otherwise = False
 
 data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating rate and receiving Floating Rate
                   | FloatingToFixed  Floater IRate        -- ^ Paying Floating Rate and receiving Fixed Rate
@@ -108,6 +114,13 @@ data CurrencySwap = CurrencySwap {
                     csBalance :: Balance
                     } deriving (Show,Generic)
 
+instance IR.UseRate RateSwap where 
+  getIndexes rs@RateSwap{rsType = rstype}
+    = case rstype of
+        FloatingToFloating (idx1,_) (idx2,_) -> Just [idx1,idx2]
+        FloatingToFixed (idx1,_) _ -> Just [idx1]
+        FixedToFloating _ (idx1,_) -> Just [idx1]
+        _ -> Nothing
 
 
 $(deriveJSON defaultOptions ''RateSwap)

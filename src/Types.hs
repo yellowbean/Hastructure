@@ -21,6 +21,7 @@ module Types
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
+  ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery
   )
   
   where
@@ -78,6 +79,13 @@ type Rental = Centi
 type Cap = Micro
 type PrepaymentPenalty = Centi
 
+type CumPrepay = Centi
+type CumPrincipal = Centi
+type CumDefault = Centi
+type CumDelinq = Centi
+type CumLoss = Centi
+type CumRecovery = Centi
+
 type PrepaymentRate = Rate
 type DefaultRate = Rate
 type RecoveryRate = Rate
@@ -112,7 +120,7 @@ data Index = LPR5Y
             | EURIBOR12M
             | IRPH --  The IRPH (Índice de Referencia de Préstamos Hipotecarios) is a reference index used in Spain to fix the interest rate of mortgage loans
             | SONIA 
-            deriving (Show,Eq,Generic)
+            deriving (Show,Eq,Generic,Ord)
 
 type Floater = (Index,Spread)
 
@@ -130,13 +138,11 @@ data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurob
               | DC_30_360_ISDA   -- ^ IDSA
               | DC_30_360_German -- ^ Gernman
               | DC_30_360_US     -- ^ 30/360 US Municipal , Bond basis
-              deriving (Show, Eq, Generic)
+              deriving (Show,Eq,Generic)
 
 data DateType = ClosingDate        -- ^ deal closing day
               | CutoffDate         -- ^ after which, the pool cashflow was aggregated to SPV
               | FirstPayDate       -- ^ first payment day for bond/waterfall to run with
-              | RevolvingEndDate  
-              | RevolvingDate
               | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
               deriving (Show,Ord,Eq,Generic,Read)
 
@@ -146,7 +152,7 @@ data Period = Daily
             | Quarterly 
             | SemiAnnually 
             | Annually
-            deriving (Show,Eq, Generic)
+            deriving (Show,Eq,Generic)
 
 type DateVector = (Date, DatePattern)
 
@@ -191,10 +197,18 @@ instance TimeSeries ActionOnDate where
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
 sortActionOnDate a1 a2 
   | d1 == d2 = case (a1,a2) of
-                 (BuildReport sd1 ed1 ,_) -> GT 
-                 (_ , BuildReport sd1 ed1) -> LT
-                 (ResetIRSwapRate _ _ ,_) -> LT 
-                 (_ , ResetIRSwapRate _ _) -> GT
+                 (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
+                 (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
+                 (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
+                 (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
+                 (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
+                 (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
+                 (EarnAccInt {} ,_) -> LT  -- earn should be first
+                 (_ , EarnAccInt {}) -> GT -- earn should be first
+                 (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
+                 (_ , ResetLiqProvider {}) -> GT -- reset liq be first
+                 (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
+                 (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
                  (_,_) -> EQ 
   | otherwise = compare d1 d2
   where 
@@ -554,9 +568,13 @@ data RangeType = II     -- ^ include both start and end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
 
-data CutoffType = Inc | Exc
+data CutoffType = Inc 
+                | Exc
+                deriving (Show,Read,Generic)
 
-data DateDirection = Future | Past
+data DateDirection = Future 
+                   | Past
+                   deriving (Show,Read,Generic)
 
 type BookItems = [BookItem]
 
@@ -580,6 +598,7 @@ data CashflowReport = CashflowReport {
                         ,endDate :: Date }
                         deriving (Show,Read,Generic)
 
+
 data ResultComponent = CallAt Date                                    -- ^ the date when deal called
                      | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed
                      | BondOutstanding String Balance Balance         -- ^ when deal ends,calculate oustanding principal balance 
@@ -589,6 +608,9 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      | InspectRate Date DealStats Micro
                      | InspectBool Date DealStats Bool
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
+                     | InspectWaterfall Date (Maybe String) [DealStats] [String]
+                     | ErrorMsg String
+                     | WarningMsg String
                      -- | SnapshotCashflow Date String CashFlowFrame
                      deriving (Show, Generic)
 
@@ -666,12 +688,11 @@ class TimeSeries ts where
 class Liable lb where 
 
   -- must implement
-  getDue :: lb -> Balance
-  getLastPaidDate :: lb -> Date 
+  isPaidOff :: lb -> Bool
 
   -- optional implement
-  getTotalDue :: [lb] -> Balance
-  getTotalDue lbs =  sum $ getDue <$> lbs
+  -- getTotalDue :: [lb] -> Balance
+  -- getTotalDue lbs =  sum $ getDue <$> lbs
 
 data LookupType = Upward 
                 | Downward
@@ -739,7 +760,6 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
 data RoundingBy a = RoundCeil a 
                   | RoundFloor a
                   deriving (Show,Generic, Eq, Ord, Read)
-
 
 
 

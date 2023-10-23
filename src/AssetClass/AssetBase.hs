@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
@@ -21,11 +23,11 @@ import qualified Cashflow as CF
 
 type DailyRate = Balance
 
-data AmortPlan = Level                -- ^ for mortgage / french system  -> fixed payment each period which consist of increasing princial and decreasing interest.
-               | Even                 -- ^ for linear mortgage   -> evenly distributed principal repayment
-               | I_P                  -- ^ interest only and principal due at last payment
-               | F_P                  -- ^ fee based 
-               | ScheduleRepayment Ts -- ^ custom principal follow
+data AmortPlan = Level                   -- ^ for mortgage / french system  -> fixed payment each period which consist of increasing princial and decreasing interest.
+               | Even                    -- ^ for linear mortgage   -> evenly distributed principal repayment
+               | I_P                     -- ^ interest only and principal due at last payment
+               | F_P                     -- ^ fee based 
+               | ScheduleRepayment Ts (Maybe DatePattern)   -- ^ custom principal follow
                deriving (Show,Generic)
 
 data Status = Current
@@ -85,19 +87,35 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           deriving (Show,Generic)
 
 -- Mortgage
-data MortgageInsurance = MortgageInsurance Rate
-
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic)
 
--- Base 
+-- Base type to hold all asset types
 data AssetUnion = MO Mortgage
                 | LO Loan
                 | IL Installment
                 | LS Lease
                 deriving (Show, Generic)
+
+instance IR.UseRate Mortgage where 
+  getIndex (Mortgage oi@MortgageOriginalInfo{ originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _ _) = Just idx 
+  getIndex Mortgage {} = Nothing
+  getIndex (AdjustRateMortgage oi@MortgageOriginalInfo{ originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _ _ _) = Just idx 
+  getIndex AdjustRateMortgage {} = Nothing
+
+instance IR.UseRate Loan where
+  getIndex (PersonalLoan oi@LoanOriginalInfo{originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _) = Just idx 
+  getIndex (PersonalLoan {}) = Nothing
+
+instance IR.UseRate Installment where 
+  getIndex (Installment oi@LoanOriginalInfo{originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _) = Just idx 
+  getIndex (Installment {}) = Nothing
+  
+instance IR.UseRate Lease where
+  getIndex :: Lease -> Maybe Index
+  getIndex _ = Nothing
 
 
 $(deriveJSON defaultOptions ''Status)

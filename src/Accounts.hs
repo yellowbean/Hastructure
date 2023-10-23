@@ -19,6 +19,8 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 
+import qualified InterestRate as IR
+
 import Debug.Trace
 debug = flip trace
 
@@ -57,50 +59,46 @@ buildEarnIntAction (acc:accs) ed r =
 depositInt :: Account -> Date -> Account
 depositInt a@(Account _ _ Nothing _ _) _ = a
 depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed 
-          = a {accBalance = newBal ,accStmt= new_stmt ,accInterest = Just (BankAccount r ed dp)}
+          = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (BankAccount r ed dp)}
           where 
-            accrued_int = case stmt of 
-                            Nothing -> mulBR 
-                                         (mulBI bal r) 
-                                         (yearCountFraction DC_30E_360 lastCollectDate ed) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
-                            Just (Statement _txns) ->
+            accruedInt = case stmt of 
+                            Nothing -> mulBR (mulBI bal r) (yearCountFraction DC_30E_360 lastCollectDate ed) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
+                            Just (Statement txns) ->
                               let 
-                                _accrue_txns = sliceBy IE lastCollectDate ed _txns
-                                _bals = map getTxnBegBalance _accrue_txns ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
-                                _ds = getDates _accrue_txns
-                                _dfs = getIntervalFactors $ [lastCollectDate] ++ _ds ++ [ed]
+                                accrueTxns = sliceBy IE lastCollectDate ed txns
+                                bals = map getTxnBegBalance accrueTxns ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
+                                ds = getDates accrueTxns
+                                dfs = getIntervalFactors $ [lastCollectDate] ++ ds ++ [ed]
                               in
-                                mulBI (sum $ zipWith mulBR _bals _dfs) r  
+                                mulBI (sum $ zipWith mulBR bals dfs) r  
 
-            newBal = accrued_int + bal  -- `debug` ("INT ACC->"++ show accrued_int)
-            new_txn = AccTxn ed newBal accrued_int BankInt
-            new_stmt = appendStmt stmt new_txn
+            newBal = accruedInt + bal  -- `debug` ("INT ACC->"++ show accrued_int)
+            newTxn = AccTxn ed newBal accruedInt BankInt
+            newStmt = appendStmt stmt newTxn
 
 -- | sweep interest/investement income into account by a yield curve
 depositIntByCurve :: Account -> Ts -> Date -> Account
 depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectDate dp)) _ stmt)
                   rc
                   ed 
-          = a {accBalance = newBal 
-              ,accStmt= newStmt 
-              ,accInterest = Just (InvestmentAccount idx spd ed dp)}
+          = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (InvestmentAccount idx spd ed dp)}
           where 
             accruedInt = case stmt of 
                             Nothing -> 
                                 let  
-                                  curve_ds = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
-                                  curve_vs = (\x -> toRational (getValByDate rc Exc x) + toRational spd) <$> (init curve_ds)
-                                  ds_factor = getIntervalFactors curve_ds
-                                  weightInt = sum $ zipWith (*) curve_vs ds_factor --  `debug` ("ds"++show curve_ds++"vs"++show curve_vs++"factors"++show ds_factor)
+                                  curveDs = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
+                                  curveVs = (\x -> toRational (getValByDate rc Exc x) + toRational spd) <$> init curveDs
+                                  dsFactor = getIntervalFactors curveDs
+                                  weightInt = sum $ zipWith (*) curveVs dsFactor --  `debug` ("ds"++show curve_ds++"vs"++show curve_vs++"factors"++show ds_factor)
                                 in 
                                   mulBR bal weightInt
-                            Just (Statement _txns) ->
+                            Just (Statement txns) ->
                               let 
-                                curve_ds = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
-                                curve_vs = (\x -> toRational (getValByDate rc Exc x) + toRational spd) <$> (init curve_ds)
-                                bals = weightAvgBalanceByDates curve_ds _txns
+                                curveDs = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
+                                curveVs = (\x -> toRational (getValByDate rc Exc x) + toRational spd) <$> init curveDs
+                                bals = weightAvgBalanceByDates curveDs txns
                               in
-                                sum $ zipWith mulBR bals curve_vs -- `debug` ("cds"++show curve_ds++"vs"++ show curve_vs++"bs"++show bals)
+                                sum $ zipWith mulBR bals curveVs -- `debug` ("cds"++show curve_ds++"vs"++ show curve_vs++"bs"++show bals)
 
             newBal = accruedInt + bal 
             newTxn = AccTxn ed newBal accruedInt BankInt
@@ -109,17 +107,17 @@ depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectD
 
 -- | move cash from account A to account B
 transfer :: Account -> Amount -> Date -> Account -> (Account, Account)
-transfer source_acc@(Account s_bal san _ _ s_stmt)
+transfer sourceAcc@(Account sBal san _ _ sStmt)
          amount
          d
-         target_acc@(Account t_bal tan _ _ t_stmt)
-  = (source_acc {accBalance = new_s_bal, accStmt = source_newStmt}
-    ,target_acc {accBalance = new_t_bal, accStmt = target_newStmt})
+         targetAcc@(Account tBal tan _ _ tStmt)
+  = (sourceAcc {accBalance = newSBal, accStmt = sourceNewStmt}
+    ,targetAcc {accBalance = newTBal, accStmt = targetNewStmt})
   where
-    new_s_bal = s_bal - amount
-    new_t_bal = t_bal + amount
-    source_newStmt = appendStmt s_stmt (AccTxn d new_s_bal (- amount) (Transfer san tan))
-    target_newStmt = appendStmt t_stmt (AccTxn d new_t_bal amount (Transfer san tan) )
+    newSBal = sBal - amount
+    newTBal = tBal + amount
+    sourceNewStmt = appendStmt sStmt (AccTxn d newSBal (- amount) (Transfer san tan))
+    targetNewStmt = appendStmt tStmt (AccTxn d newTBal amount (Transfer san tan) )
 
 -- | deposit cash to account with a comment
 deposit :: Amount -> Date -> TxnComment -> Account -> Account
@@ -146,6 +144,15 @@ queryTrasnferBalance a@Account{accName = fromAccName, accStmt = Just (Statement 
 instance QueryByComment Account where 
     queryStmt (Account _ _ _ _ Nothing) tc = []
     queryStmt (Account _ _ _ _ (Just (Statement txns))) tc = filter (\x -> getTxnComment x == tc) txns
+
+instance IR.UseRate Account where 
+  isAdjustbleRate (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _) = True
+  isAdjustbleRate _ = False
+
+  getIndex (Account _ an (Just (InvestmentAccount idx _ _ _)) _ _) = Just idx
+  getIndex _ = Nothing 
+  
+  
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)

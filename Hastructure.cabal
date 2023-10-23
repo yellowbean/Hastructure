@@ -44,6 +44,7 @@ library
       Deal.DealBase
       Deal.DealDate
       Deal.DealQuery
+      Deal.DealValidation
       Expense
       Hedge
       InterestRate

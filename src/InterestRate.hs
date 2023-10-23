@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module InterestRate
-  (ARM(..),RateType(..),runInterestRate2,runInterestRate
+  (ARM(..),RateType(..),runInterestRate2,runInterestRate,UseRate(..)
   ,getRateResetDates,getDayCount)
   
   where
@@ -98,6 +98,11 @@ runInterestRate2 arm (d,sr) floater resetDates rc
      resultRates = runInterestRate arm sr floater resetDates rc 
 
 
+class UseRate x where 
+  isAdjustbleRate :: x -> Bool
+  getIndex :: x -> Maybe Index
+  getIndexes :: x -> Maybe [Index]
+  getResetDates :: x -> Maybe DatePattern
 
 
 $(deriveJSON defaultOptions ''ARM)

@@ -53,6 +53,7 @@ patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
    = case t of
          CurrentPoolBalance -> FutureCurrentPoolBalance
+         PoolFactor -> FutureCurrentPoolFactor d
          LastBondIntPaid bns -> BondsIntPaidAt d bns
          LastFeePaid fns -> FeesPaidAt d fns
          LastBondPrinPaid bns -> BondsPrinPaidAt d bns
@@ -170,7 +171,7 @@ poolSourceToIssuanceField CollectedRental = HistoryRental
 
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
-queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM} s = 
+queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM, pool=poolM} s = 
   case s of
     CurrentBondBalance ->
       Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 bndMap
@@ -224,14 +225,6 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
          Nothing -> 0.0
          Just (CF.CashFlowFrame trs) -> CF.mflowBegBalance $ last trs
 
-    -- FutureCurrentPoolBegBalance asOfDay ->
-    --      case _poolSnapshot of
-    --         Just ts -> CF.mflowBegBalance ts
-    --         Nothing -> error $ "Pool begin balance not found at"++show asOfDay
-    --     where
-    --      _pool_cfs = fromMaybe (CF.CashFlowFrame []) (P.futureCf (pool t))
-    --      _poolSnapshot = CF.getEarlierTsCashFlowFrame _pool_cfs asOfDay -- `debug` (">>CurrentPoolBal"++show(asOfDay)++">>Pool>>"++show(_pool_cfs))
-
     PoolCollectionHistory incomeType fromDay asOfDay ->
       sum fieldAmts
       where
@@ -254,11 +247,11 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     CumulativePoolDefaultedBalance ->
         let
-          futureDefaults = case P.futureCf (pool t) of
-                             Just (CF.CashFlowFrame _historyTxn) -> sum $ CF.tsDefaultBal <$> _historyTxn
+          futureDefaults = case P.futureCf poolM of
+                             Just (CF.CashFlowFrame historyTxn) -> CF.tsCumDefaultBal $ last historyTxn
                              Nothing -> 0.0  -- `debug` ("Geting future defaults"++show futureDefaults)
 
-          historyDefaults = case P.issuanceStat (pool t) of
+          historyDefaults = case P.issuanceStat poolM of
                                 Just m -> Map.findWithDefault 0.0 HistoryDefaults m 
                                 Nothing -> 0.0
         in
@@ -266,25 +259,25 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     CumulativePoolRecoveriesBalance ->
         let 
-          futureRecoveries = case P.futureCf (pool t) of
-                               Just (CF.CashFlowFrame _historyTxn) -> sum $ CF.mflowRecovery <$> _historyTxn
+          futureRecoveries = case P.futureCf poolM of
+                               Just (CF.CashFlowFrame historyTxn) -> CF.tsCumRecoveriesBal $ last historyTxn
                                Nothing -> 0.0
-          historyRecoveries = case P.issuanceStat (pool t) of
+          historyRecoveries = case P.issuanceStat poolM of
                                 Just m -> Map.findWithDefault 0.0 HistoryRecoveries m 
                                 Nothing -> 0.0
         in
           futureRecoveries + historyRecoveries
     
     CumulativeNetLoss ->
-         (queryDeal t CumulativePoolDefaultedBalance) - (queryDeal t CumulativePoolRecoveriesBalance)
+         queryDeal t CumulativePoolDefaultedBalance - queryDeal t CumulativePoolRecoveriesBalance
     
     PoolCumCollection ps ->
         let 
-          futureVals = case P.futureCf (pool t) of
+          futureVals = case P.futureCf poolM of
                          Just cf -> sum $ CF.sumPoolFlow cf <$> ps
                          Nothing -> 0.0
 
-          historyVals = case P.issuanceStat (pool t) of
+          historyVals = case P.issuanceStat poolM of
                                 Just m -> sum [ Map.findWithDefault 0.0 (poolSourceToIssuanceField p) m | p <- ps ]
                                 Nothing -> 0.0
         in 
@@ -292,7 +285,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     PoolCumCollectionTill idx ps -> 
         let 
-          futureVals = case P.futureCf (pool t) of
+          futureVals = case P.futureCf poolM of
                          Just (CashFlowFrame _trs) -> 
                           let 
                             lengthTrs = length _trs
@@ -301,19 +294,19 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
                             sum $ (CF.lookupSource <$> trs) <*> ps
                          Nothing -> 0.0
 
-          historyVals = case P.issuanceStat (pool t) of
+          historyVals = case P.issuanceStat poolM of
                                 Just m -> sum [ Map.findWithDefault 0.0 (poolSourceToIssuanceField p) m | p <- ps ]
                                 Nothing -> 0.0
         in 
           futureVals + historyVals
  
     PoolCurCollection ps ->
-      case P.futureCf (pool t) of
+      case P.futureCf poolM of
             Just (CF.CashFlowFrame trs) -> sum $ CF.lookupSource (last trs) <$> ps
             Nothing -> 0.0
 
     PoolCollectionStats idx ps -> 
-      case P.futureCf (pool t) of
+      case P.futureCf poolM of
             Just (CF.CashFlowFrame trs) 
               ->let
                   theCollection = trs!!((length trs) + idx)
@@ -419,7 +412,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in
         sum $ map ex stmts
 
-    CurrentDueBondInt bns -> sum $ L.bndDueInt <$> (bndMap Map.!) <$> bns
+    CurrentDueBondInt bns -> 
+      sum $ L.bndDueInt <$> (bndMap Map.!) <$> bns -- `debug` ("bond due int" ++ show ((bndMap Map.!) <$> bns ))
 
     CurrentDueFee fns -> sum $ F.feeDue <$> (feeMap Map.!) <$> fns
 
@@ -443,7 +437,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         in 
           a - bs 
     
-    Avg dss ->  divideBI (sum ( (queryDeal t) <$> dss ))  (length dss)
+    Avg dss ->  divideBI (sum ( queryDeal t <$> dss ))  (length dss)
 
     Constant n -> fromRational n
 
@@ -478,10 +472,10 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
   case ds of 
     TriggersStatus dealcycle tName -> 
       case trgs of 
-        Just _trgsM -> case (Map.lookup dealcycle _trgsM ) of 
+        Just _trgsM -> case Map.lookup dealcycle _trgsM of 
                          Nothing -> error ("no trigger cycle for this deal" ++ show dealcycle)
                          Just triggerMatCycle -> 
-                           case (Map.lookup tName triggerMatCycle) of 
+                           case Map.lookup tName triggerMatCycle of 
                              Nothing -> error ("no trigger for this deal" ++ show tName ++ " in cycle " ++ show triggerMatCycle)
                              Just trigger -> Trg.trgStatus trigger 
         Nothing -> error "no trigger for this deal"
@@ -490,7 +484,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
       let 
         bn1:bns1 =  (bndMap Map.!) <$> (bn:bns)
       in
-        case (L.isPaidOff bn1,all L.isPaidOff bns1) of
+        case (isPaidOff bn1,all isPaidOff bns1) of
           (False,True) -> True
           _ -> False
     

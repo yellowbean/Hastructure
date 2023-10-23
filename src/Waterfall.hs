@@ -41,6 +41,7 @@ data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the
                 | CleanUp                         -- ^ waterfall exectued upon a clean up call
                 | OnClosingDay                    -- ^ waterfall executed on deal closing day
                 | DefaultDistribution             -- ^ default waterfall executed
+                | RampUp                          -- ^ ramp up
                 deriving (Show,Ord,Eq,Generic,Read)
 
 instance ToJSONKey ActionWhen where
@@ -82,7 +83,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | BuyAsset (Maybe Limit) PricingMethod AccountName                              -- ^ buy asset from revolving assumptions using funds from account
             | LiquidatePool PricingMethod AccountName                                       -- ^ sell all assets and deposit proceeds to account
             -- Liquidation support
-            | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType String       -- ^ draw credit and deposit to account/fee/bond interest/principal
+            | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType AccountName  -- ^ draw credit and deposit to account/fee/bond interest/principal
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName   -- ^ repay liquidity facility
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName                   -- ^ repay compensation to liquidity facility
             | LiqAccrue CE.LiquidityProviderName                                            -- ^ accure premium/due interest of liquidity facility

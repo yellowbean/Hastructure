@@ -1,5 +1,14 @@
 # Changelog for Hastructure
 
+## 0.22.0
+### 2023-10-15
+* BREAK: cashflow now with `Cumulative Stats` ( cumulative default/delinq/loss/prepayment/principal/recovery)
+* NEW: expose `inspect` in waterfall action to observe variables during a waterfall execution
+* NEW: `stepup` now accpet a `pre` instead of a `date` to switch rate
+* ENHANCE: auto patch `issuance balance` for `PreClosing` Deal
+* ENHANCE: implement `pre-run check` and `post-run check`, patch check logs in result
+* FIX: fix bug on `prepay penalty` when using `stepDown`
+
 ## 0.21.5
 ### 2023-10-8
 * ENHANCE: in the revolving buy , now buy amount is no longer a multipler of revolving assets face value
@@ -9,7 +18,6 @@
 ### 2023-9-27
 * ENHANCE: require a new status when defining a deal in `preClosing` stage
 * FIX: fix a bug when reading financial report logs 
-
 
 ## 0.21.3
 ### 2023-9-26

@@ -24,6 +24,7 @@ import Types
 import Util
 import DateUtil
 import qualified Stmt as S
+import qualified InterestRate as IR
 
 import Debug.Trace
 debug = flip trace
@@ -93,6 +94,15 @@ instance S.QueryByComment Fee where
     queryStmt Fee{feeStmt = Nothing} tc = []
     queryStmt Fee{feeStmt = Just (S.Statement txns)} tc
       = filter (\x -> S.getTxnComment x == tc) txns
+
+instance Liable Fee where 
+  isPaidOff f@Fee{feeDue=bal,feeArrears=fa}
+    | bal==0 && fa==0 = True 
+    | otherwise = False
+
+instance IR.UseRate Fee where
+  isAdjustbleRate x = False
+  getIndex x = Nothing 
 
 $(deriveJSON defaultOptions ''FeeType)
 $(deriveJSON defaultOptions ''Fee)

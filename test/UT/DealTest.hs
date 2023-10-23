@@ -191,12 +191,12 @@ triggerTests = testGroup "Trigger Tests"
   [ let 
       setup = 0 
       poolflows = CF.CashFlowFrame $
-                     [CF.MortgageDelinqFlow (toDate "20220201") 800 100 20 0 0 0 0 0 0.08 Nothing Nothing
-                     ,CF.MortgageDelinqFlow (toDate "20220301") 700 100 20 0 0 0 0 0 0.08 Nothing Nothing
-                     ,CF.MortgageDelinqFlow (toDate "20220401") 600 100 20 0 0 0 0 0 0.08 Nothing Nothing 
-                     ,CF.MortgageDelinqFlow (toDate "20220501") 500 100 20 0 0 0 0 0 0.08 Nothing Nothing
-                     ,CF.MortgageDelinqFlow (toDate "20220601") 400 100 20 0 0 0 0 0 0.08 Nothing Nothing
-                     ,CF.MortgageDelinqFlow (toDate "20220701") 300 100 20 0 0 0 0 0 0.08 Nothing Nothing
+                     [CF.MortgageDelinqFlow (toDate "20220201") 800 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
+                     ,CF.MortgageDelinqFlow (toDate "20220301") 700 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
+                     ,CF.MortgageDelinqFlow (toDate "20220401") 600 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
+                     ,CF.MortgageDelinqFlow (toDate "20220501") 500 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
+                     ,CF.MortgageDelinqFlow (toDate "20220601") 400 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
+                     ,CF.MortgageDelinqFlow (toDate "20220701") 300 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
                      ]
       ads = [PoolCollection (toDate "20220201") "" 
              ,RunWaterfall  (toDate "20220225") ""

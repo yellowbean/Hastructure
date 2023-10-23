@@ -5,7 +5,7 @@ module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN
     ,getValByDate,getValByDates 
     ,calcInt,calcIntRate,calcIntRateCurve,divideBB
-    ,multiplyTs,zipTs,getTsVals,divideBI,mulIR, daysInterval
+    ,multiplyTs,zipTs,getTsVals,getTsSize,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, getTsDates
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
@@ -22,7 +22,6 @@ import Data.Ix
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Set as S
-import DateUtil 
 import Lib
 import Types
 import DateUtil
@@ -67,8 +66,6 @@ zipLeftover (x:xs) (y:ys) = zipLeftover xs ys
 lastN :: Int -> [a] -> [a]
 lastN n xs = zipLeftover (drop n xs) xs
 
-
-
 tsPointVal :: TsPoint a -> a 
 tsPointVal (TsPoint d v) = v
 
@@ -106,6 +103,19 @@ getValByDate (IRateCurve dps) Inc d
   = case find (\(TsPoint _d _) -> d >= _d) (reverse dps)  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
+
+getValByDate (RatioCurve dps) Exc d
+  = case find (\(TsPoint _d _) -> d > _d) (reverse dps)  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+getValByDate (RatioCurve dps) Inc d
+  = case find (\(TsPoint _d _) -> d >= _d) (reverse dps)  of
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+
+
 
 getValByDate (ThresholdCurve dps) Inc d
   = case find (\(TsPoint _d _) -> d <= _d) dps  of
@@ -153,12 +163,19 @@ getValByDates rc ct = map (getValByDate rc ct)
 
 getTsVals :: Ts -> [Rational]
 getTsVals (FloatCurve ts) = [ v | (TsPoint d v) <- ts ]
+getTsVals (RatioCurve ts) = [ v | (TsPoint d v) <- ts ]
+getTsVals (BalanceCurve ts) = [ toRational v | (TsPoint d v) <- ts ]
+getTsVals (IRateCurve ts) = [ toRational v | (TsPoint d v) <- ts ]
 
 getTsDates :: Ts -> [Date]
 getTsDates (IRateCurve tps) =  map getDate tps
+getTsDates (RatioCurve tps) =  map getDate tps
 getTsDates (FloatCurve tps) =  map getDate tps
 getTsDates (PricingCurve tps) =  map getDate tps
 getTsDates (BalanceCurve tps) =  map getDate tps
+
+getTsSize :: Ts -> Int 
+getTsSize ts = length (getTsVals ts)
 
 
 calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
@@ -186,8 +203,6 @@ multiplyTs :: CutoffType -> Ts -> Ts -> Ts
 multiplyTs ct (FloatCurve ts1) ts2
   = FloatCurve [(TsPoint d (v * (getValByDate ts2 ct d))) | (TsPoint d v) <- ts1 ] 
 
-
-
 -- | swap a value in list with index supplied
 replace :: [a] -> Int -> a -> [a]
 replace xs i e 
@@ -196,6 +211,7 @@ replace xs i e
                    (before, _:after) -> before ++ e: after
                    _ -> xs
 
+-- ^ padding default value to list ,make it length with N
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 
   | length xs > s = take s xs
@@ -213,8 +229,7 @@ floorWith floor xs = [ max x floor | x <- xs]
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
 
-
-    
+   
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
 
