@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.22.1
+### 2023-11-1
+
+
+
 ## 0.22.0
 ### 2023-10-15
 * BREAK: cashflow now with `Cumulative Stats` ( cumulative default/delinq/loss/prepayment/principal/recovery)

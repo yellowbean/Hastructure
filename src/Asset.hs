@@ -23,6 +23,7 @@ import Lib (Period(..)
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
 import qualified AssetClass.AssetBase as ACM 
+import AssetClass.AssetCashflow
 
 import qualified Data.Map as Map
 import Analytics
@@ -67,6 +68,8 @@ class (Show a,IR.UseRate a) => Asset a where
   getRemainTerms :: a -> Int
   -- | project asset cashflow under credit stress and interest assumptions
   projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+  -- | project cashflow under user input sequence
+  runCashflow :: a -> Date -> A.AssumpReceipes -> [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
@@ -128,60 +131,12 @@ applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
                                        ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
 
 
--- | apply haircuts to cashflow from a stress map
-
-applyHaircut :: Maybe A.ExtraStress -> CF.CashFlowFrame -> CF.CashFlowFrame
-applyHaircut Nothing cf = cf 
-applyHaircut (Just ExtraStress{A.poolHairCut = Nothing}) cf = cf
-applyHaircut (Just ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFrame txns)
-  = CF.CashFlowFrame $ 
-      (\txn -> foldr 
-                 (\fn acc -> fn acc ) 
-                 txn 
-                 (applyHaircutTxn <$> haircuts) ) <$> txns
-    where
-      applyHaircutTxn (CollectedInterest,r) 
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
-        = CF.MortgageDelinqFlow d bal prin (mulBR interest (1-r)) ppy delinq def recovery loss irate mbn mppn mst
-      applyHaircutTxn (CollectedPrincipal,r)
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
-        = CF.MortgageDelinqFlow d bal (mulBR prin (1-r)) interest ppy delinq def recovery loss irate mbn mppn mst
-      applyHaircutTxn (CollectedRecoveries,r)
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
-        = CF.MortgageDelinqFlow d bal prin interest ppy delinq def (mulBR recovery (1-r)) loss irate mbn mppn mst
-      applyHaircutTxn (CollectedPrepayment,r)
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
-        = CF.MortgageDelinqFlow d bal prin interest (mulBR ppy (1-r)) delinq def recovery loss irate mbn mppn mst
-      applyHaircutTxn (CollectedPrepaymentPenalty,r)
-                      (CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn mppn mst) 
-        = CF.MortgageDelinqFlow d bal prin interest ppy delinq def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn) mst
-      
-      applyHaircutTxn (CollectedInterest,r) 
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst) 
-        = CF.MortgageFlow d bal prin (mulBR interest (1-r)) ppy def recovery loss irate mbn mppn mst
-      applyHaircutTxn (CollectedPrincipal,r)
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst) 
-        = CF.MortgageFlow d bal (mulBR prin (1-r)) interest ppy def recovery loss irate mbn mppn mst
-      applyHaircutTxn (CollectedRecoveries,r)
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst) 
-        = CF.MortgageFlow d bal prin interest ppy def (mulBR recovery (1-r)) loss irate mbn mppn mst
-      applyHaircutTxn (CollectedPrepayment,r)
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst) 
-        = CF.MortgageFlow d bal prin interest (mulBR ppy (1-r)) def recovery loss irate mbn mppn mst
-      applyHaircutTxn (CollectedPrepaymentPenalty,r)
-                      (CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn mppn mst)
-        = CF.MortgageFlow d bal prin interest ppy def recovery loss irate mbn ((\x -> mulBR x (1-r) ) <$> mppn) mst
-      
-      applyHaircutTxn _ _ = error "Not implemented"
-        
-
 buildPrepayRates :: [Date] -> Maybe A.AssetPrepayAssumption -> [Rate]
 buildPrepayRates ds Nothing = replicate (pred (length ds)) 0.0
 buildPrepayRates ds mPa = 
   case mPa of
     Just (A.PrepaymentConstant r) -> replicate size r
-    Just (A.PrepaymentCPR r) -> (map (Util.toPeriodRateByInterval r)
-                                     (getIntervalDays ds))
+    Just (A.PrepaymentCPR r) -> (Util.toPeriodRateByInterval r) <$> (getIntervalDays ds)
     Just (A.PrepaymentVec vs) -> zipWith 
                                     Util.toPeriodRateByInterval
                                     (paddingDefault 0.0 vs (pred size))

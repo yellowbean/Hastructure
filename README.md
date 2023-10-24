@@ -24,8 +24,7 @@
 
 * :snake: [Python wrapper](https://github.com/yellowbean/PyABS) is in ``Beta`` now !
 * :coffee: Easy integration with ``Java/C#/C++/JavaScript/Python`` with ``RESTful`` interface and Docker image are ready. 
-* C/Cpp wrapper : Working on this !
-  * Java  : Just use JNI and call C Api 
+  * C/Java : [here](https://github.com/yellowbean/Hastructure/issues/106)
 
 ### Features
 * Integration
