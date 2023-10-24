@@ -2,8 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module AssetClass.Mortgage
-  (projectMortgageFlow,projectScheduleFlow,updateOriginDate,getOriginInfo)
+module AssetClass.Mortgage  (projectMortgageFlow,projectScheduleFlow,updateOriginDate,getOriginInfo)
   where
 
 import qualified Data.Time as T
@@ -244,11 +243,15 @@ instance Ast.Asset Mortgage where
           IR.Fix _ _r -> _r
           IR.Floater _ _ _ _r _ _ _ _ -> _r 
 
-  getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) extra
-    = genDates sd p (ot+extra)
-  
-  getPaymentDates (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) extra
-    = genDates sd p (ot+extra)
+  getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ _ _) extra = genDates sd p (ot+extra)
+  getPaymentDates (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ _ _ _) extra = genDates sd p (ot+extra)
+  getPaymentDates (ScheduleMortgageFlow begDate flows dp) extra 
+    = 
+      let 
+        lastPayDay = (getDate . last) flows
+        extDates =genSerialDates dp lastPayDay extra 
+      in 
+        getDates flows ++ sliceDates (SliceAfter lastPayDay) extDates
 
   isDefaulted (Mortgage _ _ _ _ _ (Defaulted _)) = True
   isDefaulted (AdjustRateMortgage _ _ _ _ _ _ (Defaulted _)) = True
@@ -257,6 +260,7 @@ instance Ast.Asset Mortgage where
   
   getOriginDate (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) = sd
   getOriginDate (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) = sd
+  getOriginDate (ScheduleMortgageFlow begDate _ _) = begDate
 
   getRemainTerms (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ ct _ _) = ct
   getRemainTerms (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ ct _ _) = ct
