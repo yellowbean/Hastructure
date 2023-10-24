@@ -83,22 +83,22 @@ depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectD
                   ed 
           = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (InvestmentAccount idx spd ed dp)}
           where 
-            accruedInt = case stmt of 
-                            Nothing -> 
-                                let  
-                                  curveDs = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
-                                  curveVs = (\x -> toRational (getValByDate rc Exc x) + toRational spd) <$> init curveDs
-                                  dsFactor = getIntervalFactors curveDs
-                                  weightInt = sum $ zipWith (*) curveVs dsFactor --  `debug` ("ds"++show curve_ds++"vs"++show curve_vs++"factors"++show ds_factor)
-                                in 
-                                  mulBR bal weightInt
-                            Just (Statement txns) ->
-                              let 
-                                curveDs = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
-                                curveVs = (\x -> toRational (getValByDate rc Exc x) + toRational spd) <$> init curveDs
-                                bals = weightAvgBalanceByDates curveDs txns
-                              in
-                                sum $ zipWith mulBR bals curveVs -- `debug` ("cds"++show curve_ds++"vs"++ show curve_vs++"bs"++show bals)
+            accruedInt = let 
+                           curveDs = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
+                           curveVs = (\x -> toRational (getValByDate rc Exc x) + toRational spd) <$> init curveDs
+                         in
+                           case stmt of 
+                             Nothing -> 
+                               let  
+                                 dsFactor = getIntervalFactors curveDs
+                                 weightInt = sum $ zipWith (*) curveVs dsFactor --  `debug` ("ds"++show curve_ds++"vs"++show curve_vs++"factors"++show ds_factor)
+                               in 
+                                 mulBR bal weightInt
+                             Just (Statement txns) ->
+                               let 
+                                 bals = weightAvgBalanceByDates curveDs txns
+                               in
+                                 sum $ zipWith mulBR bals curveVs -- `debug` ("cds"++show curve_ds++"vs"++ show curve_vs++"bs"++show bals)
 
             newBal = accruedInt + bal 
             newTxn = AccTxn ed newBal accruedInt BankInt
