@@ -8,7 +8,7 @@ module Asset (Pool(..),aggPool
        ,calcPiFlow,calc_p_i_flow_even,calc_p_i_flow_i_p
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
-       ,priceAsset,applyHaircut
+       ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
 ) where
 
 import qualified Data.Time as T
@@ -136,7 +136,7 @@ buildPrepayRates ds Nothing = replicate (pred (length ds)) 0.0
 buildPrepayRates ds mPa = 
   case mPa of
     Just (A.PrepaymentConstant r) -> replicate size r
-    Just (A.PrepaymentCPR r) -> (Util.toPeriodRateByInterval r) <$> (getIntervalDays ds)
+    Just (A.PrepaymentCPR r) -> Util.toPeriodRateByInterval r <$> getIntervalDays ds
     Just (A.PrepaymentVec vs) -> zipWith 
                                     Util.toPeriodRateByInterval
                                     (paddingDefault 0.0 vs (pred size))
@@ -150,8 +150,7 @@ buildDefaultRates ds Nothing = replicate (pred (length ds)) 0.0
 buildDefaultRates ds mDa = 
   case mDa of
     Just (A.DefaultConstant r) ->  replicate size r
-    Just (A.DefaultCDR r) -> (map (Util.toPeriodRateByInterval r)
-                                  (getIntervalDays ds))
+    Just (A.DefaultCDR r) -> Util.toPeriodRateByInterval r <$> getIntervalDays ds
     Just (A.DefaultVec vs) -> zipWith 
                                 Util.toPeriodRateByInterval
                                 (paddingDefault 0.0 vs (pred size))

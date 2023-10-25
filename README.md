@@ -62,7 +62,8 @@
   * Base on Pool performance, like Cumulative Default Rate, last 3 periods delinquency rates.
   * Base on any combination above
 * Interest Swap
-  * Float to Float/ Fix to Float support
+  * Float to Float/ Fix to Float
+  * formula based notional balance
 * Scenario Analysis
   * Running multiple scenarios on single deal
   * Pricing on single asset 

@@ -896,6 +896,39 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PrepayByAmt"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -4613,6 +4646,62 @@
                                 "type": "string",
                                 "enum": [
                                     "DelinqCDR"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": [
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "items": {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                },
+                                                "type": "array"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "type": "array",
+                                        "minItems": 2
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "maximum": 9223372036854775807,
+                                                "type": "integer",
+                                                "minimum": -9223372036854775808
+                                            },
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "type": "array",
+                                        "minItems": 2
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DelinqByAmt"
                                 ]
                             }
                         },
@@ -8919,6 +9008,39 @@
                                 "type": "string",
                                 "enum": [
                                     "DefaultVec"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "format": "double",
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultByAmt"
                                 ]
                             }
                         },

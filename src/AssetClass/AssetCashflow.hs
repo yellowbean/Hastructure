@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.AssetCashflow
-  (applyHaircut,patchPrepayPentalyFlow)
+  (applyHaircut,patchPrepayPentalyFlow,getRecoveryLag,decreaseBorrowerNum)
   where
 
 import qualified Data.Time as T
@@ -121,4 +121,19 @@ patchPrepayPentalyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame trs)
           in 
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
 
-     
+getRecoveryLag :: A.RecoveryAssumption -> Int
+getRecoveryLag (A.Recovery (_,lag)) = lag 
+getRecoveryLag (A.RecoveryTiming (_,rs)) = length rs
+
+
+decreaseBorrowerNum :: Balance -> Balance -> Maybe BorrowerNum -> Maybe Int
+decreaseBorrowerNum bb eb mBn 
+  = case mBn of
+      Nothing -> Nothing::(Maybe BorrowerNum)
+      Just 0  -> Nothing::(Maybe BorrowerNum)
+      Just bn -> Just $ round $ fromRational $ mulIR bn downRate::(Maybe BorrowerNum)
+    where 
+      downRate = if eb == 0 then 
+                   0.0
+                 else
+                   divideBB eb bb

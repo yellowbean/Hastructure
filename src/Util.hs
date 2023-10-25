@@ -42,6 +42,9 @@ mulBIR b r = fromRational $ (toRational b) * (toRational r)
 mulIR :: Int -> Rational -> Rational
 mulIR i r = (toRational i) * r 
 
+mulIntegerR :: Integer -> Rational -> Rational
+mulIntegerR i r = (toRational i) * r
+
 mulBInt :: Balance -> Int -> Rational 
 mulBInt b i = (toRational b) * (toRational i)
 
