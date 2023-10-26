@@ -145,7 +145,6 @@ patchLossRecovery trs Nothing
     where 
       defaultVec = mflowDefault <$> trs
 
-
 -- ^ make sure trs has empty rows with length=lag. as it drop extended rows
 patchLossRecovery trs (Just (A.Recovery (rr,lag)))
   = [  CF.tsSetRecovery recovery (CF.tsSetLoss loss r) | (r,recovery,loss) <- zip3 trs recoveryAfterLag lossVecAfterLag]

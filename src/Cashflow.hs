@@ -313,15 +313,15 @@ tsSetBalance x (LoanFlow _d a b c d e f g h i) = LoanFlow _d x b c d e f g h i
 tsSetBalance x (LeaseFlow _d a b) = LeaseFlow _d x b
 
 tsSetLoss :: Balance -> TsRow -> TsRow
-tsSetLoss x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d x b c d e f g x i j k l
-tsSetLoss x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d x b c d e f x h i j k 
-tsSetLoss x (LoanFlow _d a b c d e f g h i) = LoanFlow _d x b c d e f x h i
+tsSetLoss x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d a b c d e f g x i j k l
+tsSetLoss x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d a b c d e f x h i j k 
+tsSetLoss x (LoanFlow _d a b c d e f g h i) = LoanFlow _d a b c d e f x h i
 tsSetLoss x _ = error $ "Failed to set Loss for "++show x
 
 tsSetRecovery :: Balance -> TsRow -> TsRow
-tsSetRecovery x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d x b c d e f g x i j k l
-tsSetRecovery x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d x b c d e f x h i j k 
-tsSetRecovery x (LoanFlow _d a b c d e f g h i) = LoanFlow _d x b c d e f x h i
+tsSetRecovery x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d a b c d e f g x i j k l
+tsSetRecovery x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d a b c d e f x h i j k 
+tsSetRecovery x (LoanFlow _d a b c d e f g h i) = LoanFlow _d a b c d e f x h i
 tsSetRecovery x _ = error $ "Failed to set Recovery for "++show x
 
 
