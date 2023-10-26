@@ -135,7 +135,7 @@ instance Asset Loan where
   getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd (ScheduleRepayment ts mDp) ) _bal _rate _term _ ) extra
     = let 
         pdays = getTsDates ts 
-        extraDates = genSerialDates (fromMaybe MonthEnd mDp) (last pdays) extra
+        extraDates = genSerialDates (fromMaybe MonthEnd mDp) Inc (last pdays) extra
       in 
         pdays ++ extraDates
   
@@ -170,11 +170,7 @@ instance Asset Loan where
                asOfDay 
                (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRate 
-    = let 
-        (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
-      in 
-        (applyHaircut ams (CF.CashFlowFrame futureTxns)
-        ,historyM)
+    = (applyHaircut ams (CF.CashFlowFrame futureTxns), historyM)
     where
       lastPayDate:cfDates = lastN (rt + recoveryLag + 1) $ sd:getPaymentDates pl recoveryLag
       cfDatesLength = length cfDates  --  `debug` ("incoming assumption "++ show assumps)
@@ -187,6 +183,7 @@ instance Asset Loan where
       txns = projectLoanFlow [] (divideBB cb scheduleBal) cb lastPayDate cfDates defRates ppyRates 
                                 (replicate cfDatesLength 0.0) (replicate cfDatesLength 0.0) rateVector (recoveryLag,recoveryRate) 
                                 p sr  -- `debug` ("rate"++show rate_vector)
+      (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
 
 
   -- ^ Project cashflow for loans with prepayment/default/loss and interest rate assumptions
@@ -194,17 +191,14 @@ instance Asset Loan where
                asOfDay 
                (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRate 
-    = let 
-        (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
-      in 
-        (applyHaircut ams (CF.CashFlowFrame futureTxns)
-        ,historyM)
+    = (applyHaircut ams (CF.CashFlowFrame futureTxns) ,historyM)
     where
       last_pay_date:cf_dates = lastN (rt + recovery_lag + 1) $ sd:getPaymentDates pl recovery_lag
       cf_dates_length = length cf_dates  --  `debug` ("incoming assumption "++ show assumps)
       rate_vector = A.projRates cr or mRate cf_dates
       (ppy_rates,def_rates,recovery_rate,recovery_lag) = buildAssumptionPpyDefRecRate (last_pay_date:cf_dates) (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams)
       txns = projectLoanFlow [] 1.0 cb last_pay_date cf_dates def_rates ppy_rates (replicate cf_dates_length 0.0) (replicate cf_dates_length 0.0) rate_vector (recovery_lag,recovery_rate) p prinPayType  -- `debug` ("rate"++show rate_vector)
+      (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
 
   -- ^ Project cashflow for defautled loans 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted (Just defaultedDate))) 

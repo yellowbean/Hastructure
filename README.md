@@ -3,20 +3,20 @@
 
 # What is Hastructure ?
 
-``Hastructure`` names after ``Haskell`` and ``Structured Finance``, aims to provide cashflow projection for deal/transactions describled in either Haskell structure or ``JSON`` via REST Service, with inputs:
+``Hastructure`` names after ``Haskell`` and ``Structured Finance``, targets to provide cashflow projection for deal/transactions describled in either Haskell structure or ``JSON`` via RESTful Service, given inputs from below:
 
 * deal components (bonds,assets,accounts,waterfall,trigger,fees etc.) 
-* pool performance prediction input as well as interest rate assumption
+* pool performance assumption input as well as interest rate assumption
 
-the engine will yields outputs:
+``Hastructure`` will generate outputs:
 
 * cashflow of bonds/accounts/fees
 * pricing of bonds
-* or other outputs make your lose all of the money faster :sunglasses:
+* or other outputs make your lose money faster :sunglasses:
 
 # Why Hastructure ?
 
-* :bricks: A building block engine to model cashflows of structured product, all the formula and variables are exposed.
+* :bricks: A collection of building blocks to build cashflows model for structured product. User just need to `compose` them together.
 * :car: In-house and white-label friendly.
 * :flags: No lock-in risk, all JSONs input/output, no proprietary file formats.
 
@@ -24,8 +24,7 @@ the engine will yields outputs:
 
 * :snake: [Python wrapper](https://github.com/yellowbean/PyABS) is in ``Beta`` now !
 * :coffee: Easy integration with ``Java/C#/C++/JavaScript/Python`` with ``RESTful`` interface and Docker image are ready. 
-* C/Cpp wrapper : Working on this !
-  * Java  : Just use JNI and call C Api 
+  * C/Java : [here](https://github.com/yellowbean/Hastructure/issues/106)
 
 ### Features
 * Integration
@@ -63,7 +62,8 @@ the engine will yields outputs:
   * Base on Pool performance, like Cumulative Default Rate, last 3 periods delinquency rates.
   * Base on any combination above
 * Interest Swap
-  * Float to Float/ Fix to Float support
+  * Float to Float/ Fix to Float
+  * formula based notional balance
 * Scenario Analysis
   * Running multiple scenarios on single deal
   * Pricing on single asset 

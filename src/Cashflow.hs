@@ -2,7 +2,7 @@
 {-# LANGUAGE DeriveGeneric       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
-                ,combine,mergePoolCf,sumTsCF,tsSetDate
+                ,combine,mergePoolCf,sumTsCF,tsSetDate,tsSetLoss,tsSetRecovery
                 ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
@@ -18,7 +18,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
-                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance) where
+                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,extendTxns,dropTailEmptyTxns) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -312,6 +312,20 @@ tsSetBalance x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d x b c d
 tsSetBalance x (LoanFlow _d a b c d e f g h i) = LoanFlow _d x b c d e f g h i
 tsSetBalance x (LeaseFlow _d a b) = LeaseFlow _d x b
 
+tsSetLoss :: Balance -> TsRow -> TsRow
+tsSetLoss x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d a b c d e f g x i j k l
+tsSetLoss x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d a b c d e f x h i j k 
+tsSetLoss x (LoanFlow _d a b c d e f g h i) = LoanFlow _d a b c d e f x h i
+tsSetLoss x _ = error $ "Failed to set Loss for "++show x
+
+tsSetRecovery :: Balance -> TsRow -> TsRow
+tsSetRecovery x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d a b c d e f x h i j k l
+tsSetRecovery x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d a b c d e x g h i j k 
+tsSetRecovery x (LoanFlow _d a b c d e f g h i) = LoanFlow _d a b c d e x g h i
+tsSetRecovery x _ = error $ "Failed to set Recovery for "++show x
+
+
+
 tsOffsetDate :: Integer -> TsRow -> TsRow
 tsOffsetDate x (CashFlow _d a) = CashFlow (T.addDays x _d) a
 tsOffsetDate x (BondFlow _d a b c) = BondFlow (T.addDays x _d) a b c
@@ -504,7 +518,7 @@ emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
 buildBegTsRow :: Date -> TsRow -> TsRow
 -- ^ given a cashflow,build a new cf row with begin balance
 buildBegTsRow d tr 
-  = (tsSetBalance (mflowBalance tr + mflowAmortAmount tr)) (emptyTsRow d tr)
+  = tsSetBalance (mflowBalance tr + mflowAmortAmount tr) (emptyTsRow d tr)
 
 insertBegTsRow :: Date -> CashFlowFrame -> CashFlowFrame
 insertBegTsRow d (CashFlowFrame []) = CashFlowFrame []
@@ -589,12 +603,12 @@ splitTs r (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPP
   = MortgageDelinqFlow d (mulBR bal r) (mulBR p r) (mulBR i r) (mulBR ppy r)
                        (mulBR delinq r) (mulBR def r) (mulBR recovery r) (mulBR loss r)
                        rate ((\x -> round (toRational x * r)) <$> mB) ((`mulBR` r) <$> mPPN)
-                       ((splitStats r) <$> mStat)
+                       (splitStats r <$> mStat)
 splitTs r (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN mStat)
   = MortgageFlow d (mulBR bal r) (mulBR p r) (mulBR i r) (mulBR ppy r)
                        (mulBR def r) (mulBR recovery r) (mulBR loss r)
                        rate ((\x -> round (toRational x * r)) <$> mB) ((`mulBR` r) <$> mPPN)
-                       ((splitStats r) <$> mStat)
+                       (splitStats r <$> mStat)
 splitTs _ tr = error $ "Not support for spliting TsRow"++show tr
 
 splitTrs :: Rate -> [TsRow] -> [TsRow]
@@ -654,7 +668,24 @@ patchBeginBalance d cf@(CashFlowFrame txns)
       begRow = buildBegTsRow d (head txns)
     in 
       CashFlowFrame (begRow:txns)
-      
+
+extendTxns :: TsRow -> [Date] -> [TsRow]      
+extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
+
+isEmptyRow :: TsRow -> Bool 
+isEmptyRow (MortgageDelinqFlow _ 0 0 0 0 0 0 0 0 _ _ _ _) = True
+isEmptyRow (MortgageDelinqFlow {}) = False
+isEmptyRow (MortgageFlow _ 0 0 0 0 0 0 0 _ _ _ _) = True
+isEmptyRow (MortgageFlow {}) = False
+isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
+isEmptyRow (LoanFlow {}) = False
+isEmptyRow (LeaseFlow _ 0 0) = True
+isEmptyRow (LeaseFlow {}) = False
+
+
+dropTailEmptyTxns :: [TsRow] -> [TsRow]
+dropTailEmptyTxns trs 
+  = reverse $ dropWhile isEmptyRow (reverse trs)
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

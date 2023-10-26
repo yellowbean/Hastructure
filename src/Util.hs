@@ -42,6 +42,9 @@ mulBIR b r = fromRational $ (toRational b) * (toRational r)
 mulIR :: Int -> Rational -> Rational
 mulIR i r = (toRational i) * r 
 
+mulIntegerR :: Integer -> Rational -> Rational
+mulIntegerR i r = (toRational i) * r
+
 mulBInt :: Balance -> Int -> Rational 
 mulBInt b i = (toRational b) * (toRational i)
 
@@ -211,7 +214,7 @@ replace xs i e
                    (before, _:after) -> before ++ e: after
                    _ -> xs
 
--- ^ padding default value to list ,make it length with N
+-- ^ padding default value to end of list ,make it length with N
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 
   | length xs > s = take s xs

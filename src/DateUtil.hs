@@ -138,9 +138,10 @@ yearCountFraction dc sd ed
       (syear,smonth,sday) = T.toGregorian sd 
       (eyear,emonth,eday) = T.toGregorian ed 
 
-genSerialDates :: DatePattern -> Date -> Int -> Dates
-genSerialDates dp sd num
-  = take num $ filter (>= sd) $ 
+genSerialDates :: DatePattern -> CutoffType -> Date -> Int -> Dates
+genSerialDates dp ct sd num
+  = take num $ 
+      filter ftFn $ 
       case dp of 
         MonthEnd -> 
                 [T.fromGregorian yearRange (fst __md) (snd __md) | yearRange <- [_y..(_y+yrs)]
@@ -184,11 +185,15 @@ genSerialDates dp sd num
             [(1,31),(2,29),(3,31),(4,30),(5,31),(6,30),(7,31),(8,31),(9,30),(10,31),(11,30),(12,31)]
           else
             [(1,31),(2,28),(3,31),(4,30),(5,31),(6,30),(7,31),(8,31),(9,30),(10,31),(11,30),(12,31)]
-        (_y,_m,_d) = T.toGregorian sd  
+        (_y,_m,_d) = T.toGregorian sd 
+        ftFn = if ct == Inc then
+                 (>= sd)
+               else
+                 (> sd)
 
 genSerialDatesTill:: Date -> DatePattern -> Date -> Dates 
 genSerialDatesTill sd ptn ed 
-  = filter (<= ed) $ genSerialDates ptn sd (fromInteger (succ num))  --`debug` ("Num"++show num)
+  = filter (<= ed) $ genSerialDates ptn Inc sd (fromInteger (succ num))  --`debug` ("Num"++show num)
     where 
       (sy,sm,sday) = T.toGregorian sd 
       (ey,em,eday) = T.toGregorian ed 
@@ -284,7 +289,7 @@ projDatesByPattern dp sd ed
               MonthDayOfYear _ _ -> (div cdm 12) + 1
               DayOfMonth _ -> cdm + 1
     in 
-      genSerialDates dp sd (fromInteger num)
+      genSerialDates dp Inc sd (fromInteger num)
 
 splitByDate :: TimeSeries a => [a] -> Date -> SplitType -> ([a],[a])
 splitByDate xs d st 
