@@ -30,6 +30,7 @@ library
       Analytics
       Asset
       AssetClass.AssetBase
+      AssetClass.AssetCashflow
       AssetClass.Installment
       AssetClass.Lease
       AssetClass.Loan
