@@ -80,11 +80,12 @@ projectMortgageFlow trs _b mbn _last_date (pDate:_pdates) _  _ (_rec_amt:_rec_am
  = projectMortgageFlow (trs++[tr]) _b mbn pDate _pdates [] [] _rec_amts _loss_amts [0.0] _lag_rate _p _pt
   where
     tr = CF.MortgageFlow pDate _b 0 0 0 0 _rec_amt _loss_amt 0.0 (Nothing::Maybe Int) Nothing Nothing
-projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = trs  
+
+projectMortgageFlow trs _ _ _ [] _ _ [] [] _ _ _ _ = CF.dropTailEmptyTxns $ trs  
 
 
 projectDelinqMortgageFlow :: ([CF.TsRow],[CF.TsRow]) -> Balance -> Maybe Int -> Date -> [Date] -> [Rate] -> [PrepaymentRate] -> [IRate] -> (Rate,Lag,Rate,Lag,Period,AmortPlan) -> ([Balance],[Balance],[Balance]) -> [CF.TsRow]
-projectDelinqMortgageFlow (trs,[]) _ _ _ [] _ _ _ _ _ = trs
+projectDelinqMortgageFlow (trs,[]) _ _ _ [] _ _ _ _ _ = CF.dropTailEmptyTxns trs
 projectDelinqMortgageFlow (trs,backToPerfs) _ _ _ [] _ _ _ _ _ = 
   let 
     consolTxn = sort backToPerfs -- `debug` ("Hit pay dates = []")
@@ -237,7 +238,7 @@ projCashflowByDefaultAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDefaultB
                              defaultBal   
              newPrepay = mulBR (max 0 (begBal - newDefault)) ppyRate  -- `debug` ("mb from last"++ show mBorrower) 
              newInt = mulBI (max 0 (begBal - newDefault - newPrepay)) (periodRateFromAnnualRate p rate)
-             intBal = max 0 $ begBal - newDefault - newPrepay `debug` ("using rt"++ show rt)
+             intBal = max 0 $ begBal - newDefault - newPrepay -- `debug` ("using rt"++ show rt)
              newPrin = case (rt,pt) of 
                          (0,_) -> intBal
                          (_,Level) -> let 
@@ -441,7 +442,7 @@ instance Ast.Asset Mortgage where
   -- project schedule cashflow with total default amount
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
               assumps@(pAssump@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams ),dAssump,fAssump) _
-    = (applyHaircut ams (CF.CashFlowFrame futureTxns) ,historyM) -- `debug` ("Future txn"++ show futureTxns)
+    = (applyHaircut ams (CF.CashFlowFrame futureTxns) ,historyM)  `debug` ("Future txn"++ show futureTxns)
       where
         begBal =  CF.mflowBegBalance $ head flows
         begDate = getDate $ head flows 
@@ -458,7 +459,7 @@ instance Ast.Asset Mortgage where
         endDate = (CF.getDate . last) flows
         extraDates = genSerialDates dp Exc endDate recoveryLag
         -- cfDates = (CF.getDate <$> flows) ++ extraDates
-        flowsWithEx = flows ++ extendTxns (last flows) extraDates
+        flowsWithEx = flows ++ extendTxns (last flows) extraDates -- `debug` (">> end date"++ show endDate++">>> extra dates"++show extraDates)
         (txns,_) = projScheduleCashflowByDefaultAmt 
                      (begBal,begDate,begRate,begMbn) 
                      (flowsWithEx,(expectedDefaultBals,unAppliedDefaultBals),ppyRates) -- `debug` ("exted flows"++ show flowsWithEx)

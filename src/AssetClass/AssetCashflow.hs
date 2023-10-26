@@ -33,6 +33,9 @@ import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (mflowDefault)
 debug = flip trace
 
+-- This module is a collection of common cashflow functions to project cashflow for different asset types.
+
+
 applyHaircut :: Maybe A.ExtraStress -> CF.CashFlowFrame -> CF.CashFlowFrame
 applyHaircut Nothing cf = cf 
 applyHaircut (Just A.ExtraStress{A.poolHairCut = Nothing}) cf = cf
@@ -151,10 +154,10 @@ patchLossRecovery trs (Just (A.Recovery (rr,lag)))
   = CF.dropTailEmptyTxns $ [ CF.tsSetRecovery recovery (CF.tsSetLoss loss r) | (r,recovery,loss) <- zip3 trs recoveryAfterLag lossVecAfterLag]
     where 
       defaultVec = mflowDefault <$> trs
-      recoveriesVec = (`mulBR` rr) <$> defaultVec
-      recoveryAfterLag = replicate (succ lag) 0.0 ++ recoveriesVec   -- drop last lag elements
-      lossVec = (`mulBR` (1-rr)) <$> defaultVec
-      lossVecAfterLag = replicate (succ lag) 0.0 ++ lossVec  -- drop last lag elements
+      recoveriesVec = (`mulBR` rr) <$> defaultVec -- `debug` ("Default Vec"++ show defaultVec)
+      recoveryAfterLag = replicate lag 0.0 ++ recoveriesVec --  `debug` ("recovery"++ show recoveriesVec)
+      lossVec = (`mulBR` (1-rr)) <$> defaultVec  --  `debug` ("Rec after lag"++ show recoveryAfterLag)
+      lossVecAfterLag = replicate lag 0.0 ++ lossVec  -- drop last lag elements
 
 patchLossRecovery trs (Just (A.RecoveryTiming (rr,rs)))
   = CF.dropTailEmptyTxns $ [ CF.tsSetRecovery recVal (CF.tsSetLoss loss r) | (recVal,loss,r) <- zip3 sumRecovery sumLoss trs ]
