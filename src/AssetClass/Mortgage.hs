@@ -459,7 +459,7 @@ instance Ast.Asset Mortgage where
         flowsWithEx = flows ++ extendTxns (last flows) extraDates
         (txns,_) = projScheduleCashflowByDefaultAmt 
                      (begBal,begDate,begRate,begMbn) 
-                     (flowsWithEx,(expectedDefaultBals,unAppliedDefaultBals),ppyRates) `debug` ("exted flows"++ show flowsWithEx)
+                     (flowsWithEx,(expectedDefaultBals,unAppliedDefaultBals),ppyRates) -- `debug` ("exted flows"++ show flowsWithEx)
         (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns amr) -- `debug` ("txn"++show txns)
 
 
