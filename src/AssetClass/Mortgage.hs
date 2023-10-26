@@ -356,7 +356,7 @@ instance Ast.Asset Mortgage where
         unAppliedDefaultBals = tail $ scanl (-) dBal expectedDefaultBals
         remainTerms = paddingDefault 0 (reverse [0..(length cfDates - recoveryLag)]) (length cfDates)
         txns = projCashflowByDefaultAmt (cb,lastPayDate,prinPayType,p,cr,mbn) (cfDates,(expectedDefaultBals,unAppliedDefaultBals),ppyRates,rateVector,remainTerms)
-        (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
+        (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
   
   -- project current adjMortgage with total default amt
   projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) 
@@ -390,7 +390,7 @@ instance Ast.Asset Mortgage where
         recoveryLag = maybe 0 getRecoveryLag amr
         remainTerms = paddingDefault 0 (reverse [0..(length cfDates - recoveryLag)]) (length cfDates)
         txns = projCashflowByDefaultAmt (cb,lastPayDate,prinPayType,p,cr,mbn) (cfDates,(expectedDefaultBals,unAppliedDefaultBals),ppyRates,rateVector,remainTerms)
-        (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
+        (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
   
   -- project schedule cashflow with total default amount
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
@@ -413,7 +413,7 @@ instance Ast.Asset Mortgage where
         (txns,_) = projScheduleCashflowByDefaultAmt 
                      (begBal,begDate,begRate,begMbn) 
                      (flows,(expectedDefaultBals,unAppliedDefaultBals),ppyRates)
-        (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
+        (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
 
 
   -- project current mortgage(without delinq)

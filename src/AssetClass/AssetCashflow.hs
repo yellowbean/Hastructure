@@ -3,7 +3,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.AssetCashflow
-  (applyHaircut,patchPrepayPentalyFlow,getRecoveryLag,decreaseBorrowerNum)
+  (applyHaircut,patchPrepayPentalyFlow,getRecoveryLag,decreaseBorrowerNum
+  ,patchLossRecovery)
   where
 
 import qualified Data.Time as T
@@ -29,6 +30,7 @@ import AssetClass.AssetBase
 import Debug.Trace
 import qualified Assumptions as A 
 import GHC.Float.RealFracMethods (truncateFloatInteger)
+import Cashflow (mflowDefault)
 debug = flip trace
 
 applyHaircut :: Maybe A.ExtraStress -> CF.CashFlowFrame -> CF.CashFlowFrame
@@ -125,7 +127,6 @@ getRecoveryLag :: A.RecoveryAssumption -> Int
 getRecoveryLag (A.Recovery (_,lag)) = lag 
 getRecoveryLag (A.RecoveryTiming (_,rs)) = length rs
 
-
 decreaseBorrowerNum :: Balance -> Balance -> Maybe BorrowerNum -> Maybe Int
 decreaseBorrowerNum bb eb mBn 
   = case mBn of
@@ -137,3 +138,34 @@ decreaseBorrowerNum bb eb mBn
                    0.0
                  else
                    divideBB eb bb
+
+patchLossRecovery :: [CF.TsRow] -> Maybe A.RecoveryAssumption -> [CF.TsRow]
+patchLossRecovery trs Nothing 
+  = [  CF.tsSetRecovery 0 (CF.tsSetLoss d r) | (d,r) <- zip defaultVec trs ]
+    where 
+      defaultVec = mflowDefault <$> trs
+
+
+-- ^ make sure trs has empty rows with length=lag. as it drop extended rows
+patchLossRecovery trs (Just (A.Recovery (rr,lag)))
+  = [  CF.tsSetRecovery recovery (CF.tsSetLoss loss r) | (r,recovery,loss) <- zip3 trs recoveryAfterLag lossVecAfterLag]
+    where 
+      defaultVec = mflowDefault <$> trs
+      recoveriesVec = (`mulBR` rr) <$> defaultVec
+      recoveryAfterLag = replicate lag 0.0 ++ recoveriesVec   -- drop last lag elements
+      lossVec = (`mulBR` (1-rr)) <$> defaultVec
+      lossVecAfterLag = replicate lag 0.0 ++ lossVec  -- drop last lag elements
+
+patchLossRecovery trs (Just (A.RecoveryTiming (rr,rs)))
+  = [ CF.tsSetRecovery recVal (CF.tsSetLoss loss r) | (recVal,loss,r) <- zip3 sumRecovery sumLoss trs ]
+    where
+      cfLength = length trs 
+      rLength = length rs
+      defaultVec = mflowDefault <$> trs
+      recoveriesVec = [ mulBR defaultVal <$> rs  | defaultVal <- defaultVec ] 
+      offsets = [0..(length defaultVec - rLength)]
+      paddedRecoveries = [ paddingDefault 0 (replicate prePadding 0 ++ recVal) cfLength 
+                          | (prePadding,recVal) <- zip offsets recoveriesVec ]
+      sumRecovery = sum <$> transpose paddedRecoveries
+      lossVec = [ mulBR defaultVal (1-rr) | defaultVal <- defaultVec ]
+      sumLoss = replicate (pred rLength) 0.0 ++ lossVec

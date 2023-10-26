@@ -214,7 +214,7 @@ replace xs i e
                    (before, _:after) -> before ++ e: after
                    _ -> xs
 
--- ^ padding default value to list ,make it length with N
+-- ^ padding default value to end of list ,make it length with N
 paddingDefault :: a -> [a] -> Int -> [a]
 paddingDefault x xs s 
   | length xs > s = take s xs
