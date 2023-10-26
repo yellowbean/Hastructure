@@ -253,6 +253,43 @@ projCashflowByDefaultAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDefaultB
        [initRow]
        (zip5 cfDates (zip expectedDefaultBals unAppliedDefaultBals) ppyRates rateVector remainTerms)
 
+-- | implementation on projection via delinq balance amount
+-- projCashflowByDelinqAmt :: (Balance, Date, AmortPlan, Period,IRate,Maybe BorrowerNum) -> (Dates, ([Balance],[Balance]), [Rate], [IRate], [Int]) -> [CF.TsRow]
+-- projCashflowByDelinqAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDelinqBals,unAppliedDelinqBals), ppyRates, rateVector, remainTerms) = 
+--   let 
+--     initRow = CF.MortgageFlow lastPayDate cb 0.0 0.0 0.0 0.0 0.0 0.0 cr mbn Nothing Nothing
+--   in 
+--     foldl
+--        (\acc (pDate, (defaultBal,futureDefualtBal), ppyRate, rate, rt)
+--          -> let 
+--              begBal = CF.mflowBalance (last acc)  
+--              mBorrower = CF.mflowBorrowerNum (last acc)   
+--              newDefault = if begBal <= (defaultBal+futureDefualtBal) then
+--                              begBal  
+--                            else
+--                              defaultBal   
+--              newPrepay = mulBR (max 0 (begBal - newDefault)) ppyRate  -- `debug` ("mb from last"++ show mBorrower) 
+--              newInt = mulBI (max 0 (begBal - newDefault - newPrepay)) (periodRateFromAnnualRate p rate)
+--              intBal = max 0 $ begBal - newDefault - newPrepay
+--              newPrin = case pt of 
+--                          Level -> let 
+--                                      pmt = calcPmt intBal (periodRateFromAnnualRate p rate) rt -- `debug` ("PMT with rt"++ show rt)
+--                                   in 
+--                                     pmt - newInt
+--                          Even -> intBal / fromIntegral rt
+--                          _ -> error ("Unsupport Prin type for mortgage"++ show pt)
+--              endBal = intBal - newPrin
+--              newMbn = decreaseBorrowerNum begBal endBal mBorrower 
+--            in 
+--              acc ++ [CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0
+--                        rate newMbn Nothing Nothing]                    
+--          )
+--        [initRow]
+--        (zip5 cfDates (zip expectedDelinqBals unAppliedDelinqBals) ppyRates rateVector remainTerms)
+
+
+
+
 -- | implementation on projection via default balance amount
 projScheduleCashflowByDefaultAmt :: (Balance, Date,IRate,Maybe BorrowerNum) -> ([CF.TsRow], ([Balance],[Balance]), [Rate] ) -> ([CF.TsRow], Rate)
 projScheduleCashflowByDefaultAmt (cb,lastPayDate,cr,mbn) (scheduleFlows,(expectedDefaultBals,unAppliedDefaultBals), ppyRates) = 

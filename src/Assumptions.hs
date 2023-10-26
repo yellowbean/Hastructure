@@ -84,7 +84,7 @@ data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepayByAmt (Balance,[Rate])
                            deriving (Show,Generic)
 
-data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)    -- ^ Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
+data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^ Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
                                 | DelinqByAmt (Balance,[Rate]) (Lag,Rate)
                                 | Dummy3
                                 deriving (Show,Generic)
