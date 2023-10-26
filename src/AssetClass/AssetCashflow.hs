@@ -128,6 +128,7 @@ getRecoveryLag (A.Recovery (_,lag)) = lag
 getRecoveryLag (A.RecoveryTiming (_,rs)) = length rs
 
 decreaseBorrowerNum :: Balance -> Balance -> Maybe BorrowerNum -> Maybe Int
+decreaseBorrowerNum bb 0 mBn = Nothing
 decreaseBorrowerNum bb eb mBn 
   = case mBn of
       Nothing -> Nothing::(Maybe BorrowerNum)
@@ -141,7 +142,7 @@ decreaseBorrowerNum bb eb mBn
 
 patchLossRecovery :: [CF.TsRow] -> Maybe A.RecoveryAssumption -> [CF.TsRow]
 patchLossRecovery trs Nothing 
-  = [  CF.tsSetRecovery 0 (CF.tsSetLoss d r) | (d,r) <- zip defaultVec trs ]
+  = [  CF.tsSetRecovery 0 (CF.tsSetLoss d r) | (d,r) <- zip defaultVec trs ] -- `debug` ("Hit Nothign on recovery"++ show defaultVec)
     where 
       defaultVec = mflowDefault <$> trs
 

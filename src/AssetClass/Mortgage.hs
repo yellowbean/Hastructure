@@ -311,7 +311,10 @@ projScheduleCashflowByDefaultAmt (cb,lastPayDate,cr,mbn) (scheduleFlows,(expecte
              newPrepay = mulBR (max 0 (begBal - newDefault)) ppyRate  -- `debug` ("mb from last"++ show mBorrower) 
              
              intBal = max 0 $ begBal - newDefault - newPrepay
-             defRate = divideBB newDefault (begBal - newPrepay)
+             defRate = if (begBal - newPrepay) /= 0 then 
+                         divideBB newDefault (begBal - newPrepay)
+                       else
+                         0
              newFactor = (1 - ppyRate) * (1 - defRate) * factor
              newInt = mulBR (CF.mflowInterest cflow) newFactor
              newPrin = mulBR (CF.mflowPrincipal cflow) newFactor
@@ -435,7 +438,7 @@ instance Ast.Asset Mortgage where
   -- project schedule cashflow with total default amount
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
               assumps@(pAssump@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams ),dAssump,fAssump) _
-    = (applyHaircut ams (CF.CashFlowFrame futureTxns) ,historyM)
+    = (applyHaircut ams (CF.CashFlowFrame futureTxns) ,historyM) -- `debug` ("Future txn"++ show futureTxns)
       where
         begBal =  CF.mflowBegBalance $ head flows
         begDate = getDate $ head flows 
@@ -453,7 +456,7 @@ instance Ast.Asset Mortgage where
         (txns,_) = projScheduleCashflowByDefaultAmt 
                      (begBal,begDate,begRate,begMbn) 
                      (flows,(expectedDefaultBals,unAppliedDefaultBals),ppyRates)
-        (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
+        (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns amr) -- `debug` ("txn"++show txns)
 
 
   -- project current mortgage(without delinq)
