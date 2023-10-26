@@ -237,16 +237,17 @@ projCashflowByDefaultAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDefaultB
                              defaultBal   
              newPrepay = mulBR (max 0 (begBal - newDefault)) ppyRate  -- `debug` ("mb from last"++ show mBorrower) 
              newInt = mulBI (max 0 (begBal - newDefault - newPrepay)) (periodRateFromAnnualRate p rate)
-             intBal = max 0 $ begBal - newDefault - newPrepay
-             newPrin = case pt of 
-                         Level -> let 
-                                     pmt = calcPmt intBal (periodRateFromAnnualRate p rate) rt -- `debug` ("PMT with rt"++ show rt)
+             intBal = max 0 $ begBal - newDefault - newPrepay `debug` ("using rt"++ show rt)
+             newPrin = case (rt,pt) of 
+                         (0,_) -> intBal
+                         (_,Level) -> let 
+                                    pmt = calcPmt intBal (periodRateFromAnnualRate p rate) rt -- `debug` ("PMT with rt"++ show rt)
                                   in 
                                     pmt - newInt
-                         Even -> intBal / fromIntegral rt
+                         (_,Even) -> intBal / fromIntegral rt
                          _ -> error ("Unsupport Prin type for mortgage"++ show pt)
              endBal = intBal - newPrin
-             newMbn = decreaseBorrowerNum begBal endBal mBorrower 
+             newMbn = decreaseBorrowerNum begBal endBal mBorrower  -- `debug` (">>> pdate"++ show pDate)
            in 
              acc ++ [CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0
                        rate newMbn Nothing Nothing]                    
@@ -411,7 +412,8 @@ instance Ast.Asset Mortgage where
         expectedDefaultBals = paddingDefault 0 (mulBR dBal <$> vs) (length cfDates)
         unAppliedDefaultBals = tail $ scanl (-) dBal expectedDefaultBals
         remainTerms = paddingDefault 0 (reverse [0..(length cfDates - recoveryLag)]) (length cfDates)
-        txns = projCashflowByDefaultAmt (cb,lastPayDate,prinPayType,p,cr,mbn) (cfDates,(expectedDefaultBals,unAppliedDefaultBals),ppyRates,rateVector,remainTerms)
+        txns = projCashflowByDefaultAmt (cb,lastPayDate,prinPayType,p,cr,mbn) 
+                                        (cfDates,(expectedDefaultBals,unAppliedDefaultBals),ppyRates,rateVector,remainTerms)
         (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
   
   -- project current adjMortgage with total default amt

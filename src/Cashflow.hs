@@ -18,7 +18,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
-                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,extendTxns) where
+                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,extendTxns,dropTailEmptyTxns) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -671,6 +671,21 @@ patchBeginBalance d cf@(CashFlowFrame txns)
 
 extendTxns :: TsRow -> [Date] -> [TsRow]      
 extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
+
+isEmptyRow :: TsRow -> Bool 
+isEmptyRow (MortgageDelinqFlow _ 0 0 0 0 0 0 0 0 _ _ _ _) = True
+isEmptyRow (MortgageDelinqFlow {}) = False
+isEmptyRow (MortgageFlow _ 0 0 0 0 0 0 0 _ _ _ _) = True
+isEmptyRow (MortgageFlow {}) = False
+isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
+isEmptyRow (LoanFlow {}) = False
+isEmptyRow (LeaseFlow _ 0 0) = True
+isEmptyRow (LeaseFlow {}) = False
+
+
+dropTailEmptyTxns :: [TsRow] -> [TsRow]
+dropTailEmptyTxns trs 
+  = reverse $ dropWhile isEmptyRow (reverse trs)
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

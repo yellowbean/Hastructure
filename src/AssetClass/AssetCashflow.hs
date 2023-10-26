@@ -142,13 +142,13 @@ decreaseBorrowerNum bb eb mBn
 
 patchLossRecovery :: [CF.TsRow] -> Maybe A.RecoveryAssumption -> [CF.TsRow]
 patchLossRecovery trs Nothing 
-  = [  CF.tsSetRecovery 0 (CF.tsSetLoss d r) | (d,r) <- zip defaultVec trs ] -- `debug` ("Hit Nothign on recovery"++ show defaultVec)
+  = CF.dropTailEmptyTxns $ [ CF.tsSetRecovery 0 (CF.tsSetLoss d r) | (d,r) <- zip defaultVec trs ] -- `debug` ("Hit Nothign on recovery"++ show defaultVec)
     where 
       defaultVec = mflowDefault <$> trs
 
 -- ^ make sure trs has empty rows with length=lag. as it drop extended rows
 patchLossRecovery trs (Just (A.Recovery (rr,lag)))
-  = [  CF.tsSetRecovery recovery (CF.tsSetLoss loss r) | (r,recovery,loss) <- zip3 trs recoveryAfterLag lossVecAfterLag]
+  = CF.dropTailEmptyTxns $ [ CF.tsSetRecovery recovery (CF.tsSetLoss loss r) | (r,recovery,loss) <- zip3 trs recoveryAfterLag lossVecAfterLag]
     where 
       defaultVec = mflowDefault <$> trs
       recoveriesVec = (`mulBR` rr) <$> defaultVec
@@ -157,7 +157,7 @@ patchLossRecovery trs (Just (A.Recovery (rr,lag)))
       lossVecAfterLag = replicate (succ lag) 0.0 ++ lossVec  -- drop last lag elements
 
 patchLossRecovery trs (Just (A.RecoveryTiming (rr,rs)))
-  = [ CF.tsSetRecovery recVal (CF.tsSetLoss loss r) | (recVal,loss,r) <- zip3 sumRecovery sumLoss trs ]
+  = CF.dropTailEmptyTxns $ [ CF.tsSetRecovery recVal (CF.tsSetLoss loss r) | (recVal,loss,r) <- zip3 sumRecovery sumLoss trs ]
     where
       cfLength = length trs 
       rLength = length rs
