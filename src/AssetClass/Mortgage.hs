@@ -2,7 +2,9 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module AssetClass.Mortgage  (projectMortgageFlow,projectScheduleFlow,updateOriginDate,getOriginInfo)
+module AssetClass.Mortgage  
+  (projectMortgageFlow,projectScheduleFlow,updateOriginDate,getOriginInfo
+  ,buildARMrates)
   where
 
 import qualified Data.Time as T
@@ -238,8 +240,8 @@ projCashflowByDefaultAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDefaultB
              newPrin = case pt of 
                          Level -> let 
                                      pmt = calcPmt intBal (periodRateFromAnnualRate p rate) rt -- `debug` ("PMT with rt"++ show rt)
-                                   in 
-                                     pmt - newInt
+                                  in 
+                                    pmt - newInt
                          Even -> intBal / fromIntegral rt
                          _ -> error ("Unsupport Prin type for mortgage"++ show pt)
              endBal = intBal - newPrin
@@ -287,7 +289,20 @@ projScheduleCashflowByDefaultAmt (cb,lastPayDate,cr,mbn) (scheduleFlows,(expecte
        ([initRow],1.0)
        (zip3 scheduleFlows (zip expectedDefaultBals unAppliedDefaultBals) ppyRates)
 
-
+buildARMrates :: IR.RateType -> (ARM,Date,Date,Date,IRate) -> Maybe [RateAssumption] -> Ts
+buildARMrates (IR.Fix _ _ ) _ _ = error "ARM should have floater rate"
+buildARMrates (IR.Floater _ idx sprd initRate dp _ _ mRoundBy ) 
+              (arm, startDate, firstResetDate, lastCfDate, beginRate) mRates
+  = let 
+      resetDates = genSerialDatesTill2 IE firstResetDate dp lastCfDate
+      projectFutureActualCurve = runInterestRate2 arm (startDate,beginRate) or resetDates
+    in 
+      case A.getRateAssumption (fromMaybe [] mRates) idx of
+        Just (RateCurve idx curve) 
+          -> projectFutureActualCurve curve 
+        Just (RateFlat idx v) 
+          -> projectFutureActualCurve (mkRateTs [(startDate, v),(lastCfDate,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
+        Nothing -> error $ "Failed to find index"++ show idx
 
 instance Ast.Asset Mortgage where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype _)  _bal _rate _term _mbn Current) d mRates
@@ -371,19 +386,7 @@ instance Ast.Asset Mortgage where
 
         lastPayDate:cfDates = sliceDates (SliceOnAfterKeepPrevious asOfDay)  $ lastN (rt + recoveryLag + 1) $ sd:getPaymentDates m recoveryLag 
         ppyRates = Ast.buildPrepayRates (lastPayDate:cfDates) amp
-        rateCurve = case or of
-                        IR.Fix _ r ->  error "ARM should have floater rate"
-                        IR.Floater _ idx sprd initRate dp _ _ mRoundBy ->
-                          let 
-                            resetDates = genSerialDatesTill2 IE firstResetDate dp (last cfDates)
-                            projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
-                          in 
-                            case A.getRateAssumption (fromMaybe [] mRates) idx of
-                              Just (RateCurve idx curve) 
-                                -> projectFutureActualCurve curve 
-                              Just (RateFlat idx v) 
-                                -> projectFutureActualCurve (mkRateTs [(getOriginDate m,v),(last cfDates,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
-                              Nothing -> error $ "Failed to find index"++ show idx
+        rateCurve = buildARMrates or (arm, sd, firstResetDate, last cfDates, getOriginRate m) mRates
         rateVector = fromRational <$> getValByDates rateCurve Inc cfDates 
         expectedDefaultBals = paddingDefault 0 (mulBR dBal <$> vs) (length cfDates)
         unAppliedDefaultBals = tail $ scanl (-) dBal expectedDefaultBals
@@ -421,11 +424,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams ,_ ,_) 
                mRates =
-    let 
-      (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
-    in 
-      (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns)
-      ,historyM)
+      (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
     where
       (ppy_rates,def_rates,recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDefRecRate 
                                                          (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams) -- `debug` ("Rate vector"++ show rate_vector)
@@ -437,6 +436,7 @@ instance Ast.Asset Mortgage where
       txns = projectMortgageFlow [] cb mbn lastPayDate cfDates def_rates ppy_rates 
                                  (replicate cfDatesLength 0.0) (replicate cfDatesLength 0.0) rateVector 
                                  (recoveryLag,recoveryRate) p prinPayType   
+      (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
 
   -- project current mortgage(with delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 
@@ -494,20 +494,7 @@ instance Ast.Asset Mortgage where
       lastPayDate:cfDates = sliceDates (SliceOnAfterKeepPrevious asOfDay)  $ lastN (rt + recoveryLag + 1) $ sd:getPaymentDates m recoveryLag 
       
       cfDatesLength = length cfDates -- `debug` (" cf dates >>" ++ show (last_pay_date:cf_dates ))
-      rateCurve = case or of
-                      IR.Fix _ r ->  error "ARM should have floater rate"
-                      IR.Floater _ idx sprd initRate dp _ _ mRoundBy ->
-                        let 
-                          resetDates = genSerialDatesTill2 IE firstResetDate dp (last cfDates)
-                          projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
-                        in 
-                          case A.getRateAssumption (fromMaybe [] mRates) idx of
-                            Just (RateCurve idx curve) 
-                              -> projectFutureActualCurve curve -- `debug` ("Curve")
-                            Just (RateFlat idx v) 
-                              -> projectFutureActualCurve (mkRateTs [(getOriginDate m,v),(last cfDates,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
-                            Nothing -> error $ "Failed to find index"++ show idx
-
+      rateCurve = buildARMrates or (arm, sd, firstResetDate, last cfDates, getOriginRate m) mRates
       rateVector = fromRational <$> getValByDates rateCurve Inc cfDates -- `debug` ("RateCurve"++ show rate_curve)
 
       (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams)
@@ -526,20 +513,7 @@ instance Ast.Asset Mortgage where
       firstResetDate = monthsAfter sd (toInteger (succ initPeriod))
       lastPayDate:cfDates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:getPaymentDates m recoveryLag  
       cfDatesLength = length cfDates 
-      rateCurve = case or of
-                      IR.Fix _ r ->  error "ARM should have floater rate"
-                      IR.Floater _ idx sprd initRate dp _ _ mRoundBy ->
-                        let 
-                          resetDates = genSerialDatesTill2 IE firstResetDate dp (last cfDates)
-                          projectFutureActualCurve = runInterestRate2 arm (sd,getOriginRate m) or resetDates
-                        in 
-                          case A.getRateAssumption (fromMaybe [] mRates) idx of
-                            Just (RateCurve idx curve) 
-                              -> projectFutureActualCurve curve -- `debug` ("Curve")
-                            Just (RateFlat idx v) 
-                              -> projectFutureActualCurve (mkRateTs [(getOriginDate m,v),(last cfDates,v)]) -- `debug` ("lpd"++show last_pay_date++"lpd"++ show (last cf_dates))
-                            Nothing -> error $ "Failed to find index"++ show idx
-      
+      rateCurve = buildARMrates or (arm, sd, firstResetDate, last cfDates, getOriginRate m) mRates
       rateVector = fromRational <$> getValByDates rateCurve Inc cfDates -- `debug` ("RateCurve"++ show rate_curve)                                  
 
       (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams)
