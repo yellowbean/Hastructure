@@ -18,7 +18,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
-                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance) where
+                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,extendTxns) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -518,7 +518,7 @@ emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
 buildBegTsRow :: Date -> TsRow -> TsRow
 -- ^ given a cashflow,build a new cf row with begin balance
 buildBegTsRow d tr 
-  = (tsSetBalance (mflowBalance tr + mflowAmortAmount tr)) (emptyTsRow d tr)
+  = tsSetBalance (mflowBalance tr + mflowAmortAmount tr) (emptyTsRow d tr)
 
 insertBegTsRow :: Date -> CashFlowFrame -> CashFlowFrame
 insertBegTsRow d (CashFlowFrame []) = CashFlowFrame []
@@ -603,12 +603,12 @@ splitTs r (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPP
   = MortgageDelinqFlow d (mulBR bal r) (mulBR p r) (mulBR i r) (mulBR ppy r)
                        (mulBR delinq r) (mulBR def r) (mulBR recovery r) (mulBR loss r)
                        rate ((\x -> round (toRational x * r)) <$> mB) ((`mulBR` r) <$> mPPN)
-                       ((splitStats r) <$> mStat)
+                       (splitStats r <$> mStat)
 splitTs r (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN mStat)
   = MortgageFlow d (mulBR bal r) (mulBR p r) (mulBR i r) (mulBR ppy r)
                        (mulBR def r) (mulBR recovery r) (mulBR loss r)
                        rate ((\x -> round (toRational x * r)) <$> mB) ((`mulBR` r) <$> mPPN)
-                       ((splitStats r) <$> mStat)
+                       (splitStats r <$> mStat)
 splitTs _ tr = error $ "Not support for spliting TsRow"++show tr
 
 splitTrs :: Rate -> [TsRow] -> [TsRow]
@@ -668,7 +668,9 @@ patchBeginBalance d cf@(CashFlowFrame txns)
       begRow = buildBegTsRow d (head txns)
     in 
       CashFlowFrame (begRow:txns)
-      
+
+extendTxns :: TsRow -> [Date] -> [TsRow]      
+extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

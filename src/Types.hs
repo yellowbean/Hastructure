@@ -570,7 +570,7 @@ data RangeType = II     -- ^ include both start and end date
 
 data CutoffType = Inc 
                 | Exc
-                deriving (Show,Read,Generic)
+                deriving (Show,Read,Generic,Eq)
 
 data DateDirection = Future 
                    | Past

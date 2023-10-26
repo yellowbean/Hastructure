@@ -152,9 +152,9 @@ patchLossRecovery trs (Just (A.Recovery (rr,lag)))
     where 
       defaultVec = mflowDefault <$> trs
       recoveriesVec = (`mulBR` rr) <$> defaultVec
-      recoveryAfterLag = replicate lag 0.0 ++ recoveriesVec   -- drop last lag elements
+      recoveryAfterLag = replicate (succ lag) 0.0 ++ recoveriesVec   -- drop last lag elements
       lossVec = (`mulBR` (1-rr)) <$> defaultVec
-      lossVecAfterLag = replicate lag 0.0 ++ lossVec  -- drop last lag elements
+      lossVecAfterLag = replicate (succ lag) 0.0 ++ lossVec  -- drop last lag elements
 
 patchLossRecovery trs (Just (A.RecoveryTiming (rr,rs)))
   = [ CF.tsSetRecovery recVal (CF.tsSetLoss loss r) | (recVal,loss,r) <- zip3 sumRecovery sumLoss trs ]
