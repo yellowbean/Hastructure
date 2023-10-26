@@ -328,7 +328,7 @@ projScheduleCashflowByDefaultAmt (cb,lastPayDate,cr,mbn) (scheduleFlows,(expecte
 
 buildARMrates :: IR.RateType -> (ARM,Date,Date,Date,IRate) -> Maybe [RateAssumption] -> Ts
 buildARMrates (IR.Fix _ _ ) _ _ = error "ARM should have floater rate"
-buildARMrates (IR.Floater _ idx sprd initRate dp _ _ mRoundBy ) 
+buildARMrates or@(IR.Floater _ idx sprd initRate dp _ _ mRoundBy ) 
               (arm, startDate, firstResetDate, lastCfDate, beginRate) mRates
   = let 
       resetDates = genSerialDatesTill2 IE firstResetDate dp lastCfDate
