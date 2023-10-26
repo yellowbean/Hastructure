@@ -28,11 +28,11 @@ intTests =
      [
       testCase "Build EarnIntAction" $
         assertEqual "QuarterEnd" 
-          [("A1",(genSerialDates QuarterEnd (toDate "20221001") 5))] $ 
+          [("A1",(genSerialDates QuarterEnd Inc (toDate "20221001") 5))] $ 
           buildEarnIntAction [acc1] (toDate "20231231") []
       ,testCase "Build EarnIntAction Same Year" $
         assertEqual "QuarterEnd Same Year" 
-          [("A1",(genSerialDates QuarterEnd (toDate "20221001") 1))] $ 
+          [("A1",(genSerialDates QuarterEnd Inc (toDate "20221001") 1))] $ 
           buildEarnIntAction [acc1] (toDate "20221231") []
       ,testCase "Validate Interest Calculation 1" $
         assertEqual "MonthEnd with No txn"

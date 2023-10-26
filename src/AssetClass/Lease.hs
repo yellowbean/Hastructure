@@ -65,7 +65,7 @@ nextLease l@(RegularLease (LeaseInfo sd ot dp dr) bal rt _) (rcCurve,tc,gd)
         leaseEndDate = last $ projectCfDates dp sd ot 
         nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
         nextOriginTerm = round $ mulIR ot (1+tc) 
-        nextEndDate = last $ genSerialDates dp nextStartDate (fromIntegral nextOriginTerm)
+        nextEndDate = last $ genSerialDates dp Inc nextStartDate (fromIntegral nextOriginTerm)
         yearsBetween = yearCountFraction DC_ACT_365F sd nextStartDate
         currentRateOnCurve = getValByDate rcCurve Exc nextStartDate
         nextDailyRate = dr + mulBR dr currentRateOnCurve*(fromRational yearsBetween)
@@ -77,7 +77,7 @@ nextLease l@(StepUpLease (LeaseInfo sd ot dp dr) lsteupInfo bal rt _) (rcCurve,t
         leaseEndDate = last $ projectCfDates dp sd ot 
         nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
         nextOriginTerm = round $ mulIR ot (1+tc) 
-        nextEndDate = last $ genSerialDates dp nextStartDate (fromIntegral nextOriginTerm)
+        nextEndDate = last $ genSerialDates dp Inc nextStartDate (fromIntegral nextOriginTerm)
         yearsBetween = yearCountFraction DC_ACT_365F sd nextStartDate
         currentRateOnCurve = getValByDate rcCurve Exc nextStartDate
         nextDailyRate = dr + mulBR dr currentRateOnCurve*(fromRational yearsBetween)
@@ -115,12 +115,12 @@ getGapDaysByBalance l tbl@(rows,defaultVal) =
 projectCfDates :: DatePattern -> Date -> Int -> [Date]
 projectCfDates dp sd ot
   = let  
-        cf_dates_proj = genSerialDates dp sd ot
+        cf_dates_proj = genSerialDates dp Inc sd ot
     in 
         if head cf_dates_proj == sd then 
-            genSerialDates dp sd (succ ot)
+            genSerialDates dp Inc sd (succ ot)
         else
-            [sd]++cf_dates_proj
+            sd:cf_dates_proj
 
 
 -- ^ return a lease contract with opening balance and a payment cashflow on each payment date
@@ -184,10 +184,10 @@ instance Asset Lease where
         bals = tail $ scanl (-) bal pmts -- `debug` ("4"++show pmts)     -- `debug` ("PMTS->"++ show pmts) 
 
     getPaymentDates l@(RegularLease (LeaseInfo sd ot dp _) _ rt _) _
-        = genSerialDates dp sd ot 
+        = genSerialDates dp Inc sd ot 
 
     getPaymentDates l@(StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) _
-        = genSerialDates dp sd ot 
+        = genSerialDates dp Inc sd ot 
 
     getOriginDate (StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) = sd
     getOriginDate (RegularLease (LeaseInfo sd ot dp _) _ rt _)  = sd
