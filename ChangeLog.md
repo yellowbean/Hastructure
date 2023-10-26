@@ -2,7 +2,8 @@
 
 ## 0.22.1
 ### 2023-11-1
-
+* NEW: add `default by amount` assumption, which enable user to set a `total amount of default` alongside with a vector.
+* ENHANCE: misc refactors
 
 
 ## 0.22.0
