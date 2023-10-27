@@ -18,7 +18,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
-                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,extendTxns,dropTailEmptyTxns) where
+                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,patchCumulative,extendTxns,dropTailEmptyTxns) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -631,7 +631,7 @@ patchCumulative :: CumulativeStat -> [TsRow] -> [TsRow] -> [TsRow]
 patchCumulative _ rs [] = reverse rs
 patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                 rs
-                ((MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN Nothing):trs)
+                ((MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN _):trs)
   = patchCumulative newSt
                     ((MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN (Just newSt)):rs)
                     trs
@@ -639,7 +639,7 @@ patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                    newSt = (cPrin+p,cPrepay+ppy,cDelinq+delinq,cDefault+def,cRecovery+recovery,cLoss+loss)
 patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                rs
-               ((MortgageFlow d bal p i ppy def recovery loss rate mB mPPN Nothing):trs)
+               ((MortgageFlow d bal p i ppy def recovery loss rate mB mPPN _):trs)
   = patchCumulative newSt
                    ((MortgageFlow d bal p i ppy def recovery loss rate mB mPPN (Just newSt)):rs)
                    trs
@@ -647,7 +647,7 @@ patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                   newSt = (cPrin+p,cPrepay+ppy,cDelinq,cDefault+def,cRecovery+recovery,cLoss+loss)
 patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
               rs
-              ((LoanFlow d bal p i ppy def recovery loss rate Nothing):trs)
+              ((LoanFlow d bal p i ppy def recovery loss rate _):trs)
   = patchCumulative newSt
                   ((LoanFlow d bal p i ppy def recovery loss rate (Just newSt)):rs)
                   trs

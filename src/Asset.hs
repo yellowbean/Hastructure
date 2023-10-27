@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Asset (Pool(..),aggPool
-       ,Asset(..),AggregationRule
+       ,Asset(..)
        ,getIssuanceField,calcPmt
        ,calcPiFlow,calc_p_i_flow_even,calc_p_i_flow_i_p
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
@@ -283,21 +283,27 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
       AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
 
 -- | Aggregate all cashflow into a single cashflow frame
-aggPool :: [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]  -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-aggPool [] = (CF.CashFlowFrame [],Map.empty)
-aggPool xs 
+-- patch with pool level cumulative defaults/loss etc
+aggPool :: Maybe (Map.Map CutoffFields Balance) -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+aggPool Nothing [] = (CF.CashFlowFrame [],Map.empty)
+aggPool (Just m) [] = (CF.CashFlowFrame [], m)
+aggPool mStat xs 
   = let
       cfs = fst <$> xs
-      cf = foldr1 CF.combine cfs 
+      CF.CashFlowFrame _txns = foldr1 CF.combine cfs 
       stats = foldr1 (Map.unionWith (+)) $ snd <$> xs
+      -- patch cumulative statistics
+      cumulativeStatAtCutoff = case mStat of
+                                 Nothing -> (0,0,0,0,0,0)
+                                 Just m -> (Map.findWithDefault 0 HistoryPrincipal m
+                                           ,Map.findWithDefault 0 HistoryPrepayment m
+                                           ,Map.findWithDefault 0 HistoryDelinquency m
+                                           ,Map.findWithDefault 0 HistoryDefaults m
+                                           ,Map.findWithDefault 0 HistoryRecoveries m
+                                           ,Map.findWithDefault 0 HistoryLoss m)
+      -- (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
+      txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns
     in
-      (cf,stats)
+      (CF.CashFlowFrame txns, stats)
     
-
-data AggregationRule = Regular Date Period
-                     | Custom Date [Date]
-
-
-
 $(deriveJSON defaultOptions ''Pool)
-$(deriveJSON defaultOptions ''AggregationRule)

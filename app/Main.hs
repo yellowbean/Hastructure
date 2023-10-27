@@ -241,10 +241,10 @@ wrapRun (LDeal d) mAssump mNonPerfAssump = let
                                        (LDeal _d,_pflow,_rs,_p)
 
 wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
-wrapRunPool (MPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
-wrapRunPool (LPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
-wrapRunPool (IPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
-wrapRunPool (RPool p) assump mRates = P.aggPool $ D.runPool p assump mRates
+wrapRunPool (MPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+wrapRunPool (LPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+wrapRunPool (IPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+wrapRunPool (RPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)
@@ -253,11 +253,11 @@ instance ToSchema RunAssetReq
 
 wrapRunAsset :: RunAssetReq -> ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates Nothing) 
-  = (P.aggPool ((\a -> D.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
+  = (P.aggPool Nothing ((\a -> D.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
 
 wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates (Just pm)) 
   = let 
-      assetCf = P.aggPool $ (\a -> D.projAssetUnion a d assumps mRates ) <$> assets 
+      assetCf = P.aggPool Nothing $ (\a -> D.projAssetUnion a d assumps mRates ) <$> assets 
       pricingResult = (\a -> D.priceAssetUnion a d pm assumps mRates) <$> assets
     in
       (assetCf , Just pricingResult)
