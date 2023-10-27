@@ -273,26 +273,38 @@ tsDefaultBal LeaseFlow {} = error "not supported"
 
 tsCumDefaultBal :: TsRow -> Balance
 tsCumDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
+tsCumDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
 tsCumDefaultBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
+tsCumDefaultBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
 tsCumDefaultBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
+tsCumDefaultBal (LoanFlow _ _ _ _ _ _ _ _ _  Nothing ) = 0.0
 tsCumDefaultBal x = error ("Failed to get cumulative default for record " ++ show x)
 
 tsCumDelinqBal :: TsRow -> Balance
 tsCumDelinqBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = c
+tsCumDelinqBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = 0.0
 tsCumDelinqBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = c
+tsCumDelinqBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing ) = 0.0
 tsCumDelinqBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = c
+tsCumDelinqBal (LoanFlow _ _ _ _ _ _ _ _ _ Nothing) = 0.0
 tsCumDelinqBal x = error ("Failed to get cumulative delinq for record " ++ show x)
 
 tsCumLossBal :: TsRow -> Balance
 tsCumLossBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = f
+tsCumLossBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
 tsCumLossBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = f
+tsCumLossBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
 tsCumLossBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = f
+tsCumLossBal (LoanFlow _ _ _ _ _ _ _ _ _ Nothing) = 0.0 
 tsCumLossBal x = error ("Failed to get cumulative loss for record " ++ show x)
 
 tsCumRecoveriesBal :: TsRow -> Balance
 tsCumRecoveriesBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = e
+tsCumRecoveriesBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = 0.0
 tsCumRecoveriesBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = e
+tsCumRecoveriesBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
 tsCumRecoveriesBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = e
+tsCumRecoveriesBal (LoanFlow _ _ _ _ _ _ _ _ _ Nothing) = 0.0
 tsCumRecoveriesBal x = error ("Failed to get cumulative loss for record " ++ show x)
 
 

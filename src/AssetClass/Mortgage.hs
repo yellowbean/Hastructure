@@ -442,7 +442,7 @@ instance Ast.Asset Mortgage where
   -- project schedule cashflow with total default amount
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
               assumps@(pAssump@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams ),dAssump,fAssump) _
-    = (applyHaircut ams (CF.CashFlowFrame futureTxns) ,historyM)  `debug` ("Future txn"++ show futureTxns)
+    = (applyHaircut ams (CF.CashFlowFrame futureTxns) ,historyM)  -- `debug` ("Future txn"++ show futureTxns)
       where
         begBal =  CF.mflowBegBalance $ head flows
         begDate = getDate $ head flows 
