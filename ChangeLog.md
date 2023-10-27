@@ -1,7 +1,12 @@
 # Changelog for Hastructure
 
+## 0.22.2
+### 2023-10-27
+* ENHANCE: expose cumulative stats on pool cashflow returned by `runDeal`
+
+
 ## 0.22.1
-### 2023-11-1
+### 2023-10-26
 * NEW: add `default by amount` assumption, which enable user to set a `total amount of default` alongside with a vector.
 * ENHANCE: misc refactors
 
