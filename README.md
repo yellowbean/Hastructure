@@ -3,7 +3,7 @@
 
 # What is Hastructure ?
 
-``Hastructure`` names after ``Haskell`` and ``Structured Finance``, targets to provide cashflow projection for deal/transactions describled in either Haskell structure or ``JSON`` via RESTful Service, given inputs from below:
+``Hastructure`` names after ``Haskell`` and ``Structured Finance``, aims to provide cashflow projection for deal/transactions described in either Haskell structure or ``JSON`` via RESTful Service, with inputs from below:
 
 * deal components (bonds,assets,accounts,waterfall,trigger,fees etc.) 
 * pool performance assumption input as well as interest rate assumption

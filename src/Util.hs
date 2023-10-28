@@ -3,7 +3,7 @@
 
 module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN
-    ,getValByDate,getValByDates 
+    ,getValByDate,getValByDates,scaleUpToOne
     ,calcInt,calcIntRate,calcIntRateCurve,divideBB
     ,multiplyTs,zipTs,getTsVals,getTsSize,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, getTsDates
@@ -117,9 +117,6 @@ getValByDate (RatioCurve dps) Inc d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
-
-
-
 getValByDate (ThresholdCurve dps) Inc d
   = case find (\(TsPoint _d _) -> d <= _d) dps  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
@@ -182,22 +179,22 @@ getTsSize ts = length (getTsVals ts)
 
 
 calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
-calcIntRate start_date end_date int_rate day_count =
+calcIntRate startDate endDate intRate dayCount =
   let 
-    yf = yearCountFraction day_count start_date end_date
+    yf = yearCountFraction dayCount startDate endDate
   in 
-    int_rate * (fromRational yf)
+    intRate * fromRational yf
 
 calcIntRateCurve :: DayCount -> IRate -> [Date] -> [IRate]
 calcIntRateCurve dc r ds 
   = [ calcIntRate sd ed r dc |  (sd,ed) <- zip (init ds) (tail ds) ]
 
 calcInt :: Balance -> Date -> Date -> IRate -> DayCount -> Amount
-calcInt bal start_date end_date int_rate day_count =
+calcInt bal startDate endDate intRate dayCount =
   let 
-    yfactor = yearCountFraction day_count start_date end_date
+    yfactor = yearCountFraction dayCount startDate endDate
   in 
-    mulBR bal (yfactor * (toRational int_rate)) 
+    mulBR bal (yfactor * toRational intRate) 
 
 zipTs :: [Date] -> [Rational] -> Ts 
 zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- (zip ds rs) ]
@@ -287,6 +284,14 @@ slice from to xs = take (to - from ) (drop from xs)
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
   = toRational $ 1 - fromRational (1-annualRate) ** (fromIntegral days / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
+
+scaleUpToOne :: [Rational] -> [Rational]
+scaleUpToOne rs =
+  let 
+    s = 1 / sum rs
+  in 
+    (s *) <$> rs 
+
 
 ----- DEBUG/PRINT
 -- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 
