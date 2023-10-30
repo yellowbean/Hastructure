@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module AssetClass.Installment 
+module AssetClass.FixedAsset
   ()
   where
 
@@ -32,3 +32,8 @@ import Debug.Trace
 import AssetClass.AssetCashflow
 import qualified Asset as Ast
 debug = flip trace
+
+
+instance Asset FixedAsset where 
+  getCurrentBal (FixedAsset _ _ _ _ bal ) = bal
+  
