@@ -44,6 +44,10 @@ data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 
                        -- | NMonthInterest Int
                        deriving (Show,Generic)
 
+data AmortRule = DoubleDecliningBalance
+               | Straight
+               deriving (Show,Generic)
+
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
                                           ,originTerm :: Int
@@ -61,6 +65,13 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                               ,originTerm :: Int             -- ^ total terms
                               ,paymentDates :: DatePattern   -- ^ payment dates pattern
                               ,originRental :: Amount}       -- ^ rental by day
+                  | FixedAsestInfo { startDate :: Date 
+                                     ,orginBalance :: Balance 
+                                     ,originTerm :: Int
+                                     ,period :: Period
+                                     ,accRule :: AmortRule
+                                     ,residualBalance :: Balance
+                                    }
                   deriving (Show,Generic)
 
 
@@ -91,6 +102,24 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic)
+
+-- FixedAsset 
+
+data Capacity = FixedCapcity Balance
+              | CapcityByTerm [(Int,Balance)]
+              deriving (Show,Generic)
+
+data AssociateExp = ExpPerPeriod Balance 
+                  | ExpPerUnit Balance
+                  deriving (Show,Generic)
+
+data AssociateIncome = IncomePerPeriod Balance 
+                     | IncomePerUnit Balance
+                      deriving (Show,Generic)
+
+data FixedAsset = FixedAsset OriginalInfo Capacity (Maybe AssociateExp) (Maybe AssociateIncome) Balance RemainTerms
+                deriving (Show,Generic)
+
 
 -- Base type to hold all asset types
 data AssetUnion = MO Mortgage

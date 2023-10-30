@@ -82,6 +82,8 @@ data TsRow = CashFlow Date Amount
            | MortgageDelinqFlow Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe CumulativeStat)
            | LeaseFlow Date Balance Rental
+           | FixedFlow Date Balance Amount Balance Amount (Maybe Balance) (Maybe Balance)
+                -- remain balance, amortized amount, unit, cash , mIncome, mExp
            deriving(Show,Eq,Ord,Generic)
 
 instance TimeSeries TsRow where 
@@ -91,6 +93,7 @@ instance TimeSeries TsRow where
     getDate (MortgageDelinqFlow x _ _ _ _ _ _ _ _ _ _ _ _) = x
     getDate (LoanFlow x _ _ _ _ _ _ _ _ _) = x
     getDate (LeaseFlow x _ _ ) = x
+    getDate (FixedFlow x _ _ _ _ _ _) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
                      deriving (Show,Eq,Generic)
@@ -693,6 +696,11 @@ isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
 isEmptyRow (LoanFlow {}) = False
 isEmptyRow (LeaseFlow _ 0 0) = True
 isEmptyRow (LeaseFlow {}) = False
+isEmptyRow (FixedFlow _ 0 0 0 0 Nothing Nothing) = True
+isEmptyRow (FixedFlow _ 0 0 0 0 (Just 0) Nothing) = True
+isEmptyRow (FixedFlow _ 0 0 0 0 (Just 0) (Just 0)) = True
+isEmptyRow (FixedFlow _ 0 0 0 0 Nothing (Just 0)) = True
+isEmptyRow (FixedFlow {}) = False
 
 
 dropTailEmptyTxns :: [TsRow] -> [TsRow]
