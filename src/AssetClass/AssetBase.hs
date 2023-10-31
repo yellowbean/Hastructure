@@ -152,6 +152,11 @@ instance IR.UseRate Lease where
   getIndex _ = Nothing
 
 
+$(deriveJSON defaultOptions ''AmortRule)
+$(deriveJSON defaultOptions ''Capacity)
+$(deriveJSON defaultOptions ''AssociateExp)
+$(deriveJSON defaultOptions ''AssociateIncome)
+$(deriveJSON defaultOptions ''FixedAsset)
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''OriginalInfo)
