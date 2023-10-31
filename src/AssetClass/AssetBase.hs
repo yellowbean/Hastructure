@@ -44,6 +44,10 @@ data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 
                        -- | NMonthInterest Int
                        deriving (Show,Generic)
 
+data AmortRule = DoubleDecliningBalance
+               | Straight
+               deriving (Show,Generic)
+
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
                                           ,originTerm :: Int
@@ -61,6 +65,13 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                               ,originTerm :: Int             -- ^ total terms
                               ,paymentDates :: DatePattern   -- ^ payment dates pattern
                               ,originRental :: Amount}       -- ^ rental by day
+                  | FixedAsestInfo { startDate :: Date 
+                                     ,orginBalance :: Balance 
+                                     ,originTerm :: Int
+                                     ,period :: Period
+                                     ,accRule :: AmortRule
+                                     ,residualBalance :: Balance
+                                    }
                   deriving (Show,Generic)
 
 
@@ -95,6 +106,23 @@ data MixedAsset = MixedPool (Map.Map String [AssetUnion])
                 | DUMMY2
                 deriving (Show,Generic)
 
+-- FixedAsset 
+
+data Capacity = FixedCapcity Balance
+              | CapcityByTerm [(Int,Balance)]
+              deriving (Show,Generic)
+
+data AssociateExp = ExpPerPeriod Balance 
+                  | ExpPerUnit Balance
+                  deriving (Show,Generic)
+
+data AssociateIncome = IncomePerPeriod Balance 
+                     | IncomePerUnit Balance
+                      deriving (Show,Generic)
+
+data FixedAsset = FixedAsset OriginalInfo Capacity (Maybe AssociateExp) (Maybe AssociateIncome) Balance RemainTerms
+                deriving (Show,Generic)
+
 
 -- Base type to hold all asset types
 data AssetUnion = MO Mortgage
@@ -126,6 +154,11 @@ instance IR.UseRate Lease where
   getIndex _ = Nothing
 
 
+$(deriveJSON defaultOptions ''AmortRule)
+$(deriveJSON defaultOptions ''Capacity)
+$(deriveJSON defaultOptions ''AssociateExp)
+$(deriveJSON defaultOptions ''AssociateIncome)
+$(deriveJSON defaultOptions ''FixedAsset)
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''OriginalInfo)

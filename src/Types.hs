@@ -383,6 +383,7 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | CollectedPrepayment             -- ^ prepayment
                 | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
                 | CollectedRental                 -- ^ rental from pool
+                | CollectedCash                   -- ^ cash from pool
                 | NewDefaults                     -- ^ new defaults in balance
                 | NewLosses                       -- ^ new losses in balance
                 | NewDelinquencies                -- ^ new delinquencies in balance
