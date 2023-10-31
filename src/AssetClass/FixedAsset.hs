@@ -47,7 +47,6 @@ instance Asset FixedAsset where
                (FixedAssetAssump uCurve pCurve)
                Nothing
   = let 
-      depreciations = []
       pdates = getPaymentDates fa rt
       amortizedBals = case (accRule fo) of 
                         Straight -> replicate rt $ divideBI ob ot
@@ -62,5 +61,6 @@ instance Asset FixedAsset where
       prices = getValByDates pCurve pdates
       cash = [ p * u | (p,u) <- zip prices units]
       cumuDepreciation = scanl (+) cumuDep amortizedBals 
+      txns = zipWith8 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash Nothing Nothing
     in 
-      CF.CashFlowFrame $  zipWith8 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash Nothing Nothing
+      (CF.CashFlowFrame $ cutBy asOfDay Inc Future txns,Map.Empty)

@@ -686,17 +686,21 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status} mAssumps mNonPerfAs
              , pool = patchIssuanceBalance status (CF.mflowBalance begRow) thePool
              } -- patching with performing balance
 
+readProceeds :: W.CollectionRule -> CF.TsRow -> Balance
+readProceeds CollectedInterest  row = CF.mflowInterest row
+readProceeds CollectedPrincipal row = CF.mflowPrincipal row
+readProceeds CollectedRecoveries row = CF.mflowRecovery row
+readProceeds CollectedPrepayment row = CF.mflowPrepayment row
+readProceeds CollectedRental     row = CF.mflowRental row
+readProceeds CollectedPrepaymentPenalty row =  CF.mflowPrepaymentPenalty row
+readProceeds CollectedCash row =  CF.tsTotalCash row
+readProceeds a b = error "failed to read pool cashflow rule"++show a
+
 depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
 depositInflow (W.Collect s an) d row amap 
   = Map.adjust (A.deposit amt d (PoolInflow s)) an amap
     where 
-      amt = case s of 
-              CollectedInterest   -> CF.mflowInterest row
-              CollectedPrincipal  -> CF.mflowPrincipal row
-              CollectedRecoveries -> CF.mflowRecovery row
-              CollectedPrepayment -> CF.mflowPrepayment row
-              CollectedRental     -> CF.mflowRental row
-              CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty row
+      amt = readProceeds s row
 
 
 depositInflow (W.CollectByPct s splitRules) d row amap    --TODO need to check 100%
@@ -707,14 +711,7 @@ depositInflow (W.CollectByPct s splitRules) d row amap    --TODO need to check 1
       amtsToAccs
     where 
       amtsToAccs = [ (an, mulBR amt splitRate) | (splitRate, an) <- splitRules]
-      amt = case s of 
-              CollectedInterest   -> CF.mflowInterest row
-              CollectedPrincipal  -> CF.mflowPrincipal row
-              CollectedRecoveries -> CF.mflowRecovery row
-              CollectedPrepayment -> CF.mflowPrepayment row
-              CollectedRental     -> CF.mflowRental row
-              CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty row
-              _ -> error $ "failed to match collection type"++ show s
+      amt = readProceeds s row
 
 depositInflow a _ _ _ = error $ "Failed to match collection rule"++ show a
 

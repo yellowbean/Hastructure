@@ -268,6 +268,7 @@ tsTotalCash (MortgageDelinqFlow x _ a b c _ _ e _ _ _ mPn _ ) = a + b + c + e + 
 tsTotalCash (MortgageFlow x _ a b c _ e _ _ _ mPn _) = a + b + c + e + fromMaybe 0 mPn
 tsTotalCash (LoanFlow _ _ a b c _ e _ _ _) =  a + b + c + e
 tsTotalCash (LeaseFlow _ _ a) =  a
+tsTotalCash (FixedFlow _ _ _ _ _ x mI mE) = x + fromMaybe 0 mI - fromMaybe 0 mE
 
 tsDefaultBal :: TsRow -> Balance
 tsDefaultBal CashFlow {} = error "not supported"
