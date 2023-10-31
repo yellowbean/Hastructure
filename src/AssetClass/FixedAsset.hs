@@ -37,3 +37,8 @@ debug = flip trace
 instance Asset FixedAsset where 
   getCurrentBal (FixedAsset _ _ _ _ bal ) = bal
   
+  projCashflow (FixedAsset fo _ _ _ _ ) 
+               asOfDay
+               (FixedAssetAssump uCurve pCurve)
+               Nothing
+  = CF.CashFlowFrame []

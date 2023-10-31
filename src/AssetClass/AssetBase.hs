@@ -120,6 +120,11 @@ data AssociateIncome = IncomePerPeriod Balance
 data FixedAsset = FixedAsset OriginalInfo Capacity (Maybe AssociateExp) (Maybe AssociateIncome) Balance RemainTerms
                 deriving (Show,Generic)
 
+$(deriveJSON defaultOptions ''Capacity)
+$(deriveJSON defaultOptions ''AssociateExp)
+$(deriveJSON defaultOptions ''AssociateIncome)
+$(deriveJSON defaultOptions ''FixedAsset)
+
 
 -- Base type to hold all asset types
 data AssetUnion = MO Mortgage
