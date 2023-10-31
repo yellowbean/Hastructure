@@ -27,6 +27,9 @@ import AssetClass.Mortgage
 import AssetClass.Lease
 import AssetClass.Loan
 import AssetClass.Installment
+
+import AssetClass.MixedAsset
+
 import qualified Call as C
 import qualified InterestRate as IR
 import Deal.DealBase
@@ -168,10 +171,7 @@ queryTrigger :: P.Asset a => TestDeal a -> DealCycle -> [Trigger]
 queryTrigger t@TestDeal{ triggers = trgs } wt 
   = case trgs of 
       Nothing -> []
-      Just _trgs -> case Map.lookup wt _trgs of 
-                      Nothing -> []
-                      Just _trgsM -> Map.elems _trgsM
-      
+      Just _trgs -> maybe [] Map.elems $ Map.lookup wt _trgs
 
 testTriggers :: P.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
 testTriggers t d [] = False
@@ -573,6 +573,15 @@ runPool (P.Pool as Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   in
     zipWith (\x a -> P.projCashflow x asof a mRates) as _assumps
 
+-- mixed asset
+runPool (P.Pool mixedAsset Nothing asof _ _) (Just (AP.ByName assumpM)) mRates = 
+  let 
+    r = projectCashflow (head mixedAsset) asof assumM mRate
+    
+  in 
+    r 
+
+
 -- safe net to catch other cases
 runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
@@ -631,7 +640,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status} mAssumps mNonPerfAs
                         Nothing -> []
                         Just rsm -> Map.elems $ Map.mapWithKey 
                                                  (\k x -> let 
-                                                           resetDs = (genSerialDatesTill2 EE (HE.rsStartDate x) (HE.rsSettleDates x) endDate)
+                                                           resetDs = genSerialDatesTill2 EE (HE.rsStartDate x) (HE.rsSettleDates x) endDate
                                                           in 
                                                            ((flip ResetIRSwapRate) k) <$> resetDs)
                                                  rsm

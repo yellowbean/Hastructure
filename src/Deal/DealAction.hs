@@ -5,7 +5,7 @@
 
 module Deal.DealAction (performActionWrap,performAction,calcDueFee
                        ,testTrigger,RunContext(..),updateLiqProvider
-                       ,calcDueInt,projAssetUnion,priceAssetUnion
+                       ,calcDueInt,priceAssetUnion
                        ,priceAssetUnionList,inspectVars) 
   where
 
@@ -24,6 +24,8 @@ import AssetClass.Mortgage
 import AssetClass.Lease
 import AssetClass.Loan
 import AssetClass.Installment
+import AssetClass.MixedAsset
+
 import qualified Call as C
 import qualified InterestRate as IR
 import qualified Analytics as AN
@@ -346,22 +348,6 @@ buyRevolvingPool d rs rp@(AssetCurve aus)
     in 
       (assetBought, rp)
 
-projAssetUnion :: ACM.AssetUnion -> Date -> AP.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-projAssetUnion (ACM.MO ast) d assumps mRates = P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.LO ast) d assumps mRates = P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.IL ast) d assumps mRates = P.projCashflow ast d assumps mRates
-projAssetUnion (ACM.LS ast) d assumps mRates = P.projCashflow ast d assumps mRates
-
-projAssetUnionList :: [ACM.AssetUnion] -> Date -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-projAssetUnionList assets d (AP.PoolLevel assetPerf) mRate =
-  let 
-    results = [ projAssetUnion asset d assetPerf mRate | asset <- assets ]
-    cfs = fst <$> results
-    bals = snd <$> results
-  in 
-    (foldl1 CF.mergePoolCf cfs, Map.unionsWith (+) bals)
-
-projAssetUnionList assets d _ mRate = error " not implemented on asset level assumption for revolving pool"
 
 data RunContext a = RunContext{
                   runPoolFlow:: CF.CashFlowFrame

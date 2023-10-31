@@ -34,6 +34,7 @@ library
       AssetClass.Installment
       AssetClass.Lease
       AssetClass.Loan
+      AssetClass.MixedAsset
       AssetClass.Mortgage
       Assumptions
       Call

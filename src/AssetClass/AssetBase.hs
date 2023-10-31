@@ -7,7 +7,7 @@
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
-  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..)
+  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..)
   )
   where
 
@@ -17,7 +17,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Types hiding (Current,startDate,originTerm)
 
-
+import qualified Data.Map as Map
 import qualified InterestRate as IR
 import qualified Cashflow as CF
 
@@ -86,11 +86,15 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
           deriving (Show,Generic)
 
--- Mortgage
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic)
+
+data MixedAsset = MixedPool (Map.Map String [AssetUnion])
+                | DUMMY2
+                deriving (Show,Generic)
+
 
 -- Base type to hold all asset types
 data AssetUnion = MO Mortgage
@@ -98,6 +102,10 @@ data AssetUnion = MO Mortgage
                 | IL Installment
                 | LS Lease
                 deriving (Show, Generic)
+
+instance IR.UseRate MixedAsset where
+  getIndexes (MixedPool ma) = error "Not implemented"
+
 
 instance IR.UseRate Mortgage where 
   getIndex (Mortgage oi@MortgageOriginalInfo{ originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _ _) = Just idx 
