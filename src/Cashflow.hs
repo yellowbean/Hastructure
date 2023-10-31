@@ -76,13 +76,16 @@ maxStats s1 s2 = opStats max s1 s2
 splitStats :: Rational -> CumulativeStat -> CumulativeStat
 splitStats r st1@(a1,b1,c1,d1,e1,f1) = ((`mulBR` r) a1,(`mulBR` r) b1,(`mulBR` r) c1,(`mulBR` r) d1,(`mulBR` r) e1,(`mulBR` r) f1)
 
+type Depreciation = Balance
+type NewDepreciation = Balance 
+
 data TsRow = CashFlow Date Amount
            | BondFlow Date Balance Principal Interest
            | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
            | MortgageDelinqFlow Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe CumulativeStat)
            | LeaseFlow Date Balance Rental
-           | FixedFlow Date Balance Amount Balance Amount (Maybe Balance) (Maybe Balance)
+           | FixedFlow Date Balance NewDepreciation Depreciation Balance Amount (Maybe Balance) (Maybe Balance)
                 -- remain balance, amortized amount, unit, cash , mIncome, mExp
            deriving(Show,Eq,Ord,Generic)
 

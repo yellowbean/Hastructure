@@ -35,10 +35,31 @@ debug = flip trace
 
 
 instance Asset FixedAsset where 
-  getCurrentBal (FixedAsset _ _ _ _ bal ) = bal
+  getCurrentBal (FixedAsset _ _ _ _ bal rt ) = bal
   
-  projCashflow (FixedAsset fo _ _ _ _ ) 
+  getPaymentDates 
+    (FixedAsset fo@FixedAsestInfo{originBalance=ob,startDate=sd,period=p,originTerm=ot} cap mE mI bal rt)
+    extra
+    = genDates sd p (ot+extra)
+
+  projCashflow fa@(FixedAsset fo cap mE mI bal rt) 
                asOfDay
                (FixedAssetAssump uCurve pCurve)
                Nothing
-  = CF.CashFlowFrame []
+  = let 
+      depreciations = []
+      pdates = getPaymentDates fa rt
+      amortizedBals = case (accRule fo) of 
+                        Straight -> replicate rt $ divideBI ob ot
+                        _ -> replicate rt 0
+      scheduleBals = scanl ob (-) amortizedBals
+      capacityCaps = case cap of
+                       FixedCapcity b -> replicate rt b
+                       CapcityByTerm -> []
+      utilsVec = getValByDates uCurve pdates
+      units = [ mulBR c u | (u,c) <- zip utilsVec capacityCaps]
+      prices = getValByDates pCurve pdates
+      cash = [ p * u | (p,u) <- zip prices units]
+      txns = [] 
+    in 
+      CF.CashFlowFrame txns
