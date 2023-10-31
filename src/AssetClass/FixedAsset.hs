@@ -56,10 +56,11 @@ instance Asset FixedAsset where
       capacityCaps = case cap of
                        FixedCapcity b -> replicate rt b
                        CapcityByTerm -> []
+      cumuDep = ob - bal
       utilsVec = getValByDates uCurve pdates
       units = [ mulBR c u | (u,c) <- zip utilsVec capacityCaps]
       prices = getValByDates pCurve pdates
       cash = [ p * u | (p,u) <- zip prices units]
-      txns = [] 
+      cumuDepreciation = scanl (+) cumuDep amortizedBals 
     in 
-      CF.CashFlowFrame txns
+      CF.CashFlowFrame $  zipWith8 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash Nothing Nothing

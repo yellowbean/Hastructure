@@ -96,7 +96,7 @@ instance TimeSeries TsRow where
     getDate (MortgageDelinqFlow x _ _ _ _ _ _ _ _ _ _ _ _) = x
     getDate (LoanFlow x _ _ _ _ _ _ _ _ _) = x
     getDate (LeaseFlow x _ _ ) = x
-    getDate (FixedFlow x _ _ _ _ _ _) = x
+    getDate (FixedFlow x _ _ _ _ _ _ _) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
                      deriving (Show,Eq,Generic)
@@ -699,10 +699,10 @@ isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
 isEmptyRow (LoanFlow {}) = False
 isEmptyRow (LeaseFlow _ 0 0) = True
 isEmptyRow (LeaseFlow {}) = False
-isEmptyRow (FixedFlow _ 0 0 0 0 Nothing Nothing) = True
-isEmptyRow (FixedFlow _ 0 0 0 0 (Just 0) Nothing) = True
-isEmptyRow (FixedFlow _ 0 0 0 0 (Just 0) (Just 0)) = True
-isEmptyRow (FixedFlow _ 0 0 0 0 Nothing (Just 0)) = True
+isEmptyRow (FixedFlow _ 0 0 0 0 0 Nothing Nothing) = True
+isEmptyRow (FixedFlow _ 0 0 0 0 0 (Just 0) Nothing) = True
+isEmptyRow (FixedFlow _ 0 0 0 0 0 (Just 0) (Just 0)) = True
+isEmptyRow (FixedFlow _ 0 0 0 0 0 Nothing (Just 0)) = True
 isEmptyRow (FixedFlow {}) = False
 
 
