@@ -190,10 +190,15 @@ instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
 instance ToSchema AB.Status
+instance ToSchema AB.AmortRule
+instance ToSchema AB.Capacity
+instance ToSchema AB.AssociateExp
+instance ToSchema AB.AssociateIncome
 instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
 instance ToSchema AB.AssetUnion
+instance ToSchema AB.FixedAsset
 instance ToSchema CutoffFields
 instance ToSchema PricingMethod
 instance ToSchema RV.RevolvingPool

@@ -2,12 +2,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE InstanceSigs #-}
 
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
-  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..)
+  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
+  ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..)
   )
   where
 
@@ -20,6 +20,7 @@ import Types hiding (Current,startDate,originTerm)
 import qualified Data.Map as Map
 import qualified InterestRate as IR
 import qualified Cashflow as CF
+-- import Assumptions (RevolvingAssumption(Dummy4))
 
 type DailyRate = Balance
 
@@ -44,8 +45,12 @@ data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 
                        -- | NMonthInterest Int
                        deriving (Show,Generic)
 
-data AmortRule = DoubleDecliningBalance
-               | Straight
+data AmortRule = DecliningBalance
+               | DoubleDecliningBalance
+               | StraightLine
+               -- | UnitBased Int
+               -- | MACRS
+               | SumYearsDigit
                deriving (Show,Generic)
 
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
@@ -65,12 +70,13 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                               ,originTerm :: Int             -- ^ total terms
                               ,paymentDates :: DatePattern   -- ^ payment dates pattern
                               ,originRental :: Amount}       -- ^ rental by day
-                  | FixedAsestInfo { startDate :: Date 
-                                     ,orginBalance :: Balance 
+                  | FixedAssetInfo { startDate :: Date 
+                                     ,originBalance :: Balance 
+                                     ,residualBalance :: Balance
                                      ,originTerm :: Int
                                      ,period :: Period
                                      ,accRule :: AmortRule
-                                     ,residualBalance :: Balance
+                                     ,capacity :: Capacity 
                                     }
                   deriving (Show,Generic)
 
@@ -108,8 +114,8 @@ data MixedAsset = MixedPool (Map.Map String [AssetUnion])
 
 -- FixedAsset 
 
-data Capacity = FixedCapcity Balance
-              | CapcityByTerm [(Int,Balance)]
+data Capacity = FixedCapacity Balance
+              | CapacityByTerm [(Int,Balance)]
               deriving (Show,Generic)
 
 data AssociateExp = ExpPerPeriod Balance 
@@ -120,7 +126,8 @@ data AssociateIncome = IncomePerPeriod Balance
                      | IncomePerUnit Balance
                       deriving (Show,Generic)
 
-data FixedAsset = FixedAsset OriginalInfo Capacity (Maybe AssociateExp) (Maybe AssociateIncome) Balance RemainTerms
+data FixedAsset = FixedAsset OriginalInfo Balance RemainTerms
+                | Dummy5
                 deriving (Show,Generic)
 
 
@@ -129,6 +136,7 @@ data AssetUnion = MO Mortgage
                 | LO Loan
                 | IL Installment
                 | LS Lease
+                | FA FixedAsset
                 deriving (Show, Generic)
 
 instance IR.UseRate MixedAsset where
@@ -153,6 +161,8 @@ instance IR.UseRate Lease where
   getIndex :: Lease -> Maybe Index
   getIndex _ = Nothing
 
+instance IR.UseRate FixedAsset where
+  getIndex _ = Nothing
 
 $(deriveJSON defaultOptions ''AmortRule)
 $(deriveJSON defaultOptions ''Capacity)

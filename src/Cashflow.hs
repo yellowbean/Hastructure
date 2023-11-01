@@ -85,8 +85,8 @@ data TsRow = CashFlow Date Amount
            | MortgageDelinqFlow Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe CumulativeStat)
            | LeaseFlow Date Balance Rental
-           | FixedFlow Date Balance NewDepreciation Depreciation Balance Amount (Maybe Balance) (Maybe Balance)
-                -- remain balance, amortized amount, unit, cash , mIncome, mExp
+           | FixedFlow Date Balance NewDepreciation Depreciation Balance Amount
+                -- remain balance, amortized amount, unit, cash
            deriving(Show,Eq,Ord,Generic)
 
 instance TimeSeries TsRow where 
@@ -96,7 +96,7 @@ instance TimeSeries TsRow where
     getDate (MortgageDelinqFlow x _ _ _ _ _ _ _ _ _ _ _ _) = x
     getDate (LoanFlow x _ _ _ _ _ _ _ _ _) = x
     getDate (LeaseFlow x _ _ ) = x
-    getDate (FixedFlow x _ _ _ _ _ _ _) = x
+    getDate (FixedFlow x _ _ _ _ _ ) = x
 
 data CashFlowFrame = CashFlowFrame [TsRow]
                      deriving (Show,Eq,Generic)
@@ -268,7 +268,7 @@ tsTotalCash (MortgageDelinqFlow x _ a b c _ _ e _ _ _ mPn _ ) = a + b + c + e + 
 tsTotalCash (MortgageFlow x _ a b c _ e _ _ _ mPn _) = a + b + c + e + fromMaybe 0 mPn
 tsTotalCash (LoanFlow _ _ a b c _ e _ _ _) =  a + b + c + e
 tsTotalCash (LeaseFlow _ _ a) =  a
-tsTotalCash (FixedFlow _ _ _ _ _ x mI mE) = x + fromMaybe 0 mI - fromMaybe 0 mE
+tsTotalCash (FixedFlow _ _ _ _ _ x) = x
 
 tsDefaultBal :: TsRow -> Balance
 tsDefaultBal CashFlow {} = error "not supported"
@@ -638,9 +638,9 @@ patchCumulative :: CumulativeStat -> [TsRow] -> [TsRow] -> [TsRow]
 patchCumulative _ rs [] = reverse rs
 patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                 rs
-                ((MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN _):trs)
+                (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN _:trs)
   = patchCumulative newSt
-                    ((MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN (Just newSt)):rs)
+                    (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN (Just newSt):rs)
                     trs
                  where 
                    newSt = (cPrin+p,cPrepay+ppy,cDelinq+delinq,cDefault+def,cRecovery+recovery,cLoss+loss)
@@ -648,7 +648,7 @@ patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                rs
                ((MortgageFlow d bal p i ppy def recovery loss rate mB mPPN _):trs)
   = patchCumulative newSt
-                   ((MortgageFlow d bal p i ppy def recovery loss rate mB mPPN (Just newSt)):rs)
+                   (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN (Just newSt):rs)
                    trs
                 where 
                   newSt = (cPrin+p,cPrepay+ppy,cDelinq,cDefault+def,cRecovery+recovery,cLoss+loss)
@@ -656,10 +656,19 @@ patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
               rs
               ((LoanFlow d bal p i ppy def recovery loss rate _):trs)
   = patchCumulative newSt
-                  ((LoanFlow d bal p i ppy def recovery loss rate (Just newSt)):rs)
+                  (LoanFlow d bal p i ppy def recovery loss rate (Just newSt):rs)
                   trs
                where 
                  newSt = (cPrin+p,cPrepay+ppy,cDelinq,cDefault+def,cRecovery+recovery,cLoss+loss)
+
+patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
+              rs
+              ((FixedFlow a b c d e f):trs)
+  = patchCumulative newSt
+                  (FixedFlow a b c d e f:rs)
+                  trs
+               where 
+                 newSt = (0,0,0,0,0,0)
 
 patchCumulative a b c = error ("faile to patch cumulative stats for "++show a ++">>"++show b++">>"++show c)
 
@@ -700,10 +709,7 @@ isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
 isEmptyRow (LoanFlow {}) = False
 isEmptyRow (LeaseFlow _ 0 0) = True
 isEmptyRow (LeaseFlow {}) = False
-isEmptyRow (FixedFlow _ 0 0 0 0 0 Nothing Nothing) = True
-isEmptyRow (FixedFlow _ 0 0 0 0 0 (Just 0) Nothing) = True
-isEmptyRow (FixedFlow _ 0 0 0 0 0 (Just 0) (Just 0)) = True
-isEmptyRow (FixedFlow _ 0 0 0 0 0 Nothing (Just 0)) = True
+isEmptyRow (FixedFlow _ 0 0 0 0 0) = True
 isEmptyRow (FixedFlow {}) = False
 
 

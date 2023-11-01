@@ -574,12 +574,12 @@ runPool (P.Pool as Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
     zipWith (\x a -> P.projCashflow x asof a mRates) as _assumps
 
 -- mixed asset
-runPool (P.Pool mixedAsset Nothing asof _ _) (Just (AP.ByName assumpM)) mRates = 
-  let 
-    r = projectCashflow (head mixedAsset) asof assumM mRate
-    
-  in 
-    r 
+-- runPool (P.Pool mixedAsset Nothing asof _ _) (Just (AP.ByName assumpM)) mRates = 
+--   let 
+--     r = projectCashflow (head mixedAsset) asof assumpM mRates
+--     
+--   in 
+--     r 
 
 
 -- safe net to catch other cases
@@ -695,7 +695,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status} mAssumps mNonPerfAs
              , pool = patchIssuanceBalance status (CF.mflowBalance begRow) thePool
              } -- patching with performing balance
 
-readProceeds :: W.CollectionRule -> CF.TsRow -> Balance
+readProceeds :: PoolSource -> CF.TsRow -> Balance
 readProceeds CollectedInterest  row = CF.mflowInterest row
 readProceeds CollectedPrincipal row = CF.mflowPrincipal row
 readProceeds CollectedRecoveries row = CF.mflowRecovery row
@@ -703,7 +703,7 @@ readProceeds CollectedPrepayment row = CF.mflowPrepayment row
 readProceeds CollectedRental     row = CF.mflowRental row
 readProceeds CollectedPrepaymentPenalty row =  CF.mflowPrepaymentPenalty row
 readProceeds CollectedCash row =  CF.tsTotalCash row
-readProceeds a b = error "failed to read pool cashflow rule"++show a
+readProceeds a b = error $ "failed to read pool cashflow rule"++show a
 
 depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
 depositInflow (W.Collect s an) d row amap 

@@ -31,6 +31,7 @@ import AssetClass.Lease
 import AssetClass.Loan
 import AssetClass.Installment
 import AssetClass.AssetCashflow
+import AssetClass.FixedAsset
 
 import Debug.Trace
 import Assumptions (AssetDefaultAssumption(DefaultCDR))
@@ -54,6 +55,8 @@ projAssetUnion (ACM.MO ast) d assumps mRates = P.projCashflow ast d assumps mRat
 projAssetUnion (ACM.LO ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.IL ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.LS ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.FA ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion x _ _ _ = error ("Failed to match  proj AssetUnion"++ show x)
 
 projAssetUnionList :: [ACM.AssetUnion] -> Date -> A.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
 projAssetUnionList assets d (A.PoolLevel assetPerf) mRate =

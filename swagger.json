@@ -1319,6 +1319,51 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 6,
+                                "type": "array",
+                                "minItems": 6
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedFlow"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -1579,6 +1624,24 @@
                                 "type": "string",
                                 "enum": [
                                     "LS"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/FixedAsset"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FA"
                                 ]
                             }
                         },
@@ -3103,6 +3166,7 @@
                     "CollectedPrepayment",
                     "CollectedPrepaymentPenalty",
                     "CollectedRental",
+                    "CollectedCash",
                     "NewDefaults",
                     "NewLosses",
                     "NewDelinquencies"
@@ -4091,6 +4155,64 @@
                                 "type": "string",
                                 "enum": [
                                     "OffsetBy"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "Capacity": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedCapacity"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "maximum": 9223372036854775807,
+                                            "type": "integer",
+                                            "minimum": -9223372036854775808
+                                        },
+                                        {
+                                            "multipleOf": 1.0e-2,
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CapacityByTerm"
                                 ]
                             }
                         },
@@ -7395,6 +7517,15 @@
                     "asOfDate"
                 ]
             },
+            "AmortRule": {
+                "type": "string",
+                "enum": [
+                    "DecliningBalance",
+                    "DoubleDecliningBalance",
+                    "StraightLine",
+                    "SumYearsDigit"
+                ]
+            },
             "TestDeal_Lease": {
                 "type": "object",
                 "properties": {
@@ -7506,6 +7637,59 @@
                     "waterfall",
                     "collects"
                 ]
+            },
+            "FixedAsset": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/OriginalInfo"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Dummy5"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "AssetDefaultedPerfAssumption": {
                 "oneOf": [
@@ -9961,6 +10145,34 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedAssetAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -11638,6 +11850,40 @@
                                 "type": "string",
                                 "enum": [
                                     "ByIndex"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/AssetPerfAssumption"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                        }
+                                    ],
+                                    "maxItems": 3,
+                                    "type": "array",
+                                    "minItems": 3
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ByName"
                                 ]
                             }
                         },

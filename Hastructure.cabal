@@ -31,6 +31,7 @@ library
       Asset
       AssetClass.AssetBase
       AssetClass.AssetCashflow
+      AssetClass.FixedAsset
       AssetClass.Installment
       AssetClass.Lease
       AssetClass.Loan
