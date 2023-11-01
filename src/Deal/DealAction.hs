@@ -620,12 +620,17 @@ performAction d t (W.CalcAndPayFee mLimit ans fees mSupport) =
   in 
     performAction d dealWithFeeDue (W.PayFee mLimit ans fees mSupport)
 
-performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntResidual Nothing an bndName) =
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntResidual mLimit an bndName) =
   t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
   where
     availBal = A.accBalance $ accMap Map.! an
-    accMapAfterPay = Map.adjust (A.draw availBal d (PayYield bndName)) an accMap
-    bndMapAfterPay = Map.adjust (L.payYield d availBal) bndName bndMap
+    limitAmt = case mLimit of 
+                 Nothing -> availBal
+                 Just (DS ds) -> queryDeal t ds
+    accMapAfterPay = Map.adjust (A.draw limitAmt d (PayYield bndName)) an accMap
+    bndMapAfterPay = Map.adjust (L.payYield d limitAmt) bndName bndMap
+
+
 
 performAction d t@TestDeal{fees=feeMap,accounts=accMap} (W.PayFeeResidual mlimit an feeName) =
   t {accounts = accMapAfterPay, fees = feeMapAfterPay}
@@ -844,4 +849,4 @@ performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tName)
     where 
       newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
 
-performAction d t action =  error $ "failed to match action"++show action++"Deal"++show (name t)
+performAction d t action =  error $ "failed to match action>>"++show action++">>Deal"++show (name t)

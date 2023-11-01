@@ -442,6 +442,7 @@ mflowRecovery :: TsRow -> Balance
 mflowRecovery (MortgageFlow _ _ _ _ _ _ x _ _ _ _ _) = x
 mflowRecovery (MortgageDelinqFlow _ _ _ _ _ _ _ x _ _ _ _ _) = x
 mflowRecovery (LoanFlow _ _ _ _ _ _ x _ _ _) = x
+mflowRecovery FixedFlow {} = 0
 mflowRecovery _  = error "not supported"
 
 mflowBalance :: TsRow -> Balance
