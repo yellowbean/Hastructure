@@ -61,7 +61,8 @@ instance Ast.Asset FixedAsset where
         scheduleBals = tail $ scanl (-) ob amortizedBals
         capacityCaps = case cap of
                         FixedCapacity b -> replicate rt b
-                        CapacityByTerm _ -> []
+                        CapacityByTerm tbl -> lastN rt $ concat [ replicate i b | (i,b)  <- tbl ]
+
         cumuDep = ob - bal
         utilsVec = getValByDates uCurve Inc pdates
         units = [ mulBR c u | (u,c) <- zip utilsVec capacityCaps]
