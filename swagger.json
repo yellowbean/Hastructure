@@ -74,6 +74,24 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_FixedAsset"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -8243,6 +8261,24 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TestDeal_FixedAsset"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -8743,6 +8779,37 @@
                     }
                 ],
                 "type": "object"
+            },
+            "Pool_FixedAsset": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "asOfDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/FixedAsset"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "assets",
+                    "asOfDate"
+                ]
             },
             "ExtraSupport": {
                 "oneOf": [
@@ -10602,6 +10669,118 @@
                     }
                 ],
                 "type": "object"
+            },
+            "TestDeal_FixedAsset": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/DealStatus"
+                    },
+                    "dates": {
+                        "$ref": "#/components/schemas/DateDesp"
+                    },
+                    "rateSwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateSwap"
+                        }
+                    },
+                    "currencySwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CurrencySwap"
+                        }
+                    },
+                    "fees": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Fee"
+                        }
+                    },
+                    "collects": {
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionRule"
+                        },
+                        "type": "array"
+                    },
+                    "custom": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CustomDataType"
+                        }
+                    },
+                    "ledgers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Ledger"
+                        }
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "waterfall": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Action"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "liqProvider": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LiqFacility"
+                        }
+                    },
+                    "bonds": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Bond"
+                        }
+                    },
+                    "overrides": {
+                        "items": {
+                            "$ref": "#/components/schemas/OverrideType"
+                        },
+                        "type": "array"
+                    },
+                    "accounts": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Account"
+                        }
+                    },
+                    "call": {
+                        "items": {
+                            "$ref": "#/components/schemas/CallOption"
+                        },
+                        "type": "array"
+                    },
+                    "triggers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/components/schemas/Trigger"
+                            }
+                        }
+                    },
+                    "pool": {
+                        "$ref": "#/components/schemas/Pool_FixedAsset"
+                    }
+                },
+                "required": [
+                    "name",
+                    "status",
+                    "dates",
+                    "accounts",
+                    "fees",
+                    "bonds",
+                    "pool",
+                    "waterfall",
+                    "collects"
+                ]
             },
             "ActionOnDate": {
                 "oneOf": [

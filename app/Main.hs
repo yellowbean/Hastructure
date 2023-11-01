@@ -98,6 +98,7 @@ data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
               | IPool (P.Pool AB.Installment)
               | RPool (P.Pool AB.Lease)
+              | FPool (P.Pool AB.FixedAsset)
               deriving(Show, Generic)
 
 instance ToSchema PoolType
@@ -107,11 +108,13 @@ instance ToSchema (P.Pool AB.Mortgage)
 instance ToSchema (P.Pool AB.Loan)
 instance ToSchema (P.Pool AB.Installment)
 instance ToSchema (P.Pool AB.Lease)
+instance ToSchema (P.Pool AB.FixedAsset)
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | LDeal (DB.TestDeal AB.Loan)
               | IDeal (DB.TestDeal AB.Installment) 
               | RDeal (DB.TestDeal AB.Lease) 
+              | FDeal (DB.TestDeal AB.FixedAsset) 
               deriving(Show, Generic)
 
 instance ToSchema Ts
@@ -128,11 +131,13 @@ instance ToSchema IR.ARM
 instance ToSchema AB.Loan
 instance ToSchema AB.Installment
 instance ToSchema AB.Lease
+instance ToSchema AB.FixedAsset
 
 instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
 instance ToSchema (DB.TestDeal AB.Lease)
+instance ToSchema (DB.TestDeal AB.FixedAsset)
 instance ToSchema AB.LeaseStepUp 
 instance ToSchema AB.AccrualPeriod
 instance ToSchema AB.PrepayPenaltyType
@@ -198,7 +203,6 @@ instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
 instance ToSchema AB.AssetUnion
-instance ToSchema AB.FixedAsset
 instance ToSchema CutoffFields
 instance ToSchema PricingMethod
 instance ToSchema RV.RevolvingPool
@@ -244,6 +248,10 @@ wrapRun (LDeal d) mAssump mNonPerfAssump = let
                                        (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (LDeal _d,_pflow,_rs,_p)
+wrapRun (FDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+                                     in 
+                                       (FDeal _d,_pflow,_rs,_p)
 
 wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
 wrapRunPool (MPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates

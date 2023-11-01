@@ -322,6 +322,7 @@ tsSetDate (MortgageDelinqFlow _ a b c d e f g h i j k l) x = MortgageDelinqFlow 
 tsSetDate (MortgageFlow _ a b c d e f g h i j k) x = MortgageFlow x a b c d e f g h i j k
 tsSetDate (LoanFlow _ a b c d e f g h i) x = LoanFlow x a b c d e f g h i
 tsSetDate (LeaseFlow _ a b) x = LeaseFlow x a b
+tsSetDate (FixedFlow _ a b c d e) x = FixedFlow x a b c d e 
 
 tsSetBalance :: Balance -> TsRow -> TsRow
 tsSetBalance x (CashFlow _d a) = CashFlow _d x
@@ -330,6 +331,7 @@ tsSetBalance x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqF
 tsSetBalance x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d x b c d e f g h i j k 
 tsSetBalance x (LoanFlow _d a b c d e f g h i) = LoanFlow _d x b c d e f g h i
 tsSetBalance x (LeaseFlow _d a b) = LeaseFlow _d x b
+tsSetBalance x (FixedFlow _d a b c d e) = FixedFlow _d x b c d e
 
 tsSetLoss :: Balance -> TsRow -> TsRow
 tsSetLoss x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d a b c d e f g x i j k l
@@ -408,7 +410,8 @@ aggTsByDates trs ds =
         [] -> reduceFn (accum++[[]]) cutoffDays _trs     --  `debug` ("Adding empty")
         newFlow -> reduceFn (accum++[newAcc]) cutoffDays rest --  `debug` ("Adding "++show(newAcc)++" cutoffDay "++show(cutoffDay))
       where
-        (newAcc,rest) = L.partition (tsDateLET cutoffDay) _trs -- `debug` ("Spliting"++show cutoffDay++"From>>"++show _trs )
+        (newAcc, rest) = splitBy cutoffDay Inc _trs
+        -- (newAcc,rest) = L.partition (tsDateLET cutoffDay) _trs -- `debug` ("Spliting"++show cutoffDay++"From>>"++show _trs )
 
 
 mflowPrincipal :: TsRow -> Balance
@@ -446,6 +449,7 @@ mflowBalance (MortgageFlow _ x _ _ _ _ _ _ _ _ _ _) = x
 mflowBalance (MortgageDelinqFlow _ x _ _ _ _ _ _ _ _ _ _ _) = x
 mflowBalance (LoanFlow _ x _ _ _ _ _ _ _ _) = x
 mflowBalance (LeaseFlow _ x _ ) = x
+mflowBalance (FixedFlow _ x _ _ _ _) = x
 
 addFlowBalance :: Balance -> TsRow -> TsRow 
 addFlowBalance 0 x = x
@@ -498,6 +502,7 @@ mflowAmortAmount (MortgageFlow _ _ p _ ppy def _ _ _ _ _ _) = p + ppy + def
 mflowAmortAmount (MortgageDelinqFlow _ _ p _ ppy delinq _ _ _ _ _ _ _) = p + ppy + delinq
 mflowAmortAmount (LoanFlow _ _ x _ y z _ _ _ _) = x + y + z
 mflowAmortAmount (LeaseFlow _ _ x ) = x
+mflowAmortAmount (FixedFlow _ _ _ _ _ _) = 0
 
 mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 -- ^ get borrower numfer for Mortgage Flow
@@ -533,6 +538,7 @@ emptyTsRow _d (MortgageDelinqFlow a x c d e f g h i j k l m) = MortgageDelinqFlo
 emptyTsRow _d (MortgageFlow a x c d e f g h i j k l) = MortgageFlow _d 0 0 0 0 0 0 0 0 Nothing Nothing Nothing
 emptyTsRow _d (LoanFlow a x c d e f g i j k) = LoanFlow _d 0 0 0 0 0 0 0 0 Nothing
 emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
+emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 
 buildBegTsRow :: Date -> TsRow -> TsRow
 -- ^ given a cashflow,build a new cf row with begin balance

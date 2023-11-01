@@ -663,23 +663,23 @@ class TimeSeries ts where
     cmpWith t d = compare (getDate t) d
 
     isAfter :: ts -> Date -> Bool 
-    isAfter t d = (getDate t) > d
+    isAfter t d = getDate t > d
     isOnAfter :: ts -> Date -> Bool 
-    isOnAfter t d = (getDate t) >= d
+    isOnAfter t d = getDate t >= d
     isBefore :: ts -> Date -> Bool 
-    isBefore t d = (getDate t) < d
+    isBefore t d = getDate t < d
     isOnBefore :: ts -> Date -> Bool 
-    isOnBefore t d = (getDate t) <= d
+    isOnBefore t d = getDate t <= d
 
     splitBy :: Date -> CutoffType -> [ts] -> ([ts],[ts])
     splitBy d ct tss = 
       let 
         ffunR x = case ct of
-                   Inc -> (getDate x > d) -- include ts in the Left
-                   Exc -> (getDate x >= d)  -- 
+                   Inc -> getDate x > d -- include ts in the Left
+                   Exc -> getDate x >= d  -- 
         ffunL x = case ct of
-                   Inc -> (getDate x <= d) -- include ts in the Left
-                   Exc -> (getDate x < d)  -- 
+                   Inc -> getDate x <= d -- include ts in the Left
+                   Exc -> getDate x < d  -- 
       in 
         (filter ffunL tss, filter ffunR tss)
         
