@@ -419,6 +419,7 @@ mflowDefault :: TsRow -> Balance
 mflowDefault (MortgageFlow _ _ _ _ _ x _ _ _ _ _ _) = x
 mflowDefault (MortgageDelinqFlow _ _ _ _ _ _ x _ _ _ _ _ _) = x
 mflowDefault (LoanFlow _ _ _ _ _ x _ _ _ _) = x
+mflowDefault (FixedFlow _ _ x _ _ _) = x
 mflowDefault _  = 0
 
 mflowRecovery :: TsRow -> Balance
