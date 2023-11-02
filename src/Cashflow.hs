@@ -13,7 +13,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,splitCashFlowFrameByDate,emptyTsRow,mflowAmortAmount
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
-                ,tsDateLT,getDate,getTxnLatestAsOf
+                ,getDate,getTxnLatestAsOf
                 ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
@@ -378,22 +378,6 @@ firstDate (CashFlowFrame rs) = getDate $ head rs
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame 
 combine (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame $ combineTss [] txn1 txn2
 
-tsDateLT :: Date -> TsRow  -> Bool
-tsDateLT td (CashFlow d _) = d < td
-tsDateLT td (BondFlow d _ _ _) =  d < td
-tsDateLT td (MortgageDelinqFlow d _ _ _ _ _ _ _ _ _ _ _ _) = d < td
-tsDateLT td (MortgageFlow d _ _ _ _ _ _ _ _ _ _ _) = d < td
-tsDateLT td (LoanFlow d _ _ _ _ _ _ _ _ _ ) = d < td
-tsDateLT td (LeaseFlow d _ _ ) = d < td
-
-tsDateLET :: Date -> TsRow  -> Bool
-tsDateLET td (CashFlow d _) = d <= td
-tsDateLET td (BondFlow d _ _ _) =  d <= td
-tsDateLET td (MortgageDelinqFlow d _ _ _ _ _ _ _ _ _ _ _ _) = d <= td
-tsDateLET td (MortgageFlow d _ _ _ _ _ _ _ _ _ _ _) = d <= td
-tsDateLET td (LoanFlow d _ _ _ _ _ _ _ _ _) = d <= td
-tsDateLET td (LeaseFlow d _ _ ) = d <= td
-
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates trs ds =
   map 
@@ -411,7 +395,6 @@ aggTsByDates trs ds =
         newFlow -> reduceFn (accum++[newAcc]) cutoffDays rest --  `debug` ("Adding "++show(newAcc)++" cutoffDay "++show(cutoffDay))
       where
         (newAcc, rest) = splitBy cutoffDay Inc _trs
-        -- (newAcc,rest) = L.partition (tsDateLET cutoffDay) _trs -- `debug` ("Spliting"++show cutoffDay++"From>>"++show _trs )
 
 
 mflowPrincipal :: TsRow -> Balance

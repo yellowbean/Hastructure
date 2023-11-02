@@ -126,7 +126,7 @@ data AssociateIncome = IncomePerPeriod Balance
                      | IncomePerUnit Balance
                       deriving (Show,Generic)
 
-data FixedAsset = FixedAsset OriginalInfo Balance RemainTerms
+data FixedAsset = FixedAsset OriginalInfo RemainTerms
                 | Dummy5
                 deriving (Show,Generic)
 

@@ -7667,18 +7667,14 @@
                                         "$ref": "#/components/schemas/OriginalInfo"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
-                                    },
-                                    {
                                         "maximum": 9223372036854775807,
                                         "type": "integer",
                                         "minimum": -9223372036854775808
                                     }
                                 ],
-                                "maxItems": 3,
+                                "maxItems": 2,
                                 "type": "array",
-                                "minItems": 3
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -12425,7 +12421,7 @@
         }
     },
     "info": {
-        "version": "0.22.2",
+        "version": "0.22.3",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
