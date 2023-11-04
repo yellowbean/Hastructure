@@ -367,6 +367,7 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryDefaults      -- ^ cumulative default balance
                   | HistoryDelinquency   -- ^ cumulative delinquency balance
                   | HistoryLoss          -- ^ cumulative loss/write-off balance
+                  | HistoryCash          -- ^ cumulative cash
                   deriving (Show,Ord,Eq,Read,Generic)
 
 instance ToJSONKey CutoffFields where

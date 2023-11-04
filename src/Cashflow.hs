@@ -578,16 +578,7 @@ shiftCfToStartDate d cf@(CashFlowFrame (txn:txns))
 
 sumPoolFlow :: CashFlowFrame -> PoolSource -> Balance
 sumPoolFlow (CashFlowFrame trs) ps 
-  = sum $ lookup ps <$> trs
-    where
-      lookup CollectedPrepayment  = mflowPrepayment
-      lookup CollectedPrincipal = mflowPrincipal
-      lookup CollectedRecoveries = mflowRecovery
-      lookup CollectedRental = mflowRental
-      lookup CollectedInterest = mflowInterest
-      lookup NewDefaults = mflowDefault
-      lookup NewLosses = mflowLoss
-      lookup NewDelinquencies = mflowDelinq
+  = sum $ (`lookupSource` ps) <$> trs
 
 lookupSource :: TsRow -> PoolSource -> Balance 
 lookupSource tr CollectedPrepayment  = mflowPrepayment tr
@@ -596,9 +587,11 @@ lookupSource tr CollectedRecoveries = mflowRecovery tr
 lookupSource tr CollectedRental = mflowRental tr
 lookupSource tr CollectedInterest = mflowInterest tr
 lookupSource tr CollectedPrepaymentPenalty = mflowPrepaymentPenalty tr
+lookupSource tr CollectedCash = tsTotalCash tr
 lookupSource tr NewDelinquencies = mflowDelinq tr
 lookupSource tr NewDefaults = mflowDefault tr
 lookupSource tr NewLosses = mflowLoss tr
+
 
 setPrepaymentPenalty :: Balance -> TsRow -> TsRow
 setPrepaymentPenalty bal (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow a b c d e f g h i j k (Just bal) m

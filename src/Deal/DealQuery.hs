@@ -168,6 +168,8 @@ poolSourceToIssuanceField CollectedPrincipal = HistoryPrincipal
 poolSourceToIssuanceField CollectedRecoveries = HistoryRecoveries
 poolSourceToIssuanceField CollectedPrepayment = HistoryPrepayment
 poolSourceToIssuanceField CollectedRental = HistoryRental
+poolSourceToIssuanceField CollectedCash = HistoryCash
+poolSourceToIssuanceField a = error ("Failed to match pool source when mapping to issuance field"++show a)
 
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
