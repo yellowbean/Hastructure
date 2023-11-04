@@ -98,8 +98,12 @@ instance TimeSeries TsRow where
     getDate (LeaseFlow x _ _ ) = x
     getDate (FixedFlow x _ _ _ _ _ ) = x
 
+
 data CashFlowFrame = CashFlowFrame [TsRow]
-                     deriving (Show,Eq,Generic)
+                     deriving (Eq,Generic)
+
+instance Show CashFlowFrame where
+  show (CashFlowFrame txns) = concat $ L.intersperse "\n" [ show txn | txn <- txns ]
                    
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame ts) = length ts
@@ -194,6 +198,10 @@ combineTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) tr@(LoanFlow _ b2
 combineTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
   = LeaseFlow d1 (b1 + b2) (r1 + r2)
 
+combineTs (FixedFlow d1 b1 de1 cde1 p1 c1 ) (FixedFlow d2 b2 de2 cde2 p2 c2)
+  = FixedFlow d1 (b1+b2) (de1+de2) (cde1+cde2) (p1+p2) (c1+c2)
+
+
 combineTss :: [TsRow] -> [TsRow] -> [TsRow] -> [TsRow]
 -- ^ combine two cashflows from two entities,(auto patch a beg balance)
 combineTss [] [] r = r
@@ -227,6 +235,8 @@ appendTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 _ _) bn2@(Mort
 appendTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 _) bn2@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 _)
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs (LeaseFlow d1 b1 r1) bn2@(LeaseFlow d2 b2 r2) 
+  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+appendTs (FixedFlow d1 b1 de1 cde1 p1 c1 ) bn2@(FixedFlow d2 b2 de2 cde2 p2 c2)
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs _1 _2 = error $ "appendTs failed with "++ show _1 ++ ">>" ++ show _2
 
@@ -442,18 +452,21 @@ addFlowBalance b (MortgageFlow a x c d e f g h i j k l) = MortgageFlow a (x+b) c
 addFlowBalance b (MortgageDelinqFlow a x c d e f g h i j k l m) = MortgageDelinqFlow a (x+b) c d e f g h i j k l m
 addFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a (x+b) c d e f g i j k
 addFlowBalance b (LeaseFlow a x c ) = LeaseFlow a (x+b) c
+addFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a (x+b) c d e f
 
 updateFlowBalance :: Balance -> TsRow -> TsRow 
 updateFlowBalance b (MortgageDelinqFlow a x c d e f g h i j k l m ) = MortgageDelinqFlow a b c d e f g h i j k l m
 updateFlowBalance b (MortgageFlow a x c d e f g h i j k l) = MortgageFlow a b c d e f g h i j k l
 updateFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a b c d e f g i j k
 updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
+updateFlowBalance b (FixedFlow a x c d e f ) = (FixedFlow a b c d e f )
 
 mflowBegBalance :: TsRow -> Balance
 mflowBegBalance (MortgageDelinqFlow _ x p _ ppy delinq def _ _ _ _ _ _) = x + p + ppy + delinq
 mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _ _ _ _) = x + p + ppy + def
 mflowBegBalance (LoanFlow _ x p _ ppy def _ _ _ _) = x + p + ppy + def
 mflowBegBalance (LeaseFlow _ b r) = b + r
+mflowBegBalance (FixedFlow a b c d e f ) = b + c
 
 mflowLoss :: TsRow -> Balance
 mflowLoss (MortgageFlow _ _ _ _ _ _ _ x _ _ _ _) = x
@@ -487,7 +500,7 @@ mflowAmortAmount (MortgageFlow _ _ p _ ppy def _ _ _ _ _ _) = p + ppy + def
 mflowAmortAmount (MortgageDelinqFlow _ _ p _ ppy delinq _ _ _ _ _ _ _) = p + ppy + delinq
 mflowAmortAmount (LoanFlow _ _ x _ y z _ _ _ _) = x + y + z
 mflowAmortAmount (LeaseFlow _ _ x ) = x
-mflowAmortAmount (FixedFlow _ _ _ _ _ _) = 0
+mflowAmortAmount (FixedFlow _ _ x _ _ _) = x
 
 mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 -- ^ get borrower numfer for Mortgage Flow

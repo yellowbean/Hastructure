@@ -280,7 +280,6 @@ roundingByM (Just rb) x = roundingBy rb x
 slice :: Int -> Int -> [a] -> [a]
 slice from to xs = take (to - from ) (drop from xs)
 
-
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
   = toRational $ 1 - fromRational (1-annualRate) ** (fromIntegral days / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
