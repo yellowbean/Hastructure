@@ -250,7 +250,7 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just 
                        L.Floater _ _ _ _ _dc _ _ -> _dc 
                        L.Fix _ _dc -> _dc 
                        _ -> DC_ACT_365F
-                new_due_int = calcInt (bond_bal+int_due) int_due_date calc_date bond_rate dc  -- `debug` ("Bond bal"++show bond_bal++">>"++show int_due_date++">>"++ show calc_date++">>"++show bond_rate)
+                new_due_int = IR.calcInt (bond_bal+int_due) int_due_date calc_date bond_rate dc  -- `debug` ("Bond bal"++show bond_bal++">>"++show int_due_date++">>"++ show calc_date++">>"++show bond_rate)
 
 
 calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
@@ -297,7 +297,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
     lastIntPayDay = case lstIntPay of
                       Just pd -> pd
                       Nothing -> getClosingDate (dates t)
-    dueInt = calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F
+    dueInt = IR.calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F
 
 calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = bond_bal }

@@ -4,7 +4,7 @@
 module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN
     ,getValByDate,getValByDates,scaleUpToOne
-    ,calcInt,calcIntRate,calcIntRateCurve,divideBB
+    ,divideBB
     ,multiplyTs,zipTs,getTsVals,getTsSize,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, getTsDates
     ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
@@ -177,27 +177,8 @@ getTsDates (BalanceCurve tps) =  map getDate tps
 getTsSize :: Ts -> Int 
 getTsSize ts = length (getTsVals ts)
 
-
-calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
-calcIntRate startDate endDate intRate dayCount =
-  let 
-    yf = yearCountFraction dayCount startDate endDate
-  in 
-    intRate * fromRational yf
-
-calcIntRateCurve :: DayCount -> IRate -> [Date] -> [IRate]
-calcIntRateCurve dc r ds 
-  = [ calcIntRate sd ed r dc |  (sd,ed) <- zip (init ds) (tail ds) ]
-
-calcInt :: Balance -> Date -> Date -> IRate -> DayCount -> Amount
-calcInt bal startDate endDate intRate dayCount =
-  let 
-    yfactor = yearCountFraction dayCount startDate endDate
-  in 
-    mulBR bal (yfactor * toRational intRate) 
-
 zipTs :: [Date] -> [Rational] -> Ts 
-zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- (zip ds rs) ]
+zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- zip ds rs ]
 
 multiplyTs :: CutoffType -> Ts -> Ts -> Ts
 multiplyTs ct (FloatCurve ts1) ts2
