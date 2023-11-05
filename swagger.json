@@ -11003,6 +11003,37 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/DealCycle"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FireTrigger"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     }
                                 ],
@@ -11112,6 +11143,25 @@
             "NonPerfAssumption": {
                 "type": "object",
                 "properties": {
+                    "fireTrigger": {
+                        "items": {
+                            "items": [
+                                {
+                                    "$ref": "#/components/schemas/Day"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DealCycle"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ],
+                            "maxItems": 3,
+                            "type": "array",
+                            "minItems": 3
+                        },
+                        "type": "array"
+                    },
                     "callWhen": {
                         "items": {
                             "$ref": "#/components/schemas/CallOption"
@@ -12421,7 +12471,7 @@
         }
     },
     "info": {
-        "version": "0.22.4",
+        "version": "0.22.5",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
