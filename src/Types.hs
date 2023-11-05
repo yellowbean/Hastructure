@@ -174,6 +174,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
                   | RunWaterfall Date String             -- ^ execute waterfall
                   | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
+                  | FireTrigger Date DealCycle String    -- ^ fire a trigger
                   | InspectDS Date DealStats             -- ^ inspect formula
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
@@ -188,6 +189,7 @@ instance TimeSeries ActionOnDate where
     getDate (EarnAccInt d _) = d
     getDate (AccrueFee d _) = d
     getDate (DealClosed d) = d
+    getDate (FireTrigger d _ _) = d
     getDate (ChangeDealStatusTo d _ ) = d
     getDate (InspectDS d _ ) = d
     getDate (ResetIRSwapRate d _ ) = d

@@ -20,13 +20,14 @@ import Data.Fixed
 import Data.Maybe
 import Data.Map
 import GHC.Generics
+import Control.Lens
 import qualified Liability as L
 
 type TriggerName = String
 
 setTriggered :: Trigger -> Trigger
 setTriggered trg@Trigger{ trgStatus = False } = trg { trgStatus = True }
-setTriggered trg@Trigger{ trgStatus = True } = error ("The trigger is already triggered"++ show trg)
+setTriggered trg@Trigger{ trgStatus = True } = trg
 
 
 data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal status
@@ -44,6 +45,9 @@ data Trigger = Trigger {
             ,trgStatus :: Bool                        -- ^ if it is triggered or not 
             ,trgCurable :: Bool                       -- ^ if it is curable trigger
             } deriving (Show, Eq, Generic)
+
+
+$(makeLenses ''Trigger)
 
 $(deriveJSON defaultOptions ''Trigger)
 $(deriveJSON defaultOptions ''TriggerEffect)

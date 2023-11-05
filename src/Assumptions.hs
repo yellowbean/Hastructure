@@ -39,6 +39,7 @@ import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
 import InterestRate
+import Triggers (TriggerName)
 debug = flip trace
 
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
@@ -67,6 +68,7 @@ data NonPerfAssumption = NonPerfAssumption {
   ,inspectOn :: Maybe [(DatePattern,DealStats)]        -- ^ optional tuple list to inspect variables during waterfall run
   ,buildFinancialReport :: Maybe DatePattern           -- ^ optional dates to build financial reports
   ,pricing :: Maybe BondPricingInput                   -- ^ optional bond pricing input( discount curve etc)
+  ,fireTrigger :: Maybe [(Date,DealCycle,TriggerName)]        -- ^ optional fire a trigger
 } deriving (Show,Generic)
 
 data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request

@@ -184,7 +184,7 @@ runEffects t@TestDeal{accounts = accMap, fees = feeMap } d te
       DoAccrueFee fns -> t {fees = foldr (Map.adjust (calcDueFee t d)) feeMap fns}  
       ChangeReserveBalance accName rAmt ->
           t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }        
-      _ -> error $ "Failed to match"++show te
+      _ -> error $ "Failed to match trigger effects: "++show te
 
 -- ^ test trigger and add a log if deal status changed
 runTriggers :: P.Asset a => TestDeal a -> Date -> DealCycle -> (TestDeal a,[ResultComponent])
@@ -385,7 +385,28 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                newlog = FinancialReport sd ed bsReport cashReport
              in 
                run t poolFlow (Just ads) rates calls rAssump $ log++[newlog] 
-               
+         FireTrigger d cyc n -> 
+             let 
+               triggerFired = case mTrgMap of 
+                                  Nothing -> error "trigger is empty for override" 
+                                  Just tm -> Map.adjust (Map.adjust setTriggered n) cyc tm
+               triggerEffects = case mTrgMap of 
+                                  Nothing -> Nothing
+                                  Just tm -> case Map.lookup cyc tm of
+                                               Nothing -> Nothing
+                                               Just cycM -> case Map.lookup n cycM of
+                                                              Nothing -> Nothing
+                                                              Just trg -> Just $ trgEffects trg
+               newT = case triggerEffects of 
+                        Nothing -> t  `debug` "Nothing found on effects"
+                        Just efs -> runEffects t d efs
+               (oldStatus,newStatus) = (status t,status newT)
+               stChangeLogs = [DealStatusChangeTo d oldStatus newStatus |  oldStatus /= newStatus] 
+
+               newLog = WarningMsg $ "Trigger Overrided to True "++ show(d,cyc,n)
+             in 
+               run newT{triggers = Just triggerFired} poolFlow (Just ads) rates calls rAssump $ log++[newLog]++stChangeLogs
+                
          _ -> error $ "Failed to match action on Date"++ show ad
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
@@ -650,11 +671,17 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status} mAssumps mNonPerfAs
                       bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates (L.bndInterestInfo b) closingDate endDate) rateAdjBnds
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate , bdate     <- bdates ]
+    -- mannual triggers 
+    mannualTrigger = case mNonPerfAssump of 
+                       Nothing -> []
+                       Just AP.NonPerfAssumption{AP.fireTrigger = Nothing} -> []
+                       Just AP.NonPerfAssumption{AP.fireTrigger = Just evts}
+                         -> [ FireTrigger d cycle n | (d,cycle,n) <- evts]
 
     allActionDates = let 
                        _actionDates = let 
                                         a = concat [bActionDates,pActionDates,iAccIntDates
-                                                   ,feeAccrueDates,liqResetDates,dealStageDates
+                                                   ,feeAccrueDates,liqResetDates,dealStageDates,mannualTrigger
                                                    ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] -- `debug` ("fee acc dates"++show feeAccrueDates)
                                       in
                                         case dates t of 
