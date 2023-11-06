@@ -26,6 +26,11 @@
 * :coffee: Easy integration with ``Java/C#/C++/JavaScript/Python`` with ``RESTful`` interface and Docker image are ready. 
   * C/Java : [here](https://github.com/yellowbean/Hastructure/issues/106)
 
+### Documentation
+
+* see what `Hastructure` is capable of -> [Here](https://absbox-doc.readthedocs.io/en/latest/)
+
+
 ### Features
 * Integration
   * Built-in REST API services
@@ -73,9 +78,10 @@
 * Misc
   * Support user define pay dates & pool collection dates 
 
-### Documentation
+### Premium Support
 
-* see what `Hastructure` is capable of -> [Here](https://absbox-doc.readthedocs.io/en/latest/)
+  slack -> https://absboxhastructure.slack.com 
+
 
 ### Online Demo
 
