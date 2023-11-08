@@ -269,7 +269,7 @@ sumTs trs d = tsSetDate (foldr1 addTs trs) d
 
 sumTsCF :: [TsRow] -> Date -> TsRow
 -- ^ group cashflow from same entity by a single date
-sumTsCF trs d = tsSetDate (foldl1 addTsCF trs) d -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
+sumTsCF trs = tsSetDate (foldl1 addTsCF trs) -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
 
 tsTotalCash :: TsRow -> Balance
 tsTotalCash (CashFlow _ x) = x
@@ -287,6 +287,7 @@ tsDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ x _ _ _ _ _ _) = x
 tsDefaultBal (MortgageFlow _ _ _ _ _ x _ _ _ _ _ _) = x
 tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _ _) = x
 tsDefaultBal LeaseFlow {} = error "not supported"
+tsDefaultBal (FixedFlow _ _ x _ _ _) = x
 
 tsCumDefaultBal :: TsRow -> Balance
 tsCumDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
@@ -295,6 +296,7 @@ tsCumDefaultBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
 tsCumDefaultBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
 tsCumDefaultBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
 tsCumDefaultBal (LoanFlow _ _ _ _ _ _ _ _ _  Nothing ) = 0.0
+tsCumDefaultBal (FixedFlow _ _ _ x _ _) = x
 tsCumDefaultBal x = error ("Failed to get cumulative default for record " ++ show x)
 
 tsCumDelinqBal :: TsRow -> Balance
@@ -486,6 +488,7 @@ mflowRate (LoanFlow _ _ _ _ _ _ _ _ x _) = x
 
 mflowRental :: TsRow -> Amount
 mflowRental (LeaseFlow _ _ x ) = x
+mflowRental x = error ("not support get rental from row"++show x)
 
 mflowDate :: TsRow -> Date
 -- ^ get date for a cashflow record

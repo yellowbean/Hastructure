@@ -152,7 +152,7 @@ instance IR.UseRate Account where
   getIndex (Account _ an (Just (InvestmentAccount idx _ _ _)) _ _) = Just idx
   getIndex _ = Nothing 
   
-  
+
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)

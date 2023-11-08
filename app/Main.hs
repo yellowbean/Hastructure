@@ -252,12 +252,14 @@ wrapRun (FDeal d) mAssump mNonPerfAssump = let
                                        (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (FDeal _d,_pflow,_rs,_p)
+wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
 wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
 wrapRunPool (MPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool (LPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool (IPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool (RPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+wrapRunPool x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)

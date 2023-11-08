@@ -60,6 +60,11 @@ import GHC.Generics
 
 import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
+import Control.Lens hiding (element)
+import Control.Lens.TH
+
+
+
 debug = flip trace
 
 
@@ -117,7 +122,7 @@ calcLiquidationAmount (PV discountRate recoveryPct) pool d
           in 
             pvCf + mulBI currentDefaulBal recoveryPct
 
-liquidatePool :: PricingMethod -> T.Day -> String -> TestDeal a -> TestDeal a
+liquidatePool :: PricingMethod -> Date -> String -> TestDeal a -> TestDeal a
 liquidatePool lq d accName t =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
@@ -126,11 +131,10 @@ liquidatePool lq d accName t =
      accs = accounts t
 
 
-
 calcDueFee :: P.Asset a => TestDeal a -> Date -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay fa _ _)
   | isJust fdDay = f  
-  | calcDay >= fs && (isNothing fdDay) = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd)++show amt)
+  | calcDay >= fs && isNothing fdDay = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd)++show amt)
   | otherwise = f
 
 calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lpd _)
@@ -310,11 +314,8 @@ priceAssetUnion (ACM.IL m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.LS m) d pm aps = P.priceAsset m d pm aps
 
 priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [PriceResult]
-priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates = 
-  let 
-    assetPrices = [ priceAssetUnion asset d pm assetPerf mRates | asset <- assetList ]
-  in 
-    assetPrices -- `debug` ("AP"++show assetPrices)
+priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates 
+  = [ priceAssetUnion asset d pm assetPerf mRates | asset <- assetList ]
 
 
 -- | this would used in `static` revolving ,which assumes the revolving pool will decrease
@@ -372,7 +373,7 @@ drawExtraSupport d amt (W.SupportAccount an (Just (W.ByAccountDraw ln))) t@TestD
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
       oustandingAmt = amt - drawAmt
     in 
-      (t {accounts = Map.adjust (A.draw drawAmt d Empty) an accMap
+      (t {accounts = Map.adjust (A.draw drawAmt d Types.Empty) an accMap
          ,ledgers = Just $ Map.adjust (LD.entryLog drawAmt d (TxnDirection Debit)) ln ledgerMap}
       , oustandingAmt)
 
@@ -381,7 +382,7 @@ drawExtraSupport d amt (W.SupportAccount an Nothing) t@TestDeal{accounts=accMap}
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
       oustandingAmt = amt - drawAmt
     in 
-      (t {accounts = Map.adjust (A.draw drawAmt d Empty) an accMap }
+      (t {accounts = Map.adjust (A.draw drawAmt d Types.Empty) an accMap }
       , oustandingAmt) 
 
 drawExtraSupport d amt (W.SupportLiqFacility liqName) t@TestDeal{liqProvider= Just liqMap}
@@ -497,6 +498,13 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer Nothing an1 an2 mComment
     comment = Transfer an1 an2
     accMapAfterDraw = Map.adjust (A.draw transferAmt d comment ) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d  comment) an2 accMapAfterDraw
+
+performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.ByDS ledger dr ds)) =
+  let  
+    amtToBook = queryDeal t ds
+    newLedgerM = Map.adjust (LD.entryLog amtToBook d (TxnDirection dr)) ledger ledgerM
+  in 
+    t {ledgers = Just newLedgerM} 
 
 performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL ds ledgersList)) =
   t {ledgers = Just newLedgerM}
