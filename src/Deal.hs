@@ -722,6 +722,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status} mAssumps mNonPerfAs
              , pool = patchIssuanceBalance status (CF.mflowBalance begRow) thePool
              } -- patching with performing balance
 
+-- ^ UI translation : to read pool cash
 readProceeds :: PoolSource -> CF.TsRow -> Balance
 readProceeds CollectedInterest  row = CF.mflowInterest row
 readProceeds CollectedPrincipal row = CF.mflowPrincipal row

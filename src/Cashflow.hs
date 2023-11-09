@@ -43,6 +43,10 @@ import Debug.Trace
 import qualified Control.Lens as Map
 import Data.OpenApi (HasPatch(patch))
 import Data.Text.Internal.Encoding.Fusion (streamUtf16BE)
+
+import Control.Lens hiding (element)
+import Control.Lens.TH
+
 debug = flip trace
 
 type Delinquent = Centi
@@ -716,6 +720,13 @@ isEmptyRow (FixedFlow {}) = False
 dropTailEmptyTxns :: [TsRow] -> [TsRow]
 dropTailEmptyTxns trs 
   = reverse $ dropWhile isEmptyRow (reverse trs)
+
+cashflowTxn :: Lens' CashFlowFrame [TsRow]
+cashflowTxn = lens getter setter
+  where 
+    getter (CashFlowFrame txns) = txns
+    setter (CashFlowFrame txns) newTxns = CashFlowFrame newTxns
+
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)
