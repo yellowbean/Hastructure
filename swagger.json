@@ -11979,12 +11979,15 @@
                                         "type": "string"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/Direction"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
