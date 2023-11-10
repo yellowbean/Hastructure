@@ -117,7 +117,7 @@ patchPrepayPentalyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame trs)
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (Sliding sr changeRate) -> 
           let 
-            rs = lastN flowSize $ paddingDefault 0 [sr,(sr-changeRate)..0] ot
+            rs = lastN flowSize $ paddingDefault 0 (0:[sr,(sr-changeRate)..0]) ot
           in
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (StepDown ps) ->
