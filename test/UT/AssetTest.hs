@@ -1,5 +1,5 @@
 module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,leaseFunTests,installmentTest,armTest,ppyTest
-                   ,delinqScheduleCFTest,delinqMortgageTest)
+                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest)
 where
 
 import Test.Tasty
@@ -546,4 +546,35 @@ delinqMortgageTest =
       --   assertEqual "check default"
       --   (CF.MortgageDelinqFlow (L.toDate "20220201") 1.08 0.36 0.0  0.0 0.0 0.0 0.0 0.0 0.08 Nothing Nothing)
       --   (txns!!5)
+    ]
+
+btlMortgageTest = 
+  let 
+    btl = AB.Mortgage
+            (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") AB.I_P Nothing)
+            240 0.08 2
+            Nothing
+            AB.Current
+    assump1 = (A.MortgageAssump   
+                        Nothing
+                        -- (Just (A.PrepaymentCPR 0.08))
+                        Nothing
+                        Nothing 
+                        Nothing
+              ,A.DummyDelinqAssump,A.DummyDefaultAssump)            
+    (CF.CashFlowFrame txns,m) = P.projCashflow btl (L.toDate "20200101") assump1 Nothing
+  in 
+    testGroup "Buy to let Mortgage Projection" [
+      testCase "" $
+        assertEqual "Length of cf"
+        2
+        (length txns)
+      ,testCase "extend 1st flow" $
+        assertEqual "1st row"
+        (CF.MortgageFlow (L.toDate "20221201") 240 0 1.59  0.0 0.0 0.0 0.0 0.08 Nothing Nothing (Just (0.0,0.00,0.0,0.0,0.00,0.0)))
+        (txns!!0)
+      ,testCase "extend 1st flow" $
+        assertEqual "last row"
+        (CF.MortgageFlow (L.toDate "20230101") 0 240 1.59  0.0 0.0 0.0 0.0 0.08 Nothing Nothing (Just (240,0.00,0.0,0.0,0.00,0.0)))
+        (txns!!1)
     ]

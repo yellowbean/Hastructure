@@ -62,6 +62,10 @@ projectMortgageFlow trs _bal mbn _last_date (pDate:pDates) (_def_rate:_def_rates
                     newPrin = case pt of
                                     Level -> pmt - newInt -- `debug` ("PMT->"++ show pmt)
                                     Even ->  newBalAfterPpy / fromIntegral remainTerms -- `debug` ("Dividing _remain"++show remainTerms ) --(ob / (fromIntegral ot)) * (newBalAfterPpy / ob)
+                                    I_P -> if remainTerms == 1 then 
+                                             newBalAfterPpy
+                                           else
+                                             0   
 
                     newRec = mulBR newDefault recovery_rate
                     newLoss = mulBR newDefault (1 - recovery_rate)
