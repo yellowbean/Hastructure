@@ -45,6 +45,11 @@ import AssetClass.AssetBase
 
 import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
+
+import Control.Lens hiding (element)
+import Control.Lens.TH
+
+
 debug = flip trace
 
 class (Show a,IR.UseRate a) => Asset a where
@@ -96,6 +101,9 @@ data Pool a = Pool {assets :: [a]                                           -- ^
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    } deriving (Show,Generic)
+
+
+
 
 -- | get stats of pool 
 getIssuanceField :: Pool a -> CutoffFields -> Centi

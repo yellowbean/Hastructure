@@ -79,7 +79,6 @@ data AssetDefaultAssumption = DefaultConstant Rate
                             | DefaultCDR Rate
                             | DefaultVec [Rate]
                             | DefaultByAmt (Balance,[Rate])
-                            | LifeDefaultByTerm [Rate]
                             deriving (Show,Generic)
 
 data AssetPrepayAssumption = PrepaymentConstant Rate

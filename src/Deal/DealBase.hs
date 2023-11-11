@@ -113,7 +113,11 @@ dealFees = lens getter setter
     getter d = fees d 
     setter d newFeeMap = d {fees = newFeeMap}
 
-
+dealPool :: P.Asset a => Lens' (TestDeal a) (P.Pool a)
+dealPool = lens getter setter 
+  where 
+    getter d = pool d
+    setter d newPool = d {pool = newPool}
 
 
 

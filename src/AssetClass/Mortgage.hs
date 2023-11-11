@@ -35,9 +35,6 @@ import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (extendTxns)
 debug = flip trace
 
--- projectLoanFlow :: ((Balance,Int,IRate), Balance, Date, AmortPlan, DayCount, IRate, Rational) -> (Dates, [DefaultRate],[PrepaymentRate],[IRate],[Int]) -> ([CF.TsRow],Rational)
--- projectLoanFlow ((originBal,ot,or), startBal, lastPayDate, pt, dc,startRate, begFactor) (cfDates,defRates,ppyRates,rateVector,remainTerms) = 
-
 projectMortgageFlow :: (Balance, Date, Maybe BorrowerNum, AmortPlan, DayCount, IRate, Period) -> (Dates, [DefaultRate],[PrepaymentRate],[IRate],[Int]) -> [CF.TsRow]
 projectMortgageFlow (startBal, lastPayDate, mbn, pt, dc, startRate, p) (cfDates, defRates, ppyRates, rateVector, remainTerms) = 
   let 
@@ -457,8 +454,7 @@ instance Ast.Asset Mortgage where
                mRates =
       (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
     where
-      recoveryLag = maybe 0 getRecoveryLag amr
-      lastPayDate:cfDates = lastN (recoveryLag + rt + 1) $ sd:getPaymentDates m recoveryLag  
+      lastPayDate:cfDates = lastN (rt + 1) $ sd:getPaymentDates m 0
       defRates = Ast.buildDefaultRates (lastPayDate:cfDates) amd
       ppyRates = Ast.buildPrepayRates (lastPayDate:cfDates) amp
       
@@ -466,10 +462,10 @@ instance Ast.Asset Mortgage where
       
       rateVector = A.projRates cr or mRates cfDates 
       
-      remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt]
+      remainTerms = reverse [0..rt]
       dc = getDayCount or
       txns = projectMortgageFlow (cb,lastPayDate,mbn,prinPayType,dc,cr,p) (cfDates, defRates, ppyRates,rateVector,remainTerms)
-      (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
+      (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
 
   -- project current mortgage(with delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 
@@ -535,7 +531,7 @@ instance Ast.Asset Mortgage where
       remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt]
       dc = getDayCount or
       txns = projectMortgageFlow (cb,lastPayDate,mbn,prinPayType,dc,cr,p) (cfDates, defRates, ppyRates,rateVector,remainTerms)
-      (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
+      (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
 
   -- project current AdjMortgage with delinq
   projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) arm cb cr rt mbn Current) 
