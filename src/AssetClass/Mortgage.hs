@@ -385,7 +385,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams ,_ ,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
+      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
       where
         recoveryLag = maybe 0 getRecoveryLag amr
         lastPayDate:cfDates = lastN (succ (recoveryLag + rt)) $ sd:getPaymentDates m recoveryLag
@@ -403,7 +403,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams,_,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
+      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
       where
         ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
         passInitPeriod = (ot - rt) >= initPeriod 
@@ -452,7 +452,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams ,_ ,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
+      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
     where
       lastPayDate:cfDates = lastN (rt + 1) $ sd:getPaymentDates m 0
       defRates = Ast.buildDefaultRates (lastPayDate:cfDates) amd
@@ -474,7 +474,7 @@ instance Ast.Asset Mortgage where
                     ,_
                     ,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
+      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
     where
       lastPayDate:cfDates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:getPaymentDates m (recoveryLag+defaultLag)
       cfDatesLength = length cfDates + recoveryLag + defaultLag
@@ -514,7 +514,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams,_,_) 
                mRates =
-    (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
+    (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
     where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
@@ -538,7 +538,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams,_,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPentalyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
+      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
     where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
@@ -593,15 +593,6 @@ instance Ast.Asset Mortgage where
         (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
   
   projCashflow a b c d = error $ "Failed to match when proj mortgage>>" ++ show a ++ show b ++ show c ++ show d
-
-  -- runCashflow m d txns [] is 
-  --   = let 
-  --       (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
-  --     in 
-  --       (CF.CashFlowFrame futureTxns ,historyM)
-
-  -- runCashflow m d txns (r:rs) is 
-  --   =  
 
   getBorrowerNum m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) cb cr rt mbn _ ) = fromMaybe 1 mbn
   getBorrowerNum m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType _) _ cb cr rt mbn _ ) = fromMaybe 1 mbn

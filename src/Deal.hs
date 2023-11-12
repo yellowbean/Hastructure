@@ -225,28 +225,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
     triggeredNames = Map.keys triggeredTrgs
 
     newTriggers = Map.union (Map.map (set trgStatusLens True) triggeredTrgs) trgsMap
-
   
--- newtype RunContext a = [TestDeal a, CF.CashFlowFrame , [ActionOnDate] , [RateAssumption] , [C.CallOption] , Maybe RevolvingAssumption]
--- 
--- runner :: P.Asset a => RunContext a -> ([ResultComponent],RunContext a)
--- 
--- runState :: State [ResultComponent] RunContext
--- runState = State runState
--- 
--- run3 :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> [ActionOnDate] -> [RateAssumption] -> [C.CallOption] -> Maybe RevolvingAssumption -> (TestDeal a,[ResultComponent])
--- run3 t@TestDeal{status=Ended} pcf ads rateAssumps calls mRAssumps = (prepareDeal t,[])
--- run3 t pcf [] rateAssumps calls mRAssumps = (prepareDeal t,[])
--- run3 t pcf ads rateAssumps calls mRAssumps = (t,[0])
--- 
--- runWithLog :: P.Asset a => (TestDeal a,[ResultComponent]) -> (TestDeal a -> (TestDeal a,[ResultComponent])) -> (TestDeal a,[ResultComponent])
--- runWithLog (t,logs) runner = 
---   let 
---     (t',newLogs) = runner t
---   in 
---     (t',logs ++ newLogs)
--- 
--- runWithLog2 :: P.Asset a => TestDeal a -> Writer [ResultComponent] (TestDeal a)
  
 run :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe (RevolvingPool , AP.ApplyAssumptionType)-> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run t@TestDeal{status=Ended} pcf ads _ _ _ log  = (prepareDeal t,log) `debug` ("Deal Ended")

@@ -45,12 +45,12 @@ data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 
                        -- | NMonthInterest Int
                        deriving (Show,Generic)
 
-data AmortRule = DecliningBalance
-               | DoubleDecliningBalance
-               | StraightLine
+data AmortRule = DecliningBalance        -- ^ DecliningBalance Method
+               | DoubleDecliningBalance  -- ^ Not implemented
+               | StraightLine            -- ^ Straight Line Method
                -- | UnitBased Int
                -- | MACRS
-               | SumYearsDigit
+               | SumYearsDigit           -- ^ Not implemented
                deriving (Show,Generic)
 
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
@@ -113,7 +113,6 @@ data MixedAsset = MixedPool (Map.Map String [AssetUnion])
                 deriving (Show,Generic)
 
 -- FixedAsset 
-
 data Capacity = FixedCapacity Balance
               | CapacityByTerm [(Int,Balance)]
               deriving (Show,Generic)

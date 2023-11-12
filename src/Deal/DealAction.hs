@@ -74,9 +74,7 @@ getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
     (Nothing,Nothing)   ->  _trs
     (Nothing,Just _ed)  ->  cutBy Inc Past _ed _trs
     (Just _sd,Nothing)  ->  cutBy Inc Future _sd _trs 
-    (Just _sd,Just _ed) ->  case rt of 
-                              IE -> filter (\x -> (CF.getDate x >= _sd) && (CF.getDate x < _ed)) _trs
-                              EI -> filter (\x -> (CF.getDate x > _sd) && (CF.getDate x <= _ed)) _trs
+    (Just _sd,Just _ed) ->  sliceBy rt _sd _ed _trs
   where
     (CF.CashFlowFrame _trs) = fromMaybe (CF.CashFlowFrame []) (P.futureCf _pool)
 
@@ -829,7 +827,7 @@ performAction d t@TestDeal{rateSwap = Just rtSwap } (W.SwapAccrue sName)
         newRtSwap = Map.adjust 
                       (HE.accrueIRS d)
                       sName
-                      (Map.adjust (HE.updateRefBalance refBal) sName rtSwap)
+                      (Map.adjust (set HE.rsRefBalLens refBal) sName rtSwap)
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapReceive accName sName)
   = t { rateSwap = Just newRtSwap, accounts = newAccMap }

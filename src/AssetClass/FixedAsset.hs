@@ -49,10 +49,7 @@ calcAmortAmt fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, ori
 calcAmortBals ::FixedAsset -> [Balance]
 calcAmortBals fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
                                                ,residualBalance=rb ,capacity=cap} rt)
-  = let 
-      amortizedBals = calcAmortAmt fa
-    in 
-      scanl (-) ob amortizedBals
+  = scanl (-) ob $ calcAmortAmt fa
  
 
 instance Ast.Asset FixedAsset where 
@@ -89,5 +86,4 @@ instance Ast.Asset FixedAsset where
         txns = zipWith6 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash
       in 
         (CF.CashFlowFrame $ cutBy Inc Future asOfDay txns, Map.empty)
-
   

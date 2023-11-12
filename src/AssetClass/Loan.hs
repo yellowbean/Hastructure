@@ -55,7 +55,6 @@ projectLoanFlow ((originBal,ot,or), startBal, lastPayDate, pt, dc,startRate, beg
              newPrin = case (rt,pt) of
                          (1,I_P) -> intBal
                          (1,F_P) -> intBal
-                         -- (_,F_P) -> mulBR (divideBI originBal ot)  newFactor
                          (0,F_P) -> 0
                          (_,F_P) -> mulBR (divideBI intBal rt)  newFactor
                          (_,I_P) -> 0
