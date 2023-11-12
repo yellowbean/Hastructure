@@ -99,11 +99,9 @@ emptyTxn SupportTxn {} d = SupportTxn d Nothing 0 0 0 0 Empty
 emptyTxn IrsTxn {} d = IrsTxn d 0 0 0 0 0 Empty
 emptyTxn EntryTxn {} d = EntryTxn d 0 0 Empty
 
-sliceStmt :: Maybe Statement -> Date -> Date -> Maybe Statement
-sliceStmt Nothing sd ed  = Nothing
-sliceStmt (Just (Statement txns)) sd ed 
-  = Just $ Statement $ filter 
-                  (\x -> ((getDate x) >= sd) && ((getDate x) <= ed)) txns 
+sliceStmt :: Date -> Date -> Statement -> Statement
+sliceStmt sd ed (Statement txns) 
+  = Statement $ sliceBy II sd ed txns
 
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 

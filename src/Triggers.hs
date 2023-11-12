@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Triggers(
-    Trigger(..),TriggerEffect(..),TriggerName,setTrigger
+    Trigger(..),TriggerEffect(..),TriggerName,trgStatusLens
 )
  where
 
@@ -43,10 +43,6 @@ data Trigger = Trigger {
             } deriving (Show, Eq, Generic)
 
 makeLensesFor [("trgStatus","trgStatusLens") ,("trgEffects","trgEffectsLens") ,("trgCondition","trgConditionLens") ,("trgCurable","trgCurableLens")] ''Trigger
-
-setTrigger :: Bool -> Trigger -> Trigger
-setTrigger b trg = set trgStatusLens b trg
-
 
 $(deriveJSON defaultOptions ''Trigger)
 $(deriveJSON defaultOptions ''TriggerEffect)

@@ -224,7 +224,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
     -- new status of trigger, update status of trigger to True
     triggeredNames = Map.keys triggeredTrgs
 
-    newTriggers = Map.union (Map.map (setTrigger True) triggeredTrgs) trgsMap
+    newTriggers = Map.union (Map.map (set trgStatusLens True) triggeredTrgs) trgsMap
 
   
 -- newtype RunContext a = [TestDeal a, CF.CashFlowFrame , [ActionOnDate] , [RateAssumption] , [C.CallOption] , Maybe RevolvingAssumption]
@@ -393,7 +393,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              let 
                triggerFired = case mTrgMap of 
                                   Nothing -> error "trigger is empty for override" 
-                                  Just tm -> Map.adjust (Map.adjust (setTrigger True) n) cyc tm
+                                  Just tm -> Map.adjust (Map.adjust (set trgStatusLens True) n) cyc tm
                triggerEffects = case mTrgMap of 
                                   Nothing -> Nothing
                                   Just tm -> case Map.lookup cyc tm of
