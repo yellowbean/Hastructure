@@ -9,9 +9,8 @@ module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,backoutDueIntByYield
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,weightAverageBalance,fv2,calcZspread,payYield
-  ,buildRateResetDates,convertToFace
-  ,isAdjustble)
+  ,weightAverageBalance,calcZspread,payYield
+  ,buildRateResetDates,isAdjustble)
   where
 
 import Language.Haskell.TH
@@ -121,8 +120,6 @@ data Bond = Bond {
   ,bndStmt :: Maybe S.Statement        -- ^ transaction history
 } deriving (Show, Eq, Generic)
 
-
-
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
   =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} 
@@ -158,16 +155,6 @@ payPrin d amt bnd@(Bond bn bt oi iinfo bal r duePrin dueInt dueIntDate lpayInt l
     newDue = duePrin - amt
     newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 amt 0 amt (S.PayPrin [bn] ))
 
-convertToFace :: Balance -> Bond -> Balance
-convertToFace bal b@Bond{bndOriginInfo = info}
-  = bal / originBalance info
-
-fv2 :: IRate -> Date -> Date -> Amount -> Amount
-fv2 discount_rate today futureDay amt 
-  = realToFrac $ (realToFrac amt) * factor 
-  where
-    factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)
-    distance::Double = fromIntegral $ daysBetween today futureDay
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))

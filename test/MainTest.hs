@@ -24,6 +24,7 @@ import qualified Lib as L
 import qualified Stmt as S
 import qualified Data.Time as T
 import qualified Data.Vector as UtilT
+import qualified UT.AnalyticsTest as AnalyticsT
 
 main = defaultMain tests
 
@@ -47,7 +48,6 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,CFT.testMergeTsRowsFromTwoEntities
                            ,CFT.testCumStat
                            ,BT.pricingTests
-                           ,BT.bndUtilTest
                            ,LT.curveTests
                            ,LT.pvTests
                            -- --,LT.queryStmtTests
@@ -82,5 +82,6 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,IRT.interestRoundingTest
                            ,AnalyticsT.walTest
                            ,AnalyticsT.durationTest
+                           ,AnalyticsT.fvTest
                            ,DealTest.baseTests
                            ]

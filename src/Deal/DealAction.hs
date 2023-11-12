@@ -63,8 +63,6 @@ import Cashflow (CashFlowFrame(CashFlowFrame))
 import Control.Lens hiding (element)
 import Control.Lens.TH
 
-
-
 debug = flip trace
 
 
@@ -78,18 +76,15 @@ getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   where
     (CF.CashFlowFrame _trs) = fromMaybe (CF.CashFlowFrame []) (P.futureCf _pool)
 
-
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
 testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
   | not cure && st = True 
   | otherwise = testPre d t cond 
 
-
 updateTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Trigger
 updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
   | testTrigger t d trigger = trigger {trgStatus = True}  
   | otherwise = trigger
-
 
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
@@ -728,21 +723,17 @@ performAction d t@TestDeal{accounts=accMap} (W.LiquidatePool lm an) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets
   where
     liqAmt = calcLiquidationAmount lm (pool t) d
-    accMapAfterLiq = Map.adjust (A.deposit liqAmt d (LiquidationProceeds)) an accMap
+    accMapAfterLiq = Map.adjust (A.deposit liqAmt d LiquidationProceeds) an accMap
 
 performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns) 
   = t {fees = Map.union newFeeMap feeMap }
   where 
-    newFeeMap = Map.map
-                  (calcDueFee t d) $
-                  getFeeByName t (Just fns)
+    newFeeMap = Map.map (calcDueFee t d) $ getFeeByName t (Just fns)
 
 performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns) 
   = t {bonds = Map.union newBondMap bndMap}
   where 
-    newBondMap = Map.map 
-                  (calcDueInt t d) $
-                  getBondByName t (Just bns)
+    newBondMap = Map.map (calcDueInt t d) $ getBondByName t (Just bns)
 
 performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToAcc an)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)

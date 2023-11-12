@@ -1,4 +1,4 @@
-module UT.BondTest(pricingTests,bndUtilTest)
+module UT.BondTest(pricingTests)
 where
 
 import Test.Tasty
@@ -168,13 +168,3 @@ bndTests = testGroup "Float Bond Tests" [
       assertEqual "" [True,False] [r1,r2]
  ]
 
-bndUtilTest = testGroup "Bond PV/FV Test" [
-    testCase "FV2 test" $ 
-        assertEqual "1-year"
-            108
-            (B.fv2 0.08 (L.toDate "20230101") (L.toDate "20240101") 100) 
-    ,testCase "FV2 test" $ 
-        assertEqual "0.5-year"
-            103.89
-            (B.fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 
- ]

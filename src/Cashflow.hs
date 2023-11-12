@@ -597,10 +597,12 @@ shiftCfToStartDate d cf@(CashFlowFrame (txn:txns))
     in 
       CashFlowFrame $ tsOffsetDate diffDays <$> (txn:txns)
 
+-- ^ sum a single pool source from a cashflow frame
 sumPoolFlow :: CashFlowFrame -> PoolSource -> Balance
 sumPoolFlow (CashFlowFrame trs) ps 
   = sum $ (`lookupSource` ps) <$> trs
 
+-- ^ lookup a pool source from a row
 lookupSource :: TsRow -> PoolSource -> Balance 
 lookupSource tr CollectedPrepayment  = mflowPrepayment tr
 lookupSource tr CollectedPrincipal = mflowPrincipal tr
@@ -612,6 +614,7 @@ lookupSource tr CollectedCash = tsTotalCash tr
 lookupSource tr NewDelinquencies = mflowDelinq tr
 lookupSource tr NewDefaults = mflowDefault tr
 lookupSource tr NewLosses = mflowLoss tr
+lookupSource tr x = error ("Failed to lookup source"++ show x)
 
 
 setPrepaymentPenalty :: Balance -> TsRow -> TsRow
@@ -702,6 +705,7 @@ patchBeginBalance d cf@(CashFlowFrame txns)
     in 
       CashFlowFrame (begRow:txns)
 
+-- ^ Given a list of Dates, build empty cashflow rows
 extendTxns :: TsRow -> [Date] -> [TsRow]      
 extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
 
@@ -717,7 +721,7 @@ isEmptyRow (LeaseFlow {}) = False
 isEmptyRow (FixedFlow _ 0 0 0 0 0) = True
 isEmptyRow (FixedFlow {}) = False
 
-
+-- ^ Remove empty cashflow from the tail
 dropTailEmptyTxns :: [TsRow] -> [TsRow]
 dropTailEmptyTxns trs 
   = reverse $ dropWhile isEmptyRow (reverse trs)

@@ -1,4 +1,4 @@
-module UT.AnalyticsTest(walTest,durationTest)
+module UT.AnalyticsTest(walTest,durationTest,fvTest)
 where
 
 import Test.Tasty
@@ -44,3 +44,14 @@ durationTest =
         [(L.toDate "20231001",100),(L.toDate "20240101",100)]
         (L.mkRateTs [(L.toDate "20230101",0.01)]))
   ]
+
+fvTest = testGroup "FV Test" [
+    testCase "FV2 test" $ 
+        assertEqual "1-year"
+            108
+            (fv2 0.08 (L.toDate "20230101") (L.toDate "20240101") 100) 
+    ,testCase "FV2 test" $ 
+        assertEqual "0.5-year"
+            103.89
+            (fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 
+ ]
