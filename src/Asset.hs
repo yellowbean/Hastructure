@@ -9,6 +9,7 @@ module Asset (Pool(..),aggPool
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
+       ,poolFutureCf
 ) where
 
 import qualified Data.Time as T
@@ -102,6 +103,11 @@ data Pool a = Pool {assets :: [a]                                           -- ^
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    } deriving (Show,Generic)
 
+poolFutureCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
+poolFutureCf = lens getter setter 
+  where 
+    getter p = futureCf p
+    setter p mNewCf = p {futureCf = mNewCf}
 
 
 

@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Triggers(
-    Trigger(..),TriggerEffect(..),TriggerName,setTriggered
+    Trigger(..),TriggerEffect(..),TriggerName,setTrigger
 )
  where
 
@@ -25,10 +25,6 @@ import qualified Liability as L
 
 type TriggerName = String
 
-setTriggered :: Trigger -> Trigger
-setTriggered trg@Trigger{ trgStatus = False } = trg { trgStatus = True }
-setTriggered trg@Trigger{ trgStatus = True } = trg
-
 
 data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal status
                    | DoAccrueFee FeeNames                       -- ^ accure fee
@@ -46,8 +42,11 @@ data Trigger = Trigger {
             ,trgCurable :: Bool                       -- ^ if it is curable trigger
             } deriving (Show, Eq, Generic)
 
+makeLensesFor [("trgStatus","trgStatusLens") ,("trgEffects","trgEffectsLens") ,("trgCondition","trgConditionLens") ,("trgCurable","trgCurableLens")] ''Trigger
 
-$(makeLenses ''Trigger)
+setTrigger :: Bool -> Trigger -> Trigger
+setTrigger b trg = set trgStatusLens b trg
+
 
 $(deriveJSON defaultOptions ''Trigger)
 $(deriveJSON defaultOptions ''TriggerEffect)

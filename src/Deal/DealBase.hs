@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts) 
+module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD

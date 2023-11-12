@@ -4,7 +4,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Expense (Fee(..),FeeType(..),payFee,payResidualFee
-               ,buildFeeAccrueAction)
+               ,buildFeeAccrueAction
+               ,feeNameLens,feeDueLens,feeTypeLens,feeStmtLens)
   where
 
 import Lib(Period,paySeqLiabilities,Dates
@@ -26,6 +27,7 @@ import DateUtil
 import qualified Stmt as S
 import qualified InterestRate as IR
 
+import Control.Lens
 import Debug.Trace
 debug = flip trace
 
@@ -103,6 +105,8 @@ instance Liable Fee where
 instance IR.UseRate Fee where
   isAdjustbleRate x = False
   getIndex x = Nothing 
+
+makeLensesFor [("feeName","feeNameLens"),("feeType","feeTypeLens") ,("feeDue","feeDueLens") ,("feeDueDate","feeDueDateLens") ,("feeStmt","feeStmtLens")] ''Fee
 
 $(deriveJSON defaultOptions ''FeeType)
 $(deriveJSON defaultOptions ''Fee)

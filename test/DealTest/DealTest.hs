@@ -28,6 +28,7 @@ import Types
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
+import Numeric.Lens (base)
 
 baseCase = D.TestDeal {
   D.name = "base case"
@@ -77,7 +78,7 @@ baseCase = D.TestDeal {
                                          60
                                          Nothing
                                          AB.Current]
-                 ,P.futureCf=Nothing
+                 ,P.futureCf=Just (CF.CashFlowFrame [])
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Nothing}
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
@@ -97,5 +98,9 @@ baseTests =
      assertEqual  "First Pay"
      True
      True
-     
+     ,testCase "empty pool flow" $
+     assertEqual "empty pool flow"
+     Nothing
+     -- (P.futureCf (D.pool baseCase))
+     (P.futureCf (D.pool (DR.removePoolCf baseCase)))
    ]

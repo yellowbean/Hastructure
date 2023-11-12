@@ -496,8 +496,8 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer Nothing an1 an2 mComment
     sourceAcc = accMap Map.! an1
     transferAmt = max 0 (A.accBalance sourceAcc)
     comment = Transfer an1 an2
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d comment ) an1 accMap
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d  comment) an2 accMapAfterDraw
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d comment) an1 accMap
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d comment) an2 accMapAfterDraw
 
 performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.ByDS ledger dr ds)) =
   let  
@@ -781,9 +781,8 @@ performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqS
   where 
       _transferAmt = case limit of 
                       Nothing -> 0 
-                      Just (DS (CurrentDueBondInt [bn]))
-                        -> queryDeal t (CurrentDueBondInt [bn])
-                      _ -> 0
+                      Just (DS (CurrentDueBondInt [bn])) -> queryDeal t (CurrentDueBondInt [bn])
+                      _ -> error $ "Not implement the limit"++ show limit++"For Pay Yield to liqProvider"
       transferAmt = case CE.liqCredit $  _liqProvider Map.! pName of 
                        Nothing -> _transferAmt
                        Just _availBal -> min _transferAmt _availBal
@@ -795,18 +794,22 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
   = t { accounts = newAccMap, liqProvider = Just newLiqMap }
   where 
       liqDue = CE.liqBalance $ _liqProvider Map.! pName
+      cap = min liqDue $ A.accBalance $ accs Map.! an
       transferAmt = case limit of 
-                      Nothing -> min liqDue $ A.accBalance $ accs Map.! an
-                      _ -> 0 -- to be implement
+                      Just (DS ds) -> min cap $ queryDeal t (patchDateToStats d ds)
+                      Nothing -> cap
+                      _ -> error $ "Not implement the limit"++ show limit++"For Repay to liqProvider"
       newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs
       newLiqMap = Map.adjust (CE.repay transferAmt d rpt ) pName _liqProvider 
 
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.LiqYield limit an pName)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap }
   where 
+      cap = A.accBalance $ accs Map.! an
       transferAmt = case limit of 
-                      Nothing -> A.accBalance $ accs Map.! an
-                      _ -> 0 -- to be implement
+                      Nothing -> cap
+                      Just (DS ds) -> min cap $ queryDeal t (patchDateToStats d ds)
+                      _ -> error $ "Not implement the limit"++ show limit++"For Pay Yield to liqProvider"
       newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs
       newLiqMap = Map.adjust (CE.repay transferAmt d CE.LiqBal ) pName _liqProvider 
 

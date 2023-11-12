@@ -46,7 +46,7 @@ instance QueryByComment Ledger where
 
     queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
 
-
+makeLensesFor [("ledgName","ledgNameLens"),("ledgBalance","ledgBalLens"),("ledgStmt","ledgStmtLens")] ''Ledger
 
 
 $(deriveJSON defaultOptions ''Ledger)

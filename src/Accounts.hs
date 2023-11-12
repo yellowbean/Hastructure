@@ -4,7 +4,8 @@
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit
                 ,transfer,depositInt,depositIntByCurve
-                ,InterestInfo(..),buildEarnIntAction,updateReserveBalance)
+                ,InterestInfo(..),buildEarnIntAction,updateReserveBalance
+                ,accBalLens)
     where
 import qualified Data.Time as T
 import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,getDate
@@ -19,13 +20,15 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 
+import Control.Lens 
+
 import qualified InterestRate as IR
 
 import Debug.Trace
 debug = flip trace
 
 data InterestInfo = BankAccount IRate Date DatePattern                -- ^ fix reinvest return rate
-                  | InvestmentAccount Index Spread Date DatePattern   -- ^ float reinvest return rate (index,spread, dp)
+                  | InvestmentAccount Types.Index Spread Date DatePattern   -- ^ float reinvest return rate (index,spread, dp)
                   deriving (Show, Generic)
 
 data ReserveAmount = PctReserve DealStats Rate               -- ^ target amount with reference to % of formula
@@ -47,13 +50,12 @@ data Account = Account {
 buildEarnIntAction :: [Account] -> Date -> [(String,Dates)] -> [(String,Dates)]
 buildEarnIntAction [] ed r = r
 buildEarnIntAction (acc:accs) ed r = 
-  case acc of 
-    (Account _ _ Nothing _ _) 
-      -> buildEarnIntAction accs ed r
-    (Account _ an (Just (BankAccount _ lastAccDate dp)) _ _)
-      -> buildEarnIntAction accs ed [(an, genSerialDatesTill2 NO_IE lastAccDate dp ed)]++r    
-    (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _)
-      -> buildEarnIntAction accs ed [(an, genSerialDatesTill2 NO_IE lastAccDate dp ed)]++r    
+  case accInterest acc of 
+    Nothing -> buildEarnIntAction accs ed r
+    Just (BankAccount _ lastAccDate dp) 
+      -> buildEarnIntAction accs ed [(accName acc, genSerialDatesTill2 NO_IE lastAccDate dp ed)]++r    
+    Just (InvestmentAccount _ _ lastAccDate dp) 
+      -> buildEarnIntAction accs ed [(accName acc, genSerialDatesTill2 NO_IE lastAccDate dp ed)]++r    
 
 -- | sweep interest/investement income into account
 depositInt :: Account -> Date -> Account
@@ -67,8 +69,7 @@ depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed
                               let 
                                 accrueTxns = sliceBy IE lastCollectDate ed txns
                                 bals = map getTxnBegBalance accrueTxns ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
-                                ds = getDates accrueTxns
-                                dfs = getIntervalFactors $ [lastCollectDate] ++ ds ++ [ed]
+                                dfs = getIntervalFactors $ [lastCollectDate] ++ (getDates accrueTxns) ++ [ed]
                               in
                                 mulBI (sum $ zipWith mulBR bals dfs) r  
 
@@ -140,6 +141,9 @@ queryTrasnferBalance :: Account -> Account -> Balance
 queryTrasnferBalance Account{accStmt = Nothing } Account{accName = an} = 0
 queryTrasnferBalance a@Account{accName = fromAccName, accStmt = Just (Statement txns)} Account{accName = toAccName}
   = sum $ getTxnAmt <$> queryStmt a (Transfer fromAccName toAccName) 
+
+makeLensesFor [("accBalance","accBalLens") ,("accName","accNameLens") ,("accType","accTypeLens") ,("accStmt","accStmtLens")] ''Account
+
 
 instance QueryByComment Account where 
     queryStmt (Account _ _ _ _ Nothing) tc = []

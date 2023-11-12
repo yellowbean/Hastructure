@@ -18,7 +18,8 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
-                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,patchCumulative,extendTxns,dropTailEmptyTxns) where
+                ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,patchCumulative,extendTxns,dropTailEmptyTxns
+                ,cashflowTxn) where
 
 import Data.Time (Day)
 import Data.Fixed

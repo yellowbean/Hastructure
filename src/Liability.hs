@@ -28,6 +28,7 @@ import DateUtil
 import Types
 import Analytics
 import Data.Ratio 
+import Data.Maybe
 
 import qualified Stmt as S 
 
@@ -40,6 +41,8 @@ import GHC.Generics
 
 import Debug.Trace
 import InterestRate (UseRate(getIndexes))
+import Control.Lens hiding (Index)
+
 debug = flip trace
 
 type RateReset = DatePattern 
@@ -75,7 +78,16 @@ getIndexFromInfo (StepUpPre _ _ i1 i2) = getIndexFromInfo i1 <> getIndexFromInfo
 getIndexFromInfo (CapRate info _) = getIndexFromInfo info
 getIndexFromInfo (FloorRate info _) = getIndexFromInfo info
 
-
+getDayCountFromInfo :: InterestInfo -> Maybe DayCount
+getDayCountFromInfo (Floater _ _ _ _ dc _ _) = Just dc
+getDayCountFromInfo (Fix _ dc) = Just dc
+getDayCountFromInfo InterestByYield {} = Nothing 
+getDayCountFromInfo RefRate {} = Nothing 
+getDayCountFromInfo (StepUpFix _ dc _ _ ) = Just dc
+-- getDayCountFromInfo (StepUpPre _ _ i1 i2) = getDayCountFromInfo i1 <> getDayCountFromInfo i2
+getDayCountFromInfo (CapRate info _) = getDayCountFromInfo info
+getDayCountFromInfo (FloorRate info _) = getDayCountFromInfo info
+getDayCountFromInfo _ = Nothing
 
 data OriginalInfo = OriginalInfo {
   originBalance::Balance           -- ^ issuance balance
@@ -158,25 +170,24 @@ fv2 discount_rate today futureDay amt
     distance::Double = fromIntegral $ daysBetween today futureDay
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
+priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
   | sum (S.getTxnAmt <$> futureCf) == 0 = PriceResult 0 0 0 0 0 0 
   | otherwise = 
                 let
-                  presentValue = foldr (\x acc -> acc + (pv rc d (S.getDate x) (S.getTxnAmt x))) 0 futureCf -- `debug` "PRICING -A"
+                  presentValue = foldr (\x acc -> acc + pv rc d (S.getDate x) (S.getTxnAmt x)) 0 futureCf -- `debug` "PRICING -A"
                   cutoffBalance = case S.getTxnAsOf txns d of
-                                      Nothing ->  (S.getTxnBalance fstTxn) + (S.getTxnPrincipal fstTxn) --  `debug` (show(getTxnBalance fstTxn))
-                                                 where
-                                                  fstTxn = head txns
-                                      Just _txn -> S.getTxnBalance _txn   
+                                      Nothing ->  sum $ map (\x -> x (head txns)) [S.getTxnBalance , S.getTxnPrincipal]  --  `debug` (show(getTxnBalance fstTxn))
+                                      Just _txn -> S.getTxnBalance _txn
                   accruedInt = case _t of
-                                  Nothing -> (fromIntegral (max 0 (T.diffDays d leftPayDay))/365) * (mulBI leftBal cr)
+                                  Nothing -> max 0 $ IR.calcInt leftBal leftPayDay d cr dcToUse 
                                   Just _ -> 0 
                                 where
-                                  _t = find (\x -> (S.getDate x) == d) txns
-                                  leftTxns = takeWhile (\txn -> (S.getDate txn) < d) txns
+                                  dcToUse = fromMaybe DC_ACT_365F $ getDayCountFromInfo iinfo
+                                  _t = find (\x -> S.getDate x == d) txns
+                                  leftTxns = cutBy Exc Past d txns
                                   (leftPayDay,leftBal) = case leftTxns of
                                                            [] -> case lastIntPayDay of
-                                                                   Nothing ->  (od,bal)
+                                                                   Nothing -> (od,bal)
                                                                    Just _d -> (_d,bal)
                                                            _ -> let
                                                                   leftTxn = last leftTxns
@@ -212,7 +223,6 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) _ bal cr _ _ _ lastIntPay
                 in 
                   PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt -- `debug` ("Obal->"++ show obal++"Rate>>"++ show (bndRate b))
   where 
-    -- futureCf = filter (\x -> (S.getDate x) > d) txns
     futureCf = cutBy Exc Future d txns
 
 
@@ -337,6 +347,7 @@ instance IR.UseRate Bond where
   -- getIndex Bond{bndInterestInfo = iinfo }
   getIndexes Bond{bndInterestInfo = iinfo}  = getIndexFromInfo iinfo
      
+makeLensesFor [("bndType","bndTypeLens"),("bndOriginInfo","bndOriginInfoLens"),("bndInterestInfo","bndIntLens"),("bndStmt","bndStmtLens")] ''Bond
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
