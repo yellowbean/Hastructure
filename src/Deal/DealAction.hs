@@ -270,7 +270,7 @@ calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi bond_bal _ prin_arr 
     scheduleDue = getValOnByDate schedule calc_date  
     duePrin = max (bond_bal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PAC_Anchor schedule bns) bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PacAnchor schedule bns) bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date

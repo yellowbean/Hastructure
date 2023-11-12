@@ -99,7 +99,7 @@ type PlannedAmorSchedule = Ts
 
 data BondType = Sequential                                 -- ^ Pass through type tranche
               | PAC PlannedAmorSchedule                    -- ^ bond with schedule amortization 
-              | PAC_Anchor PlannedAmorSchedule [BondName]  -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
+              | PacAnchor PlannedAmorSchedule [BondName]  -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
               | Lockout Date                               -- ^ No principal due till date
               | Z                                          -- ^ Z tranche
               | Equity                                     -- ^ Equity type tranche
