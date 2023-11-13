@@ -108,6 +108,7 @@ data CashFlowFrame = CashFlowFrame [TsRow]
                      deriving (Eq,Generic)
 
 instance Show CashFlowFrame where
+  show (CashFlowFrame []) = "Empty CashflowFrame"
   show (CashFlowFrame txns) = concat $ L.intersperse "\n" [ show txn | txn <- txns ]
                    
 sizeCashFlowFrame :: CashFlowFrame -> Int
@@ -120,15 +121,12 @@ getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame ts) = getDates ts
 
 getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date)
-getDateRangeCashFlowFrame (CashFlowFrame trs)
-  = (getDate (head trs), getDate (last trs))
+getDateRangeCashFlowFrame (CashFlowFrame trs) = (getDate (head trs), getDate (last trs))
 
 cfAt :: CashFlowFrame -> Int -> Maybe TsRow
-cfAt (CashFlowFrame trs) idx = 
-  if (idx < 0) || (idx >= length trs) then
-    Nothing
-  else
-    Just (trs!!idx)
+cfAt (CashFlowFrame trs) idx 
+  | (idx < 0) || (idx >= length trs) = Nothing
+  | otherwise = Just (trs!!idx)
 
 cfInsertHead :: TsRow -> CashFlowFrame -> CashFlowFrame
 cfInsertHead tr (CashFlowFrame trs) = CashFlowFrame $ tr:trs
@@ -384,7 +382,7 @@ aggregateTsByDate :: [TsRow] -> [TsRow] -> [TsRow]
 aggregateTsByDate rs [] = reverse rs
 aggregateTsByDate [] (tr:trs) = aggregateTsByDate [tr] trs
 aggregateTsByDate (r:rs) (tr:trs) 
-  | sameDate r tr = aggregateTsByDate ((combineTs r tr):rs) trs
+  | sameDate r tr = aggregateTsByDate (combineTs r tr:rs) trs
   | otherwise = aggregateTsByDate (tr:r:rs) trs
 
 
@@ -524,6 +522,7 @@ mflowPrepaymentPenalty (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ (Just x) _) = x
 mflowPrepaymentPenalty (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ Nothing _) = 0
 mflowPrepaymentPenalty _ = undefined
 
+-- tobe factor out alongside with similar funciton in bond cashflow
 mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs
   = sum $ zipWith mulBR _bals _dfs  -- `debug` ("CalcingAvgBal=>"++show sd++show ed++show txns  )

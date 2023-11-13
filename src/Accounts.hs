@@ -59,20 +59,21 @@ buildEarnIntAction (acc:accs) ed r =
 
 -- | sweep interest/investement income into account
 depositInt :: Account -> Date -> Account
-depositInt a@(Account _ _ Nothing _ _) _ = a
+depositInt a@(Account _ _ Nothing _ _) _ = a 
 depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed 
           = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (BankAccount r ed dp)}
           where 
+            defaultDc = DC_30E_360
             accruedInt = case stmt of 
-                            Nothing -> mulBR (mulBI bal r) (yearCountFraction DC_30E_360 lastCollectDate ed) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
+                            Nothing -> mulBR (mulBI bal r) (yearCountFraction defaultDc lastCollectDate ed) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
                             Just (Statement txns) ->
                               let 
                                 accrueTxns = sliceBy IE lastCollectDate ed txns
-                                bals = map getTxnBegBalance accrueTxns ++ [bal] -- `debug` ("ACCU TXN"++show _accrue_txns)
-                                dfs = getIntervalFactors $ [lastCollectDate] ++ (getDates accrueTxns) ++ [ed]
+                                bals = map getTxnBegBalance accrueTxns ++ [bal]
+                                ds = [lastCollectDate] ++ getDates accrueTxns ++ [ed]
+                                avgBal = calcWeightBalanceByDates defaultDc bals ds
                               in
-                                mulBI (sum $ zipWith mulBR bals dfs) r  
-
+                                mulBI avgBal r  
             newBal = accruedInt + bal  -- `debug` ("INT ACC->"++ show accrued_int)
             newTxn = AccTxn ed newBal accruedInt BankInt
             newStmt = appendStmt stmt newTxn

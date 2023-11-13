@@ -4,10 +4,10 @@
 module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN
     ,getValByDate,getValByDates,scaleUpToOne
-    ,divideBB
+    ,divideBB,getIntervalFactorsDc
     ,multiplyTs,zipTs,getTsVals,getTsSize,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, getTsDates
-    ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
+    ,shiftTsByAmt,calcWeightBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval
     -- for debug
@@ -224,16 +224,21 @@ assert1 :: Bool -> a -> String -> a
 assert1 False x msg = error msg
 assert1 _     x _ = x
 
-calcWeigthBalanceByDates :: [Balance] -> [Date] -> Balance 
-calcWeigthBalanceByDates bals ds 
+getIntervalFactorsDc :: DayCount -> [Date] -> [Rate]
+getIntervalFactorsDc dc ds 
+  = zipWith (yearCountFraction dc) (init ds) (tail ds)
+
+-- ^ get a weighted average balance on year basis with a dayCount required
+calcWeightBalanceByDates :: DayCount -> [Balance] -> [Date] -> Balance 
+calcWeightBalanceByDates dc bals ds 
   = assert1
       (succ bs_length == ds_length) 
       (sum $ zipWith mulBR bals weights)
-      "calcWeigthBalanceByDates: bs and ds should be same length"
+      "calcWeightBalanceByDates: bs and ds should be same length"
       where 
         bs_length = length bals 
         ds_length = length ds
-        weights = getIntervalFactors ds
+        weights = getIntervalFactorsDc dc ds
 
 testSumToOne :: [Rate] -> Bool
 testSumToOne rs = sum rs == 1.0
