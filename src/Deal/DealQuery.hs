@@ -489,6 +489,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
         case (isPaidOff bn1,all isPaidOff bns1) of
           (False,True) -> True
           _ -> False
+
+    IsPaidOff bns -> all isPaidOff $ (bndMap Map.!) <$> bns
     
     TestRate ds cmp r -> let
                            testRate = queryDealRate t ds

@@ -433,6 +433,7 @@ data DealStats = CurrentBondBalance
                | FutureOriginalPoolBalance
                | CurrentBondBalanceOf [BondName]
                | IsMostSenior BondName [BondName]
+               | IsPaidOff [BondName]
                | BondIntPaidAt Date BondName
                | BondsIntPaidAt Date [BondName]
                | BondPrinPaidAt Date BondName
