@@ -92,6 +92,8 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | SwapReceive AccountName CeName    -- ^ receive amount from net amount of swap and deposit to account
             | SwapPay AccountName CeName        -- ^ pay out net amount from account 
             | SwapSettle AccountName CeName     -- ^ pay & receive net amount of swap with account
+            -- RateCap 
+            | CollectRateCap AccountName CeName  -- ^ collect cash from rate cap and deposit to account
             -- Record booking
             | BookBy BookType                         -- ^ book an ledger with book types
             -- Pre

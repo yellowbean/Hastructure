@@ -60,6 +60,7 @@ data TestDeal a = TestDeal { name :: String
                              ,call :: Maybe [C.CallOption]
                              ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
                              ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
+                             ,rateCap :: Maybe (Map.Map String HE.RateCap)
                              ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
                              ,custom:: Maybe (Map.Map String CustomDataType)
                              ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))

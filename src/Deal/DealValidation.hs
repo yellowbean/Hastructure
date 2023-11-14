@@ -159,8 +159,9 @@ extractRequiredRates t@TestDeal{accounts = accM
                                ,bonds = bondM 
                                ,liqProvider = mliqProviderM 
                                ,rateSwap = mrsM 
+                               ,rateCap = mRcM
                                ,pool = pool}
-  = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
+  = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex ++ rcIndex
   -- = Set.fromList $ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
     where 
       assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
@@ -173,6 +174,10 @@ extractRequiredRates t@TestDeal{accounts = accM
       rsIndex = case mrsM of 
                   Just rsM -> concat $ catMaybes $ IR.getIndexes <$> Map.elems rsM
                   Nothing -> []
+      rcIndex = case mRcM of 
+                  Just rcM -> concat $ catMaybes $ IR.getIndexes <$> Map.elems rcM
+                  Nothing -> []
+        
       -- note fee is not tested
 
 validateAggRule :: [W.CollectionRule] -> [ResultComponent]

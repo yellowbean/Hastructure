@@ -827,6 +827,14 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapR
         newRtSwap = Map.adjust (HE.receiveIRS d) sName rtSwap -- `debug` ("REceiv AMT"++ show receiveAmt)
         newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
 
+performAction d t@TestDeal{rateCap = Just rcM, accounts = accsMap } (W.CollectRateCap accName sName)
+  = t { rateCap = Just newRcSwap, accounts = newAccMap }
+    where 
+        receiveAmt = max 0 $ HE.rcNetCash $ rcM Map.! sName
+        newRcSwap = Map.adjust (HE.receiveRC d) sName rcM -- `debug` ("REceiv AMT"++ show receiveAmt)
+        newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
+
+
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapPay accName sName)
   = t { rateSwap = Just newRtSwap, accounts = newAccMap }
     where 

@@ -612,6 +612,14 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status,bonds=bndMap} mAssum
                                                           in 
                                                            flip ResetIRSwapRate k <$> resetDs)
                                                  rsm
+    rateCapSettleDates = case rateCap t of 
+                           Nothing -> []
+                           Just rcM -> Map.elems $ Map.mapWithKey 
+                                                     (\k x -> let 
+                                                                resetDs = genSerialDatesTill2 EE (HE.rcStartDate x) (HE.rcSettleDates x) endDate
+                                                              in 
+                                                                flip SettleCapRate k <$> resetDs)
+                                                     rcM
     -- bond rate resets 
     bndRateResets = let 
                       bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates b closingDate endDate) bndMap
@@ -625,7 +633,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status,bonds=bndMap} mAssum
     allActionDates = let 
                        _actionDates = let 
                                         a = concat [bActionDates,pActionDates,iAccIntDates
-                                                   ,feeAccrueDates,liqResetDates,dealStageDates,mannualTrigger
+                                                   ,feeAccrueDates,liqResetDates,dealStageDates,mannualTrigger,concat rateCapSettleDates
                                                    ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] -- `debug` ("fee acc dates"++show feeAccrueDates)
                                       in
                                         case dates t of 

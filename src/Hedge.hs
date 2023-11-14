@@ -4,9 +4,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Hedge
-  (RateSwap(..)
+  (RateSwap(..),RateCap(..)
   ,RateSwapType(..),RateSwapBase(..)
-  ,accrueIRS,payoutIRS,receiveIRS
+  ,accrueIRS,payoutIRS,receiveIRS,receiveRC
   ,CurrencySwap(..),rsRefBalLens
   )
   where
@@ -111,10 +111,35 @@ instance Liable RateSwap where
     | bal == 0 = True
     | otherwise = False
 
--- data RateCap = RateCap {
---                 rcNotional::RateSwapBase
---                 ,
---               }
+data RateCap = RateCap {
+                rcIndex :: Index
+                ,rcStrikeRate :: Ts
+                ,rcNotional :: RateSwapBase
+                ,rcStartDate :: Date
+                ,rcSettleDates :: DatePattern
+                ,rcEndDate :: Date
+                ,rcReceivingRate :: IRate       -- ^ receiving rate
+                ,rcRefBalance :: Balance        -- ^ notional balance in use
+                ,rcLastStlDate :: Maybe Date    -- ^ last settle date
+                ,rcNetCash :: Balance           -- ^ amount to collect
+                ,rcStmt :: Maybe Statement      -- ^ transaction history                
+              }
+              deriving(Show,Generic)
+
+receiveRC :: Date -> RateCap -> RateCap
+receiveRC d rc@RateCap{rcNetCash = receiveAmt, rcStmt = stmt} 
+  | receiveAmt > 0 = rc { rcNetCash = 0 ,rcStmt = newStmt}
+  | otherwise = rc
+     where 
+       newStmt = appendStmt stmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle)
+
+instance IR.UseRate RateCap where 
+  getIndexes rc@RateCap{rcIndex = idx} = Just [idx]
+
+instance QueryByComment RateCap where 
+    queryStmt RateCap{rcStmt = Nothing} tc = []
+    queryStmt RateCap{rcStmt = Just (Statement txns)} tc
+      = filter (\x -> getTxnComment x == tc) txns
 
 
 data CurrencySwap = CurrencySwap {
@@ -132,6 +157,7 @@ instance IR.UseRate RateSwap where
 makeLensesFor [("rsType","rsTypeLens"),("rsRefBalance","rsRefBalLens")] ''RateSwap
 
 $(deriveJSON defaultOptions ''RateSwap)
+$(deriveJSON defaultOptions ''RateCap)
 $(deriveJSON defaultOptions ''RateSwapType)
 $(deriveJSON defaultOptions ''RateSwapBase)
 $(deriveJSON defaultOptions ''CurrencySwap)
