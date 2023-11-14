@@ -225,21 +225,21 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
 updateLiqProvider t d liq = disableLiqProvider t d liq
 
 calcDueInt :: P.Asset a => TestDeal a -> Date -> L.Bond -> L.Bond
-calcDueInt t calc_date b@(L.Bond _ _ oi io _ r dp di Nothing _ lastPrinPay _ ) 
+calcDueInt t calc_date b@(L.Bond _ _ oi io _ _ r dp di Nothing _ lastPrinPay _ ) 
  | calc_date <= closingDate = b
  | otherwise = calcDueInt t calc_date (b {L.bndDueIntDate = Just closingDate })
    where 
      closingDate = getClosingDate (dates t)
 
-calcDueInt t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate _ _ _ lstIntPay _ _) 
+calcDueInt t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate _ _ _ lstIntPay _ _) 
   = b {L.bndDueInt = 0 }
 
-calcDueInt t calc_date b@(L.Bond bn L.Equity bo (L.InterestByYield y) bond_bal _ _ int_due _ lstIntPay _ mStmt)
+calcDueInt t calc_date b@(L.Bond bn L.Equity bo (L.InterestByYield y) _ bond_bal _ _ int_due _ lstIntPay _ mStmt)
   = b {L.bndDueInt = newDue }  -- `debug` ("Yield Due Int >>"++ show bn++">> new due"++ show newDue++">> old due"++ show int_due )
   where
   newDue = L.backoutDueIntByYield calc_date b
 
-calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just int_due_date) lstIntPay _ _ ) 
+calcDueInt t calc_date b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ int_due (Just int_due_date) lstIntPay _ _ ) 
   | calc_date == int_due_date = b
   | otherwise = b {L.bndDueInt = new_due_int+int_due,L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
               where
@@ -251,12 +251,12 @@ calcDueInt t calc_date b@(L.Bond bn bt bo bi bond_bal bond_rate _ int_due (Just 
 
 
 calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = duePrin} 
   where
     duePrin = bond_bal 
 
-calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
   if cd > calc_date then 
     b {L.bndDuePrin = 0}
   else
@@ -264,13 +264,13 @@ calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi bond_bal _ prin_arr in
   where
     duePrin = bond_bal 
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date  
     duePrin = max (bond_bal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PacAnchor schedule bns) bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PacAnchor schedule bns) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date
@@ -280,13 +280,13 @@ calcDuePrin t calc_date b@(L.Bond bn (L.PacAnchor schedule bns) bo bi bond_bal _
               else
                  bond_bal
 
-calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_arrears _ lstIntPay _ _) =
+calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate prin_arr int_arrears _ lstIntPay _ _) =
   if all isZbond activeBnds then
       b {L.bndDuePrin = bond_bal} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   else 
       b {L.bndDuePrin = 0, L.bndBalance = new_bal, L.bndLastIntPay=Just calc_date} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
-    isZbond (L.Bond _ L.Z _ _ _ _ _ _ _ _ _ _) = True
+    isZbond (L.Bond _ L.Z _ _ _ _ _ _ _ _ _ _ _) = True
     isZbond L.Bond {} = False
     
     activeBnds = filter (\x -> L.bndBalance x > 0) (Map.elems (bonds t))
@@ -296,7 +296,7 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi bond_bal bond_rate prin_arr int_a
                       Nothing -> getClosingDate (dates t)
     dueInt = IR.calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F
 
-calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
   b {L.bndDuePrin = bond_bal }
 
 

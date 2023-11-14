@@ -111,6 +111,12 @@ instance Liable RateSwap where
     | bal == 0 = True
     | otherwise = False
 
+-- data RateCap = RateCap {
+--                 rcNotional::RateSwapBase
+--                 ,
+--               }
+
+
 data CurrencySwap = CurrencySwap {
                     csBalance :: Balance
                     } deriving (Show,Generic)

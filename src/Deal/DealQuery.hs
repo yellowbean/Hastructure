@@ -153,7 +153,7 @@ queryDealInt t s d =
           Nothing -> error "Should not happend"
           Just md -> fromInteger $ T.cdMonths $ T.diffGregorianDurationClip md d
         where
-            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _) = (bonds t) Map.! bn  
+            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = (bonds t) Map.! bn  
     FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
     FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
     FloorWithZero s -> max (queryDealInt t s d) 0

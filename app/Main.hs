@@ -150,6 +150,7 @@ instance ToSchema A.ReserveAmount
 instance ToSchema F.Fee
 instance ToSchema F.FeeType
 instance ToSchema L.Bond
+instance ToSchema L.StepUp
 instance ToSchema L.BondType
 instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo

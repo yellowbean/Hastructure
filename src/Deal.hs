@@ -74,20 +74,19 @@ debug = flip trace
 
 
 setBondNewRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpFix _ _ _ spd) _ currentRate _ _ _ _ _ _) 
+setBondNewRate t d ras b@(L.Bond _ _ _ _ (Just (L.PassDateSpread _ spd)) _ currentRate _ _ _ _ _ _)
   = b { L.bndRate = currentRate + spd }
 
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.StepUpPre _ p f1 f2) _ currentRate _ _ _ _ _ _)
-  | testPre d t p = b {L.bndRate = applyFloatRate f1 d ras}
-  | otherwise = b {L.bndRate = applyFloatRate f2 d ras}
+setBondNewRate t d ras b@(L.Bond _ _ _ _ (Just (L.PassDateLadderSpread _ spd _)) _ currentRate _ _ _ _ _ _)
+  = b { L.bndRate = currentRate + spd }
 
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _) 
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _ _) 
   = let 
       rate = queryDealRate t (patchDateToStats d ds)
     in 
       b {L.bndRate = fromRational (toRational rate * toRational factor) }
 
-setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _) 
+setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
 
 updateLiqProviderRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> CE.LiqFacility -> CE.LiqFacility
@@ -354,7 +353,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          ResetBondRate d bn -> 
              let 
                newBndMap = case rates of 
-                             Nothing -> error ("No rate assumption for floating bond:"++bn++"Deal"++ (name t))
+                             Nothing -> error ("No rate assumption for floating bond:"++bn++"Deal"++ name t)
                              (Just _rates) -> Map.adjustWithKey 
                                               (\k v-> setBondNewRate t d _rates v)
                                               bn
@@ -565,7 +564,7 @@ patchIssuanceBalance (PreClosing _ ) bal p@P.Pool{issuanceStat = Just statM } = 
 patchIssuanceBalance _ bal p = p
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], CF.CashFlowFrame)
-getInits t@TestDeal{fees= feeMap,pool=thePool,status=status} mAssumps mNonPerfAssump
+getInits t@TestDeal{fees= feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump
   = (newT, allActionDates, pCollectionCfAfterCutoff)  -- `debug` ("init done actions->"++ show pCollectionCfAfterCutoff)
   where
     (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)
@@ -615,8 +614,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status} mAssumps mNonPerfAs
                                                  rsm
     -- bond rate resets 
     bndRateResets = let 
-                      rateAdjBnds = Map.filter (L.isAdjustble . L.bndInterestInfo) $ bonds t
-                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates (L.bndInterestInfo b) closingDate endDate) rateAdjBnds
+                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates b closingDate endDate) bndMap
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate, bdate <- bdates ]
     -- mannual triggers 
