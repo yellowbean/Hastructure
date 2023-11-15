@@ -77,6 +77,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
             | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond
+            | PayPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond via sequence
             | PayPrinResidual AccountName [BondName]                                        -- ^ pay principal regardless predefined balance schedule
             -- | PayPrinBy Limit AccountName BondName
             -- Pool/Asset change

@@ -664,34 +664,58 @@ performAction d t@TestDeal{fees=feeMap,accounts=accMap} (W.PayFeeResidual mlimit
 --                        accMap
 --    bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
 
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBySeq mLimit an bnds mSupport)= 
+  t {accounts = accMapAfterPay, bonds =bndsUpdated}
+  where 
+    availBal = A.accBalance $ accMap Map.! an
+    bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds -- list of bond obj available
+    bndsToPayNames = L.bndName <$> bndsToPay
+    bndsWithDue = map (calcDuePrin t d) bndsToPay  --
+    bndsDueAmts = map L.bndDuePrin bndsWithDue
+    limitCap = case mLimit of
+                 Nothing -> availBal
+                 Just (DS ds) -> queryDeal t $ patchDateToStats d ds
+                 _ -> error "not implement <limit> in payPrinBySeq "
+                 
+    payAmount = min (sum bndsDueAmts) $ min availBal $ limitCap
+
+    bndsAmountToBePaid = zip bndsToPay $ paySeqLiabilitiesAmt payAmount bndsDueAmts 
+
+    bndsPaid = map (\(b,amt) -> L.payPrin d amt b) bndsAmountToBePaid
+    bndsUpdated = Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
+
+    accMapAfterPay = Map.adjust
+                        (A.draw payAmount d (TxnComments [PayPrin bndsToPayNames])) 
+                        an
+                        accMap
+
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin (Just (DS ds)) an bnds Nothing)=  --Need to replace with formula
   t {accounts = accMapAfterPay, bonds =bndsUpdated}
   where
     availBal = A.accBalance $ accMap Map.! an
     
-    bndsToPay = filter (\x -> L.bndBalance x > 0) $ map (bndMap Map.!) bnds
+    bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds
+    bndsToPayNames = L.bndName <$> bndsToPay
     bndsWithDue = map (calcDuePrin t d) bndsToPay  --
     bndsDueAmts = map L.bndDuePrin bndsWithDue
-    
     payAmount = min (sum bndsDueAmts) $ min availBal $ queryDeal t $ patchDateToStats d ds -- `debug` ("Query with "++show (patchedDs))
 
     bndsAmountToBePaid = zip bndsToPay $ prorataFactors bndsDueAmts payAmount  -- (bond, amt-allocated)
 
     bndsPaid = map (\(b,amt) -> L.payPrin d amt b) bndsAmountToBePaid
-    bndsUpdated = Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
-
+    bndsUpdated = Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
 
     accMapAfterPay = Map.adjust
                         (A.draw payAmount d (TxnComments [PayPrin bnds,UsingDS ds])) 
                         an
-                        accMap  -- `debug` ("payOutAmt"++show (queryDeal t patchedDs))
+                        accMap
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin Nothing an bnds Nothing) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated} 
   where
     acc = accMap Map.! an
-
-    bndsToPay = filter (\x -> L.bndBalance x > 0) $ map (bndMap Map.!) bnds
+    bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds
+    bndsToPayNames = L.bndName <$> bndsToPay
     availBal = A.accBalance acc
     bndsWithDue = map (calcDuePrin t d) bndsToPay  --
     bndsDueAmts = map L.bndDuePrin bndsWithDue
@@ -700,7 +724,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin Nothing an b
     bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts availBal)
     bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
 
-    bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
+    bndMapUpdated =  Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
 performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an bnds) = 
@@ -708,7 +732,8 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
   where
     acc = accMap Map.! an
 
-    bndsToPay = filter (\x -> L.bndBalance x > 0) $ map (bndMap Map.!) bnds
+    bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds
+    bndsToPayNames = L.bndName <$> bndsToPay
     availBal = A.accBalance acc
     bndsDueAmts = map L.bndBalance bndsToPay
 
@@ -716,7 +741,7 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     bndsAmountToBePaid = zip bndsToPay (prorataFactors bndsDueAmts availBal)
     bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
 
-    bndMapUpdated =  Map.union (Map.fromList $ zip bnds bndsPaid) bndMap
+    bndMapUpdated =  Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
 performAction d t@TestDeal{accounts=accMap} (W.LiquidatePool lm an) =
