@@ -1,5 +1,20 @@
 # Changelog for Hastructure
 
+## 0.23.1
+### 2023-11-16
+* NEW: new asset class `FixAsset` type , which yield cashflow given a `capacity` and assumption called `utilization rate curve`. The new asset type is applicable to Hotel booking/EV Charge station/Solar Panel/Wind Power type.
+* NEW: new rate hedge instrument `RateCap` which yield cash if `rateCurve` is higher than a `strike rate`
+* NEW: add `accruedInterest` field in pool stats, which reprenset 
+* NEW: add `payPrinBySeq` in waterfall action, now user can pay prin bond via a simple list.
+* NEW: add an assumption `fireTrigger` which mannualy fire a trigger at point of projection
+* NEW: add pool collection type `totalCash` will aggregate all pool cash field
+* NEW: `payInt` now accept a `limit` which constrain how much interset to be paid via a `formula`
+* NEW: add `bookBy` a ledger via `formula`
+* NEW: add `I_P` to `Mortgage` type ,which models `Buy To Let` type mortgage( interest only and principal at last period)
+* ENHANCE: include `Lens` and code clean up
+* BREAK: refactor `StepUp` out of `interest` part of bond.
+
+
 ## 0.22.2
 ### 2023-10-27
 * ENHANCE: expose cumulative stats on pool cashflow returned by `runDeal`
