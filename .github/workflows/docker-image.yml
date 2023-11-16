@@ -41,5 +41,7 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:dev
+          secrets: |
+            GIT_AUTH_TOKEN=${{ secrets.MYTOKEN }}
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max          
