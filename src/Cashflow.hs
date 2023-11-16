@@ -19,11 +19,11 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,patchCumulative,extendTxns,dropTailEmptyTxns
-                ,cashflowTxn) where
+                ,cashflowTxn,clawbackInt) where
 
 import Data.Time (Day)
 import Data.Fixed
-import Lib (weightedBy,toDate,getIntervalFactors,daysBetween)
+import Lib (weightedBy,toDate,getIntervalFactors,daysBetween,paySeqLiabilitiesAmt)
 import Util (mulBR,mulBInt,mulIR)
 import DateUtil ( splitByDate )
 import Types
@@ -361,7 +361,6 @@ tsSetRecovery x (LoanFlow _d a b c d e f g h i) = LoanFlow _d a b c d e x g h i
 tsSetRecovery x _ = error $ "Failed to set Recovery for "++show x
 
 
-
 tsOffsetDate :: Integer -> TsRow -> TsRow
 tsOffsetDate x (CashFlow _d a) = CashFlow (T.addDays x _d) a
 tsOffsetDate x (BondFlow _d a b c) = BondFlow (T.addDays x _d) a b c
@@ -370,6 +369,19 @@ tsOffsetDate x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow (T.addDays
 tsOffsetDate x (LoanFlow _d a b c d e f g h i) = LoanFlow (T.addDays x _d) a b c d e f g h i
 tsOffsetDate x (LeaseFlow _d a b) = LeaseFlow (T.addDays x _d) a b
 
+tsReduceInt :: Balance -> TsRow -> TsRow
+tsReduceInt x (BondFlow _d a b c) = BondFlow _d a b (c-x)
+tsReduceInt x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d a b (c-x) d e f g h i j k l
+tsReduceInt x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d a b (c-x) d e f g h i j k 
+tsReduceInt x (LoanFlow _d a b c d e f g h i) = LoanFlow _d a b (c-x) d e f g h i
+
+clawbackInt :: Balance -> [TsRow] -> [TsRow]
+clawbackInt bal txns
+  = let
+      intFlow = mflowInterest <$> txns
+      intDowns = paySeqLiabilitiesAmt bal intFlow
+    in 
+      [ tsReduceInt intDown txn | (txn,intDown) <- zip txns intDowns]
 
 -- ^ consolidate cashflow from same entity , update balance of newer cashflow record
 reduceTs :: [TsRow] -> TsRow -> [TsRow]

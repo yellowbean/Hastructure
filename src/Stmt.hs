@@ -175,7 +175,7 @@ getFlow comment =
       Empty -> Noneflow 
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
-      SwapAccure  -> Noneflow
+      SwapAccrue  -> Noneflow
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow
       PurchaseAsset -> Outflow

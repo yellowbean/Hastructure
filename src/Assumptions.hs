@@ -8,7 +8,7 @@ module Assumptions (BondPricingInput(..)
                     ,lookupAssumptionByIdx,lookupRate,AssetPerfAssumption(..)
                     ,ExtraStress(..),RevolvingAssumption(..)
                     ,AssetPrepayAssumption(..),AssetDefaultAssumption(..),RecoveryAssumption(..)
-                    ,getRateAssumption,projRates
+                    ,getRateAssumption,projRates,lookupRate0
                     ,LeaseAssetGapAssump(..)
                     ,LeaseAssetRentAssump(..)
                     ,NonPerfAssumption(..),AssetPerf
@@ -161,6 +161,14 @@ lookupRate rAssumps (index,spd) d
       Just (RateCurve _ ts) -> spd + fromRational (getValByDate ts Inc d)
       Just (RateFlat _ r) -> r + spd
       Nothing -> error $ "Failed to find Index " ++ show index
+
+lookupRate0 :: [RateAssumption] -> Index -> Date -> IRate 
+lookupRate0 rAssumps index d
+  = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
+      Just (RateCurve _ ts) -> fromRational (getValByDate ts Inc d)
+      Just (RateFlat _ r) -> r
+      Nothing -> error $ "Failed to find Index " ++ show index
+
 
 getRateAssumption :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumption assumps idx

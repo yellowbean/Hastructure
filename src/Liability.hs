@@ -10,7 +10,7 @@ module Liability
   ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield
-  ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp)
+  ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo)
   where
 
 import Language.Haskell.TH

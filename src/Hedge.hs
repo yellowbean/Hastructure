@@ -7,7 +7,7 @@ module Hedge
   (RateSwap(..),RateCap(..)
   ,RateSwapType(..),RateSwapBase(..)
   ,accrueIRS,payoutIRS,receiveIRS,receiveRC
-  ,CurrencySwap(..),rsRefBalLens
+  ,CurrencySwap(..),rsRefBalLens,accrueRC
   )
   where
 
@@ -26,6 +26,7 @@ import Util
 import Stmt
 import DateUtil
 
+import qualified Assumptions as A
 import qualified InterestRate as IR
 import Control.Lens hiding (Index)
 
@@ -80,7 +81,7 @@ accrueIRS d rs@RateSwap{rsRefBalance = face
           yearFactor = fromRational $ yearCountFraction DC_ACT_365F accureStartDate d
           newNetAmount = mulBIR (face * yearFactor) rateDiff  -- `debug` ("Diff rate"++ show rateDiff)
           newNet = netCash + newNetAmount
-          newTxn = IrsTxn d face newNetAmount payRate receiveRate newNet SwapAccure
+          newTxn = IrsTxn d face newNetAmount payRate receiveRate newNet SwapAccrue
           newStmt = appendStmt stmt newTxn
 
 -- | set rate swap to state of receive all cash from counterparty
@@ -125,6 +126,24 @@ data RateCap = RateCap {
                 ,rcStmt :: Maybe Statement      -- ^ transaction history                
               }
               deriving(Show,Generic)
+
+updateRC :: Date -> Rate -> RateCap -> RateCap 
+updateRC d r rc = rc 
+
+accrueRC :: Date -> [RateAssumption] -> RateCap -> RateCap
+accrueRC d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = index
+                       ,rcRefBalance = balance, rcStartDate = sd, rcEndDate = ed
+                       ,rcStmt = mstmt} 
+  | d > ed || d < sd = rc 
+  | otherwise = rc { rcLastStlDate = Just d ,rcNetCash = newAmt,
+                     rcStmt = newStmt }
+                where 
+                  r = A.lookupRate0 rs index d
+                  addAmt = mulBIR balance $ max 0 $ r - fromRational (getValByDate strike Inc d)
+
+                  newAmt = amt + addAmt
+                  newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
+
 
 receiveRC :: Date -> RateCap -> RateCap
 receiveRC d rc@RateCap{rcNetCash = receiveAmt, rcStmt = stmt} 

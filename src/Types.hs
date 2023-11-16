@@ -177,7 +177,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | FireTrigger Date DealCycle String    -- ^ fire a trigger
                   | InspectDS Date DealStats             -- ^ inspect formula
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
-                  | SettleCapRate Date String             -- ^ reset interest rate cap dates
+                  | AccrueCapRate Date String             -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   deriving (Show,Generic,Read)
@@ -310,7 +310,7 @@ data TxnComment = PayInt [BondName]
                 | Empty 
                 | Tag String
                 | UsingDS DealStats
-                | SwapAccure
+                | SwapAccrue
                 | SwapInSettle
                 | SwapOutSettle
                 | PurchaseAsset
@@ -338,7 +338,7 @@ instance ToJSON TxnComment where
   toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
   toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
-  toJSON SwapAccure = String $ T.pack $ "<Accure:>"
+  toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
   toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
@@ -371,6 +371,7 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryDelinquency   -- ^ cumulative delinquency balance
                   | HistoryLoss          -- ^ cumulative loss/write-off balance
                   | HistoryCash          -- ^ cumulative cash
+                  | AccruedInterest      -- ^ accrued interest at closing
                   deriving (Show,Ord,Eq,Read,Generic)
 
 instance ToJSONKey CutoffFields where

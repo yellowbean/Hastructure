@@ -1,5 +1,5 @@
 module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest,testHaircut
-                      ,testMergeTsRowsFromTwoEntities,testCumStat)
+                      ,testMergeTsRowsFromTwoEntities,testCumStat,testClawIntTest)
 where
 
 import Test.Tasty
@@ -346,4 +346,25 @@ testCumStat =
         assertEqual "sum prepayment penalty"
         65
         (CF.sumPoolFlow (CF.CashFlowFrame cflow1) CollectedPrepaymentPenalty)
+    ]
+
+testClawIntTest = 
+  let 
+    cflow =[CF.MortgageDelinqFlow (L.toDate "20230101") 100 20 10 20 1 2 3 4 0.0 Nothing (Just 10) Nothing
+           ,CF.MortgageDelinqFlow (L.toDate "20230201") 200 30 20 30 1 2 3 4 0.0 Nothing (Just 15) Nothing ]
+  in         
+    testGroup "test on interest claw"   
+    [
+      testCase "claw in first" $
+        assertEqual "AA"
+        [0,0]
+        (CF.mflowInterest <$> CF.clawbackInt 30 cflow)
+      ,testCase "claw in second" $
+        assertEqual "AA"
+        [0,15]
+        (CF.mflowInterest <$> CF.clawbackInt 15 cflow)
+      ,testCase "claw in all" $
+        assertEqual "AA"
+        [5,20]
+        (CF.mflowInterest <$> CF.clawbackInt 5 cflow)
     ]

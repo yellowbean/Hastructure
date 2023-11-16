@@ -318,6 +318,8 @@ aggPool mStat xs
       -- (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
       txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns
     in
-      (CF.CashFlowFrame txns, stats)
+      case Map.lookup AccruedInterest =<< mStat of
+        Nothing -> (CF.CashFlowFrame txns, stats)
+        Just accruedIntAmt -> (CF.CashFlowFrame (CF.clawbackInt accruedIntAmt txns), stats)
     
 $(deriveJSON defaultOptions ''Pool)

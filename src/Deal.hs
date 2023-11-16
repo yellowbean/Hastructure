@@ -69,16 +69,24 @@ import Asset (Pool(issuanceStat))
 import qualified Types as P
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import InterestRate (calcInt)
+import Liability (getDayCountFromInfo)
 
 debug = flip trace
 
 
 setBondNewRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
-setBondNewRate t d ras b@(L.Bond _ _ _ _ (Just (L.PassDateSpread _ spd)) _ currentRate _ _ _ _ _ _)
-  = b { L.bndRate = currentRate + spd }
+setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateSpread _ spd)) bal currentRate _ dueInt (Just dueIntDate) _ _ _)
+  = b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+    where 
+      (Just dc) = getDayCountFromInfo ii
+      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
 
-setBondNewRate t d ras b@(L.Bond _ _ _ _ (Just (L.PassDateLadderSpread _ spd _)) _ currentRate _ _ _ _ _ _)
-  = b { L.bndRate = currentRate + spd }
+setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateLadderSpread _ spd _)) bal currentRate _ dueInt (Just dueIntDate) _ _ _)
+  = b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+    where 
+      (Just dc) = getDayCountFromInfo ii
+      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
 
 setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _ _) 
   = let 
@@ -344,6 +352,13 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
            in 
              run (t{rateSwap = newRateSwap_acc}) poolFlow (Just ads) rates calls rAssump log
 
+         AccrueCapRate d cn -> 
+            let
+             _rates = fromMaybe [] rates
+             newRateCap = Map.adjust (HE.accrueRC d _rates) cn <$> rateCap t
+           in 
+             run (t{rateCap = newRateCap}) poolFlow (Just ads) rates calls rAssump log
+
          InspectDS d ds -> 
            let 
              newlog = inspectVars t d ds 
@@ -354,8 +369,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              let 
                newBndMap = case rates of 
                              Nothing -> error ("No rate assumption for floating bond:"++bn++"Deal"++ name t)
-                             (Just _rates) -> Map.adjustWithKey 
-                                              (\k v-> setBondNewRate t d _rates v)
+                             (Just _rates) -> Map.adjust
+                                              (setBondNewRate t d _rates)
                                               bn
                                               bndMap -- `debug` ("Reset bond"++show bn)
              in 
@@ -618,7 +633,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status,bonds=bndMap} mAssum
                                                      (\k x -> let 
                                                                 resetDs = genSerialDatesTill2 EE (HE.rcStartDate x) (HE.rcSettleDates x) endDate
                                                               in 
-                                                                flip SettleCapRate k <$> resetDs)
+                                                                flip AccrueCapRate k <$> resetDs)
                                                      rcM
     -- bond rate resets 
     bndRateResets = let 
