@@ -4,7 +4,7 @@
 ### 2023-11-16
 * NEW: new asset class `FixAsset` type , which yield cashflow given a `capacity` and assumption called `utilization rate curve`. The new asset type is applicable to Hotel booking/EV Charge station/Solar Panel/Wind Power type.
 * NEW: new rate hedge instrument `RateCap` which yield cash if `rateCurve` is higher than a `strike rate`
-* NEW: add `accruedInterest` field in pool stats, which reprenset 
+* NEW: add `accruedInterest` field in pool stats, which will be deducted from pool cash flow 
 * NEW: add `payPrinBySeq` in waterfall action, now user can pay prin bond via a simple list.
 * NEW: add an assumption `fireTrigger` which mannualy fire a trigger at point of projection
 * NEW: add pool collection type `totalCash` will aggregate all pool cash field
