@@ -367,12 +367,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          
          ResetBondRate d bn -> 
              let 
-               newBndMap = case rates of 
-                             Nothing -> error ("No rate assumption for floating bond:"++bn++"Deal"++ name t)
-                             (Just _rates) -> Map.adjust
-                                              (setBondNewRate t d _rates)
-                                              bn
-                                              bndMap -- `debug` ("Reset bond"++show bn)
+               rateList = fromMaybe [] rates
+               newBndMap = Map.adjust (setBondNewRate t d rateList) bn bndMap -- `debug` ("Reset bond"++show bn)
              in 
                run t{bonds = newBndMap} poolFlow (Just ads) rates calls rAssump log
          BuildReport sd ed ->
@@ -436,7 +432,7 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bond_prices)
                              0
                              (1.0
                               ,(1.0,0.5)
-                              ,toRational ((rateToday pd) - toRational (L.bndRate (bndMap Map.!bn))))
+                              ,toRational (rateToday pd - toRational (L.bndRate (bndMap Map.!bn))))
                              (bndMap Map.! bn)
                              curve)
       bond_prices

@@ -321,8 +321,7 @@ buildRateResetDates b@Bond{bndInterestInfo = ii,bndStepUp = mSt } sd ed
                       Just (PassDateSpread d _) -> [d]
                       Just (PassDateLadderSpread fstSd _ dp) -> genSerialDatesTill2 IE fstSd dp ed
     in 
-      floaterRateResetDates ++ stepUpDates 
-       
+      floaterRateResetDates ++ stepUpDates
 
 
 instance S.QueryByComment Bond where 

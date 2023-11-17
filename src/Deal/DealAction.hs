@@ -581,13 +581,15 @@ performAction d t@TestDeal{fees=feeMap, accounts =accMap} (W.PayFee mLimit an fn
 
     supportPaidOut = actualPaidOut - accPaidOut
 
-performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt Nothing an bnds mSupport) =
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt mLimit an bnds mSupport) =
   case mSupport of 
     Just support -> fst $ drawExtraSupport d supportPaidOut support dealAfterAcc
     Nothing -> dealAfterAcc
   where
     acc = accMap Map.! an
-    availAccBal = A.accBalance acc
+    availAccBal = case mLimit of 
+                    Nothing -> A.accBalance acc
+                    Just (DS ds) -> min (A.accBalance acc) $ queryDeal t (patchDateToStats d ds)
     bndsToPay = map (bndMap Map.!) bnds
 
     bndsDueAmts = map L.bndDueInt bndsToPay
