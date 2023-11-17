@@ -1521,6 +1521,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_Mortgage"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -2126,6 +2132,43 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PayPrinBySeq"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "type": "string"
                                     },
                                     {
@@ -2421,6 +2464,34 @@
                                 "type": "string",
                                 "enum": [
                                     "SwapSettle"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CollectRateCap"
                                 ]
                             }
                         },
@@ -3685,7 +3756,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "SwapAccure"
+                                    "SwapAccrue"
                                 ]
                             }
                         },
@@ -5939,6 +6010,27 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "IsPaidOff"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -7642,6 +7734,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_Lease"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -7860,6 +7958,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_Installment"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -8298,6 +8402,9 @@
                     "bndDueInt": {
                         "multipleOf": 1.0e-2,
                         "type": "number"
+                    },
+                    "bndStepUp": {
+                        "$ref": "#/components/schemas/StepUp"
                     },
                     "bndType": {
                         "$ref": "#/components/schemas/BondType"
@@ -9679,6 +9786,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_Loan"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -10423,6 +10536,72 @@
                 "type": "array",
                 "minItems": 5
             },
+            "StepUp": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PassDateSpread"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PassDateLadderSpread"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "BondType": {
                 "oneOf": [
                     {
@@ -10479,7 +10658,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "PAC_Anchor"
+                                    "PacAnchor"
                                 ]
                             }
                         },
@@ -10666,6 +10845,58 @@
                 ],
                 "type": "object"
             },
+            "RateCap": {
+                "type": "object",
+                "properties": {
+                    "rcNetCash": {
+                        "multipleOf": 1.0e-2,
+                        "type": "number"
+                    },
+                    "rcStartDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "rcRefBalance": {
+                        "multipleOf": 1.0e-2,
+                        "type": "number"
+                    },
+                    "rcLastStlDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "rcIndex": {
+                        "$ref": "#/components/schemas/Index"
+                    },
+                    "rcEndDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "rcNotional": {
+                        "$ref": "#/components/schemas/RateSwapBase"
+                    },
+                    "rcSettleDates": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    },
+                    "rcStrikeRate": {
+                        "$ref": "#/components/schemas/Ts"
+                    },
+                    "rcStmt": {
+                        "$ref": "#/components/schemas/Statement"
+                    },
+                    "rcReceivingRate": {
+                        "multipleOf": 1.0e-6,
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "rcIndex",
+                    "rcStrikeRate",
+                    "rcNotional",
+                    "rcStartDate",
+                    "rcSettleDates",
+                    "rcEndDate",
+                    "rcReceivingRate",
+                    "rcRefBalance",
+                    "rcNetCash"
+                ]
+            },
             "TestDeal_FixedAsset": {
                 "type": "object",
                 "properties": {
@@ -10764,6 +10995,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_FixedAsset"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -11073,6 +11310,34 @@
                                 "type": "string",
                                 "enum": [
                                     "ResetIRSwapRate"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AccrueCapRate"
                                 ]
                             }
                         },
@@ -12474,7 +12739,7 @@
         }
     },
     "info": {
-        "version": "0.22.7",
+        "version": "0.22.8",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
