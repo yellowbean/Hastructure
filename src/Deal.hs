@@ -176,12 +176,12 @@ accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = inde
                               Base ds -> queryDeal t (patchDateToStats d ds)
                               Schedule ts -> fromRational $ getValByDate ts Inc d
 
-                  accRate = max 0 $ r - fromRational (getValByDate strike Inc d) `debug` ("Rate from curve"++show (getValByDate strike Inc d))
+                  accRate = max 0 $ r - fromRational (getValByDate strike Inc d) -- `debug` ("Rate from curve"++show (getValByDate strike Inc d))
                   addAmt = case mlsd of 
                              Nothing -> calcInt balance sd d accRate DC_ACT_365F
                              Just lstD -> calcInt balance lstD d accRate DC_ACT_365F
 
-                  newAmt = amt + addAmt `debug` ("Accrue AMT"++ show addAmt)
+                  newAmt = amt + addAmt  -- `debug` ("Accrue AMT"++ show addAmt)
                   newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
 
 
