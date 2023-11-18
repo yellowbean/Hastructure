@@ -194,6 +194,7 @@ instance TimeSeries ActionOnDate where
     getDate (ChangeDealStatusTo d _ ) = d
     getDate (InspectDS d _ ) = d
     getDate (ResetIRSwapRate d _ ) = d
+    getDate (AccrueCapRate d _ ) = d
     getDate (ResetBondRate d _ ) = d 
     getDate (BuildReport sd ed) = ed
 

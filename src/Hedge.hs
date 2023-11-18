@@ -7,7 +7,7 @@ module Hedge
   (RateSwap(..),RateCap(..)
   ,RateSwapType(..),RateSwapBase(..)
   ,accrueIRS,payoutIRS,receiveIRS,receiveRC
-  ,CurrencySwap(..),rsRefBalLens,accrueRC
+  ,CurrencySwap(..),rsRefBalLens
   )
   where
 
@@ -31,6 +31,7 @@ import qualified InterestRate as IR
 import Control.Lens hiding (Index)
 
 import Debug.Trace
+import InterestRate (calcInt)
 debug = flip trace
 
 type SettleDates = DatePattern       -- ^ dates when rates/ex-rates are reseted
@@ -40,12 +41,12 @@ type PayoutAmount = Balance          -- ^ cash to be paid in instrutment
 data RateSwapBase = Fixed Balance    -- ^ a fixed balance as notional base 
                   | Base DealStats   -- ^ a referece as notional base
                   | Schedule Ts      -- ^ a predfiend schedule of notional balance
-                  deriving(Show,Generic)
+                  deriving(Show,Generic,Eq)
 
 data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating rate and receiving Floating Rate
                   | FloatingToFixed  Floater IRate        -- ^ Paying Floating Rate and receiving Fixed Rate
                   | FixedToFloating  IRate Floater        -- ^ Paying Fixed Rate and receiving Floating rate
-                  deriving(Show,Generic)
+                  deriving(Show,Generic,Eq)
 
 
 data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
@@ -59,7 +60,7 @@ data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
                          ,rsNetCash :: Balance           -- ^ amount to pay/collect
                          ,rsStmt :: Maybe Statement      -- ^ transaction history
                          }
-                         deriving(Show,Generic)
+                         deriving(Show,Generic,Eq)
 
 -- updateRefBalance :: Balance -> RateSwap -> RateSwap
 -- updateRefBalance bal rs = rs { rsRefBalance = bal}
@@ -120,29 +121,15 @@ data RateCap = RateCap {
                 ,rcSettleDates :: DatePattern
                 ,rcEndDate :: Date
                 ,rcReceivingRate :: IRate       -- ^ receiving rate
-                ,rcRefBalance :: Balance        -- ^ notional balance in use
                 ,rcLastStlDate :: Maybe Date    -- ^ last settle date
                 ,rcNetCash :: Balance           -- ^ amount to collect
                 ,rcStmt :: Maybe Statement      -- ^ transaction history                
               }
-              deriving(Show,Generic)
+              deriving(Show,Generic,Eq)
 
 updateRC :: Date -> Rate -> RateCap -> RateCap 
 updateRC d r rc = rc 
 
-accrueRC :: Date -> [RateAssumption] -> RateCap -> RateCap
-accrueRC d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = index
-                       ,rcRefBalance = balance, rcStartDate = sd, rcEndDate = ed
-                       ,rcStmt = mstmt} 
-  | d > ed || d < sd = rc 
-  | otherwise = rc { rcLastStlDate = Just d ,rcNetCash = newAmt,
-                     rcStmt = newStmt }
-                where 
-                  r = A.lookupRate0 rs index d
-                  addAmt = mulBIR balance $ max 0 $ r - fromRational (getValByDate strike Inc d)
-
-                  newAmt = amt + addAmt
-                  newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
 
 
 receiveRC :: Date -> RateCap -> RateCap

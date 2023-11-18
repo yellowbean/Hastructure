@@ -6,10 +6,10 @@
 
 module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,performAction,queryDeal
-            ,setFutureCF,populateDealDates
+            ,setFutureCF,populateDealDates,accrueRC
             ,calcTargetAmount,updateLiqProvider
             ,projAssetUnion,priceAssetUnion
-            ,removePoolCf 
+            ,removePoolCf
             ) where
 
 import qualified Accounts as A
@@ -64,13 +64,14 @@ import GHC.Generics
 import Debug.Trace
 import Hedge (RateSwap(rsRefBalance))
 import Cashflow (buildBegTsRow)
-import Assumptions (NonPerfAssumption(NonPerfAssumption))
+import Assumptions (NonPerfAssumption(NonPerfAssumption),lookupRate0)
 import Asset (Pool(issuanceStat))
 import qualified Types as P
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import InterestRate (calcInt)
 import Liability (getDayCountFromInfo)
+import Hedge (RateCap(..),RateSwapBase(..))
 
 debug = flip trace
 
@@ -159,6 +160,30 @@ updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
        HE.Fixed _ -> rs  
        HE.Base ds -> rs { HE.rsRefBalance = queryDeal t (patchDateToStats d ds) } -- `debug` ("query Result"++ show (patchDateToStats d ds) )
        HE.Schedule ts -> rs { HE.rsRefBalance = fromRational (getValByDate ts Inc d) }
+
+accrueRC :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> RateCap -> RateCap
+accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = index
+                       ,rcStartDate = sd, rcEndDate = ed, rcNotional = notional
+                       ,rcLastStlDate = mlsd
+                       ,rcStmt = mstmt} 
+  | d > ed || d < sd = rc 
+  | otherwise = rc { rcLastStlDate = Just d ,rcNetCash = newAmt,
+                     rcStmt = newStmt }
+                where 
+                  r = lookupRate0 rs index d
+                  balance = case notional of
+                              Fixed bal -> bal
+                              Base ds -> queryDeal t (patchDateToStats d ds)
+                              Schedule ts -> fromRational $ getValByDate ts Inc d
+
+                  accRate = max 0 $ r - fromRational (getValByDate strike Inc d) `debug` ("Rate from curve"++show (getValByDate strike Inc d))
+                  addAmt = case mlsd of 
+                             Nothing -> calcInt balance sd d accRate DC_ACT_365F
+                             Just lstD -> calcInt balance lstD d accRate DC_ACT_365F
+
+                  newAmt = amt + addAmt `debug` ("Accrue AMT"++ show addAmt)
+                  newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
+
 
 testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
 testCall t d opt = 
@@ -355,7 +380,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          AccrueCapRate d cn -> 
             let
              _rates = fromMaybe [] rates
-             newRateCap = Map.adjust (HE.accrueRC d _rates) cn <$> rateCap t
+             newRateCap = Map.adjust (accrueRC t d _rates) cn <$> rateCap t
            in 
              run (t{rateCap = newRateCap}) poolFlow (Just ads) rates calls rAssump log
 
