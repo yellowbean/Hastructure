@@ -6596,6 +6596,42 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RateCapNet"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RateSwapNet"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -12734,7 +12770,7 @@
         }
     },
     "info": {
-        "version": "0.22.8",
+        "version": "0.23.1",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
