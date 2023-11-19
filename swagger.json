@@ -10855,10 +10855,6 @@
                     "rcStartDate": {
                         "$ref": "#/components/schemas/Day"
                     },
-                    "rcRefBalance": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
-                    },
                     "rcLastStlDate": {
                         "$ref": "#/components/schemas/Day"
                     },
@@ -10893,7 +10889,6 @@
                     "rcSettleDates",
                     "rcEndDate",
                     "rcReceivingRate",
-                    "rcRefBalance",
                     "rcNetCash"
                 ]
             },

@@ -148,6 +148,7 @@ test-suite Hastructure-test
       UT.InterestRateTest
       UT.LibTest
       UT.QueryTest
+      UT.RateHedgeTest
       UT.StmtTest
       UT.UtilTest
       Paths_Hastructure
