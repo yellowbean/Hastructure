@@ -92,7 +92,6 @@ library
 executable Hastructure-exe
   main-is: Main.hs
   other-modules:
-      FormBuilder
       Paths_Hastructure
   hs-source-dirs:
       app
