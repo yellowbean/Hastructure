@@ -23,11 +23,13 @@ import qualified Ledger as LD
 import qualified Expense as F
 import qualified Triggers as Trg
 import qualified CreditEnhancement as CE
+import qualified Hedge as H
 import Stmt
 import Util
 import DateUtil
 import Lib
-
+import Control.Lens hiding (element)
+import Control.Lens.TH
 import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
 debug = flip trace
@@ -429,6 +431,18 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         Nothing -> 0
         Just liqProviderM -> sum $ [ CE.liqBalance liq | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
+
+    RateCapNet rcName -> case rateCap t of
+                           Nothing -> error "No rate cap in the deal"
+                           Just rm -> case Map.lookup rcName rm of
+                                        Nothing -> error $ "No "++ rcName ++" Found in rate cap map with key"++ show (Map.keys rm)
+                                        Just rc -> H.rcNetCash rc
+    
+    RateSwapNet rsName -> case rateCap t of
+                           Nothing -> error "No rate swap in the deal"
+                           Just rm -> case Map.lookup rsName rm of
+                                        Nothing -> error $ "No "++ rsName ++" Found in rate swap map with key"++ show (Map.keys rm)
+                                        Just rc -> H.rcNetCash rc
 
     Sum _s -> sum $ map (queryDeal t) _s
 

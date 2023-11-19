@@ -458,6 +458,8 @@ data DealStats = CurrentBondBalance
                | LastFeePaid [FeeName]
                | LiqCredit [String]
                | LiqBalance [String]
+               | RateCapNet String
+               | RateSwapNet String
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatus DealCycle String
