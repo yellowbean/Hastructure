@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.AssetCashflow
-  (applyHaircut,patchPrepayPentalyFlow,getRecoveryLag,decreaseBorrowerNum
+  (applyHaircut,patchPrepayPenaltyFlow,getRecoveryLag,decreaseBorrowerNum
   ,patchLossRecovery)
   where
 
@@ -35,7 +35,7 @@ debug = flip trace
 
 -- This module is a collection of common cashflow functions to project cashflow for different asset types.
 
-
+-- ^ apply haircut to pool cashflow, reduce cash via a percentage
 applyHaircut :: Maybe A.ExtraStress -> CF.CashFlowFrame -> CF.CashFlowFrame
 applyHaircut Nothing cf = cf 
 applyHaircut (Just A.ExtraStress{A.poolHairCut = Nothing}) cf = cf
@@ -80,11 +80,10 @@ applyHaircut (Just A.ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFra
       
       applyHaircutTxn _ _ = error "Not implemented"
    
-
-patchPrepayPentalyFlow :: (Int,Maybe PrepayPenaltyType) -> CF.CashFlowFrame -> CF.CashFlowFrame
-patchPrepayPentalyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame trs) 
+-- ^ apply a penalty cashflow
+patchPrepayPenaltyFlow :: (Int,Maybe PrepayPenaltyType) -> CF.CashFlowFrame -> CF.CashFlowFrame
+patchPrepayPenaltyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame trs) 
   = let 
-      -- (MortgageOriginalInfo _ _ ot _ _ _ mPpyPen) = getOriginInfo m 
       (startDate,endDate) = CF.getDateRangeCashFlowFrame mflow
       prepaymentFlow = CF.mflowPrepayment <$> trs
       flowSize = CF.sizeCashFlowFrame mflow
@@ -117,7 +116,7 @@ patchPrepayPentalyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame trs)
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (Sliding sr changeRate) -> 
           let 
-            rs = lastN flowSize $ paddingDefault 0 [sr,(sr-changeRate)..0] ot
+            rs = lastN flowSize $ paddingDefault 0 (0:[sr,(sr-changeRate)..0]) ot
           in
             CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (StepDown ps) ->

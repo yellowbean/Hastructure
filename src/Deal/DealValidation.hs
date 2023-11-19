@@ -15,7 +15,7 @@ import Types
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
-import Data.ByteString (intercalate)
+import Data.ByteString (intercalate, foldl1')
 
 import qualified Waterfall as W
 import qualified CreditEnhancement as CE
@@ -159,8 +159,9 @@ extractRequiredRates t@TestDeal{accounts = accM
                                ,bonds = bondM 
                                ,liqProvider = mliqProviderM 
                                ,rateSwap = mrsM 
+                               ,rateCap = mRcM
                                ,pool = pool}
-  = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
+  = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex ++ rcIndex
   -- = Set.fromList $ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
     where 
       assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
@@ -173,8 +174,21 @@ extractRequiredRates t@TestDeal{accounts = accM
       rsIndex = case mrsM of 
                   Just rsM -> concat $ catMaybes $ IR.getIndexes <$> Map.elems rsM
                   Nothing -> []
+      rcIndex = case mRcM of 
+                  Just rcM -> concat $ catMaybes $ IR.getIndexes <$> Map.elems rcM
+                  Nothing -> []
+        
       -- note fee is not tested
-      
+
+validateAggRule :: [W.CollectionRule] -> [ResultComponent]
+validateAggRule rules = 
+    [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | (ps,r) <- Map.toList oustandingPs ]
+  where 
+    countWeight (W.Collect ps _) =  Map.fromList [(ps,1.0)]
+    countWeight (W.CollectByPct ps lst) = Map.fromList [(ps, sum (fst <$> lst))]
+    sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules 
+    oustandingPs = Map.filter (> 1.0) sumMap
+
 
 validateReq :: IR.UseRate a => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
 validateReq t assump@A.NonPerfAssumption{A.interest = intM} 
@@ -225,6 +239,10 @@ validatePreRun t@TestDeal{waterfall=waterfallM
                                            Just _ -> []
       issuanceBalCheck _ = []
 
+      -- collection rule check
+      aggRuleResult = validateAggRule aggRule
+      -- TODO : collectCash shouldn't overlap with others
+
       -- waterfall key not exists test error
       errors = concat $ (\x -> validateAction x [] accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys ledgerKeys) <$> Map.elems waterfallM 
 
@@ -232,7 +250,7 @@ validatePreRun t@TestDeal{waterfall=waterfallM
 
       -- run result scan
 
-      allErrors = errors ++ issuanceBalCheck dates
+      allErrors = errors ++ issuanceBalCheck dates ++ aggRuleResult
       -- check issuance balance 
       w1 = if (not (isPreClosing t)) && (isJust (P.issuanceStat pool)) then
              [WarningMsg "Deal passes PreClosing status, but not cumulative defaults/delinq at cutoff date?"]

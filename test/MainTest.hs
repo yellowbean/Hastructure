@@ -16,6 +16,7 @@ import qualified UT.StmtTest as ST
 import qualified UT.UtilTest as UtilT
 import qualified UT.AnalyticsTest as AnalyticsT
 import qualified UT.InterestRateTest as IRT
+import qualified UT.RateHedgeTest as RHT
 
 import qualified DealTest.DealTest as DealTest
 
@@ -24,12 +25,16 @@ import qualified Lib as L
 import qualified Stmt as S
 import qualified Data.Time as T
 import qualified Data.Vector as UtilT
+import qualified UT.AnalyticsTest as AnalyticsT
+import qualified UT.UtilTest as RH
+import qualified UT.RateHedgeTest as RHT
 
 main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.mortgageCalcTests
+                           ,AT.btlMortgageTest
                            ,AT.loanTests
                            ,AT.leaseTests
                            ,AT.leaseFunTests
@@ -45,8 +50,8 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,CFT.testHaircut
                            ,CFT.testMergeTsRowsFromTwoEntities
                            ,CFT.testCumStat
+                           ,CFT.testClawIntTest
                            ,BT.pricingTests
-                           ,BT.bndUtilTest
                            ,LT.curveTests
                            ,LT.pvTests
                            -- --,LT.queryStmtTests
@@ -81,5 +86,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,IRT.interestRoundingTest
                            ,AnalyticsT.walTest
                            ,AnalyticsT.durationTest
+                           ,AnalyticsT.fvTest
                            ,DealTest.baseTests
+                           ,RHT.capRateTests
                            ]

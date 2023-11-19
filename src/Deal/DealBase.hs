@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Deal.DealBase (TestDeal(..),SPV(..)) 
+module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -37,6 +37,9 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
+import Control.Lens hiding (element)
+import Control.Lens.TH
+
 
 class SPV a where
   getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
@@ -57,6 +60,7 @@ data TestDeal a = TestDeal { name :: String
                              ,call :: Maybe [C.CallOption]
                              ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
                              ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
+                             ,rateCap :: Maybe (Map.Map String HE.RateCap)
                              ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
                              ,custom:: Maybe (Map.Map String CustomDataType)
                              ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
@@ -91,5 +95,31 @@ instance SPV (TestDeal a) where
     = case ans of
          Nothing -> accounts t
          Just _ans -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _ans)) (accounts t)
+
+dealBonds :: P.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
+dealBonds = lens getter setter 
+  where 
+    getter d = bonds d 
+    setter d newBndMap = d {bonds = newBndMap}
+
+dealAccounts :: P.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 
+dealAccounts = lens getter setter 
+  where 
+    getter d = accounts d 
+    setter d newAccMap = d {accounts = newAccMap}
+
+dealFees :: P.Asset a => Lens' (TestDeal a) (Map.Map FeeName F.Fee) 
+dealFees = lens getter setter 
+  where 
+    getter d = fees d 
+    setter d newFeeMap = d {fees = newFeeMap}
+
+dealPool :: P.Asset a => Lens' (TestDeal a) (P.Pool a)
+dealPool = lens getter setter 
+  where 
+    getter d = pool d
+    setter d newPool = d {pool = newPool}
+
+
 
 $(deriveJSON defaultOptions ''TestDeal)

@@ -2,12 +2,12 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE InstanceSigs #-}
 
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
-  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..)
+  ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
+  ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..)
   )
   where
 
@@ -17,9 +17,10 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Types hiding (Current,startDate,originTerm)
 
-
+import qualified Data.Map as Map
 import qualified InterestRate as IR
 import qualified Cashflow as CF
+-- import Assumptions (RevolvingAssumption(Dummy4))
 
 type DailyRate = Balance
 
@@ -44,6 +45,14 @@ data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 
                        -- | NMonthInterest Int
                        deriving (Show,Generic)
 
+data AmortRule = DecliningBalance        -- ^ DecliningBalance Method
+               | DoubleDecliningBalance  -- ^ Not implemented
+               | StraightLine            -- ^ Straight Line Method
+               -- | UnitBased Int
+               -- | MACRS
+               | SumYearsDigit           -- ^ Not implemented
+               deriving (Show,Generic)
+
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
                                           ,originTerm :: Int
@@ -61,6 +70,14 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                               ,originTerm :: Int             -- ^ total terms
                               ,paymentDates :: DatePattern   -- ^ payment dates pattern
                               ,originRental :: Amount}       -- ^ rental by day
+                  | FixedAssetInfo { startDate :: Date 
+                                     ,originBalance :: Balance 
+                                     ,residualBalance :: Balance
+                                     ,originTerm :: Int
+                                     ,period :: Period
+                                     ,accRule :: AmortRule
+                                     ,capacity :: Capacity 
+                                    }
                   deriving (Show,Generic)
 
 
@@ -86,18 +103,44 @@ data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
           deriving (Show,Generic)
 
--- Mortgage
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic)
+
+data MixedAsset = MixedPool (Map.Map String [AssetUnion])
+                | DUMMY2
+                deriving (Show,Generic)
+
+-- FixedAsset 
+data Capacity = FixedCapacity Balance
+              | CapacityByTerm [(Int,Balance)]
+              deriving (Show,Generic)
+
+data AssociateExp = ExpPerPeriod Balance 
+                  | ExpPerUnit Balance
+                  deriving (Show,Generic)
+
+data AssociateIncome = IncomePerPeriod Balance 
+                     | IncomePerUnit Balance
+                      deriving (Show,Generic)
+
+data FixedAsset = FixedAsset OriginalInfo RemainTerms
+                | Dummy5
+                deriving (Show,Generic)
+
 
 -- Base type to hold all asset types
 data AssetUnion = MO Mortgage
                 | LO Loan
                 | IL Installment
                 | LS Lease
+                | FA FixedAsset
                 deriving (Show, Generic)
+
+instance IR.UseRate MixedAsset where
+  getIndexes (MixedPool ma) = error "Not implemented"
+
 
 instance IR.UseRate Mortgage where 
   getIndex (Mortgage oi@MortgageOriginalInfo{ originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _ _) = Just idx 
@@ -117,7 +160,14 @@ instance IR.UseRate Lease where
   getIndex :: Lease -> Maybe Index
   getIndex _ = Nothing
 
+instance IR.UseRate FixedAsset where
+  getIndex _ = Nothing
 
+$(deriveJSON defaultOptions ''AmortRule)
+$(deriveJSON defaultOptions ''Capacity)
+$(deriveJSON defaultOptions ''AssociateExp)
+$(deriveJSON defaultOptions ''AssociateIncome)
+$(deriveJSON defaultOptions ''FixedAsset)
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''AmortPlan)
 $(deriveJSON defaultOptions ''OriginalInfo)

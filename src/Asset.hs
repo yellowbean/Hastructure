@@ -9,6 +9,7 @@ module Asset (Pool(..),aggPool
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
+       ,poolFutureCf
 ) where
 
 import qualified Data.Time as T
@@ -45,6 +46,11 @@ import AssetClass.AssetBase
 
 import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
+
+import Control.Lens hiding (element)
+import Control.Lens.TH
+
+
 debug = flip trace
 
 class (Show a,IR.UseRate a) => Asset a where
@@ -96,6 +102,14 @@ data Pool a = Pool {assets :: [a]                                           -- ^
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    } deriving (Show,Generic)
+
+poolFutureCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
+poolFutureCf = lens getter setter 
+  where 
+    getter p = futureCf p
+    setter p mNewCf = p {futureCf = mNewCf}
+
+
 
 -- | get stats of pool 
 getIssuanceField :: Pool a -> CutoffFields -> Centi
@@ -220,7 +234,7 @@ calcPiFlow dc bal pmt dates rs =
     where
       size = length dates
       resetFlags = A.calcResetDates rs []
-      period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) (rs!!d) dc | d <- [0..size-2]]
+      period_r = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) (rs!!d) dc | d <- [0..size-2]]
 
 _calc_p_i_flow_even :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
 _calc_p_i_flow_even evenPrin last_bal bals ps is [] = (bals,ps,is) -- `debug` ("Return->"++show(bals)++show(is))
@@ -237,7 +251,7 @@ calc_p_i_flow_even evenPrin bal dates r
   = _calc_p_i_flow_even evenPrin bal [] [] [] period_r  -- `debug` ("SIze of rates"++show(length period_r))
     where
       size = length dates
-      period_r = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
+      period_r = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
 
 calc_p_i_flow_i_p :: Balance -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
 calc_p_i_flow_i_p bal dates r
@@ -245,7 +259,7 @@ calc_p_i_flow_i_p bal dates r
     where
       size =  length dates
       flow_size = pred $ length $ tail dates
-      period_rs = [ calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
+      period_rs = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
       _ints = [  mulBI bal _r | _r <- period_rs ]
       _bals = (replicate flow_size bal ) ++ [ 0 ]
       _prins = (replicate flow_size 0 ) ++ [ bal ]
@@ -304,6 +318,8 @@ aggPool mStat xs
       -- (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
       txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns
     in
-      (CF.CashFlowFrame txns, stats)
+      case Map.lookup AccruedInterest =<< mStat of
+        Nothing -> (CF.CashFlowFrame txns, stats)
+        Just accruedIntAmt -> (CF.CashFlowFrame (CF.clawbackInt accruedIntAmt txns), stats)
     
 $(deriveJSON defaultOptions ''Pool)

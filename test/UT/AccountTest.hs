@@ -40,7 +40,7 @@ intTests =
         (accBalance (depositInt acc1 (toDate "20221101")))
       ,testCase "Validate Interest Calculation 2" $
         assertEqual "MonthEnd with txns"
-        152.42
+        152.40
         (accBalance (depositInt acc2 (toDate "20221101")))
      ]
 

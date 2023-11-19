@@ -82,6 +82,7 @@ import qualified DateUtil as DU
 
 
 import Debug.Trace
+import qualified Hedge as HE
 debug = flip Debug.Trace.trace
 
 data Version = Version 
@@ -92,12 +93,13 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.22.2"
+version1 = Version "0.23.2"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
               | IPool (P.Pool AB.Installment)
               | RPool (P.Pool AB.Lease)
+              | FPool (P.Pool AB.FixedAsset)
               deriving(Show, Generic)
 
 instance ToSchema PoolType
@@ -107,11 +109,13 @@ instance ToSchema (P.Pool AB.Mortgage)
 instance ToSchema (P.Pool AB.Loan)
 instance ToSchema (P.Pool AB.Installment)
 instance ToSchema (P.Pool AB.Lease)
+instance ToSchema (P.Pool AB.FixedAsset)
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | LDeal (DB.TestDeal AB.Loan)
               | IDeal (DB.TestDeal AB.Installment) 
               | RDeal (DB.TestDeal AB.Lease) 
+              | FDeal (DB.TestDeal AB.FixedAsset) 
               deriving(Show, Generic)
 
 instance ToSchema Ts
@@ -128,11 +132,14 @@ instance ToSchema IR.ARM
 instance ToSchema AB.Loan
 instance ToSchema AB.Installment
 instance ToSchema AB.Lease
+instance ToSchema AB.FixedAsset
 
 instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
 instance ToSchema (DB.TestDeal AB.Lease)
+instance ToSchema (DB.TestDeal AB.FixedAsset)
+instance ToSchema HE.RateCap
 instance ToSchema AB.LeaseStepUp 
 instance ToSchema AB.AccrualPeriod
 instance ToSchema AB.PrepayPenaltyType
@@ -145,6 +152,7 @@ instance ToSchema A.ReserveAmount
 instance ToSchema F.Fee
 instance ToSchema F.FeeType
 instance ToSchema L.Bond
+instance ToSchema L.StepUp
 instance ToSchema L.BondType
 instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
@@ -190,6 +198,10 @@ instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
 instance ToSchema AB.Status
+instance ToSchema AB.AmortRule
+instance ToSchema AB.Capacity
+instance ToSchema AB.AssociateExp
+instance ToSchema AB.AssociateIncome
 instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
@@ -239,12 +251,18 @@ wrapRun (LDeal d) mAssump mNonPerfAssump = let
                                        (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (LDeal _d,_pflow,_rs,_p)
+wrapRun (FDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+                                     in 
+                                       (FDeal _d,_pflow,_rs,_p)
+wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
 wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
 wrapRunPool (MPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool (LPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool (IPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool (RPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+wrapRunPool x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)

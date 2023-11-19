@@ -1,5 +1,5 @@
 module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest,testHaircut
-                      ,testMergeTsRowsFromTwoEntities,testCumStat)
+                      ,testMergeTsRowsFromTwoEntities,testCumStat,testClawIntTest)
 where
 
 import Test.Tasty
@@ -304,11 +304,67 @@ testCumStat =
     cflow1 = [CF.MortgageDelinqFlow (L.toDate "20230201") 200 30 20 30 1 2 3 4 0.0 Nothing (Just 15) (Just (30,30,1,2,3,4))
              ,CF.MortgageDelinqFlow (L.toDate "20230301") 190 40 30 40 1 2 3 4 0.0 Nothing (Just 20) (Just (70,70,2,4,6,8))
              ,CF.MortgageDelinqFlow (L.toDate "20230401") 180 50 40 50 1 2 3 4 0.0 Nothing (Just 30) (Just (120,120,3,6,9,12))]
-
   in 
     testGroup "Test on calc CumStat"
     [ testCase "MortDelinq CumStat" $
         assertEqual "" 
         cflow1
         (fst (CF.cutoffTrs (L.toDate "20230201") cflow))
+      ,testCase "Sum on pool fields-prin" $
+        assertEqual "sum principal"
+        120.0
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) CollectedPrincipal)
+      ,testCase "Sum on pool fields-int" $
+        assertEqual "sum interest"
+        90.0
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) CollectedInterest)
+      ,testCase "Sum on pool fields-ppy" $
+        assertEqual "sum prepayment"
+        120.0
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) CollectedPrepayment)
+      ,testCase "Sum on pool fields-delinq" $
+        assertEqual "sum delinq"
+        3.0
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) NewDelinquencies)
+      ,testCase "Sum on pool fields-default" $
+        assertEqual "sum default"
+        6
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) NewDefaults)
+      ,testCase "Sum on pool fields-recovery" $
+        assertEqual "sum recovery"
+        9
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) CollectedRecoveries)
+      ,testCase "Sum on pool fields-loss" $
+        assertEqual "sum loss"
+        12
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) NewLosses)
+      ,testCase "Sum on pool fields-cash" $
+        assertEqual "sum cash"
+        404.0
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) CollectedCash)
+      ,testCase "Sum on pool fields-prepay penalty" $
+        assertEqual "sum prepayment penalty"
+        65
+        (CF.sumPoolFlow (CF.CashFlowFrame cflow1) CollectedPrepaymentPenalty)
+    ]
+
+testClawIntTest = 
+  let 
+    cflow =[CF.MortgageDelinqFlow (L.toDate "20230101") 100 20 10 20 1 2 3 4 0.0 Nothing (Just 10) Nothing
+           ,CF.MortgageDelinqFlow (L.toDate "20230201") 200 30 20 30 1 2 3 4 0.0 Nothing (Just 15) Nothing ]
+  in         
+    testGroup "test on interest claw"   
+    [
+      testCase "claw in first" $
+        assertEqual "AA"
+        [0,0]
+        (CF.mflowInterest <$> CF.clawbackInt 30 cflow)
+      ,testCase "claw in second" $
+        assertEqual "AA"
+        [0,15]
+        (CF.mflowInterest <$> CF.clawbackInt 15 cflow)
+      ,testCase "claw in all" $
+        assertEqual "AA"
+        [5,20]
+        (CF.mflowInterest <$> CF.clawbackInt 5 cflow)
     ]

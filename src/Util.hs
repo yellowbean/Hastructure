@@ -4,10 +4,10 @@
 module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN
     ,getValByDate,getValByDates,scaleUpToOne
-    ,calcInt,calcIntRate,calcIntRateCurve,divideBB
+    ,divideBB,getIntervalFactorsDc
     ,multiplyTs,zipTs,getTsVals,getTsSize,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, getTsDates
-    ,shiftTsByAmt,calcWeigthBalanceByDates, monthsAfter
+    ,shiftTsByAmt,calcWeightBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval
     -- for debug
@@ -177,27 +177,8 @@ getTsDates (BalanceCurve tps) =  map getDate tps
 getTsSize :: Ts -> Int 
 getTsSize ts = length (getTsVals ts)
 
-
-calcIntRate :: Date -> Date -> IRate -> DayCount -> IRate
-calcIntRate startDate endDate intRate dayCount =
-  let 
-    yf = yearCountFraction dayCount startDate endDate
-  in 
-    intRate * fromRational yf
-
-calcIntRateCurve :: DayCount -> IRate -> [Date] -> [IRate]
-calcIntRateCurve dc r ds 
-  = [ calcIntRate sd ed r dc |  (sd,ed) <- zip (init ds) (tail ds) ]
-
-calcInt :: Balance -> Date -> Date -> IRate -> DayCount -> Amount
-calcInt bal startDate endDate intRate dayCount =
-  let 
-    yfactor = yearCountFraction dayCount startDate endDate
-  in 
-    mulBR bal (yfactor * toRational intRate) 
-
 zipTs :: [Date] -> [Rational] -> Ts 
-zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- (zip ds rs) ]
+zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- zip ds rs ]
 
 multiplyTs :: CutoffType -> Ts -> Ts -> Ts
 multiplyTs ct (FloatCurve ts1) ts2
@@ -243,16 +224,21 @@ assert1 :: Bool -> a -> String -> a
 assert1 False x msg = error msg
 assert1 _     x _ = x
 
-calcWeigthBalanceByDates :: [Balance] -> [Date] -> Balance 
-calcWeigthBalanceByDates bals ds 
+getIntervalFactorsDc :: DayCount -> [Date] -> [Rate]
+getIntervalFactorsDc dc ds 
+  = zipWith (yearCountFraction dc) (init ds) (tail ds)
+
+-- ^ get a weighted average balance on year basis with a dayCount required
+calcWeightBalanceByDates :: DayCount -> [Balance] -> [Date] -> Balance 
+calcWeightBalanceByDates dc bals ds 
   = assert1
       (succ bs_length == ds_length) 
       (sum $ zipWith mulBR bals weights)
-      "calcWeigthBalanceByDates: bs and ds should be same length"
+      "calcWeightBalanceByDates: bs and ds should be same length"
       where 
         bs_length = length bals 
         ds_length = length ds
-        weights = getIntervalFactors ds
+        weights = getIntervalFactorsDc dc ds
 
 testSumToOne :: [Rate] -> Bool
 testSumToOne rs = sum rs == 1.0
@@ -279,7 +265,6 @@ roundingByM (Just rb) x = roundingBy rb x
 
 slice :: Int -> Int -> [a] -> [a]
 slice from to xs = take (to - from ) (drop from xs)
-
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days

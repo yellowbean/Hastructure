@@ -55,7 +55,6 @@ projectLoanFlow ((originBal,ot,or), startBal, lastPayDate, pt, dc,startRate, beg
              newPrin = case (rt,pt) of
                          (1,I_P) -> intBal
                          (1,F_P) -> intBal
-                         -- (_,F_P) -> mulBR (divideBI originBal ot)  newFactor
                          (0,F_P) -> 0
                          (_,F_P) -> mulBR (divideBI intBal rt)  newFactor
                          (_,I_P) -> 0
@@ -64,7 +63,10 @@ projectLoanFlow ((originBal,ot,or), startBal, lastPayDate, pt, dc,startRate, beg
                           let 
                             projAmt = fromRational $ getValByDate cf Inc pDate 
                           in 
-                            mulBR projAmt newFactor 
+                            if rt == 1 then
+                              intBal
+                            else
+                              mulBR projAmt newFactor
                          _ -> error $ "failed to match Loan Project newPrin"++ show (rt,pt)
              endBal = intBal - newPrin
            in
@@ -141,8 +143,15 @@ instance Asset Loan where
       ppyRates = A.buildPrepayRates (lastPayDate:cfDates) prepayAssump 
       defRates = A.buildDefaultRates (lastPayDate:cfDates) defaultAssump
       dc = getDayCount or          
-      remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt]  
-      (txns,_) = projectLoanFlow ((ob,ot,getOriginRate pl), cb,lastPayDate,prinPayType,dc,cr,1.0) (cfDates,defRates,ppyRates,rateVector,remainTerms) -- `debug` (" length of cf" ++show cfDates++ show defRates++ show ppyRates++ show rateVector ++ show remainTerms)
+      remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt]
+      initFactor = case prinPayType of 
+                     ScheduleRepayment ts _ -> 
+                      let 
+                        scheduleBals = scanl (-) ob $ fromRational <$> getTsVals ts
+                      in 
+                        divideBB cb (scheduleBals!!(ot - rt))
+                     _ -> 1.0  
+      (txns,_) = projectLoanFlow ((ob,ot,getOriginRate pl), cb,lastPayDate,prinPayType,dc,cr,initFactor) (cfDates,defRates,ppyRates,rateVector,remainTerms) -- `debug` (" length of cf" ++show cfDates++ show defRates++ show ppyRates++ show rateVector ++ show remainTerms)
       (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
 
   -- ^ Project cashflow for defautled loans 

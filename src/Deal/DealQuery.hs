@@ -23,11 +23,13 @@ import qualified Ledger as LD
 import qualified Expense as F
 import qualified Triggers as Trg
 import qualified CreditEnhancement as CE
+import qualified Hedge as H
 import Stmt
 import Util
 import DateUtil
 import Lib
-
+import Control.Lens hiding (element)
+import Control.Lens.TH
 import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
 debug = flip trace
@@ -153,7 +155,7 @@ queryDealInt t s d =
           Nothing -> error "Should not happend"
           Just md -> fromInteger $ T.cdMonths $ T.diffGregorianDurationClip md d
         where
-            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _) = (bonds t) Map.! bn  
+            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = (bonds t) Map.! bn  
     FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
     FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
     FloorWithZero s -> max (queryDealInt t s d) 0
@@ -168,6 +170,8 @@ poolSourceToIssuanceField CollectedPrincipal = HistoryPrincipal
 poolSourceToIssuanceField CollectedRecoveries = HistoryRecoveries
 poolSourceToIssuanceField CollectedPrepayment = HistoryPrepayment
 poolSourceToIssuanceField CollectedRental = HistoryRental
+poolSourceToIssuanceField CollectedCash = HistoryCash
+poolSourceToIssuanceField a = error ("Failed to match pool source when mapping to issuance field"++show a)
 
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
@@ -428,6 +432,18 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         Just liqProviderM -> sum $ [ CE.liqBalance liq | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
 
+    RateCapNet rcName -> case rateCap t of
+                           Nothing -> error "No rate cap in the deal"
+                           Just rm -> case Map.lookup rcName rm of
+                                        Nothing -> error $ "No "++ rcName ++" Found in rate cap map with key"++ show (Map.keys rm)
+                                        Just rc -> H.rcNetCash rc
+    
+    RateSwapNet rsName -> case rateCap t of
+                           Nothing -> error "No rate swap in the deal"
+                           Just rm -> case Map.lookup rsName rm of
+                                        Nothing -> error $ "No "++ rsName ++" Found in rate swap map with key"++ show (Map.keys rm)
+                                        Just rc -> H.rcNetCash rc
+
     Sum _s -> sum $ map (queryDeal t) _s
 
     Substract (ds:dss) -> 
@@ -487,6 +503,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
         case (isPaidOff bn1,all isPaidOff bns1) of
           (False,True) -> True
           _ -> False
+
+    IsPaidOff bns -> all isPaidOff $ (bndMap Map.!) <$> bns
     
     TestRate ds cmp r -> let
                            testRate = queryDealRate t ds

@@ -55,12 +55,12 @@ instance FromJSONKey ActionWhen where
 
 data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
               | ByAccountDraw LedgerName               -- Book amount equal to account draw amount
-              | ByDS          LedgerName DealStats     -- Book amount equal to a formula/deal stats
+              | ByDS          LedgerName Direction DealStats     -- Book amount equal to a formula/deal stats
               deriving (Show,Generic)
 
 data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there is deficit, draw another account to pay the shortfall
                   | SupportLiqFacility LiquidityProviderName     -- ^ if there is deficit, draw facility's available credit to pay the shortfall
-                  | MultiSupport [ExtraSupport]                  -- ^ if there is deficit, draw multiple supports to pay the shortfall
+                  | MultiSupport [ExtraSupport]                  -- ^ if there is deficit, draw multiple supports (by sequence in the list) to pay the shortfall
                   deriving (Show,Generic)
 
 data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
@@ -77,6 +77,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
             | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond
+            | PayPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond via sequence
             | PayPrinResidual AccountName [BondName]                                        -- ^ pay principal regardless predefined balance schedule
             -- | PayPrinBy Limit AccountName BondName
             -- Pool/Asset change
@@ -92,6 +93,8 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | SwapReceive AccountName CeName    -- ^ receive amount from net amount of swap and deposit to account
             | SwapPay AccountName CeName        -- ^ pay out net amount from account 
             | SwapSettle AccountName CeName     -- ^ pay & receive net amount of swap with account
+            -- RateCap 
+            | CollectRateCap AccountName CeName  -- ^ collect cash from rate cap and deposit to account
             -- Record booking
             | BookBy BookType                         -- ^ book an ledger with book types
             -- Pre

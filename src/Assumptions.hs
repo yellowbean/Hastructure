@@ -8,7 +8,7 @@ module Assumptions (BondPricingInput(..)
                     ,lookupAssumptionByIdx,lookupRate,AssetPerfAssumption(..)
                     ,ExtraStress(..),RevolvingAssumption(..)
                     ,AssetPrepayAssumption(..),AssetDefaultAssumption(..),RecoveryAssumption(..)
-                    ,getRateAssumption,projRates
+                    ,getRateAssumption,projRates,lookupRate0
                     ,LeaseAssetGapAssump(..)
                     ,LeaseAssetRentAssump(..)
                     ,NonPerfAssumption(..),AssetPerf
@@ -39,6 +39,7 @@ import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
 import InterestRate
+import Triggers (TriggerName)
 debug = flip trace
 
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
@@ -55,6 +56,7 @@ data ApplyAssumptionType = PoolLevel AssetPerf
                            -- ^ assumption apply to all assets in the pool
                          | ByIndex [StratPerfByIdx]
                            -- ^ assumption which only apply to a set of assets in the pool
+                         | ByName (Map.Map String AssetPerf)
                          deriving (Show,Generic)
 
 data NonPerfAssumption = NonPerfAssumption {
@@ -66,6 +68,7 @@ data NonPerfAssumption = NonPerfAssumption {
   ,inspectOn :: Maybe [(DatePattern,DealStats)]        -- ^ optional tuple list to inspect variables during waterfall run
   ,buildFinancialReport :: Maybe DatePattern           -- ^ optional dates to build financial reports
   ,pricing :: Maybe BondPricingInput                   -- ^ optional bond pricing input( discount curve etc)
+  ,fireTrigger :: Maybe [(Date,DealCycle,TriggerName)]        -- ^ optional fire a trigger
 } deriving (Show,Generic)
 
 data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request
@@ -133,6 +136,7 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate  (Maybe ExtraStress)
                          | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
+                         | FixedAssetAssump  Ts Ts   -- util rate, price
                          deriving (Show,Generic)
 
 data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
@@ -157,6 +161,14 @@ lookupRate rAssumps (index,spd) d
       Just (RateCurve _ ts) -> spd + fromRational (getValByDate ts Inc d)
       Just (RateFlat _ r) -> r + spd
       Nothing -> error $ "Failed to find Index " ++ show index
+
+lookupRate0 :: [RateAssumption] -> Index -> Date -> IRate 
+lookupRate0 rAssumps index d
+  = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
+      Just (RateCurve _ ts) -> fromRational (getValByDate ts Inc d)
+      Just (RateFlat _ r) -> r
+      Nothing -> error $ "Failed to find Index " ++ show index
+
 
 getRateAssumption :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumption assumps idx

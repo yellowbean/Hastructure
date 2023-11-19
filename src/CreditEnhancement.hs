@@ -154,7 +154,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
                         (_,_unAccTxns) = splitByDate (getTxns mStmt) lastAccDate EqToLeftKeepOne
                         accBals = getUnusedBal <$> _unAccTxns 
                         _ds = lastAccDate : tail (getDate <$> _unAccTxns)
-                        _avgBal = calcWeigthBalanceByDates accBals (_ds++[d])
+                        _avgBal = calcWeightBalanceByDates DC_ACT_365F accBals (_ds++[d])
                       in 
                         mulBIR _avgBal r
                         

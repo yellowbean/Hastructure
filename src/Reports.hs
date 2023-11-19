@@ -67,18 +67,18 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
         ---accured interest
         accM = [ Item accName accBal | (accName,accBal) <- Map.toList $ Map.map A.accBalance (accounts t) ]
         (performingBal,dBal,rBal) = case P.futureCf pool of
-                         Nothing -> let 
-                                      _dbal = queryDeal t CurrentPoolDefaultedBalance
-                                      _pbal = queryDeal t CurrentPoolBalance - _dbal
-                                      _issuancePbal = case P.issuanceStat pool of
-                                                        Nothing -> 0
-                                                        Just statMap -> Map.findWithDefault 0 IssuanceBalance statMap
-                                    in 
-                                      (max _pbal _issuancePbal, _dbal, 0)
-                         Just cf@(CF.CashFlowFrame txns) 
-                           -> (CF.mflowBalance (last txns)
-                              ,CF.totalDefault cf
-                              ,negate (CF.totalRecovery cf))
+                                      Nothing -> let 
+                                                   _dbal = queryDeal t CurrentPoolDefaultedBalance
+                                                   _pbal = queryDeal t CurrentPoolBalance - _dbal
+                                                   _issuancePbal = case P.issuanceStat pool of
+                                                                     Nothing -> 0
+                                                                     Just statMap -> Map.findWithDefault 0 IssuanceBalance statMap
+                                                 in 
+                                                   (max _pbal _issuancePbal, _dbal, 0)
+                                      Just cf@(CF.CashFlowFrame txns) 
+                                        -> (CF.mflowBalance (last txns)
+                                           ,CF.totalDefault cf
+                                           ,negate (CF.totalRecovery cf))
         
         poolAst = [ Item "Pool Performing" performingBal
                   , Item "Pool Defaulted" dBal

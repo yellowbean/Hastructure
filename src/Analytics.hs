@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Analytics (calcDuration,pv,calcWAL,pv2,pv3)
+module Analytics (calcDuration,pv,calcWAL,pv2,pv3,fv2)
   where 
 import Types
 import Lib
@@ -67,3 +67,10 @@ pv3 pvCurve pricingDate ds vs
       pvs = [ pv2 r pricingDate d amt | (r,d,amt) <- zip3 rs ds vs ]
     in 
       sum pvs
+
+fv2 :: IRate -> Date -> Date -> Amount -> Amount
+fv2 discount_rate today futureDay amt 
+  = realToFrac $ realToFrac amt * factor 
+  where
+    factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)
+    distance::Double = fromIntegral $ daysBetween today futureDay

@@ -74,6 +74,24 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_FixedAsset"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -1319,6 +1337,51 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 6,
+                                "type": "array",
+                                "minItems": 6
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedFlow"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -1458,6 +1521,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_Mortgage"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -1579,6 +1648,24 @@
                                 "type": "string",
                                 "enum": [
                                     "LS"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/FixedAsset"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FA"
                                 ]
                             }
                         },
@@ -2045,6 +2132,43 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PayPrinBySeq"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "type": "string"
                                     },
                                     {
@@ -2340,6 +2464,34 @@
                                 "type": "string",
                                 "enum": [
                                     "SwapSettle"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CollectRateCap"
                                 ]
                             }
                         },
@@ -3103,6 +3255,7 @@
                     "CollectedPrepayment",
                     "CollectedPrepaymentPenalty",
                     "CollectedRental",
+                    "CollectedCash",
                     "NewDefaults",
                     "NewLosses",
                     "NewDelinquencies"
@@ -3603,7 +3756,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "SwapAccure"
+                                    "SwapAccrue"
                                 ]
                             }
                         },
@@ -4091,6 +4244,64 @@
                                 "type": "string",
                                 "enum": [
                                     "OffsetBy"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "Capacity": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedCapacity"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "maximum": 9223372036854775807,
+                                            "type": "integer",
+                                            "minimum": -9223372036854775808
+                                        },
+                                        {
+                                            "multipleOf": 1.0e-2,
+                                            "type": "number"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CapacityByTerm"
                                 ]
                             }
                         },
@@ -5799,6 +6010,27 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "IsPaidOff"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -6352,6 +6584,42 @@
                                 "type": "string",
                                 "enum": [
                                     "LiqBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RateCapNet"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RateSwapNet"
                                 ]
                             }
                         },
@@ -7395,6 +7663,15 @@
                     "asOfDate"
                 ]
             },
+            "AmortRule": {
+                "type": "string",
+                "enum": [
+                    "DecliningBalance",
+                    "DoubleDecliningBalance",
+                    "StraightLine",
+                    "SumYearsDigit"
+                ]
+            },
             "TestDeal_Lease": {
                 "type": "object",
                 "properties": {
@@ -7493,6 +7770,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_Lease"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -7506,6 +7789,55 @@
                     "waterfall",
                     "collects"
                 ]
+            },
+            "FixedAsset": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/OriginalInfo"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedAsset"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Dummy5"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "AssetDefaultedPerfAssumption": {
                 "oneOf": [
@@ -7662,6 +7994,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_Installment"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -8059,6 +8397,24 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TestDeal_FixedAsset"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -8082,6 +8438,9 @@
                     "bndDueInt": {
                         "multipleOf": 1.0e-2,
                         "type": "number"
+                    },
+                    "bndStepUp": {
+                        "$ref": "#/components/schemas/StepUp"
                     },
                     "bndType": {
                         "$ref": "#/components/schemas/BondType"
@@ -8559,6 +8918,37 @@
                     }
                 ],
                 "type": "object"
+            },
+            "Pool_FixedAsset": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "asOfDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/FixedAsset"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "assets",
+                    "asOfDate"
+                ]
             },
             "ExtraSupport": {
                 "oneOf": [
@@ -9432,6 +9822,12 @@
                     },
                     "pool": {
                         "$ref": "#/components/schemas/Pool_Loan"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
                     }
                 },
                 "required": [
@@ -9961,6 +10357,34 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedAssetAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -10148,6 +10572,72 @@
                 "type": "array",
                 "minItems": 5
             },
+            "StepUp": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PassDateSpread"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PassDateLadderSpread"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "BondType": {
                 "oneOf": [
                     {
@@ -10204,7 +10694,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "PAC_Anchor"
+                                    "PacAnchor"
                                 ]
                             }
                         },
@@ -10390,6 +10880,171 @@
                     }
                 ],
                 "type": "object"
+            },
+            "RateCap": {
+                "type": "object",
+                "properties": {
+                    "rcNetCash": {
+                        "multipleOf": 1.0e-2,
+                        "type": "number"
+                    },
+                    "rcStartDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "rcLastStlDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "rcIndex": {
+                        "$ref": "#/components/schemas/Index"
+                    },
+                    "rcEndDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "rcNotional": {
+                        "$ref": "#/components/schemas/RateSwapBase"
+                    },
+                    "rcSettleDates": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    },
+                    "rcStrikeRate": {
+                        "$ref": "#/components/schemas/Ts"
+                    },
+                    "rcStmt": {
+                        "$ref": "#/components/schemas/Statement"
+                    },
+                    "rcReceivingRate": {
+                        "multipleOf": 1.0e-6,
+                        "type": "number"
+                    }
+                },
+                "required": [
+                    "rcIndex",
+                    "rcStrikeRate",
+                    "rcNotional",
+                    "rcStartDate",
+                    "rcSettleDates",
+                    "rcEndDate",
+                    "rcReceivingRate",
+                    "rcNetCash"
+                ]
+            },
+            "TestDeal_FixedAsset": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/DealStatus"
+                    },
+                    "dates": {
+                        "$ref": "#/components/schemas/DateDesp"
+                    },
+                    "rateSwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateSwap"
+                        }
+                    },
+                    "currencySwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CurrencySwap"
+                        }
+                    },
+                    "fees": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Fee"
+                        }
+                    },
+                    "collects": {
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionRule"
+                        },
+                        "type": "array"
+                    },
+                    "custom": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CustomDataType"
+                        }
+                    },
+                    "ledgers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Ledger"
+                        }
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "waterfall": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Action"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "liqProvider": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LiqFacility"
+                        }
+                    },
+                    "bonds": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Bond"
+                        }
+                    },
+                    "overrides": {
+                        "items": {
+                            "$ref": "#/components/schemas/OverrideType"
+                        },
+                        "type": "array"
+                    },
+                    "accounts": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Account"
+                        }
+                    },
+                    "call": {
+                        "items": {
+                            "$ref": "#/components/schemas/CallOption"
+                        },
+                        "type": "array"
+                    },
+                    "triggers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/components/schemas/Trigger"
+                            }
+                        }
+                    },
+                    "pool": {
+                        "$ref": "#/components/schemas/Pool_FixedAsset"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
+                    }
+                },
+                "required": [
+                    "name",
+                    "status",
+                    "dates",
+                    "accounts",
+                    "fees",
+                    "bonds",
+                    "pool",
+                    "waterfall",
+                    "collects"
+                ]
             },
             "ActionOnDate": {
                 "oneOf": [
@@ -10616,6 +11271,37 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/DealCycle"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FireTrigger"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     }
                                 ],
@@ -10655,6 +11341,34 @@
                                 "type": "string",
                                 "enum": [
                                     "ResetIRSwapRate"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AccrueCapRate"
                                 ]
                             }
                         },
@@ -10725,6 +11439,25 @@
             "NonPerfAssumption": {
                 "type": "object",
                 "properties": {
+                    "fireTrigger": {
+                        "items": {
+                            "items": [
+                                {
+                                    "$ref": "#/components/schemas/Day"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DealCycle"
+                                },
+                                {
+                                    "type": "string"
+                                }
+                            ],
+                            "maxItems": 3,
+                            "type": "array",
+                            "minItems": 3
+                        },
+                        "type": "array"
+                    },
                     "callWhen": {
                         "items": {
                             "$ref": "#/components/schemas/CallOption"
@@ -11542,12 +12275,15 @@
                                         "type": "string"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/Direction"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -11638,6 +12374,40 @@
                                 "type": "string",
                                 "enum": [
                                     "ByIndex"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/AssetPerfAssumption"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                        }
+                                    ],
+                                    "maxItems": 3,
+                                    "type": "array",
+                                    "minItems": 3
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ByName"
                                 ]
                             }
                         },
@@ -12000,7 +12770,7 @@
         }
     },
     "info": {
-        "version": "0.22.2",
+        "version": "0.23.1",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

@@ -1,4 +1,4 @@
-module UT.BondTest(pricingTests,bndUtilTest)
+module UT.BondTest(pricingTests)
 where
 
 import Test.Tasty
@@ -23,7 +23,7 @@ b1 = B.Bond{B.bndName="A"
             ,B.bndType=B.Sequential
             ,B.bndOriginInfo= B.OriginalInfo{
                                B.originBalance=3000
-                               ,B.originDate= (T.fromGregorian 2022 1 1)
+                               ,B.originDate= T.fromGregorian 2022 1 1
                                ,B.originRate= 0.08
                                ,B.maturityDate = Nothing}
             ,B.bndInterestInfo= B.Fix 0.08 DC_ACT_365F
@@ -40,7 +40,7 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndType=B.Sequential
             ,B.bndOriginInfo= B.OriginalInfo{
                                B.originBalance=3000
-                               ,B.originDate= (T.fromGregorian 2022 1 1)
+                               ,B.originDate= T.fromGregorian 2022 1 1
                                ,B.originRate= 0.08
                                ,B.maturityDate = Nothing}
             ,B.bndInterestInfo= B.Floater 0.02 LPR5Y 0.015 (MonthDayOfYear 1 1) DC_ACT_365F Nothing Nothing
@@ -90,7 +90,7 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "flat rate discount " $
       assertEqual "Test Pricing on case 01" 
-        (B.PriceResult 501.650609 16.721666 (1 / 4) (1 / 1) 1.94 0.0) 
+        (B.PriceResult 501.650609 16.721666 (1 / 4) 1 1.94 0.0) 
         pr
     ,
      let
@@ -107,7 +107,7 @@ pricingTests = testGroup "Pricing Tests"
      in
        testCase " discount curve with two rate points " $
        assertEqual "Test Pricing on case 01" 
-            (B.PriceResult 814.61 27.153666 (1 / 25) 0.180349 0.20 19.2) 
+            (B.PriceResult 814.61 27.153666 (1 / 25) 0.180349 0.20 20.38) 
             pr  --TODO need to confirm
     ,
     let
@@ -168,13 +168,3 @@ bndTests = testGroup "Float Bond Tests" [
       assertEqual "" [True,False] [r1,r2]
  ]
 
-bndUtilTest = testGroup "Bond PV/FV Test" [
-    testCase "FV2 test" $ 
-        assertEqual "1-year"
-            108
-            (B.fv2 0.08 (L.toDate "20230101") (L.toDate "20240101") 100) 
-    ,testCase "FV2 test" $ 
-        assertEqual "0.5-year"
-            103.89
-            (B.fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 
- ]

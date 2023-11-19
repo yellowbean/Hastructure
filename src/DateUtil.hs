@@ -123,7 +123,7 @@ yearCountFraction dc sd ed
             (True,False,False) -> False 
             (True,True,_) -> inRange (sd,ed) (T.fromGregorian syear 2 29)
             _ -> let 
-                   _leapDays = [  T.fromGregorian _y 2 29   |  _y <- range (syear,eyear) , (T.isLeapYear _y) ]
+                   _leapDays = [  T.fromGregorian _y 2 29   |  _y <- range (syear,eyear) , T.isLeapYear _y ]
                  in   
                    any (inRange (sd,ed)) _leapDays
 
@@ -281,12 +281,12 @@ projDatesByPattern dp sd ed
       (T.CalendarDiffDays cdm cdd) = T.diffGregorianDurationClip ed sd
       num = case dp of
               MonthEnd -> cdm + 1
-              QuarterEnd -> (div cdm 3) + 1 -- `debug` ("cdm"++show cdm)
-              YearEnd  -> (div cdm 12) + 1
+              QuarterEnd -> div cdm 3 + 1 -- `debug` ("cdm"++show cdm)
+              YearEnd  -> div cdm 12 + 1
               MonthFirst -> cdm + 1
-              QuarterFirst -> (div cdm 3) + 1
-              YearFirst -> (div cdm 12) + 1
-              MonthDayOfYear _ _ -> (div cdm 12) + 1
+              QuarterFirst -> div cdm 3 + 1
+              YearFirst -> div cdm 12 + 1
+              MonthDayOfYear _ _ -> div cdm 12 + 1
               DayOfMonth _ -> cdm + 1
     in 
       genSerialDates dp Inc sd (fromInteger num)

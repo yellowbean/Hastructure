@@ -31,9 +31,11 @@ library
       Asset
       AssetClass.AssetBase
       AssetClass.AssetCashflow
+      AssetClass.FixedAsset
       AssetClass.Installment
       AssetClass.Lease
       AssetClass.Loan
+      AssetClass.MixedAsset
       AssetClass.Mortgage
       Assumptions
       Call
@@ -145,6 +147,7 @@ test-suite Hastructure-test
       UT.InterestRateTest
       UT.LibTest
       UT.QueryTest
+      UT.RateHedgeTest
       UT.StmtTest
       UT.UtilTest
       Paths_Hastructure

@@ -174,8 +174,10 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
                   | RunWaterfall Date String             -- ^ execute waterfall
                   | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
+                  | FireTrigger Date DealCycle String    -- ^ fire a trigger
                   | InspectDS Date DealStats             -- ^ inspect formula
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
+                  | AccrueCapRate Date String             -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   deriving (Show,Generic,Read)
@@ -188,9 +190,11 @@ instance TimeSeries ActionOnDate where
     getDate (EarnAccInt d _) = d
     getDate (AccrueFee d _) = d
     getDate (DealClosed d) = d
+    getDate (FireTrigger d _ _) = d
     getDate (ChangeDealStatusTo d _ ) = d
     getDate (InspectDS d _ ) = d
     getDate (ResetIRSwapRate d _ ) = d
+    getDate (AccrueCapRate d _ ) = d
     getDate (ResetBondRate d _ ) = d 
     getDate (BuildReport sd ed) = ed
 
@@ -307,7 +311,7 @@ data TxnComment = PayInt [BondName]
                 | Empty 
                 | Tag String
                 | UsingDS DealStats
-                | SwapAccure
+                | SwapAccrue
                 | SwapInSettle
                 | SwapOutSettle
                 | PurchaseAsset
@@ -335,7 +339,7 @@ instance ToJSON TxnComment where
   toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
   toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
-  toJSON SwapAccure = String $ T.pack $ "<Accure:>"
+  toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
   toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
@@ -367,6 +371,8 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryDefaults      -- ^ cumulative default balance
                   | HistoryDelinquency   -- ^ cumulative delinquency balance
                   | HistoryLoss          -- ^ cumulative loss/write-off balance
+                  | HistoryCash          -- ^ cumulative cash
+                  | AccruedInterest      -- ^ accrued interest at closing
                   deriving (Show,Ord,Eq,Read,Generic)
 
 instance ToJSONKey CutoffFields where
@@ -383,6 +389,7 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | CollectedPrepayment             -- ^ prepayment
                 | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
                 | CollectedRental                 -- ^ rental from pool
+                | CollectedCash                   -- ^ cash from pool
                 | NewDefaults                     -- ^ new defaults in balance
                 | NewLosses                       -- ^ new losses in balance
                 | NewDelinquencies                -- ^ new delinquencies in balance
@@ -429,6 +436,7 @@ data DealStats = CurrentBondBalance
                | FutureOriginalPoolBalance
                | CurrentBondBalanceOf [BondName]
                | IsMostSenior BondName [BondName]
+               | IsPaidOff [BondName]
                | BondIntPaidAt Date BondName
                | BondsIntPaidAt Date [BondName]
                | BondPrinPaidAt Date BondName
@@ -450,6 +458,8 @@ data DealStats = CurrentBondBalance
                | LastFeePaid [FeeName]
                | LiqCredit [String]
                | LiqBalance [String]
+               | RateCapNet String
+               | RateSwapNet String
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date
                | TriggersStatus DealCycle String
@@ -662,23 +672,23 @@ class TimeSeries ts where
     cmpWith t d = compare (getDate t) d
 
     isAfter :: ts -> Date -> Bool 
-    isAfter t d = (getDate t) > d
+    isAfter t d = getDate t > d
     isOnAfter :: ts -> Date -> Bool 
-    isOnAfter t d = (getDate t) >= d
+    isOnAfter t d = getDate t >= d
     isBefore :: ts -> Date -> Bool 
-    isBefore t d = (getDate t) < d
+    isBefore t d = getDate t < d
     isOnBefore :: ts -> Date -> Bool 
-    isOnBefore t d = (getDate t) <= d
+    isOnBefore t d = getDate t <= d
 
     splitBy :: Date -> CutoffType -> [ts] -> ([ts],[ts])
     splitBy d ct tss = 
       let 
         ffunR x = case ct of
-                   Inc -> (getDate x > d) -- include ts in the Left
-                   Exc -> (getDate x >= d)  -- 
+                   Inc -> getDate x > d -- include ts in the Left
+                   Exc -> getDate x >= d  -- 
         ffunL x = case ct of
-                   Inc -> (getDate x <= d) -- include ts in the Left
-                   Exc -> (getDate x < d)  -- 
+                   Inc -> getDate x <= d -- include ts in the Left
+                   Exc -> getDate x < d  -- 
       in 
         (filter ffunL tss, filter ffunR tss)
         
