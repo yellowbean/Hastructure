@@ -127,10 +127,6 @@ data RateCap = RateCap {
               }
               deriving(Show,Generic,Eq)
 
-updateRC :: Date -> Rate -> RateCap -> RateCap 
-updateRC d r rc = rc 
-
-
 
 receiveRC :: Date -> RateCap -> RateCap
 receiveRC d rc@RateCap{rcNetCash = receiveAmt, rcStmt = stmt} 
