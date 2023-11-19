@@ -36,6 +36,6 @@ capRateTests =
           (accrueRC td2 (Lib.toDate "20280101") indexAssump rc)
       ,testCase "Accrue on flat curve" $
         assertEqual "netCash" 
-          (0.005 * 1000)
+          5.0
           (rcNetCash rc1)
     ]
