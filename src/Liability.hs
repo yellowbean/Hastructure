@@ -289,11 +289,11 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
                         thresholds = toRational  <$> (level *) <$> [50,20,10,5,2,0.1,0.05,0.01,0.005]
                         shiftPcts = (level *) <$> [0.5,0.2,0.1,0.05,0.02,0.01,0.005,0.001,0.0005]
                        in 
-                         case find (\(a,b) -> a < (abs(toRational gap))) (zip thresholds shiftPcts ) of
+                         case find (\(a,b) -> a < abs(toRational gap)) (zip thresholds shiftPcts ) of
                            Just (_,v) -> toRational v  -- `debug` ("shifting ->"++ show v)
                            Nothing -> toRational (level * 0.00001) --  `debug` ("shifting-> <> 0.00005")
                   
-      newLevel = case [abs(newSpd) < 0.0001
+      newLevel = case [abs newSpd < 0.0001
                        ,abs(newSpd-lastSpd)<0.000001
                        ,abs(newSpd-lastSpd2)<0.000001] of
                    [True,_,_] -> level * 0.5

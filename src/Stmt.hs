@@ -114,8 +114,8 @@ weightAvgBalance sd ed txns
   = sum $ zipWith mulBR bals dsFactor -- `debug` ("WavgBalace "++show bals++show dsFactor)
   where 
       _txns = sliceBy IE sd ed txns
-      bals = (map getTxnBegBalance _txns) ++ [getTxnBalance (last _txns)]
-      ds = [sd]++(map getDate _txns)++[ed] 
+      bals = map getTxnBegBalance _txns ++ [getTxnBalance (last _txns)]
+      ds = [sd] ++ map getDate _txns ++ [ed] 
       dsFactor = getIntervalFactors ds  -- `debug` ("DS>>>"++show ds)
 
 

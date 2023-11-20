@@ -518,8 +518,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
     
     IsDealStatus st -> status t == st
 
-    TestAny b dss -> any (== b) [ queryDealBool t ds | ds <- dss ]
-    TestAll b dss -> all (== b) [ queryDealBool t ds | ds <- dss ]
+    TestAny b dss -> elem b [ queryDealBool t ds | ds <- dss ]
+    TestAll b dss -> all (== b) [ queryDealBool t ds | ds <- dss ] 
 
     _ -> error ("Failed to query bool type formula"++ show ds)
 

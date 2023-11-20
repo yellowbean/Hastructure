@@ -203,20 +203,23 @@ testCalls :: P.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
 testCalls t d [] = False  
 testCalls t d opts = any (testCall t d) opts  
 
+
 queryTrigger :: P.Asset a => TestDeal a -> DealCycle -> [Trigger]
 queryTrigger t@TestDeal{ triggers = trgs } wt 
   = case trgs of 
       Nothing -> []
       Just _trgs -> maybe [] Map.elems $ Map.lookup wt _trgs
 
+-- ^ run trigger sequentially
 testTriggers :: P.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
 testTriggers t d [] = False
 testTriggers t d triggers = any (testTrigger t d) triggers 
 
+-- ^ execute effects of trigger: making changes to deal
 runEffects :: P.Asset a => TestDeal a -> Date -> TriggerEffect -> TestDeal a 
 runEffects t@TestDeal{accounts = accMap, fees = feeMap } d te 
   = case te of 
-      DealStatusTo _ds -> t {status=_ds} -- `debug` ("changing status to "++show _ds++"on date"++ show d)
+      DealStatusTo _ds -> t {status = _ds}
       DoAccrueFee fns -> t {fees = foldr (Map.adjust (calcDueFee t d)) feeMap fns}  
       ChangeReserveBalance accName rAmt ->
           t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }        
@@ -232,9 +235,6 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
 
     -- get triggeres to run at `dealCycle`
     trgsMap = Map.findWithDefault Map.empty dcycle trgM
-    
-    --testTrgsResult = [ (_trg, (not (trgStatus _trg) || trgStatus _trg && trgCurable _trg) && testTrigger t d _trg)
-    --                  | _trg <- _trgs ] 
     
     -- triggered trigger
     triggeredTrgs = Map.filter   

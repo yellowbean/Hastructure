@@ -248,6 +248,7 @@ monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
 
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
+getPriceValue (PriceResult v _ _ _ _ _) = v
 
 maximum' :: Ord a => [a] -> a
 maximum' = foldr1 (\x y ->if x >= y then x else y)

@@ -8,7 +8,6 @@ module Waterfall
   ,ActionWhen(..),BookType(..),ExtraSupport(..))
   where
 
-import GHC.Generics
 import Language.Haskell.TH
 import Data.Aeson hiding (json)
 import qualified Data.Text as T
@@ -27,13 +26,12 @@ import Liability
 import Types
 import Revolving
 import Triggers
-import Ledger
 import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
 import qualified CreditEnhancement as CE
 import CreditEnhancement (LiquidityProviderName)
-import Ledger (Ledger)
+import Ledger (Ledger,LedgerName)
 
 
 data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the end of pool collection
@@ -76,8 +74,8 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
-            | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond
-            | PayPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond via sequence
+            | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond via pro-rata
+            | PayPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ pay principal to bond via sequence
             | PayPrinResidual AccountName [BondName]                                        -- ^ pay principal regardless predefined balance schedule
             -- | PayPrinBy Limit AccountName BondName
             -- Pool/Asset change
