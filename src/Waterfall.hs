@@ -59,6 +59,7 @@ data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit refe
 data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there is deficit, draw another account to pay the shortfall
                   | SupportLiqFacility LiquidityProviderName     -- ^ if there is deficit, draw facility's available credit to pay the shortfall
                   | MultiSupport [ExtraSupport]                  -- ^ if there is deficit, draw multiple supports (by sequence in the list) to pay the shortfall
+                  | WithCondition Pre ExtraSupport               -- ^ support only available if Pre is true
                   deriving (Show,Generic)
 
 data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)

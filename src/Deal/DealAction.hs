@@ -355,7 +355,10 @@ updateOriginDate2 d (ACM.MO m) = ACM.MO $ updateOriginDate m (P.calcAlignDate m 
 updateOriginDate2 d (ACM.IL m) = ACM.IL $ updateOriginDate m (P.calcAlignDate m d)
 updateOriginDate2 d (ACM.LS m) = ACM.LS $ updateOriginDate m (P.calcAlignDate m d)
 
-evalExtraSupportBalance :: Date -> TestDeal a -> W.ExtraSupport  -> [Balance]
+evalExtraSupportBalance :: P.Asset a => Date -> TestDeal a -> W.ExtraSupport  -> [Balance]
+evalExtraSupportBalance d t (W.WithCondition pre s) 
+  | testPre d t pre = evalExtraSupportBalance d t s
+  | otherwise = [0]
 evalExtraSupportBalance d t@TestDeal{accounts=accMap} (W.SupportAccount an _) = [A.accBalance $ accMap Map.! an]
 evalExtraSupportBalance d t@TestDeal{liqProvider=Just liqMap} (W.SupportLiqFacility liqName) = [ fromMaybe 0 (CE.liqCredit (liqMap Map.! liqName))]
 evalExtraSupportBalance d t (W.MultiSupport supports) = concat $ evalExtraSupportBalance d t <$> supports
