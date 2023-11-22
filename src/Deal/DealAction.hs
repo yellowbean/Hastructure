@@ -581,6 +581,12 @@ performAction d t@TestDeal{fees=feeMap, accounts =accMap} (W.PayFee mLimit an fn
 
     supportPaidOut = actualPaidOut - accPaidOut
 
+performAction d t (W.AccrueAndPayIntBySeq mLimit an bnds mSupport)
+  = foldr (\bn _d -> (performAction d t (W.AccrueAndPayInt mLimit an [bn] mSupport))) t bnds
+
+performAction d t (W.PayIntBySeq mLimit an bnds mSupport)
+  = foldr (\bn _d -> (performAction d t (W.PayInt mLimit an [bn] mSupport))) t bnds
+
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt mLimit an bnds mSupport) =
   case mSupport of 
     Just support -> fst $ drawExtraSupport d supportPaidOut support dealAfterAcc
@@ -692,7 +698,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBySeq mLimit 
                         accMap
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin (Just (DS ds)) an bnds Nothing)=  --Need to replace with formula
-  t {accounts = accMapAfterPay, bonds =bndsUpdated}
+  t {accounts = accMapAfterPay, bonds = bndsUpdated}
   where
     availBal = A.accBalance $ accMap Map.! an
     
