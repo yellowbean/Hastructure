@@ -70,14 +70,17 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Bond - Interest
             | CalcBondInt [BondName]                                                       -- ^ calculate interest due amount in the bond names
             | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay interest with cash from the account with optional limit or extra support
+            | PayIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ with sequence
             | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)    -- ^ combination of CalcInt and PayInt
+            | AccrueAndPayIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) -- ^ with sequence
             | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
             | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond via pro-rata
             | PayPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ pay principal to bond via sequence
             | PayPrinResidual AccountName [BondName]                                        -- ^ pay principal regardless predefined balance schedule
-            -- | PayPrinBy Limit AccountName BondName
+            | PayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)     -- ^ pay int & prin to bonds sequentially
+            | AccrueAndPayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
             -- Pool/Asset change
             | BuyAsset (Maybe Limit) PricingMethod AccountName                              -- ^ buy asset from revolving assumptions using funds from account
             | LiquidatePool PricingMethod AccountName                                       -- ^ sell all assets and deposit proceeds to account
