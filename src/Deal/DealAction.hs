@@ -355,6 +355,7 @@ updateOriginDate2 d (ACM.MO m) = ACM.MO $ updateOriginDate m (P.calcAlignDate m 
 updateOriginDate2 d (ACM.IL m) = ACM.IL $ updateOriginDate m (P.calcAlignDate m d)
 updateOriginDate2 d (ACM.LS m) = ACM.LS $ updateOriginDate m (P.calcAlignDate m d)
 
+-- ^ get available supports in balance
 evalExtraSupportBalance :: P.Asset a => Date -> TestDeal a -> W.ExtraSupport  -> [Balance]
 evalExtraSupportBalance d t (W.WithCondition pre s) 
   | testPre d t pre = evalExtraSupportBalance d t s

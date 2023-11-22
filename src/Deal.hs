@@ -223,6 +223,7 @@ runEffects t@TestDeal{accounts = accMap, fees = feeMap } d te
       DoAccrueFee fns -> t {fees = foldr (Map.adjust (calcDueFee t d)) feeMap fns}  
       ChangeReserveBalance accName rAmt ->
           t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }        
+      DoNothing -> t
       _ -> error $ "Failed to match trigger effects: "++show te
 
 -- ^ test trigger and add a log if deal status changed
