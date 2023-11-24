@@ -66,6 +66,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Fee
             | CalcFee [FeeName]                                                            -- ^ calculate fee due amount in the fee names
             | PayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)              -- ^ pay fee with cash from account with optional limit or extra support
+            | PayFeeBySeq (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)              -- ^ pay fee with cash from account with optional limit or extra support
             | CalcAndPayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)       -- ^ combination of CalcFee and PayFee
             | PayFeeResidual (Maybe Limit) AccountName FeeName                             -- ^ pay fee regardless fee due amount
             -- Bond - Interest

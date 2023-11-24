@@ -123,10 +123,10 @@ data Bond = Bond {
 } deriving (Show, Eq, Generic)
 
 consolStmt :: Bond -> Bond
+consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
   =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} 
 
-consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
 
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd

@@ -308,6 +308,7 @@ data TxnComment = PayInt [BondName]
                 | LiquidationRepay
                 | LiquidationSupportInt Balance Balance
                 | BankInt
+                | SupportDraw
                 | Empty 
                 | Tag String
                 | UsingDS DealStats
