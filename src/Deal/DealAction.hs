@@ -237,7 +237,7 @@ calcDueInt t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate _ _ _ lstIntP
 calcDueInt t calc_date b@(L.Bond bn L.Equity bo (L.InterestByYield y) _ bond_bal _ _ int_due _ lstIntPay _ mStmt)
   = b {L.bndDueInt = newDue }  -- `debug` ("Yield Due Int >>"++ show bn++">> new due"++ show newDue++">> old due"++ show int_due )
   where
-  newDue = L.backoutDueIntByYield calc_date b
+    newDue = L.backoutDueIntByYield calc_date b
 
 calcDueInt t calc_date b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ int_due (Just int_due_date) lstIntPay _ _ ) 
   | calc_date == int_due_date = b
@@ -355,18 +355,24 @@ updateOriginDate2 d (ACM.MO m) = ACM.MO $ updateOriginDate m (P.calcAlignDate m 
 updateOriginDate2 d (ACM.IL m) = ACM.IL $ updateOriginDate m (P.calcAlignDate m d)
 updateOriginDate2 d (ACM.LS m) = ACM.LS $ updateOriginDate m (P.calcAlignDate m d)
 
-evalExtraSupportBalance :: Date -> TestDeal a -> W.ExtraSupport  -> [Balance]
+-- ^ get available supports in balance
+evalExtraSupportBalance :: P.Asset a => Date -> TestDeal a -> W.ExtraSupport  -> [Balance]
+evalExtraSupportBalance d t (W.WithCondition pre s) 
+  | testPre d t pre = evalExtraSupportBalance d t s
+  | otherwise = [0]
 evalExtraSupportBalance d t@TestDeal{accounts=accMap} (W.SupportAccount an _) = [A.accBalance $ accMap Map.! an]
 evalExtraSupportBalance d t@TestDeal{liqProvider=Just liqMap} (W.SupportLiqFacility liqName) = [ fromMaybe 0 (CE.liqCredit (liqMap Map.! liqName))]
 evalExtraSupportBalance d t (W.MultiSupport supports) = concat $ evalExtraSupportBalance d t <$> supports
 
+
+-- ^ draw support from a deal , return updated deal,and remaining oustanding amount
 drawExtraSupport :: Date -> Amount -> W.ExtraSupport -> TestDeal a -> (TestDeal a,Amount)
 drawExtraSupport d amt (W.SupportAccount an (Just (W.ByAccountDraw ln))) t@TestDeal{accounts=accMap, ledgers= Just ledgerMap}
   = let 
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
       oustandingAmt = amt - drawAmt
     in 
-      (t {accounts = Map.adjust (A.draw drawAmt d Types.Empty) an accMap
+      (t {accounts = Map.adjust (A.draw drawAmt d Types.SupportDraw) an accMap
          ,ledgers = Just $ Map.adjust (LD.entryLog drawAmt d (TxnDirection Debit)) ln ledgerMap}
       , oustandingAmt)
 
@@ -375,7 +381,7 @@ drawExtraSupport d amt (W.SupportAccount an Nothing) t@TestDeal{accounts=accMap}
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
       oustandingAmt = amt - drawAmt
     in 
-      (t {accounts = Map.adjust (A.draw drawAmt d Types.Empty) an accMap }
+      (t {accounts = Map.adjust (A.draw drawAmt d Types.SupportDraw) an accMap }
       , oustandingAmt) 
 
 drawExtraSupport d amt (W.SupportLiqFacility liqName) t@TestDeal{liqProvider= Just liqMap}
@@ -519,12 +525,12 @@ performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL ds ledgersLis
                    (zip ledgerNames amtBookedToLedgers)
 
 performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.Transfer (Just (ClearLedger ln)) an1 an2 mComment) =
-  t {accounts = accMapAfterDeposit, ledgers = Just newLedgerM}  -- `debug` ("ABCD "++show(d))
+  t {accounts = accMapAfterDeposit, ledgers = Just newLedgerM}  
   where
     sourceAcc = accMap Map.! an1
-    targetAcc = accMap Map.! an2 -- `debug` ("Target>>"++an2)
-    targetAmt = queryDeal t (LedgerBalance [ln]) -- assuming (debit -> positvie)
-    transferAmt = min (A.accBalance sourceAcc) targetAmt -- `debug` ("Clear PDL"++show d++ show targetAmt)
+    targetAcc = accMap Map.! an2 
+    targetAmt = queryDeal t (LedgerBalance [ln]) 
+    transferAmt = min (A.accBalance sourceAcc) targetAmt 
  
     accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 (ClearLedger ln))) an1 accMap -- `debug` (">>PDL >>Ledger bal"++show d ++ show targetAmt)
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (TransferBy an1 an2 (ClearLedger ln))) an2 accMapAfterDraw
@@ -550,64 +556,127 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer (Just limit) an1 an2 mCo
     accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 limit)) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (TransferBy an1 an2 limit)) an2 accMapAfterDraw
 
+performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFeeBySeq mLimit an fns mSupport) =
+  let 
+    availAccBal = A.accBalance (accMap Map.! an)
+    supportAvail = case mSupport of 
+                     Just support -> sum ( evalExtraSupportBalance d t support)
+                     Nothing -> 0
+    amtAvailable = case mLimit of
+                     Nothing -> availAccBal + supportAvail
+                     Just (DS ds) -> min (availAccBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+                     Just (DueCapAmt amt) -> min amt $ availAccBal + supportAvail
+    feesToPay = map (feeMap Map.!) fns
+    feeDueAmts = map F.feeDue feesToPay  
+    actualPaidOut = min amtAvailable $ sum feeDueAmts
 
-performAction d t@TestDeal{fees=feeMap, accounts =accMap} (W.PayFee mLimit an fns mSupport) =
+    feesAmountToBePaid = zip feesToPay $ paySeqLiabilitiesAmt actualPaidOut feeDueAmts
+    
+    feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
+    -- update primary account map
+    accPaidOut = min actualPaidOut availAccBal
+    dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (SeqPayFee fns)) an accMap
+                     ,fees = Map.fromList (zip fns feesPaid) <> feeMap}
+
+    supportPaidOut = actualPaidOut - accPaidOut
+  in 
+    case mSupport of 
+      Just support -> fst $ drawExtraSupport d supportPaidOut support dealAfterAcc
+      Nothing -> dealAfterAcc
+
+performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns mSupport) =
   case mSupport of 
     Just support -> fst $ drawExtraSupport d supportPaidOut support dealAfterAcc
     Nothing -> dealAfterAcc
   where
-    feesToPay = map (feeMap Map.!) fns
-    feeDueAmts = case mLimit of 
-                   Nothing -> map F.feeDue feesToPay  
-                   Just (DuePct pct) -> map (\x -> mulBR (F.feeDue x) pct ) feesToPay
-                   Just (DueCapAmt amt) -> prorataFactors (F.feeDue <$> feesToPay) amt
-
     availAccBal = A.accBalance (accMap Map.! an)
-    availBal = case mSupport of
-                 Nothing -> availAccBal
-                 Just support -> availAccBal + sum (evalExtraSupportBalance d t support)
+    supportAvail = case mSupport of 
+                     Just support -> sum ( evalExtraSupportBalance d t support)
+                     Nothing -> 0
+    amtAvailable = case mLimit of
+                     Nothing -> availAccBal + supportAvail
+                     Just (DS ds) -> min (availAccBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+                     Just (DueCapAmt amt) -> min amt $ availAccBal + supportAvail
 
+    feesToPay = map (feeMap Map.!) fns
+    feeDueAmts = map F.feeDue feesToPay  
+                   -- Just (DuePct pct) -> map (\x -> mulBR (F.feeDue x) pct ) feesToPay
+                   -- Just (DueCapAmt amt) -> prorataFactors (F.feeDue <$> feesToPay) amt
     -- total actual pay out
-    actualPaidOut = min availBal $ sum feeDueAmts -- `debug` ("Fee Due Amounts"++show(feeDueAmts))
+    actualPaidOut = min amtAvailable $ sum feeDueAmts -- `debug` ("Fee Due Amounts"++show(feeDueAmts))
 
     feesAmountToBePaid = zip feesToPay $ prorataFactors feeDueAmts actualPaidOut
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
-    -- fee map updated
-    feeMapUpdated = Map.union (Map.fromList $ zip fns feesPaid) feeMap
     -- update primary account map
     accPaidOut = min actualPaidOut availAccBal
     dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (SeqPayFee fns)) an accMap
-                     ,fees = feeMapUpdated}
+                     ,fees = Map.fromList (zip fns feesPaid) <> feeMap}
 
-    supportPaidOut = actualPaidOut - accPaidOut
+    supportPaidOut = sum feeDueAmts - accPaidOut
+
+performAction d t (W.AccrueAndPayIntBySeq mLimit an bnds mSupport)
+  = let 
+      dealWithBondDue = performAction d t (W.CalcBondInt bnds)
+    in 
+      performAction d dealWithBondDue (W.PayIntBySeq mLimit an bnds mSupport)
+
+performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap} (W.PayIntBySeq mLimit an bnds mSupport)
+  = let 
+      accBal = A.accBalance $ accMap Map.! an
+      supportAvail = case mSupport of 
+                       Just support -> sum ( evalExtraSupportBalance d t support)
+                       Nothing -> 0
+      amtAvailable = case mLimit of
+                       Nothing -> accBal + supportAvail
+                       Just (DS ds) -> min (accBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+                       Just (DueCapAmt amt) -> min amt (accBal + supportAvail)
+                       _ -> error $ "Not support for limit when pay int by seq" ++ show mLimit
+      bndsList = (Map.!) bndMap <$> bnds
+      dueAmts = L.bndDueInt <$> bndsList
+      actualPaids = paySeqLiabilitiesAmt amtAvailable dueAmts
+      -- update bond paid
+      bondsPaid = uncurry (L.payInt d) <$> zip actualPaids bndsList
+      -- update account 
+      accPay = min (sum actualPaids) accBal
+      -- update liq Provider
+      supportPay = sum actualPaids - accPay
+      dAfterSupport = case mSupport of 
+                        Nothing -> t
+                        Just s -> fst $ drawExtraSupport d supportPay s t
+    in
+      dAfterSupport { bonds = Map.fromList (zip bnds bondsPaid) <> bndMap
+                     , accounts = Map.adjust (A.draw accPay d (PayInt bnds)) an accMap }
+
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt mLimit an bnds mSupport) =
   case mSupport of 
     Just support -> fst $ drawExtraSupport d supportPaidOut support dealAfterAcc
     Nothing -> dealAfterAcc
   where
-    acc = accMap Map.! an
-    availAccBal = case mLimit of 
-                    Nothing -> A.accBalance acc
-                    Just (DS ds) -> min (A.accBalance acc) $ queryDeal t (patchDateToStats d ds)
-    bndsToPay = map (bndMap Map.!) bnds
+    accBal = A.accBalance $ accMap Map.! an
+    supportAvail = case mSupport of 
+                     Just support -> sum ( evalExtraSupportBalance d t support)
+                     Nothing -> 0
+    
+    availBal = case mLimit of 
+                 Nothing -> accBal + supportAvail
+                 Just (DS ds) -> min (accBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+                 Just (DueCapAmt amt) -> min (accBal + supportAvail) amt
+                 _ -> error ("Not support limit type for pay int" <> show mLimit)
 
+    bndsToPay = map (bndMap Map.!) bnds
     bndsDueAmts = map L.bndDueInt bndsToPay
     bndsNames = map L.bndName bndsToPay
 
-    availBal = case mSupport of
-                 Nothing -> availAccBal
-                 Just support -> availAccBal + sum ( evalExtraSupportBalance d t support)
     actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("due mats"++ show bndsDueAmts ++">>"++ show availBal)
-    bndsAmountToBePaid = zip bndsToPay $ prorataFactors bndsDueAmts availBal -- `debug` ("prorata"++ show (prorataFactors bndsDueAmts availBal) )
+    bndsAmountToBePaid = zip bndsToPay $ prorataFactors bndsDueAmts actualPaidOut
 
     -- bond map updated
     bndsPaid = map (\(l,amt) -> L.payInt d amt l) bndsAmountToBePaid
-    bndMapUpdated = Map.union (Map.fromList $ zip bndsNames bndsPaid) bndMap
     -- primary account paid out
-    accPaidOut = min actualPaidOut availAccBal
+    accPaidOut = min actualPaidOut accBal
     dealAfterAcc = t {accounts = Map.adjust (A.draw actualPaidOut d (PayInt bnds)) an accMap
-                     ,bonds = bndMapUpdated}
+                     ,bonds = Map.fromList (zip bndsNames bndsPaid) <> bndMap }
     supportPaidOut = actualPaidOut - accPaidOut
     
 
@@ -624,16 +693,14 @@ performAction d t (W.CalcAndPayFee mLimit ans fees mSupport) =
     performAction d dealWithFeeDue (W.PayFee mLimit ans fees mSupport)
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntResidual mLimit an bndName) =
-  t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
+  t {accounts = Map.adjust (A.draw limitAmt d (PayYield bndName)) an accMap
+    , bonds = Map.adjust (L.payYield d limitAmt) bndName bndMap}
   where
     availBal = A.accBalance $ accMap Map.! an
     limitAmt = case mLimit of 
                  Nothing -> availBal
-                 Just (DS ds) -> queryDeal t ds
-    accMapAfterPay = Map.adjust (A.draw limitAmt d (PayYield bndName)) an accMap
-    bndMapAfterPay = Map.adjust (L.payYield d limitAmt) bndName bndMap
-
-
+                 Just (DS ds) -> min availBal $ queryDeal t (patchDateToStats d ds)
+                 Just (DueCapAmt amt) -> min availBal amt
 
 performAction d t@TestDeal{fees=feeMap,accounts=accMap} (W.PayFeeResidual mlimit an feeName) =
   t {accounts = accMapAfterPay, fees = feeMapAfterPay}
@@ -646,60 +713,49 @@ performAction d t@TestDeal{fees=feeMap,accounts=accMap} (W.PayFeeResidual mlimit
     accMapAfterPay = Map.adjust (A.draw paidOutAmt d (PayFeeYield feeName)) an accMap
     feeMapAfterPay = Map.adjust (F.payResidualFee d paidOutAmt) feeName feeMap
 
--- ^ pay bond till its balance as pct of total balance
---performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin (Just (RemainBalPct pct)) an [bndName])=  --Need to replace with formula
---  t {accounts = accMapAfterPay, bonds = bndMapAfterPay}
---  where
---    availBal = A.accBalance $ accMap Map.! an
---    targetBnd = bndMap Map.! bndName
---    targetBndBal = L.bndBalance targetBnd
---
---    otherBndBal = queryDeal t CurrentBondBalance - targetBndBal
---
---    _pct = fromRational pct
---    dueAmount = (1/(1-_pct)) * (targetBndBal * (1-_pct) - (_pct * otherBndBal))
---    actAmount = min availBal $ max dueAmount 0
---
---    accMapAfterPay = Map.adjust
---                        (A.draw actAmount d (PayPrin [bndName])) 
---                        an
---                        accMap
---    bndMapAfterPay = Map.adjust (L.payPrin d actAmount) bndName bndMap
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBySeq mLimit an bnds mSupport)= 
-  t {accounts = accMapAfterPay, bonds =bndsUpdated}
+  dAfterSupport { bonds = Map.fromList (zip bndsToPayNames bondsPaid) <> bndMap
+               , accounts = Map.adjust (A.draw accPay d (PayPrin bnds)) an accMap }
   where 
-    availBal = A.accBalance $ accMap Map.! an
-    bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds -- list of bond obj available
+    accBal = A.accBalance $ accMap Map.! an
+    supportAvail = case mSupport of 
+                     Just support -> sum ( evalExtraSupportBalance d t support)
+                     Nothing -> 0
+    amtAvailable = case mLimit of
+                     Nothing -> accBal + supportAvail
+                     Just (DS ds) -> min (accBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+                     Just (DueCapAmt amt) -> min amt (accBal + supportAvail)
+                     _ -> error $ "Not support for limit when pay prin by seq" ++ show mLimit
+    bndsList = (Map.!) bndMap <$> bnds
+ 
+    bndsToPay = filter (not . L.isPaidOff) bndsList
     bndsToPayNames = L.bndName <$> bndsToPay
-    bndsWithDue = map (calcDuePrin t d) bndsToPay  --
-    bndsDueAmts = map L.bndDuePrin bndsWithDue
-    limitCap = case mLimit of
-                 Nothing -> availBal
-                 Just (DS ds) -> queryDeal t $ patchDateToStats d ds
-                 _ -> error "not implement <limit> in payPrinBySeq "
+    bndsWithDue = calcDuePrin t d <$> bndsToPay
+    bndsDueAmts = L.bndDuePrin <$> bndsWithDue
                  
-    payAmount = min (sum bndsDueAmts) $ min availBal $ limitCap
+    payAmount = min (sum bndsDueAmts) amtAvailable
 
-    bndsAmountToBePaid = zip bndsToPay $ paySeqLiabilitiesAmt payAmount bndsDueAmts 
+    actualPaids = paySeqLiabilitiesAmt payAmount bndsDueAmts
+    -- update bond paid
+    bondsPaid = uncurry (L.payPrin d) <$> zip actualPaids bndsToPay
+    -- update account 
+    accPay = min (sum actualPaids) accBal
+    -- update liq Provider
+    supportPay = sum actualPaids - accPay
+    dAfterSupport = case mSupport of 
+                      Nothing -> t
+                      Just s -> fst $ drawExtraSupport d supportPay s t
 
-    bndsPaid = map (\(b,amt) -> L.payPrin d amt b) bndsAmountToBePaid
-    bndsUpdated = Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
 
-    accMapAfterPay = Map.adjust
-                        (A.draw payAmount d (TxnComments [PayPrin bndsToPayNames])) 
-                        an
-                        accMap
-
-performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin (Just (DS ds)) an bnds Nothing)=  --Need to replace with formula
-  t {accounts = accMapAfterPay, bonds =bndsUpdated}
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin (Just (DS ds)) an bnds Nothing) = 
+  t {accounts = accMapAfterPay, bonds = bndsUpdated}
   where
     availBal = A.accBalance $ accMap Map.! an
     
     bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds
     bndsToPayNames = L.bndName <$> bndsToPay
-    bndsWithDue = map (calcDuePrin t d) bndsToPay  --
-    bndsDueAmts = map L.bndDuePrin bndsWithDue
+    bndsDueAmts = L.bndDuePrin . calcDuePrin t d <$> bndsToPay
     payAmount = min (sum bndsDueAmts) $ min availBal $ queryDeal t $ patchDateToStats d ds -- `debug` ("Query with "++show (patchedDs))
 
     bndsAmountToBePaid = zip bndsToPay $ prorataFactors bndsDueAmts payAmount  -- (bond, amt-allocated)
@@ -788,7 +844,6 @@ performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqSu
       transferAmt = case CE.liqCredit $  _liqProvider Map.! pName of 
                        Nothing -> _transferAmt
                        Just _availBal -> min _transferAmt _availBal
-     -- transferAmt = min _transferAmt $ CE.liqBalance $  _liqProvider Map.! pName
       newFeeMap = Map.adjust (F.payFee d transferAmt) fn feeMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 

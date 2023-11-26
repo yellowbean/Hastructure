@@ -308,6 +308,7 @@ data TxnComment = PayInt [BondName]
                 | LiquidationRepay
                 | LiquidationSupportInt Balance Balance
                 | BankInt
+                | SupportDraw
                 | Empty 
                 | Tag String
                 | UsingDS DealStats
@@ -344,6 +345,7 @@ instance ToJSON TxnComment where
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
   toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
+  toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
