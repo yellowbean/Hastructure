@@ -1923,6 +1923,43 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "PayFeeBySeq"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "CalcAndPayFee"
                                 ]
                             }
@@ -2049,7 +2086,81 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "PayIntBySeq"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "AccrueAndPayInt"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AccrueAndPayIntBySeq"
                                 ]
                             }
                         },
@@ -2186,6 +2297,80 @@
                                 "type": "string",
                                 "enum": [
                                     "PayPrinResidual"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PayIntPrinBySeq"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AccrueAndPayIntPrinBySeq"
                                 ]
                             }
                         },
@@ -3706,6 +3891,20 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "SupportDraw"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "Empty"
                                 ]
                             }
@@ -4816,6 +5015,20 @@
                         "required": [
                             "tag",
                             "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DoNothing"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
                         ]
                     }
                 ],
@@ -9018,6 +9231,34 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Pre"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "WithCondition"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -12770,7 +13011,7 @@
         }
     },
     "info": {
-        "version": "0.23.2",
+        "version": "0.23.3",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
