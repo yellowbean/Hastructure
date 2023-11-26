@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Stmt
   (Statement(..),Txn(..)
@@ -179,6 +180,7 @@ getFlow comment =
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow
       PurchaseAsset -> Outflow
+      SupportDraw -> Noneflow
       TxnComments cmts -> 
         let 
           directionList = getFlow <$> cmts 
@@ -193,12 +195,12 @@ getFlow comment =
       _ -> error ("Missing in GetFlow >> "++ show comment)
 
 instance Ord Txn where
+  compare :: Txn -> Txn -> Ordering
   compare (BondTxn d1 _ _ _ _ _ _ ) (BondTxn d2 _ _ _ _ _ _ ) = compare d1 d2
   compare (AccTxn d1 _ _ _ ) (AccTxn d2 _ _ _  ) = compare d1 d2
 
 instance Eq Txn where
-  (BondTxn d1 _ _ _ _ _ _ ) == (BondTxn d2 _ _ _ _ _ _ )
-    = d1 == d2
+  (BondTxn d1 _ _ _ _ _ _ ) == (BondTxn d2 _ _ _ _ _ _ ) = d1 == d2
 
 instance TimeSeries Txn where 
   getDate (BondTxn t _ _ _ _ _ _ ) = t
