@@ -1,16 +1,15 @@
 name: Docker Image CI
 
 on:
-  push:
-    tags:
-      - 'v*'
+  pull_request:
+    types:
+      - closed
 
 jobs:
-
-  build:
+  if_merged:
+    if: github.event.pull_request.merged
 
     runs-on: ubuntu-latest
-
     steps:
       -
         name: Set up QEMU
@@ -42,4 +41,4 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:dev
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max          
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max
