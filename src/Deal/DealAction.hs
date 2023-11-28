@@ -184,7 +184,6 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd mLastAccDate fa _ _)
                       Just lastAccDate -> genSerialDatesTill2 NO_IE lastAccDate p calcDay 
     periodGaps = length accDates 
 
-
 calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd Nothing fa lpd _)
   | calcDay >= fs = calcDueFee t calcDay f {F.feeDueDate = Just fs }
   | otherwise = f 
@@ -205,6 +204,15 @@ calcDueFee t calcDay f@(F.Fee fn (F.TargetBalanceFee dsDue dsPaid) fs fd _ fa lp
       dsDueD = patchDateToStats calcDay dsDue 
       dsPaidD = patchDateToStats calcDay dsPaid
       dueAmt = max 0 $ queryDeal t dsDueD - queryDeal t dsPaidD
+
+calcDueFee t@TestDeal{ pool = pool } calcDay f@(F.Fee fn (F.ByCollectPeriod amt) fs fd fdday fa lpd _)
+  = f {F.feeDue = dueAmt + fd, F.feeDueDate = Just calcDay}
+    where 
+      txnsDates = getDate <$> maybe [] CF.getTsCashFlowFrame (view P.poolFutureCf pool)
+      pastPeriods = case fdday of 
+                      Nothing ->  subDates II fs calcDay txnsDates
+                      Just lastFeeDueDay -> subDates EI lastFeeDueDay calcDay txnsDates
+      dueAmt = fromRational $ mulBInt amt (length pastPeriods)
 
 disableLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate } 

@@ -40,6 +40,7 @@ data FeeType = AnnualRateFee DealStats FormulaRate   -- ^ annulized fee with a r
              | NumFee DatePattern DealStats Amount   -- ^ fee based on an integer number
              | TargetBalanceFee DealStats DealStats  -- ^ fee occur if (ds1 > ds2)
              | FeeFlow Ts                            -- ^ a time series based fee 
+             | ByCollectPeriod Amount                -- ^ fix amount per collection period
              deriving (Show,Eq, Generic)
 
 data Fee = Fee {
