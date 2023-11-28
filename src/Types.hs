@@ -411,6 +411,7 @@ data DealStats = CurrentBondBalance
                | OriginalBondBalance
                | OriginalPoolBalance
                | CurrentPoolBorrowerNum
+               | CollectedPeriodNum
                | BondFactor
                | PoolFactor
                | BondWaRate [BondName]
@@ -508,6 +509,7 @@ getDealStatType (BondRate _) = RtnRate
 
 getDealStatType CurrentPoolBorrowerNum = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
+getDealStatType CollectedPeriodNum = RtnInt
 
 getDealStatType (IsMostSenior _ _) = RtnBool
 getDealStatType (TriggersStatus _ _)= RtnBool
@@ -710,8 +712,10 @@ data LookupType = Upward
                 | Downward
                 | UpwardInclude
                 | DownwardInclude
+                deriving (Show,Eq,Ord,Read,Generic)
 
 data Table a b = ThresholdTable [(a,b)]
+                 deriving (Show,Eq,Ord,Read,Generic)
 
 lookupTable :: Ord a => Table a b -> LookupType -> a -> b -> b
 lookupTable (ThresholdTable rows) lkupType lkupVal notFound
