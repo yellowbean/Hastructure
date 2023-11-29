@@ -1,6 +1,6 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
-                  ,capTest,roundingTest,sliceTest,splitTsTest)--,daycountTests3,daycountTests4)
+                  ,capTest,roundingTest,sliceTest,splitTsTest,tableTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -507,4 +507,28 @@ splitTsTest =
        assertEqual "" 
        ([CF.CashFlow (toDate "20230901") 10],[CF.CashFlow (toDate "20231001") 10,CF.CashFlow (toDate "20231101") 10])
        (splitBy (toDate "20231001") Exc cashflow )
+    ]
+
+tableTest = 
+  let 
+    tbl = ThresholdTable [(5,100),(10,200),(15,300),(20,400)]
+  in 
+    testGroup "lookup table down"
+    [ 
+      testCase "down & inclusive" $
+      assertEqual ""
+      [Nothing,Just 100,Just 100]
+      [lookupTable tbl Down (3 >=),lookupTable tbl Down (5 >=),lookupTable tbl Down (12 >=)]
+     ,testCase "down & exclusive" $
+      assertEqual ""
+      [Nothing,Nothing,Just 100]
+      [lookupTable tbl Down (3 >),lookupTable tbl Down (5 >),lookupTable tbl Down (6 >)]
+     ,testCase "up & inclusive" $
+      assertEqual ""
+      [Nothing,Just 100,Just 100]
+      [lookupTable tbl Up (3 >=),lookupTable tbl Up (5 >=),lookupTable tbl Up (6 >=)]
+     ,testCase "up & exclusive" $
+      assertEqual ""
+      [Just 400,Just 300,Just 200,Nothing]
+      [lookupTable tbl Up (20 >=),lookupTable tbl Up (16 >=),lookupTable tbl Up (11 >=),lookupTable tbl Up (3 >=) ]
     ]

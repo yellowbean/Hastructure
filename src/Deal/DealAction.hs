@@ -214,6 +214,12 @@ calcDueFee t@TestDeal{ pool = pool } calcDay f@(F.Fee fn (F.ByCollectPeriod amt)
                       Just lastFeeDueDay -> subDates EI lastFeeDueDay calcDay txnsDates
       dueAmt = fromRational $ mulBInt amt (length pastPeriods)
 
+calcDueFee t calcDay f@(F.Fee fn (F.AmtByTbl _ ds tbl) fs fd fdday fa lpd _)
+  = f {F.feeDue = dueAmt + fd, F.feeDueDate = Just calcDay}
+    where 
+      lookupVal = queryDeal t (patchDateToStats calcDay ds)
+      dueAmt = fromMaybe 0.0 $ lookupTable tbl Down (lookupVal >=)
+
 disableLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate } 
   | d > endDate = liq{CE.liqCredit = Just 0}
