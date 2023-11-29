@@ -96,7 +96,7 @@ queryDealRate t s =
           cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
       
       CumulativeNetLossRatio ->
-        toRational $ (queryDeal t CumulativeNetLoss)/(queryDeal t OriginalPoolBalance)
+        toRational $ (queryDeal t CumulativeNetLoss) / (queryDeal t OriginalPoolBalance)
 
       CumulativePoolDefaultedRateTill idx -> 
         let 
@@ -449,12 +449,14 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     Sum _s -> sum $ map (queryDeal t) _s
 
-    Substract (ds:dss) -> 
+    Subtract (ds:dss) -> 
         let 
           a  = queryDeal t ds 
           bs = queryDeal t (Sum dss) 
         in 
-          a - bs 
+          a - bs
+          
+    Substract s -> queryDeal t (Subtract s)
     
     Avg dss ->  divideBI (sum ( queryDeal t <$> dss ))  (length dss)
 
