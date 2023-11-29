@@ -218,7 +218,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.AmtByTbl _ ds tbl) fs fd fdday fa lpd _)
   = f {F.feeDue = dueAmt + fd, F.feeDueDate = Just calcDay}
     where 
       lookupVal = queryDeal t (patchDateToStats calcDay ds)
-      dueAmt = fromMaybe 0.0 $ lookupTable tbl Down (lookupVal >=)
+      dueAmt = fromMaybe 0.0 $ lookupTable tbl Up (lookupVal >=)
 
 disableLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate } 
@@ -232,9 +232,9 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
   = disableLiqProvider t d $ liq { CE.liqCredit = newCredit } 
     where 
       newCredit = case liqType of 
-                     CE.ReplenishSupport _ b -> max b <$> curCredit
-                     CE.ByPct ds _r -> min (mulBR (queryDeal t ds) _r) <$> curCredit
-                     _ -> curCredit
+                    CE.ReplenishSupport _ b -> max b <$> curCredit
+                    CE.ByPct ds _r -> min (mulBR (queryDeal t ds) _r) <$> curCredit
+                    _ -> curCredit
 
 updateLiqProvider t d liq = disableLiqProvider t d liq
 
