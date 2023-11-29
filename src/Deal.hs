@@ -123,7 +123,7 @@ evalFloaterRate d ras (IR.Floater _ idx spd _r _ mFloor mCap mRounding)
       case ra of 
         Nothing -> error "Failed to find index rate in assumption"
         Just (RateFlat _ v) -> capping mCap $ flooring mFloor $ v + spd 
-        Just (RateCurve _ curve) -> capping mCap $ flooring mFloor $ fromRational $ (getValByDate curve Inc d) + (toRational spd)
+        Just (RateCurve _ curve) -> capping mCap $ flooring mFloor $ fromRational $ getValByDate curve Inc d + toRational spd
 
 applyFloatRate :: L.InterestInfo -> Date -> [RateAssumption] -> IRate
 applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
@@ -601,7 +601,7 @@ patchIssuanceBalance (PreClosing _ ) bal p@P.Pool{issuanceStat = Just statM } = 
 patchIssuanceBalance _ bal p = p
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], CF.CashFlowFrame)
-getInits t@TestDeal{fees= feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump
+getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump
   = (newT, allActionDates, pCollectionCfAfterCutoff)  -- `debug` ("init done actions->"++ show pCollectionCfAfterCutoff)
   where
     (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)
@@ -611,7 +611,7 @@ getInits t@TestDeal{fees= feeMap,pool=thePool,status=status,bonds=bndMap} mAssum
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
                                            , _d <- accIntDates ] -- `debug` ("PoolactionDates"++show  pActionDates)
     --fee accrue dates 
-    _feeAccrueDates = F.buildFeeAccrueAction (Map.elems (fees t)) endDate [] 
+    _feeAccrueDates = F.buildFeeAccrueAction (Map.elems feeMap) endDate [] 
     feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates
                                              , _d <- feeAccureDates ]
     --liquidation facility

@@ -184,7 +184,6 @@ calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd mLastAccDate fa _ _)
                       Just lastAccDate -> genSerialDatesTill2 NO_IE lastAccDate p calcDay 
     periodGaps = length accDates 
 
-
 calcDueFee t calcDay f@(F.Fee fn (F.NumFee p s amt) fs fd Nothing fa lpd _)
   | calcDay >= fs = calcDueFee t calcDay f {F.feeDueDate = Just fs }
   | otherwise = f 
@@ -206,6 +205,21 @@ calcDueFee t calcDay f@(F.Fee fn (F.TargetBalanceFee dsDue dsPaid) fs fd _ fa lp
       dsPaidD = patchDateToStats calcDay dsPaid
       dueAmt = max 0 $ queryDeal t dsDueD - queryDeal t dsPaidD
 
+calcDueFee t@TestDeal{ pool = pool } calcDay f@(F.Fee fn (F.ByCollectPeriod amt) fs fd fdday fa lpd _)
+  = f {F.feeDue = dueAmt + fd, F.feeDueDate = Just calcDay}
+    where 
+      txnsDates = getDate <$> maybe [] CF.getTsCashFlowFrame (view P.poolFutureCf pool)
+      pastPeriods = case fdday of 
+                      Nothing ->  subDates II fs calcDay txnsDates
+                      Just lastFeeDueDay -> subDates EI lastFeeDueDay calcDay txnsDates
+      dueAmt = fromRational $ mulBInt amt (length pastPeriods)
+
+calcDueFee t calcDay f@(F.Fee fn (F.AmtByTbl _ ds tbl) fs fd fdday fa lpd _)
+  = f {F.feeDue = dueAmt + fd, F.feeDueDate = Just calcDay}
+    where 
+      lookupVal = queryDeal t (patchDateToStats calcDay ds)
+      dueAmt = fromMaybe 0.0 $ lookupTable tbl Up (lookupVal >=)
+
 disableLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate } 
   | d > endDate = liq{CE.liqCredit = Just 0}
@@ -218,9 +232,9 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
   = disableLiqProvider t d $ liq { CE.liqCredit = newCredit } 
     where 
       newCredit = case liqType of 
-                     CE.ReplenishSupport _ b -> max b <$> curCredit
-                     CE.ByPct ds _r -> min (mulBR (queryDeal t ds) _r) <$> curCredit
-                     _ -> curCredit
+                    CE.ReplenishSupport _ b -> max b <$> curCredit
+                    CE.ByPct ds _r -> min (mulBR (queryDeal t ds) _r) <$> curCredit
+                    _ -> curCredit
 
 updateLiqProvider t d liq = disableLiqProvider t d liq
 

@@ -17,7 +17,7 @@ module Types
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
-  ,Table(..),lookupTable,LookupType(..),epocDate,BorrowerNum
+  ,Table(..),lookupTable,TableDirection(..),epocDate,BorrowerNum
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
@@ -411,6 +411,7 @@ data DealStats = CurrentBondBalance
                | OriginalBondBalance
                | OriginalPoolBalance
                | CurrentPoolBorrowerNum
+               | ProjCollectPeriodNum
                | BondFactor
                | PoolFactor
                | BondWaRate [BondName]
@@ -476,6 +477,7 @@ data DealStats = CurrentBondBalance
                | Min [DealStats]
                | Sum [DealStats]
                | Substract [DealStats]
+               | Subtract [DealStats]
                | Avg [DealStats]
                | Divide DealStats DealStats
                | Constant Rational
@@ -508,6 +510,7 @@ getDealStatType (BondRate _) = RtnRate
 
 getDealStatType CurrentPoolBorrowerNum = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
+getDealStatType ProjCollectPeriodNum = RtnInt
 
 getDealStatType (IsMostSenior _ _) = RtnBool
 getDealStatType (TriggersStatus _ _)= RtnBool
@@ -580,6 +583,10 @@ data RangeType = II     -- ^ include both start and end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
 
+data TableDirection = Up 
+                    | Down
+                    deriving (Show,Read,Generic,Eq)
+
 data CutoffType = Inc 
                 | Exc
                 deriving (Show,Read,Generic,Eq)
@@ -609,7 +616,6 @@ data CashflowReport = CashflowReport {
                         ,startDate :: Date 
                         ,endDate :: Date }
                         deriving (Show,Read,Generic)
-
 
 data ResultComponent = CallAt Date                                    -- ^ the date when deal called
                      | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed
@@ -706,29 +712,25 @@ class Liable lb where
   -- getTotalDue :: [lb] -> Balance
   -- getTotalDue lbs =  sum $ getDue <$> lbs
 
-data LookupType = Upward 
-                | Downward
-                | UpwardInclude
-                | DownwardInclude
-
 data Table a b = ThresholdTable [(a,b)]
+                 deriving (Show,Eq,Ord,Read,Generic)
 
-lookupTable :: Ord a => Table a b -> LookupType -> a -> b -> b
-lookupTable (ThresholdTable rows) lkupType lkupVal notFound
-  =  case findIndex (lkUpFunc lkupVal) rs of 
-       Nothing -> notFound
-       Just i -> snd $ rows!!i
+lookupTable :: Ord a => Table a b -> TableDirection -> (a -> Bool) -> Maybe b
+lookupTable (ThresholdTable rows) direction lkUpFunc
+  =  case findIndex lkUpFunc rs of 
+       Nothing -> Nothing
+       Just i -> Just $ vs!!i
      where 
-         rs = map fst rows
-         lkUpFunc = case lkupType of 
-                      Upward  ->  (>)
-                      UpwardInclude -> (>=)
-                      Downward  -> (<)
-                      DownwardInclude -> (<=)
+         rs = case direction of 
+                Up -> reverse $ map fst rows
+                Down -> map fst rows
+         vs = case direction of 
+                Up -> reverse $ map snd rows
+                Down -> map snd rows
 
 data RateAssumption = RateCurve Index Ts     -- ^ a rate curve ,which value of rates depends on time
                     | RateFlat Index IRate   -- ^ a rate constant
-                    deriving (Show,Generic)
+                    deriving (Show, Generic)
 
 data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
                    | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
@@ -803,3 +805,4 @@ $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''RoundingBy)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''RateAssumption)
+$(deriveJSON defaultOptions ''Table)

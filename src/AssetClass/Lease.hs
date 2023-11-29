@@ -24,6 +24,7 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
+import Data.Maybe
 
 import AssetClass.AssetBase
 
@@ -103,14 +104,14 @@ nextLeaseTill l (rsc,tc,mg) lastDate ed accum
 --       _ -> extractAssump aps (a,b,c,d,e)
 
 getGapDaysByBalance :: Lease -> ([(Amount,Int)],Int) -> Int 
-getGapDaysByBalance l tbl@(rows,defaultVal) = 
-    let 
-        tbl = ThresholdTable rows 
-        pmt = case l of 
-                (RegularLease (LeaseInfo _ _ _ dr) _ _ _) -> dr
-                (StepUpLease (LeaseInfo _ _ _ dr) _ _ _ _) -> dr
+getGapDaysByBalance l tbl@(rows,defaultVal)
+  = let 
+      tbl = ThresholdTable rows 
+      pmt = case l of 
+              (RegularLease (LeaseInfo _ _ _ dr) _ _ _) -> dr
+              (StepUpLease (LeaseInfo _ _ _ dr) _ _ _ _) -> dr
     in 
-        lookupTable tbl DownwardInclude pmt defaultVal
+      fromMaybe  defaultVal $ lookupTable tbl Down (>= pmt)
 
 projectCfDates :: DatePattern -> Date -> Int -> [Date]
 projectCfDates dp sd ot

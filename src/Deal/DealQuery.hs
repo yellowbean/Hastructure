@@ -96,7 +96,7 @@ queryDealRate t s =
           cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
       
       CumulativeNetLossRatio ->
-        toRational $ (queryDeal t CumulativeNetLoss)/(queryDeal t OriginalPoolBalance)
+        toRational $ (queryDeal t CumulativeNetLoss) / (queryDeal t OriginalPoolBalance)
 
       CumulativePoolDefaultedRateTill idx -> 
         let 
@@ -139,7 +139,7 @@ queryDealRate t s =
       CapWith s cap -> toRational $ min (queryDealRate t s) (queryDealRate t cap)
 
 queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
-queryDealInt t s d = 
+queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d = 
   case s of 
     FutureCurrentPoolBorrowerNum d ->
       case P.futureCf (pool t) of 
@@ -155,7 +155,10 @@ queryDealInt t s d =
           Nothing -> error "Should not happend"
           Just md -> fromInteger $ T.cdMonths $ T.diffGregorianDurationClip md d
         where
-            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = (bonds t) Map.! bn  
+            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn  
+
+    ProjCollectPeriodNum -> length $ maybe [] CF.getTsCashFlowFrame $ view P.poolFutureCf p -- `debug` ("Hit query")
+
     FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
     FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
     FloorWithZero s -> max (queryDealInt t s d) 0
@@ -446,12 +449,14 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     Sum _s -> sum $ map (queryDeal t) _s
 
-    Substract (ds:dss) -> 
+    Subtract (ds:dss) -> 
         let 
           a  = queryDeal t ds 
           bs = queryDeal t (Sum dss) 
         in 
-          a - bs 
+          a - bs
+          
+    Substract s -> queryDeal t (Subtract s)
     
     Avg dss ->  divideBI (sum ( queryDeal t <$> dss ))  (length dss)
 
