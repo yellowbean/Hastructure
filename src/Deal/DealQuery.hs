@@ -157,7 +157,7 @@ queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d =
         where
             (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn  
 
-    CollectedPeriodNum -> length $ maybe [] CF.getTsCashFlowFrame $ view P.poolFutureCf p
+    ProjCollectPeriodNum -> length $ maybe [] CF.getTsCashFlowFrame $ view P.poolFutureCf p -- `debug` ("Hit query")
 
     FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
     FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)

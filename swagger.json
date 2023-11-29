@@ -5675,6 +5675,20 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "ProjCollectPeriodNum"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "BondFactor"
                                 ]
                             }
@@ -8403,6 +8417,37 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Table_(Fixed_*_E2)_(Fixed_*_E2)"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AmtByTbl"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
@@ -8435,6 +8480,25 @@
                                 "type": "string",
                                 "enum": [
                                     "FeeFlow"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ByCollectPeriod"
                                 ]
                             }
                         },
@@ -9817,6 +9881,24 @@
             "CashFlowFrame": {
                 "items": {
                     "$ref": "#/components/schemas/TsRow"
+                },
+                "type": "array"
+            },
+            "Table_(Fixed_*_E2)_(Fixed_*_E2)": {
+                "items": {
+                    "items": [
+                        {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        },
+                        {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    ],
+                    "maxItems": 2,
+                    "type": "array",
+                    "minItems": 2
                 },
                 "type": "array"
             },
@@ -13011,7 +13093,7 @@
         }
     },
     "info": {
-        "version": "0.23.3",
+        "version": "0.23.4",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

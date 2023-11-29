@@ -411,7 +411,7 @@ data DealStats = CurrentBondBalance
                | OriginalBondBalance
                | OriginalPoolBalance
                | CurrentPoolBorrowerNum
-               | CollectedPeriodNum
+               | ProjCollectPeriodNum
                | BondFactor
                | PoolFactor
                | BondWaRate [BondName]
@@ -509,7 +509,7 @@ getDealStatType (BondRate _) = RtnRate
 
 getDealStatType CurrentPoolBorrowerNum = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
-getDealStatType CollectedPeriodNum = RtnInt
+getDealStatType ProjCollectPeriodNum = RtnInt
 
 getDealStatType (IsMostSenior _ _) = RtnBool
 getDealStatType (TriggersStatus _ _)= RtnBool
