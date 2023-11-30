@@ -96,7 +96,7 @@ queryDealRate t s =
           cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
       
       CumulativeNetLossRatio ->
-        toRational $ (queryDeal t CumulativeNetLoss)/(queryDeal t OriginalPoolBalance)
+        toRational $ (queryDeal t CumulativeNetLoss) / (queryDeal t OriginalPoolBalance)
 
       CumulativePoolDefaultedRateTill idx -> 
         let 
@@ -111,10 +111,10 @@ queryDealRate t s =
       
       BondWaRate bns -> 
         let 
-          rs = toRational <$> (\bn -> (queryDealRate t (BondRate bn))) <$> bns
-          ws = toRational <$> (\bn -> (queryDeal t (CurrentBondBalanceOf [bn]))) <$> bns
+          rs = toRational <$> (\bn -> queryDealRate t (BondRate bn)) <$> bns
+          ws = toRational <$> (\bn -> queryDeal t (CurrentBondBalanceOf [bn])) <$> bns
         in 
-          toRational $ sum (zipWith (+) ws rs) / (sum ws)
+          toRational $ sum (zipWith (+) ws rs) / sum ws
 
       PoolWaRate -> 
         toRational $ 
@@ -139,7 +139,7 @@ queryDealRate t s =
       CapWith s cap -> toRational $ min (queryDealRate t s) (queryDealRate t cap)
 
 queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
-queryDealInt t s d = 
+queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d = 
   case s of 
     FutureCurrentPoolBorrowerNum d ->
       case P.futureCf (pool t) of 
@@ -155,7 +155,10 @@ queryDealInt t s d =
           Nothing -> error "Should not happend"
           Just md -> fromInteger $ T.cdMonths $ T.diffGregorianDurationClip md d
         where
-            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = (bonds t) Map.! bn  
+            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn  
+
+    ProjCollectPeriodNum -> length $ maybe [] CF.getTsCashFlowFrame $ view P.poolFutureCf p -- `debug` ("Hit query")
+
     FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
     FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
     FloorWithZero s -> max (queryDealInt t s d) 0
@@ -446,12 +449,14 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     Sum _s -> sum $ map (queryDeal t) _s
 
-    Substract (ds:dss) -> 
+    Subtract (ds:dss) -> 
         let 
           a  = queryDeal t ds 
           bs = queryDeal t (Sum dss) 
         in 
-          a - bs 
+          a - bs
+          
+    Substract s -> queryDeal t (Subtract s)
     
     Avg dss ->  divideBI (sum ( queryDeal t <$> dss ))  (length dss)
 
@@ -518,7 +523,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
     
     IsDealStatus st -> status t == st
 
-    TestAny b dss -> elem b [ queryDealBool t ds | ds <- dss ]
+    TestAny b dss -> b `elem` [ queryDealBool t ds | ds <- dss ]
     TestAll b dss -> all (== b) [ queryDealBool t ds | ds <- dss ] 
 
     _ -> error ("Failed to query bool type formula"++ show ds)
@@ -530,17 +535,17 @@ testPre d t p =
     Types.Any pds -> any (testPre d t) pds 
     IfZero s -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
     
-    If cmp s amt -> (toCmp cmp) (queryDeal t (ps s))  amt
-    IfRate cmp s amt -> (toCmp cmp) (queryDealRate t (ps s)) amt
-    IfInt cmp s amt -> (toCmp cmp) (queryDealInt t (ps s) d) amt
-    IfDate cmp _d -> (toCmp cmp) d _d
-    IfCurve cmp s _ts -> (toCmp cmp) (queryDeal t (ps s)) (fromRational (getValByDate _ts Inc d))
-    IfRateCurve cmp s _ts -> (toCmp cmp) (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))
+    If cmp s amt -> toCmp cmp (queryDeal t (ps s))  amt
+    IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt
+    IfInt cmp s amt -> toCmp cmp (queryDealInt t (ps s) d) amt
+    IfDate cmp _d -> toCmp cmp d _d
+    IfCurve cmp s _ts -> toCmp cmp (queryDeal t (ps s)) (fromRational (getValByDate _ts Inc d))
+    IfRateCurve cmp s _ts -> toCmp cmp (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfBool s True -> queryDealBool t s
     IfBool s False -> not (queryDealBool t s)
-    If2 cmp s1 s2 -> (toCmp cmp) (queryDeal t (ps s1)) (queryDeal t (ps s2))
-    IfRate2 cmp s1 s2 -> (toCmp cmp) (queryDealRate t (ps s1)) (queryDealRate t (ps s2))
-    IfInt2 cmp s1 s2 -> (toCmp cmp) (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
+    If2 cmp s1 s2 -> toCmp cmp (queryDeal t (ps s1)) (queryDeal t (ps s2))
+    IfRate2 cmp s1 s2 -> toCmp cmp (queryDealRate t (ps s1)) (queryDealRate t (ps s2))
+    IfInt2 cmp s1 s2 -> toCmp cmp (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
     IfDealStatus st -> status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
     Always b -> b
     where 

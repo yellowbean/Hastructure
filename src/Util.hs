@@ -37,25 +37,25 @@ mulBR :: Balance -> Rate -> Centi
 mulBR b r = fromRational $ toRational b * r 
 
 mulBIR :: Balance -> IRate -> Centi
-mulBIR b r = fromRational $ (toRational b) * (toRational r)
+mulBIR b r = fromRational $ toRational b * toRational r
 
 mulIR :: Int -> Rational -> Rational
-mulIR i r = (toRational i) * r 
+mulIR i r = toRational i * r 
 
 mulIntegerR :: Integer -> Rational -> Rational
-mulIntegerR i r = (toRational i) * r
+mulIntegerR i r = toRational i * r
 
 mulBInt :: Balance -> Int -> Rational 
-mulBInt b i = (toRational b) * (toRational i)
+mulBInt b i = toRational b * toRational i
 
 mulBInteger :: Balance -> Integer -> Rational 
 mulBInteger b i = mulBInt b (fromInteger i)
 
 mulBI :: Balance -> IRate -> Amount
-mulBI bal r = fromRational  $ (toRational bal) * (toRational r)
+mulBI bal r = fromRational  $ toRational bal * toRational r
 
 divideBI :: Balance -> Int -> Balance
-divideBI b i = fromRational $ (toRational b) / (toRational i)
+divideBI b i = fromRational $ toRational b / toRational i
 
 divideBB :: Balance -> Balance -> Rational
 divideBB b1 b2 = toRational b1 / toRational b2
@@ -199,23 +199,19 @@ paddingDefault x xs s
   | otherwise = xs ++ replicate (s - length xs) x
 
 capWith :: Ord a => a -> [a] -> [a]
-capWith cap xs = [ if x > cap then 
-                    cap
-                   else 
-                    x | x <- xs ]
+capWith cap xs = [ min cap x | x <- xs ]
 
 floorWith :: Ord a => a -> [a] -> [a]
 floorWith floor xs = [ max x floor | x <- xs]
 
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
-
    
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
 
 shiftTsByAmt :: Ts -> Rational -> Ts 
-shiftTsByAmt (IRateCurve  tps) delta 
+shiftTsByAmt (IRateCurve tps) delta 
   = IRateCurve $ [ TsPoint d (fromRational delta+v) | TsPoint d v <- tps ]
 
 shiftTsByAmt _ts delta = _ts

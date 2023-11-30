@@ -13,7 +13,6 @@ module CreditEnhancement
 import qualified Data.Text as T
 import qualified Data.Time as Time
 import qualified Data.Map as Map
-import qualified InterestRate as IR
 import GHC.Generics
 import Language.Haskell.TH
 import Data.Aeson hiding (json)

@@ -93,7 +93,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.23.3"
+version1 = Version "0.23.4"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -225,6 +225,7 @@ instance ToSchema AP.ExtraStress
 instance ToSchema AP.AssetDelinquencyAssumption
 instance ToSchema AP.LeaseAssetGapAssump
 instance ToSchema AP.LeaseAssetRentAssump
+instance ToSchema (Table Balance Balance)
 
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)

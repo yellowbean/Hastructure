@@ -33,13 +33,15 @@ debug = flip trace
 
 type FormulaRate = DealStats
 
-data FeeType = AnnualRateFee DealStats FormulaRate   -- ^ annulized fee with a referece
-             | PctFee DealStats FormulaRate          -- ^ fee base on percentage 
-             | FixFee Balance                        -- ^ one-off fee
-             | RecurFee DatePattern Balance          -- ^ fee occur every date pattern
-             | NumFee DatePattern DealStats Amount   -- ^ fee based on an integer number
-             | TargetBalanceFee DealStats DealStats  -- ^ fee occur if (ds1 > ds2)
-             | FeeFlow Ts                            -- ^ a time series based fee 
+data FeeType = AnnualRateFee DealStats FormulaRate                       -- ^ annulized fee with a referece
+             | PctFee DealStats FormulaRate                              -- ^ fee base on percentage 
+             | FixFee Balance                                            -- ^ one-off fee
+             | RecurFee DatePattern Balance                              -- ^ fee occur every date pattern
+             | NumFee DatePattern DealStats Amount                       -- ^ fee based on an integer number
+             | AmtByTbl DatePattern DealStats (Table Balance Balance)    -- ^ lookup query value in a table
+             | TargetBalanceFee DealStats DealStats                      -- ^ fee occur if (ds1 > ds2)
+             | FeeFlow Ts                                                -- ^ a time series based fee 
+             | ByCollectPeriod Amount                                    -- ^ fix amount per collection period
              deriving (Show,Eq, Generic)
 
 data Fee = Fee {
@@ -89,6 +91,10 @@ buildFeeAccrueAction (fee:fees) ed r =
       -> buildFeeAccrueAction fees ed [(fn, [fs])]++r    
     (Fee fn (FeeFlow _ts) _ _ _ _ _ _)
       -> buildFeeAccrueAction fees ed [(fn, getTsDates _ts)]++r    
+    (Fee fn (NumFee dp _ _) fs _ _ _ _ _)
+      -> buildFeeAccrueAction fees ed [(fn, projDatesByPattern dp fs ed)]++r    
+    (Fee fn (AmtByTbl dp _ _) fs _ _ _ _ _)
+      -> buildFeeAccrueAction fees ed [(fn, projDatesByPattern dp fs ed)]++r    
     _
       -> buildFeeAccrueAction fees ed r
 

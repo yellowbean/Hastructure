@@ -33,6 +33,7 @@ data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal
                    | IssueBonds [L.Bond] AccountName            -- ^ issue new bonds and deposit proceeds to account
                    | BuyAsset AccountName PricingMethod         -- ^ buy asset from the assumption using funds from account
                    | TriggerEffects [TriggerEffect]             -- ^ a combination of effects above
+                   | DoNothing                                  -- ^ do nothing
                    deriving (Show, Eq, Generic)
  
 data Trigger = Trigger {

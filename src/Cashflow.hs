@@ -105,7 +105,8 @@ instance TimeSeries TsRow where
 
 
 data CashFlowFrame = CashFlowFrame [TsRow]
-                     deriving (Eq,Generic)
+                   | MultiCashFlowFrame (Map.Map String [CashFlowFrame])
+                   deriving (Eq,Generic)
 
 instance Show CashFlowFrame where
   show (CashFlowFrame []) = "Empty CashflowFrame"
@@ -218,12 +219,12 @@ combineTss [] (r1:r1s) (r2:r2s)
                            r1s
                            (r2:r2s)
 combineTss consols [] [] = reverse consols
-combineTss (consol:consols) (r:rs) [] = combineTss ((appendTs consol r):consol:consols) rs []
-combineTss (consol:consols) [] (tr:trs) = combineTss ((appendTs consol tr):consol:consols) [] trs
+combineTss (consol:consols) (r:rs) [] = combineTss (appendTs consol r:consol:consols) rs []
+combineTss (consol:consols) [] (tr:trs) = combineTss (appendTs consol tr:consol:consols) [] trs
 combineTss (consol:consols) (r:rs) (tr:trs)
-  | getDate r == getDate tr = combineTss ((appendTs consol (combineTs r tr)):consol:consols) rs trs
-  | getDate r < getDate tr = combineTss ((appendTs consol r):consol:consols) rs (tr:trs)
-  | getDate r > getDate tr = combineTss ((appendTs consol tr):consol:consols) (r:rs) trs 
+  | getDate r == getDate tr = combineTss (appendTs consol (combineTs r tr):consol:consols) rs trs
+  | getDate r < getDate tr = combineTss (appendTs consol r:consol:consols) rs (tr:trs)
+  | getDate r > getDate tr = combineTss (appendTs consol tr:consol:consols) (r:rs) trs 
 combineTss a b c = error $ "combineTss not supported "++show a++" "++show b++" "++show c
 
 
@@ -414,8 +415,8 @@ aggTsByDates trs ds =
       (zip (reduceFn [] ds trs) ds)) -- `debug` ("Final agg >> "++ show (reduceFn [] ds trs) )
   where
     reduceFn accum _ [] =  accum  -- `debug` ("Returning->"++show(accum))
-    reduceFn accum (cutoffDay:[]) _trs =
-      accum ++ [(filter (\x -> getDate(x) <= cutoffDay) _trs)]
+    reduceFn accum [cutoffDay] _trs =
+      accum ++ [(filter (\x -> getDate x <= cutoffDay) _trs)]
     reduceFn accum (cutoffDay:cutoffDays) _trs =
       case newAcc of
         [] -> reduceFn (accum++[[]]) cutoffDays _trs     --  `debug` ("Adding empty")
@@ -476,7 +477,7 @@ updateFlowBalance b (MortgageDelinqFlow a x c d e f g h i j k l m ) = MortgageDe
 updateFlowBalance b (MortgageFlow a x c d e f g h i j k l) = MortgageFlow a b c d e f g h i j k l
 updateFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a b c d e f g i j k
 updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
-updateFlowBalance b (FixedFlow a x c d e f ) = (FixedFlow a b c d e f )
+updateFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a b c d e f
 
 mflowBegBalance :: TsRow -> Balance
 mflowBegBalance (MortgageDelinqFlow _ x p _ ppy delinq def _ _ _ _ _ _) = x + p + ppy + delinq
@@ -539,7 +540,7 @@ mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs
   = sum $ zipWith mulBR _bals _dfs  -- `debug` ("CalcingAvgBal=>"++show sd++show ed++show txns  )
     where
-     txns = filter (\x -> (mflowDate x>=sd)&&(mflowDate x)<=ed) trs
+     txns = filter (\x -> (mflowDate x>=sd)&& mflowDate x<=ed) trs
      _ds = map mflowDate txns -- `debug` ("fee base txns"++show txns)
      _bals = map mflowBegBalance txns
      _dfs =  getIntervalFactors $ sd:_ds
