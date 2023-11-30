@@ -328,7 +328,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                     Nothing -> a -- `debug` ("error..."++show accName)
                                     Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d 
                                     Just (RateFlat _ r )   -> A.depositIntByCurve a (mkRateTs [(lastAccureDate,r),(d,r)]) d
-                                    _ -> error ("Failed to match index "++show idx++" In rate assumpt" ++ (name t)) ) -- `debug` ("int acc"++show accName)
+                                    _ -> error ("Failed to match index "++show idx++" In rate assumpt" ++ name t) ) -- `debug` ("int acc"++show accName)
                         accName  
                         accMap
            in 

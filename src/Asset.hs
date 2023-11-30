@@ -87,14 +87,15 @@ class (Show a,IR.UseRate a) => Asset a where
   calcAlignDate ast d = let 
                           payDates = getPaymentDates ast 0
                           remainTerms = getRemainTerms ast 
-                          benchDate = (reverse payDates)!!(pred remainTerms) --  `debug` ("\nPayDates"++show payDates++"\nremain terms"++ show remainTerms)
+                          benchDate = reverse payDates!!pred remainTerms --  `debug` ("\nPayDates"++show payDates++"\nremain terms"++ show remainTerms)
                           offset = daysBetween benchDate d
                         in 
                           T.addDays offset $ getOriginDate ast
                           
   {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 
-
+data SubPool a = SoloPool [a]
+               | MultiPool (Map.Map String (SubPool a))
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
@@ -108,7 +109,6 @@ poolFutureCf = lens getter setter
   where 
     getter p = futureCf p
     setter p mNewCf = p {futureCf = mNewCf}
-
 
 
 -- | get stats of pool 
@@ -177,7 +177,7 @@ buildDefaultRates ds mDa =
 
 -- | build pool assumption rate (prepayment, defaults, recovery rate , recovery lag)
 buildAssumptionPpyDefRecRate :: [Date] -> A.AssetPerfAssumption -> ([Rate],[Rate],Rate,Int)
-buildAssumptionPpyDefRecRate ds (A.LoanAssump mDa mPa mRa mESa) = buildAssumptionPpyDefRecRate ds ((A.MortgageAssump mDa mPa mRa mESa))
+buildAssumptionPpyDefRecRate ds (A.LoanAssump mDa mPa mRa mESa) = buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
 buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
   = (prepayRates2,defaultRates2,recoveryRate,recoveryLag)
     where 
@@ -205,7 +205,7 @@ buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa N
       (delinqRates,defaultLag,defaultPct) = case mDeqDefault of
                                               Nothing -> (zeros,0,0.0)
                                               Just (A.DelinqCDR r (lag,pct)) -> 
-                                                ((map (Util.toPeriodRateByInterval r) (getIntervalDays ds))
+                                                (map (Util.toPeriodRateByInterval r) (getIntervalDays ds)
                                                 ,lag 
                                                 ,pct)
 
@@ -258,11 +258,11 @@ calc_p_i_flow_i_p bal dates r
   = (_bals,_prins,_ints)
     where
       size =  length dates
-      flow_size = pred $ length $ tail dates
+      flowSize = pred $ length $ tail dates
       period_rs = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
       _ints = [  mulBI bal _r | _r <- period_rs ]
-      _bals = (replicate flow_size bal ) ++ [ 0 ]
-      _prins = (replicate flow_size 0 ) ++ [ bal ]
+      _bals = replicate flowSize bal ++ [ 0 ]
+      _prins = replicate flowSize 0 ++ [ bal ]
 
 calcRecoveriesFromDefault :: Balance -> Rate -> [Rate] -> [Amount]
 calcRecoveriesFromDefault bal recoveryRate recoveryTiming
