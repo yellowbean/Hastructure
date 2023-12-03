@@ -111,8 +111,8 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
 
 type DistributionSeq = [Action]
 
-data CollectionRule = Collect PoolSource AccountName                   -- ^ collect a pool source from pool collection and deposit to an account
-                    | CollectByPct PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
+data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName                   -- ^ collect a pool source from pool collection and deposit to an account
+                    | CollectByPct (Maybe [PoolId]) PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
                     deriving (Show,Generic)
 
 

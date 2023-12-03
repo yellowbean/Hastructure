@@ -82,7 +82,6 @@ import qualified DateUtil as DU
 
 
 import Debug.Trace
-import qualified Hedge as HE
 debug = flip Debug.Trace.trace
 
 data Version = Version 
@@ -139,6 +138,12 @@ instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
 instance ToSchema (DB.TestDeal AB.Lease)
 instance ToSchema (DB.TestDeal AB.FixedAsset)
+instance ToSchema DB.PoolId
+instance ToSchema (DB.PoolType AB.Mortgage)
+instance ToSchema (DB.PoolType AB.Loan)
+instance ToSchema (DB.PoolType AB.Installment)
+instance ToSchema (DB.PoolType AB.Lease)
+instance ToSchema (DB.PoolType AB.FixedAsset)
 instance ToSchema HE.RateCap
 instance ToSchema AB.LeaseStepUp 
 instance ToSchema AB.AccrualPeriod

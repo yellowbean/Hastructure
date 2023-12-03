@@ -66,15 +66,15 @@ import Control.Lens.TH
 debug = flip trace
 
 
-getPoolFlows :: TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
+getPoolFlows :: P.Asset a => TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   case (sd,ed) of
-    (Nothing,Nothing)   ->  _trs
-    (Nothing,Just _ed)  ->  cutBy Inc Past _ed _trs
-    (Just _sd,Nothing)  ->  cutBy Inc Future _sd _trs 
-    (Just _sd,Just _ed) ->  sliceBy rt _sd _ed _trs
+    (Nothing,Nothing)   ->  trs
+    (Nothing,Just _ed)  ->  cutBy Inc Past _ed trs
+    (Just _sd,Nothing)  ->  cutBy Inc Future _sd trs 
+    (Just _sd,Just _ed) ->  sliceBy rt _sd _ed trs
   where
-    (CF.CashFlowFrame _trs) = fromMaybe (CF.CashFlowFrame []) (P.futureCf _pool)
+    trs = getAllCollectedTxnsList t Nothing
 
 testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
 testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
@@ -89,7 +89,7 @@ updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=con
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
 
-calcLiquidationAmount :: PricingMethod -> P.Pool a -> Date -> Amount
+calcLiquidationAmount :: P.Asset a => PricingMethod -> P.Pool a -> Date -> Amount
 calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
   = case P.futureCf pool of 
       Nothing -> 0  -- `debug` ("No futureCF")
@@ -115,13 +115,13 @@ calcLiquidationAmount (PV discountRate recoveryPct) pool d
           in 
             pvCf + mulBI currentDefaulBal recoveryPct
 
-liquidatePool :: PricingMethod -> Date -> String -> TestDeal a -> TestDeal a
-liquidatePool lq d accName t =
+liquidatePool :: P.Asset a => PricingMethod -> Date -> String -> TestDeal a -> TestDeal a
+liquidatePool lq d accName t@TestDeal { accounts = accs , pool = pool} =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
-     proceeds = calcLiquidationAmount lq (pool t) d
-     updateFn = A.deposit proceeds d LiquidationProceeds
-     accs = accounts t
+    proceedsByPool = Map.map (\p -> calcLiquidationAmount lq p d) $ getPoolsByName t Nothing 
+    proceeds = sum $ Map.elems proceedsByPool
+    updateFn = A.deposit proceeds d LiquidationProceeds
 
 
 calcDueFee :: P.Asset a => TestDeal a -> Date -> F.Fee -> F.Fee
@@ -134,36 +134,43 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lp
   | calcDay >= fs = calcDueFee t calcDay f {F.feeDueDate = Just fs }
   | otherwise = f 
 
-calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase _r) fs fd (Just _fdDay) fa lpd _)
+-- ^ annualized % fee base on pool balance/amount
+calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase _r) fs fd (Just _fdDay) fa lpd _)
   = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show calcDay ++show baseBal ++show(newDue))                   
       where 
         accrueStart = _fdDay
         baseBal = case feeBase of
-                    CurrentPoolBalance ->  CF.mflowWeightAverageBalance accrueStart calcDay $ getPoolFlows t Nothing Nothing II
-                    OriginalPoolBalance -> mulBR (P.getIssuanceField (pool t) IssuanceBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
+                    CurrentPoolBalance mPns ->
+                      let 
+                        txnsByPool = getAllCollectedTxns t mPns
+                        waBalByPool = Map.map (CF.mflowWeightAverageBalance accrueStart calcDay <$>) txnsByPool
+                      in 
+                        sum $ fromMaybe 0  <$> Map.elems waBalByPool
+                    OriginalPoolBalance mPns -> mulBR 
+                                                  (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
+                                                  (yearCountFraction DC_ACT_365F accrueStart calcDay)
                     OriginalBondBalance -> mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
                     CurrentBondBalance -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t)
                     CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns))
         r = toRational $ queryDealRate t _r 
         newDue = mulBR baseBal r
 
-calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCurCollection its) r ) fs fd fdDay fa lpd _)
+-- ^ % fee base on pool balance/amount
+calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCurCollection its mPns) r ) fs fd fdDay fa lpd _)
   = f { F.feeDue = newDueFee, F.feeDueDate = Just calcDay } -- `debug` ("BAL"++show baseBal++"New Fee Due"++ show newDueFee)
     where 
-      baseBal = sum [ queryDeal t (PoolCollectionHistory it lastBegDay calcDay)  | it <- its ]
+      -- baseBal = sum [ queryDeal t (PoolCollectionHistory it lastBegDay calcDay)  | it <- its ]
+      txns = sliceBy EI lastBegDay calcDay $ getAllCollectedTxnsList t mPns
+      baseBal = sum $ CF.lookupSource <$> txns <*> its
       newDueFee = fd + mulBR baseBal (toRational (queryDealRate t r))
-      lastBegDay = case fdDay of
-                     (Just _fdDay) -> _fdDay
-                     Nothing -> fs
+      lastBegDay = fromMaybe fs fdDay
 
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee ds _r ) fs fd fdDay fa lpd _)
   = f { F.feeDue = fd + mulBR baseBal r, F.feeDueDate = Just calcDay }
     where 
       r = toRational $ queryDealRate t _r
       baseBal = queryDeal t (patchDateToStats calcDay ds)
-      lastBegDay = case fdDay of
-                     (Just _fdDay) -> _fdDay
-                     Nothing -> fs
+      lastBegDay = fromMaybe fs fdDay
 
 calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd _ fa mflpd _)
   = f{ F.feeDue = newFeeDue
@@ -208,7 +215,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.TargetBalanceFee dsDue dsPaid) fs fd _ fa lp
 calcDueFee t@TestDeal{ pool = pool } calcDay f@(F.Fee fn (F.ByCollectPeriod amt) fs fd fdday fa lpd _)
   = f {F.feeDue = dueAmt + fd, F.feeDueDate = Just calcDay}
     where 
-      txnsDates = getDate <$> maybe [] CF.getTsCashFlowFrame (view P.poolFutureCf pool)
+      txnsDates = getDate <$> getAllCollectedTxnsList t (Just [PoolConsol])
       pastPeriods = case fdday of 
                       Nothing ->  subDates II fs calcDay txnsDates
                       Just lastFeeDueDay -> subDates EI lastFeeDueDay calcDay txnsDates
@@ -816,10 +823,11 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     bndMapUpdated =  Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
-performAction d t@TestDeal{accounts=accMap} (W.LiquidatePool lm an) =
-  t {accounts = accMapAfterLiq } -- TODO need to remove assets
+performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an) =
+  t {accounts = accMapAfterLiq } -- TODO need to remove assets/cashflow frame
   where
-    liqAmt = calcLiquidationAmount lm (pool t) d
+    liqAmtByPool = Map.map (\p -> calcLiquidationAmount lm p d) $ getPoolsByName t Nothing
+    liqAmt = sum $ Map.elems liqAmtByPool
     accMapAfterLiq = Map.adjust (A.deposit liqAmt d LiquidationProceeds) an accMap
 
 performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns) 

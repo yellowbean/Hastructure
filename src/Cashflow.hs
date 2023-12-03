@@ -572,8 +572,8 @@ insertBegTsRow d (CashFlowFrame (txn:txns))
       CashFlowFrame (begRow:txn:txns)
 
 combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
-combineCashFlow cf1 (CashFlowFrame txn) 
-  = appendCashFlow cf1 txn
+combineCashFlow cf1 (CashFlowFrame []) = cf1 
+combineCashFlow cf1 (CashFlowFrame txn) = appendCashFlow cf1 txn
 
 totalLoss :: CashFlowFrame -> Balance
 totalLoss (CashFlowFrame rs) = sum $ mflowLoss <$> rs
@@ -723,15 +723,19 @@ extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
 
 isEmptyRow :: TsRow -> Bool 
 isEmptyRow (MortgageDelinqFlow _ 0 0 0 0 0 0 0 0 _ _ _ _) = True
-isEmptyRow (MortgageDelinqFlow {}) = False
+isEmptyRow MortgageDelinqFlow {} = False
 isEmptyRow (MortgageFlow _ 0 0 0 0 0 0 0 _ _ _ _) = True
-isEmptyRow (MortgageFlow {}) = False
+isEmptyRow MortgageFlow {} = False
 isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
-isEmptyRow (LoanFlow {}) = False
+isEmptyRow LoanFlow {} = False
 isEmptyRow (LeaseFlow _ 0 0) = True
-isEmptyRow (LeaseFlow {}) = False
+isEmptyRow LeaseFlow {} = False
 isEmptyRow (FixedFlow _ 0 0 0 0 0) = True
-isEmptyRow (FixedFlow {}) = False
+isEmptyRow FixedFlow {} = False
+isEmptyRow (BondFlow _ 0 0 0) = True
+isEmptyRow BondFlow {} = False
+isEmptyRow (CashFlow _ 0) = True
+isEmptyRow CashFlow {} = False
 
 -- ^ Remove empty cashflow from the tail
 dropTailEmptyTxns :: [TsRow] -> [TsRow]

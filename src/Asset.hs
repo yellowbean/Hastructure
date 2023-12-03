@@ -9,7 +9,7 @@ module Asset (Pool(..),aggPool
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
-       ,poolFutureCf
+       ,poolFutureCf,issuanceStat,assets,poolFutureTxn
 ) where
 
 import qualified Data.Time as T
@@ -94,8 +94,7 @@ class (Show a,IR.UseRate a) => Asset a where
                           
   {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 
-data SubPool a = SoloPool [a]
-               | MultiPool (Map.Map String (SubPool a))
+
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
@@ -110,9 +109,19 @@ poolFutureCf = lens getter setter
     getter p = futureCf p
     setter p mNewCf = p {futureCf = mNewCf}
 
+poolFutureTxn :: Asset a => Lens' (Pool a) [CF.TsRow]
+poolFutureTxn = lens getter setter
+  where 
+    getter p = case futureCf p of
+                 Nothing -> []
+                 Just (CF.CashFlowFrame txns) -> txns
+    setter p trs = case futureCf p of
+                     Nothing -> p {futureCf = Just CF.CashFlowFrame trs}
+                     Just (CF.CashFlowFrame _) -> p {futureCf = Just CF.CashFlowFrame trs}
+
 
 -- | get stats of pool 
-getIssuanceField :: Pool a -> CutoffFields -> Centi
+getIssuanceField :: Pool a -> CutoffFields -> Balance
 getIssuanceField p@Pool{issuanceStat = Just m} s
   = case Map.lookup s m of
       Just r -> r

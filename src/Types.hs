@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveAnyClass #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module Types
   (DayCount(..),DateType(..),OverrideType(..),CutoffFields(..)
@@ -21,7 +22,7 @@ module Types
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
-  ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery
+  ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
   )
   
   where
@@ -397,29 +398,45 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | NewDelinquencies                -- ^ new delinquencies in balance
                 deriving (Show,Ord,Read,Eq, Generic)
 
+data PoolId = PoolName String
+            | PoolConsol
+            deriving (Show,Eq,Ord,Generic,Read)
 
+instance ToJSONKey PoolId where
+  toJSONKey :: ToJSONKeyFunction PoolId
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey PoolId where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+
+
+
+  
 data DealStats = CurrentBondBalance
-               | CurrentPoolBalance
-               | CurrentPoolBegBalance
+               | CurrentPoolBalance (Maybe [PoolId])
+               | CurrentPoolBegBalance (Maybe [PoolId])
                | CurrentPoolDefaultedBalance
-               | CumulativePoolDefaultedBalance   -- ^ Depreciated, use PoolCumCollection
-               | CumulativePoolRecoveriesBalance  -- ^ Depreciated, use PoolCumCollection
-               | CumulativeNetLoss
-               | CumulativePoolDefaultedRate
-               | CumulativePoolDefaultedRateTill Int
-               | CumulativeNetLossRatio
+               | CumulativePoolDefaultedBalance (Maybe [PoolId])  -- ^ Depreciated, use PoolCumCollection
+               | CumulativePoolRecoveriesBalance (Maybe [PoolId]) -- ^ Depreciated, use PoolCumCollection
+               | CumulativeNetLoss (Maybe [PoolId])
+               | CumulativePoolDefaultedRate (Maybe [PoolId])
+               | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
+               | CumulativeNetLossRatio (Maybe [PoolId])
                | OriginalBondBalance
-               | OriginalPoolBalance
-               | CurrentPoolBorrowerNum
+               | OriginalPoolBalance (Maybe [PoolId])
+               | DealIssuanceBalance (Maybe [PoolId])
+               | CurrentPoolBorrowerNum (Maybe [PoolId])
                | ProjCollectPeriodNum
                | BondFactor
-               | PoolFactor
+               | PoolFactor (Maybe [PoolId])
                | BondWaRate [BondName]
                | UseCustomData String
-               | PoolCumCollection [PoolSource]
-               | PoolCumCollectionTill Int [PoolSource]
-               | PoolCurCollection [PoolSource]
-               | PoolCollectionStats Int [PoolSource]
+               | PoolCumCollection [PoolSource] (Maybe [PoolId])
+               | PoolCumCollectionTill Int [PoolSource] (Maybe [PoolId])
+               | PoolCurCollection [PoolSource] (Maybe [PoolId])
+               | PoolCollectionStats Int [PoolSource] (Maybe [PoolId])
                | AllAccBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
@@ -429,14 +446,14 @@ data DealStats = CurrentBondBalance
                | MonthsTillMaturity BondName
                | ReserveAccGapAt Date [AccName] 
                | ReserveExcessAt Date [AccName] 
-               | FutureCurrentPoolBalance
+               | FutureCurrentPoolBalance (Maybe [PoolId])
+               | FutureWaCurrentPoolBalance Date Date (Maybe [PoolId])
                -- | FutureCurrentPoolBegBalance Date
-               | FutureCurrentPoolBegBalance
+               | FutureCurrentPoolBegBalance (Maybe [PoolId])
                | FutureCurrentBondBalance Date
                | FutureCurrentBondFactor Date
-               | FutureCurrentPoolFactor Date
-               | FutureCurrentPoolBorrowerNum Date
-               | FutureOriginalPoolBalance
+               | FutureCurrentPoolFactor Date (Maybe [PoolId])
+               | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
                | CurrentBondBalanceOf [BondName]
                | IsMostSenior BondName [BondName]
                | IsPaidOff [BondName]
@@ -464,13 +481,13 @@ data DealStats = CurrentBondBalance
                | RateCapNet String
                | RateSwapNet String
                | BondBalanceHistory Date Date
-               | PoolCollectionHistory PoolSource Date Date
+               | PoolCollectionHistory PoolSource Date Date (Maybe [PoolId])
                | TriggersStatus DealCycle String
                | IsDealStatus DealStatus
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
                | TestAll Bool [DealStats]
-               | PoolWaRate
+               | PoolWaRate (Maybe [PoolId])
                | BondRate BondName
                | Factor DealStats Rational
                | Max [DealStats]
@@ -497,18 +514,18 @@ data DealStatType = RtnBalance
                   deriving (Show,Eq,Ord,Read,Generic)
 
 getDealStatType :: DealStats -> DealStatType
-getDealStatType (CumulativePoolDefaultedRateTill _) = RtnRate
-getDealStatType CumulativePoolDefaultedRate = RtnRate
-getDealStatType CumulativeNetLossRatio = RtnRate
+getDealStatType (CumulativePoolDefaultedRateTill _ _) = RtnRate
+getDealStatType (CumulativePoolDefaultedRate _) = RtnRate
+getDealStatType (CumulativeNetLossRatio _) = RtnRate
 getDealStatType BondFactor = RtnRate
-getDealStatType PoolFactor = RtnRate
+getDealStatType (PoolFactor _) = RtnRate
 getDealStatType (FutureCurrentBondFactor _) = RtnRate
-getDealStatType (FutureCurrentPoolFactor _) = RtnRate
+getDealStatType (FutureCurrentPoolFactor _ _) = RtnRate
 getDealStatType (BondWaRate _) = RtnRate
-getDealStatType PoolWaRate = RtnRate
+getDealStatType (PoolWaRate _) = RtnRate
 getDealStatType (BondRate _) = RtnRate
 
-getDealStatType CurrentPoolBorrowerNum = RtnInt
+getDealStatType (CurrentPoolBorrowerNum _) = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
 getDealStatType ProjCollectPeriodNum = RtnInt
 
@@ -806,3 +823,4 @@ $(deriveJSON defaultOptions ''RoundingBy)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''RateAssumption)
 $(deriveJSON defaultOptions ''Table)
+$(deriveJSON defaultOptions ''PoolId)
