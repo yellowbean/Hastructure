@@ -406,6 +406,7 @@ firstDate (CashFlowFrame rs) = getDate $ head rs
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame 
 combine (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame $ combineTss [] txn1 txn2
 
+-- ^ TODO need to make sure it will genreate empty row 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates trs ds =
   map 

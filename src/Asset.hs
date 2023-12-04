@@ -9,7 +9,7 @@ module Asset (Pool(..),aggPool
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
-       ,poolFutureCf,issuanceStat,assets,poolFutureTxn
+       ,poolFutureCf,issuanceStat,assets,poolFutureTxn,poolIssuanceStat
 ) where
 
 import qualified Data.Time as T
@@ -113,12 +113,21 @@ poolFutureTxn :: Asset a => Lens' (Pool a) [CF.TsRow]
 poolFutureTxn = lens getter setter
   where 
     getter p = case futureCf p of
-                 Nothing -> []
+                 Nothing -> []::[CF.TsRow]
                  Just (CF.CashFlowFrame txns) -> txns
     setter p trs = case futureCf p of
                      Nothing -> p {futureCf = Just (CF.CashFlowFrame trs)}
                      Just (CF.CashFlowFrame _) -> p {futureCf = Just (CF.CashFlowFrame trs)}
 
+poolIssuanceStat :: Asset a => Lens' (Pool a) (Map.Map CutoffFields Balance)
+poolIssuanceStat = lens getter setter
+  where 
+    getter p =  case issuanceStat p of
+                  Nothing -> Map.empty
+                  Just m -> m
+    setter p m = case issuanceStat p of
+                    Nothing -> p {issuanceStat = Just m}
+                    Just m -> p {issuanceStat = Just m}
 
 -- | get stats of pool 
 getIssuanceField :: Pool a -> CutoffFields -> Balance

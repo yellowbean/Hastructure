@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 
 module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
@@ -517,12 +518,17 @@ appendCollectedCF :: P.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFl
 appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
   = let 
       newPt = case pt of
-                SoloPool p -> let
-                                txnToAppend = view CF.cashflowTxn (poolInflowMap Map.! PoolConsol)
-                              in 
-                                SoloPool $
-                                  over (P.poolFutureTxn p) (\txns -> txns ++ txnToAppend)
-                MultiPool poolM -> MultiPool poolM
+                SoloPool p -> 
+                  let
+                    txnToAppend::[CF.TsRow] = view CF.cashflowTxn (poolInflowMap Map.! PoolConsol)
+                  in 
+                    SoloPool $ over P.poolFutureTxn (\txns -> txns ++ txnToAppend) p
+                MultiPool poolM -> 
+                  MultiPool $
+                    Map.foldrWithKey
+                      (\k (CF.CashFlowFrame newTxns) acc->
+                        Map.adjust (over P.poolFutureTxn (\txns -> txns ++ newTxns)) k acc)
+                      poolM poolInflowMap
                                   
                 ResecDeal _ -> error "To be implement"
     in 
@@ -530,10 +536,17 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
 
 -- ^ emtpy deal's pool cashflow
 removePoolCf :: P.Asset a => TestDeal a -> TestDeal a
-removePoolCf = set (dealPool . P.poolFutureCf) Nothing
+removePoolCf t@TestDeal{pool=pt} =
+  let 
+    newPt = case pt of 
+              SoloPool p -> SoloPool $ set P.poolFutureCf Nothing p
+              MultiPool pM -> MultiPool $ Map.map (set P.poolFutureCf Nothing) pM 
+              _ -> error "not implement"
+  in
+    t {pool=newPt}
 
-setFutureCF :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
-setFutureCF t cf = set (dealPool . P.poolFutureCf) (Just cf) t 
+-- setFutureCF :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
+-- setFutureCF t cf = set (dealPool . P.poolFutureCf) (Just cf) t 
 
 populateDealDates :: DateDesp -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
 populateDealDates (CustomDates cutoff pa closing ba) 
@@ -607,9 +620,11 @@ runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
 
 -- ^ patch issuance balance for PreClosing Deal
-patchIssuanceBalance :: P.Asset a => DealStatus -> Balance -> Pool a -> Pool a
-patchIssuanceBalance (PreClosing _ ) bal p@P.Pool{issuanceStat = Nothing } = p { issuanceStat = Just (Map.fromList [(IssuanceBalance,bal)])}
-patchIssuanceBalance (PreClosing _ ) bal p@P.Pool{issuanceStat = Just statM } = p { issuanceStat = Just (Map.insert IssuanceBalance bal statM)}
+patchIssuanceBalance :: P.Asset a => DealStatus -> (Map.Map PoolId Balance) -> PoolType a -> PoolType a
+patchIssuanceBalance (PreClosing _ ) balM pt =
+  case pt of 
+    SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 PoolConsol balM)) p
+    MultiPool pM -> MultiPool $ Map.mapWithKey (\k v -> over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 k balM)) v) pM
 patchIssuanceBalance _ bal p = p
 
 getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], Map.Map PoolId CF.CashFlowFrame)
@@ -692,15 +707,21 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                        case mNonPerfAssump of
                          Just AP.NonPerfAssumption{AP.stopRunBy = Just d} -> cutBy Exc Past d _actionDates
                          _ -> _actionDates
-                                    
-
-    (poolCf,historyStats) = P.aggPool (P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
+     
+    -- (poolCf,historyStats) = P.aggPool (P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
+    -- (poolCf,historyStats) = P.aggPool(P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
+    pCfM = case thePool of
+             SoloPool p -> Map.fromList [(PoolConsol,P.aggPool(P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)  )]
+             MultiPool pm -> Map.map (\p -> P.aggPool(P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)  ) pm
     -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
     -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
-    poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
-    poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
-    begRow = buildBegTsRow startDate (head poolAggCf)
-    pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
+    poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame x)) pCfM
+    -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
+    
+    poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsM
+    begRowM = Map.map (\x -> buildBegTsRow startDate (head x)) poolAggCfM
+    -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
+    pCollectionCfAfterCutoff = Map.unionWith (\a b -> CF.CashFlowFrame (a:b)) begRowM poolAggCfM
     -- if preclosing deal , issuance balance is using beg balance of projected cashflow
     -- if it is ongoing deal, issuance balance is user input ( deal is not aware of issuance balance as point of time)
     -- issuanceBalance = case status t of
@@ -720,7 +741,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     -- newPoolStat = Map.unionWith (+) (fromMaybe Map.empty (P.issuanceStat thePool)) historyStats
     -- newT = t {fees = newFeeMap, pool = thePool {P.issuanceStat = Just newPoolStat } } `debug` ("init with new pool stats"++ show newPoolStat)
     newT = t {fees = newFeeMap
-             , pool = patchIssuanceBalance status (CF.mflowBalance begRow) thePool
+             , pool = patchIssuanceBalance status (Map.map CF.mflowBalance begRowM) thePool
              } -- patching with performing balance
 
 -- ^ UI translation : to read pool cash
