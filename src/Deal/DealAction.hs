@@ -365,7 +365,7 @@ buyRevolvingPool d rs rp@(AssetCurve aus)
 
 
 data RunContext a = RunContext{
-                  runPoolFlow:: CF.CashFlowFrame
+                  runPoolFlow:: Map.Map PoolId CF.CashFlowFrame
                   ,revolvingAssump:: Maybe (RevolvingPool ,AP.ApplyAssumptionType)
                   ,revolvingInterestRateAssump:: Maybe [RateAssumption]
                   }
@@ -437,18 +437,18 @@ showInspection x = error $ "not implemented for showing ResultComponent " ++ sho
 performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
-                  ,rc@RunContext{runPoolFlow=pcf@(CF.CashFlowFrame (tr:trs))
+                  ,rc@RunContext{runPoolFlow=pFlowMap
                                 ,revolvingAssump=Just (assetForSale,perfAssumps)
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
-                  (W.BuyAsset ml pricingMethod accName) 
+                  (W.BuyAsset ml pricingMethod accName pId) 
    = (t { accounts = newAccMap }, newRc, logs )
     where 
       _assets = lookupAssetAvailable assetForSale d
       assets = updateOriginDate2 d <$> _assets -- `debug` ("Asset on revolv"++ show _assets)
                 
       valuationOnAvailableAssets = sum $ getPriceValue <$> priceAssetUnionList assets d pricingMethod perfAssumps mRates 
-      accBal = A.accBalance $ accsMap Map.! accName -- `debug` ("Av")
+      accBal = A.accBalance $ accsMap Map.! accName 
       limitAmt = case ml of 
                    Just (DS ds) -> queryDeal t (patchDateToStats d ds)
                    Just (DueCapAmt amt) -> amt
@@ -466,24 +466,22 @@ performActionWrap d
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
-      -- newBoughtPcf = (CF.shiftCfToStartDate d) <$> [ projAssetUnion ast d perfAssumps | ast <- assetBought ]
       (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates -- `debug` ("Asset bought"++ show assetBought)
-      -- poolCurrentTr = CF.buildBegTsRow d tr
-      -- currentPoolFlow = CF.cfInsertHead poolCurrentTr pcf -- `debug` ("Inserting new tr"++ show poolCurrentTr)
-      -- currentPoolFlow = CF.patchBeginBalance d pcf
-      --newPcf = foldl CF.mergePoolCf pcf newBoughtPcf  `debug` ("reolvoing cf"++show d++"\n"++show newBoughtPcf++"\n"++"pool cf 1st"++show (CF.cfAt pcf 0))
-      -- newPcf = CF.CashFlowFrame $ CF.mergePoolCf currentPoolFlow newBoughtPcf --  `debug` ("reolvoing after insert"++ show currentPoolFlow)
-      newPcf = CF.CashFlowFrame $ CF.combineTss [] (tr:trs) newBoughtTxn  -- `debug` ("reolvoing first txn\n"++ show (head newBoughtTxn))
+      -- newPcf = CF.CashFlowFrame $ CF.combineTss [] (tr:trs) newBoughtTxn  -- `debug` ("reolvoing first txn\n"++ show (head newBoughtTxn))
+      newPcf = let 
+                 pIdToChange = fromMaybe PoolConsol pId
+               in 
+                 Map.adjust (\(CF.CashFlowFrame trs) -> CF.CashFlowFrame (CF.combineTss [] trs newBoughtTxn)) pIdToChange pFlowMap
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (poolAfterBought, perfAssumps)}  -- `debug` ("new pool flow\n"++show newPcf++"\n")
+                 ,revolvingAssump = Just (poolAfterBought, perfAssumps)}  
 
 performActionWrap d 
                   (t
-                  ,rc@RunContext{runPoolFlow=pcf@(CF.CashFlowFrame (tr:trs))
+                  ,rc@RunContext{runPoolFlow=pcf
                                 ,revolvingAssump=Nothing
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
-                  (W.BuyAsset ml pricingMethod accName)
+                  (W.BuyAsset ml pricingMethod accName _)
   = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ show (name t)
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)

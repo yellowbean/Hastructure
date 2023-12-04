@@ -84,7 +84,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)     -- ^ pay int & prin to bonds sequentially
             | AccrueAndPayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
             -- Pool/Asset change
-            | BuyAsset (Maybe Limit) PricingMethod AccountName                              -- ^ buy asset from revolving assumptions using funds from account
+            | BuyAsset (Maybe Limit) PricingMethod AccountName (Maybe PoolId)               -- ^ buy asset from revolving assumptions using funds from account
             | LiquidatePool PricingMethod AccountName                                       -- ^ sell all assets and deposit proceeds to account
             -- Liquidation support
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType AccountName  -- ^ draw credit and deposit to account/fee/bond interest/principal

@@ -92,7 +92,7 @@ validateAction ((W.PayPrinResidual accName bnds):as) rs accKeys bndKeys feeKeys 
     = validateAction as (rs ++ [ErrorMsg (show bnds++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | otherwise = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
 
-validateAction ((W.BuyAsset _ _ accName):as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
+validateAction ((W.BuyAsset _ _ accName _):as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | Set.notMember accName accKeys = validateAction as (rs ++ [ErrorMsg (accName++" not in "++show accKeys)]) accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | otherwise = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
 
@@ -190,8 +190,8 @@ validateAggRule :: [W.CollectionRule] -> [ResultComponent]
 validateAggRule rules = 
     [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | (ps,r) <- Map.toList oustandingPs ]
   where 
-    countWeight (W.Collect ps _) =  Map.fromList [(ps,1.0)]
-    countWeight (W.CollectByPct ps lst) = Map.fromList [(ps, sum (fst <$> lst))]
+    countWeight (W.Collect _ ps _) =  Map.fromList [(ps,1.0)]
+    countWeight (W.CollectByPct _ ps lst) = Map.fromList [(ps, sum (fst <$> lst))]
     sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules 
     oustandingPs = Map.filter (> 1.0) sumMap
 

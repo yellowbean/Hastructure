@@ -116,8 +116,8 @@ poolFutureTxn = lens getter setter
                  Nothing -> []
                  Just (CF.CashFlowFrame txns) -> txns
     setter p trs = case futureCf p of
-                     Nothing -> p {futureCf = Just CF.CashFlowFrame trs}
-                     Just (CF.CashFlowFrame _) -> p {futureCf = Just CF.CashFlowFrame trs}
+                     Nothing -> p {futureCf = Just (CF.CashFlowFrame trs)}
+                     Just (CF.CashFlowFrame _) -> p {futureCf = Just (CF.CashFlowFrame trs)}
 
 
 -- | get stats of pool 
