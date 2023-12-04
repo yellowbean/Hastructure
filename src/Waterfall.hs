@@ -54,13 +54,13 @@ instance FromJSONKey ActionWhen where
 data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
               | ByAccountDraw LedgerName               -- Book amount equal to account draw amount
               | ByDS          LedgerName Direction DealStats     -- Book amount equal to a formula/deal stats
-              deriving (Show,Generic)
+              deriving (Show,Generic,Eq,Ord)
 
 data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there is deficit, draw another account to pay the shortfall
                   | SupportLiqFacility LiquidityProviderName     -- ^ if there is deficit, draw facility's available credit to pay the shortfall
                   | MultiSupport [ExtraSupport]                  -- ^ if there is deficit, draw multiple supports (by sequence in the list) to pay the shortfall
                   | WithCondition Pre ExtraSupport               -- ^ support only available if Pre is true
-                  deriving (Show,Generic)
+                  deriving (Show,Generic,Eq,Ord)
 
 data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Fee
@@ -107,13 +107,13 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | RunTrigger DealCycle TriggerName        -- ^ update the trigger status during the waterfall execution
             -- Debug
             | WatchVal (Maybe String) [DealStats]     -- ^ inspect vals during the waterfall execution
-            deriving (Show,Generic)
+            deriving (Show,Generic,Eq,Ord)
 
 type DistributionSeq = [Action]
 
 data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName                   -- ^ collect a pool source from pool collection and deposit to an account
                     | CollectByPct (Maybe [PoolId]) PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
-                    deriving (Show,Generic)
+                    deriving (Show,Generic,Eq,Ord)
 
 
 $(deriveJSON defaultOptions ''Action)

@@ -106,7 +106,7 @@ instance TimeSeries TsRow where
 
 data CashFlowFrame = CashFlowFrame [TsRow]
                    | MultiCashFlowFrame (Map.Map String [CashFlowFrame])
-                   deriving (Eq,Generic)
+                   deriving (Eq,Generic,Ord)
 
 instance Show CashFlowFrame where
   show (CashFlowFrame []) = "Empty CashflowFrame"

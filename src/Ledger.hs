@@ -29,7 +29,7 @@ data Ledger = Ledger {
     ledgName :: String              -- ^ ledger account name
     ,ledgBalance :: Balance         -- ^ current balance of ledger
     ,ledgStmt :: Maybe Statement    -- ^ ledger transaction history
-} deriving (Show, Generic)
+} deriving (Show, Generic,Ord, Eq)
 
 -- | Book an entry with date,amount and transaction to a ledger
 entryLog :: Amount -> Date -> TxnComment -> Ledger -> Ledger

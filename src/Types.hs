@@ -139,7 +139,7 @@ data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurob
               | DC_30_360_ISDA   -- ^ IDSA
               | DC_30_360_German -- ^ Gernman
               | DC_30_360_US     -- ^ 30/360 US Municipal , Bond basis
-              deriving (Show,Eq,Generic)
+              deriving (Show,Eq,Generic,Ord)
 
 data DateType = ClosingDate        -- ^ deal closing day
               | CutoffDate         -- ^ after which, the pool cashflow was aggregated to SPV
@@ -153,7 +153,7 @@ data Period = Daily
             | Quarterly 
             | SemiAnnually 
             | Annually
-            deriving (Show,Eq,Generic)
+            deriving (Show,Eq,Generic,Ord)
 
 type DateVector = (Date, DatePattern)
 
@@ -165,7 +165,7 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
               --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
-              deriving (Show,Eq, Generic)
+              deriving (Show,Eq, Generic,Ord)
 
 data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
@@ -236,7 +236,7 @@ instance FromJSONKey DateType where
   fromJSONKey = genericFromJSONKey opts
 
 data OverrideType = CustomActionOnDates [ActionOnDate]
-                    deriving (Show,Generic)
+                    deriving (Show,Generic,Ord,Eq)
 
 data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated status with optinal accerlerated date
                 | DealDefaulted (Maybe Date)        -- ^ Deal is defaulted status with optinal default date
@@ -287,7 +287,7 @@ data DatePattern = MonthEnd
                  | Exclude DatePattern [DatePattern]
                  | OffsetBy DatePattern Int
                  -- | DayOfWeek Int -- T.DayOfWeek
-                 deriving (Show,Eq, Generic)
+                 deriving (Show,Eq, Generic,Ord)
 
 data Direction = Credit
                | Debit
@@ -571,7 +571,7 @@ data Pre = IfZero DealStats
          | Always Bool
          | Any [Pre]
          | All [Pre]                            -- ^ 
-         deriving (Show,Generic,Eq)
+         deriving (Show,Generic,Eq,Ord)
 
 
 data TsPoint a = TsPoint Date a
@@ -755,7 +755,7 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | PV IRate IRate                   -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
                    | Custom Rate                      -- ^ custom amount
-                   deriving (Show, Eq ,Generic)
+                   deriving (Show, Eq ,Generic,Ord)
 
 type Valuation = Centi
 type PerFace = Micro

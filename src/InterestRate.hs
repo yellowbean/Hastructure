@@ -50,7 +50,7 @@ type StartRate = IRate
 
 data RateType = Fix DayCount IRate
               | Floater DayCount Index Spread IRate DatePattern RateFloor RateCap (Maybe (RoundingBy IRate))
-              deriving (Show,Generic)
+              deriving (Show,Generic,Eq,Ord)
 
 getDayCount :: RateType -> DayCount
 getDayCount (Fix dc _) = dc
@@ -59,7 +59,7 @@ getDayCount (Floater dc _ _ _ _ _ _ _ ) = dc
 
 data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
          | OtherARM
-         deriving (Show,Generic)
+         deriving (Show,Generic,Eq,Ord)
 
 getRateResetDates :: Date -> Date -> Maybe RateType -> Dates
 getRateResetDates _ _ Nothing = []

@@ -7,10 +7,10 @@
 
 module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,performAction,queryDeal
-            ,setFutureCF,populateDealDates,accrueRC
+            ,populateDealDates,accrueRC
             ,calcTargetAmount,updateLiqProvider
             ,projAssetUnion,priceAssetUnion
-            ,removePoolCf
+            ,removePoolCf,setFutureCF
             ) where
 
 import qualified Accounts as A
@@ -545,8 +545,14 @@ removePoolCf t@TestDeal{pool=pt} =
   in
     t {pool=newPt}
 
--- setFutureCF :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
--- setFutureCF t cf = set (dealPool . P.poolFutureCf) (Just cf) t 
+setFutureCF :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
+setFutureCF t@TestDeal{pool = (SoloPool p )} cf 
+  = let 
+      newPool =  p { P.futureCf = Just cf}
+      newPoolType = SoloPool newPool 
+    in 
+      t {pool = newPoolType }
+  
 
 populateDealDates :: DateDesp -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
 populateDealDates (CustomDates cutoff pa closing ba) 
@@ -715,13 +721,13 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
              MultiPool pm -> Map.map (\p -> P.aggPool(P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)  ) pm
     -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
     -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
-    poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame x)) pCfM
+    poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pCfM
     -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
     
     poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsM
-    begRowM = Map.map (\x -> buildBegTsRow startDate (head x)) poolAggCfM
+    begRowM = Map.map (\x -> (buildBegTsRow startDate . head) x:[]) poolAggCfM
     -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
-    pCollectionCfAfterCutoff = Map.unionWith (\a b -> CF.CashFlowFrame (a:b)) begRowM poolAggCfM
+    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame $  Map.unionWith (\a b -> a++b) begRowM poolAggCfM
     -- if preclosing deal , issuance balance is using beg balance of projected cashflow
     -- if it is ongoing deal, issuance balance is user input ( deal is not aware of issuance balance as point of time)
     -- issuanceBalance = case status t of
@@ -741,7 +747,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     -- newPoolStat = Map.unionWith (+) (fromMaybe Map.empty (P.issuanceStat thePool)) historyStats
     -- newT = t {fees = newFeeMap, pool = thePool {P.issuanceStat = Just newPoolStat } } `debug` ("init with new pool stats"++ show newPoolStat)
     newT = t {fees = newFeeMap
-             , pool = patchIssuanceBalance status (Map.map CF.mflowBalance begRowM) thePool
+             , pool = patchIssuanceBalance status (Map.map (CF.mflowBalance . head) begRowM) thePool
              } -- patching with performing balance
 
 -- ^ UI translation : to read pool cash

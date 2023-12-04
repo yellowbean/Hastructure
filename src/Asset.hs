@@ -101,7 +101,7 @@ data Pool a = Pool {assets :: [a]                                           -- ^
                    ,asOfDate :: Date                                        -- ^ include cashflow after this date 
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
-                   } deriving (Show,Generic)
+                   } deriving (Show,Generic,Ord,Eq)
 
 poolFutureCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
 poolFutureCf = lens getter setter 

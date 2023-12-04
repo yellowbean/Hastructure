@@ -46,6 +46,7 @@ import Control.Lens.TH
 import Data.IntMap (filterWithKey)
 import qualified Data.Text as T
 import Text.Read (readMaybe)
+import Asset (poolFutureCf)
 
 
 class SPV a where
@@ -60,7 +61,7 @@ class SPV a where
 data PoolType a = SoloPool (P.Pool a)
                 | MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map (BondName, Rate) (TestDeal a))
-                deriving (Show,Generic)
+                deriving (Generic,Eq,Show,Ord)
 
 
 data TestDeal a = TestDeal { name :: String
@@ -81,7 +82,7 @@ data TestDeal a = TestDeal { name :: String
                              ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
                              ,overrides :: Maybe [OverrideType]
                              ,ledgers :: Maybe (Map.Map String LD.Ledger)
-                           } deriving (Show,Generic)
+                           } deriving (Show,Generic,Eq,Ord)
 
 instance SPV (TestDeal a) where
   getBondByName t bns

@@ -32,7 +32,7 @@ data LiqSupportType = ReplenishSupport DatePattern Balance    -- ^ credit will b
                     | FixSupport Balance                      -- ^ fixed credit amount
                     | ByPct DealStats Rate                    -- ^ By a pct of formula
                     | UnLimit                                 -- ^ Unlimit credit support, like insurance company
-                    deriving(Show,Generic)
+                    deriving(Show,Generic,Eq,Ord)
 
 data LiqFacility = LiqFacility {
     liqName :: String 
@@ -53,7 +53,7 @@ data LiqFacility = LiqFacility {
     ,liqStart :: Date                        -- ^ when liquidiy provider came into effective
     ,liqEnds :: Maybe Date                   -- ^ when liquidiy provider came into expired
     ,liqStmt :: Maybe Statement              -- ^ transaction history
-} deriving (Show,Generic)
+} deriving (Show,Generic,Eq,Ord)
 
 
 buildLiqResetAction :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, Dates)]
@@ -96,13 +96,13 @@ data LiqDrawType = LiqToAcc        -- ^ draw credit and deposit cash to account
                  | LiqToBondInt    -- ^ draw credit and pay to bond interest if any shortfall
                  | LiqToBondPrin   -- ^ draw credit and pay to bond principal if any shortfall
                  | LiqToFee        -- ^ draw credit and pay to a fee if there is a shortfall
-                 deriving (Show,Generic)
+                 deriving (Show,Generic,Ord,Eq)
 
 data LiqRepayType = LiqBal         -- ^ repay oustanding balance of liquidation provider
                   | LiqPremium     -- ^ repay oustanding premium fee of lp
                   | LiqInt         -- ^ repay oustanding interest of lp
                   | LiqRepayTypes [LiqRepayType] --TODO not implemented
-                  deriving (Show,Generic)
+                  deriving (Show,Generic,Ord,Eq)
 
 repay :: Amount -> Date -> LiqRepayType -> LiqFacility -> LiqFacility
 repay amt d pt liq@LiqFacility{liqBalance = liqBal

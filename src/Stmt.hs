@@ -121,7 +121,7 @@ weightAvgBalance sd ed txns
 
 
 data Statement = Statement [Txn]
-        deriving (Show,Eq,Generic)
+        deriving (Show, Generic, Eq, Ord)
 
 appendStmt :: Maybe Statement -> Txn -> Maybe Statement
 appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])

@@ -29,13 +29,13 @@ data AmortPlan = Level                   -- ^ for mortgage / french system  -> f
                | I_P                     -- ^ interest only and principal due at last payment
                | F_P                     -- ^ fee based 
                | ScheduleRepayment Ts (Maybe DatePattern)   -- ^ custom principal follow
-               deriving (Show,Generic)
+               deriving (Show,Generic,Ord,Eq)
 
 data Status = Current
             | Defaulted (Maybe Date)
             -- | Delinquency (Maybe Int)
             -- | Extended (Maybe T.Day)
-            deriving (Show,Generic)
+            deriving (Show,Generic,Ord,Eq)
 
 data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 1 if period < Int, use penalty rate 2 if period > Int
                        | FixAmount Balance (Maybe Int)  -- ^ fixed penalty fee if any prepayment, or it only applies if period < Int
@@ -43,7 +43,7 @@ data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 
                        | Sliding Rate Rate              -- ^ starting with Rate1 at period 1 then decrease by step by rate2
                        | StepDown [(Int,Rate)]          -- ^ first tuple (n,r) ,first n periods use penalty rate r , then next n periods use pentaly rate in next tuple
                        -- | NMonthInterest Int
-                       deriving (Show,Generic)
+                       deriving (Show,Generic,Eq,Ord)
 
 data AmortRule = DecliningBalance        -- ^ DecliningBalance Method
                | DoubleDecliningBalance  -- ^ Not implemented
@@ -51,7 +51,7 @@ data AmortRule = DecliningBalance        -- ^ DecliningBalance Method
                -- | UnitBased Int
                -- | MACRS
                | SumYearsDigit           -- ^ Not implemented
-               deriving (Show,Generic)
+               deriving (Show,Generic,Eq,Ord)
 
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
@@ -78,56 +78,56 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                      ,accRule :: AmortRule
                                      ,capacity :: Capacity 
                                     }
-                  deriving (Show,Generic)
+                  deriving (Show,Generic,Ord,Eq)
 
 
 data Installment = Installment OriginalInfo Balance RemainTerms Status
                  | Dummy
-                 deriving (Show,Generic)
+                 deriving (Show,Generic,Ord,Eq)
 
 data LeaseStepUp = FlatRate DatePattern Rate
                  | ByRateCurve DatePattern [Rate]
-                 deriving (Show,Generic)
+                 deriving (Show,Generic,Ord,Eq)
 
 data Lease = RegularLease OriginalInfo Balance RemainTerms Status
            | StepUpLease OriginalInfo LeaseStepUp Balance RemainTerms Status
-           deriving (Show,Generic)
+           deriving (Show,Generic,Eq,Ord)
 
 data AccrualPeriod = AccrualPeriod Date DailyRate
-                    deriving (Show,Generic)
+                    deriving (Show,Generic,Eq,Ord)
 
 instance TimeSeries AccrualPeriod where 
     getDate (AccrualPeriod d _) = d
 
 data Loan = PersonalLoan OriginalInfo Balance IRate RemainTerms Status
           | DUMMY
-          deriving (Show,Generic)
+          deriving (Show,Generic,Ord,Eq)
 
 data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
-              deriving (Show,Generic)
+              deriving (Show,Generic,Eq,Ord)
 
 data MixedAsset = MixedPool (Map.Map String [AssetUnion])
                 | DUMMY2
-                deriving (Show,Generic)
+                deriving (Show,Generic,Eq,Ord)
 
 -- FixedAsset 
 data Capacity = FixedCapacity Balance
               | CapacityByTerm [(Int,Balance)]
-              deriving (Show,Generic)
+              deriving (Show,Generic,Ord,Eq)
 
 data AssociateExp = ExpPerPeriod Balance 
                   | ExpPerUnit Balance
-                  deriving (Show,Generic)
+                  deriving (Show,Generic,Ord,Eq)
 
 data AssociateIncome = IncomePerPeriod Balance 
                      | IncomePerUnit Balance
-                      deriving (Show,Generic)
+                      deriving (Show,Generic,Ord,Eq)
 
 data FixedAsset = FixedAsset OriginalInfo RemainTerms
                 | Dummy5
-                deriving (Show,Generic)
+                deriving (Show,Generic,Eq,Ord)
 
 
 -- Base type to hold all asset types
@@ -136,7 +136,7 @@ data AssetUnion = MO Mortgage
                 | IL Installment
                 | LS Lease
                 | FA FixedAsset
-                deriving (Show, Generic)
+                deriving (Show, Generic,Ord,Eq)
 
 instance IR.UseRate MixedAsset where
   getIndexes (MixedPool ma) = error "Not implemented"

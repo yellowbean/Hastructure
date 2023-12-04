@@ -138,12 +138,11 @@ instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
 instance ToSchema (DB.TestDeal AB.Lease)
 instance ToSchema (DB.TestDeal AB.FixedAsset)
-instance ToSchema DB.PoolId
+instance ToSchema (DB.PoolType AB.FixedAsset)
 instance ToSchema (DB.PoolType AB.Mortgage)
 instance ToSchema (DB.PoolType AB.Loan)
 instance ToSchema (DB.PoolType AB.Installment)
 instance ToSchema (DB.PoolType AB.Lease)
-instance ToSchema (DB.PoolType AB.FixedAsset)
 instance ToSchema HE.RateCap
 instance ToSchema AB.LeaseStepUp 
 instance ToSchema AB.AccrualPeriod
@@ -185,6 +184,7 @@ instance ToSchema OverrideType
 instance ToSchema ActionOnDate
 instance ToSchema DealStats
 instance ToSchema Period
+instance ToSchema PoolId
 instance ToSchema DayCount
 instance ToSchema DealStatus
 instance ToSchema DatePattern
@@ -238,7 +238,7 @@ instance ToSchema (Ratio Integer) where
 instance ToSchema PoolSource
 instance ToSchema Threshold
 
-type RunResp = (DealType , Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
+type RunResp = (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
 wrapRun (MDeal d) mAssump mNonPerfAssump = let 
