@@ -413,11 +413,10 @@ aggTsByDates trs ds =
     (\(x,_d) -> sumTsCF x _d) 
     (filter 
       (\(y,__d) -> not (null y))
-      (zip (reduceFn [] ds trs) ds)) -- `debug` ("Final agg >> "++ show (reduceFn [] ds trs) )
+      (zip (reduceFn [] ds trs) ds)) 
   where
-    reduceFn accum _ [] =  accum  -- `debug` ("Returning->"++show(accum))
+    reduceFn accum _ [] =  accum  
     reduceFn accum [cutoffDay] _trs =
-      -- accum ++ [(filter (\x -> getDate x <= cutoffDay) _trs)]
       accum ++ [cutBy Inc Past cutoffDay _trs]
     reduceFn accum (cutoffDay:cutoffDays) _trs =
       case newAcc of
