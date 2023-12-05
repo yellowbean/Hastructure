@@ -23,7 +23,7 @@ trs = [CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing
 
 cf = CF.CashFlowFrame trs
 
-aggTs1 = CF.aggbsByDates trs [L.toDate "20220110"]
+aggTs1 = CF.aggTsByDates trs [L.toDate "20220110"]
 aggTs2 = CF.aggTsByDates trs [L.toDate "20220210"]
 aggTs3 = CF.aggTsByDates trs [L.toDate "20220101",L.toDate "20220208"]
 aggTs4 = CF.aggTsByDates trs [L.toDate "20220101",L.toDate "20220218"]
