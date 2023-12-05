@@ -23,7 +23,7 @@ trs = [CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing
 
 cf = CF.CashFlowFrame trs
 
-aggTs1 = CF.aggTsByDates trs [L.toDate "20220110"]
+aggTs1 = CF.aggbsByDates trs [L.toDate "20220110"]
 aggTs2 = CF.aggTsByDates trs [L.toDate "20220210"]
 aggTs3 = CF.aggTsByDates trs [L.toDate "20220101",L.toDate "20220208"]
 aggTs4 = CF.aggTsByDates trs [L.toDate "20220101",L.toDate "20220218"]
@@ -60,6 +60,11 @@ cfTests = testGroup "Cashflow Utils"
        [CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing Nothing
        ,CF.MortgageFlow (L.toDate "20220218") 80 20 20 0 0 0 0 0  Nothing Nothing Nothing]
        aggTs4
+--    ,testCase "Cashflow Aggregation" $
+--      assertEqual "aggregate period with no cf"
+--        [CF.MortgageFlow (L.toDate "20220301")]
+--        (CF.aggTsByDates (L.toDates ["20220101","20220201"]))
+ 
 
    ,testCase "Get Latest Cashflow 1" $
      assertEqual "Found one"
