@@ -62,7 +62,7 @@ validateAction ((W.PayFeeResidual _ accName feeName):as) rs accKeys bndKeys feeK
     = validateAction as (rs ++ [ErrorMsg (feeName ++ " not in "++ show feeKeys++" Or "++accName++ " not in "++show accKeys)]) accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | otherwise = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
 
-validateAction ((W.CalcBondInt bnds):as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
+validateAction ((W.CalcBondInt bnds Nothing Nothing):as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | not (Set.isSubsetOf (Set.fromList bnds) bndKeys)
     = validateAction as (rs ++ [ErrorMsg (show bnds ++ " not in "++ show bndKeys)]) accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | otherwise = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys

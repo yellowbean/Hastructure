@@ -245,30 +245,32 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
 
 updateLiqProvider t d liq = disableLiqProvider t d liq
 
-calcDueInt :: P.Asset a => TestDeal a -> Date -> L.Bond -> L.Bond
-calcDueInt t calc_date b@(L.Bond _ _ oi io _ _ r dp di Nothing _ lastPrinPay _ ) 
+calcDueInt :: P.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe DealStats -> L.Bond -> L.Bond
+calcDueInt t calc_date mBal mRate b@(L.Bond _ _ oi io _ _ r dp di Nothing _ lastPrinPay _ ) 
  | calc_date <= closingDate = b
- | otherwise = calcDueInt t calc_date (b {L.bndDueIntDate = Just closingDate })
+ | otherwise = calcDueInt t calc_date mBal mRate (b {L.bndDueIntDate = Just closingDate })
    where 
      closingDate = getClosingDate (dates t)
 
-calcDueInt t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate _ _ _ lstIntPay _ _) 
+calcDueInt t calc_date _ _ b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate _ _ _ lstIntPay _ _) 
   = b {L.bndDueInt = 0 }
 
-calcDueInt t calc_date b@(L.Bond bn L.Equity bo (L.InterestByYield y) _ bond_bal _ _ int_due _ lstIntPay _ mStmt)
+calcDueInt t calc_date _ _ b@(L.Bond bn L.Equity bo (L.InterestByYield y) _ bond_bal _ _ int_due _ lstIntPay _ mStmt)
   = b {L.bndDueInt = newDue }  -- `debug` ("Yield Due Int >>"++ show bn++">> new due"++ show newDue++">> old due"++ show int_due )
   where
     newDue = L.backoutDueIntByYield calc_date b
 
-calcDueInt t calc_date b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ int_due (Just int_due_date) lstIntPay _ _ ) 
+calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ intDue (Just int_due_date) lstIntPay _ _ ) 
   | calc_date == int_due_date = b
-  | otherwise = b {L.bndDueInt = new_due_int+int_due,L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
+  | otherwise = b {L.bndDueInt = newDueInt+intDue,L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
               where
                 dc = case bi of 
                        L.Floater _ _ _ _ _dc _ _ -> _dc 
                        L.Fix _ _dc -> _dc 
                        _ -> DC_ACT_365F
-                new_due_int = IR.calcInt (bond_bal+int_due) int_due_date calc_date bond_rate dc  -- `debug` ("Bond bal"++show bond_bal++">>"++show int_due_date++">>"++ show calc_date++">>"++show bond_rate)
+                overrideBal = maybe bond_bal (queryDeal t ) mBal
+                overrideRate = maybe bond_rate (queryDealRate t) mRate
+                newDueInt = IR.calcInt (overrideBal+intDue) int_due_date calc_date overrideRate dc  -- `debug` ("Bond bal"++show bond_bal++">>"++show int_due_date++">>"++ show calc_date++">>"++show bond_rate)
 
 
 calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
@@ -635,7 +637,7 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
 
 performAction d t (W.AccrueAndPayIntBySeq mLimit an bnds mSupport)
   = let 
-      dealWithBondDue = performAction d t (W.CalcBondInt bnds)
+      dealWithBondDue = performAction d t (W.CalcBondInt bnds Nothing Nothing)
     in 
       performAction d dealWithBondDue (W.PayIntBySeq mLimit an bnds mSupport)
 
@@ -701,7 +703,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt mLimit an bnd
 
 performAction d t (W.AccrueAndPayInt mLimit an bnds mSupport) =
   let 
-    dealWithBondDue = performAction d t (W.CalcBondInt bnds)
+    dealWithBondDue = performAction d t (W.CalcBondInt bnds Nothing Nothing)
   in 
     performAction d dealWithBondDue (W.PayInt mLimit an bnds mSupport)
 
@@ -833,10 +835,10 @@ performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns)
   where 
     newFeeMap = Map.map (calcDueFee t d) $ getFeeByName t (Just fns)
 
-performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns) 
+performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns mBalDs mRateDs) 
   = t {bonds = Map.union newBondMap bndMap}
   where 
-    newBondMap = Map.map (calcDueInt t d) $ getBondByName t (Just bns)
+    newBondMap = Map.map (calcDueInt t d Nothing Nothing) $ getBondByName t (Just bns)
 
 performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToAcc an)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)

@@ -69,7 +69,6 @@ cfTests = testGroup "Cashflow Utils"
    ,testCase "Get Latest Cashflow 1" $
      assertEqual "Found one"
        (Just $ CF.MortgageFlow (L.toDate "20220211") 80 10 10 0 0 0 0 0 Nothing Nothing Nothing)
-       --(Just $ CF.MortgageFlow (L.toDate "20220211") 80 10 10 0 0 0)
        findLatestCf1
    ,testCase "Get Latest Cashflow 2" $
      assertEqual "Found one"
