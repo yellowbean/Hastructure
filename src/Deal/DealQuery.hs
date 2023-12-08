@@ -142,6 +142,8 @@ queryDealRate t s =
       FloorWith s floor -> toRational $ max (queryDealRate t s) (queryDealRate t floor)
       FloorWithZero s -> toRational $ max (queryDealRate t s) 0
       CapWith s cap -> toRational $ min (queryDealRate t s) (queryDealRate t cap)
+      Factor s r -> toRational $ (queryDealRate t s) * fromRational r
+      
 
 queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
 queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d = 

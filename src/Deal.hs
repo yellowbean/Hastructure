@@ -722,7 +722,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
              (MultiPool pm, Just (AP.ByName assumpMap))
                -> Map.mapWithKey 
                     (\k p -> P.aggPool(P.issuanceStat p) $ 
-                               runPool p (AP.PoolLevel <$> (Map.lookup k assumpMap)) (AP.interest =<< mNonPerfAssump))
+                               runPool p (AP.PoolLevel <$> Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump))
                     pm
              (MultiPool pm,_) 
                -> Map.map (\p -> P.aggPool(P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)) pm
@@ -734,7 +734,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsM
     begRowM = Map.map (\x -> (buildBegTsRow startDate . head) x:[]) poolAggCfM
     -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
-    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame $  Map.unionWith (\a b -> a++b) begRowM poolAggCfM
+    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame $  Map.unionWith (++) begRowM poolAggCfM
     -- if preclosing deal , issuance balance is using beg balance of projected cashflow
     -- if it is ongoing deal, issuance balance is user input ( deal is not aware of issuance balance as point of time)
     -- issuanceBalance = case status t of

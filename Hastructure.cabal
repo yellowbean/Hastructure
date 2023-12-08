@@ -81,6 +81,7 @@ library
     , servant-errors
     , servant-openapi3
     , servant-server
+    , split
     , swagger2
     , template-haskell
     , text
@@ -119,6 +120,7 @@ executable Hastructure-exe
     , servant-errors
     , servant-openapi3
     , servant-server
+    , split
     , string-conversions
     , swagger2
     , template-haskell
@@ -171,6 +173,7 @@ test-suite Hastructure-test
     , servant-errors
     , servant-openapi3
     , servant-server
+    , split
     , swagger2
     , tasty
     , tasty-golden

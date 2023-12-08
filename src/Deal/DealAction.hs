@@ -270,7 +270,7 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ i
                        _ -> DC_ACT_365F
                 overrideBal = maybe bond_bal (queryDeal t ) mBal
                 overrideRate = maybe bond_rate (queryDealRate t) mRate
-                newDueInt = IR.calcInt (overrideBal+intDue) int_due_date calc_date overrideRate dc  -- `debug` ("Bond bal"++show bond_bal++">>"++show int_due_date++">>"++ show calc_date++">>"++show bond_rate)
+                newDueInt = IR.calcInt (overrideBal+intDue) int_due_date calc_date overrideRate dc -- `debug` ("Using Rate"++show overrideRate++">>Bal"++ show overrideBal)
 
 
 calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
@@ -838,7 +838,7 @@ performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns)
 performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns mBalDs mRateDs) 
   = t {bonds = Map.union newBondMap bndMap}
   where 
-    newBondMap = Map.map (calcDueInt t d Nothing Nothing) $ getBondByName t (Just bns)
+    newBondMap = Map.map (calcDueInt t d mBalDs mRateDs) $ getBondByName t (Just bns)
 
 performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToAcc an)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)
