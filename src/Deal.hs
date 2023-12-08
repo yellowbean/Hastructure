@@ -716,9 +716,16 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
      
     -- (poolCf,historyStats) = P.aggPool (P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
     -- (poolCf,historyStats) = P.aggPool(P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
-    pCfM = case thePool of
-             SoloPool p -> Map.fromList [(PoolConsol,P.aggPool(P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)  )]
-             MultiPool pm -> Map.map (\p -> P.aggPool(P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)  ) pm
+    pCfM = case (thePool,mAssumps) of
+             (SoloPool p,_) 
+               -> Map.fromList [(PoolConsol,P.aggPool(P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump))]
+             (MultiPool pm, Just (AP.ByName assumpMap))
+               -> Map.mapWithKey 
+                    (\k p -> P.aggPool(P.issuanceStat p) $ 
+                               runPool p (AP.PoolLevel <$> (Map.lookup k assumpMap)) (AP.interest =<< mNonPerfAssump))
+                    pm
+             (MultiPool pm,_) 
+               -> Map.map (\p -> P.aggPool(P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)) pm
     -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
     -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pCfM

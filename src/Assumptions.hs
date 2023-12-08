@@ -56,7 +56,8 @@ data ApplyAssumptionType = PoolLevel AssetPerf
                            -- ^ assumption apply to all assets in the pool
                          | ByIndex [StratPerfByIdx]
                            -- ^ assumption which only apply to a set of assets in the pool
-                         | ByName (Map.Map String AssetPerf)
+                         | ByName (Map.Map PoolId AssetPerf)
+                           -- ^ assumption for a named pool
                          deriving (Show,Generic)
 
 data NonPerfAssumption = NonPerfAssumption {
