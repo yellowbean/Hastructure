@@ -41,6 +41,7 @@ dependencies:
 - servant-errors
 - openapi3
 - swagger2
+- split
 
 library:
   source-dirs: 
