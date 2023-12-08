@@ -279,7 +279,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                collectedFlow = Map.map (over CF.cashflowTxn (cutBy Inc Past d)) poolFlowMap
                outstandingFlow = Map.map (over CF.cashflowTxn (cutBy Exc Future d)) poolFlowMap
                
-               accs = depositPoolFlow (collects t) d collectedFlow accMap  -- `debug` ("Collected"++ show d++"pool CF\n"++ show poolFlow)--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
+               accs = depositPoolFlow (collects t) d collectedFlow accMap  `debug` ("Collected"++ show d++"pool CF\n"++ show collectedFlow)--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
                dAfterDeposit = (appendCollectedCF d t collectedFlow) {accounts=accs}   -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
 
                (dRunWithTrigger0,newLogs0) = runTriggers dAfterDeposit d EndCollection  
@@ -761,38 +761,41 @@ readProceeds CollectedPrepaymentPenalty row =  CF.mflowPrepaymentPenalty row
 readProceeds CollectedCash row =  CF.tsTotalCash row
 readProceeds a b = error $ "failed to read pool cashflow rule"++show a
 
-depositInflow :: W.CollectionRule -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
-depositInflow (W.Collect _ s an) d row amap 
-  = Map.adjust (A.deposit amt d (PoolInflow s)) an amap
+
+extractTxnsFromFlowFrameMap :: Maybe [PoolId] -> Map.Map PoolId CF.CashFlowFrame -> [CF.TsRow]
+extractTxnsFromFlowFrameMap mPids pflowMap = 
+  case mPids of 
+    Nothing -> extractTxns pflowMap
+    Just pids -> extractTxns $ Map.filterWithKey (\k _ -> k `elem` pids) pflowMap
+  where 
+    extractTxns m = concat $ CF.getTsCashFlowFrame <$> Map.elems m
+
+
+depositInflow :: Date -> W.CollectionRule -> Map.Map PoolId CF.CashFlowFrame -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
+depositInflow d (W.Collect mPids s an) pFlowMap amap 
+  = Map.adjust (A.deposit amt d (PoolInflow mPids s)) an amap  `debug` ("Date"++show d++"Deposit"++show amt++"Rule"++show s ++">>AN"++ show an)
     where 
-      amt = readProceeds s row
+      txns =  extractTxnsFromFlowFrameMap mPids pFlowMap
+      amt = sum $ readProceeds s <$> txns
 
 
-depositInflow (W.CollectByPct _ s splitRules) d row amap    --TODO need to check 100%
+depositInflow d (W.CollectByPct mPids s splitRules) pFlowMap amap    --TODO need to check 100%
   = foldr
       (\(accName,accAmt) accM -> 
-        Map.adjust (A.deposit accAmt d (PoolInflow s)) accName accM)
+        Map.adjust (A.deposit accAmt d (PoolInflow mPids s)) accName accM)
       amap
       amtsToAccs
     where 
       amtsToAccs = [ (an, mulBR amt splitRate) | (splitRate, an) <- splitRules]
-      amt = readProceeds s row
+      txns =  extractTxnsFromFlowFrameMap mPids pFlowMap 
+      amt = sum $ readProceeds s <$> txns
 
-depositInflow a _ _ _ = error $ "Failed to match collection rule"++ show a
-
--- ^ deposit cash to account by rules
-depositInflowByRules :: [W.CollectionRule] -> Date -> CF.TsRow -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
-depositInflowByRules rs d row amap 
-  = foldr (\r -> depositInflow r d row) amap rs
-
--- ^ deposit cash to account by cashflow frame
-depositPoolInflow :: [W.CollectionRule] -> Date -> CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
-depositPoolInflow rules d (CF.CashFlowFrame []) amap = amap 
-depositPoolInflow rules d (CF.CashFlowFrame txn) amap = foldr (depositInflowByRules rules d) amap txn
+depositInflow _ a _ _ = error $ "Failed to match collection rule"++ show a
 
 -- ^ deposit cash to account by pool map CF
 depositPoolFlow :: [W.CollectionRule] -> Date -> Map.Map PoolId CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolFlow rules d pFlowMap amap
-  = foldr (\pflow acc -> depositPoolInflow rules d pflow acc) amap $ Map.elems pFlowMap
+  -- = foldr (\pflowM acc -> depositPoolInflow rules d pflowM acc) amap $ pFlowMap `debug` ("Deposit p fd"++ show (Map.elems pFlowMap))
+  = foldr (\rule acc -> depositInflow d rule pFlowMap acc) amap rules
 
 $(deriveJSON defaultOptions ''ExpectReturn)

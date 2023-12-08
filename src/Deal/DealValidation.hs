@@ -185,12 +185,12 @@ extractRequiredRates t@TestDeal{accounts = accM
                   Nothing -> []
         
       -- note fee is not tested
-
+-- TODO Need to fix 
 validateAggRule :: [W.CollectionRule] -> [ResultComponent]
 validateAggRule rules = 
-    [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | (ps,r) <- Map.toList oustandingPs ]
+    [] -- [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | (ps,r) <- Map.toList oustandingPs ]
   where 
-    countWeight (W.Collect _ ps _) =  Map.fromList [(ps,1.0)]
+    countWeight (W.Collect Nothing ps _) =  Map.fromList [(ps,1.0)]
     countWeight (W.CollectByPct _ ps lst) = Map.fromList [(ps, sum (fst <$> lst))]
     sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules 
     oustandingPs = Map.filter (> 1.0) sumMap

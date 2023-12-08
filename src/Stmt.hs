@@ -166,7 +166,7 @@ getFlow comment =
       SeqPayFee _ -> Outflow
       PayFeeYield _ -> Outflow
       Transfer _ _ -> Interflow 
-      PoolInflow _ -> Inflow
+      PoolInflow _ _ -> Inflow
       LiquidationProceeds -> Inflow
       LiquidationSupport _ -> Inflow
       LiquidationDraw -> Noneflow

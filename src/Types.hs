@@ -32,6 +32,7 @@ import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.Time as Time
 import qualified Data.Map as Map
+import qualified Data.List.Split
 import Text.Regex.Base
 import Text.Regex.PCRE
 import GHC.Generics
@@ -46,6 +47,7 @@ import Data.Fixed
 import Data.Ix
 
 import Data.List
+import Data.List (intercalate)
 -- import Cashflow (CashFlowFrame)
 
 type BondName = String
@@ -303,7 +305,7 @@ data TxnComment = PayInt [BondName]
                 | PayFeeYield FeeName
                 | Transfer AccName AccName 
                 | TransferBy AccName AccName Limit
-                | PoolInflow PoolSource
+                | PoolInflow (Maybe [PoolId]) PoolSource
                 | LiquidationProceeds
                 | LiquidationSupport String
                 | LiquidationDraw
@@ -332,7 +334,7 @@ instance ToJSON TxnComment where
   toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
-  toJSON (PoolInflow ps) =  String $ T.pack $ "<PoolInflow:"++ show ps++">"
+  toJSON (PoolInflow mPids ps) =  String $ T.pack $ "<Pool"++ maybe "" (intercalate "|" . (show <$>)) mPids ++":"++ show ps++">"
   toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
@@ -401,7 +403,20 @@ data PoolSource = CollectedInterest               -- ^ interest
 
 data PoolId = PoolName String
             | PoolConsol
-            deriving (Show,Eq,Ord,Generic,Read)
+            deriving (Eq,Ord,Generic)
+
+instance Show PoolId where
+  show (PoolName n)  = "PoolName:"++n
+  show PoolConsol = "PoolConsol"
+
+instance (Read PoolId) where
+  readsPrec d "PoolConsol" = [(PoolConsol,"")]
+  readsPrec d rStr = 
+    let 
+      pn = Data.List.Split.splitOn ":" rStr
+    in 
+      [(PoolName (last pn),"")]
+
 
 instance ToJSONKey PoolId where
   toJSONKey :: ToJSONKeyFunction PoolId
