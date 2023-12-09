@@ -406,7 +406,7 @@ data PoolId = PoolName String
             deriving (Eq,Ord,Generic)
 
 instance Show PoolId where
-  show (PoolName n)  = "PoolName:"++n
+  show (PoolName n)  = n
   show PoolConsol = "PoolConsol"
 
 instance (Read PoolId) where

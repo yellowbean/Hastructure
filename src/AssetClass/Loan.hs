@@ -172,5 +172,7 @@ instance Asset Loan where
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted Nothing)) asOfDay assumps _
     = (CF.CashFlowFrame [CF.LoanFlow asOfDay 0 0 0 0 0 0 0 cr Nothing],Map.empty)
   
+  projCashflow a b c d = error $ "failed to match projCashflow"++show a++show b++show c++show d
+  
   splitWith l@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt st) rs
     = [ PersonalLoan (LoanOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) (mulBR cb ratio) cr rt st | ratio <- rs ]

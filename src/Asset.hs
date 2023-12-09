@@ -74,8 +74,6 @@ class (Show a,IR.UseRate a) => Asset a where
   getRemainTerms :: a -> Int
   -- | project asset cashflow under credit stress and interest assumptions
   projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-  -- | project cashflow under user input sequence
-  runCashflow :: a -> Date -> A.AssumpReceipes -> [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 

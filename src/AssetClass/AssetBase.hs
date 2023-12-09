@@ -138,8 +138,12 @@ data AssetUnion = MO Mortgage
                 | FA FixedAsset
                 deriving (Show, Generic,Ord,Eq)
 
-instance IR.UseRate MixedAsset where
-  getIndexes (MixedPool ma) = error "Not implemented"
+instance IR.UseRate AssetUnion where
+  getIndex (MO ma) = IR.getIndex ma
+  getIndex (LO ma) = IR.getIndex ma
+  getIndex (IL ma) = IR.getIndex ma
+  getIndex (LS ma) = IR.getIndex ma
+  getIndex (FA ma) = IR.getIndex ma
 
 
 instance IR.UseRate Mortgage where 
@@ -150,11 +154,11 @@ instance IR.UseRate Mortgage where
 
 instance IR.UseRate Loan where
   getIndex (PersonalLoan oi@LoanOriginalInfo{originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _ _) = Just idx 
-  getIndex (PersonalLoan {}) = Nothing
+  getIndex PersonalLoan {} = Nothing
 
 instance IR.UseRate Installment where 
   getIndex (Installment oi@LoanOriginalInfo{originRate = IR.Floater _ idx _ _ _ _ _ _ } _ _ _) = Just idx 
-  getIndex (Installment {}) = Nothing
+  getIndex Installment {} = Nothing
   
 instance IR.UseRate Lease where
   getIndex :: Lease -> Maybe Index

@@ -1668,6 +1668,37 @@
                 ],
                 "type": "object"
             },
+            "Pool_AssetUnion": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "asOfDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/AssetUnion"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "assets",
+                    "asOfDate"
+                ]
+            },
             "AssetUnion": {
                 "oneOf": [
                     {
@@ -9216,6 +9247,24 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TestDeal_AssetUnion"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "UDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -10585,6 +10634,124 @@
                     }
                 ],
                 "type": "object"
+            },
+            "TestDeal_AssetUnion": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/DealStatus"
+                    },
+                    "dates": {
+                        "$ref": "#/components/schemas/DateDesp"
+                    },
+                    "rateSwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateSwap"
+                        }
+                    },
+                    "currencySwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CurrencySwap"
+                        }
+                    },
+                    "fees": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Fee"
+                        }
+                    },
+                    "collects": {
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionRule"
+                        },
+                        "type": "array"
+                    },
+                    "custom": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CustomDataType"
+                        }
+                    },
+                    "ledgers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Ledger"
+                        }
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "waterfall": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Action"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "liqProvider": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LiqFacility"
+                        }
+                    },
+                    "bonds": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Bond"
+                        }
+                    },
+                    "overrides": {
+                        "items": {
+                            "$ref": "#/components/schemas/OverrideType"
+                        },
+                        "type": "array"
+                    },
+                    "accounts": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Account"
+                        }
+                    },
+                    "call": {
+                        "items": {
+                            "$ref": "#/components/schemas/CallOption"
+                        },
+                        "type": "array"
+                    },
+                    "triggers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/components/schemas/Trigger"
+                            }
+                        }
+                    },
+                    "pool": {
+                        "$ref": "#/components/schemas/PoolType_AssetUnion"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
+                    }
+                },
+                "required": [
+                    "name",
+                    "status",
+                    "dates",
+                    "accounts",
+                    "fees",
+                    "bonds",
+                    "pool",
+                    "waterfall",
+                    "collects"
+                ]
             },
             "CashFlowFrame": {
                 "oneOf": [
@@ -11988,6 +12155,92 @@
                         },
                         "required": [
                             "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "PoolType_AssetUnion": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_AssetUnion"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SoloPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_AssetUnion"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/TestDeal_AssetUnion"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ResecDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
                         ]
                     }
                 ],

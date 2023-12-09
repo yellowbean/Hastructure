@@ -39,8 +39,8 @@ debug = flip trace
 
 -- | calcuate target balance for a reserve account, 0 for a non-reserve account
 calcTargetAmount :: P.Asset a => TestDeal a -> Date -> A.Account -> Balance
-calcTargetAmount t d (A.Account _ n i Nothing _ ) = 0
-calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
+calcTargetAmount t d (A.Account _ _ _ Nothing _ ) = 0
+calcTargetAmount t d (A.Account _ _ _ (Just r) _ ) =
    eval r 
    where
      eval ra = case ra of
