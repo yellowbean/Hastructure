@@ -52,11 +52,11 @@ data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) 
                   | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
-                  deriving (Show, Eq, Generic)
+                  deriving (Show, Eq, Generic, Ord)
                   
 data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
             | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
-            deriving (Show, Eq, Generic)
+            deriving (Show, Eq, Generic, Ord)
 
 -- | test if a bond may changes its interest rate
 isAdjustble :: InterestInfo -> Bool 
@@ -94,7 +94,7 @@ data OriginalInfo = OriginalInfo {
   ,originDate::Date                -- ^ issuance date
   ,originRate::Rate                -- ^ issuance rate of the bond
   ,maturityDate :: Maybe Date      -- ^ optional maturity date
-} deriving (Show, Eq, Generic)
+} deriving (Show, Eq, Generic, Ord)
 
 type PlannedAmorSchedule = Ts
 
@@ -104,7 +104,7 @@ data BondType = Sequential                                 -- ^ Pass through typ
               | Lockout Date                               -- ^ No principal due till date
               | Z                                          -- ^ Z tranche
               | Equity                                     -- ^ Equity type tranche
-              deriving (Show, Eq, Generic)
+              deriving (Show, Eq, Generic, Ord)
 
 data Bond = Bond {
   bndName :: String
@@ -120,7 +120,7 @@ data Bond = Bond {
   ,bndLastIntPay :: Maybe Date         -- ^ last interest pay date
   ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
   ,bndStmt :: Maybe S.Statement        -- ^ transaction history
-} deriving (Show, Eq, Generic)
+} deriving (Show, Eq, Generic, Ord)
 
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 

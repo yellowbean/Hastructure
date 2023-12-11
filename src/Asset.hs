@@ -9,7 +9,7 @@ module Asset (Pool(..),aggPool
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
-       ,poolFutureCf
+       ,poolFutureCf,poolFutureTxn,poolIssuanceStat
 ) where
 
 import qualified Data.Time as T
@@ -74,8 +74,6 @@ class (Show a,IR.UseRate a) => Asset a where
   getRemainTerms :: a -> Int
   -- | project asset cashflow under credit stress and interest assumptions
   projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-  -- | project cashflow under user input sequence
-  runCashflow :: a -> Date -> A.AssumpReceipes -> [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
   -- | Split asset per rates passed in 
@@ -94,15 +92,14 @@ class (Show a,IR.UseRate a) => Asset a where
                           
   {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 
-data SubPool a = SoloPool [a]
-               | MultiPool (Map.Map String (SubPool a))
+
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
                    ,asOfDate :: Date                                        -- ^ include cashflow after this date 
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
-                   } deriving (Show,Generic)
+                   } deriving (Show,Generic,Ord,Eq)
 
 poolFutureCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
 poolFutureCf = lens getter setter 
@@ -110,9 +107,26 @@ poolFutureCf = lens getter setter
     getter p = futureCf p
     setter p mNewCf = p {futureCf = mNewCf}
 
+poolFutureTxn :: Asset a => Lens' (Pool a) [CF.TsRow]
+poolFutureTxn = lens getter setter
+  where 
+    getter p = case futureCf p of
+                 Nothing -> []::[CF.TsRow]
+                 Just (CF.CashFlowFrame txns) -> txns
+    setter p trs = case futureCf p of
+                     Nothing -> p {futureCf = Just (CF.CashFlowFrame trs)}
+                     Just (CF.CashFlowFrame _) -> p {futureCf = Just (CF.CashFlowFrame trs)}
+
+poolIssuanceStat :: Asset a => Lens' (Pool a) (Map.Map CutoffFields Balance)
+poolIssuanceStat = lens getter setter
+  where 
+    getter p =  fromMaybe Map.empty $ issuanceStat p
+    setter p m = case issuanceStat p of
+                    Nothing -> p {issuanceStat = Just m}
+                    Just m -> p {issuanceStat = Just m}
 
 -- | get stats of pool 
-getIssuanceField :: Pool a -> CutoffFields -> Centi
+getIssuanceField :: Pool a -> CutoffFields -> Balance
 getIssuanceField p@Pool{issuanceStat = Just m} s
   = case Map.lookup s m of
       Just r -> r

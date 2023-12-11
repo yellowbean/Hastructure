@@ -106,7 +106,7 @@ instance TimeSeries TsRow where
 
 data CashFlowFrame = CashFlowFrame [TsRow]
                    | MultiCashFlowFrame (Map.Map String [CashFlowFrame])
-                   deriving (Eq,Generic)
+                   deriving (Eq,Generic,Ord)
 
 instance Show CashFlowFrame where
   show (CashFlowFrame []) = "Empty CashflowFrame"
@@ -412,14 +412,14 @@ aggTsByDates trs ds =
     (\(x,_d) -> sumTsCF x _d) 
     (filter 
       (\(y,__d) -> not (null y))
-      (zip (reduceFn [] ds trs) ds)) -- `debug` ("Final agg >> "++ show (reduceFn [] ds trs) )
+      (zip (reduceFn [] ds trs) ds)) 
   where
-    reduceFn accum _ [] =  accum  -- `debug` ("Returning->"++show(accum))
+    reduceFn accum _ [] =  accum  
     reduceFn accum [cutoffDay] _trs =
-      accum ++ [(filter (\x -> getDate x <= cutoffDay) _trs)]
+      accum ++ [cutBy Inc Past cutoffDay _trs]
     reduceFn accum (cutoffDay:cutoffDays) _trs =
       case newAcc of
-        [] -> reduceFn (accum++[[]]) cutoffDays _trs     --  `debug` ("Adding empty")
+        [] -> reduceFn (accum++[[ ((viewTsRow cutoffDay) . last . last) accum]]) cutoffDays _trs     --  `debug` ("Adding empty")
         newFlow -> reduceFn (accum++[newAcc]) cutoffDays rest --  `debug` ("Adding "++show(newAcc)++" cutoffDay "++show(cutoffDay))
       where
         (newAcc, rest) = splitBy cutoffDay Inc _trs
@@ -558,6 +558,16 @@ emptyTsRow _d (LoanFlow a x c d e f g i j k) = LoanFlow _d 0 0 0 0 0 0 0 0 Nothi
 emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
 emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 
+
+viewTsRow :: Date -> TsRow -> TsRow 
+-- ^ take a snapshot of a record
+viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 0 k l m
+viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 0 j k l
+viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 0 k
+viewTsRow _d (LeaseFlow a b c ) = LeaseFlow _d b 0
+viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
+
+
 buildBegTsRow :: Date -> TsRow -> TsRow
 -- ^ given a cashflow,build a new cf row with begin balance
 buildBegTsRow d tr 
@@ -572,8 +582,8 @@ insertBegTsRow d (CashFlowFrame (txn:txns))
       CashFlowFrame (begRow:txn:txns)
 
 combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
-combineCashFlow cf1 (CashFlowFrame txn) 
-  = appendCashFlow cf1 txn
+combineCashFlow cf1 (CashFlowFrame []) = cf1 
+combineCashFlow cf1 (CashFlowFrame txn) = appendCashFlow cf1 txn
 
 totalLoss :: CashFlowFrame -> Balance
 totalLoss (CashFlowFrame rs) = sum $ mflowLoss <$> rs
@@ -723,15 +733,19 @@ extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
 
 isEmptyRow :: TsRow -> Bool 
 isEmptyRow (MortgageDelinqFlow _ 0 0 0 0 0 0 0 0 _ _ _ _) = True
-isEmptyRow (MortgageDelinqFlow {}) = False
+isEmptyRow MortgageDelinqFlow {} = False
 isEmptyRow (MortgageFlow _ 0 0 0 0 0 0 0 _ _ _ _) = True
-isEmptyRow (MortgageFlow {}) = False
+isEmptyRow MortgageFlow {} = False
 isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
-isEmptyRow (LoanFlow {}) = False
+isEmptyRow LoanFlow {} = False
 isEmptyRow (LeaseFlow _ 0 0) = True
-isEmptyRow (LeaseFlow {}) = False
+isEmptyRow LeaseFlow {} = False
 isEmptyRow (FixedFlow _ 0 0 0 0 0) = True
-isEmptyRow (FixedFlow {}) = False
+isEmptyRow FixedFlow {} = False
+isEmptyRow (BondFlow _ 0 0 0) = True
+isEmptyRow BondFlow {} = False
+isEmptyRow (CashFlow _ 0) = True
+isEmptyRow CashFlow {} = False
 
 -- ^ Remove empty cashflow from the tail
 dropTailEmptyTxns :: [TsRow] -> [TsRow]
@@ -743,6 +757,10 @@ cashflowTxn = lens getter setter
   where 
     getter (CashFlowFrame txns) = txns
     setter (CashFlowFrame txns) newTxns = CashFlowFrame newTxns
+
+-- snapshotTxn :: TsRow -> Date -> TsRow
+-- snapshotTxn trs d = trs
+
 
 
 $(deriveJSON defaultOptions ''TsRow)

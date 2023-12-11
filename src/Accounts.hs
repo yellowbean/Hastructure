@@ -29,14 +29,14 @@ debug = flip trace
 
 data InterestInfo = BankAccount IRate Date DatePattern                -- ^ fix reinvest return rate
                   | InvestmentAccount Types.Index Spread Date DatePattern   -- ^ float reinvest return rate (index,spread, dp)
-                  deriving (Show, Generic)
+                  deriving (Show, Generic,Eq,Ord)
 
 data ReserveAmount = PctReserve DealStats Rate               -- ^ target amount with reference to % of formula
                    | FixReserve Balance                      -- ^ target amount with fixed balance amount    
                    | Either Pre ReserveAmount ReserveAmount  -- ^ target amount depends on a test, if true, then use first one ,otherwise use second one
                    | Max [ReserveAmount]                     -- ^ use higher of all reserve formulas
                    | Min [ReserveAmount]                     -- ^ use lower of all reserve formulas
-                   deriving (Show, Eq, Generic)
+                   deriving (Show, Eq, Generic, Ord)
 
 data Account = Account {
     accBalance :: Balance                 -- ^ account current balance
@@ -44,7 +44,7 @@ data Account = Account {
     ,accInterest :: Maybe InterestInfo    -- ^ account reinvestment interest
     ,accType :: Maybe ReserveAmount       -- ^ target info if a reserve account
     ,accStmt :: Maybe Statement           -- ^ transactional history
-} deriving (Show, Generic)
+} deriving (Show, Generic,Eq, Ord)
 
 -- | build interest earn actions
 buildEarnIntAction :: [Account] -> Date -> [(String,Dates)] -> [(String,Dates)]

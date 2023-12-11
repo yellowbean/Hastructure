@@ -9,7 +9,7 @@ module Util
     ,replace,paddingDefault, capWith, getTsDates
     ,shiftTsByAmt,calcWeightBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
-    ,floorWith,slice,toPeriodRateByInterval
+    ,floorWith,slice,toPeriodRateByInterval, dropLastN
     -- for debug
     ,zyj
     )
@@ -262,6 +262,9 @@ roundingByM (Just rb) x = roundingBy rb x
 
 slice :: Int -> Int -> [a] -> [a]
 slice from to xs = take (to - from ) (drop from xs)
+
+dropLastN :: Int -> [a] -> [a]
+dropLastN n xs = slice 0 (length xs - n) xs
 
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days

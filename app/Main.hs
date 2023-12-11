@@ -82,7 +82,6 @@ import qualified DateUtil as DU
 
 
 import Debug.Trace
-import qualified Hedge as HE
 debug = flip Debug.Trace.trace
 
 data Version = Version 
@@ -116,6 +115,7 @@ data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | IDeal (DB.TestDeal AB.Installment) 
               | RDeal (DB.TestDeal AB.Lease) 
               | FDeal (DB.TestDeal AB.FixedAsset) 
+              | UDeal (DB.TestDeal AB.AssetUnion) 
               deriving(Show, Generic)
 
 instance ToSchema Ts
@@ -138,7 +138,15 @@ instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
 instance ToSchema (DB.TestDeal AB.Lease)
+instance ToSchema (DB.TestDeal AB.AssetUnion)
 instance ToSchema (DB.TestDeal AB.FixedAsset)
+instance ToSchema (DB.PoolType AB.AssetUnion)
+instance ToSchema (DB.PoolType AB.FixedAsset)
+instance ToSchema (DB.PoolType AB.Mortgage)
+instance ToSchema (DB.PoolType AB.Loan)
+instance ToSchema (DB.PoolType AB.Installment)
+instance ToSchema (DB.PoolType AB.Lease)
+instance ToSchema (P.Pool AB.AssetUnion)
 instance ToSchema HE.RateCap
 instance ToSchema AB.LeaseStepUp 
 instance ToSchema AB.AccrualPeriod
@@ -180,6 +188,7 @@ instance ToSchema OverrideType
 instance ToSchema ActionOnDate
 instance ToSchema DealStats
 instance ToSchema Period
+instance ToSchema PoolId
 instance ToSchema DayCount
 instance ToSchema DealStatus
 instance ToSchema DatePattern
@@ -233,7 +242,7 @@ instance ToSchema (Ratio Integer) where
 instance ToSchema PoolSource
 instance ToSchema Threshold
 
-type RunResp = (DealType , Maybe CF.CashFlowFrame, Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
+type RunResp = (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
 wrapRun (MDeal d) mAssump mNonPerfAssump = let 
@@ -256,6 +265,10 @@ wrapRun (FDeal d) mAssump mNonPerfAssump = let
                                        (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (FDeal _d,_pflow,_rs,_p)
+wrapRun (UDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+                                     in 
+                                       (UDeal _d,_pflow,_rs,_p)                                       
 wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
 wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)

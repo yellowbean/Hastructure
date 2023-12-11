@@ -67,7 +67,7 @@ investTests =
 
 reserveAccTest = 
   let 
-    acc1 = Account 200 "A1" Nothing (Just (PctReserve CurrentPoolBalance 0.01)) Nothing
+    acc1 = Account 200 "A1" Nothing (Just (PctReserve (CurrentPoolBalance Nothing) 0.01)) Nothing
     acc2 = Account 150 "A2" Nothing (Just (FixReserve 210)) Nothing
     accMap = Map.fromList [("A1",acc1),("A2",acc2)]
     testCFs = CF.CashFlowFrame

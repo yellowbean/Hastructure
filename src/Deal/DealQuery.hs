@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Deal.DealQuery (queryDealBool,queryDeal,queryDealInt,queryDealRate
                        ,patchDateToStats, testPre, calcTargetAmount) 
@@ -32,12 +33,14 @@ import Control.Lens hiding (element)
 import Control.Lens.TH
 import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
+import qualified Cashflow as P
+import qualified Util as CF
 debug = flip trace
 
 -- | calcuate target balance for a reserve account, 0 for a non-reserve account
 calcTargetAmount :: P.Asset a => TestDeal a -> Date -> A.Account -> Balance
-calcTargetAmount t d (A.Account _ n i Nothing _ ) = 0
-calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
+calcTargetAmount t d (A.Account _ _ _ Nothing _ ) = 0
+calcTargetAmount t d (A.Account _ _ _ (Just r) _ ) =
    eval r 
    where
      eval ra = case ra of
@@ -54,8 +57,8 @@ calcTargetAmount t d (A.Account _ n i (Just r) _ ) =
 patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
    = case t of
-         CurrentPoolBalance -> FutureCurrentPoolBalance
-         PoolFactor -> FutureCurrentPoolFactor d
+         CurrentPoolBalance mPns -> FutureCurrentPoolBalance mPns
+         PoolFactor mPns -> FutureCurrentPoolFactor d mPns
          LastBondIntPaid bns -> BondsIntPaidAt d bns
          LastFeePaid fns -> FeesPaidAt d fns
          LastBondPrinPaid bns -> BondsPrinPaidAt d bns
@@ -68,7 +71,7 @@ patchDateToStats d t
          Max dss -> Max $ [ patchDateToStats d ds | ds <- dss ]
          Factor _ds r -> Factor (patchDateToStats d _ds) r
          UseCustomData n -> CustomData n d
-         CurrentPoolBorrowerNum -> FutureCurrentPoolBorrowerNum d
+         CurrentPoolBorrowerNum mPns -> FutureCurrentPoolBorrowerNum d mPns
          FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
          BondTxnAmt ns mCmt -> BondTxnAmtBy d ns mCmt
          AccTxnAmt ns mCmt -> AccTxnAmtBy d ns mCmt
@@ -82,26 +85,26 @@ queryDealRate t s =
       BondFactor ->
         toRational (queryDeal t CurrentBondBalance) / toRational (queryDeal t OriginalBondBalance)
 
-      PoolFactor ->
-        toRational (queryDeal t CurrentPoolBalance)  / toRational (queryDeal t OriginalPoolBalance)
+      PoolFactor mPns ->
+        toRational (queryDeal t (CurrentPoolBalance mPns))  / toRational (queryDeal t (OriginalPoolBalance mPns))
 
-      FutureCurrentPoolFactor asOfDay ->
-        toRational (queryDeal t FutureCurrentPoolBalance) / toRational (queryDeal t OriginalPoolBalance)
+      FutureCurrentPoolFactor asOfDay mPns ->
+        toRational (queryDeal t (FutureCurrentPoolBalance mPns)) / toRational (queryDeal t (OriginalPoolBalance mPns))
       
-      CumulativePoolDefaultedRate ->
+      CumulativePoolDefaultedRate mPns ->
         let 
-          originPoolBal = toRational (queryDeal t OriginalPoolBalance) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
-          cumuPoolDefBal = toRational (queryDeal t CumulativePoolDefaultedBalance) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
+          originPoolBal = toRational $ queryDeal t (OriginalPoolBalance mPns) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
+          cumuPoolDefBal = toRational $ queryDeal t (CumulativePoolDefaultedBalance mPns) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
         in 
           cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
       
-      CumulativeNetLossRatio ->
-        toRational $ (queryDeal t CumulativeNetLoss) / (queryDeal t OriginalPoolBalance)
+      CumulativeNetLossRatio mPns ->
+        toRational $ queryDeal t (CumulativeNetLoss mPns) / queryDeal t (OriginalPoolBalance mPns)
 
-      CumulativePoolDefaultedRateTill idx -> 
+      CumulativePoolDefaultedRateTill idx mPns -> 
         let 
-          originPoolBal = toRational (queryDeal t OriginalPoolBalance) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
-          cumuPoolDefBal = toRational (queryDeal t (PoolCumCollectionTill idx [NewDefaults])) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
+          originPoolBal = toRational (queryDeal t (OriginalPoolBalance mPns)) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
+          cumuPoolDefBal = toRational (queryDeal t (PoolCumCollectionTill idx [NewDefaults] mPns)) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
         in 
           cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
         
@@ -116,11 +119,13 @@ queryDealRate t s =
         in 
           toRational $ sum (zipWith (+) ws rs) / sum ws
 
-      PoolWaRate -> 
-        toRational $ 
-          case P.futureCf (pool t) of 
-            Nothing -> 0
-            Just (CF.CashFlowFrame trs) -> CF.mflowRate $ last trs
+      PoolWaRate mPns -> 
+        let 
+          latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t mPns
+          rates = toRational <$> maybe 0.0 CF.mflowRate  <$> latestCfs
+          bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
+        in 
+          weightedBy bals rates
 
       Constant r -> r
       Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
@@ -137,18 +142,24 @@ queryDealRate t s =
       FloorWith s floor -> toRational $ max (queryDealRate t s) (queryDealRate t floor)
       FloorWithZero s -> toRational $ max (queryDealRate t s) 0
       CapWith s cap -> toRational $ min (queryDealRate t s) (queryDealRate t cap)
+      Factor s r -> toRational $ (queryDealRate t s) * fromRational r
+      
 
 queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
 queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d = 
   case s of 
-    FutureCurrentPoolBorrowerNum d ->
-      case P.futureCf (pool t) of 
-        Nothing -> 0
-        Just (CF.CashFlowFrame trs) -> 
-            let 
-              (_cf,_) = splitByDate trs d EqToLeft
-            in 
-              fromMaybe 0 $ CF.mflowBorrowerNum $ last _cf
+    FutureCurrentPoolBorrowerNum d mPns ->   --TODO may use date as cutoff date 
+      let 
+        poolCfs = Map.elems $ getLatestCollectFrame t mPns
+        poolBn =  maybe 0 (\x -> fromMaybe 0 (CF.mflowBorrowerNum x))   <$> poolCfs
+      in 
+        sum poolBn
+
+    CurrentPoolBorrowerNum mPns ->
+      let 
+        assetM = getAllAssetList t 
+      in 
+        sum $ P.getBorrowerNum <$> assetM -- `debug` ("Qurey loan level asset balance"        
 
     MonthsTillMaturity bn -> 
         case mm of 
@@ -157,7 +168,7 @@ queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d =
         where
             (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn  
 
-    ProjCollectPeriodNum -> length $ maybe [] CF.getTsCashFlowFrame $ view P.poolFutureCf p -- `debug` ("Hit query")
+    ProjCollectPeriodNum -> maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
 
     FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
     FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
@@ -167,6 +178,7 @@ queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d =
     Max ss -> maximum' $ [ queryDealInt t s d | s <- ss ]
     Min ss -> minimum' $ [ queryDealInt t s d | s <- ss ]
 
+-- ^ map from Pool Source to Pool CutoffFields in Pool Map
 poolSourceToIssuanceField :: PoolSource -> CutoffFields
 poolSourceToIssuanceField CollectedInterest = HistoryInterest
 poolSourceToIssuanceField CollectedPrincipal = HistoryPrincipal
@@ -178,30 +190,31 @@ poolSourceToIssuanceField a = error ("Failed to match pool source when mapping t
 
 
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
-queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM, pool=poolM} s = 
+queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM, pool=pt } s = 
   case s of
     CurrentBondBalance ->
       Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 bndMap
     OriginalBondBalance ->
       Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 bndMap
-    CurrentPoolBalance ->
-      foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
+    CurrentPoolBalance mPns ->
+      foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (getAllAssetList t) --TODO TOBE FIX: mPns is not used
     CurrentPoolDefaultedBalance ->
       foldl (\acc x -> acc + P.getCurrentBal x)
             0.0 $
-            filter P.isDefaulted (P.assets (pool t))
+            filter P.isDefaulted (getAllAssetList t)
 
-    OriginalPoolBalance ->
-      case P.issuanceStat (pool t) of
-        -- use issuance balance from map if the map exists
-        Just m -> 
-          case Map.lookup IssuanceBalance m of 
-            Just v -> v
-            Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
-        Nothing -> error ("No stat found in the pool, pls specify it in the pool stats map `issuanceStat` Deal:" ++ show (name t))
+    DealIssuanceBalance mPns -> 
+      sum $ Map.findWithDefault 0.0 IssuanceBalance <$> Map.elems (getIssuanceStats t mPns)
+
+    OriginalPoolBalance _ -> error "Not implemented"
+      -- case P.issuanceStat (pool t) of
+      --   -- use issuance balance from map if the map exists
+      --   Just m -> 
+      --     case Map.lookup IssuanceBalance m of 
+      --       Just v -> v
+      --       Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
+      --   Nothing -> error ("No stat found in the pool, pls specify it in the pool stats map `issuanceStat` Deal:" ++ show (name t))
     
-    CurrentPoolBorrowerNum ->
-      fromRational $ toRational $ foldl (\acc x -> acc + P.getBorrowerNum x) 0 (P.assets (pool t)) -- `debug` ("Qurey loan level asset balance")
  
     AllAccBalance -> sum $ map A.accBalance $ Map.elems accMap 
     
@@ -215,24 +228,27 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     ReserveExcessAt d ans ->
       max 
         0
-        $ (-) (queryDeal t (AccBalance ans)) (sum $ (calcTargetAmount t d) <$> ((accMap Map.!) <$> ans))
+        $ (-) (queryDeal t (AccBalance ans)) (sum $ calcTargetAmount t d <$> ((accMap Map.!) <$> ans))
 
     ReserveAccGapAt d ans ->
       max 
         0 
-        $ (-) (sum $ (calcTargetAmount t d) <$> (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
+        $ (-) (sum $ calcTargetAmount t d <$> (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
 
-    FutureCurrentPoolBalance ->
-       case P.futureCf (pool t) of 
-         Nothing -> 0.0
-         Just (CF.CashFlowFrame trs) -> CF.mflowBalance $ last trs
+    FutureCurrentPoolBalance mPns ->
+      let 
+        ltc = getLatestCollectFrame t mPns
+      in 
+        sum $ maybe 0 CF.mflowBalance <$> ltc
+
     
-    FutureCurrentPoolBegBalance ->
-       case P.futureCf (pool t) of 
-         Nothing -> 0.0
-         Just (CF.CashFlowFrame trs) -> CF.mflowBegBalance $ last trs
+    FutureCurrentPoolBegBalance mPns ->
+      let 
+        ltc = getLatestCollectFrame t mPns
+      in 
+        sum $ maybe 0 CF.mflowBegBalance <$> ltc 
 
-    PoolCollectionHistory incomeType fromDay asOfDay ->
+    PoolCollectionHistory incomeType fromDay asOfDay mPns ->
       sum fieldAmts
       where
         fieldAmts = map
@@ -241,88 +257,84 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
                         CollectedPrincipal -> CF.mflowPrincipal 
                         CollectedPrepayment -> CF.mflowPrepayment
                         CollectedRecoveries -> CF.mflowRecovery
-                        CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty)
+                        CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty
+                        CollectedCash  -> CF.tsTotalCash
+                        -- TODO add cash here
+                        )
                       subflow  
-        subflow = case P.futureCf (pool t) of
-                    -- Just _futureCf -> 
-                    Just (CashFlowFrame trs) -> 
-                        if fromDay == asOfDay then 
-                          sliceBy II fromDay asOfDay trs
-                        else 
-                          sliceBy EI fromDay asOfDay trs
-                    _ -> []
+        mTxns = Map.elems $ getAllCollectedTxns t mPns
+        subflow = sliceBy EI fromDay asOfDay $ concat $ fromMaybe [] <$> mTxns
 
-    CumulativePoolDefaultedBalance ->
+    CumulativePoolDefaultedBalance mPns ->
         let
-          futureDefaults = case P.futureCf poolM of
-                             Just (CF.CashFlowFrame historyTxn) -> CF.tsCumDefaultBal $ last historyTxn
-                             Nothing -> 0.0  -- `debug` ("Geting future defaults"++show futureDefaults)
-
-          historyDefaults = case P.issuanceStat poolM of
-                                Just m -> Map.findWithDefault 0.0 HistoryDefaults m 
-                                Nothing -> 0.0
+          latestCollect = getLatestCollectFrame t mPns
+          futureDefaults = sum $ Map.elems $ Map.map (maybe 0 CF.tsCumDefaultBal) $ latestCollect 
+          historyStat = getIssuanceStats t mPns
+          historyDefaults = sum $ Map.findWithDefault 0 HistoryDefaults <$> Map.elems historyStat
         in
           futureDefaults + historyDefaults -- `debug` ("history defaults"++ show historyDefaults)
 
-    CumulativePoolRecoveriesBalance ->
-        let 
-          futureRecoveries = case P.futureCf poolM of
-                               Just (CF.CashFlowFrame historyTxn) -> CF.tsCumRecoveriesBal $ last historyTxn
-                               Nothing -> 0.0
-          historyRecoveries = case P.issuanceStat poolM of
-                                Just m -> Map.findWithDefault 0.0 HistoryRecoveries m 
-                                Nothing -> 0.0
+    CumulativePoolRecoveriesBalance mPns ->
+        let
+          latestCollect = getLatestCollectFrame t mPns
+          futureRecoveries = sum $ Map.elems $ Map.map (maybe 0 CF.tsCumRecoveriesBal) $ latestCollect 
+          historyStat = getIssuanceStats t mPns
+          historyRecoveries = sum $ Map.findWithDefault 0 HistoryRecoveries <$> Map.elems historyStat
         in
           futureRecoveries + historyRecoveries
     
-    CumulativeNetLoss ->
-         queryDeal t CumulativePoolDefaultedBalance - queryDeal t CumulativePoolRecoveriesBalance
+    CumulativeNetLoss mPns ->
+         queryDeal t (CumulativePoolDefaultedBalance mPns) - queryDeal t (CumulativePoolRecoveriesBalance mPns)
     
-    PoolCumCollection ps ->
+    PoolCumCollection ps mPns ->
         let 
-          futureVals = case P.futureCf poolM of
-                         Just cf -> sum $ CF.sumPoolFlow cf <$> ps
-                         Nothing -> 0.0
-
-          historyVals = case P.issuanceStat poolM of
-                                Just m -> sum [ Map.findWithDefault 0.0 (poolSourceToIssuanceField p) m | p <- ps ]
-                                Nothing -> 0.0
+          collectedTxns = concat . Map.elems $ Map.map (fromMaybe []) $ getAllCollectedTxns t mPns
+          --xxx = sum (  <$> ps ) <*> collectedFrames
+          --mBals = (\cf -> sum (fromMaybe [] cf) <$> ps ) <$> collectedFrames
+          futureVals = sum $ (CF.lookupSource <$> collectedTxns) <*> ps
+          
+          poolStats = Map.elems $ getIssuanceStats t mPns
+          historyVals = sum $ (Map.findWithDefault 0.0 . poolSourceToIssuanceField <$> ps) <*> poolStats
+          -- historyVals = case P.issuanceStat poolM of
+          --                       Just m -> sum [ Map.findWithDefault 0.0 (poolSourceToIssuanceField p) m | p <- ps ]
+          --                       Nothing -> 0.0
         in 
           futureVals + historyVals
     
-    PoolCumCollectionTill idx ps -> 
+    PoolCumCollectionTill idx ps mPns -> 
         let 
-          futureVals = case P.futureCf poolM of
-                         Just (CashFlowFrame _trs) -> 
-                          let 
-                            lengthTrs = length _trs
-                            trs = slice 0 (max 0 (lengthTrs + idx)) _trs
-                          in 
-                            sum $ (CF.lookupSource <$> trs) <*> ps
-                         Nothing -> 0.0
-
-          historyVals = case P.issuanceStat poolM of
-                                Just m -> sum [ Map.findWithDefault 0.0 (poolSourceToIssuanceField p) m | p <- ps ]
-                                Nothing -> 0.0
+          txnMap = Map.map (dropLastN (negate idx) . fromMaybe []) $ getAllCollectedTxns t mPns 
+          txnList = concat $ Map.elems txnMap 
+          lookupList = CF.lookupSource <$> txnList
+          futureVals = sum $ lookupList <*> ps
+          sumMap = getIssuanceStatsConsol t mPns
+          historyVals = sum $ Map.findWithDefault 0 . poolSourceToIssuanceField <$> ps <*> [sumMap]
         in 
           futureVals + historyVals
  
-    PoolCurCollection ps ->
-      case P.futureCf poolM of
-            Just (CF.CashFlowFrame trs) -> sum $ CF.lookupSource (last trs) <$> ps
-            Nothing -> 0.0
+    PoolCurCollection ps mPns ->
+      let 
+        pCf = getLatestCollectFrame t mPns
+        lastRows = Map.map (maybe 0 (\r -> sum (CF.lookupSource r <$> ps))) pCf
+      in 
+        sum $ Map.elems lastRows
 
-    PoolCollectionStats idx ps -> 
-      case P.futureCf poolM of
-            Just (CF.CashFlowFrame trs) 
-              ->let
-                  theCollection = trs!!((length trs) + idx)
-                in  
-                  sum $ CF.lookupSource theCollection <$> ps
-            Nothing -> 0.0
+    PoolCollectionStats idx ps mPns -> 
+      let 
+        pTxns::[[CF.TsRow]] = fromMaybe [] <$> (view CF.cashflowTxn <$>) <$> Map.elems (getAllCollectedFrame t mPns)
+        pRows = (\x -> x!!(length x + idx) ) <$>  pTxns
+      in 
+        sum $ CF.lookupSource <$> pRows <*> ps
+      -- case P.futureCf poolM of
+      --       Just (CF.CashFlowFrame trs) 
+      --         ->let
+      --             theCollection = trs!!(length trs + idx)
+      --           in  
+      --             sum $ CF.lookupSource theCollection <$> ps
+      --       Nothing -> 0.0
 
 
-    CurrentBondBalanceOf bns -> sum $ L.bndBalance <$> (bndMap Map.!) <$> bns
+    CurrentBondBalanceOf bns -> sum $ L.bndBalance . (bndMap Map.!) <$> bns
 
     BondsIntPaidAt d bns ->
        let

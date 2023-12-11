@@ -41,12 +41,12 @@ type PayoutAmount = Balance          -- ^ cash to be paid in instrutment
 data RateSwapBase = Fixed Balance    -- ^ a fixed balance as notional base 
                   | Base DealStats   -- ^ a referece as notional base
                   | Schedule Ts      -- ^ a predfiend schedule of notional balance
-                  deriving(Show,Generic,Eq)
+                  deriving(Show,Generic,Eq,Ord)
 
 data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating rate and receiving Floating Rate
                   | FloatingToFixed  Floater IRate        -- ^ Paying Floating Rate and receiving Fixed Rate
                   | FixedToFloating  IRate Floater        -- ^ Paying Fixed Rate and receiving Floating rate
-                  deriving(Show,Generic,Eq)
+                  deriving(Show,Generic,Eq,Ord)
 
 
 data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
@@ -60,7 +60,7 @@ data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
                          ,rsNetCash :: Balance           -- ^ amount to pay/collect
                          ,rsStmt :: Maybe Statement      -- ^ transaction history
                          }
-                         deriving(Show,Generic,Eq)
+                         deriving(Show,Generic,Eq,Ord)
 
 -- updateRefBalance :: Balance -> RateSwap -> RateSwap
 -- updateRefBalance bal rs = rs { rsRefBalance = bal}
@@ -125,7 +125,7 @@ data RateCap = RateCap {
                 ,rcNetCash :: Balance           -- ^ amount to collect
                 ,rcStmt :: Maybe Statement      -- ^ transaction history                
               }
-              deriving(Show,Generic,Eq)
+              deriving(Show,Generic,Eq,Ord)
 
 
 receiveRC :: Date -> RateCap -> RateCap
@@ -146,7 +146,7 @@ instance QueryByComment RateCap where
 
 data CurrencySwap = CurrencySwap {
                     csBalance :: Balance
-                    } deriving (Show,Generic)
+                    } deriving (Show,Generic,Ord,Eq)
 
 instance IR.UseRate RateSwap where 
   getIndexes rs@RateSwap{rsType = rstype}

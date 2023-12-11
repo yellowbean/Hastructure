@@ -42,7 +42,7 @@ data FeeType = AnnualRateFee DealStats FormulaRate                       -- ^ an
              | TargetBalanceFee DealStats DealStats                      -- ^ fee occur if (ds1 > ds2)
              | FeeFlow Ts                                                -- ^ a time series based fee 
              | ByCollectPeriod Amount                                    -- ^ fix amount per collection period
-             deriving (Show,Eq, Generic)
+             deriving (Show,Eq, Generic,Ord)
 
 data Fee = Fee {
   feeName :: String              -- ^ fee name
@@ -53,7 +53,7 @@ data Fee = Fee {
   ,feeArrears :: Balance         -- ^ reserved
   ,feeLastPaidDay :: Maybe Date  -- ^ last paid date
   ,feeStmt :: Maybe Statement    -- ^ transaction history
-} deriving (Show,Eq, Generic)
+} deriving (Show,Ord, Eq, Generic)
 
 payFee :: Date   -- ^ When pay action happen
        -> Amount -- ^ Amount paid to fee

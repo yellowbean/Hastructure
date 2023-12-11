@@ -1520,7 +1520,7 @@
                         }
                     },
                     "pool": {
-                        "$ref": "#/components/schemas/Pool_Mortgage"
+                        "$ref": "#/components/schemas/PoolType_Mortgage"
                     },
                     "rateCap": {
                         "type": "object",
@@ -1580,6 +1580,123 @@
                     "net",
                     "startDate",
                     "endDate"
+                ]
+            },
+            "PoolType_Installment": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_Installment"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SoloPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_Installment"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/TestDeal_Installment"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ResecDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "Pool_AssetUnion": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "asOfDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/AssetUnion"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "assets",
+                    "asOfDate"
                 ]
             },
             "AssetUnion": {
@@ -2004,10 +2121,23 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
+                                "items": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -2392,11 +2522,14 @@
                                     },
                                     {
                                         "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PoolId"
                                     }
                                 ],
-                                "maxItems": 3,
+                                "maxItems": 4,
                                 "type": "array",
-                                "minItems": 3
+                                "minItems": 4
                             },
                             "tag": {
                                 "type": "string",
@@ -3767,7 +3900,20 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/PoolSource"
+                                "items": [
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PoolSource"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -5498,6 +5644,12 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5506,12 +5658,19 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5520,7 +5679,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -5540,6 +5700,12 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5548,12 +5714,19 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5562,12 +5735,19 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5576,12 +5756,19 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5590,16 +5777,30 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "maximum": 9223372036854775807,
-                                "type": "integer",
-                                "minimum": -9223372036854775808
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -5616,6 +5817,12 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5624,7 +5831,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -5644,6 +5852,12 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5652,12 +5866,40 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DealIssuanceBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5666,7 +5908,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -5700,6 +5943,12 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -5708,7 +5957,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -5754,10 +6004,23 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/PoolSource"
-                                },
-                                "type": "array"
+                                "items": [
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolSource"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -5786,11 +6049,17 @@
                                             "$ref": "#/components/schemas/PoolSource"
                                         },
                                         "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -5808,10 +6077,23 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/PoolSource"
-                                },
-                                "type": "array"
+                                "items": [
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolSource"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -5840,11 +6122,17 @@
                                             "$ref": "#/components/schemas/PoolSource"
                                         },
                                         "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -6070,6 +6358,12 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -6078,12 +6372,53 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FutureWaCurrentPoolBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -6092,7 +6427,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -6135,7 +6471,20 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Day"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -6153,7 +6502,20 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Day"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
                             },
                             "tag": {
                                 "type": "string",
@@ -6165,20 +6527,6 @@
                         "required": [
                             "tag",
                             "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "FutureOriginalPoolBalance"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag"
                         ]
                     },
                     {
@@ -6896,11 +7244,17 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 3,
+                                "maxItems": 4,
                                 "type": "array",
-                                "minItems": 3
+                                "minItems": 4
                             },
                             "tag": {
                                 "type": "string",
@@ -7057,6 +7411,12 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
@@ -7065,7 +7425,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
@@ -7191,6 +7552,27 @@
                                 "type": "string",
                                 "enum": [
                                     "Substract"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DealStats"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Subtract"
                                 ]
                             }
                         },
@@ -7449,6 +7831,92 @@
                 ],
                 "type": "object"
             },
+            "PoolType_Lease": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_Lease"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SoloPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_Lease"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/TestDeal_Lease"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ResecDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "Ledger": {
                 "type": "object",
                 "properties": {
@@ -7648,6 +8116,92 @@
                                 "type": "string",
                                 "enum": [
                                     "Multiple"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "PoolType_FixedAsset": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_FixedAsset"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SoloPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_FixedAsset"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/TestDeal_FixedAsset"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ResecDeal"
                                 ]
                             }
                         },
@@ -7996,7 +8550,7 @@
                         }
                     },
                     "pool": {
-                        "$ref": "#/components/schemas/Pool_Lease"
+                        "$ref": "#/components/schemas/PoolType_Lease"
                     },
                     "rateCap": {
                         "type": "object",
@@ -8220,7 +8774,7 @@
                         }
                     },
                     "pool": {
-                        "$ref": "#/components/schemas/Pool_Installment"
+                        "$ref": "#/components/schemas/PoolType_Installment"
                     },
                     "rateCap": {
                         "type": "object",
@@ -8269,6 +8823,7 @@
                     "EURIBOR3M",
                     "EURIBOR6M",
                     "EURIBOR12M",
+                    "BBSW",
                     "IRPH",
                     "SONIA"
                 ]
@@ -8685,6 +9240,110 @@
                                 "type": "string",
                                 "enum": [
                                     "FDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TestDeal_AssetUnion"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "UDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "PoolType_Loan": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_Loan"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SoloPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_Loan"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/TestDeal_Loan"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ResecDeal"
                                 ]
                             }
                         },
@@ -9360,15 +10019,21 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/PoolSource"
                                     },
                                     {
                                         "type": "string"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -9387,6 +10052,12 @@
                         "properties": {
                             "contents": {
                                 "items": [
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    },
                                     {
                                         "$ref": "#/components/schemas/PoolSource"
                                     },
@@ -9408,9 +10079,9 @@
                                         "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
+                                "maxItems": 3,
                                 "type": "array",
-                                "minItems": 2
+                                "minItems": 3
                             },
                             "tag": {
                                 "type": "string",
@@ -9556,6 +10227,92 @@
                                 "type": "string",
                                 "enum": [
                                     "AssetCurve"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "PoolType_Mortgage": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_Mortgage"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SoloPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_Mortgage"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/TestDeal_Mortgage"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ResecDeal"
                                 ]
                             }
                         },
@@ -9878,11 +10635,173 @@
                 ],
                 "type": "object"
             },
-            "CashFlowFrame": {
-                "items": {
-                    "$ref": "#/components/schemas/TsRow"
+            "TestDeal_AssetUnion": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/DealStatus"
+                    },
+                    "dates": {
+                        "$ref": "#/components/schemas/DateDesp"
+                    },
+                    "rateSwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateSwap"
+                        }
+                    },
+                    "currencySwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CurrencySwap"
+                        }
+                    },
+                    "fees": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Fee"
+                        }
+                    },
+                    "collects": {
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionRule"
+                        },
+                        "type": "array"
+                    },
+                    "custom": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CustomDataType"
+                        }
+                    },
+                    "ledgers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Ledger"
+                        }
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "waterfall": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Action"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "liqProvider": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LiqFacility"
+                        }
+                    },
+                    "bonds": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Bond"
+                        }
+                    },
+                    "overrides": {
+                        "items": {
+                            "$ref": "#/components/schemas/OverrideType"
+                        },
+                        "type": "array"
+                    },
+                    "accounts": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Account"
+                        }
+                    },
+                    "call": {
+                        "items": {
+                            "$ref": "#/components/schemas/CallOption"
+                        },
+                        "type": "array"
+                    },
+                    "triggers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/components/schemas/Trigger"
+                            }
+                        }
+                    },
+                    "pool": {
+                        "$ref": "#/components/schemas/PoolType_AssetUnion"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
+                    }
                 },
-                "type": "array"
+                "required": [
+                    "name",
+                    "status",
+                    "dates",
+                    "accounts",
+                    "fees",
+                    "bonds",
+                    "pool",
+                    "waterfall",
+                    "collects"
+                ]
+            },
+            "CashFlowFrame": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/TsRow"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CashFlowFrame"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "items": {
+                                        "$ref": "#/components/schemas/CashFlowFrame"
+                                    },
+                                    "type": "array"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiCashFlowFrame"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "Table_(Fixed_*_E2)_(Fixed_*_E2)": {
                 "items": {
@@ -9964,6 +10883,43 @@
                     "accBalance",
                     "accName"
                 ]
+            },
+            "PoolId": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PoolName"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PoolConsol"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "TsPoint_[AssetUnion]": {
                 "items": [
@@ -10144,7 +11100,7 @@
                         }
                     },
                     "pool": {
-                        "$ref": "#/components/schemas/Pool_Loan"
+                        "$ref": "#/components/schemas/PoolType_Loan"
                     },
                     "rateCap": {
                         "type": "object",
@@ -11204,6 +12160,92 @@
                 ],
                 "type": "object"
             },
+            "PoolType_AssetUnion": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_AssetUnion"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SoloPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_AssetUnion"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": [
+                                        {
+                                            "items": [
+                                                {
+                                                    "type": "string"
+                                                },
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/TestDeal_AssetUnion"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ResecDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
             "RateCap": {
                 "type": "object",
                 "properties": {
@@ -11348,7 +12390,7 @@
                         }
                     },
                     "pool": {
-                        "$ref": "#/components/schemas/Pool_FixedAsset"
+                        "$ref": "#/components/schemas/PoolType_FixedAsset"
                     },
                     "rateCap": {
                         "type": "object",
@@ -12906,7 +13948,10 @@
                                                 "$ref": "#/components/schemas/DealType"
                                             },
                                             {
-                                                "$ref": "#/components/schemas/CashFlowFrame"
+                                                "type": "object",
+                                                "additionalProperties": {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                }
                                             },
                                             {
                                                 "items": {
@@ -12959,7 +14004,10 @@
                                                 "$ref": "#/components/schemas/DealType"
                                             },
                                             {
-                                                "$ref": "#/components/schemas/CashFlowFrame"
+                                                "type": "object",
+                                                "additionalProperties": {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                }
                                             },
                                             {
                                                 "items": {
@@ -13010,7 +14058,10 @@
                                             "$ref": "#/components/schemas/DealType"
                                         },
                                         {
-                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "$ref": "#/components/schemas/CashFlowFrame"
+                                            }
                                         },
                                         {
                                             "items": {

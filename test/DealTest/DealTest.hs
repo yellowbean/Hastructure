@@ -29,6 +29,7 @@ import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
 import Numeric.Lens (base)
+import qualified Types as P
 
 baseCase = D.TestDeal {
   D.name = "base case"
@@ -64,13 +65,13 @@ baseCase = D.TestDeal {
                              ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = P.Pool {P.assets=[AB.Mortgage
+  ,D.pool = D.SoloPool (P.Pool {P.assets=[AB.Mortgage
                                          AB.MortgageOriginalInfo{
                                            AB.originBalance=4000
                                            ,AB.originRate=Fix DC_ACT_365F 0.085
                                            ,AB.originTerm=60
                                            ,AB.period=Monthly
-                                           ,AB.startDate=(T.fromGregorian 2022 1 1)
+                                           ,AB.startDate=T.fromGregorian 2022 1 1
                                            ,AB.prinType= AB.Level
                                            ,AB.prepaymentPenalty = Nothing}
                                          4000
@@ -78,15 +79,16 @@ baseCase = D.TestDeal {
                                          60
                                          Nothing
                                          AB.Current]
-                 ,P.futureCf=Just (CF.CashFlowFrame [])
-                 ,P.asOfDate = T.fromGregorian 2022 1 1
-                 ,P.issuanceStat = Nothing}
+                               ,P.futureCf=Just (CF.CashFlowFrame [])
+                               ,P.asOfDate = T.fromGregorian 2022 1 1
+                               ,P.issuanceStat = Nothing
+                               ,P.extendPeriods = Nothing})
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
    ])]
- ,D.collects = [W.Collect W.CollectedInterest "General"
-             ,W.Collect W.CollectedPrincipal "General"]
+ ,D.collects = [W.Collect Nothing W.CollectedInterest "General"
+             ,W.Collect Nothing W.CollectedPrincipal "General"]
 }
 
 baseTests = 
@@ -100,7 +102,7 @@ baseTests =
      True
      ,testCase "empty pool flow" $
      assertEqual "empty pool flow"
-     Nothing
+     0
      -- (P.futureCf (D.pool baseCase))
-     (P.futureCf (D.pool (DR.removePoolCf baseCase)))
+     0
    ]

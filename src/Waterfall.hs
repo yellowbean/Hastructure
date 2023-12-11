@@ -54,23 +54,23 @@ instance FromJSONKey ActionWhen where
 data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
               | ByAccountDraw LedgerName               -- Book amount equal to account draw amount
               | ByDS          LedgerName Direction DealStats     -- Book amount equal to a formula/deal stats
-              deriving (Show,Generic)
+              deriving (Show,Generic,Eq,Ord)
 
 data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there is deficit, draw another account to pay the shortfall
                   | SupportLiqFacility LiquidityProviderName     -- ^ if there is deficit, draw facility's available credit to pay the shortfall
                   | MultiSupport [ExtraSupport]                  -- ^ if there is deficit, draw multiple supports (by sequence in the list) to pay the shortfall
                   | WithCondition Pre ExtraSupport               -- ^ support only available if Pre is true
-                  deriving (Show,Generic)
+                  deriving (Show,Generic,Eq,Ord)
 
 data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Fee
             | CalcFee [FeeName]                                                            -- ^ calculate fee due amount in the fee names
             | PayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)              -- ^ pay fee with cash from account with optional limit or extra support
-            | PayFeeBySeq (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)              -- ^ pay fee with cash from account with optional limit or extra support
+            | PayFeeBySeq (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)         -- ^ pay fee with cash from account with optional limit or extra support
             | CalcAndPayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)       -- ^ combination of CalcFee and PayFee
             | PayFeeResidual (Maybe Limit) AccountName FeeName                             -- ^ pay fee regardless fee due amount
             -- Bond - Interest
-            | CalcBondInt [BondName]                                                       -- ^ calculate interest due amount in the bond names
+            | CalcBondInt [BondName] (Maybe DealStats) (Maybe DealStats)                   -- ^ calculate interest due amount in the bond names,with optional balance and rate
             | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay interest with cash from the account with optional limit or extra support
             | PayIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ with sequence
             | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)    -- ^ combination of CalcInt and PayInt
@@ -84,7 +84,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)     -- ^ pay int & prin to bonds sequentially
             | AccrueAndPayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
             -- Pool/Asset change
-            | BuyAsset (Maybe Limit) PricingMethod AccountName                              -- ^ buy asset from revolving assumptions using funds from account
+            | BuyAsset (Maybe Limit) PricingMethod AccountName (Maybe PoolId)               -- ^ buy asset from revolving assumptions using funds from account
             | LiquidatePool PricingMethod AccountName                                       -- ^ sell all assets and deposit proceeds to account
             -- Liquidation support
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType AccountName  -- ^ draw credit and deposit to account/fee/bond interest/principal
@@ -107,13 +107,13 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | RunTrigger DealCycle TriggerName        -- ^ update the trigger status during the waterfall execution
             -- Debug
             | WatchVal (Maybe String) [DealStats]     -- ^ inspect vals during the waterfall execution
-            deriving (Show,Generic)
+            deriving (Show,Generic,Eq,Ord)
 
 type DistributionSeq = [Action]
 
-data CollectionRule = Collect PoolSource AccountName                   -- ^ collect a pool source from pool collection and deposit to an account
-                    | CollectByPct PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
-                    deriving (Show,Generic)
+data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName                   -- ^ collect a pool source from pool collection and deposit to an account
+                    | CollectByPct (Maybe [PoolId]) PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
+                    deriving (Show,Generic,Eq,Ord)
 
 
 $(deriveJSON defaultOptions ''Action)

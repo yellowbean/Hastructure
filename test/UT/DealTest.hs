@@ -27,6 +27,7 @@ import Types
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
+import Types (PoolId(PoolConsol))
 
 td2 = D.TestDeal {
   D.name = "test deal1"
@@ -92,7 +93,8 @@ td2 = D.TestDeal {
                                ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = P.Pool {P.assets=[AB.Mortgage
+  ,D.pool = D.SoloPool $ 
+                      P.Pool {P.assets=[AB.Mortgage
                                          AB.MortgageOriginalInfo{
                                            AB.originBalance=4000
                                            ,AB.originRate=Fix DC_ACT_365F 0.085
@@ -129,8 +131,8 @@ td2 = D.TestDeal {
                                  ,(W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
    ])]
- ,D.collects = [W.Collect W.CollectedInterest "General"
-             ,W.Collect W.CollectedPrincipal "General"]
+ ,D.collects = [W.Collect Nothing W.CollectedInterest "General"
+             ,W.Collect Nothing W.CollectedPrincipal "General"]
  ,D.custom = Nothing
  ,D.call = Nothing
  ,D.liqProvider = Just $ Map.fromList $
@@ -198,6 +200,7 @@ triggerTests = testGroup "Trigger Tests"
                      ,CF.MortgageDelinqFlow (toDate "20220601") 400 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
                      ,CF.MortgageDelinqFlow (toDate "20220701") 300 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
                      ]
+      poolflowM = Map.fromList [(PoolConsol, poolflows)]
       ads = [PoolCollection (toDate "20220201") "" 
              ,RunWaterfall  (toDate "20220225") ""
              ,PoolCollection (toDate "20220301")""
@@ -210,7 +213,7 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_) = run td2 poolflows (Just ads) Nothing Nothing Nothing []
+      (fdeal,_) = run td2 poolflowM (Just ads) Nothing Nothing Nothing []
     in 
       testCase "deal becomes revolving" $
       assertEqual "revoving" 

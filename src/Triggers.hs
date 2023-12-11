@@ -34,14 +34,14 @@ data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal
                    | BuyAsset AccountName PricingMethod         -- ^ buy asset from the assumption using funds from account
                    | TriggerEffects [TriggerEffect]             -- ^ a combination of effects above
                    | DoNothing                                  -- ^ do nothing
-                   deriving (Show, Eq, Generic)
+                   deriving (Show, Eq, Generic,Ord)
  
 data Trigger = Trigger {
             trgCondition :: Pre                       -- ^ condition to trigger 
             ,trgEffects :: TriggerEffect              -- ^ what happen if it was triggered
             ,trgStatus :: Bool                        -- ^ if it is triggered or not 
             ,trgCurable :: Bool                       -- ^ if it is curable trigger
-            } deriving (Show, Eq, Generic)
+            } deriving (Show, Eq, Generic,Ord)
 
 makeLensesFor [("trgStatus","trgStatusLens") ,("trgEffects","trgEffectsLens") ,("trgCondition","trgConditionLens") ,("trgCurable","trgCurableLens")] ''Trigger
 

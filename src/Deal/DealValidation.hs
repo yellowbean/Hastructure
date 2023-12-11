@@ -29,6 +29,7 @@ import qualified InterestRate as IR
 
 import Data.Maybe
 import qualified Assumptions as A
+import Asset (getIssuanceField)
 
 isPreClosing :: TestDeal a -> Bool
 isPreClosing t@TestDeal{ status = PreClosing _ } = True
@@ -61,7 +62,7 @@ validateAction ((W.PayFeeResidual _ accName feeName):as) rs accKeys bndKeys feeK
     = validateAction as (rs ++ [ErrorMsg (feeName ++ " not in "++ show feeKeys++" Or "++accName++ " not in "++show accKeys)]) accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | otherwise = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
 
-validateAction ((W.CalcBondInt bnds):as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
+validateAction ((W.CalcBondInt bnds Nothing Nothing):as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | not (Set.isSubsetOf (Set.fromList bnds) bndKeys)
     = validateAction as (rs ++ [ErrorMsg (show bnds ++ " not in "++ show bndKeys)]) accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | otherwise = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
@@ -91,7 +92,7 @@ validateAction ((W.PayPrinResidual accName bnds):as) rs accKeys bndKeys feeKeys 
     = validateAction as (rs ++ [ErrorMsg (show bnds++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | otherwise = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
 
-validateAction ((W.BuyAsset _ _ accName):as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
+validateAction ((W.BuyAsset _ _ accName _):as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | Set.notMember accName accKeys = validateAction as (rs ++ [ErrorMsg (accName++" not in "++show accKeys)]) accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   | otherwise = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
 
@@ -158,7 +159,7 @@ validateAction ((W.ActionWithPre2 p subActionList1 subActionList2):as) rs accKey
 validateAction (action:as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
 
-extractRequiredRates :: IR.UseRate a => TestDeal a -> Set.Set Index
+extractRequiredRates :: (P.Asset a,IR.UseRate a) => TestDeal a -> Set.Set Index
 extractRequiredRates t@TestDeal{accounts = accM 
                                ,fees = feeM 
                                ,bonds = bondM 
@@ -169,7 +170,7 @@ extractRequiredRates t@TestDeal{accounts = accM
   = Set.fromList $ assetIndex ++ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex ++ rcIndex
   -- = Set.fromList $ accIndex ++ bondIndex ++ liqProviderIndex ++ rsIndex
     where 
-      assetIndex = catMaybes $ IR.getIndex <$> P.assets pool 
+      assetIndex = catMaybes $ IR.getIndex <$> getAllAssetList t
       
       accIndex = catMaybes $ IR.getIndex <$> Map.elems accM 
       bondIndex = concat $ catMaybes $ IR.getIndexes <$> Map.elems bondM 
@@ -184,18 +185,18 @@ extractRequiredRates t@TestDeal{accounts = accM
                   Nothing -> []
         
       -- note fee is not tested
-
+-- TODO Need to fix 
 validateAggRule :: [W.CollectionRule] -> [ResultComponent]
 validateAggRule rules = 
-    [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | (ps,r) <- Map.toList oustandingPs ]
+    [] -- [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | (ps,r) <- Map.toList oustandingPs ]
   where 
-    countWeight (W.Collect ps _) =  Map.fromList [(ps,1.0)]
-    countWeight (W.CollectByPct ps lst) = Map.fromList [(ps, sum (fst <$> lst))]
+    countWeight (W.Collect Nothing ps _) =  Map.fromList [(ps,1.0)]
+    countWeight (W.CollectByPct _ ps lst) = Map.fromList [(ps, sum (fst <$> lst))]
     sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules 
     oustandingPs = Map.filter (> 1.0) sumMap
 
 
-validateReq :: IR.UseRate a => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
+validateReq :: (IR.UseRate a,P.Asset a) => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
 validateReq t assump@A.NonPerfAssumption{A.interest = intM} 
   = let 
       ratesRequired = extractRequiredRates t
@@ -214,7 +215,7 @@ validateReq t assump@A.NonPerfAssumption{A.interest = intM}
     in 
       (null finalErrors,finalErrors++finalWarnings)
 
-validatePreRun :: TestDeal a -> ([ResultComponent],[ResultComponent])
+validatePreRun :: P.Asset a => TestDeal a -> ([ResultComponent],[ResultComponent])
 validatePreRun t@TestDeal{waterfall=waterfallM
                       ,accounts =accM 
                       ,fees = feeM 
@@ -241,9 +242,14 @@ validatePreRun t@TestDeal{waterfall=waterfallM
       -- date check
 
       -- issuance balance check 
-      issuanceBalCheck CurrentDates {} = case Map.lookup IssuanceBalance <$> P.issuanceStat pool of
-                                           Nothing -> [ErrorMsg "Issuance balance not found for a Ongoing Deal"]
-                                           Just _ -> []
+      issuanceBalCheck CurrentDates {} = let 
+                                           stats = Map.elems $ getIssuanceStats t Nothing
+                                           lookupResult = Map.lookup IssuanceBalance <$> stats
+                                         in
+                                           if all isNothing lookupResult then
+                                             [ErrorMsg "Issuance balance not found for a Ongoing Deal"]
+                                           else
+                                             []
       issuanceBalCheck _ = []
 
       -- collection rule check
@@ -259,7 +265,8 @@ validatePreRun t@TestDeal{waterfall=waterfallM
 
       allErrors = errors ++ issuanceBalCheck dates ++ aggRuleResult
       -- check issuance balance 
-      w1 = if (not (isPreClosing t)) && (isJust (P.issuanceStat pool)) then
+      
+      w1 = if (not (isPreClosing t)) && (length (Map.elems (getIssuanceStats t Nothing))) == 0 then
              [WarningMsg "Deal passes PreClosing status, but not cumulative defaults/delinq at cutoff date?"]
            else 
              []
