@@ -5,11 +5,13 @@ on:
     types:
       - closed
 
+
 jobs:
   if_merged:
     if: github.event.pull_request.merged
 
     runs-on: ubuntu-latest
+
     steps:
       -
         name: Set up QEMU
@@ -23,7 +25,13 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_PW }}
-          
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: yellowbean/hastructure
+
       - name: 'Cleanup build folder'
         run: |
           ls -la ./
@@ -32,7 +40,6 @@ jobs:
           ls -la .
           rm -rf /opt/ghc
           rm -rf /opt/hostedtoolcache
-
       -
         name: Build and push
         uses: docker/build-push-action@v3
@@ -42,3 +49,12 @@ jobs:
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:dev
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max
+
+      -
+        name: Build and push - with version
+        uses: docker/build-push-action@v3
+        with:
+          context: "{{defaultContext}}"
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
