@@ -406,23 +406,28 @@ firstDate (CashFlowFrame rs) = getDate $ head rs
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame 
 combine (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame $ combineTss [] txn1 txn2
 
+buildCollectedCF :: [[TsRow]] -> [Date] -> [TsRow] -> [[TsRow]]
+buildCollectedCF [] [] [] = []
+buildCollectedCF trs ds [] = trs
+buildCollectedCF trs [d] _trs = trs ++ [cutBy Inc Past d _trs]
+buildCollectedCF trs (d:ds) _trs =
+  case newFlow of
+    [] -> if null (last trs) then 
+            buildCollectedCF (trs++[[]]) ds _trs
+          else 
+            buildCollectedCF (trs++[[((viewTsRow d) . last .last) trs]]) ds _trs `debug` ("viewing trs"++ show trs)
+    newFlow -> buildCollectedCF (trs++[newFlow]) ds remains
+  where 
+    (newFlow, remains) = splitBy d Inc _trs
+
+
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates trs ds =
   map 
     (\(x,_d) -> sumTsCF x _d) 
     (filter 
       (\(y,__d) -> not (null y))
-      (zip (reduceFn [] ds trs) ds)) 
-  where
-    reduceFn accum _ [] =  accum  
-    reduceFn accum [cutoffDay] _trs =
-      accum ++ [cutBy Inc Past cutoffDay _trs]
-    reduceFn accum (cutoffDay:cutoffDays) _trs =
-      case newAcc of
-        [] -> reduceFn (accum++[[ ((viewTsRow cutoffDay) . last . last) accum]]) cutoffDays _trs     --  `debug` ("Adding empty")
-        newFlow -> reduceFn (accum++[newAcc]) cutoffDays rest --  `debug` ("Adding "++show(newAcc)++" cutoffDay "++show(cutoffDay))
-      where
-        (newAcc, rest) = splitBy cutoffDay Inc _trs
+      (zip (buildCollectedCF [] ds trs) ds)) 
 
 
 mflowPrincipal :: TsRow -> Balance

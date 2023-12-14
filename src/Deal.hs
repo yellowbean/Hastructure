@@ -730,11 +730,10 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pCfM
     -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
-    
-    poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsM
-    begRowM = Map.map (\x -> (buildBegTsRow startDate . head) x:[]) poolAggCfM
+    poolCfTsMwithBegRow = Map.map (\(x:xs) -> buildBegTsRow startDate x:x:xs) poolCfTsM
+    poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow
     -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
-    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame $  Map.unionWith (++) begRowM poolAggCfM
+    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame  poolAggCfM
     -- if preclosing deal , issuance balance is using beg balance of projected cashflow
     -- if it is ongoing deal, issuance balance is user input ( deal is not aware of issuance balance as point of time)
     -- issuanceBalance = case status t of
@@ -754,7 +753,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     -- newPoolStat = Map.unionWith (+) (fromMaybe Map.empty (P.issuanceStat thePool)) historyStats
     -- newT = t {fees = newFeeMap, pool = thePool {P.issuanceStat = Just newPoolStat } } `debug` ("init with new pool stats"++ show newPoolStat)
     newT = t {fees = newFeeMap
-             , pool = patchIssuanceBalance status (Map.map (CF.mflowBalance . head) begRowM) thePool
+             , pool = patchIssuanceBalance status (Map.map (CF.mflowBalance . head) poolAggCfM) thePool
              } -- patching with performing balance
 
 -- ^ UI translation : to read pool cash

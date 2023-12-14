@@ -166,14 +166,10 @@ getAllAssetList :: P.Asset a => TestDeal a -> [a]
 getAllAssetList t = concat $ Map.elems (getAllAsset t Nothing)
 
 getPoolsByName :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (P.Pool a)
-getPoolsByName TestDeal{pool = pt} Nothing = 
-  case pt of 
-    SoloPool p -> Map.fromList [(PoolConsol,p)]
-    MultiPool pm -> pm
-getPoolsByName TestDeal{pool = pt} (Just pNames) =
-  case pt of
-    SoloPool _ -> error $ "Can't lookup"++ show pNames ++"In a Solo Pool deal"
-    MultiPool pm -> Map.filterWithKey (\k _ -> k `elem` pNames) pm
+getPoolsByName TestDeal{pool = (SoloPool p)} Nothing = Map.fromList [(PoolConsol,p)]
+getPoolsByName TestDeal{pool = (MultiPool pm)} Nothing = pm
+getPoolsByName t@TestDeal{pool = (SoloPool _ ),name = n } (Just pNames) =  error $ "Can't lookup"++ show pNames ++"In a Solo Pool deal"++ show (pool t)
+getPoolsByName TestDeal{pool = (MultiPool pm )} (Just pNames) = Map.filterWithKey (\k _ -> k `elem` pNames) pm
 
 getAllCollectedFrame :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.CashFlowFrame)
 getAllCollectedFrame t@TestDeal{pool = pt} mPns = Map.map P.futureCf $ getPoolsByName t mPns 

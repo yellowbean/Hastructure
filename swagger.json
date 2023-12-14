@@ -14144,7 +14144,7 @@
         }
     },
     "info": {
-        "version": "0.23.4",
+        "version": "0.24.0",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
