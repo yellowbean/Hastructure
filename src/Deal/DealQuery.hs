@@ -25,6 +25,7 @@ import qualified Expense as F
 import qualified Triggers as Trg
 import qualified CreditEnhancement as CE
 import qualified Hedge as H
+import qualified Analytics as A
 import Stmt
 import Util
 import DateUtil
@@ -49,7 +50,7 @@ calcTargetAmount t d (A.Account _ _ _ (Just r) _ ) =
        A.FixReserve amt -> amt
        A.Either p ra1 ra2 -> if testPre d t p then 
                                 eval ra1
-                            else 
+                             else 
                                 eval ra2 
        A.Max ras -> maximum' $ eval <$> ras
        A.Min ras -> minimum' $ eval <$> ras
@@ -130,7 +131,8 @@ queryDealRate t s =
       Constant r -> r
       Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
       Min ss -> toRational $ minimum' [ queryDealRate t s | s <- ss ]
-      Substract (s1:ss) -> toRational $ (queryDealRate t s1) - (queryDealRate t (Sum ss))
+      Subtract (s1:ss) -> toRational $ (queryDealRate t s1) - queryDealRate t (Sum ss)
+      Substract (s1:ss) -> toRational $ (queryDealRate t s1) - queryDealRate t (Sum ss)
       Sum ss -> toRational $ sum $ (queryDealRate t) <$> ss  
       Avg ss -> toRational (queryDealRate t (Sum ss)) / (toRational (length ss))
 
@@ -241,6 +243,11 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in 
         sum $ maybe 0 CF.mflowBalance <$> ltc
 
+    FutureCurrentSchedulePoolBalance mPns ->
+      let 
+        scheduleFlowM = Map.elems $ view dealScheduledCashflow t
+      in 
+        sum $ maybe 0 (CF.mflowBalance . head . view CF.cashflowTxn) <$> scheduleFlowM
     
     FutureCurrentPoolBegBalance mPns ->
       let 
@@ -251,19 +258,9 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     PoolCollectionHistory incomeType fromDay asOfDay mPns ->
       sum fieldAmts
       where
-        fieldAmts = map
-                      (case incomeType of 
-                        CollectedInterest -> CF.mflowInterest 
-                        CollectedPrincipal -> CF.mflowPrincipal 
-                        CollectedPrepayment -> CF.mflowPrepayment
-                        CollectedRecoveries -> CF.mflowRecovery
-                        CollectedPrepaymentPenalty -> CF.mflowPrepaymentPenalty
-                        CollectedCash  -> CF.tsTotalCash
-                        -- TODO add cash here
-                        )
-                      subflow  
         mTxns = Map.elems $ getAllCollectedTxns t mPns
         subflow = sliceBy EI fromDay asOfDay $ concat $ fromMaybe [] <$> mTxns
+        fieldAmts = map (`CF.lookupSource` incomeType) subflow  
 
     CumulativePoolDefaultedBalance mPns ->
         let
@@ -332,7 +329,23 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       --           in  
       --             sum $ CF.lookupSource theCollection <$> ps
       --       Nothing -> 0.0
-
+    FuturePoolCfPv asOfDay pm mPns -> 
+      let 
+        pCfTxns = Map.map (maybe [] CF.getTsCashFlowFrame) $ getScheduledCashflow t mPns
+        txns = concat $ Map.elems pCfTxns
+        txnsCfs = CF.tsTotalCash <$> txns
+        txnsDs = getDate <$> txns
+        txnsRates = CF.mflowRate <$> txns
+        scheduleBal = queryDeal t (FutureCurrentSchedulePoolBalance mPns)
+        curBal = queryDeal t (FutureCurrentPoolBalance mPns)
+        factor = curBal / scheduleBal
+        cfForPv = (factor *) <$> txnsCfs
+        pvs = case pm of
+                PvRate r -> uncurry (A.pv2 (fromRational r) asOfDay) <$> zip txnsDs cfForPv
+                PvByRef ds -> uncurry (A.pv2 (queryDealRate t ds) asOfDay) <$> zip txnsDs cfForPv
+                _ -> error $ "Failed to use pricing method on pool" ++ show pm ++"on pool id"++ show mPns
+      in 
+        sum pvs
 
     CurrentBondBalanceOf bns -> sum $ L.bndBalance . (bndMap Map.!) <$> bns
 

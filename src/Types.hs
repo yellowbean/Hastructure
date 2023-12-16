@@ -463,6 +463,8 @@ data DealStats = CurrentBondBalance
                | ReserveAccGapAt Date [AccName] 
                | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance (Maybe [PoolId])
+               | FutureCurrentSchedulePoolBalance (Maybe [PoolId])
+               | FuturePoolCfPv Date PricingMethod (Maybe [PoolId])
                | FutureWaCurrentPoolBalance Date Date (Maybe [PoolId])
                -- | FutureCurrentPoolBegBalance Date
                | FutureCurrentPoolBegBalance (Maybe [PoolId])
@@ -770,8 +772,10 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
                    | PV IRate IRate                   -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
+                   | PvRate Rate                      -- ^ [CF] Pricing cashflow with a constant rate
+                   | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
-                   deriving (Show, Eq ,Generic,Ord)
+                   deriving (Show, Eq ,Generic, Read,Ord)
 
 type Valuation = Centi
 type PerFace = Micro

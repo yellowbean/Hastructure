@@ -424,7 +424,7 @@ buildCollectedCF trs (d:ds) _trs =
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates trs ds =
   map 
-    (\(x,_d) -> sumTsCF x _d) 
+    (uncurry sumTsCF) 
     (filter 
       (\(y,__d) -> not (null y))
       (zip (buildCollectedCF [] ds trs) ds)) 
