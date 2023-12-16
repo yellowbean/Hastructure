@@ -45,7 +45,7 @@ calcDuration d ps pricingCurve
 -- ^ calculate present value of input amount in future with given a curve and PV date
 pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc today d amt = 
-   realToFrac $ (realToFrac amt) * (1 / factor) --  `debug` ("DF:"++show factor++" PV AMT"++show amt)
+  realToFrac $ (realToFrac amt) * (1 / factor) --  `debug` ("DF:"++show factor++" PV AMT"++show amt)
   where
    distance::Double = fromIntegral $ daysBetween today d
    discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
@@ -54,10 +54,10 @@ pv pc today d amt =
 -- ^ calculate present value in the future using constant rate
 pv2 :: IRate -> Date -> Date -> Amount -> Amount
 pv2 discount_rate today d amt =
-    mulBI amt $ 1/denominator -- `debug` ("days between->"++show d ++show today++">>>"++show distance )
+  realToFrac $ (realToFrac amt) * (1/denominator) 
   where
-    denominator = (1+discount_rate) ^^ (fromInteger (div distance 365))
-    distance = daysBetween today d 
+    denominator::Double = (1 + realToFrac discount_rate) ** (distance / 365)
+    distance::Double = fromIntegral $ daysBetween today d 
 
 -- ^ calcualte present value given a series of amount with dates
 pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 

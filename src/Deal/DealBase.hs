@@ -6,7 +6,8 @@
 
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
-                     ,getIssuanceStatsConsol,getAllCollectedTxnsList,getPoolsByName,getScheduledCashflow,dealScheduledCashflow) 
+                     ,getIssuanceStatsConsol,getAllCollectedTxnsList,getPoolsByName,getScheduledCashflow,dealScheduledCashflow
+                     ,getPoolIds) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -152,6 +153,13 @@ dealScheduledCashflow = lens getter setter
                                            in
                                              set dealPool (MultiPool newPm) d
 
+getPoolIds :: P.Asset a => TestDeal a -> [PoolId]
+getPoolIds t@TestDeal{pool = pt} 
+  = case pt of
+      SoloPool _ -> [PoolConsol]
+      MultiPool pm ->Map.keys pm
+
+
 -- ^ get issuance pool stat from pool map
 getIssuanceStats :: P.Asset a => TestDeal a  -> Maybe [PoolId] -> Map.Map PoolId (Map.Map CutoffFields Balance)
 getIssuanceStats t@TestDeal{pool = pt} mPoolId
@@ -184,6 +192,7 @@ getAllAssetList t = concat $ Map.elems (getAllAsset t Nothing)
 getPoolsByName :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (P.Pool a)
 getPoolsByName TestDeal{pool = (SoloPool p)} Nothing = Map.fromList [(PoolConsol,p)]
 getPoolsByName TestDeal{pool = (MultiPool pm)} Nothing = pm
+getPoolsByName t@TestDeal{pool = (SoloPool p ),name = n } (Just [PoolConsol]) = Map.fromList [(PoolConsol,p)]
 getPoolsByName t@TestDeal{pool = (SoloPool _ ),name = n } (Just pNames) =  error $ "Can't lookup"++ show pNames ++"In a Solo Pool deal"++ show (pool t)
 getPoolsByName TestDeal{pool = (MultiPool pm )} (Just pNames) = Map.filterWithKey (\k _ -> k `elem` pNames) pm
 

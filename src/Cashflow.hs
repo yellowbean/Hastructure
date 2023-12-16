@@ -566,9 +566,9 @@ emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 
 viewTsRow :: Date -> TsRow -> TsRow 
 -- ^ take a snapshot of a record
-viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 0 k l m
-viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 0 j k l
-viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 0 k
+viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 j k l m
+viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 i j k l
+viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
 viewTsRow _d (LeaseFlow a b c ) = LeaseFlow _d b 0
 viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
 

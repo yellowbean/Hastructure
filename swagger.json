@@ -1396,6 +1396,9 @@
                             "type": "number"
                         }
                     },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
                     "asOfDate": {
                         "$ref": "#/components/schemas/Day"
                     },
@@ -1677,6 +1680,9 @@
                             "multipleOf": 1.0e-2,
                             "type": "number"
                         }
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
                     },
                     "asOfDate": {
                         "$ref": "#/components/schemas/Day"
@@ -4975,6 +4981,9 @@
                             "type": "number"
                         }
                     },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
                     "asOfDate": {
                         "$ref": "#/components/schemas/Day"
                     },
@@ -6368,6 +6377,92 @@
                                 "type": "string",
                                 "enum": [
                                     "FutureCurrentPoolBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FutureCurrentSchedulePoolBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/PricingMethod"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PoolScheduleCfPv"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PricingMethod"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FuturePoolScheduleCfPv"
                                 ]
                             }
                         },
@@ -8423,6 +8518,9 @@
                             "type": "number"
                         }
                     },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
                     "asOfDate": {
                         "$ref": "#/components/schemas/Day"
                     },
@@ -9864,6 +9962,9 @@
                             "multipleOf": 1.0e-2,
                             "type": "number"
                         }
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
                     },
                     "asOfDate": {
                         "$ref": "#/components/schemas/Day"
@@ -11811,6 +11912,43 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
+                                    "PvRate"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStats"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "PvByRef"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
                                     "Custom"
                                 ]
                             }
@@ -13226,6 +13364,9 @@
                             "multipleOf": 1.0e-2,
                             "type": "number"
                         }
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
                     },
                     "asOfDate": {
                         "$ref": "#/components/schemas/Day"

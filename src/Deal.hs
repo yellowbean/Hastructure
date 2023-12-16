@@ -281,7 +281,6 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                -- deposit cashflow to SPV from external pool cf               
                accs = depositPoolFlow (collects t) d collectedFlow accMap -- `debug` ("Collected"++ show d++"pool CF\n"++ show collectedFlow)--  `debug` ("Running AD P"++show(d)) --`debug` ("Deposit-> Collection Date "++show(d)++"with"++show(collected_flow))
                dAfterDeposit = (appendCollectedCF d t collectedFlow) {accounts=accs}   -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
-               -- TODO remove schedule cf within SPV by date
                
                -- newScheduleFlowMap = Map.map (over CF.cashflowTxn (cutBy Exc Future d)) (fromMaybe Map.empty (getScheduledCashflow t Nothing))
                dealAfterUpdateScheduleFlow = over dealScheduledCashflow 
@@ -566,7 +565,7 @@ populateDealDates (CustomDates cutoff pa closing ba)
     ,getDate (head ba)
     ,pa
     ,ba
-    ,(getDate (max (last pa) (last ba))))
+    ,getDate (max (last pa) (last ba)))
 
 populateDealDates (PatternInterval _m) 
   = (cutoff,closing,nextPay,pa,ba,max ed1 ed2) -- `debug` ("PA>>>"++ show pa)
@@ -748,15 +747,10 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow
     -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
     pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame poolAggCfM
-
     
     pScheduleCfM = case thePool of
                      (SoloPool p) 
                        -> Map.fromList [(PoolConsol,P.aggPool (P.issuanceStat p) $ runPool p Nothing (AP.interest =<< mNonPerfAssump))]
-                     (MultiPool pm)
-                       -> Map.mapWithKey 
-                             (\k p -> P.aggPool (P.issuanceStat p) $ runPool p Nothing (AP.interest =<< mNonPerfAssump))
-                             pm
                      (MultiPool pm) 
                        -> Map.map (\p -> P.aggPool (P.issuanceStat p) $ runPool p Nothing (AP.interest =<< mNonPerfAssump)) pm
     pTxnOfSpv = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pScheduleCfM

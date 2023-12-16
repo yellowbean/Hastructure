@@ -76,6 +76,7 @@ patchDateToStats d t
          FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
          BondTxnAmt ns mCmt -> BondTxnAmtBy d ns mCmt
          AccTxnAmt ns mCmt -> AccTxnAmtBy d ns mCmt
+         PoolScheduleCfPv pm pns -> FuturePoolScheduleCfPv d pm pns
          _ -> t
 
 
@@ -329,7 +330,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       --           in  
       --             sum $ CF.lookupSource theCollection <$> ps
       --       Nothing -> 0.0
-    FuturePoolCfPv asOfDay pm mPns -> 
+    FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
         pCfTxns = Map.map (maybe [] CF.getTsCashFlowFrame) $ getScheduledCashflow t mPns
         txns = concat $ Map.elems pCfTxns
@@ -337,15 +338,17 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         txnsDs = getDate <$> txns
         txnsRates = CF.mflowRate <$> txns
         scheduleBal = queryDeal t (FutureCurrentSchedulePoolBalance mPns)
-        curBal = queryDeal t (FutureCurrentPoolBalance mPns)
-        factor = curBal / scheduleBal
+        curBal = queryDeal t (FutureCurrentPoolBalance mPns) 
+        factor = case scheduleBal of 
+                   0.00 -> 0  
+                   _ -> curBal / scheduleBal 
         cfForPv = (factor *) <$> txnsCfs
         pvs = case pm of
                 PvRate r -> uncurry (A.pv2 (fromRational r) asOfDay) <$> zip txnsDs cfForPv
                 PvByRef ds -> uncurry (A.pv2 (queryDealRate t ds) asOfDay) <$> zip txnsDs cfForPv
                 _ -> error $ "Failed to use pricing method on pool" ++ show pm ++"on pool id"++ show mPns
       in 
-        sum pvs
+        sum pvs -- `debug` ("Done with schedule pool pv")
 
     CurrentBondBalanceOf bns -> sum $ L.bndBalance . (bndMap Map.!) <$> bns
 

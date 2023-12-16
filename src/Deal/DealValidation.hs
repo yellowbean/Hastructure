@@ -185,15 +185,24 @@ extractRequiredRates t@TestDeal{accounts = accM
                   Nothing -> []
         
       -- note fee is not tested
--- TODO Need to fix 
-validateAggRule :: [W.CollectionRule] -> [ResultComponent]
-validateAggRule rules = 
-    [] -- [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | (ps,r) <- Map.toList oustandingPs ]
+validateAggRule :: [W.CollectionRule] -> [PoolId] -> [ResultComponent]
+validateAggRule rules validPids = 
+    [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | ((pid,ps),r) <- Map.toList oustandingPs ]
+    ++ [ErrorMsg ("Pool Id not found"++show ospid++"in "++ show validPids) | ospid <- osPid ]
   where 
-    countWeight (W.Collect Nothing ps _) =  Map.fromList [(ps,1.0)]
-    countWeight (W.CollectByPct _ ps lst) = Map.fromList [(ps, sum (fst <$> lst))]
+    countWeight (W.Collect (Just pids) ps _) =  Map.fromList [((pid,ps),1.0) | pid <- pids]
+    countWeight (W.Collect Nothing ps _) =  Map.fromList [((PoolConsol,ps),1.0)]
+    countWeight (W.CollectByPct (Just pids) ps lst) = Map.fromList [((pid,ps), pct) | pid <- pids, pct <- fst <$> lst]
+    countWeight (W.CollectByPct Nothing ps lst) = Map.fromList [((PoolConsol, ps),pct)| pct <- fst <$> lst]
+    
     sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules 
     oustandingPs = Map.filter (> 1.0) sumMap
+
+    getPids (W.Collect (Just pids) _ _) = pids
+    getPids (W.Collect Nothing ps _) = [PoolConsol]
+    getPids (W.CollectByPct (Just pids) _ _) = pids
+    getPids (W.CollectByPct Nothing _ _ ) = [PoolConsol]
+    osPid = Set.elems $ Set.difference (Set.fromList (concat (getPids <$> rules))) (Set.fromList validPids)
 
 
 validateReq :: (IR.UseRate a,P.Asset a) => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
@@ -239,6 +248,7 @@ validatePreRun t@TestDeal{waterfall=waterfallM
       rateCapKeys = maybe Set.empty Map.keysSet rcM
       ledgerKeys = maybe Set.empty Map.keysSet ledgerM
       triggerKeys = maybe Set.empty Map.keysSet triggerM
+      poolIds = getPoolIds t
       -- date check
 
       -- issuance balance check 
@@ -251,9 +261,9 @@ validatePreRun t@TestDeal{waterfall=waterfallM
                                            else
                                              []
       issuanceBalCheck _ = []
-
+    
       -- collection rule check
-      aggRuleResult = validateAggRule aggRule
+      aggRuleResult = validateAggRule aggRule poolIds 
       -- TODO : collectCash shouldn't overlap with others
 
       -- waterfall key not exists test error
