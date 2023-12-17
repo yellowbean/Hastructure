@@ -1,5 +1,19 @@
 # Changelog for Hastructure
 
+## 0.24.1
+### 2023-12-17
+* NEW: add `payIntBySeq` which pay interest to bonds sequentially with optional limit
+* NEW: add condition to "ExtraSupport" ,which support only available if a <predicate> is satisfied 
+* NEW: add `Nothing` to trigger effects
+* NEW: add `payFeeBySeq` to which pay a list of fees sequentially with optional limit
+* NEW: add a fee type which due amount is X per pool collection period
+* NEW: add a fee type which is a lookup table with look up value from a formula
+* NEW: add override feature `rate` and `balance` to `calcDueInt` action in waterfall.
+* NEW: multiple pool support !! now engine support multiple pools in a deal with mixed assets.
+* NEW: add query on `present value on schedule pool cashflow`, which enable `Yield Maitenance Overcollaterisaztion` supports
+
+
+
 ## 0.23.1
 ### 2023-11-16
 * NEW: new asset class `FixAsset` type , which yield cashflow given a `capacity` and assumption called `utilization rate curve`. The new asset type is applicable to Hotel booking/EV Charge station/Solar Panel/Wind Power type.

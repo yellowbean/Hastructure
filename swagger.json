@@ -6410,6 +6410,27 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FutureCurrentSchedulePoolBegBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/PricingMethod"
@@ -14285,7 +14306,7 @@
         }
     },
     "info": {
-        "version": "0.24.0",
+        "version": "0.24.1",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"
