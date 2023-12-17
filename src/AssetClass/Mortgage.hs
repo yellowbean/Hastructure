@@ -334,7 +334,7 @@ instance Ast.Asset Mortgage where
 
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows _)  d _ = CF.CashFlowFrame flows
-  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates = error "TBD"
+  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates = error "to be implement on adjust rate mortgage"
   
   getCurrentBal (Mortgage _ _bal _ _ _ _) = _bal
   getCurrentBal (AdjustRateMortgage _ _ _bal _ _ _ _) = _bal

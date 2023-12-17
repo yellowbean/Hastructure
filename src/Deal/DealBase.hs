@@ -6,7 +6,8 @@
 
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
-                     ,getIssuanceStatsConsol,getAllCollectedTxnsList,getPoolsByName) 
+                     ,getIssuanceStatsConsol,getAllCollectedTxnsList,getPoolsByName,getScheduledCashflow,dealScheduledCashflow
+                     ,getPoolIds) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -47,6 +48,7 @@ import Data.IntMap (filterWithKey)
 import qualified Data.Text as T
 import Text.Read (readMaybe)
 import Asset (poolFutureCf)
+import qualified Types as CF
 
 
 class SPV a where
@@ -136,6 +138,28 @@ dealPool = lens getter setter
     getter d = pool d
     setter d newPool = d {pool = newPool}
 
+dealScheduledCashflow :: P.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.CashFlowFrame))
+dealScheduledCashflow = lens getter setter
+  where
+    getter d = case pool d of
+                 SoloPool p -> Map.fromList [(PoolConsol,P.futureScheduleCf p)]
+                 MultiPool pm -> Map.map P.futureScheduleCf pm
+    setter d newCfMap =  case pool d of
+                           SoloPool p -> case Map.lookup PoolConsol newCfMap of
+                                           Just cf -> set dealPool (SoloPool (p {P.futureScheduleCf = cf})) d
+                                           Nothing -> error $ "can't set multi pool cf to a solo pool"
+                           MultiPool pm -> let 
+                                             newPm = Map.mapWithKey (\k p -> set P.poolFutureScheduleCf (newCfMap Map.! k) p) pm
+                                           in
+                                             set dealPool (MultiPool newPm) d
+
+getPoolIds :: P.Asset a => TestDeal a -> [PoolId]
+getPoolIds t@TestDeal{pool = pt} 
+  = case pt of
+      SoloPool _ -> [PoolConsol]
+      MultiPool pm ->Map.keys pm
+
+
 -- ^ get issuance pool stat from pool map
 getIssuanceStats :: P.Asset a => TestDeal a  -> Maybe [PoolId] -> Map.Map PoolId (Map.Map CutoffFields Balance)
 getIssuanceStats t@TestDeal{pool = pt} mPoolId
@@ -166,17 +190,17 @@ getAllAssetList :: P.Asset a => TestDeal a -> [a]
 getAllAssetList t = concat $ Map.elems (getAllAsset t Nothing)
 
 getPoolsByName :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (P.Pool a)
-getPoolsByName TestDeal{pool = pt} Nothing = 
-  case pt of 
-    SoloPool p -> Map.fromList [(PoolConsol,p)]
-    MultiPool pm -> pm
-getPoolsByName TestDeal{pool = pt} (Just pNames) =
-  case pt of
-    SoloPool _ -> error $ "Can't lookup"++ show pNames ++"In a Solo Pool deal"
-    MultiPool pm -> Map.filterWithKey (\k _ -> k `elem` pNames) pm
+getPoolsByName TestDeal{pool = (SoloPool p)} Nothing = Map.fromList [(PoolConsol,p)]
+getPoolsByName TestDeal{pool = (MultiPool pm)} Nothing = pm
+getPoolsByName t@TestDeal{pool = (SoloPool p ),name = n } (Just [PoolConsol]) = Map.fromList [(PoolConsol,p)]
+getPoolsByName t@TestDeal{pool = (SoloPool _ ),name = n } (Just pNames) =  error $ "Can't lookup"++ show pNames ++"In a Solo Pool deal"++ show (pool t)
+getPoolsByName TestDeal{pool = (MultiPool pm )} (Just pNames) = Map.filterWithKey (\k _ -> k `elem` pNames) pm
 
 getAllCollectedFrame :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.CashFlowFrame)
 getAllCollectedFrame t@TestDeal{pool = pt} mPns = Map.map P.futureCf $ getPoolsByName t mPns 
+
+getScheduledCashflow :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.CashFlowFrame)
+getScheduledCashflow t@TestDeal{pool = pt} mPns = Map.map P.futureScheduleCf $ getPoolsByName t mPns 
 
 getLatestCollectFrame :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.TsRow)
 getLatestCollectFrame t mPns = Map.map (last . view CF.cashflowTxn <$>) (getAllCollectedFrame t mPns)
@@ -189,7 +213,7 @@ getAllCollectedTxnsList t mPns
   = concat $ fromMaybe [] <$>  listOfTxns
     where 
       listOfTxns = Map.elems $ getAllCollectedTxns t mPns
-                                
+
 
 $(deriveJSON defaultOptions ''PoolType)
 $(deriveJSON defaultOptions ''TestDeal)

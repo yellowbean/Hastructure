@@ -484,7 +484,7 @@ performActionWrap d
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
                   (W.BuyAsset ml pricingMethod accName _)
-  = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ show (name t)
+  = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
   = (t, rc, logs ++ [newLog])
@@ -499,7 +499,7 @@ performActionWrap d (t, rc, logs) (W.ActionWithPre2 p actionsTrue actionsFalse)
   | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actionsTrue
   | otherwise = foldl (performActionWrap d) (t,rc,logs) actionsFalse
 
-performActionWrap d (t,rc, logs) a = (performAction d t a,rc,logs) -- `debug` ("DEBUG: Action on "++ show a)
+performActionWrap d (t, rc, logs) a = (performAction d t a,rc,logs) -- `debug` ("DEBUG: Action on "++ show a)
 
 performAction :: P.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
 performAction d t (W.ActionWithPre2 _pre actionsTrue actionsFalse)

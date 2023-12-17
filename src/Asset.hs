@@ -10,6 +10,7 @@ module Asset (Pool(..),aggPool
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
        ,poolFutureCf,poolFutureTxn,poolIssuanceStat
+       ,poolFutureScheduleCf
 ) where
 
 import qualified Data.Time as T
@@ -96,6 +97,7 @@ class (Show a,IR.UseRate a) => Asset a where
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
+                   ,futureScheduleCf :: Maybe CF.CashFlowFrame              -- ^ projected un-stressed cashflow
                    ,asOfDate :: Date                                        -- ^ include cashflow after this date 
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
@@ -106,6 +108,12 @@ poolFutureCf = lens getter setter
   where 
     getter p = futureCf p
     setter p mNewCf = p {futureCf = mNewCf}
+
+poolFutureScheduleCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
+poolFutureScheduleCf = lens getter setter
+  where 
+    getter p =  futureScheduleCf p
+    setter p mNewCf = p {futureScheduleCf = mNewCf}
 
 poolFutureTxn :: Asset a => Lens' (Pool a) [CF.TsRow]
 poolFutureTxn = lens getter setter

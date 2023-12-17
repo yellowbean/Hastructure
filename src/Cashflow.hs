@@ -244,17 +244,17 @@ appendTs (FixedFlow d1 b1 de1 cde1 p1 c1 ) bn2@(FixedFlow d2 b2 de2 cde2 p2 c2)
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs _1 _2 = error $ "appendTs failed with "++ show _1 ++ ">>" ++ show _2
 
-addTsCF :: TsRow -> TsRow -> TsRow
 -- ^ add up TsRow from same entity
+addTsCF :: TsRow -> TsRow -> TsRow
 addTsCF (CashFlow d1 a1 ) (CashFlow _ a2 ) = CashFlow d1 (a1 + a2)
 addTsCF (BondFlow d1 b1 p1 i1 ) (BondFlow _ b2 p2 i2 ) = BondFlow d1 (min b1 b2) (p1 + p2) (i1 + i2)
-addTsCF (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) (MortgageFlow d2 b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 pn2 st2)
+addTsCF m1@(MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) m2@(MortgageFlow d2 b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 pn2 st2)
   = let 
       bn = min <$> mbn1 <*> mbn2
       p =  (+) <$> pn1 <*> pn2
       st = maxStats st1 st2
     in 
-      MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st
+      MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st 
 addTsCF (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1 st1) (MortgageDelinqFlow d2 b2 p2 i2 prep2 delinq2 def2 rec2 los2 rat2 mbn2 pn2 st2)
   = let 
       bn = min <$> mbn1 <*> mbn2
@@ -268,11 +268,10 @@ addTsCF (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) (LoanFlow _ b2 p2 i
 addTsCF (LeaseFlow d1 b1 r1) (LeaseFlow d2 b2 r2) = LeaseFlow d1 (min b1 b2) (r1 + r2)
 
 sumTs :: [TsRow] -> Date -> TsRow
-sumTs trs d = tsSetDate (foldr1 addTs trs) d
+sumTs trs = tsSetDate (foldr1 addTs trs)
 
-
-sumTsCF :: [TsRow] -> Date -> TsRow
 -- ^ group cashflow from same entity by a single date
+sumTsCF :: [TsRow] -> Date -> TsRow
 sumTsCF trs = tsSetDate (foldl1 addTsCF trs) -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
 
 tsTotalCash :: TsRow -> Balance
@@ -406,23 +405,28 @@ firstDate (CashFlowFrame rs) = getDate $ head rs
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame 
 combine (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame $ combineTss [] txn1 txn2
 
+buildCollectedCF :: [[TsRow]] -> [Date] -> [TsRow] -> [[TsRow]]
+buildCollectedCF [] [] [] = []
+buildCollectedCF trs ds [] = trs
+buildCollectedCF trs [d] _trs = trs ++ [cutBy Inc Past d _trs]
+buildCollectedCF trs (d:ds) _trs =
+  case newFlow of
+    [] -> if null (last trs) then 
+            buildCollectedCF (trs++[[]]) ds _trs
+          else 
+            buildCollectedCF (trs++[[((viewTsRow d) . last .last) trs]]) ds _trs -- `debug` ("viewing trs"++ show trs)
+    newFlow -> buildCollectedCF (trs++[newFlow]) ds remains
+  where 
+    (newFlow, remains) = splitBy d Inc _trs
+
+
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates trs ds =
   map 
-    (\(x,_d) -> sumTsCF x _d) 
+    (uncurry sumTsCF) 
     (filter 
       (\(y,__d) -> not (null y))
-      (zip (reduceFn [] ds trs) ds)) 
-  where
-    reduceFn accum _ [] =  accum  
-    reduceFn accum [cutoffDay] _trs =
-      accum ++ [cutBy Inc Past cutoffDay _trs]
-    reduceFn accum (cutoffDay:cutoffDays) _trs =
-      case newAcc of
-        [] -> reduceFn (accum++[[ ((viewTsRow cutoffDay) . last . last) accum]]) cutoffDays _trs     --  `debug` ("Adding empty")
-        newFlow -> reduceFn (accum++[newAcc]) cutoffDays rest --  `debug` ("Adding "++show(newAcc)++" cutoffDay "++show(cutoffDay))
-      where
-        (newAcc, rest) = splitBy cutoffDay Inc _trs
+      (zip (buildCollectedCF [] ds trs) ds)) 
 
 
 mflowPrincipal :: TsRow -> Balance
@@ -561,17 +565,27 @@ emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 
 viewTsRow :: Date -> TsRow -> TsRow 
 -- ^ take a snapshot of a record
-viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 0 k l m
-viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 0 j k l
-viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 0 k
+viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 j k l m
+viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 i j k l
+viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
 viewTsRow _d (LeaseFlow a b c ) = LeaseFlow _d b 0
 viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
 
 
-buildBegTsRow :: Date -> TsRow -> TsRow
 -- ^ given a cashflow,build a new cf row with begin balance
-buildBegTsRow d tr 
-  = tsSetBalance (mflowBalance tr + mflowAmortAmount tr) (emptyTsRow d tr)
+buildBegTsRow :: Date -> TsRow -> TsRow
+buildBegTsRow d tr = 
+  let 
+    r = tsSetBalance (mflowBalance tr + mflowAmortAmount tr) (emptyTsRow d tr)
+    rate = mflowRate tr
+  in
+    tsSetRate rate r
+
+tsSetRate :: IRate -> TsRow -> TsRow
+tsSetRate _r (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow a b c d e f g h i _r k l m
+tsSetRate _r (MortgageFlow a b c d e f g h i j k l) = MortgageFlow a b c d e f g h _r j k l
+tsSetRate _r (LoanFlow a b c d e f g i j k) = LoanFlow a b c d e f g i _r k
+
 
 insertBegTsRow :: Date -> CashFlowFrame -> CashFlowFrame
 insertBegTsRow d (CashFlowFrame []) = CashFlowFrame []
@@ -594,8 +608,8 @@ totalDefault (CashFlowFrame rs) = sum $ mflowDefault <$> rs
 totalRecovery :: CashFlowFrame -> Balance
 totalRecovery (CashFlowFrame rs) = sum $ mflowRecovery <$> rs
 
-mergePoolCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 -- ^ merge two cashflow frame but no patching beg balance
+mergePoolCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergePoolCf cf (CashFlowFrame []) = cf
 mergePoolCf (CashFlowFrame []) cf = cf
 mergePoolCf cf1@(CashFlowFrame txns1) cf2@(CashFlowFrame txns2) -- first day of left is earlier than right one
