@@ -600,9 +600,9 @@ calcDealStageDate _ = []
 -- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
 runPool :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance )]
 -- schedule cashflow just ignores the interest rate assumption
-runPool (P.Pool [] _ (Just cf) asof _ _ ) Nothing _ = [(cf, Map.empty)]
+runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ = [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
-runPool (P.Pool [] _ (Just (CF.CashFlowFrame txn)) asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
+runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
 -- contractual cashflow will use interest rate assumption
 runPool (P.Pool as _ _ asof _ _) Nothing mRates = map (\x -> (P.calcCashflow x asof mRates,Map.empty)) as -- `debug` ("RUNPOOL-> calc cashflow")
@@ -741,7 +741,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                -> Map.map (\p -> P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)) pm
     -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
     -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
-    poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pCfM -- `debug` ("proj"++ show pCfM)
+    poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pCfM -- `debug` ("proj>>>>> "++ show pCfM)
     -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
     poolCfTsMwithBegRow = Map.map (\(x:xs) -> buildBegTsRow startDate x:x:xs) poolCfTsM
     poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow

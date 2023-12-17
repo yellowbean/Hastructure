@@ -209,14 +209,13 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     DealIssuanceBalance mPns -> 
       sum $ Map.findWithDefault 0.0 IssuanceBalance <$> Map.elems (getIssuanceStats t mPns)
 
-    OriginalPoolBalance _ -> error "Not implemented"
-      -- case P.issuanceStat (pool t) of
-      --   -- use issuance balance from map if the map exists
-      --   Just m -> 
-      --     case Map.lookup IssuanceBalance m of 
-      --       Just v -> v
-      --       Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
-      --   Nothing -> error ("No stat found in the pool, pls specify it in the pool stats map `issuanceStat` Deal:" ++ show (name t))
+    OriginalPoolBalance mPns -> 
+      let 
+        statsConsol = getIssuanceStatsConsol t mPns 
+      in 
+        case Map.lookup IssuanceBalance statsConsol of 
+          Just v -> v
+          Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
     
  
     AllAccBalance -> sum $ map A.accBalance $ Map.elems accMap 
