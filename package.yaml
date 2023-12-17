@@ -1,10 +1,10 @@
 name:                Hastructure
-version:    0.20.2
+version:    0.24.2
 github:              "yellowbean/Hastructure"
 license:             BSD3
 author:              "Xiaoyu"
 maintainer:          "always.zhang@gmail.com"
-copyright:           "2023 Xiaoyu, Zhang"
+copyright:           "2024 Xiaoyu, Zhang"
 
 extra-source-files:
 - README.md

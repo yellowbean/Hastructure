@@ -19,12 +19,6 @@
 			"path": "../absbox.org"
 		},
 		{
-			"path": "../webui"
-		},
-		{
-			"path": "../deal-bench"
-		},
-		{
 			"path": "../spvrun"
 		}
 	],
