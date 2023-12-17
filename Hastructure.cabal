@@ -5,14 +5,14 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:        0.20.2
+version:        0.24.2
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance;Securitisation;Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
 bug-reports:    https://github.com/yellowbean/Hastructure/issues
 author:         Xiaoyu
 maintainer:     always.zhang@gmail.com
-copyright:      2023 Xiaoyu, Zhang
+copyright:      2024 Xiaoyu, Zhang
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
