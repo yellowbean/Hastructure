@@ -464,6 +464,7 @@ data DealStats = CurrentBondBalance
                | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance (Maybe [PoolId])
                | FutureCurrentSchedulePoolBalance (Maybe [PoolId])
+               | FutureCurrentSchedulePoolBegBalance (Maybe [PoolId])
                | PoolScheduleCfPv PricingMethod (Maybe [PoolId])
                | FuturePoolScheduleCfPv Date PricingMethod (Maybe [PoolId])
                | FutureWaCurrentPoolBalance Date Date (Maybe [PoolId])

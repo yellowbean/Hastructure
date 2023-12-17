@@ -250,6 +250,12 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in 
         sum $ maybe 0 (CF.mflowBalance . head . view CF.cashflowTxn) <$> scheduleFlowM
     
+    FutureCurrentSchedulePoolBegBalance mPns ->
+      let 
+        scheduleFlowM = Map.elems $ view dealScheduledCashflow t
+      in 
+        sum $ maybe 0 (CF.mflowBegBalance . head . view CF.cashflowTxn) <$> scheduleFlowM
+    
     FutureCurrentPoolBegBalance mPns ->
       let 
         ltc = getLatestCollectFrame t mPns
@@ -333,22 +339,22 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
         pCfTxns = Map.map (maybe [] CF.getTsCashFlowFrame) $ getScheduledCashflow t mPns
-        txns = concat $ Map.elems pCfTxns
-        txnsCfs = CF.tsTotalCash <$> txns
+        txns = cutBy Exc Future asOfDay $ concat $ Map.elems pCfTxns
+        txnsCfs = CF.tsTotalCash <$> txns -- `debug` ("schedule cf as of "++ show asOfDay ++ ">>" ++ show txns)
         txnsDs = getDate <$> txns
         txnsRates = CF.mflowRate <$> txns
-        scheduleBal = queryDeal t (FutureCurrentSchedulePoolBalance mPns)
+        scheduleBal = queryDeal t (FutureCurrentSchedulePoolBegBalance mPns)
         curBal = queryDeal t (FutureCurrentPoolBalance mPns) 
         factor = case scheduleBal of 
                    0.00 -> 0  
-                   _ -> curBal / scheduleBal 
-        cfForPv = (factor *) <$> txnsCfs
+                   _ -> curBal / scheduleBal -- `debug` ("cur Bal"++show curBal ++">> sheduleBal"++ show scheduleBal)
+        cfForPv = (factor *) <$> txnsCfs -- `debug` (">>> factor"++ show factor)
         pvs = case pm of
                 PvRate r -> uncurry (A.pv2 (fromRational r) asOfDay) <$> zip txnsDs cfForPv
                 PvByRef ds -> uncurry (A.pv2 (queryDealRate t ds) asOfDay) <$> zip txnsDs cfForPv
                 _ -> error $ "Failed to use pricing method on pool" ++ show pm ++"on pool id"++ show mPns
       in 
-        sum pvs -- `debug` ("Done with schedule pool pv")
+        sum pvs -- `debug` ("pvs"++ show pvs)
 
     CurrentBondBalanceOf bns -> sum $ L.bndBalance . (bndMap Map.!) <$> bns
 

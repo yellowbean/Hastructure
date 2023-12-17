@@ -254,7 +254,7 @@ addTsCF m1@(MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) m2@
       p =  (+) <$> pn1 <*> pn2
       st = maxStats st1 st2
     in 
-      MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st `debug` ("weighted rate"++ show (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))++"m1"++ show m1++"m2"++ show m2)
+      MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st 
 addTsCF (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1 st1) (MortgageDelinqFlow d2 b2 p2 i2 prep2 delinq2 def2 rec2 los2 rat2 mbn2 pn2 st2)
   = let 
       bn = min <$> mbn1 <*> mbn2
@@ -268,11 +268,10 @@ addTsCF (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) (LoanFlow _ b2 p2 i
 addTsCF (LeaseFlow d1 b1 r1) (LeaseFlow d2 b2 r2) = LeaseFlow d1 (min b1 b2) (r1 + r2)
 
 sumTs :: [TsRow] -> Date -> TsRow
-sumTs trs d = tsSetDate (foldr1 addTs trs) d
+sumTs trs = tsSetDate (foldr1 addTs trs)
 
-
-sumTsCF :: [TsRow] -> Date -> TsRow
 -- ^ group cashflow from same entity by a single date
+sumTsCF :: [TsRow] -> Date -> TsRow
 sumTsCF trs = tsSetDate (foldl1 addTsCF trs) -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
 
 tsTotalCash :: TsRow -> Balance

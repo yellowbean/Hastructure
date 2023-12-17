@@ -54,10 +54,10 @@ pv pc today d amt =
 -- ^ calculate present value in the future using constant rate
 pv2 :: IRate -> Date -> Date -> Amount -> Amount
 pv2 discount_rate today d amt =
-  realToFrac $ (realToFrac amt) * (1/denominator) 
+  realToFrac $ (realToFrac amt) * (1/denominator)  -- `debug` ("pv: cash"++ show amt++" deno"++ show denominator++">> rate"++show discount_rate)
   where
     denominator::Double = (1 + realToFrac discount_rate) ** (distance / 365)
-    distance::Double = fromIntegral $ daysBetween today d 
+    distance::Double = fromIntegral $ daysBetween today d -- `debug` ("days betwwen"++ show (daysBetween today d)++">>"++ show d ++ ">>today>>"++ show today)
 
 -- ^ calcualte present value given a series of amount with dates
 pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
