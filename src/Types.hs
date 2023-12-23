@@ -515,6 +515,7 @@ data DealStats = CurrentBondBalance
                | Sum [DealStats]
                | Substract [DealStats]
                | Subtract [DealStats]
+               | Excess [DealStats]
                | Avg [DealStats]
                | Divide DealStats DealStats
                | Constant Rational
