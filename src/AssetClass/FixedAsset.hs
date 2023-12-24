@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module AssetClass.FixedAsset
   ()
@@ -31,6 +32,8 @@ import AssetClass.AssetBase
 import Debug.Trace
 import AssetClass.AssetCashflow
 import qualified Asset as Ast
+import Asset (Asset(projCashflow))
+import Assumptions (AssetDelinqPerfAssumption(DummyDelinqAssump))
 debug = flip trace
 
 calcAmortAmt ::FixedAsset -> [Balance]
@@ -53,6 +56,17 @@ calcAmortBals fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, or
  
 
 instance Ast.Asset FixedAsset where 
+
+  calcCashflow fa@(FixedAsset {}) asOfDay _ = 
+    let 
+      (scheduleFlow, _) = projCashflow 
+                            fa 
+                            asOfDay 
+                            (A.FixedAssetAssump (mkTs []) (mkTs []), A.DummyDelinqAssump, A.DummyDefaultAssump)
+                            Nothing
+    in
+      scheduleFlow
+
   getCurrentBal  fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
                                                  ,residualBalance=rb ,capacity=cap} rt) 
     = calcAmortBals fa!!(ot-rt)

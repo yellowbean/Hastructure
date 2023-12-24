@@ -616,15 +616,6 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRat
   in
     zipWith (\x a -> P.projCashflow x asof a mRates) as _assumps
 
--- mixed asset
--- runPool (P.Pool mixedAsset Nothing asof _ _) (Just (AP.ByName assumpM)) mRates = 
---   let 
---     r = projectCashflow (head mixedAsset) asof assumpM mRates
---     
---   in 
---     r 
-
-
 -- safe net to catch other cases
 runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 

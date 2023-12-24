@@ -266,6 +266,8 @@ addTsCF (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 p
 addTsCF (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) (LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 st2)
   = LoanFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (maxStats st1 st2)
 addTsCF (LeaseFlow d1 b1 r1) (LeaseFlow d2 b2 r2) = LeaseFlow d1 (min b1 b2) (r1 + r2)
+addTsCF (FixedFlow d1 b1 dep1 cd1 u1 c1) (FixedFlow d2 b2 dep2 cd2 u2 c2) 
+  = FixedFlow d1 (min b1 b2) (dep1 + dep2) (cd1 + cd2) u2 (c1 + c2)
 
 sumTs :: [TsRow] -> Date -> TsRow
 sumTs trs = tsSetDate (foldr1 addTs trs)
@@ -574,6 +576,7 @@ viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
 
 -- ^ given a cashflow,build a new cf row with begin balance
 buildBegTsRow :: Date -> TsRow -> TsRow
+buildBegTsRow d flow@FixedFlow{} = flow
 buildBegTsRow d tr = 
   let 
     r = tsSetBalance (mflowBalance tr + mflowAmortAmount tr) (emptyTsRow d tr)
@@ -581,10 +584,12 @@ buildBegTsRow d tr =
   in
     tsSetRate rate r
 
+
 tsSetRate :: IRate -> TsRow -> TsRow
 tsSetRate _r (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow a b c d e f g h i _r k l m
 tsSetRate _r (MortgageFlow a b c d e f g h i j k l) = MortgageFlow a b c d e f g h _r j k l
 tsSetRate _r (LoanFlow a b c d e f g i j k) = LoanFlow a b c d e f g i _r k
+tsSetRate _r (FixedFlow {} ) = error "Not implement set rate for FixedFlow"
 
 
 insertBegTsRow :: Date -> CashFlowFrame -> CashFlowFrame

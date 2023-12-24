@@ -71,6 +71,7 @@ patchDateToStats d t
          Min dss -> Min $ [ patchDateToStats d ds | ds <- dss ] 
          Max dss -> Max $ [ patchDateToStats d ds | ds <- dss ]
          Factor _ds r -> Factor (patchDateToStats d _ds) r
+         FloorWithZero ds -> FloorWithZero (patchDateToStats d ds) 
          UseCustomData n -> CustomData n d
          CurrentPoolBorrowerNum mPns -> FutureCurrentPoolBorrowerNum d mPns
          FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
@@ -235,7 +236,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     ReserveAccGapAt d ans ->
       max 
         0 
-        $ (-) (sum $ calcTargetAmount t d <$> (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
+        $ (-) (sum $ calcTargetAmount t d . (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
 
     FutureCurrentPoolBalance mPns ->
       let 

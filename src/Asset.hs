@@ -86,7 +86,7 @@ class (Show a,IR.UseRate a) => Asset a where
   calcAlignDate ast d = let 
                           payDates = getPaymentDates ast 0
                           remainTerms = getRemainTerms ast 
-                          benchDate = reverse payDates!!pred remainTerms --  `debug` ("\nPayDates"++show payDates++"\nremain terms"++ show remainTerms)
+                          benchDate = reverse payDates!!pred remainTerms   `debug` ("\nPayDates"++show payDates++"\nremain terms"++ show remainTerms)
                           offset = daysBetween benchDate d
                         in 
                           T.addDays offset $ getOriginDate ast
