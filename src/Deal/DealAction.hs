@@ -468,12 +468,12 @@ performActionWrap d
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
-      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates   `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       -- newPcf = CF.CashFlowFrame $ CF.combineTss [] (tr:trs) newBoughtTxn  -- `debug` ("reolvoing first txn\n"++ show (head newBoughtTxn))
       newPcf = let 
                  pIdToChange = fromMaybe PoolConsol pId
                in 
-                 Map.adjust (\(CF.CashFlowFrame trs) -> CF.CashFlowFrame (CF.combineTss [] trs newBoughtTxn)) pIdToChange pFlowMap `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
+                 Map.adjust (\(CF.CashFlowFrame trs) -> CF.CashFlowFrame (CF.combineTss [] trs newBoughtTxn)) pIdToChange pFlowMap -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
       newRc = rc {runPoolFlow = newPcf
                  ,revolvingAssump = Just (poolAfterBought, perfAssumps)}  
 
