@@ -71,6 +71,7 @@ patchDateToStats d t
          Min dss -> Min $ [ patchDateToStats d ds | ds <- dss ] 
          Max dss -> Max $ [ patchDateToStats d ds | ds <- dss ]
          Factor _ds r -> Factor (patchDateToStats d _ds) r
+         FloorWithZero ds -> FloorWithZero (patchDateToStats d ds) 
          UseCustomData n -> CustomData n d
          CurrentPoolBorrowerNum mPns -> FutureCurrentPoolBorrowerNum d mPns
          FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
@@ -235,7 +236,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     ReserveAccGapAt d ans ->
       max 
         0 
-        $ (-) (sum $ calcTargetAmount t d <$> (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
+        $ (-) (sum $ calcTargetAmount t d . (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
 
     FutureCurrentPoolBalance mPns ->
       let 
@@ -498,6 +499,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     Max ss -> maximum' [ queryDeal t s | s <- ss ]
     Min ss -> minimum' [ queryDeal t s | s <- ss ]
 
+
     Divide ds1 ds2 -> queryDeal t ds1 / queryDeal t ds2
 
     CustomData s d ->
@@ -515,6 +517,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
+    Excess (s1:ss) -> max 0 $ queryDeal t s1 - queryDeal t (Sum ss)
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
     Abs s -> abs $ queryDeal t s
     Round ds rb -> roundingBy rb (queryDeal t ds)

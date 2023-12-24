@@ -616,15 +616,6 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRat
   in
     zipWith (\x a -> P.projCashflow x asof a mRates) as _assumps
 
--- mixed asset
--- runPool (P.Pool mixedAsset Nothing asof _ _) (Just (AP.ByName assumpM)) mRates = 
---   let 
---     r = projectCashflow (head mixedAsset) asof assumpM mRates
---     
---   in 
---     r 
-
-
 -- safe net to catch other cases
 runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
@@ -743,7 +734,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pCfM -- `debug` ("proj>>>>> "++ show pCfM)
     -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
-    poolCfTsMwithBegRow = Map.map (\(x:xs) -> buildBegTsRow startDate x:x:xs) poolCfTsM
+    poolCfTsMwithBegRow = Map.map (\(x:xs) -> buildBegTsRow startDate x:x:xs) poolCfTsM  --TODO what if txn is empty ??
     poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow
     -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
     pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame poolAggCfM
