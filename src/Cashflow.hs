@@ -409,7 +409,7 @@ combine (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame $ combineTss [
 
 buildCollectedCF :: [[TsRow]] -> [Date] -> [TsRow] -> [[TsRow]]
 buildCollectedCF [] [] [] = []
-buildCollectedCF trs ds [] = trs
+buildCollectedCF trs ds [] = trs ++ [ [viewTsRow _d ((last . last) trs)] | _d <- ds ]
 buildCollectedCF trs [d] _trs = trs ++ [cutBy Inc Past d _trs]
 buildCollectedCF trs (d:ds) _trs =
   case newFlow of
@@ -420,15 +420,14 @@ buildCollectedCF trs (d:ds) _trs =
     newFlow -> buildCollectedCF (trs++[newFlow]) ds remains
   where 
     (newFlow, remains) = splitBy d Inc _trs
+buildCollectedCF a b c = error $ "buildCollectedCF failed"++ show a++">>"++ show b++">>"++ show c
 
 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates trs ds =
   map 
     (uncurry sumTsCF) 
-    (filter 
-      (\(y,__d) -> not (null y))
-      (zip (buildCollectedCF [] ds trs) ds)) 
+    (zip (buildCollectedCF [] ds trs) ds) 
 
 
 mflowPrincipal :: TsRow -> Balance
@@ -566,7 +565,7 @@ emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 
 
 viewTsRow :: Date -> TsRow -> TsRow 
--- ^ take a snapshot of a record
+-- ^ take a snapshot of a record from record balance/stats and a new date
 viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 j k l m
 viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 i j k l
 viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k

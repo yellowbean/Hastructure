@@ -7,7 +7,7 @@
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,getPoolsByName,getScheduledCashflow,dealScheduledCashflow
-                     ,getPoolIds) 
+                     ,getPoolIds,poolTypePool) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -65,6 +65,16 @@ data PoolType a = SoloPool (P.Pool a)
                 | ResecDeal (Map.Map (BondName, Rate) (TestDeal a))
                 deriving (Generic,Eq,Show,Ord)
 
+poolTypePool :: P.Asset a => Lens' (PoolType a) (Map.Map PoolId (P.Pool a))
+poolTypePool = lens getter setter
+  where 
+    getter (SoloPool p) = Map.fromList [(PoolConsol,p)]
+    getter (MultiPool pm) = pm
+    setter (SoloPool p) newPool = case Map.lookup PoolConsol newPool of
+                                    Just p -> SoloPool p
+                                    Nothing -> error $ "Can't set a solo pool to a multi pool"
+    setter (MultiPool pm) newPool = MultiPool newPool
+                        
 
 data TestDeal a = TestDeal { name :: String
                              ,status :: DealStatus

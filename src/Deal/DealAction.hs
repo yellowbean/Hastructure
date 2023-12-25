@@ -473,7 +473,13 @@ performActionWrap d
       newPcf = let 
                  pIdToChange = fromMaybe PoolConsol pId
                in 
-                 Map.adjust (\(CF.CashFlowFrame trs) -> CF.CashFlowFrame (CF.combineTss [] trs newBoughtTxn)) pIdToChange pFlowMap -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
+                 Map.adjust (\(CF.CashFlowFrame trs) -> 
+                              let 
+                                dsInterval = getDate <$> trs -- `debug` (">>> agg interval : "++ show (getDate <$> trs ))
+                              in 
+                                CF.CashFlowFrame $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) 
+                            pIdToChange
+                            pFlowMap -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
       newRc = rc {runPoolFlow = newPcf
                  ,revolvingAssump = Just (poolAfterBought, perfAssumps)}  
 
