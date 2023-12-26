@@ -10,6 +10,7 @@ module Util
     ,shiftTsByAmt,calcWeightBalanceByDates, monthsAfter
     ,getPriceValue,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN
+    ,lastOf
     -- for debug
     ,zyj
     )
@@ -209,6 +210,17 @@ daysInterval ds = zipWith daysBetween (init ds) (tail ds)
    
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
+
+lastOf:: [a] -> (a->Bool) -> Maybe a
+lastOf [] fn = Nothing
+lastOf xs fn = 
+  let 
+    l = last xs
+  in 
+    if fn l then 
+      Just l 
+    else
+      lastOf (init xs) fn
 
 shiftTsByAmt :: Ts -> Rational -> Ts 
 shiftTsByAmt (IRateCurve tps) delta 

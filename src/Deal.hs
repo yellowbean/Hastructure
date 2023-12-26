@@ -477,15 +477,15 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bond_prices)
       rateToday = getValByDate curve Inc     
 
 runDeal :: P.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
-        -> (TestDeal a,Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
+        -> (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Maybe (Map.Map String L.PriceResult))
 runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                                                            ,AP.pricing   = mPricing
                                                            ,AP.revolving = mRevolving
                                                            ,AP.interest  = mInterest} 
   | not runFlag = (t, Nothing, Just valLogs, Nothing)
-  | otherwise = (finalDeal, Just pcf, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
+  | otherwise = (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
     where
-      (runFlag,valLogs) = V.validateReq t nonPerfAssumps
+      (runFlag, valLogs) = V.validateReq t nonPerfAssumps
       -- getinits() will get (new deal snapshot, actions, pool cashflows, unstressed pool cashflow)
       (newT, ads, pcf, unStressPcf) = getInits t perfAssumps (Just nonPerfAssumps) -- `debug` ("runDeal init line") 
       -- extract Revolving Assumption
@@ -501,10 +501,12 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                               opts
                               mRevolvingCtx
                               [] -- `debug` ("start status"++show (status t) )-- `debug` ("run rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
+      poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame [])) (getAllCollectedFrame finalDeal Nothing) 
+      poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed 
       -- bond pricing if any                            
       bndPricing = case mPricing of
                      Nothing -> Nothing   --  `debug` ("pricing bpi with Nothing")
-                     Just _bpi -> Just (priceBonds finalDeal _bpi)  -- `debug` ("Pricing with")
+                     Just _bpi -> Just (priceBonds finalDeal _bpi) 
 
 -- | get bond principal and interest shortfalls from a deal
 getRunResult :: TestDeal a -> [ResultComponent]
@@ -514,9 +516,16 @@ getRunResult t = os_bn_i ++ os_bn_b
     os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
     os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
 
-prepareDeal :: TestDeal a -> TestDeal a
+prepareDeal :: P.Asset a => TestDeal a -> TestDeal a
 prepareDeal t@TestDeal {bonds = bndMap} 
-  = t {bonds = Map.map L.consolStmt bndMap}  -- `debug` ("Consolidation in Preparing")
+  = let 
+      ptMap = view (dealPool . poolTypePool) t
+      newPtMap = Map.map (over P.poolFutureCf
+                               (\mCf -> (over CF.cashflowTxn CF.dropTailEmptyTxns) <$> mCf ))
+                 ptMap
+      t1 = set (dealPool . poolTypePool) newPtMap t
+    in 
+      t1 {bonds = Map.map L.consolStmt bndMap}  -- `debug` ("Consolidation in Preparing")
 
 appendCollectedCF :: P.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a
 -- ^ append cashflow frame (consolidate by a date) into deals collected pool
@@ -735,9 +744,9 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pCfM -- `debug` ("proj>>>>> "++ show pCfM)
     -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
     poolCfTsMwithBegRow = Map.map (\(x:xs) -> buildBegTsRow startDate x:x:xs) poolCfTsM  --TODO what if txn is empty ??
-    poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow
+    poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow  --`debug` ("pool action dates"++ show (getDates pActionDates))
     -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
-    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame poolAggCfM
+    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame poolAggCfM -- `debug` ("pool Agg Cfm"++ show poolAggCfM)
     
     pScheduleCfM = case thePool of
                      (SoloPool p) 

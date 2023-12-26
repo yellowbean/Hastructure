@@ -24,7 +24,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
 import Data.Time (Day)
 import Data.Fixed
 import Lib (weightedBy,toDate,getIntervalFactors,daysBetween,paySeqLiabilitiesAmt)
-import Util (mulBR,mulBInt,mulIR)
+import Util (mulBR,mulBInt,mulIR,lastOf)
 import DateUtil ( splitByDate )
 import Types
 import qualified Data.Map as Map
@@ -274,6 +274,7 @@ sumTs trs = tsSetDate (foldr1 addTs trs)
 
 -- ^ group cashflow from same entity by a single date
 sumTsCF :: [TsRow] -> Date -> TsRow
+-- sumTsCF [] = tsSetDate (foldl1 addTsCF trs) -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
 sumTsCF trs = tsSetDate (foldl1 addTsCF trs) -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
 
 tsTotalCash :: TsRow -> Balance
@@ -377,6 +378,8 @@ tsReduceInt x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFl
 tsReduceInt x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d a b (c-x) d e f g h i j k 
 tsReduceInt x (LoanFlow _d a b c d e f g h i) = LoanFlow _d a b (c-x) d e f g h i
 
+
+-- ^ claw back interest from cashflow records
 clawbackInt :: Balance -> [TsRow] -> [TsRow]
 clawbackInt bal txns
   = let
@@ -402,33 +405,34 @@ aggregateTsByDate (r:rs) (tr:trs)
 
 firstDate :: CashFlowFrame -> Date 
 firstDate (CashFlowFrame []) = error "empty cashflow frame to get first date"
-firstDate (CashFlowFrame rs) = getDate $ head rs
+firstDate (CashFlowFrame [r]) = getDate r
+firstDate (CashFlowFrame (r:rs)) = getDate r
 
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame 
 combine (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame $ combineTss [] txn1 txn2
 
 buildCollectedCF :: [[TsRow]] -> [Date] -> [TsRow] -> [[TsRow]]
 buildCollectedCF [] [] [] = []
-buildCollectedCF trs ds [] = trs
-buildCollectedCF trs [d] _trs = trs ++ [cutBy Inc Past d _trs]
+buildCollectedCF trs [] _trs = trs
+buildCollectedCF trs ds [] = trs ++ [ [viewTsRow _d ((last . last) trs)] | _d <- ds ]
+-- buildCollectedCF trs [d] _trs = trs ++ [cutBy Inc Past d _trs]
 buildCollectedCF trs (d:ds) _trs =
   case newFlow of
-    [] -> if null (last trs) then 
-            buildCollectedCF (trs++[[]]) ds _trs
-          else 
-            buildCollectedCF (trs++[[((viewTsRow d) . last .last) trs]]) ds _trs -- `debug` ("viewing trs"++ show trs)
+    -- [] -> if null (last trs) then 
+    --         buildCollectedCF (trs++[[]]) ds _trs `debug` ("empty trs"++ show d)
+    --       else 
+    --         buildCollectedCF (trs++[[(viewTsRow d . last .last) trs]]) ds _trs -- `debug` ("viewing trs"++ show trs)
+    [] -> case Util.lastOf trs (not . null) of
+            Nothing -> buildCollectedCF (trs++[[]]) ds _trs `debug` ("empty trs"++ show d)
+            Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d)
     newFlow -> buildCollectedCF (trs++[newFlow]) ds remains
   where 
     (newFlow, remains) = splitBy d Inc _trs
+buildCollectedCF a b c = error $ "buildCollectedCF failed"++ show a++">>"++ show b++">>"++ show c
 
 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
-aggTsByDates trs ds =
-  map 
-    (uncurry sumTsCF) 
-    (filter 
-      (\(y,__d) -> not (null y))
-      (zip (buildCollectedCF [] ds trs) ds)) 
+aggTsByDates trs ds = uncurry sumTsCF <$> zip (buildCollectedCF [] ds trs) ds `debug` (">>> to sumTsCF "++ show (zip (buildCollectedCF [] ds trs) ds ))
 
 
 mflowPrincipal :: TsRow -> Balance
@@ -566,7 +570,7 @@ emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 
 
 viewTsRow :: Date -> TsRow -> TsRow 
--- ^ take a snapshot of a record
+-- ^ take a snapshot of a record from record balance/stats and a new date
 viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 j k l m
 viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 i j k l
 viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
