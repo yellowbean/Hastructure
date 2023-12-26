@@ -1,6 +1,6 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
-                  ,capTest,roundingTest,sliceTest,splitTsTest,tableTest)--,daycountTests3,daycountTests4)
+                  ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -531,4 +531,16 @@ tableTest =
       assertEqual ""
       [Just 400,Just 300,Just 200,Nothing]
       [lookupTable tbl Up (20 >=),lookupTable tbl Up (16 >=),lookupTable tbl Up (11 >=),lookupTable tbl Up (3 >=) ]
+    ]
+
+lastOftest = 
+  let 
+    a = [1,2,3,4,5]
+    b = [[1],[3],[],[5],[],[]]
+  in 
+    testGroup "test on last of on list" [
+      testCase "on non empty" $
+      assertEqual "should be [5]"
+      (Just [5])
+      (Util.lastOf b (not . null))
     ]

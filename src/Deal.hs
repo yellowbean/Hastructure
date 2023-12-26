@@ -744,9 +744,9 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     poolCfTsM = Map.map (\x -> cutBy Inc Future startDate (CF.getTsCashFlowFrame (fst x))) pCfM -- `debug` ("proj>>>>> "++ show pCfM)
     -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
     poolCfTsMwithBegRow = Map.map (\(x:xs) -> buildBegTsRow startDate x:x:xs) poolCfTsM  --TODO what if txn is empty ??
-    poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow `debug` ("pool action dates"++ show (getDates pActionDates))
+    poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow  --`debug` ("pool action dates"++ show (getDates pActionDates))
     -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
-    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame poolAggCfM `debug` ("pool Agg Cfm"++ show poolAggCfM)
+    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame poolAggCfM -- `debug` ("pool Agg Cfm"++ show poolAggCfM)
     
     pScheduleCfM = case thePool of
                      (SoloPool p) 

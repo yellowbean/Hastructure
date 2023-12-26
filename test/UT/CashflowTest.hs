@@ -63,7 +63,9 @@ cfTests = testGroup "Cashflow Utils"
    ,testCase "Cashflow Aggregation" $
      assertEqual "aggregate period with no cf"
        [CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing Nothing
-       ,CF.MortgageFlow (L.toDate "20220102") 100 0 0 0 0 0 0 0 Nothing Nothing Nothing]
+       ,CF.MortgageFlow (L.toDate "20220102") 100 0 0 0 0 0 0 0 Nothing Nothing Nothing
+       ,CF.MortgageFlow (L.toDate "20220111") 100 0 0 0 0 0 0 0 Nothing Nothing Nothing
+       ]
        (CF.aggTsByDates trs (L.toDates ["20220101","20220102","20220111"]))
 
    ,testCase "Get Latest Cashflow 1" $

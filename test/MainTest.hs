@@ -28,6 +28,7 @@ import qualified Data.Vector as UtilT
 import qualified UT.AnalyticsTest as AnalyticsT
 import qualified UT.UtilTest as RH
 import qualified UT.RateHedgeTest as RHT
+import GHC.Generics (U1(U1))
 
 main = defaultMain tests
 
@@ -78,6 +79,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.sliceTest
                            ,UtilT.splitTsTest
                            ,UtilT.tableTest
+                           ,UtilT.lastOftest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest
