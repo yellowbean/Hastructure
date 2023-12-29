@@ -265,11 +265,10 @@ run :: P.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [Acti
 run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = (prepareDeal t,log) `debug` "Deal Ended"
 run t pCfM (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
 run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus,waterfall=waterfallM,name=dealName,pool=pt} poolFlowMap (Just (ad:ads)) rates calls rAssump log
-  | all (== 0) remainCollectionNum && (queryDeal t AllAccBalance == 0) 
-     = let 
-         _dealAfterCleanUp = foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal:"++ dealName)
-       in 
-         (prepareDeal _dealAfterCleanUp,log) `debug` "End with pool cf == 0 and all account bals are 0" -- ++ "> Remain Actions" ++ show (ad:ads))
+  | all (== 0) futureCashToCollect && (queryDeal t AllAccBalance == 0) 
+     = (prepareDeal $
+         foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal:"++ dealName)
+        ,log) `debug` "End with pool cf == 0 and all account bals are 0" -- ++ "> Remain Actions" ++ show (ad:ads))
   | otherwise
      = case ad of 
          PoolCollection d _ ->
@@ -315,10 +314,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
            where
                 (dRunWithTrigger0,newLogs0) = runTriggers t d BeginDistributionWF
                 -- warning if not waterfall distribution found
-                newLogs1 = if Map.notMember (W.DistributionDay dStatus) waterfallM then
-                             [WarningMsg ("No waterfall distribution found on date"++show d++"with status"++show dStatus)]
-                           else
-                             []
+                newLogs1 = [WarningMsg ("No waterfall distribution found on date"++show d++"with status"++show dStatus) 
+                            | Map.notMember (W.DistributionDay dStatus) waterfallM]
                 waterfallToExe = Map.findWithDefault 
                                    (Map.findWithDefault [] (W.DistributionDay dStatus) waterfallM)
                                    W.DefaultDistribution 
@@ -440,6 +437,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
            remainCollectionNum = Map.elems $ Map.map CF.sizeCashFlowFrame poolFlowMap
+           futureCashToCollect = Map.elems $ Map.map (\pcf -> sum (CF.tsTotalCash <$> view CF.cashflowTxn pcf)) poolFlowMap
 
 
 run t empty Nothing Nothing Nothing Nothing log

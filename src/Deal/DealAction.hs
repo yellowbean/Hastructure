@@ -246,8 +246,9 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
 updateLiqProvider t d liq = disableLiqProvider t d liq
 
 calcDueInt :: P.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe DealStats -> L.Bond -> L.Bond
-calcDueInt t calc_date mBal mRate b@(L.Bond _ _ oi io _ _ r dp di Nothing _ lastPrinPay _ ) 
+calcDueInt t calc_date mBal mRate b@(L.Bond _ _ oi io _ bal r dp di Nothing _ lastPrinPay _ ) 
  | calc_date <= closingDate = b
+ | bal+di == 0 = b
  | otherwise = calcDueInt t calc_date mBal mRate (b {L.bndDueIntDate = Just closingDate })
    where 
      closingDate = getClosingDate (dates t)
