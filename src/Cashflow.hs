@@ -436,12 +436,14 @@ aggTsByDates trs ds = uncurry sumTsCF <$> zip (buildCollectedCF [] ds trs) ds `d
 
 
 mflowPrincipal :: TsRow -> Balance
+mflowPrincipal (BondFlow _ _ p _) = p
 mflowPrincipal (MortgageFlow _ _ x _ _ _ _ _ _ _ _ _) = x
 mflowPrincipal (MortgageDelinqFlow _ _ x _ _ _ _ _ _ _ _ _ _) = x
 mflowPrincipal (LoanFlow _ _ x _ _ _ _ _ _ _) = x
 mflowPrincipal _  = error "not supported"
 
 mflowInterest :: TsRow -> Balance
+mflowInterest (BondFlow _ _ _ i) = i
 mflowInterest (MortgageDelinqFlow _ _ _ x _ _ _ _ _ _ _ _ _) = x
 mflowInterest (MortgageFlow _ _ _ x _ _ _ _ _ _ _ _) = x
 mflowInterest (LoanFlow _ _ _ x _ _ _ _ _ _) = x
@@ -468,6 +470,7 @@ mflowRecovery FixedFlow {} = 0
 mflowRecovery _  = error "not supported"
 
 mflowBalance :: TsRow -> Balance
+mflowBalance (BondFlow _ x _ _) = x
 mflowBalance (MortgageFlow _ x _ _ _ _ _ _ _ _ _ _) = x
 mflowBalance (MortgageDelinqFlow _ x _ _ _ _ _ _ _ _ _ _ _) = x
 mflowBalance (LoanFlow _ x _ _ _ _ _ _ _ _) = x
@@ -483,6 +486,7 @@ addFlowBalance b (LeaseFlow a x c ) = LeaseFlow a (x+b) c
 addFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a (x+b) c d e f
 
 updateFlowBalance :: Balance -> TsRow -> TsRow 
+updateFlowBalance b (BondFlow x _ p i) = BondFlow x b p i
 updateFlowBalance b (MortgageDelinqFlow a x c d e f g h i j k l m ) = MortgageDelinqFlow a b c d e f g h i j k l m
 updateFlowBalance b (MortgageFlow a x c d e f g h i j k l) = MortgageFlow a b c d e f g h i j k l
 updateFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a b c d e f g i j k
@@ -490,6 +494,7 @@ updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
 updateFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a b c d e f
 
 mflowBegBalance :: TsRow -> Balance
+mflowBegBalance (BondFlow _ x p _) = x + p
 mflowBegBalance (MortgageDelinqFlow _ x p _ ppy delinq def _ _ _ _ _ _) = x + p + ppy + delinq
 mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _ _ _ _) = x + p + ppy + def
 mflowBegBalance (LoanFlow _ x p _ ppy def _ _ _ _) = x + p + ppy + def

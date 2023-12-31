@@ -59,10 +59,11 @@ class SPV a where
   getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
 
 
+type HoldingPct = Rate
 
 data PoolType a = SoloPool (P.Pool a)
                 | MultiPool (Map.Map PoolId (P.Pool a))
-                | ResecDeal (Map.Map (BondName, Rate) (TestDeal a))
+                | ResecDeal (Map.Map (BondName, HoldingPct, Date) (TestDeal a))
                 deriving (Generic,Eq,Show,Ord)
 
 poolTypePool :: P.Asset a => Lens' (PoolType a) (Map.Map PoolId (P.Pool a))
@@ -74,9 +75,8 @@ poolTypePool = lens getter setter
                                     Just p -> SoloPool p
                                     Nothing -> error $ "Can't set a solo pool to a multi pool"
     setter (MultiPool pm) newPool = MultiPool newPool
-                        
 
-data TestDeal a = TestDeal { name :: String
+data TestDeal a = TestDeal { name :: DealName
                              ,status :: DealStatus
                              ,dates :: DateDesp
                              ,accounts :: Map.Map AccountName A.Account

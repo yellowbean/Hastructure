@@ -23,6 +23,7 @@ module Types
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
   ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
+  ,DealName
   )
   
   where
@@ -401,8 +402,11 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | NewDelinquencies                -- ^ new delinquencies in balance
                 deriving (Show,Ord,Read,Eq, Generic)
 
+type DealName = String
+
 data PoolId = PoolName String
             | PoolConsol
+            | UnderlyingDeal DealName BondName
             deriving (Eq,Ord,Generic)
 
 instance Show PoolId where

@@ -10,12 +10,12 @@ module Stmt
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
-   ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..)
+   ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..),scaleByFactor
   )
   where
 
 import Lib (toDate,getIntervalFactors)
-import Util (mulBR)
+import Util (mulBR, mulBInt)
 import Types 
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -53,6 +53,17 @@ aggByTxnComment (txn:txns) m
   | otherwise = aggByTxnComment txns (M.insert c [txn] m)
   where 
     c = getTxnComment txn
+
+scaleTxn :: Rate -> Txn -> Txn
+scaleTxn r (BondTxn d b i p r0 c t) = BondTxn d (mulBR b r) (mulBR i r) (mulBR p r) r0 (mulBR c r) t
+scaleTxn r (AccTxn d b a t) = AccTxn d (mulBR b r) (mulBR a r) t
+scaleTxn r (ExpTxn d b a b0 t) = ExpTxn d (mulBR b r) (mulBR a r) (mulBR b0 r) t
+scaleTxn r (SupportTxn d b a b0 i p t) = SupportTxn d (flip mulBR r <$> b) (mulBR a r) (mulBR b0 r) (mulBR i r) (mulBR p r) t
+scaleTxn r (IrsTxn d b a i0 i1 b0 t) = IrsTxn d (mulBR b r) (mulBR a r) i0 i1 (mulBR b0 r) t
+scaleTxn r (EntryTxn d b a t) = EntryTxn d (mulBR b r)  (mulBR a r) t
+
+scaleByFactor :: Rate -> [Txn] -> [Txn]
+scaleByFactor r txns = map (scaleTxn r) txns
 
 sumTxn :: [Txn] -> Balance
 sumTxn txns = sum $ getTxnAmt <$> txns
@@ -185,7 +196,7 @@ getFlow comment =
         let 
           directionList = getFlow <$> cmts 
         in 
-          if any (Outflow ==) directionList then
+          if Outflow `elem` directionList then
             Outflow
           else if any (Inflow ==) directionList then
             Inflow
