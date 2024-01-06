@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
@@ -60,11 +61,45 @@ class SPV a where
 
 
 type HoldingPct = Rate
+type UnderlyingHolding =(BondName, HoldingPct, Date)
 
 data PoolType a = SoloPool (P.Pool a)
                 | MultiPool (Map.Map PoolId (P.Pool a))
-                | ResecDeal (Map.Map (BondName, HoldingPct, Date) (TestDeal a))
-                deriving (Generic,Eq,Show,Ord)
+                | ResecDeal (Map.Map UnderlyingHolding (TestDeal a))
+                deriving (Generic,Eq,Ord)
+
+-- instance Show (PoolType a) where
+--   show (SoloPool x) = "SoloPool:"++ show x
+--   show (MultiPool x) = "MultiPool:"++ show x
+--   show (ResecDeal x) = "ResecDeal:"++ show x
+-- 
+-- instance Read (PoolType a) where
+--   readsPrec _ "SoloPool" = [(SoloPool Map.empty,"")]
+--   readsPrec _ "MultiPool" = [(MultiPool Map.empty,"")]
+--   readsPrec _ "ResecDeal" = [(ResecDeal Map.empty,"")]
+--   readsPrec _ _ = []
+
+instance ToJSONKey UnderlyingHolding where 
+  toJSONKey :: ToJSONKeyFunction (BondName, HoldingPct, Date)
+  toJSONKey = toJSONKeyText $ \(bn,hp,d) -> T.pack $ bn ++ "_" ++ show hp ++ "_" ++ show d
+
+instance FromJSONKey UnderlyingHolding where
+  fromJSONKey = FromJSONKeyTextParser $ \case
+    "name" -> pure $ (,) <$> parseJSONKey <*> parseJSONKey <*> parseJSONKey
+    _ -> fail "Expected \"name\" key"
+
+
+
+-- buildPoolIdFromDeal ::  P.Asset a => PoolType a -> Map.Map (BondName, HoldingPct, Date) PoolId
+-- buildPoolIdFromDeal (ResecDeal resecM) 
+--   = Map.foldrWithKey 
+--       (\(bn,hp,d) deal m 
+--          -> Map.insert (bn,hp,d) (UnderlyingDeal (name deal) bn) m) 
+--       Map.empty
+--       resecM
+-- 
+-- buildPoolIdFromDeal _ = error "Not implemented for non-resec deal"
+
 
 poolTypePool :: P.Asset a => Lens' (PoolType a) (Map.Map PoolId (P.Pool a))
 poolTypePool = lens getter setter
@@ -167,7 +202,9 @@ getPoolIds :: P.Asset a => TestDeal a -> [PoolId]
 getPoolIds t@TestDeal{pool = pt} 
   = case pt of
       SoloPool _ -> [PoolConsol]
-      MultiPool pm ->Map.keys pm
+      MultiPool pm -> Map.keys pm
+      ResecDeal pm -> [PoolConsol] --TODO 
+                         
 
 
 -- ^ get issuance pool stat from pool map

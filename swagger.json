@@ -1640,11 +1640,14 @@
                                                 {
                                                     "format": "double",
                                                     "type": "number"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
                                                 }
                                             ],
-                                            "maxItems": 2,
+                                            "maxItems": 3,
                                             "type": "array",
-                                            "minItems": 2
+                                            "minItems": 3
                                         },
                                         {
                                             "$ref": "#/components/schemas/TestDeal_Installment"
@@ -8023,11 +8026,14 @@
                                                 {
                                                     "format": "double",
                                                     "type": "number"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
                                                 }
                                             ],
-                                            "maxItems": 2,
+                                            "maxItems": 3,
                                             "type": "array",
-                                            "minItems": 2
+                                            "minItems": 3
                                         },
                                         {
                                             "$ref": "#/components/schemas/TestDeal_Lease"
@@ -8319,11 +8325,14 @@
                                                 {
                                                     "format": "double",
                                                     "type": "number"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
                                                 }
                                             ],
-                                            "maxItems": 2,
+                                            "maxItems": 3,
                                             "type": "array",
-                                            "minItems": 2
+                                            "minItems": 3
                                         },
                                         {
                                             "$ref": "#/components/schemas/TestDeal_FixedAsset"
@@ -9464,11 +9473,14 @@
                                                 {
                                                     "format": "double",
                                                     "type": "number"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
                                                 }
                                             ],
-                                            "maxItems": 2,
+                                            "maxItems": 3,
                                             "type": "array",
-                                            "minItems": 2
+                                            "minItems": 3
                                         },
                                         {
                                             "$ref": "#/components/schemas/TestDeal_Loan"
@@ -10436,11 +10448,14 @@
                                                 {
                                                     "format": "double",
                                                     "type": "number"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
                                                 }
                                             ],
-                                            "maxItems": 2,
+                                            "maxItems": 3,
                                             "type": "array",
-                                            "minItems": 2
+                                            "minItems": 3
                                         },
                                         {
                                             "$ref": "#/components/schemas/TestDeal_Mortgage"
@@ -11059,6 +11074,34 @@
                         },
                         "required": [
                             "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "UnderlyingDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
                         ]
                     }
                 ],
@@ -12395,11 +12438,14 @@
                                                 {
                                                     "format": "double",
                                                     "type": "number"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
                                                 }
                                             ],
-                                            "maxItems": 2,
+                                            "maxItems": 3,
                                             "type": "array",
-                                            "minItems": 2
+                                            "minItems": 3
                                         },
                                         {
                                             "$ref": "#/components/schemas/TestDeal_AssetUnion"
@@ -13956,6 +14002,37 @@
                                 "type": "string",
                                 "enum": [
                                     "ByName"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/ApplyAssumptionType"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/NonPerfAssumption"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ByDealName"
                                 ]
                             }
                         },

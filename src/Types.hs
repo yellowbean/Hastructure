@@ -406,7 +406,6 @@ type DealName = String
 
 data PoolId = PoolName String
             | PoolConsol
-            | UnderlyingDeal DealName BondName
             deriving (Eq,Ord,Generic)
 
 instance Show PoolId where

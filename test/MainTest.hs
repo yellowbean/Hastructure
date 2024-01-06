@@ -19,6 +19,7 @@ import qualified UT.InterestRateTest as IRT
 import qualified UT.RateHedgeTest as RHT
 
 import qualified DealTest.DealTest as DealTest
+import qualified DealTest.MultiPoolDealTest as DealMultiTest
 
 import qualified Accounts as A
 import qualified Lib as L
@@ -91,5 +92,6 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AnalyticsT.durationTest
                            ,AnalyticsT.fvTest
                            ,DealTest.baseTests
+                           --,DealMultiTest.baseTests
                            ,RHT.capRateTests
                            ]
