@@ -4,11 +4,13 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,getPoolsByName,getScheduledCashflow,dealScheduledCashflow
-                     ,getPoolIds,poolTypePool) 
+                     ,getPoolIds,poolTypePool, UnderlyingHolding(..)) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -61,12 +63,16 @@ class SPV a where
 
 
 type HoldingPct = Rate
-type UnderlyingHolding =(BondName, HoldingPct, Date)
+-- type UnderlyingHolding =(BondName, HoldingPct, Date)
+
+data UnderlyingHolding = UnderlyingBond BondName HoldingPct Date
+                       | UnderlyingMixed String
+                       deriving (Generic,Eq,Ord,Show)
 
 data PoolType a = SoloPool (P.Pool a)
                 | MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map UnderlyingHolding (TestDeal a))
-                deriving (Generic,Eq,Ord)
+                deriving (Generic,Eq,Ord,Show)
 
 -- instance Show (PoolType a) where
 --   show (SoloPool x) = "SoloPool:"++ show x
@@ -79,15 +85,16 @@ data PoolType a = SoloPool (P.Pool a)
 --   readsPrec _ "ResecDeal" = [(ResecDeal Map.empty,"")]
 --   readsPrec _ _ = []
 
+
+
 instance ToJSONKey UnderlyingHolding where 
-  toJSONKey :: ToJSONKeyFunction (BondName, HoldingPct, Date)
-  toJSONKey = toJSONKeyText $ \(bn,hp,d) -> T.pack $ bn ++ "_" ++ show hp ++ "_" ++ show d
+  toJSONKey :: ToJSONKeyFunction UnderlyingHolding
+  toJSONKey = toJSONKeyText $ \(UnderlyingBond bn hp d) -> T.pack $ bn ++ "_" ++ show hp ++ "_" ++ show d
 
 instance FromJSONKey UnderlyingHolding where
   fromJSONKey = FromJSONKeyTextParser $ \case
     "name" -> pure $ (,) <$> parseJSONKey <*> parseJSONKey <*> parseJSONKey
     _ -> fail "Expected \"name\" key"
-
 
 
 -- buildPoolIdFromDeal ::  P.Asset a => PoolType a -> Map.Map (BondName, HoldingPct, Date) PoolId
@@ -262,5 +269,6 @@ getAllCollectedTxnsList t mPns
       listOfTxns = Map.elems $ getAllCollectedTxns t mPns
 
 
+$(deriveJSON defaultOptions ''UnderlyingHolding)
 $(deriveJSON defaultOptions ''PoolType)
 $(deriveJSON defaultOptions ''TestDeal)
