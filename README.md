@@ -29,7 +29,7 @@
 ### Documentation
 
 * see what `Hastructure` is capable of -> [Here](https://absbox-doc.readthedocs.io/en/latest/)
-
+  * [Where is `Hastructure` doc ? ](https://github.com/yellowbean/Hastructure/wiki/Where-is-documentation-of-Hastructure-%3F)
 
 ### Features
 * Integration
