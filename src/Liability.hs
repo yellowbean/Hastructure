@@ -9,7 +9,7 @@ module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,weightAverageBalance,calcZspread,payYield
+  ,weightAverageBalance,calcZspread,payYield,scaleBond
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo)
   where
 
@@ -41,6 +41,7 @@ import GHC.Generics
 import Debug.Trace
 import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
+import Language.Haskell.TH.Lens (_BytesPrimL)
 
 debug = flip trace
 
@@ -324,6 +325,34 @@ buildRateResetDates b@Bond{bndInterestInfo = ii,bndStepUp = mSt } sd ed
     in 
       floaterRateResetDates ++ stepUpDates
 
+
+
+
+scaleBond :: Rate -> Bond -> Bond
+scaleBond r b@Bond{ bndOriginInfo = oi, bndInterestInfo = iinfo, bndStmt = mstmt
+                  , bndBalance = bal, bndDuePrin = dp, bndDueInt = di, bndDueIntDate = did
+                  , bndLastIntPay = lip, bndLastPrinPay = lpp
+                  , bndType = bt} 
+  = b {
+    bndType = scaleBndType r bt
+    ,bndOriginInfo = scaleBndOriginInfo r oi
+    ,bndBalance = mulBR bal r
+    ,bndDuePrin = mulBR dp r
+    ,bndDueInt = mulBR di r
+    ,bndStmt = scaleStmt r mstmt
+  }
+    where 
+      scaleBndType r (PAC ts) = let 
+                                  vs = (flip mulBR) r <$> fromRational <$> (getTsVals ts)
+                                  ds = getTsDates ts
+                                in 
+                                  PAC $ BalanceCurve [ TsPoint d v | (d,v) <- zip ds vs]
+      scaleBndType r _bt = _bt
+      
+      scaleBndOriginInfo r oi@OriginalInfo{originBalance = ob} = oi {originBalance = mulBR ob r}
+      
+      scaleStmt r Nothing = Nothing
+      scaleStmt r (Just (S.Statement txns)) = Just (S.Statement (S.scaleTxn r <$> txns))
 
 instance S.QueryByComment Bond where 
   queryStmt Bond{bndStmt = Nothing} tc = []

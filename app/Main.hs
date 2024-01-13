@@ -146,6 +146,7 @@ instance ToSchema (DB.PoolType AB.Mortgage)
 instance ToSchema (DB.PoolType AB.Loan)
 instance ToSchema (DB.PoolType AB.Installment)
 instance ToSchema (DB.PoolType AB.Lease)
+instance ToSchema DB.UnderlyingBond
 instance ToSchema (P.Pool AB.AssetUnion)
 instance ToSchema HE.RateCap
 instance ToSchema AB.LeaseStepUp 

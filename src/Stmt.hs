@@ -11,6 +11,7 @@ module Stmt
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..),scaleByFactor
+   ,scaleTxn
   )
   where
 

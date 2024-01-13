@@ -10,7 +10,7 @@
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,getPoolsByName,getScheduledCashflow,dealScheduledCashflow
-                     ,getPoolIds,poolTypePool, UnderlyingHolding(..)) 
+                     ,getPoolIds,poolTypePool, UnderlyingBond(..)) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -53,6 +53,12 @@ import Text.Read (readMaybe)
 import Asset (poolFutureCf)
 import qualified Types as CF
 
+import Debug.Trace
+debug = flip trace
+-- import Data.Aeson.Types (Parser)
+-- import qualified Data.HashMap.Strict as HM
+-- import Data.Text (unpack)
+-- import Control.Monad.IO.Class (liftIO)
 
 class SPV a where
   getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
@@ -65,13 +71,12 @@ class SPV a where
 type HoldingPct = Rate
 -- type UnderlyingHolding =(BondName, HoldingPct, Date)
 
-data UnderlyingHolding = UnderlyingBond BondName HoldingPct Date
-                       | UnderlyingMixed String
-                       deriving (Generic,Eq,Ord,Show)
+newtype UnderlyingBond = UnderlyingBond (BondName,HoldingPct,Date)
+                         deriving (Generic,Eq,Ord)
 
 data PoolType a = SoloPool (P.Pool a)
                 | MultiPool (Map.Map PoolId (P.Pool a))
-                | ResecDeal (Map.Map UnderlyingHolding (TestDeal a))
+                | ResecDeal (Map.Map UnderlyingBond (TestDeal a))
                 deriving (Generic,Eq,Ord,Show)
 
 -- instance Show (PoolType a) where
@@ -85,16 +90,32 @@ data PoolType a = SoloPool (P.Pool a)
 --   readsPrec _ "ResecDeal" = [(ResecDeal Map.empty,"")]
 --   readsPrec _ _ = []
 
+instance Read UnderlyingBond where 
+  -- readsPrec _ "UnderlyingBond" = [(UnderlyingBond ("",0,0),"")]
+  readsPrec _ str =
+    case T.splitOn "_" (T.pack str) of
+      [bn, hp, d] -> [(UnderlyingBond (T.unpack bn, read (T.unpack hp)::Rational, read (T.unpack d)::Date), "")] `debug` ("Read success" )
+      _ -> [] `debug` ("read not match with "++ str)
+      --[bn, hp, d] -> case (reads (T.unpack hp), reads (T.unpack d)) of
+      --                 ((hpVal, _):_, (dVal, _):_) -> [(UnderlyingBond (T.unpack bn, hpVal, dVal), "")] `debug` ("Read success")
+      --                 _ -> [] `debug` ("read not match with "++ show (T.splitOn "_" (T.pack str)))
+
+instance Show UnderlyingBond where 
+  show (UnderlyingBond (bn,hp,d)) = bn ++ "_" ++ show hp ++ "_" ++ show d
 
 
-instance ToJSONKey UnderlyingHolding where 
-  toJSONKey :: ToJSONKeyFunction UnderlyingHolding
-  toJSONKey = toJSONKeyText $ \(UnderlyingBond bn hp d) -> T.pack $ bn ++ "_" ++ show hp ++ "_" ++ show d
+instance ToJSONKey UnderlyingBond where 
+  toJSONKey :: ToJSONKeyFunction UnderlyingBond
+  toJSONKey = toJSONKeyText $ \(UnderlyingBond (bn,hp,d)) -> T.pack $ bn ++ "_" ++ show hp ++ "_" ++ show d
 
-instance FromJSONKey UnderlyingHolding where
-  fromJSONKey = FromJSONKeyTextParser $ \case
-    "name" -> pure $ (,) <$> parseJSONKey <*> parseJSONKey <*> parseJSONKey
-    _ -> fail "Expected \"name\" key"
+instance FromJSONKey UnderlyingBond where
+--   fromJSONKey = FromJSONKeyTextParser $ \case
+--     "name" -> pure $ (,) <$> parseJSONKey <*> parseJSONKey <*> parseJSONKey
+--     _ -> fail "Expected \"name\" key"
+     fromJSONKey = FromJSONKeyTextParser $ 
+       \t -> case readMaybe (T.unpack t) of
+               Just k -> pure k   `debug` ("parsed with "++ show k)
+               Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 
 -- buildPoolIdFromDeal ::  P.Asset a => PoolType a -> Map.Map (BondName, HoldingPct, Date) PoolId
@@ -210,7 +231,7 @@ getPoolIds t@TestDeal{pool = pt}
   = case pt of
       SoloPool _ -> [PoolConsol]
       MultiPool pm -> Map.keys pm
-      ResecDeal pm -> [PoolConsol] --TODO 
+      -- ResecDeal pm -> [PoolConsol] --TODO 
                          
 
 
@@ -229,12 +250,16 @@ getIssuanceStatsConsol t mPns
     in 
       Map.unionsWith (+) $ Map.elems ms
 
-getAllAsset :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId [a]
+getAllAsset :: TestDeal a -> Maybe [PoolId] -> Map.Map PoolId [a]
 getAllAsset t@TestDeal{pool = pt} mPns = 
   let 
     assetMap = case pt of 
                  SoloPool p -> Map.fromList [(PoolConsol, P.assets p)]
                  MultiPool pm -> Map.map P.assets pm
+                 ResecDeal pm -> Map.mapWithKey 
+                                   (\(UnderlyingBond (bn,hpct,sd), d)
+                                      ->  L.scaleBond hpct $ (bonds d Map.! bn))
+                                   pm 
   in
     case mPns of 
       Nothing -> assetMap 
@@ -269,6 +294,126 @@ getAllCollectedTxnsList t mPns
       listOfTxns = Map.elems $ getAllCollectedTxns t mPns
 
 
-$(deriveJSON defaultOptions ''UnderlyingHolding)
+$(deriveJSON defaultOptions ''UnderlyingBond)
 $(deriveJSON defaultOptions ''PoolType)
 $(deriveJSON defaultOptions ''TestDeal)
+
+baseCase = TestDeal {
+  name = "base case"
+  ,status = Amortizing
+  ,rateSwap = Nothing
+  ,currencySwap = Nothing
+  ,dates = PatternInterval $ 
+               (Map.fromList [
+                (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
+               ])
+  ,accounts = (Map.fromList
+  [("General", (A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing }))])
+  ,fees = Map.empty
+  ,bonds = (Map.fromList [("A"
+                             ,L.Bond{
+                              L.bndName="A"
+                             ,L.bndType=L.Sequential
+                             ,L.bndOriginInfo= L.OriginalInfo{
+                                                L.originBalance=3000
+                                                ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                ,L.originRate= 0.08
+                                                ,L.maturityDate = Nothing}
+                             ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
+                             ,L.bndBalance=3000
+                             ,L.bndRate=0.08
+                             ,L.bndStepUp=Nothing
+                             ,L.bndDuePrin=0.0
+                             ,L.bndDueInt=0.0
+                             ,L.bndDueIntDate=Nothing
+                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndStmt=Nothing})
+                         ]
+           )
+  ,pool = SoloPool (P.Pool {P.assets=[ACM.Mortgage
+                                         ACM.MortgageOriginalInfo{
+                                           ACM.originBalance=4000
+                                           ,ACM.originRate=IR.Fix DC_ACT_365F 0.085
+                                           ,ACM.originTerm=60
+                                           ,ACM.period=Monthly
+                                           ,ACM.startDate=T.fromGregorian 2022 1 1
+                                           ,ACM.prinType= ACM.Level
+                                           ,ACM.prepaymentPenalty = Nothing}
+                                         4000
+                                         0.085
+                                         60
+                                         Nothing
+                                         ACM.Current]
+                               ,P.futureCf=Just (CF.CashFlowFrame [])
+                               ,P.futureScheduleCf=Just (CF.CashFlowFrame [])
+                               ,P.asOfDate = T.fromGregorian 2022 1 1
+                               ,P.issuanceStat = Nothing
+                               ,P.extendPeriods = Nothing})
+   ,waterfall = Map.fromList [(W.DistributionDay Amortizing, [
+                                 (W.PayInt Nothing "General" ["A"] Nothing)
+                                 ,(W.PayPrin Nothing "General" ["A"] Nothing)
+   ])]
+ ,collects = [W.Collect Nothing W.CollectedInterest "General"
+             ,W.Collect Nothing W.CollectedPrincipal "General"]
+ ,call = Nothing
+ ,liqProvider = Nothing
+ ,ledgers = Nothing
+ ,rateCap = Nothing
+ ,custom = Nothing
+ ,triggers = Nothing
+ ,overrides = Nothing
+}
+
+resecDeal = TestDeal {
+  name = "Top Deal"
+  ,status = Amortizing
+  ,rateSwap = Nothing
+  ,currencySwap = Nothing
+  ,dates = PatternInterval $ 
+               (Map.fromList [
+                (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
+               ])
+  ,accounts = (Map.fromList
+  [("General", (A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing }))])
+  ,fees = Map.empty
+  ,bonds = (Map.fromList [("A"
+                             ,L.Bond{
+                              L.bndName="A"
+                             ,L.bndType=L.Sequential
+                             ,L.bndOriginInfo= L.OriginalInfo{
+                                                L.originBalance=3000
+                                                ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                ,L.originRate= 0.08
+                                                ,L.maturityDate = Nothing}
+                             ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
+                             ,L.bndStepUp=Nothing
+                             ,L.bndBalance=3000
+                             ,L.bndRate=0.08
+                             ,L.bndDuePrin=0.0
+                             ,L.bndDueInt=0.0
+                             ,L.bndDueIntDate=Nothing
+                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndStmt=Nothing})
+                         ]
+           )
+  ,pool = ResecDeal (Map.fromList [(UnderlyingBond ("A1",0.3,(toDate "20220201")), baseCase)])
+   ,waterfall = Map.fromList [(W.DistributionDay Amortizing, [
+                                 (W.PayInt Nothing "General" ["A"] Nothing)
+                                 ,(W.PayPrin Nothing "General" ["A"] Nothing)
+   ])]
+ ,collects = [W.Collect Nothing W.CollectedInterest "General"
+             ,W.Collect Nothing W.CollectedPrincipal "General"]
+ ,call = Nothing
+ ,liqProvider = Nothing
+ ,ledgers = Nothing
+ ,rateCap = Nothing
+ ,custom = Nothing
+ ,triggers = Nothing
+ ,overrides = Nothing
+}

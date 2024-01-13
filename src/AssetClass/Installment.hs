@@ -34,17 +34,6 @@ import AssetClass.AssetCashflow
 import qualified Asset as Ast
 debug = flip trace
 
-calc_p_i_flow_f_p :: Balance -> Balance -> Balance -> Amount -> Dates -> Period -> IRate -> ([Balance],CF.Principals,CF.Interests)
-calc_p_i_flow_f_p ob cb sb amt ds p r 
-  = (_bals, _prins,_fees)
-    where 
-      size = length ds
-      factor = toRational $ cb / sb
-      _prins = replicate size $ (mulBR amt factor)
-      _period_fee =  mulBR (mulBI ob r) factor
-      _bals = tail $ scanl (-) cb _prins
-      _fees = replicate size _period_fee
-
 
 projectInstallmentFlow :: (Balance,Date,(Balance,Balance),IRate,Rational) -> (Dates, [DefaultRate], [PrepaymentRate], [Int]) -> ([CF.TsRow],Rational)
 projectInstallmentFlow (startBal, lastPaidDate, (originRepay,originInt), startRate,begFactor) (cfDates, defRates, ppyRates, remainTerms)

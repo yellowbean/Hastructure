@@ -406,11 +406,13 @@ type DealName = String
 
 data PoolId = PoolName String
             | PoolConsol
+            | DealBondFlow DealName String
             deriving (Eq,Ord,Generic)
 
 instance Show PoolId where
   show (PoolName n)  = n
   show PoolConsol = "PoolConsol"
+  show (DealBondFlow dn bn) = "BondFlow:"++dn++":"++bn
 
 instance (Read PoolId) where
   readsPrec d "PoolConsol" = [(PoolConsol,"")]
