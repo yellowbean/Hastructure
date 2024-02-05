@@ -30,14 +30,14 @@ import qualified Data.Time as T
 import qualified Data.Set as S
 
 
-multiPool = Map.fromList [(P.PoolName "PoolA",P.Pool {P.assets=[AB.Mortgage
+multiPool = Map.fromList [(PoolName "PoolA",P.Pool {P.assets=[AB.Mortgage
                                                                    AB.MortgageOriginalInfo{ AB.originBalance=4000 ,AB.originRate=Fix DC_ACT_365F 0.085 ,AB.originTerm=60 ,AB.period=Monthly ,AB.startDate=T.fromGregorian 2022 1 1 ,AB.prinType= AB.Level ,AB.prepaymentPenalty = Nothing}
                                                                    1000 0.085 60 Nothing AB.Current]
                                                       ,P.futureCf= Nothing
                                                       ,P.asOfDate = T.fromGregorian 2022 1 1
                                                       ,P.issuanceStat = Nothing
                                                       ,P.extendPeriods = Nothing})
-                         ,(P.PoolName "PoolB",(P.Pool {P.assets=[AB.Mortgage
+                         ,(PoolName "PoolB",(P.Pool {P.assets=[AB.Mortgage
                                                                    AB.MortgageOriginalInfo{ AB.originBalance=4000 ,AB.originRate=Fix DC_ACT_365F 0.085 ,AB.originTerm=60 ,AB.period=Monthly ,AB.startDate=T.fromGregorian 2022 1 1 ,AB.prinType= AB.Level ,AB.prepaymentPenalty = Nothing}
                                                                    3000 0.085 60 Nothing AB.Current]
                                                         ,P.futureCf=Just (CF.CashFlowFrame [])

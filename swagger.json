@@ -1630,34 +1630,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/Day"
-                                                }
-                                            ],
-                                            "maxItems": 3,
-                                            "type": "array",
-                                            "minItems": 3
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_Installment"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/TestDeal_Installment"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -8016,34 +7992,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/Day"
-                                                }
-                                            ],
-                                            "maxItems": 3,
-                                            "type": "array",
-                                            "minItems": 3
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_Lease"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/TestDeal_Lease"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -8315,34 +8267,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/Day"
-                                                }
-                                            ],
-                                            "maxItems": 3,
-                                            "type": "array",
-                                            "minItems": 3
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_FixedAsset"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/TestDeal_FixedAsset"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -9463,34 +9391,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/Day"
-                                                }
-                                            ],
-                                            "maxItems": 3,
-                                            "type": "array",
-                                            "minItems": 3
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_Loan"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/TestDeal_Loan"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -10438,34 +10342,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/Day"
-                                                }
-                                            ],
-                                            "maxItems": 3,
-                                            "type": "array",
-                                            "minItems": 3
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_Mortgage"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/TestDeal_Mortgage"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -11095,7 +10975,7 @@
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "UnderlyingDeal"
+                                    "DealBondFlow"
                                 ]
                             }
                         },
@@ -12428,34 +12308,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/Day"
-                                                }
-                                            ],
-                                            "maxItems": 3,
-                                            "type": "array",
-                                            "minItems": 3
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_AssetUnion"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/TestDeal_AssetUnion"
+                                }
                             },
                             "tag": {
                                 "type": "string",

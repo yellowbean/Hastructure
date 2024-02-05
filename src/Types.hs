@@ -266,7 +266,6 @@ instance FromJSONKey DealCycle where
   fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
- 
 
 data CustomDataType = CustomConstant Rational 
                     | CustomCurve    Ts 
@@ -404,9 +403,9 @@ data PoolSource = CollectedInterest               -- ^ interest
 
 type DealName = String
 
-data PoolId = PoolName String
-            | PoolConsol
-            | DealBondFlow DealName String
+data PoolId = PoolName String               -- ^ pool name
+            | PoolConsol                    -- ^ consolidate pool ( the only pool )
+            | DealBondFlow DealName String  -- ^ bond flow from deal
             deriving (Eq,Ord,Generic)
 
 instance Show PoolId where
@@ -507,6 +506,7 @@ data DealStats = CurrentBondBalance
                | RateSwapNet String
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date (Maybe [PoolId])
+               | UnderlyingBondBalance (Maybe [BondName])
                | TriggersStatus DealCycle String
                | IsDealStatus DealStatus
                | TestRate DealStats Cmp Micro

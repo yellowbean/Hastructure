@@ -10,7 +10,7 @@
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,getPoolsByName,getScheduledCashflow,dealScheduledCashflow
-                     ,getPoolIds,poolTypePool, UnderlyingBond(..)) 
+                     ,getPoolIds,poolTypePool, UnderlyingBond(..), getBondByName) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -61,11 +61,12 @@ debug = flip trace
 -- import Control.Monad.IO.Class (liftIO)
 
 class SPV a where
-  getBondByName :: a -> Maybe [String] -> Map.Map String L.Bond
+  getBondsByName :: a -> Maybe [String] -> Map.Map String L.Bond
   getBondBegBal :: a -> String -> Balance
   getBondStmtByName :: a -> Maybe [String] -> Map.Map String (Maybe Statement)
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
   getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
+  isResec :: a -> Bool
 
 
 type HoldingPct = Rate
@@ -160,7 +161,7 @@ data TestDeal a = TestDeal { name :: DealName
                            } deriving (Show,Generic,Eq,Ord)
 
 instance SPV (TestDeal a) where
-  getBondByName t bns
+  getBondsByName t bns
     = case bns of
          Nothing -> bonds t
          Just _bns -> Map.filterWithKey (\k _ -> S.member k (S.fromList _bns)) (bonds t)
@@ -168,7 +169,7 @@ instance SPV (TestDeal a) where
   getBondStmtByName t bns
     = Map.map L.bndStmt bndsM
       where
-      bndsM = Map.map L.consolStmt $ getBondByName t bns
+      bndsM = Map.map L.consolStmt $ getBondsByName t bns
 
   getBondBegBal t bn 
     = case L.bndStmt b of
@@ -186,6 +187,11 @@ instance SPV (TestDeal a) where
     = case ans of
          Nothing -> accounts t
          Just _ans -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _ans)) (accounts t)
+  
+  isResec t = case pool t of
+                 ResecDeal _ -> True
+                 _ -> False
+
 
 dealBonds :: P.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
 dealBonds = lens getter setter 
@@ -234,6 +240,8 @@ getPoolIds t@TestDeal{pool = pt}
       -- ResecDeal pm -> [PoolConsol] --TODO 
                          
 
+getBondByName :: P.Asset a => TestDeal a -> BondName -> Maybe L.Bond
+getBondByName t bName = Map.lookup bName (bonds t)
 
 -- ^ get issuance pool stat from pool map
 getIssuanceStats :: P.Asset a => TestDeal a  -> Maybe [PoolId] -> Map.Map PoolId (Map.Map CutoffFields Balance)
@@ -256,10 +264,7 @@ getAllAsset t@TestDeal{pool = pt} mPns =
     assetMap = case pt of 
                  SoloPool p -> Map.fromList [(PoolConsol, P.assets p)]
                  MultiPool pm -> Map.map P.assets pm
-                 ResecDeal pm -> Map.mapWithKey 
-                                   (\(UnderlyingBond (bn,hpct,sd), d)
-                                      ->  L.scaleBond hpct $ (bonds d Map.! bn))
-                                   pm 
+                 -- ResecDeal pm -> Map.mapWithKey (\(UnderlyingBond (bn,hpct,sd), d) -> getAllAsset d Nothing) pm
   in
     case mPns of 
       Nothing -> assetMap 
@@ -274,6 +279,7 @@ getPoolsByName TestDeal{pool = (MultiPool pm)} Nothing = pm
 getPoolsByName t@TestDeal{pool = (SoloPool p ),name = n } (Just [PoolConsol]) = Map.fromList [(PoolConsol,p)]
 getPoolsByName t@TestDeal{pool = (SoloPool _ ),name = n } (Just pNames) =  error $ "Can't lookup"++ show pNames ++"In a Solo Pool deal"++ show (pool t)
 getPoolsByName TestDeal{pool = (MultiPool pm )} (Just pNames) = Map.filterWithKey (\k _ -> k `elem` pNames) pm
+getPoolsByName a b = error $ "Failed to match in getPoolsByName:"++ show a++":"++ show b
 
 getAllCollectedFrame :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.CashFlowFrame)
 getAllCollectedFrame t@TestDeal{pool = pt} mPns = Map.map P.futureCf $ getPoolsByName t mPns 
@@ -292,6 +298,10 @@ getAllCollectedTxnsList t mPns
   = concat $ fromMaybe [] <$>  listOfTxns
     where 
       listOfTxns = Map.elems $ getAllCollectedTxns t mPns
+
+
+data UnderBond b = UnderBond BondName Rate (TestDeal b)
+
 
 
 $(deriveJSON defaultOptions ''UnderlyingBond)

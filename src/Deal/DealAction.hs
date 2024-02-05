@@ -151,7 +151,7 @@ calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase 
                                                   (yearCountFraction DC_ACT_365F accrueStart calcDay)
                     OriginalBondBalance -> mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
                     CurrentBondBalance -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t)
-                    CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns))
+                    CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondsByName t (Just bns))
         r = toRational $ queryDealRate t _r 
         newDue = mulBR baseBal r
 
@@ -845,7 +845,7 @@ performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns)
 performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns mBalDs mRateDs) 
   = t {bonds = Map.union newBondMap bndMap}
   where 
-    newBondMap = Map.map (calcDueInt t d mBalDs mRateDs) $ getBondByName t (Just bns)
+    newBondMap = Map.map (calcDueInt t d mBalDs mRateDs) $ getBondsByName t (Just bns)
 
 performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToAcc an)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)
