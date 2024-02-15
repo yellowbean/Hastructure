@@ -423,8 +423,8 @@ buildCollectedCF trs (d:ds) _trs =
     --       else 
     --         buildCollectedCF (trs++[[(viewTsRow d . last .last) trs]]) ds _trs -- `debug` ("viewing trs"++ show trs)
     [] -> case Util.lastOf trs (not . null) of
-            Nothing -> buildCollectedCF (trs++[[]]) ds _trs `debug` ("empty trs"++ show d)
-            Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d)
+            Nothing -> buildCollectedCF (trs++[[]]) ds _trs  -- `debug` ("empty trs"++ show d)
+            Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs -- `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d)
     newFlow -> buildCollectedCF (trs++[newFlow]) ds remains
   where 
     (newFlow, remains) = splitBy d Inc _trs
@@ -432,7 +432,7 @@ buildCollectedCF a b c = error $ "buildCollectedCF failed"++ show a++">>"++ show
 
 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
-aggTsByDates trs ds = uncurry sumTsCF <$> zip (buildCollectedCF [] ds trs) ds `debug` (">>> to sumTsCF "++ show (zip (buildCollectedCF [] ds trs) ds ))
+aggTsByDates trs ds = uncurry sumTsCF <$> zip (buildCollectedCF [] ds trs) ds -- `debug` (">>> to sumTsCF "++ show (zip (buildCollectedCF [] ds trs) ds ))
 
 
 mflowPrincipal :: TsRow -> Balance

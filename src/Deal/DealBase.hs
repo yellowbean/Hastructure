@@ -346,8 +346,8 @@ getAllCollectedFrame t mPid =
     mCf = view dealCashflow t
   in 
     case mPid of 
-      Nothing -> mCf  `debug` ("Nothing when collecting cfs"++show mCf)
-      Just pids -> Map.filterWithKey (\k _ -> k `elem` pids) mCf `debug` ("Just when collecting cfs"++show mCf)
+      Nothing -> mCf -- `debug` ("Nothing when collecting cfs"++show mCf)
+      Just pids -> Map.filterWithKey (\k _ -> k `elem` pids) mCf -- `debug` ("Just when collecting cfs"++show mCf)
 
 getLatestCollectFrame :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.TsRow)
 getLatestCollectFrame t mPns = Map.map (last . view CF.cashflowTxn <$>) (getAllCollectedFrame t mPns)
