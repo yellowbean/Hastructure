@@ -28,7 +28,7 @@ calcWAL th bal d ps =
                  ByMonth -> 30
     weightedAmts = [ mulBR futureAmt ((daysBetween d futureDate) % interval)  | (futureAmt,futureDate) <- ps ]
   in 
-    (sum weightedAmts) / bal
+    sum weightedAmts / bal
 
 calcDuration :: Date -> [(Date,Balance)] -> Ts -> Balance
 calcDuration d ps pricingCurve 

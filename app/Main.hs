@@ -82,6 +82,7 @@ import qualified DateUtil as DU
 
 
 import Debug.Trace
+import qualified Deal.DealBase as DB
 debug = flip Debug.Trace.trace
 
 data Version = Version 
@@ -134,6 +135,13 @@ instance ToSchema AB.Installment
 instance ToSchema AB.Lease
 instance ToSchema AB.FixedAsset
 
+instance ToSchema (DB.UnderlyingDeal AB.Mortgage)
+instance ToSchema (DB.UnderlyingDeal AB.Loan)
+instance ToSchema (DB.UnderlyingDeal AB.Installment)
+instance ToSchema (DB.UnderlyingDeal AB.Lease)
+instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
+instance ToSchema (DB.UnderlyingDeal AB.FixedAsset)
+
 instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
@@ -146,7 +154,6 @@ instance ToSchema (DB.PoolType AB.Mortgage)
 instance ToSchema (DB.PoolType AB.Loan)
 instance ToSchema (DB.PoolType AB.Installment)
 instance ToSchema (DB.PoolType AB.Lease)
-instance ToSchema DB.UnderlyingBond
 instance ToSchema (P.Pool AB.AssetUnion)
 instance ToSchema HE.RateCap
 instance ToSchema AB.LeaseStepUp 

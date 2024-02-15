@@ -125,7 +125,8 @@ resecDeal = D.TestDeal {
                              ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = D.ResecDeal (Map.fromList [(D.UnderlyingBond ("A",1/4, toDate "20200101" ), baseCase)])
+  ,D.pool = D.ResecDeal (Map.fromList [(DealBondFlow "base case" "A" (toDate "20200101") 0.25
+                                        , D.UnderlyingDeal baseCase Nothing Nothing Nothing)])
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)

@@ -32,6 +32,7 @@ import qualified Data.Text as Text
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import qualified Data.Time as Time
+import qualified Data.Time.Format as TF
 import qualified Data.Map as Map
 import qualified Data.List.Split
 import Text.Regex.Base
@@ -403,28 +404,33 @@ data PoolSource = CollectedInterest               -- ^ interest
 
 type DealName = String
 
-data PoolId = PoolName String               -- ^ pool name
-            | PoolConsol                    -- ^ consolidate pool ( the only pool )
-            | DealBondFlow DealName String  -- ^ bond flow from deal
+data PoolId = PoolName String                         -- ^ pool name
+            | PoolConsol                              -- ^ consolidate pool ( the only pool )
+            | DealBondFlow DealName String Date Rate  -- ^ bond flow from deal
             deriving (Eq,Ord,Generic)
 
 instance Show PoolId where
   show (PoolName n)  = n
   show PoolConsol = "PoolConsol"
-  show (DealBondFlow dn bn) = "BondFlow:"++dn++":"++bn
+  show (DealBondFlow dn bn sd r) = "BondFlow:"++dn++":"++bn++":"++show sd++":"++show r
 
 instance (Read PoolId) where
   readsPrec d "PoolConsol" = [(PoolConsol,"")]
   readsPrec d rStr = 
     let 
       pn = Data.List.Split.splitOn ":" rStr
+      dn = pn!!0
+      bn = pn!!1
+      sd = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d" $ pn!!2
+      pct = read (pn!!3)::Rate
     in 
-      [(PoolName (last pn),"")]
+      [(DealBondFlow dn bn sd pct,"")]
 
 
 instance ToJSONKey PoolId where
   toJSONKey :: ToJSONKeyFunction PoolId
   toJSONKey = toJSONKeyText (T.pack . show)
+
 
 instance FromJSONKey PoolId where
   fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
@@ -432,8 +438,6 @@ instance FromJSONKey PoolId where
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 
-
-  
 data DealStats = CurrentBondBalance
                | CurrentPoolBalance (Maybe [PoolId])
                | CurrentPoolBegBalance (Maybe [PoolId])
@@ -568,8 +572,8 @@ getDealStatType (Min dss) = getDealStatType (head dss)
 getDealStatType (Divide ds1 ds2) = getDealStatType ds1
 getDealStatType _ = RtnBalance
 
-
 dealStatType _ = RtnBalance
+
 
 data Cmp = G      -- ^ Greater than 
          | GE     -- ^ Greater Equal than
@@ -735,16 +739,14 @@ class TimeSeries ts where
     splitBy d ct tss = 
       let 
         ffunR x = case ct of
-                   Inc -> getDate x > d -- include ts in the Left
-                   Exc -> getDate x >= d  -- 
+                    Inc -> getDate x > d -- include ts in the Left
+                    Exc -> getDate x >= d  -- 
         ffunL x = case ct of
-                   Inc -> getDate x <= d -- include ts in the Left
-                   Exc -> getDate x < d  -- 
+                    Inc -> getDate x <= d -- include ts in the Left
+                    Exc -> getDate x < d  -- 
       in 
         (filter ffunL tss, filter ffunR tss)
         
-                         
-
 
 class Liable lb where 
 
@@ -760,14 +762,14 @@ data Table a b = ThresholdTable [(a,b)]
 
 lookupTable :: Ord a => Table a b -> TableDirection -> (a -> Bool) -> Maybe b
 lookupTable (ThresholdTable rows) direction lkUpFunc
-  =  case findIndex lkUpFunc rs of 
-       Nothing -> Nothing
-       Just i -> Just $ vs!!i
-     where 
-         rs = case direction of 
+  = case findIndex lkUpFunc rs of 
+      Nothing -> Nothing
+      Just i -> Just $ vs!!i
+    where 
+        rs = case direction of 
                 Up -> reverse $ map fst rows
                 Down -> map fst rows
-         vs = case direction of 
+        vs = case direction of 
                 Up -> reverse $ map snd rows
                 Down -> map snd rows
 
@@ -800,9 +802,11 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | ZSpread Spread 
                  deriving (Show, Eq, Generic)
 
+
 data TimeHorizion = ByMonth
                   | ByYear
                   | ByQuarter
+
 
 data Limit = DuePct Rate            -- ^ up to % of total amount due
            | DueCapAmt Balance      -- ^ up to $ amount 
@@ -815,6 +819,7 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
            | TillSource             -- ^ transfer amount out till source account down back to reserve balance
            | Multiple Limit Float   -- ^ factor of a limit
            deriving (Show,Ord,Eq,Read,Generic)
+
 
 data RoundingBy a = RoundCeil a 
                   | RoundFloor a

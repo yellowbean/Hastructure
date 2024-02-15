@@ -218,28 +218,28 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           Just v -> v
           Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
     
-    UnderlyingBondBalance mBndNames ->
-      let 
-        bBals = case pt of 
-                  ResecDeal uBndMap -> 
-                    case mBndNames of 
-                      Just bndNames -> sum $ Map.elems
-                                        $ Map.filterWithKey (\(UnderlyingBond (k,pct,_)) v -> S.member k (S.fromList bndNames)) bondsBals
-                      Nothing -> sum $ Map.elems bondsBals
-                    where 
-                      bondsBals = Map.mapWithKey 
-                                    (\(UnderlyingBond (bn,pct,_)) uDeal -> 
-                                      let 
-                                        bals = queryDeal uDeal (CurrentBondBalanceOf [bn])
-                                        pctBals = flip mulBR pct <$> [bals]
-                                      in 
-                                        sum pctBals)
-                                    uBndMap
-                  _ -> error "Failed to find underlying bond balance in the deal"
-               where 
-                pt = view dealPool t
-      in 
-        bBals
+    UnderlyingBondBalance mBndNames -> 0
+    --  let 
+    --    bBals = case pt of 
+    --              ResecDeal uBndMap -> 
+    --                case mBndNames of 
+    --                  Just bndNames -> sum $ Map.elems
+    --                                    $ Map.filterWithKey (\(UnderlyingBond (k,pct,_)) v -> S.member k (S.fromList bndNames)) bondsBals
+    --                  Nothing -> sum $ Map.elems bondsBals
+    --                where 
+    --                  bondsBals = Map.mapWithKey 
+    --                                (\(UnderlyingBond (bn,pct,_)) (UnderlyingDeal uDeal _ _ _ ) -> 
+    --                                  let 
+    --                                    bals = queryDeal uDeal (CurrentBondBalanceOf [bn])
+    --                                    pctBals = flip mulBR pct <$> [bals]
+    --                                  in 
+    --                                    sum pctBals)
+    --                                uBndMap
+    --              _ -> error "Failed to find underlying bond balance in the deal"
+    --           where 
+    --            pt = view dealPool t
+    --  in 
+    --    bBals
  
     AllAccBalance -> sum $ map A.accBalance $ Map.elems accMap 
     
@@ -360,7 +360,11 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       --       Nothing -> 0.0
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
-        pCfTxns = Map.map (maybe [] CF.getTsCashFlowFrame) $ getScheduledCashflow t mPns
+        pScheduleFlow = view dealScheduledCashflow t
+        pCfTxns = Map.map (maybe [] CF.getTsCashFlowFrame) $
+                    case mPns of 
+                      Nothing -> pScheduleFlow
+                      Just pIds -> Map.filterWithKey (\k _ -> S.member k (S.fromList pIds)) pScheduleFlow
         txns = cutBy Exc Future asOfDay $ concat $ Map.elems pCfTxns
         txnsCfs = CF.tsTotalCash <$> txns -- `debug` ("schedule cf as of "++ show asOfDay ++ ">>" ++ show txns)
         txnsDs = getDate <$> txns

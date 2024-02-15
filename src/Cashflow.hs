@@ -516,6 +516,8 @@ mflowRate :: TsRow -> IRate
 mflowRate (MortgageFlow _ _ _ _ _ _ _ _ x _ _ _) = x
 mflowRate (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ x _ _ _) = x
 mflowRate (LoanFlow _ _ _ _ _ _ _ _ x _) = x
+mflowRate (BondFlow _ _ _ _) = 0
+mflowRate _ = 0
 
 mflowRental :: TsRow -> Amount
 mflowRental (LeaseFlow _ _ x ) = x
@@ -535,6 +537,7 @@ mflowAmortAmount (MortgageDelinqFlow _ _ p _ ppy delinq _ _ _ _ _ _ _) = p + ppy
 mflowAmortAmount (LoanFlow _ _ x _ y z _ _ _ _) = x + y + z
 mflowAmortAmount (LeaseFlow _ _ x ) = x
 mflowAmortAmount (FixedFlow _ _ x _ _ _) = x
+mflowAmortAmount (BondFlow _ _ p i) = p
 
 mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 -- ^ get borrower numfer for Mortgage Flow
@@ -572,6 +575,7 @@ emptyTsRow _d (MortgageFlow a x c d e f g h i j k l) = MortgageFlow _d 0 0 0 0 0
 emptyTsRow _d (LoanFlow a x c d e f g i j k) = LoanFlow _d 0 0 0 0 0 0 0 0 Nothing
 emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
 emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
+emptyTsRow _d (BondFlow a x c d) = BondFlow _d 0 0 0
 
 
 viewTsRow :: Date -> TsRow -> TsRow 
@@ -581,6 +585,7 @@ viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 
 viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
 viewTsRow _d (LeaseFlow a b c ) = LeaseFlow _d b 0
 viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
+viewTsRow _d (BondFlow a b c d) = BondFlow _d b 0 0
 
 
 -- ^ given a cashflow,build a new cf row with begin balance
@@ -598,7 +603,9 @@ tsSetRate :: IRate -> TsRow -> TsRow
 tsSetRate _r (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow a b c d e f g h i _r k l m
 tsSetRate _r (MortgageFlow a b c d e f g h i j k l) = MortgageFlow a b c d e f g h _r j k l
 tsSetRate _r (LoanFlow a b c d e f g i j k) = LoanFlow a b c d e f g i _r k
+tsSetRate _r (BondFlow a b c d) = BondFlow a b c d
 tsSetRate _r (FixedFlow {} ) = error "Not implement set rate for FixedFlow"
+tsSetRate _ _ = error "Not implement set rate for this type"
 
 
 insertBegTsRow :: Date -> CashFlowFrame -> CashFlowFrame

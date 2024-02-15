@@ -101,7 +101,7 @@ type PlannedAmorSchedule = Ts
 
 data BondType = Sequential                                 -- ^ Pass through type tranche
               | PAC PlannedAmorSchedule                    -- ^ bond with schedule amortization 
-              | PacAnchor PlannedAmorSchedule [BondName]  -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
+              | PacAnchor PlannedAmorSchedule [BondName]   -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
               | Lockout Date                               -- ^ No principal due till date
               | Z                                          -- ^ Z tranche
               | Equity                                     -- ^ Equity type tranche
@@ -236,20 +236,20 @@ _calcIRR amt initIrr today (BalanceCurve cashflows)
 calcBondYield :: Date -> Balance ->  Bond -> Rate
 calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
 calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
- =  _calcIRR cost 0.05 d (BalanceCurve cashflows)
-   where
-     cashflows = [ TsPoint (S.getDate txn) (S.getTxnAmt txn)  | txn <- txns ]
+  = _calcIRR cost 0.05 d (BalanceCurve cashflows)
+    where
+      cashflows = [ TsPoint (S.getDate txn) (S.getTxnAmt txn)  | txn <- txns ]
 
 -- ^ backout interest due for a Yield Maintainace type bond
 backoutDueIntByYield :: Date -> Bond -> Balance
 backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYield y) _ currentBalance  _ _ _ _ _ _ stmt)
   = projFv - fvs - currentBalance  -- `debug` ("Date"++ show d ++"FV->"++show projFv++">>"++show fvs++">>cb"++show currentBalance)
     where
-     projFv = fv2 y odate d obal 
-     fvs = sum $ [ fv2 y cfDate d cfAmt  | (cfDate,cfAmt) <- cashflows ] -- `debug` (show d ++ ":CFS"++ show cashflows)
-     cashflows = case stmt of
-                   Just (S.Statement txns) -> [ ((S.getDate txn),(S.getTxnAmt txn))  | txn <- txns ] -- `debug` (show d ++":TXNS"++ show txns)
-                   Nothing -> []
+      projFv = fv2 y odate d obal 
+      fvs = sum $ [ fv2 y cfDate d cfAmt  | (cfDate,cfAmt) <- cashflows ] -- `debug` (show d ++ ":CFS"++ show cashflows)
+      cashflows = case stmt of
+                    Just (S.Statement txns) -> [ ((S.getDate txn),(S.getTxnAmt txn))  | txn <- txns ] -- `debug` (show d ++":TXNS"++ show txns)
+                    Nothing -> []
 
 
 -- TO BE Deprecate, it was implemented in Cashflow Frame
@@ -257,11 +257,11 @@ weightAverageBalance :: Date -> Date -> Bond -> Balance
 weightAverageBalance sd ed b@(Bond _ _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
   = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
     where
-     _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
-     _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
-     _ds = S.getDates txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
-     _b = consolStmt b   
-     txns =  case S.sliceStmt sd ed <$> bndStmt _b of
+      _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
+      _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
+      _ds = S.getDates txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
+      _b = consolStmt b   
+      txns =  case S.sliceStmt sd ed <$> bndStmt _b of
                 Nothing -> []
                 Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 
@@ -343,7 +343,7 @@ scaleBond r b@Bond{ bndOriginInfo = oi, bndInterestInfo = iinfo, bndStmt = mstmt
   }
     where 
       scaleBndType r (PAC ts) = let 
-                                  vs = (flip mulBR) r <$> fromRational <$> (getTsVals ts)
+                                  vs = (flip mulBR r . fromRational <$> getTsVals ts)
                                   ds = getTsDates ts
                                 in 
                                   PAC $ BalanceCurve [ TsPoint d v | (d,v) <- zip ds vs]
