@@ -231,8 +231,7 @@ projCashflowByDefaultAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDefaultB
              endBal = intBal - newPrin
              newMbn = decreaseBorrowerNum begBal endBal mBorrower  -- `debug` (">>> pdate"++ show pDate)
            in 
-             acc ++ [CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0
-                       rate newMbn Nothing Nothing]                    
+             acc ++ [CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0 rate newMbn Nothing Nothing]                    
          )
        [initRow]
        (zip5 cfDates (zip expectedDefaultBals unAppliedDefaultBals) ppyRates rateVector remainTerms)
@@ -289,9 +288,9 @@ projScheduleCashflowByDefaultAmt (cb,lastPayDate,cr,mbn) (scheduleFlows,(expecte
              mBorrower = CF.mflowBorrowerNum (last acc)
 
              newDefault = if begBal <= (defaultBal+futureDefualtBal) then
-                             begBal  
-                           else
-                             defaultBal   
+                            begBal  
+                          else
+                            defaultBal   
              newPrepay = mulBR (max 0 (begBal - newDefault)) ppyRate  -- `debug` ("mb from last"++ show mBorrower) 
              
              intBal = max 0 $ begBal - newDefault - newPrepay

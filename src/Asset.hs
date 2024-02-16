@@ -95,6 +95,8 @@ class (Show a,IR.UseRate a) => Asset a where
 
 
 
+
+
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
                    ,futureScheduleCf :: Maybe CF.CashFlowFrame              -- ^ projected un-stressed cashflow
@@ -102,6 +104,8 @@ data Pool a = Pool {assets :: [a]                                           -- ^
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    } deriving (Show,Generic,Ord,Eq)
+
+
 
 poolFutureCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
 poolFutureCf = lens getter setter 

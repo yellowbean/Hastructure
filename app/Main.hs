@@ -82,6 +82,7 @@ import qualified DateUtil as DU
 
 
 import Debug.Trace
+import qualified Deal.DealBase as DB
 debug = flip Debug.Trace.trace
 
 data Version = Version 
@@ -92,7 +93,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.24.3"
+version1 = Version "0.25.0"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -133,6 +134,13 @@ instance ToSchema AB.Loan
 instance ToSchema AB.Installment
 instance ToSchema AB.Lease
 instance ToSchema AB.FixedAsset
+
+instance ToSchema (DB.UnderlyingDeal AB.Mortgage)
+instance ToSchema (DB.UnderlyingDeal AB.Loan)
+instance ToSchema (DB.UnderlyingDeal AB.Installment)
+instance ToSchema (DB.UnderlyingDeal AB.Lease)
+instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
+instance ToSchema (DB.UnderlyingDeal AB.FixedAsset)
 
 instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)

@@ -139,6 +139,8 @@ test-suite Hastructure-test
   main-is: MainTest.hs
   other-modules:
       DealTest.DealTest
+      DealTest.MultiPoolDealTest
+      DealTest.ResecDealTest
       UT.AccountTest
       UT.AnalyticsTest
       UT.AssetTest

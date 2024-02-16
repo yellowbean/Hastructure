@@ -116,10 +116,14 @@ calcLiquidationAmount (PV discountRate recoveryPct) pool d
             pvCf + mulBI currentDefaulBal recoveryPct
 
 liquidatePool :: P.Asset a => PricingMethod -> Date -> String -> TestDeal a -> TestDeal a
-liquidatePool lq d accName t@TestDeal { accounts = accs , pool = pool} =
+liquidatePool lm d accName t@TestDeal { accounts = accs , pool = pool} =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
-    proceedsByPool = Map.map (\p -> calcLiquidationAmount lq p d) $ getPoolsByName t Nothing 
+    proceedsByPool = case pool of 
+                     MultiPool pm -> Map.map (\p -> calcLiquidationAmount lm p d) pm
+                     SoloPool p -> Map.fromList [(PoolConsol,calcLiquidationAmount lm p d)]
+                     ResecDeal uDeals -> error "Not implement on liquidate resec deal"
+    
     proceeds = sum $ Map.elems proceedsByPool
     updateFn = A.deposit proceeds d LiquidationProceeds
 
@@ -151,7 +155,7 @@ calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase 
                                                   (yearCountFraction DC_ACT_365F accrueStart calcDay)
                     OriginalBondBalance -> mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
                     CurrentBondBalance -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t)
-                    CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondByName t (Just bns))
+                    CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondsByName t (Just bns))
         r = toRational $ queryDealRate t _r 
         newDue = mulBR baseBal r
 
@@ -833,7 +837,11 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
 performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets/cashflow frame
   where
-    liqAmtByPool = Map.map (\p -> calcLiquidationAmount lm p d) $ getPoolsByName t Nothing
+    liqAmtByPool = case pool of 
+                     MultiPool pm -> Map.map (\p -> calcLiquidationAmount lm p d) pm
+                     SoloPool p -> Map.fromList [(PoolConsol,calcLiquidationAmount lm p d)]
+                     ResecDeal uDeals -> error "Not implement on liquidate resec deal"
+
     liqAmt = sum $ Map.elems liqAmtByPool
     accMapAfterLiq = Map.adjust (A.deposit liqAmt d LiquidationProceeds) an accMap
 
@@ -845,7 +853,7 @@ performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns)
 performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns mBalDs mRateDs) 
   = t {bonds = Map.union newBondMap bndMap}
   where 
-    newBondMap = Map.map (calcDueInt t d mBalDs mRateDs) $ getBondByName t (Just bns)
+    newBondMap = Map.map (calcDueInt t d mBalDs mRateDs) $ getBondsByName t (Just bns)
 
 performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToAcc an)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap } -- `debug` ("Using LImit"++ show limit)

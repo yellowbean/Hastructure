@@ -1630,31 +1630,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_Installment"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/UnderlyingDeal_Installment"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -1670,6 +1649,30 @@
                     }
                 ],
                 "type": "object"
+            },
+            "UnderlyingDeal_Lease": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "deal": {
+                        "$ref": "#/components/schemas/TestDeal_Lease"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    }
+                },
+                "required": [
+                    "deal"
+                ]
             },
             "Pool_AssetUnion": {
                 "type": "object",
@@ -7388,6 +7391,27 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "UnderlyingBondBalance"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/DealCycle"
@@ -8013,31 +8037,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_Lease"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/UnderlyingDeal_Lease"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -8053,6 +8056,30 @@
                     }
                 ],
                 "type": "object"
+            },
+            "UnderlyingDeal_Installment": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "deal": {
+                        "$ref": "#/components/schemas/TestDeal_Installment"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    }
+                },
+                "required": [
+                    "deal"
+                ]
             },
             "Ledger": {
                 "type": "object",
@@ -8309,31 +8336,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_FixedAsset"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/UnderlyingDeal_FixedAsset"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -8816,6 +8822,30 @@
                     }
                 ],
                 "type": "object"
+            },
+            "UnderlyingDeal_Mortgage": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "deal": {
+                        "$ref": "#/components/schemas/TestDeal_Mortgage"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    }
+                },
+                "required": [
+                    "deal"
+                ]
             },
             "TestDeal_Installment": {
                 "type": "object",
@@ -9454,31 +9484,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_Loan"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/UnderlyingDeal_Loan"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -9849,6 +9858,30 @@
                     "liability",
                     "equity",
                     "reportDate"
+                ]
+            },
+            "UnderlyingDeal_Loan": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "deal": {
+                        "$ref": "#/components/schemas/TestDeal_Loan"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    }
+                },
+                "required": [
+                    "deal"
                 ]
             },
             "RateSwapBase": {
@@ -10426,31 +10459,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_Mortgage"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/UnderlyingDeal_Mortgage"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -11059,6 +11071,41 @@
                         },
                         "required": [
                             "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "type": "array",
+                                "minItems": 4
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DealBondFlow"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
                         ]
                     }
                 ],
@@ -12211,6 +12258,30 @@
                 ],
                 "type": "object"
             },
+            "UnderlyingDeal_AssetUnion": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "deal": {
+                        "$ref": "#/components/schemas/TestDeal_AssetUnion"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    }
+                },
+                "required": [
+                    "deal"
+                ]
+            },
             "DealStatus": {
                 "oneOf": [
                     {
@@ -12340,6 +12411,30 @@
                 ],
                 "type": "object"
             },
+            "UnderlyingDeal_FixedAsset": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "deal": {
+                        "$ref": "#/components/schemas/TestDeal_FixedAsset"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    }
+                },
+                "required": [
+                    "deal"
+                ]
+            },
             "PoolType_AssetUnion": {
                 "oneOf": [
                     {
@@ -12385,31 +12480,10 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "type": "string"
-                                                },
-                                                {
-                                                    "format": "double",
-                                                    "type": "number"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "type": "array",
-                                            "minItems": 2
-                                        },
-                                        {
-                                            "$ref": "#/components/schemas/TestDeal_AssetUnion"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "type": "array",
-                                    "minItems": 2
-                                },
-                                "type": "array"
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/UnderlyingDeal_AssetUnion"
+                                }
                             },
                             "tag": {
                                 "type": "string",
@@ -13956,6 +14030,37 @@
                                 "type": "string",
                                 "enum": [
                                     "ByName"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/ApplyAssumptionType"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/NonPerfAssumption"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ByDealName"
                                 ]
                             }
                         },

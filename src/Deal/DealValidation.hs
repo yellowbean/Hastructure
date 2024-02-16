@@ -188,7 +188,7 @@ extractRequiredRates t@TestDeal{accounts = accM
 validateAggRule :: [W.CollectionRule] -> [PoolId] -> [ResultComponent]
 validateAggRule rules validPids = 
     [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | ((pid,ps),r) <- Map.toList oustandingPs ]
-    ++ [ErrorMsg ("Pool Id not found"++show ospid++"in "++ show validPids) | ospid <- osPid ]
+    ++ [ErrorMsg ("Pool Id not found"++show ospid++" in "++ show validPids) | ospid <- osPid ]
   where 
     countWeight (W.Collect (Just pids) ps _) =  Map.fromList [((pid,ps),1.0) | pid <- pids]
     countWeight (W.Collect Nothing ps _) =  Map.fromList [((PoolConsol,ps),1.0)]
@@ -263,7 +263,10 @@ validatePreRun t@TestDeal{waterfall=waterfallM
       issuanceBalCheck _ = []
     
       -- collection rule check
-      aggRuleResult = validateAggRule aggRule poolIds 
+      aggRuleResult = if isResec t then 
+                        []
+                      else
+                        validateAggRule aggRule poolIds 
       -- TODO : collectCash shouldn't overlap with others
 
       -- waterfall key not exists test error

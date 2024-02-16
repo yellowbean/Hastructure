@@ -423,8 +423,8 @@ buildCollectedCF trs (d:ds) _trs =
     --       else 
     --         buildCollectedCF (trs++[[(viewTsRow d . last .last) trs]]) ds _trs -- `debug` ("viewing trs"++ show trs)
     [] -> case Util.lastOf trs (not . null) of
-            Nothing -> buildCollectedCF (trs++[[]]) ds _trs `debug` ("empty trs"++ show d)
-            Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d)
+            Nothing -> buildCollectedCF (trs++[[]]) ds _trs  -- `debug` ("empty trs"++ show d)
+            Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs -- `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d)
     newFlow -> buildCollectedCF (trs++[newFlow]) ds remains
   where 
     (newFlow, remains) = splitBy d Inc _trs
@@ -432,16 +432,18 @@ buildCollectedCF a b c = error $ "buildCollectedCF failed"++ show a++">>"++ show
 
 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
-aggTsByDates trs ds = uncurry sumTsCF <$> zip (buildCollectedCF [] ds trs) ds `debug` (">>> to sumTsCF "++ show (zip (buildCollectedCF [] ds trs) ds ))
+aggTsByDates trs ds = uncurry sumTsCF <$> zip (buildCollectedCF [] ds trs) ds -- `debug` (">>> to sumTsCF "++ show (zip (buildCollectedCF [] ds trs) ds ))
 
 
 mflowPrincipal :: TsRow -> Balance
+mflowPrincipal (BondFlow _ _ p _) = p
 mflowPrincipal (MortgageFlow _ _ x _ _ _ _ _ _ _ _ _) = x
 mflowPrincipal (MortgageDelinqFlow _ _ x _ _ _ _ _ _ _ _ _ _) = x
 mflowPrincipal (LoanFlow _ _ x _ _ _ _ _ _ _) = x
 mflowPrincipal _  = error "not supported"
 
 mflowInterest :: TsRow -> Balance
+mflowInterest (BondFlow _ _ _ i) = i
 mflowInterest (MortgageDelinqFlow _ _ _ x _ _ _ _ _ _ _ _ _) = x
 mflowInterest (MortgageFlow _ _ _ x _ _ _ _ _ _ _ _) = x
 mflowInterest (LoanFlow _ _ _ x _ _ _ _ _ _) = x
@@ -468,6 +470,7 @@ mflowRecovery FixedFlow {} = 0
 mflowRecovery _  = error "not supported"
 
 mflowBalance :: TsRow -> Balance
+mflowBalance (BondFlow _ x _ _) = x
 mflowBalance (MortgageFlow _ x _ _ _ _ _ _ _ _ _ _) = x
 mflowBalance (MortgageDelinqFlow _ x _ _ _ _ _ _ _ _ _ _ _) = x
 mflowBalance (LoanFlow _ x _ _ _ _ _ _ _ _) = x
@@ -483,6 +486,7 @@ addFlowBalance b (LeaseFlow a x c ) = LeaseFlow a (x+b) c
 addFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a (x+b) c d e f
 
 updateFlowBalance :: Balance -> TsRow -> TsRow 
+updateFlowBalance b (BondFlow x _ p i) = BondFlow x b p i
 updateFlowBalance b (MortgageDelinqFlow a x c d e f g h i j k l m ) = MortgageDelinqFlow a b c d e f g h i j k l m
 updateFlowBalance b (MortgageFlow a x c d e f g h i j k l) = MortgageFlow a b c d e f g h i j k l
 updateFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a b c d e f g i j k
@@ -490,6 +494,7 @@ updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
 updateFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a b c d e f
 
 mflowBegBalance :: TsRow -> Balance
+mflowBegBalance (BondFlow _ x p _) = x + p
 mflowBegBalance (MortgageDelinqFlow _ x p _ ppy delinq def _ _ _ _ _ _) = x + p + ppy + delinq
 mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _ _ _ _) = x + p + ppy + def
 mflowBegBalance (LoanFlow _ x p _ ppy def _ _ _ _) = x + p + ppy + def
@@ -511,6 +516,8 @@ mflowRate :: TsRow -> IRate
 mflowRate (MortgageFlow _ _ _ _ _ _ _ _ x _ _ _) = x
 mflowRate (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ x _ _ _) = x
 mflowRate (LoanFlow _ _ _ _ _ _ _ _ x _) = x
+mflowRate (BondFlow _ _ _ _) = 0
+mflowRate _ = 0
 
 mflowRental :: TsRow -> Amount
 mflowRental (LeaseFlow _ _ x ) = x
@@ -530,6 +537,7 @@ mflowAmortAmount (MortgageDelinqFlow _ _ p _ ppy delinq _ _ _ _ _ _ _) = p + ppy
 mflowAmortAmount (LoanFlow _ _ x _ y z _ _ _ _) = x + y + z
 mflowAmortAmount (LeaseFlow _ _ x ) = x
 mflowAmortAmount (FixedFlow _ _ x _ _ _) = x
+mflowAmortAmount (BondFlow _ _ p i) = p
 
 mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 -- ^ get borrower numfer for Mortgage Flow
@@ -567,6 +575,7 @@ emptyTsRow _d (MortgageFlow a x c d e f g h i j k l) = MortgageFlow _d 0 0 0 0 0
 emptyTsRow _d (LoanFlow a x c d e f g i j k) = LoanFlow _d 0 0 0 0 0 0 0 0 Nothing
 emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
 emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
+emptyTsRow _d (BondFlow a x c d) = BondFlow _d 0 0 0
 
 
 viewTsRow :: Date -> TsRow -> TsRow 
@@ -576,6 +585,7 @@ viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 
 viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
 viewTsRow _d (LeaseFlow a b c ) = LeaseFlow _d b 0
 viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
+viewTsRow _d (BondFlow a b c d) = BondFlow _d b 0 0
 
 
 -- ^ given a cashflow,build a new cf row with begin balance
@@ -593,7 +603,9 @@ tsSetRate :: IRate -> TsRow -> TsRow
 tsSetRate _r (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow a b c d e f g h i _r k l m
 tsSetRate _r (MortgageFlow a b c d e f g h i j k l) = MortgageFlow a b c d e f g h _r j k l
 tsSetRate _r (LoanFlow a b c d e f g i j k) = LoanFlow a b c d e f g i _r k
+tsSetRate _r (BondFlow a b c d) = BondFlow a b c d
 tsSetRate _r (FixedFlow {} ) = error "Not implement set rate for FixedFlow"
+tsSetRate _ _ = error "Not implement set rate for this type"
 
 
 insertBegTsRow :: Date -> CashFlowFrame -> CashFlowFrame
