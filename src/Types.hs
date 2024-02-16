@@ -421,7 +421,7 @@ instance (Read PoolId) where
       pn = Data.List.Split.splitOn ":" rStr
       dn = pn!!0
       bn = pn!!1
-      sd = TF.parseTimeOrError True TF.defaultTimeLocale "%Y%m%d" $ pn!!2
+      sd = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" $ pn!!2
       pct = read (pn!!3)::Rate
     in 
       [(DealBondFlow dn bn sd pct,"")]
