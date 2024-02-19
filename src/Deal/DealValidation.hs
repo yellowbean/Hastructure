@@ -261,7 +261,14 @@ validatePreRun t@TestDeal{waterfall=waterfallM
                                            else
                                              []
       issuanceBalCheck _ = []
-    
+
+      -- val on deal status and deal dates
+      statusCheck (PreClosing _) PreClosingDates {} = []
+      statusCheck _ PreClosingDates {} = [ErrorMsg "Deal is using PreClosing Dates but its status is not PreClosing"]
+      statusCheck (PreClosing _) _ = [ErrorMsg "Deal is in PreClosing status but it is not using preClosing dates"]
+      statusCheck _ _ = []
+
+
       -- collection rule check
       aggRuleResult = if isResec t then 
                         []
@@ -276,7 +283,7 @@ validatePreRun t@TestDeal{waterfall=waterfallM
 
       -- run result scan
 
-      allErrors = errors ++ issuanceBalCheck dates ++ aggRuleResult
+      allErrors = errors ++ issuanceBalCheck dates ++ aggRuleResult ++ statusCheck status dates
       -- check issuance balance 
       
       w1 = if (not (isPreClosing t)) && (length (Map.elems (getIssuanceStats t Nothing))) == 0 then
