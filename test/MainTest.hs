@@ -45,6 +45,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.ppyTest
                            ,AT.delinqScheduleCFTest
                            ,AT.delinqMortgageTest
+                           ,AT.nonPayMortgageTest
                            ,CFT.cfTests
                            ,CFT.tsSplitTests
                            ,CFT.testMergePoolCf

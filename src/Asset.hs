@@ -4,7 +4,7 @@
 
 module Asset (Pool(..),aggPool
        ,Asset(..)
-       ,getIssuanceField,calcPmt
+       ,getIssuanceField
        ,calcPiFlow,calc_p_i_flow_even,calc_p_i_flow_i_p
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
@@ -147,16 +147,7 @@ getIssuanceField Pool{issuanceStat = Nothing} _
   = error "There is no pool stats"
 
 
--- | calculate period payment (Annuity/Level mortgage)
-calcPmt :: Balance -> IRate -> Int -> Amount
-calcPmt bal 0.0 periods = divideBI bal periods
-calcPmt bal periodRate periods =
-  let
-    periodRate1 = toRational periodRate
-    r1 =  ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1) -- `debug` ("PR>>"++show periodRate)
-    pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
-  in
-    mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
+
 
 -- | apply ExtraStress on prepayment/default rates
 applyExtraStress :: Maybe A.ExtraStress -> [Date] -> [Rate] -> [Rate] -> ([Rate],[Rate])
