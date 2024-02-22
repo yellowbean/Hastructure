@@ -594,9 +594,16 @@ nonPayMortgageTest =
                         Nothing
               ,A.DummyDelinqAssump,A.DummyDefaultAssump)
     (CF.CashFlowFrame txns,_) = P.projCashflow m (L.toDate "20200101") assump1 Nothing
+    m1 = AB.Mortgage
+          (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") (AB.IO_FirstN 3 AB.Level) Nothing)
+          240 0.08 24
+          Nothing
+          AB.Current
+    (CF.CashFlowFrame txns2,_) = P.projCashflow m1 (L.toDate "20200101") assump1 Nothing
+ 
   in 
     testGroup "Non Payment Mortgage Projection" [
-      testCase "" $
+      testCase "NonPay" $
         assertEqual "Length of cf"
         25
         (length txns)
@@ -608,4 +615,17 @@ nonPayMortgageTest =
         assertEqual "4st row"
         (CF.MortgageFlow (L.toDate "20210501") 233.92 10.9 1.63 0.0 0.0 0.0 0.0 0.08 Nothing Nothing (Just (6.08,0.00,0.0,0.0,0.00,0.0)))
         (txns!!4)
+      ,testCase "IO" $
+        assertEqual "Length of cf"
+        25
+        (length txns)
+      ,testCase "first accured" $
+        assertEqual "1st row"
+        (CF.MortgageFlow (L.toDate "20210201") 240 0.0 1.59 0.0 0.0 0.0 0.0 0.08 Nothing Nothing (Just (0,0.0,0.0,0.0,0.00,0.0)))
+        (txns2!!1)
+      ,testCase "first amort" $
+        assertEqual "4st row"
+        (CF.MortgageFlow (L.toDate "20210501") 229.31 10.69 1.59 0.0 0.0 0.0 0.0 0.08 Nothing Nothing (Just (10.69,0.00,0.0,0.0,0.00,0.0)))
+        (txns2!!4)
+      
     ]
