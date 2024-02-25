@@ -160,7 +160,7 @@ groupTxns (Just (Statement txns))
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 m1) (BondTxn d2 b2 i2 p2 r2 c2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1+r2) (c1+c2) (TxnComments [m1,m2])
+    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1) (c1+c2) (TxnComments [m1,m2])
 
 data FlowDirection = Inflow 
                    | Outflow
