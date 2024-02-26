@@ -220,20 +220,22 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
 
-calcWalBond :: Date -> Bond -> Rational  --TODO tobe fixed if bond is not being paid of
+calcWalBond :: Date -> Bond -> Rational
 calcWalBond d b@Bond{bndStmt = Nothing} = 0.0
 calcWalBond d b@Bond{bndStmt = Just (S.Statement _txns)}
  = let 
       txns = cutBy Exc Future d _txns  
-      cutoffBalance = sum $ map S.getTxnBalance txns 
-      firstTxnDate = d
-      wal =  ((foldr 
-              (\x acc ->
-                (acc + ((fromIntegral (daysBetween firstTxnDate (S.getDate x))*(S.getTxnPrincipal x)/365))))
-              0.0
-              txns) / cutoffBalance)
+      cutoffBalance =  (S.getTxnBegBalance . head ) txns 
+      lastBalance = (S.getTxnBalance . last) txns 
+      firstTxnDate = d 
+      gapDays = (daysBetween firstTxnDate) . S.getDate <$> txns
+      weightPrins = zipWith (*) (S.getTxnPrincipal <$> txns) (fromIntegral <$> gapDays) 
+      wal = sum weightPrins / 365 / cutoffBalance 
     in 
-      toRational wal 
+      if lastBalance > 0 then
+        0  
+      else
+        toRational wal `debug` ("WAL-->"++show (bndName b)++">>"++show wal)
 
 
 

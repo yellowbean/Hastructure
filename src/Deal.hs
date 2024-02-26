@@ -451,7 +451,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                           bondWal 
                bondPricingCurve = Map.map 
                                     (\x -> IRateCurve [ TsPoint d x,TsPoint (getDate (last ads)) x] )
-                                  bondSprd
+                                  bondSprd 
                bondPricingResult = Map.intersectionWithKey (\k v1 v2 -> L.priceBond d v2 v1) (bonds runDealWithSchedule) bondPricingCurve 
                depositBondFlow = Map.intersectionWith
                                   (\bnd (PriceResult pv _ _ _ _ _) -> 

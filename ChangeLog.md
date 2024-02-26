@@ -1,5 +1,17 @@
 # Changelog for Hastructure
 
+
+## 0.25.1
+### 2024-03-
+* NEW: add `NO_FirstN` as type of `Mortgage` which implies no payment for first N period and interest due will be capitalized.
+* NEW: add `IO_FirstN` as type of `Mortgage` which implies no principal payment for first N period.
+* NEW: add `Make Whole` Feature, which allow user to set a <Date>,<Spread>,<WAL/Spread> Table.
+
+## 0.25.0
+### 2024-02-16
+* NEW: add `resec deal`, which allow to use bonds as underlying assets and allow user to set assumption on underlying deals.
+
+
 ## 0.24.1
 ### 2023-12-17
 * NEW: add `payIntBySeq` which pay interest to bonds sequentially with optional limit

@@ -10346,6 +10346,24 @@
                 ],
                 "type": "object"
             },
+            "Table_Float_(Fixed_*_E6)": {
+                "items": {
+                    "items": [
+                        {
+                            "format": "float",
+                            "type": "number"
+                        },
+                        {
+                            "multipleOf": 1.0e-6,
+                            "type": "number"
+                        }
+                    ],
+                    "maxItems": 2,
+                    "type": "array",
+                    "minItems": 2
+                },
+                "type": "array"
+            },
             "RevolvingPool": {
                 "oneOf": [
                     {
@@ -13033,6 +13051,38 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Table_Float_(Fixed_*_E6)"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MakeWhole"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Day"
                                     }
                                 ],
@@ -13101,6 +13151,23 @@
                             "minItems": 2
                         },
                         "type": "array"
+                    },
+                    "makeWholeWhen": {
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            {
+                                "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Table_Float_(Fixed_*_E6)"
+                            }
+                        ],
+                        "maxItems": 3,
+                        "type": "array",
+                        "minItems": 3
                     },
                     "interest": {
                         "items": {
@@ -13574,6 +13641,66 @@
                         },
                         "required": [
                             "tag"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AmortPlan"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "IO_FirstN"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AmortPlan"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "NO_FirstN"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
                         ]
                     },
                     {
