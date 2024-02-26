@@ -31,6 +31,10 @@ import Data.Maybe
 import qualified Assumptions as A
 import Asset (getIssuanceField)
 
+
+import Debug.Trace
+debug = flip trace
+
 isPreClosing :: TestDeal a -> Bool
 isPreClosing t@TestDeal{ status = PreClosing _ } = True
 isPreClosing _ = False
@@ -186,19 +190,19 @@ extractRequiredRates t@TestDeal{accounts = accM
         
       -- note fee is not tested
 validateAggRule :: [W.CollectionRule] -> [PoolId] -> [ResultComponent]
-validateAggRule rules validPids = 
-    [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | ((pid,ps),r) <- Map.toList oustandingPs ]
-    ++ [ErrorMsg ("Pool Id not found"++show ospid++" in "++ show validPids) | ospid <- osPid ]
+validateAggRule rules validPids =
+    [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | ((pid,ps),r) <- Map.toList oustandingPs ] ++
+    [ErrorMsg ("Pool Id not found"++show ospid++" in "++ show validPids) | ospid <- osPid ]
   where 
     countWeight (W.Collect (Just pids) ps _) =  Map.fromList [((pid,ps),1.0) | pid <- pids]
     countWeight (W.Collect Nothing ps _) =  Map.fromList [((PoolConsol,ps),1.0)]
     countWeight (W.CollectByPct (Just pids) ps lst) = Map.fromList [((pid,ps), pct) | pid <- pids, pct <- fst <$> lst]
     countWeight (W.CollectByPct Nothing ps lst) = Map.fromList [((PoolConsol, ps),pct)| pct <- fst <$> lst]
     
-    sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules 
+    sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules  
     oustandingPs = Map.filter (> 1.0) sumMap
 
-    getPids (W.Collect (Just pids) _ _) = pids
+    getPids (W.Collect (Just pids) _ _) = pids  
     getPids (W.Collect Nothing ps _) = [PoolConsol]
     getPids (W.CollectByPct (Just pids) _ _) = pids
     getPids (W.CollectByPct Nothing _ _ ) = [PoolConsol]
@@ -248,7 +252,7 @@ validatePreRun t@TestDeal{waterfall=waterfallM
       rateCapKeys = maybe Set.empty Map.keysSet rcM
       ledgerKeys = maybe Set.empty Map.keysSet ledgerM
       triggerKeys = maybe Set.empty Map.keysSet triggerM
-      poolIds = getPoolIds t
+      poolIds = getPoolIds t 
       -- date check
 
       -- issuance balance check 
@@ -263,7 +267,7 @@ validatePreRun t@TestDeal{waterfall=waterfallM
       issuanceBalCheck _ = []
 
       -- val on deal status and deal dates
-      statusCheck (PreClosing _) PreClosingDates {} = []
+      statusCheck (PreClosing _) PreClosingDates {} = [] 
       statusCheck _ PreClosingDates {} = [ErrorMsg "Deal is using PreClosing Dates but its status is not PreClosing"]
       statusCheck (PreClosing _) _ = [ErrorMsg "Deal is in PreClosing status but it is not using preClosing dates"]
       statusCheck _ _ = []
@@ -277,13 +281,13 @@ validatePreRun t@TestDeal{waterfall=waterfallM
       -- TODO : collectCash shouldn't overlap with others
 
       -- waterfall key not exists test error
-      errors = concat $ (\x -> validateAction x [] accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rateCapKeys ledgerKeys) <$> Map.elems waterfallM 
+      errors = (\x -> validateAction x [] accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rateCapKeys ledgerKeys) <$> Map.elems waterfallM 
 
       -- waterfall action coverage check 
 
       -- run result scan
 
-      allErrors = errors ++ issuanceBalCheck dates ++ aggRuleResult ++ statusCheck status dates
+      allErrors = (concat errors) ++ issuanceBalCheck dates ++ aggRuleResult ++ statusCheck status dates 
       -- check issuance balance 
       
       w1 = if (not (isPreClosing t)) && (length (Map.elems (getIssuanceStats t Nothing))) == 0 then

@@ -43,7 +43,7 @@ import Data.Fixed
 import qualified InterestRate as IR
 import Util
 
-import AssetClass.AssetBase
+import AssetClass.AssetBase ( OriginalInfo, calcPmt )
 
 import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))

@@ -243,6 +243,7 @@ instance ToSchema AP.AssetDelinquencyAssumption
 instance ToSchema AP.LeaseAssetGapAssump
 instance ToSchema AP.LeaseAssetRentAssump
 instance ToSchema (Table Balance Balance)
+instance ToSchema (Table Float Spread)
 
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)

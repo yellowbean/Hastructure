@@ -428,13 +428,14 @@ instance (Read PoolId) where
       pn = Data.List.Split.splitOn ":" rStr
     in
       case pn of
-        ["BondFlow",dn,bn,sd,r] -> 
+        [dn,bn,sd,r] -> 
           let 
             sd' = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" sd
             r' = read r::Rate
           in 
             [(DealBondFlow dn bn sd' r',"")]
         ["PoolName",pn] -> [(PoolName pn,"")]
+        _ -> error $ "Invalid PoolId: "++ show pn
 
 
 instance ToJSONKey PoolId where

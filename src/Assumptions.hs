@@ -72,6 +72,7 @@ data NonPerfAssumption = NonPerfAssumption {
   ,buildFinancialReport :: Maybe DatePattern           -- ^ optional dates to build financial reports
   ,pricing :: Maybe BondPricingInput                   -- ^ optional bond pricing input( discount curve etc)
   ,fireTrigger :: Maybe [(Date,DealCycle,TriggerName)]        -- ^ optional fire a trigger
+  ,makeWholeWhen :: Maybe (Date,Spread,Table Float Spread)
 } deriving (Show,Generic)
 
 data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request
