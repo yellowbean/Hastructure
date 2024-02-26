@@ -52,6 +52,11 @@ import Data.List
 import Data.List (intercalate)
 -- import Cashflow (CashFlowFrame)
 
+import Debug.Trace
+debug = flip trace
+
+
+
 type BondName = String
 type BondNames = [String]
 type FeeName = String
@@ -185,6 +190,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
                   | AccrueCapRate Date String             -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | MakeWhole Date Spread (Table Float Spread)
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   deriving (Show,Generic,Read)
 
@@ -202,6 +208,7 @@ instance TimeSeries ActionOnDate where
     getDate (ResetIRSwapRate d _ ) = d
     getDate (AccrueCapRate d _ ) = d
     getDate (ResetBondRate d _ ) = d 
+    getDate (MakeWhole d _ _) = d 
     getDate (BuildReport sd ed) = ed
 
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
@@ -419,12 +426,16 @@ instance (Read PoolId) where
   readsPrec d rStr = 
     let 
       pn = Data.List.Split.splitOn ":" rStr
-      dn = pn!!0
-      bn = pn!!1
-      sd = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" $ pn!!2
-      pct = read (pn!!3)::Rate
-    in 
-      [(DealBondFlow dn bn sd pct,"")]
+    in
+      case pn of
+        [dn,bn,sd,r] -> 
+          let 
+            sd' = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" sd
+            r' = read r::Rate
+          in 
+            [(DealBondFlow dn bn sd' r',"")]
+        ["PoolName",pn] -> [(PoolName pn,"")]
+        _ -> error $ "Invalid PoolId: "++ show pn
 
 
 instance ToJSONKey PoolId where
@@ -764,7 +775,7 @@ lookupTable :: Ord a => Table a b -> TableDirection -> (a -> Bool) -> Maybe b
 lookupTable (ThresholdTable rows) direction lkUpFunc
   = case findIndex lkUpFunc rs of 
       Nothing -> Nothing
-      Just i -> Just $ vs!!i
+      Just i -> Just $ vs!!i  
     where 
         rs = case direction of 
                 Up -> reverse $ map fst rows

@@ -84,7 +84,6 @@ instance Asset Installment where
         prin_flow = replicate rt cpmt 
         int_flow =  replicate rt cfee
         _flows = zipWith10 CF.LoanFlow cf_dates stressed_bal_flow prin_flow int_flow (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt orate) (replicate rt Nothing)
-        -- (_,flows) = splitByDate _flows asOfDay EqToRight -- `debug` ("5"++show bals++">>"++show pmts)
         flows = cutBy Inc Future asOfDay _flows
 
 

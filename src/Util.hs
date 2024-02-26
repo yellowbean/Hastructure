@@ -30,8 +30,8 @@ import DateUtil
 import Text.Printf
 import Control.Exception
 
-import Debug.Trace
 import Data.Time (addDays)
+import Debug.Trace
 debug = flip trace
 
 mulBR :: Balance -> Rate -> Centi
@@ -154,6 +154,9 @@ getValByDate (PricingCurve dps) _ d
     where 
       fday = getDate $ head dps
       lday = getDate $ last dps
+
+getValByDate a b c = error $ "Not match for curve type"++show a++" > "++show b++" > " ++show c
+
 
 getIndexRateByDates :: RateAssumption  -> [Date] -> [IRate]
 getIndexRateByDates (RateCurve idx rc) ds = fromRational <$> getValByDates rc Inc ds

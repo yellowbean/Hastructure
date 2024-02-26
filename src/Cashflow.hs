@@ -19,7 +19,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,patchCumulative,extendTxns,dropTailEmptyTxns
-                ,cashflowTxn,clawbackInt) where
+                ,cashflowTxn,clawbackInt,scaleTsRow) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -102,6 +102,42 @@ instance TimeSeries TsRow where
     getDate (LoanFlow x _ _ _ _ _ _ _ _ _) = x
     getDate (LeaseFlow x _ _ ) = x
     getDate (FixedFlow x _ _ _ _ _ ) = x
+
+
+scaleTsRow :: Rational -> TsRow -> TsRow
+scaleTsRow r (CashFlow d a) = CashFlow d (fromRational r * a)
+scaleTsRow r (BondFlow d b p i) = BondFlow d (fromRational r * b) (fromRational r * p) (fromRational r * i)
+scaleTsRow r (MortgageFlow d b p i prep def rec los rat mbn pp st) 
+  = MortgageFlow d 
+     (fromRational r * b) 
+     (fromRational r * p) 
+     (fromRational r * i) 
+     (fromRational r * prep) 
+     (fromRational r * def) 
+     (fromRational r * rec) 
+     (fromRational r * los) 
+     rat 
+     mbn 
+     pp 
+     ((splitStats r) <$> st)
+scaleTsRow r (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) 
+  = MortgageDelinqFlow d 
+      (fromRational r * b)
+      (fromRational r * p)
+      (fromRational r * i)
+      (fromRational r * prep)
+      (fromRational r * delinq)
+      (fromRational r * def) 
+      (fromRational r * rec) 
+      (fromRational r * los) 
+      rat 
+      mbn 
+      pp
+      ((splitStats r) <$> st)
+scaleTsRow r (LoanFlow d b p i prep def rec los rat st) 
+  = LoanFlow d (fromRational r * b) (fromRational r * p) (fromRational r * i) (fromRational r * prep) (fromRational r * def) (fromRational r * rec) (fromRational r * los) rat ((splitStats r) <$> st)
+scaleTsRow r (LeaseFlow d b rental) = LeaseFlow d (fromRational r * b) (fromRational r * rental)
+scaleTsRow r (FixedFlow d b ndep dep c a) = FixedFlow d (fromRational r * b) (fromRational r * ndep) (fromRational r * dep) (fromRational r * c) (fromRational r * a)
 
 
 data CashFlowFrame = CashFlowFrame [TsRow]
@@ -275,7 +311,8 @@ sumTs trs = tsSetDate (foldr1 addTs trs)
 -- ^ group cashflow from same entity by a single date
 sumTsCF :: [TsRow] -> Date -> TsRow
 -- sumTsCF [] = tsSetDate (foldl1 addTsCF trs) -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
-sumTsCF trs = tsSetDate (foldl1 addTsCF trs) -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
+sumTsCF [] = error "sumTsCF failed with empty list"
+sumTsCF trs = tsSetDate (foldl1 addTsCF trs) --  `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
 
 tsTotalCash :: TsRow -> Balance
 tsTotalCash (CashFlow _ x) = x
@@ -415,13 +452,8 @@ buildCollectedCF :: [[TsRow]] -> [Date] -> [TsRow] -> [[TsRow]]
 buildCollectedCF [] [] [] = []
 buildCollectedCF trs [] _trs = trs
 buildCollectedCF trs ds [] = trs ++ [ [viewTsRow _d ((last . last) trs)] | _d <- ds ]
--- buildCollectedCF trs [d] _trs = trs ++ [cutBy Inc Past d _trs]
 buildCollectedCF trs (d:ds) _trs =
   case newFlow of
-    -- [] -> if null (last trs) then 
-    --         buildCollectedCF (trs++[[]]) ds _trs `debug` ("empty trs"++ show d)
-    --       else 
-    --         buildCollectedCF (trs++[[(viewTsRow d . last .last) trs]]) ds _trs -- `debug` ("viewing trs"++ show trs)
     [] -> case Util.lastOf trs (not . null) of
             Nothing -> buildCollectedCF (trs++[[]]) ds _trs  -- `debug` ("empty trs"++ show d)
             Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs -- `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d)
@@ -432,7 +464,8 @@ buildCollectedCF a b c = error $ "buildCollectedCF failed"++ show a++">>"++ show
 
 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
-aggTsByDates trs ds = uncurry sumTsCF <$> zip (buildCollectedCF [] ds trs) ds -- `debug` (">>> to sumTsCF "++ show (zip (buildCollectedCF [] ds trs) ds ))
+aggTsByDates [] ds = []
+aggTsByDates trs ds = uncurry sumTsCF <$> filter (\(cfs,_d) -> (not . null) cfs) (zip (buildCollectedCF [] ds trs) ds) -- `debug` (">>> to sumTsCF "++ show (zip (buildCollectedCF [] ds trs) ds ))
 
 
 mflowPrincipal :: TsRow -> Balance

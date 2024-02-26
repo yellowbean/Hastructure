@@ -8,6 +8,7 @@ module AssetClass.AssetBase
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
   ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..)
+  ,calcAssetPrinInt, calcPmt
   )
   where
 
@@ -17,6 +18,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Types hiding (Current,startDate,originTerm)
 
+import Util
 import qualified Data.Map as Map
 import qualified InterestRate as IR
 import qualified Cashflow as CF
@@ -24,12 +26,54 @@ import qualified Cashflow as CF
 
 type DailyRate = Balance
 
-data AmortPlan = Level                   -- ^ for mortgage / french system  -> fixed payment each period which consist of increasing princial and decreasing interest.
+data AmortPlan = Level                    -- ^ for mortgage / french system  -> fixed payment each period which consist of increasing princial and decreasing interest.
                 | Even                    -- ^ for linear mortgage   -> evenly distributed principal repayment
                 | I_P                     -- ^ interest only and principal due at last payment
                 | F_P                     -- ^ fee based 
+                | IO_FirstN Int AmortPlan -- ^ interest only for first N period
+                | NO_FirstN Int AmortPlan -- ^ non payment during first N period
                 | ScheduleRepayment Ts (Maybe DatePattern)   -- ^ custom principal follow
-                deriving (Show,Generic,Ord,Eq)
+                deriving (Show, Generic, Ord, Eq)
+
+-- | calculate period payment (Annuity/Level mortgage)
+calcPmt :: Balance -> IRate -> Int -> Amount
+calcPmt bal 0.0 periods = divideBI bal periods
+calcPmt bal periodRate periods =
+  let
+    periodRate1 = toRational periodRate
+    r1 =  ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1) -- `debug` ("PR>>"++show periodRate)
+    pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
+  in
+    mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
+
+
+type InterestAmount = Amount
+type PrincipalAmount = Amount
+calcAssetPrinInt :: AmortPlan -> Balance -> IRate -> Int -> Int -> (InterestAmount, PrincipalAmount)
+calcAssetPrinInt pt bal rate ot rt = 
+  let 
+    interestAccrued = mulBIR bal rate
+    pmt = calcPmt bal rate rt
+    periodPassed = ot - rt
+  in 
+    case pt of 
+      Level -> (interestAccrued, pmt - interestAccrued)
+      Even -> (interestAccrued, bal / fromIntegral rt)
+      I_P -> if rt == 1 then
+               (interestAccrued, bal)
+             else
+               (interestAccrued, 0)
+      NO_FirstN n _pt -> if periodPassed >= n then 
+                          calcAssetPrinInt _pt bal rate ot rt
+                         else
+                          (0, negate interestAccrued)
+      IO_FirstN n _pt -> if periodPassed >= n then 
+                          calcAssetPrinInt _pt bal rate ot rt
+                         else
+                          (interestAccrued, 0)
+                         
+      _ -> error $ "unsupported pt "++ show pt
+
 
 data Status = Current
             | Defaulted (Maybe Date)

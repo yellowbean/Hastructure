@@ -10,7 +10,8 @@ module Liability
   ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield,scaleBond
-  ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo)
+  ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
+  ,calcWalBond)
   where
 
 import Language.Haskell.TH
@@ -159,6 +160,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt
     newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 amt 0 amt (S.PayPrin [bn] ))
 
 
+
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
   | sum (S.getTxnAmt <$> futureCf) == 0 = PriceResult 0 0 0 0 0 0 
@@ -217,6 +219,25 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
 
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
+
+calcWalBond :: Date -> Bond -> Rational
+calcWalBond d b@Bond{bndStmt = Nothing} = 0.0
+calcWalBond d b@Bond{bndStmt = Just (S.Statement _txns)}
+ = let 
+      txns = cutBy Exc Future d _txns  
+      cutoffBalance =  (S.getTxnBegBalance . head ) txns 
+      lastBalance = (S.getTxnBalance . last) txns 
+      firstTxnDate = d 
+      gapDays = (daysBetween firstTxnDate) . S.getDate <$> txns
+      weightPrins = zipWith (*) (S.getTxnPrincipal <$> txns) (fromIntegral <$> gapDays) 
+      wal = sum weightPrins / 365 / cutoffBalance 
+    in 
+      if lastBalance > 0 then
+        0  
+      else
+        toRational wal `debug` ("WAL-->"++show (bndName b)++">>"++show wal)
+
+
 
 _calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
 _calcIRR amt initIrr today (BalanceCurve cashflows)

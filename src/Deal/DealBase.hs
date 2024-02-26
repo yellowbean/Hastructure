@@ -289,9 +289,10 @@ dealCashflow = lens getter setter
 getPoolIds :: P.Asset a => TestDeal a -> [PoolId]
 getPoolIds t@TestDeal{pool = pt} 
   = case pt of
-      SoloPool _ -> [PoolConsol]
+      SoloPool _ -> [PoolConsol] 
       MultiPool pm -> Map.keys pm
-      ResecDeal pm -> []
+      ResecDeal pm -> Map.keys pm
+      _ -> error "failed to match pool type in pool ids"
                          
 
 getBondByName :: P.Asset a => TestDeal a -> BondName -> Maybe L.Bond
