@@ -2,10 +2,10 @@
 
 
 ## 0.26.0
-### 2024-03-
+### 2024-02-27
 * NEW: add `NO_FirstN` as type of `Mortgage` which implies no payment for first N period and interest due will be capitalized.
 * NEW: add `IO_FirstN` as type of `Mortgage` which implies no principal payment for first N period.
-* NEW: add `Make Whole` Feature, which allow user to set a <Date>,<Spread>,<WAL/Spread> Table.
+* NEW: add `Make Whole` Feature, which allow user to set a <Date>,<Spread>,<WAL/Spread> Table. The bond will be componsate with PV from spread determined by WAL remaining.
 
 ## 0.25.0
 ### 2024-02-16

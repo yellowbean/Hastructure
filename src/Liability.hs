@@ -235,7 +235,7 @@ calcWalBond d b@Bond{bndStmt = Just (S.Statement _txns)}
       if lastBalance > 0 then
         0  
       else
-        toRational wal `debug` ("WAL-->"++show (bndName b)++">>"++show wal)
+        toRational wal -- `debug` ("WAL-->"++show (bndName b)++">>"++show wal)
 
 
 
