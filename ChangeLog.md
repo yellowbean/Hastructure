@@ -1,7 +1,7 @@
 # Changelog for Hastructure
 
 
-## 0.25.1
+## 0.26.0
 ### 2024-03-
 * NEW: add `NO_FirstN` as type of `Mortgage` which implies no payment for first N period and interest due will be capitalized.
 * NEW: add `IO_FirstN` as type of `Mortgage` which implies no principal payment for first N period.
