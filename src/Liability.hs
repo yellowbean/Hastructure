@@ -127,7 +127,8 @@ data Bond = Bond {
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
-  =  b {bndStmt = Just (S.Statement (reverse (foldl S.consolTxn [txn] txns)))} 
+  =  b {bndStmt = Just (S.Statement 
+                          (reverse (foldl S.consolTxn [txn] txns)))}
 
 
 payInt :: Date -> Amount -> Bond -> Bond
@@ -169,7 +170,7 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
                   presentValue = foldr (\x acc -> acc + pv rc d (S.getDate x) (S.getTxnAmt x)) 0 futureCf -- `debug` "PRICING -A"
                   cutoffBalance = case S.getTxnAsOf txns d of
                                       Nothing ->  sum $ map (\x -> x (head txns)) [S.getTxnBalance , S.getTxnPrincipal]  --  `debug` (show(getTxnBalance fstTxn))
-                                      Just _txn -> S.getTxnBalance _txn
+                                      Just _txn -> S.getTxnBegBalance _txn
                   accruedInt = case _t of
                                   Nothing -> max 0 $ IR.calcInt leftBal leftPayDay d cr dcToUse 
                                   Just _ -> 0 
@@ -185,11 +186,7 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
                                                                   leftTxn = last leftTxns
                                                                 in
                                                                   (S.getDate leftTxn,S.getTxnBalance leftTxn)
-                  wal =  ((foldr 
-                             (\x acc ->
-                               (acc + ((fromIntegral (daysBetween d (S.getDate x)))*(S.getTxnPrincipal x)/365)))
-                               0.0
-                               futureCf) / cutoffBalance) -- `debug` ("cut off balace"++show cutoffBalance)
+                  wal = calcWalBond d b
                   duration = (foldr (\x acc ->
                                        ((*)  
                                          (divideBB (pv rc d (S.getDate x) (S.getTxnAmt x)) presentValue) 
