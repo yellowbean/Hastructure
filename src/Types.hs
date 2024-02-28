@@ -527,6 +527,7 @@ data DealStats = CurrentBondBalance
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
                | TestAll Bool [DealStats]
+               | TestNot DealStats
                | PoolWaRate (Maybe [PoolId])
                | BondRate BondName
                | Factor DealStats Rational

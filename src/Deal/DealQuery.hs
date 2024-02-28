@@ -585,6 +585,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
     
     IsDealStatus st -> status t == st
 
+    TestNot ds -> not (queryDealBool t ds)
+
     TestAny b dss -> b `elem` [ queryDealBool t ds | ds <- dss ]
     TestAll b dss -> all (== b) [ queryDealBool t ds | ds <- dss ] 
 
