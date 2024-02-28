@@ -34,7 +34,9 @@ b1 = B.Bond{B.bndName="A"
             ,B.bndDueIntDate=Nothing
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 S.Empty]}
+            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 S.Empty
+                                            ,S.BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 S.Empty
+                                           ]}
 
 bfloat = B.Bond{B.bndName="A"
             ,B.bndType=B.Sequential
@@ -90,12 +92,15 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "flat rate discount " $
       assertEqual "Test Pricing on case 01" 
-        (B.PriceResult 501.650609 16.721666 (1 / 4) 1 1.94 0.0) 
+        (B.PriceResult 1978.46 65.948666 1.18 1.188144 2.53 0.0) 
         pr
     ,
      let
        b2 = b1 { B.bndStmt = Just (S.Statement [S.BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 S.Empty
-                                                ,S.BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 S.Empty])}
+                                                ,S.BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 S.Empty
+                                                ,S.BondTxn (L.toDate "20220701") 0 10 3200 0.08 3300 S.Empty
+                                                
+                                                ])}
 
        pr = B.priceBond (L.toDate "20220201")
                         (L.PricingCurve
@@ -107,7 +112,7 @@ pricingTests = testGroup "Pricing Tests"
      in
        testCase " discount curve with two rate points " $
        assertEqual "Test Pricing on case 01" 
-            (B.PriceResult 814.61 27.153666 (1 / 25) 0.180349 0.20 20.38) 
+            (B.PriceResult 4049.10 134.97 0.44 0.364564 0.46 20.38) 
             pr  --TODO need to confirm
     ,
     let

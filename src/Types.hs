@@ -479,6 +479,7 @@ data DealStats = CurrentBondBalance
                | ReserveAccGap [AccName]
                | ReserveExcess [AccName] 
                | MonthsTillMaturity BondName
+               | HasPassedMaturity [BondName]
                | ReserveAccGapAt Date [AccName] 
                | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance (Maybe [PoolId])

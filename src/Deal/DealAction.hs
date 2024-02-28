@@ -430,7 +430,7 @@ inspectVars :: P.Asset a => TestDeal a -> Date -> DealStats -> ResultComponent
 inspectVars t d ds =                     
   case getDealStatType ds of 
     RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
-    RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
+    RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds) d
     RtnInt  -> InspectInt d ds $ queryDealInt t (patchDateToStats d ds) d
     _       -> InspectBal d ds $ queryDeal t (patchDateToStats d ds)
 
