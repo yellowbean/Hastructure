@@ -611,6 +611,7 @@ data Pre = IfZero DealStats
          -- | IfRateCurve DealStats Cmp Ts
          | IfDealStatus DealStatus
          | Always Bool
+         | IfNot Pre
          | Any [Pre]
          | All [Pre]                            -- ^ 
          deriving (Show,Generic,Eq,Ord)

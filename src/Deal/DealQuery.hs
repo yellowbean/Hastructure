@@ -612,6 +612,7 @@ testPre d t p =
     IfInt2 cmp s1 s2 -> toCmp cmp (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
     IfDealStatus st -> status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
     Always b -> b
+    IfNot _p -> not $ testPre d t _p
     where 
       toCmp x = case x of 
                   G -> (>)
