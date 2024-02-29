@@ -43,6 +43,7 @@ import Debug.Trace
 import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
 import Language.Haskell.TH.Lens (_BytesPrimL)
+import Stmt (getTxnAmt)
 
 debug = flip trace
 
@@ -169,7 +170,7 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
                 let
                   presentValue = foldr (\x acc -> acc + pv rc d (S.getDate x) (S.getTxnAmt x)) 0 futureCf -- `debug` "PRICING -A"
                   cutoffBalance = case S.getTxnAsOf txns d of
-                                      Nothing ->  sum $ map (\x -> x (head txns)) [S.getTxnBalance , S.getTxnPrincipal]  --  `debug` (show(getTxnBalance fstTxn))
+                                      Nothing ->  (S.getTxnBegBalance . head) txns
                                       Just _txn -> S.getTxnBegBalance _txn
                   accruedInt = case _t of
                                   Nothing -> max 0 $ IR.calcInt leftBal leftPayDay d cr dcToUse 
@@ -187,13 +188,17 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
                                                                 in
                                                                   (S.getDate leftTxn,S.getTxnBalance leftTxn)
                   wal = calcWalBond d b
-                  duration = (foldr (\x acc ->
-                                       ((*)  
-                                         (divideBB (pv rc d (S.getDate x) (S.getTxnAmt x)) presentValue) 
-                                         (yearCountFraction DC_ACT_365F d (S.getDate x)))
-                                       + acc)
-                                0
-                                futureCf) -- `debug` "PRICING -C" -- `debug` ("WAL-->"++show wal) 
+                  -- duration = (foldr (\x acc ->
+                  --                      ((*)  
+                  --                        (divideBB (pv rc d (S.getDate x) (S.getTxnAmt x)) presentValue) 
+                  --                        (yearCountFraction DC_ACT_365F d (S.getDate x)))
+                  --                      + acc)
+                  --               0
+                  --               futureCf) -- `debug` "PRICING -C" -- `debug` ("WAL-->"++show wal) 
+                  duration = let 
+                               ps = zip futureCfDates futureCfFlow
+                             in 
+                               calcDuration d ps rc
                   convexity = let 
                                 b = (foldr (\x acc ->
                                                     let 
@@ -213,6 +218,8 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
                   PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt -- `debug` ("Obal->"++ show obal++"Rate>>"++ show (bndRate b))
   where 
     futureCf = cutBy Exc Future d txns
+    futureCfDates = getDate <$> futureCf
+    futureCfFlow = getTxnAmt <$> futureCf
 
 
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0

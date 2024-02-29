@@ -759,6 +759,24 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "$ref": "#/components/schemas/Pre"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "IfNot"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/Pre"
                                 },
@@ -6309,6 +6327,27 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "HasPassedMaturity"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -7540,6 +7579,24 @@
                                 "type": "string",
                                 "enum": [
                                     "TestAll"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStats"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TestNot"
                                 ]
                             }
                         },
