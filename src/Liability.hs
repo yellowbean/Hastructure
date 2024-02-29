@@ -11,7 +11,7 @@ module Liability
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield,scaleBond
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
-  ,calcWalBond)
+  ,calcWalBond,patchBondFactor)
   where
 
 import Language.Haskell.TH
@@ -131,6 +131,16 @@ consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
   =  b {bndStmt = Just (S.Statement 
                           (reverse (foldl S.consolTxn [txn] txns)))}
 
+patchBondFactor :: Bond -> Bond
+patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Nothing} = b
+patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
+  = let 
+      oBal = originBalance bo
+      toFactor (S.BondTxn d b i p r0 c Nothing t) = (S.BondTxn d b i p r0 c (Just (divideBB b oBal)) t)
+      newStmt = S.Statement $ toFactor <$> txns
+    in 
+      b {bndStmt = Just newStmt}
+      
 
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -138,19 +148,19 @@ payInt d amt bnd@(Bond bn Equity oi iinfo _ bal r duePrin dueInt dueIntDate lpay
   = bnd { bndDueInt=newDue, bndStmt = newStmt}
   where
     newDue = dueInt - amt
-    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
+    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
 
 payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDueInt=newDue, bndStmt=newStmt, bndLastIntPay = Just d}
   where
     newDue = dueInt - amt 
-    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayInt [bn]))
+    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt Nothing (S.PayInt [bn]))
 
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndStmt= newStmt}
   where
-    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt (S.PayYield bn))
+    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -159,7 +169,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt
   where
     newBal = bal - amt
     newDue = duePrin - amt
-    newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 amt 0 amt (S.PayPrin [bn] ))
+    newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 amt 0 amt Nothing (S.PayPrin [bn] ))
 
 
 
@@ -188,13 +198,6 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
                                                                 in
                                                                   (S.getDate leftTxn,S.getTxnBalance leftTxn)
                   wal = calcWalBond d b
-                  -- duration = (foldr (\x acc ->
-                  --                      ((*)  
-                  --                        (divideBB (pv rc d (S.getDate x) (S.getTxnAmt x)) presentValue) 
-                  --                        (yearCountFraction DC_ACT_365F d (S.getDate x)))
-                  --                      + acc)
-                  --               0
-                  --               futureCf) -- `debug` "PRICING -C" -- `debug` ("WAL-->"++show wal) 
                   duration = let 
                                ps = zip futureCfDates futureCfFlow
                              in 

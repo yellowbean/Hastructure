@@ -1,4 +1,4 @@
-module UT.BondTest(pricingTests)
+module UT.BondTest(pricingTests,bndConsolTest)
 where
 
 import Test.Tasty
@@ -34,8 +34,8 @@ b1 = B.Bond{B.bndName="A"
             ,B.bndDueIntDate=Nothing
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 S.Empty
-                                            ,S.BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 S.Empty
+            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 Nothing S.Empty
+                                            ,S.BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 Nothing S.Empty
                                            ]}
 
 bfloat = B.Bond{B.bndName="A"
@@ -53,7 +53,7 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndDueIntDate=Nothing
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 S.Empty]}
+            ,B.bndStmt=Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 Nothing S.Empty]}
 
 
 pricingTests = testGroup "Pricing Tests"
@@ -96,10 +96,9 @@ pricingTests = testGroup "Pricing Tests"
         pr
     ,
      let
-       b2 = b1 { B.bndStmt = Just (S.Statement [S.BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 S.Empty
-                                                ,S.BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 S.Empty
-                                                ,S.BondTxn (L.toDate "20220701") 0 10 3200 0.08 3300 S.Empty
-                                                
+       b2 = b1 { B.bndStmt = Just (S.Statement [S.BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 Nothing S.Empty
+                                                ,S.BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 Nothing S.Empty
+                                                ,S.BondTxn (L.toDate "20220701") 0 10 3200 0.08 3300 Nothing S.Empty
                                                 ])}
 
        pr = B.priceBond (L.toDate "20220201")
@@ -136,7 +135,7 @@ pricingTests = testGroup "Pricing Tests"
       assertEqual "pay int" 2400  $ B.bndBalance (B.payPrin pday 600 b5)
     ,
     let 
-      newCfStmt = Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 300 2800 0.08 3100 S.Empty] 
+      newCfStmt = Just $ S.Statement [ S.BondTxn (L.toDate "20220501") 1500 300 2800 0.08 3100 Nothing S.Empty] 
       b6 = b1 {B.bndStmt = newCfStmt}
       pday = L.toDate "20220301" -- `debug` ("stmt>>>>>"++ show (B.bndStmt b6))
       rateCurve = IRateCurve [TsPoint (L.toDate "20220201") 0.03 ,TsPoint (L.toDate "20220401") 0.04]
@@ -173,3 +172,18 @@ bndTests = testGroup "Float Bond Tests" [
       assertEqual "" [True,False] [r1,r2]
  ]
 
+
+bndConsolTest = testGroup "Bond consoliation & patchtesting" [
+    let 
+      b1f = S.getTxns . B.bndStmt $ B.patchBondFactor b1
+    in 
+      testCase "test on patching bond factor" $
+      assertEqual ""
+      [ S.BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 (Just 0.5) S.Empty
+       ,S.BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 (Just 0.0) S.Empty
+      ]
+      b1f
+
+
+
+                                                             ]

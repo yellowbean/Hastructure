@@ -558,7 +558,7 @@ prepareDeal t@TestDeal {bonds = bndMap}
                           pIdCf
       t1 = set dealCashflow newPtMap t
     in 
-      t1 {bonds = Map.map L.consolStmt bndMap}  -- `debug` ("Consolidation in Preparing")
+      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap}  -- `debug` ("Consolidation in Preparing")
 
 appendCollectedCF :: P.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a
 -- ^ append cashflow frame (consolidate by a date) into deals collected pool
@@ -797,7 +797,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                                     Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
                                         (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
                                         bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
-                                        bondFlowRated = (\(BondTxn d b i p r c t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
+                                        bondFlowRated = (\(BondTxn d b i p r c f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
                                       in
                                         (name uDeal, CF.CashFlowFrame bondFlowRated, Map.empty)) $
                    Map.mapWithKey (\_ (UnderlyingDeal uDeal _ _ _) -> 
@@ -836,7 +836,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                                 let 
                                                                   (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing Nothing (fromMaybe (NonPerfAssumption {}) mNonPerfAssump)
                                                                   bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn])
-                                                                  bondFlowRated = (\(BondTxn d b i p r c t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow
+                                                                  bondFlowRated = (\(BondTxn d b i p r c f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow
                                                                 in
                                                                   (name uDeal, CF.CashFlowFrame bondFlowRated, Map.empty))
                                           dm
