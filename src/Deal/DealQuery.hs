@@ -584,7 +584,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
                              E ->  testRate == r
     
     HasPassedMaturity bns -> let 
-                               monthsToMaturity = (\bn -> queryDealInt t (MonthsTillMaturity bn) d) <$> bns
+                               oustandingBnds = filter (not . isPaidOff) $ (bndMap Map.!) <$> bns
+                               monthsToMaturity = (\bn -> queryDealInt t (MonthsTillMaturity bn) d) <$> L.bndName <$> oustandingBnds
                              in 
                                all (<= 0) monthsToMaturity
 
