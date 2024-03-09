@@ -1,6 +1,14 @@
 # Changelog for Hastructure
 
 
+## 0.26.11
+### 2024-03-09
+* NEW: `fundWith` which will increate the balance of bond and deposit cash to account.
+* NEW: `writeOff` which will write off balance of bond via a formula
+* NEW: a new predicate `passMaturiy` which True if bond has passed its expected maturity/pay off date.
+* NEW: `Not` as composite boolean test.
+* NEW: add new `OAS` pricing assumption, which return OAS spread given input scenarios.
+
 ## 0.26.0
 ### 2024-02-27
 * NEW: add `NO_FirstN` as type of `Mortgage` which implies no payment for first N period and interest due will be capitalized.

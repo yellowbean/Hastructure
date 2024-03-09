@@ -149,6 +149,7 @@ data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
 
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
+                      | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
                       deriving (Show,Generic)
 
 getCDR :: Maybe AssetDefaultAssumption -> Maybe Rate

@@ -82,7 +82,6 @@ import qualified DateUtil as DU
 
 
 import Debug.Trace
-import qualified Deal.DealBase as DB
 debug = flip Debug.Trace.trace
 
 data Version = Version 
@@ -353,6 +352,8 @@ engineSwagger = toOpenApi engineAPI
   & info.description ?~ "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
   & info.license ?~ "BSD 3"
 
+
+
 myServer :: Server API
 myServer = return engineSwagger 
       :<|> showVersion 
@@ -370,6 +371,32 @@ myServer = return engineSwagger
           runPool (SingleRunPoolReq pt passumption mRates) = return $ wrapRunPool pt passumption mRates
           runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPool pt (Just assump) mRates) mAssumps
           runDeal (SingleRunReq dt assump nonPerfAssump) = return $ wrapRun dt assump nonPerfAssump 
+          -- runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump@AP.NonPerfAssumption{AP.pricing=Just bondPricingInput})
+          --   = case bondPricingInput of
+          --       AP.OASInput d bName price spreads curves -> 
+          --         let
+          --           priceCurves = Map.map (\curve -> 
+          --                                   (\spd -> U.shiftTsByAmt curve (toRational spd)) <$> spreads) curves -- curve as key , shifted curve list as value
+          --           pricingScenarios = Map.map (\curves -> Just . AP.DiscountCurve d <$> curves) priceCurves   -- curve as key, list of discount curves as value
+          --           nonPerfAssumpEachScenario = Map.map (\discountCurves -> 
+          --                                                 (\pvCurve -> nonPerfAssump { AP.pricing = pvCurve}) <$> discountCurves) pricingScenarios  -- curve as key, list of nonperfassump as value
+          --           runResultEachScenario = Map.intersectionWith 
+          --                                     (\pAssump dAssumps -> 
+          --                                       let 
+          --                                         runResults::[RunResp] = wrapRun dt (Just pAssump) <$> dAssumps
+          --                                         mPricingResults::([Maybe (Map String PriceResult)]) = (\(_a,_b,_c,_d) -> _d) <$> runResults
+          --                                         -- bondPrices = (maybe 0 (\y ->  getPriceValue . (Map.! y bName))) <$> mPricingResults
+          --                                       in 
+          --                                         [] -- bondPrices
+          --                                         ) 
+          --                                     mAssumps
+          --                                     nonPerfAssumpEachScenario    --- curve as key, list of bond prices as value
+          --           -- avgPricesPerSpreads =  (\xs -> sum xs / length xs)  <$>  transpose $ Map.elems runResultEachScenario  -- average PV list
+          --           -- spreadPriceTable = ThresholdTable $  zip avgPricesPerSpreads spreads
+
+          --         in 
+          --           return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
+          --       _ -> return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
           runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump)
             = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
           runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
@@ -385,29 +412,6 @@ data Config = Config { port :: Int}
             deriving (Show,Generic)
 
 instance FromJSON Config
-
--- data Ctyp a
--- 
--- {-
---  if you are using GHC 8.6 and above you can make use of deriving Via
---  for creating the Accept Instance
--- 
---  >> data Ctyp a
---  >>   deriving Accept via JSON
--- -}
--- 
--- instance Accept (Ctyp JSON) where
---   contentType _ = contentType (Proxy @JSON)
--- 
--- instance HasErrorBody (Ctyp JSON) '[] where
---   encodeError = undefined -- write your custom implementation
--- 
--- -- | Example Middleware with a different 'HasErrorBody' instance for JSON
--- errorMwJson :: Application -> Application
--- errorMwJson =  errorMw @(Ctyp JSON) @'[]
-
---instance HasErrorBody (Ctyp JSON) '["error","warning","resp"] where
---  encodeError = error
 
 main :: IO ()
 main = 

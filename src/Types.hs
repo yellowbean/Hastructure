@@ -794,7 +794,10 @@ lookupIntervalTable :: Ord a => Table a b -> TableDirection -> (a -> Bool) -> Ma
 lookupIntervalTable (ThresholdTable rows) direction lkUpFunc
   = case findIndex lkUpFunc rs of 
       Nothing -> Nothing
-      Just i -> Just $ (rows!!i, rows!!(i+1)) -- `debug` ("Find index"++ show i)
+      Just i -> if (succ i) == length rows then 
+                  Nothing
+                else
+                  Just $ (rows!!i, rows!!(i+1)) -- `debug` ("Find index"++ show i)
     where 
         rs = case direction of 
                 Up -> reverse $ map fst rows

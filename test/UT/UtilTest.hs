@@ -519,18 +519,30 @@ tableTest =
       assertEqual ""
       [Nothing,Just 100,Just 100]
       [lookupTable tbl Down (3 >=),lookupTable tbl Down (5 >=),lookupTable tbl Down (12 >=)]
-     ,testCase "down & exclusive" $
+    ,testCase "down & exclusive" $
       assertEqual ""
       [Nothing,Nothing,Just 100]
       [lookupTable tbl Down (3 >),lookupTable tbl Down (5 >),lookupTable tbl Down (6 >)]
-     ,testCase "up & inclusive" $
+    ,testCase "up & inclusive" $
       assertEqual ""
       [Nothing,Just 100,Just 100]
       [lookupTable tbl Up (3 >=),lookupTable tbl Up (5 >=),lookupTable tbl Up (6 >=)]
-     ,testCase "up & exclusive" $
+    ,testCase "up & exclusive" $
       assertEqual ""
-      [Just 400,Just 300,Just 200,Nothing]
+      [Just 400, Just 300, Just 200, Nothing]
       [lookupTable tbl Up (20 >=),lookupTable tbl Up (16 >=),lookupTable tbl Up (11 >=),lookupTable tbl Up (3 >=) ]
+    ,testCase "table interval" $
+      assertEqual " Up first "
+      (Just ((5,100),(10,200)))
+      (lookupIntervalTable tbl Down (5 >=))
+    ,testCase "table interval 1" $
+      assertEqual " Up second "
+      (Just ((15,300),(20,400)))
+      (lookupIntervalTable tbl Down (\x -> x >= 12))
+    ,testCase "table interval 2" $
+      assertEqual " Up last" 
+      Nothing 
+      (lookupIntervalTable tbl Down (>= 20))
     ]
 
 lastOftest = 
