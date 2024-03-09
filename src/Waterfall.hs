@@ -83,6 +83,9 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayPrinResidual AccountName [BondName]                                        -- ^ pay principal regardless predefined balance schedule
             | PayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)     -- ^ pay int & prin to bonds sequentially
             | AccrueAndPayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
+            -- Bond - Balance
+            | WriteOff (Maybe Limit) BondName
+            | FundWith (Maybe Limit) AccountName BondName 
             -- Pool/Asset change
             | BuyAsset (Maybe Limit) PricingMethod AccountName (Maybe PoolId)               -- ^ buy asset from revolving assumptions using funds from account
             | LiquidatePool PricingMethod AccountName                                       -- ^ sell all assets and deposit proceeds to account

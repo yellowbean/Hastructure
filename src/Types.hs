@@ -23,7 +23,7 @@ module Types
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
   ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
-  ,DealName
+  ,DealName,lookupIntervalTable,getPriceValue
   )
   
   where
@@ -307,6 +307,8 @@ data Direction = Credit
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
+                | WriteOff BondName Balance
+                | FundWith BondName Balance
                 | PayPrinResidual [BondName] 
                 | PayFee FeeName
                 | SeqPayFee [FeeName] 
@@ -336,6 +338,7 @@ instance ToJSON TxnComment where
   toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
   toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
   toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (WriteOff bn amt ) =  String $ T.pack $ "<WriteOff:"++ bn ++","++ show amt ++ ">"
   toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
   toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
   toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
@@ -787,7 +790,28 @@ lookupTable (ThresholdTable rows) direction lkUpFunc
                 Up -> reverse $ map snd rows
                 Down -> map snd rows
 
-data RateAssumption = RateCurve Index Ts     -- ^ a rate curve ,which value of rates depends on time
+lookupIntervalTable :: Ord a => Table a b -> TableDirection -> (a -> Bool) -> Maybe ((a,b),(a,b))
+lookupIntervalTable (ThresholdTable rows) direction lkUpFunc
+  = case findIndex lkUpFunc rs of 
+      Nothing -> Nothing
+      Just i -> Just $ (rows!!i, rows!!(i+1)) -- `debug` ("Find index"++ show i)
+    where 
+        rs = case direction of 
+                Up -> reverse $ map fst rows
+                Down -> map fst rows
+
+
+-- sortTable :: Ord a => Table a b -> (a -> a -> Bool) -> Table a b   -- sort table by a 
+-- sortTable (ThresholdTable rows) sortFunc
+--   = case direction of 
+--       Up -> ThresholdTable $ sortBy (\(a1,_) (a2,_) -> compare a1 a2) rows
+--       Down -> ThresholdTable $ sortBy (\(a1,_) (a2,_) -> compare a2 a1) rows
+
+
+
+
+
+data RateAssumption = RateCurve Index Ts     --om a:message^ a rate curve ,which value of rates depends on time
                     | RateFlat Index IRate   -- ^ a rate constant
                     deriving (Show, Generic)
 
@@ -813,9 +837,20 @@ data YieldResult = Yield
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
+                 | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
                  deriving (Show, Eq, Generic)
 
+getPriceValue :: PriceResult -> Balance
+getPriceValue (AssetPrice v _ _ _ _ ) = v
+getPriceValue (PriceResult v _ _ _ _ _) = v
+getPriceValue x = error  $ "failed to match with type when geting price value" ++ show x
+
+
+getValuation :: PriceResult -> PerFace
+getValuation (PriceResult _ val _ _ _ _ ) = val
+getValuation (OASResult pr _ _) = getValuation pr
+getValuation pr =  error $ "not support for pricing result"++ show pr
 
 data TimeHorizion = ByMonth
                   | ByYear

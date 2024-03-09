@@ -39,7 +39,7 @@ debug = flip trace
 type DueInt = Balance
 type DuePremium = Balance
 
-data Txn = BondTxn Date Balance Interest Principal IRate Cash (Maybe Rate) TxnComment                   -- ^ bond transaction record for interest and principal 
+data Txn = BondTxn Date Balance Interest Principal IRate Cash (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
          | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
          | ExpTxn Date Balance Amount Balance TxnComment                                   -- ^ expense transaction record
          | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment     -- ^ liquidity provider transaction record

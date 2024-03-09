@@ -11,7 +11,7 @@ module Liability
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield,scaleBond
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
-  ,calcWalBond,patchBondFactor)
+  ,calcWalBond,patchBondFactor,fundWith,writeOff)
   where
 
 import Language.Haskell.TH
@@ -136,7 +136,7 @@ patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Nothing} = b
 patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
   = let 
       oBal = originBalance bo
-      toFactor (S.BondTxn d b i p r0 c Nothing t) = (S.BondTxn d b i p r0 c (Just (divideBB b oBal)) t)
+      toFactor (S.BondTxn d b i p r0 c Nothing t) = (S.BondTxn d b i p r0 c (Just (fromRational (divideBB b oBal))) t)
       newStmt = S.Statement $ toFactor <$> txns
     in 
       b {bndStmt = Just newStmt}
@@ -171,6 +171,21 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt
     newDue = duePrin - amt
     newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 amt 0 amt Nothing (S.PayPrin [bn] ))
 
+writeOff :: Date -> Amount -> Bond -> Bond
+writeOff d 0 b = b
+writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
+  = bnd {bndBalance = newBal , bndStmt=newStmt}
+  where
+    newBal = bal - amt
+    newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 0 0 0 Nothing (S.WriteOff bn amt ))
+
+fundWith :: Date -> Amount -> Bond -> Bond
+fundWith d 0 b = b
+fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
+  = bnd {bndBalance = newBal , bndStmt=newStmt}
+  where
+    newBal = bal + amt
+    newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 (negate amt) 0 0 Nothing (S.FundWith bn amt ))
 
 
 priceBond :: Date -> Ts -> Bond -> PriceResult

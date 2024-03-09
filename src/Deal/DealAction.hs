@@ -834,6 +834,30 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     bndMapUpdated =  Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
+performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an bond) = 
+  t {accounts = accMapAfterFund, bonds= bndMapUpdated }
+  where
+    fundAmt = case mlimit of 
+                 Just (DS ds) -> queryDeal t (patchDateToStats d ds)
+                 Just (DueCapAmt amt) -> amt
+                 _ -> error $ "must specify fund amount for bond "++ show bond
+                 
+    accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bond fundAmt)) an accMap
+    bndMapUpdated = Map.adjust (L.fundWith d fundAmt) bond bndMap
+
+performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
+  = t {bonds = bndMapUpdated}
+  where 
+    writeAmt = case mlimit of
+                  Just (DS ds) -> queryDeal t (patchDateToStats d ds)
+                  Just (DueCapAmt amt) -> amt
+                  Nothing -> L.bndBalance $ bndMap Map.! bnd
+                  x -> error $ "not supported type to determine the amount to write off"++ show x
+
+    writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
+    bndMapUpdated = Map.adjust (L.writeOff d writeAmtCapped) bnd bndMap
+
+
 performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets/cashflow frame
   where
