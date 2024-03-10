@@ -279,34 +279,28 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ i
 
 
 calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
-  b {L.bndDuePrin = duePrin} 
-  where
-    duePrin = bond_bal 
+calcDuePrin t calc_date b@(L.Bond _ L.Sequential _ _ _ bondBal _ _ _ _ _ _ _)
+  = b {L.bndDuePrin = bondBal } 
 
-calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
-  if cd > calc_date then 
-    b {L.bndDuePrin = 0}
-  else
-    b {L.bndDuePrin = duePrin}
-  where
-    duePrin = bond_bal 
+calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi _ bondBal _ _ _ _ _ _ _) 
+  | cd > calc_date = b {L.bndDuePrin = 0}
+  | otherwise = b {L.bndDuePrin = bondBal }
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) _ _ _ bondBal _ _ _ _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date  
-    duePrin = max (bond_bal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
+    duePrin = max (bondBal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PacAnchor schedule bns) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PacAnchor schedule bns) _ _ _ bondBal _ _ _ _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date
     anchor_bond_balance = queryDeal t (CurrentBondBalanceOf bns)
     duePrin = if anchor_bond_balance > 0 then
-                 max (bond_bal - scheduleDue) 0
+                 max (bondBal - scheduleDue) 0
               else
-                 bond_bal
+                 bondBal
 
 calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate prin_arr int_arrears _ lstIntPay _ _) =
   if all isZbond activeBnds then
@@ -324,8 +318,8 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate prin_arr int
                       Nothing -> getClosingDate (dates t)
     dueInt = IR.calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F
 
-calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
-  b {L.bndDuePrin = bond_bal }
+calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bondBal _ _ _ _ _ _ _)
+  = b {L.bndDuePrin = bondBal }
 
 
 priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerf -> Maybe [RateAssumption] -> PriceResult

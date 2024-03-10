@@ -128,8 +128,11 @@ data Bond = Bond {
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
-  =  b {bndStmt = Just (S.Statement 
-                          (reverse (foldl S.consolTxn [txn] txns)))}
+  = let 
+        combinedBondTxns = foldl S.consolTxn [txn] txns
+        droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns
+    in 
+      b {bndStmt = Just (S.Statement (reverse droppedTxns))}
 
 patchBondFactor :: Bond -> Bond
 patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Nothing} = b
@@ -145,7 +148,7 @@ patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
 payInt :: Date -> Amount -> Bond -> Bond
 payInt d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
 payInt d amt bnd@(Bond bn Equity oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd { bndDueInt=newDue, bndStmt = newStmt}
+  = bnd { bndDueInt = newDue, bndStmt = newStmt}
   where
     newDue = dueInt - amt
     newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
@@ -165,14 +168,14 @@ payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayIn
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
 payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newStmt}
+  = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newStmt} -- `debug` ("after pay prin:"++ show d ++">"++ show bn++"due"++show newDue++"bal"++ show newBal )
   where
     newBal = bal - amt
-    newDue = duePrin - amt
+    newDue = duePrin - amt 
     newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 amt 0 amt Nothing (S.PayPrin [bn] ))
 
 writeOff :: Date -> Amount -> Bond -> Bond
-writeOff d 0 b = b
+writeOff d 0 b = b -- `debug` ("Zero on wirte off")
 writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndBalance = newBal , bndStmt=newStmt}
   where
@@ -403,9 +406,9 @@ instance S.QueryByComment Bond where
     = filter (\x -> S.getTxnComment x == tc) txns
 
 instance Liable Bond where 
-  isPaidOff b@Bond{bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
-    | bal==0 && dp==0 && di==0 = True 
-    | otherwise = False
+  isPaidOff b@Bond{bndName = bn,bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
+    | bal==0 && di==0 = True 
+    | otherwise = False -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool

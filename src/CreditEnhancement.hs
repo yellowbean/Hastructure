@@ -58,7 +58,7 @@ data LiqFacility = LiqFacility {
     ,liqStmt :: Maybe Statement              -- ^ transaction history
 } deriving (Show,Generic,Eq,Ord)
 
-
+-- | update the reset events of liquidity provider
 buildLiqResetAction :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, Dates)]
 buildLiqResetAction [] ed r = r
 buildLiqResetAction (liqProvider:liqProviders) ed r = 
@@ -70,6 +70,7 @@ buildLiqResetAction (liqProvider:liqProviders) ed r =
            [(lqName, projDatesByPattern dp ss ed)]++r
     _ -> buildLiqResetAction liqProviders ed r
 
+-- | update the rate reset events of liquidity provider
 buildLiqRateResetAction  :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, Dates)]
 buildLiqRateResetAction [] ed r = r
 buildLiqRateResetAction (liq:liqProviders) ed r = 
@@ -129,6 +130,8 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
       newStmt = appendStmt mStmt $ 
                            SupportTxn d newCredit amt newBal newIntDue newDuePremium LiquidationRepay
 
+
+-- | accure fee and interest of a liquidity provider
 accrueLiqProvider ::  Date -> LiqFacility -> LiqFacility
 accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd Nothing)
   = accrueLiqProvider d $ liq{liqStmt = Just defaultStmt} 
@@ -174,25 +177,26 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
                                              (LiquidationSupportInt accureInt accureFee)
 
 
-
 instance QueryByComment LiqFacility where 
     queryStmt liq@LiqFacility{liqStmt = Nothing} tc = []
     queryStmt liq@LiqFacility{liqStmt = (Just (Statement txns))} tc
       = filter (\x -> getTxnComment x == tc) txns
+
 
 instance Liable LiqFacility where 
   isPaidOff liq@LiqFacility{liqBalance=bal,liqDueInt=dueInt,liqDuePremium=duePremium}
     | bal==0 && dueInt==0 && duePremium==0 = True
     | otherwise = False
 
+
 instance IR.UseRate LiqFacility where 
   getIndexes liq@LiqFacility{liqRateType = mRt,liqPremiumRateType = mPrt} 
-    =  case (mRt,mPrt) of 
-         (Nothing, Nothing) -> Nothing
-         (Just (IR.Floater _ idx _ _ _ _ _ _), Nothing ) -> Just [idx]
-         (Nothing, Just (IR.Floater _ idx _ _ _ _ _ _)) -> Just [idx]
-         (Just (IR.Floater _ idx1 _ _ _ _ _ _), Just (IR.Floater _ idx2 _ _ _ _ _ _)) -> Just [idx1,idx2]
-         _ -> Nothing
+    = case (mRt,mPrt) of 
+        (Nothing, Nothing) -> Nothing
+        (Just (IR.Floater _ idx _ _ _ _ _ _), Nothing ) -> Just [idx]
+        (Nothing, Just (IR.Floater _ idx _ _ _ _ _ _)) -> Just [idx]
+        (Just (IR.Floater _ idx1 _ _ _ _ _ _), Just (IR.Floater _ idx2 _ _ _ _ _ _)) -> Just [idx1,idx2]
+        _ -> Nothing
 
 
 $(deriveJSON defaultOptions ''LiqRepayType)

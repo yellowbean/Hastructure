@@ -11,7 +11,7 @@ module Stmt
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..),scaleByFactor
-   ,scaleTxn
+   ,scaleTxn,isEmptyTxn
   )
   where
 
@@ -113,6 +113,16 @@ emptyTxn SupportTxn {} d = SupportTxn d Nothing 0 0 0 0 Empty
 emptyTxn IrsTxn {} d = IrsTxn d 0 0 0 0 0 Empty
 emptyTxn EntryTxn {} d = EntryTxn d 0 0 Empty
 
+isEmptyTxn :: Txn -> Bool
+isEmptyTxn (BondTxn _ 0 0 0 _ 0 _ _) = True
+isEmptyTxn (AccTxn _ 0 0 Empty) = True
+isEmptyTxn (ExpTxn _ 0 0 0 Empty) = True
+isEmptyTxn (SupportTxn _ Nothing 0 0 0 0 Empty) = True
+isEmptyTxn (IrsTxn _ 0 0 0 0 0 Empty) = True
+isEmptyTxn (EntryTxn _ 0 0 Empty) = True
+isEmptyTxn _ = False
+
+
 sliceStmt :: Date -> Date -> Statement -> Statement
 sliceStmt sd ed (Statement txns) 
   = Statement $ sliceBy II sd ed txns
@@ -161,7 +171,7 @@ groupTxns (Just (Statement txns))
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (r1) (c1+c2) f1 (TxnComments [m1,m2])
+    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (max r1 r2) (c1+c2) f1 (TxnComments [m1,m2])
 
 data FlowDirection = Inflow 
                    | Outflow

@@ -341,7 +341,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     PoolCurCollection ps mPns ->
       let 
         pCf = getLatestCollectFrame t mPns
-        lastRows = Map.map (maybe 0 (\r -> sum (CF.lookupSource r <$> ps))) pCf
+        lastRows = Map.map (maybe 0 (\r -> sum (CF.lookupSource r <$> ps))) pCf -- `debug` ("Latest collect frame"++ show pCf)
       in 
         sum $ Map.elems lastRows
 
