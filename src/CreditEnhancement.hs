@@ -46,7 +46,7 @@ data LiqFacility = LiqFacility {
     ,liqPremiumRateType :: Maybe IR.RateType -- ^ premium rate type
     
     ,liqRate :: Maybe IRate                  -- ^ current interest rated on oustanding balance
-    ,liqPremiumRate :: Maybe IRate           -- ^ current premium rate used on credit un-used, a.k. commitment fee
+    ,liqPremiumRate :: Maybe IRate           -- ^ current premium rate used on unused credit, a.k. commitment fee
     
     ,liqDueIntDate :: Maybe Date             -- ^ last day of interest/premium calculated
     
@@ -63,7 +63,7 @@ buildLiqResetAction :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, D
 buildLiqResetAction [] ed r = r
 buildLiqResetAction (liqProvider:liqProviders) ed r = 
   case liqProvider of 
-    (LiqFacility lqName (ReplenishSupport dp bal) _ _ _ _ _ _ _ _ _ ss _ stmt)
+    (LiqFacility lqName (ReplenishSupport dp bal) _ _ _ _ _ _ _ _ _ ss _ stmt) -- update the support credit of liquidity provider
       -> buildLiqResetAction
            liqProviders
            ed
