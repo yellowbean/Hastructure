@@ -837,7 +837,7 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an 
                  _ -> error $ "must specify fund amount for bond "++ show bond
                  
     accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bond fundAmt)) an accMap
-    bndMapUpdated = Map.adjust (L.fundWith d fundAmt) bond bndMap
+    bndMapUpdated = Map.adjust ((L.fundWith d fundAmt) . (calcDueInt t d Nothing Nothing)) bond bndMap
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
   = t {bonds = bndMapUpdated}
@@ -849,7 +849,7 @@ performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
                   x -> error $ "not supported type to determine the amount to write off"++ show x
 
     writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
-    bndMapUpdated = Map.adjust (L.writeOff d writeAmtCapped) bnd bndMap
+    bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
 
 
 performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an) =
