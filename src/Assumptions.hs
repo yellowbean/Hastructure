@@ -83,6 +83,7 @@ data AssetDefaultAssumption = DefaultConstant Rate
                             | DefaultCDR Rate
                             | DefaultVec [Rate]
                             | DefaultByAmt (Balance,[Rate])
+                            | DefaultAtEnd
                             deriving (Show,Generic)
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
@@ -140,6 +141,7 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate  (Maybe ExtraStress)
                          | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
+                         | ReceivableAssump  (Maybe AssetDefaultAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | FixedAssetAssump  Ts Ts   -- util rate, price
                          deriving (Show,Generic)
 
@@ -149,6 +151,7 @@ data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
 
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
+                      | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
                       deriving (Show,Generic)
 
 getCDR :: Maybe AssetDefaultAssumption -> Maybe Rate

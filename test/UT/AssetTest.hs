@@ -1,5 +1,5 @@
 module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,leaseFunTests,installmentTest,armTest,ppyTest
-                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest,nonPayMortgageTest)
+                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest,nonPayMortgageTest,receivableTest)
 where
 
 import Test.Tasty
@@ -13,6 +13,7 @@ import qualified AssetClass.Mortgage as ACM
 import qualified AssetClass.Loan as ACL
 import qualified AssetClass.Lease as ACR
 import qualified AssetClass.Installment as ACI
+import qualified AssetClass.Receivable as AR
 import qualified Assumptions as A
 import qualified Cashflow as CF
 import qualified Deal as D
@@ -629,3 +630,25 @@ nonPayMortgageTest =
         (txns2!!4)
       
     ]
+
+receivableTest = 
+  let 
+    invoice1 = AB.Invoice (AB.ReceivableInfo (L.toDate "20240401") 1500 1000 (L.toDate "20240601") Nothing) AB.Current
+    invoice2 = AB.Invoice (AB.ReceivableInfo (L.toDate "20240401") 1500 1000 (L.toDate "20240601") (Just (AB.FixedFee 50))) AB.Current
+    invoiceAssump = (A.ReceivableAssump   
+                        Nothing
+                        Nothing 
+                        Nothing
+                    ,A.DummyDelinqAssump,A.DummyDefaultAssump)
+  in 
+    testGroup "Invoice CF test" [
+      testCase "Plain Receivable" $
+        assertEqual "Last Payment"
+        (Just (CF.ReceivableFlow (L.toDate "20240601") 0 0 1500 0 0 0 0 (Just (0.0,0.0,0.0,0.0,0.0,0.0))))
+        (CF.cfAt (fst $ P.projCashflow invoice1 (L.toDate "20240101") invoiceAssump Nothing) 1)
+      ,testCase "Fix Fee" $
+        assertEqual "Last Payment"
+        (Just (CF.ReceivableFlow (L.toDate "20240601") 0 0 1450 50 0 0 0 (Just (0.0,0.0,0.0,0.0,0.0,0.0))))
+        (CF.cfAt (fst $ P.projCashflow invoice2 (L.toDate "20240101") invoiceAssump Nothing) 1)
+    ]
+  

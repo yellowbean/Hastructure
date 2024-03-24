@@ -18,12 +18,12 @@ module Types
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
-  ,Table(..),lookupTable,TableDirection(..),epocDate,BorrowerNum
+  ,Table(..),lookupTable,Direction(..),epocDate,BorrowerNum
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
-  ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
+  ,TxnComment(..),BookDirection(..),DealStatType(..),getDealStatType
   ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
-  ,DealName
+  ,DealName,lookupIntervalTable,getPriceValue
   )
   
   where
@@ -300,13 +300,15 @@ data DatePattern = MonthEnd
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq, Generic,Ord)
 
-data Direction = Credit
-               | Debit
-               deriving (Show,Ord, Eq,Read, Generic)
+data BookDirection = Credit
+                   | Debit
+                   deriving (Show,Ord, Eq,Read, Generic)
 
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
+                | WriteOff BondName Balance
+                | FundWith BondName Balance
                 | PayPrinResidual [BondName] 
                 | PayFee FeeName
                 | SeqPayFee [FeeName] 
@@ -328,7 +330,7 @@ data TxnComment = PayInt [BondName]
                 | SwapInSettle
                 | SwapOutSettle
                 | PurchaseAsset
-                | TxnDirection Direction
+                | TxnDirection BookDirection
                 | TxnComments [TxnComment]
                 deriving (Eq, Show, Ord ,Read, Generic)
 
@@ -336,6 +338,7 @@ instance ToJSON TxnComment where
   toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
   toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
   toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (WriteOff bn amt ) =  String $ T.pack $ "<WriteOff:"++ bn ++","++ show amt ++ ">"
   toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
   toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
   toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
@@ -403,6 +406,7 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | CollectedPrepayment             -- ^ prepayment
                 | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
                 | CollectedRental                 -- ^ rental from pool
+                | CollectedFeePaid                -- ^ fee from pool
                 | CollectedCash                   -- ^ cash from pool
                 | NewDefaults                     -- ^ new defaults in balance
                 | NewLosses                       -- ^ new losses in balance
@@ -479,6 +483,7 @@ data DealStats = CurrentBondBalance
                | ReserveAccGap [AccName]
                | ReserveExcess [AccName] 
                | MonthsTillMaturity BondName
+               | HasPassedMaturity [BondName]
                | ReserveAccGapAt Date [AccName] 
                | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance (Maybe [PoolId])
@@ -527,6 +532,7 @@ data DealStats = CurrentBondBalance
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
                | TestAll Bool [DealStats]
+               | TestNot DealStats
                | PoolWaRate (Maybe [PoolId])
                | BondRate BondName
                | Factor DealStats Rational
@@ -610,6 +616,7 @@ data Pre = IfZero DealStats
          -- | IfRateCurve DealStats Cmp Ts
          | IfDealStatus DealStatus
          | Always Bool
+         | IfNot Pre
          | Any [Pre]
          | All [Pre]                            -- ^ 
          deriving (Show,Generic,Eq,Ord)
@@ -641,9 +648,9 @@ data RangeType = II     -- ^ include both start and end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
 
-data TableDirection = Up 
-                    | Down
-                    deriving (Show,Read,Generic,Eq)
+data Direction = Up 
+               | Down
+               deriving (Show,Read,Generic,Eq,Ord)
 
 data CutoffType = Inc 
                 | Exc
@@ -771,7 +778,7 @@ class Liable lb where
 data Table a b = ThresholdTable [(a,b)]
                  deriving (Show,Eq,Ord,Read,Generic)
 
-lookupTable :: Ord a => Table a b -> TableDirection -> (a -> Bool) -> Maybe b
+lookupTable :: Ord a => Table a b -> Direction -> (a -> Bool) -> Maybe b
 lookupTable (ThresholdTable rows) direction lkUpFunc
   = case findIndex lkUpFunc rs of 
       Nothing -> Nothing
@@ -784,7 +791,31 @@ lookupTable (ThresholdTable rows) direction lkUpFunc
                 Up -> reverse $ map snd rows
                 Down -> map snd rows
 
-data RateAssumption = RateCurve Index Ts     -- ^ a rate curve ,which value of rates depends on time
+lookupIntervalTable :: Ord a => Table a b -> Direction -> (a -> Bool) -> Maybe ((a,b),(a,b))
+lookupIntervalTable (ThresholdTable rows) direction lkUpFunc
+  = case findIndex lkUpFunc rs of 
+      Nothing -> Nothing
+      Just i -> if (succ i) == length rows then 
+                  Nothing
+                else
+                  Just $ (rows!!i, rows!!(i+1)) -- `debug` ("Find index"++ show i)
+    where 
+        rs = case direction of 
+                Up -> reverse $ map fst rows
+                Down -> map fst rows
+
+
+-- sortTable :: Ord a => Table a b -> (a -> a -> Bool) -> Table a b   -- sort table by a 
+-- sortTable (ThresholdTable rows) sortFunc
+--   = case direction of 
+--       Up -> ThresholdTable $ sortBy (\(a1,_) (a2,_) -> compare a1 a2) rows
+--       Down -> ThresholdTable $ sortBy (\(a1,_) (a2,_) -> compare a2 a1) rows
+
+
+
+
+
+data RateAssumption = RateCurve Index Ts     --om a:message^ a rate curve ,which value of rates depends on time
                     | RateFlat Index IRate   -- ^ a rate constant
                     deriving (Show, Generic)
 
@@ -810,9 +841,20 @@ data YieldResult = Yield
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
+                 | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
                  deriving (Show, Eq, Generic)
 
+getPriceValue :: PriceResult -> Balance
+getPriceValue (AssetPrice v _ _ _ _ ) = v
+getPriceValue (PriceResult v _ _ _ _ _) = v
+getPriceValue x = error  $ "failed to match with type when geting price value" ++ show x
+
+
+getValuation :: PriceResult -> PerFace
+getValuation (PriceResult _ val _ _ _ _ ) = val
+getValuation (OASResult pr _ _) = getValuation pr
+getValuation pr =  error $ "not support for pricing result"++ show pr
 
 data TimeHorizion = ByMonth
                   | ByYear
@@ -868,3 +910,5 @@ $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''RateAssumption)
 $(deriveJSON defaultOptions ''Table)
 $(deriveJSON defaultOptions ''PoolId)
+$(deriveJSON defaultOptions ''BookDirection)
+$(deriveJSON defaultOptions ''Direction)

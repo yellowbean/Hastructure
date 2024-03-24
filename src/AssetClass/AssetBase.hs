@@ -7,7 +7,7 @@ module AssetClass.AssetBase
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
-  ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..)
+  ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..),ReceivableFeeType(..),Receivable(..)
   ,calcAssetPrinInt, calcPmt
   )
   where
@@ -49,6 +49,7 @@ calcPmt bal periodRate periods =
 
 type InterestAmount = Amount
 type PrincipalAmount = Amount
+
 calcAssetPrinInt :: AmortPlan -> Balance -> IRate -> Int -> Int -> (InterestAmount, PrincipalAmount)
 calcAssetPrinInt pt bal rate ot rt = 
   let 
@@ -97,6 +98,14 @@ data AmortRule = DecliningBalance        -- ^ DecliningBalance Method
                | SumYearsDigit           -- ^ Not implemented
                deriving (Show,Generic,Eq,Ord)
 
+data ReceivableFeeType = FixedFee Balance                    -- ^ a flat fee amount
+                       | FixedRateFee Rate                   -- ^ a percentage fee against balance for once
+                       | FactorFee Rate Int Direction        -- ^ a percentage fee against balance for each period (N days)
+                       | AdvanceFee Rate                     -- ^ annualized rate for discount fee based on advance amount
+                       | CompoundFee [ReceivableFeeType]     -- ^ compound fee
+                       deriving (Show,Generic,Eq,Ord)
+
+
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
                                           ,originTerm :: Int
@@ -122,6 +131,12 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                      ,accRule :: AmortRule
                                      ,capacity :: Capacity 
                                     }
+                  | ReceivableInfo { startDate :: Date
+                                   ,originBalance :: Balance
+                                   ,originAdvance :: Balance
+                                   ,dueDate :: Date
+                                   ,feeType :: Maybe ReceivableFeeType
+                                   }
                   deriving (Show,Generic,Ord,Eq)
 
 
@@ -152,6 +167,11 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic,Eq,Ord)
 
+data Receivable = Invoice OriginalInfo Status
+                | DUMMY4
+                deriving (Show,Generic,Eq,Ord)
+
+
 data MixedAsset = MixedPool (Map.Map String [AssetUnion])
                 | DUMMY2
                 deriving (Show,Generic,Eq,Ord)
@@ -180,6 +200,7 @@ data AssetUnion = MO Mortgage
                 | IL Installment
                 | LS Lease
                 | FA FixedAsset
+                | RE Receivable
                 deriving (Show, Generic,Ord,Eq)
 
 instance IR.UseRate AssetUnion where
@@ -188,6 +209,7 @@ instance IR.UseRate AssetUnion where
   getIndex (IL ma) = IR.getIndex ma
   getIndex (LS ma) = IR.getIndex ma
   getIndex (FA ma) = IR.getIndex ma
+  getIndex (RE ma) = IR.getIndex ma
 
 
 instance IR.UseRate Mortgage where 
@@ -211,6 +233,10 @@ instance IR.UseRate Lease where
 instance IR.UseRate FixedAsset where
   getIndex _ = Nothing
 
+instance IR.UseRate Receivable where
+  getIndex _ = Nothing
+
+
 $(deriveJSON defaultOptions ''AmortRule)
 $(deriveJSON defaultOptions ''Capacity)
 $(deriveJSON defaultOptions ''AssociateExp)
@@ -218,11 +244,13 @@ $(deriveJSON defaultOptions ''AssociateIncome)
 $(deriveJSON defaultOptions ''FixedAsset)
 $(deriveJSON defaultOptions ''Status)
 $(deriveJSON defaultOptions ''AmortPlan)
+$(deriveJSON defaultOptions ''ReceivableFeeType)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''Installment)
 $(deriveJSON defaultOptions ''LeaseStepUp)
 $(deriveJSON defaultOptions ''Mortgage)
 $(deriveJSON defaultOptions ''Loan)
 $(deriveJSON defaultOptions ''Lease)
+$(deriveJSON defaultOptions ''Receivable)
 $(deriveJSON defaultOptions ''AssetUnion)
 $(deriveJSON defaultOptions ''PrepayPenaltyType)

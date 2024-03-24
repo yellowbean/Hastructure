@@ -92,6 +92,24 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_Receivable"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "VPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -310,6 +328,40 @@
                     }
                 ],
                 "type": "object"
+            },
+            "Pool_Receivable": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "asOfDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/Receivable"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "assets",
+                    "asOfDate"
+                ]
             },
             "RateSwap": {
                 "type": "object",
@@ -759,6 +811,24 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "$ref": "#/components/schemas/Pre"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "IfNot"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/Pre"
                                 },
@@ -852,6 +922,123 @@
                         "type": "array"
                     }
                 }
+            },
+            "ReceivableFeeType": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedFee"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FixedRateFee"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "type": "integer",
+                                        "minimum": -9223372036854775808
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Direction"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FactorFee"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "AdvanceFee"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ReceivableFeeType"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "CompoundFee"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "AssetPrepayAssumption": {
                 "oneOf": [
@@ -1382,6 +1569,90 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 6,
+                                        "type": "array",
+                                        "minItems": 6
+                                    }
+                                ],
+                                "maxItems": 9,
+                                "type": "array",
+                                "minItems": 9
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ReceivableFlow"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -1547,8 +1818,8 @@
             "Direction": {
                 "type": "string",
                 "enum": [
-                    "Credit",
-                    "Debit"
+                    "Up",
+                    "Down"
                 ]
             },
             "CashflowReport": {
@@ -1792,6 +2063,24 @@
                                 "type": "string",
                                 "enum": [
                                     "FA"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Receivable"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RE"
                                 ]
                             }
                         },
@@ -2510,6 +2799,65 @@
                                 "type": "string",
                                 "enum": [
                                     "AccrueAndPayIntPrinBySeq"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "WriteOff"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FundWith"
                                 ]
                             }
                         },
@@ -3582,6 +3930,7 @@
                     "CollectedPrepayment",
                     "CollectedPrepaymentPenalty",
                     "CollectedRental",
+                    "CollectedFeePaid",
                     "CollectedCash",
                     "NewDefaults",
                     "NewLosses",
@@ -3760,6 +4109,64 @@
                                 "type": "string",
                                 "enum": [
                                     "PayPrin"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "WriteOff"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "FundWith"
                                 ]
                             }
                         },
@@ -4164,7 +4571,7 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Direction"
+                                "$ref": "#/components/schemas/BookDirection"
                             },
                             "tag": {
                                 "type": "string",
@@ -5192,6 +5599,30 @@
                 ],
                 "type": "object"
             },
+            "UnderlyingDeal_Receivable": {
+                "type": "object",
+                "properties": {
+                    "issuanceStat": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        }
+                    },
+                    "deal": {
+                        "$ref": "#/components/schemas/TestDeal_Receivable"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    }
+                },
+                "required": [
+                    "deal"
+                ]
+            },
             "AssetDelinquencyAssumption": {
                 "oneOf": [
                     {
@@ -5407,12 +5838,16 @@
                                         "type": "number"
                                     },
                                     {
+                                        "format": "float",
+                                        "type": "number"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/TxnComment"
                                     }
                                 ],
-                                "maxItems": 7,
+                                "maxItems": 8,
                                 "type": "array",
-                                "minItems": 7
+                                "minItems": 8
                             },
                             "tag": {
                                 "type": "string",
@@ -6297,6 +6732,27 @@
                                 "type": "string",
                                 "enum": [
                                     "MonthsTillMaturity"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "HasPassedMaturity"
                                 ]
                             }
                         },
@@ -7540,6 +7996,24 @@
                                 "type": "string",
                                 "enum": [
                                     "TestAll"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStats"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "TestNot"
                                 ]
                             }
                         },
@@ -9306,6 +9780,51 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "multipleOf": 1.0e-6,
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/Ts"
+                                        }
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "type": "array",
+                                "minItems": 5
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "OASInput"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -9325,6 +9844,53 @@
                     "EndDistributionWF",
                     "InWF"
                 ]
+            },
+            "Receivable": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/OriginalInfo"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Status"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "Invoice"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DUMMY4"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
             },
             "DealType": {
                 "oneOf": [
@@ -9410,6 +9976,24 @@
                                 "type": "string",
                                 "enum": [
                                     "FDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TestDeal_Receivable"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "VDeal"
                                 ]
                             }
                         },
@@ -10673,6 +11257,20 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "DefaultAtEnd"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -11390,6 +11988,13 @@
                     "liqStart"
                 ]
             },
+            "BookDirection": {
+                "type": "string",
+                "enum": [
+                    "Credit",
+                    "Debit"
+                ]
+            },
             "Day": {
                 "format": "date",
                 "type": "string",
@@ -11655,6 +12260,42 @@
                         "type": "object",
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/PriceResult"
+                                    },
+                                    {
+                                        "items": {
+                                            "multipleOf": 1.0e-2,
+                                            "type": "number"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "OASResult"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
                                 "multipleOf": 1.0e-6,
                                 "type": "number"
                             },
@@ -11837,6 +12478,37 @@
                                 "type": "string",
                                 "enum": [
                                     "InstallmentAssump"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RecoveryAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraStress"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ReceivableAssump"
                                 ]
                             }
                         },
@@ -12271,6 +12943,71 @@
                         },
                         "required": [
                             "tag"
+                        ]
+                    }
+                ],
+                "type": "object"
+            },
+            "PoolType_Receivable": {
+                "oneOf": [
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_Receivable"
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "SoloPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_Receivable"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiPool"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/UnderlyingDeal_Receivable"
+                                }
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "ResecDeal"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
                         ]
                     }
                 ],
@@ -13302,6 +14039,40 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealType"
+                                    },
+                                    {
+                                        "type": "object",
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/ApplyAssumptionType"
+                                        }
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/NonPerfAssumption"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "type": "array",
+                                "minItems": 3
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "MultiScenarioAndCurveRunReq"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"
@@ -13758,6 +14529,124 @@
                 "type": "array",
                 "minItems": 2
             },
+            "TestDeal_Receivable": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/DealStatus"
+                    },
+                    "dates": {
+                        "$ref": "#/components/schemas/DateDesp"
+                    },
+                    "rateSwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateSwap"
+                        }
+                    },
+                    "currencySwap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CurrencySwap"
+                        }
+                    },
+                    "fees": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Fee"
+                        }
+                    },
+                    "collects": {
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionRule"
+                        },
+                        "type": "array"
+                    },
+                    "custom": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CustomDataType"
+                        }
+                    },
+                    "ledgers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Ledger"
+                        }
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "waterfall": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Action"
+                            },
+                            "type": "array"
+                        }
+                    },
+                    "liqProvider": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LiqFacility"
+                        }
+                    },
+                    "bonds": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Bond"
+                        }
+                    },
+                    "overrides": {
+                        "items": {
+                            "$ref": "#/components/schemas/OverrideType"
+                        },
+                        "type": "array"
+                    },
+                    "accounts": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Account"
+                        }
+                    },
+                    "call": {
+                        "items": {
+                            "$ref": "#/components/schemas/CallOption"
+                        },
+                        "type": "array"
+                    },
+                    "triggers": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "$ref": "#/components/schemas/Trigger"
+                            }
+                        }
+                    },
+                    "pool": {
+                        "$ref": "#/components/schemas/PoolType_Receivable"
+                    },
+                    "rateCap": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        }
+                    }
+                },
+                "required": [
+                    "name",
+                    "status",
+                    "dates",
+                    "accounts",
+                    "fees",
+                    "bonds",
+                    "pool",
+                    "waterfall",
+                    "collects"
+                ]
+            },
             "CallOption": {
                 "oneOf": [
                     {
@@ -14024,7 +14913,7 @@
                                         "type": "string"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Direction"
+                                        "$ref": "#/components/schemas/BookDirection"
                                     },
                                     {
                                         "$ref": "#/components/schemas/DealStats"
@@ -14559,7 +15448,7 @@
         }
     },
     "info": {
-        "version": "0.25.0",
+        "version": "0.26.3",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

@@ -8,9 +8,9 @@ module Util
     ,multiplyTs,zipTs,getTsVals,getTsSize,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, getTsDates
     ,shiftTsByAmt,calcWeightBalanceByDates, monthsAfter
-    ,getPriceValue,maximum',minimum',roundingBy,roundingByM
+    ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN
-    ,lastOf
+    ,lastOf,findBox
     -- for debug
     ,zyj
     )
@@ -257,10 +257,6 @@ testSumToOne rs = sum rs == 1.0
 monthsAfter :: Date -> Integer -> Date
 monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
 
-getPriceValue :: PriceResult -> Balance
-getPriceValue (AssetPrice v _ _ _ _ ) = v
-getPriceValue (PriceResult v _ _ _ _ _) = v
-
 maximum' :: Ord a => [a] -> a
 maximum' = foldr1 (\x y ->if x >= y then x else y)
 
@@ -291,6 +287,27 @@ scaleUpToOne rs =
     s = 1 / sum rs
   in 
     (s *) <$> rs 
+
+
+findBox :: (Ord a,Num a) => (CutoffType,CutoffType) -> a -> [(a,a)] -> Maybe (a,a)
+findBox _ x [] = Nothing
+findBox (Inc,Inc) x ((l,h):xs) 
+  | x >= l && x <= h = Just (l,h)
+  | otherwise = findBox (Inc,Inc) x xs
+
+findBox (Exc,Inc) x ((l,h):xs) 
+  | x > l && x <= h = Just (l,h)
+  | otherwise = findBox (Exc,Inc) x xs
+
+findBox (Inc,Exc) x ((l,h):xs) 
+  | x >= l && x < h = Just (l,h)
+  | otherwise = findBox (Inc,Exc) x xs
+
+findBox (Exc,Exc) x ((l,h):xs) 
+  | x >= l && x < h = Just (l,h)
+  | otherwise = findBox (Exc,Exc) x xs
+
+
 
 
 ----- DEBUG/PRINT

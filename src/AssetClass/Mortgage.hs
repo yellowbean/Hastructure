@@ -440,7 +440,9 @@ instance Ast.Asset Mortgage where
                mRates =
       (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame futureTxns) ,historyM)
     where
+      recoveryLag = maybe 0 getRecoveryLag amr
       lastPayDate:cfDates = lastN (rt + 1) $ sd:getPaymentDates m 0
+      
       defRates = Ast.buildDefaultRates (lastPayDate:cfDates) amd
       ppyRates = Ast.buildPrepayRates (lastPayDate:cfDates) amp
       
@@ -451,7 +453,12 @@ instance Ast.Asset Mortgage where
       remainTerms = reverse [0..rt]
       dc = getDayCount or
       txns = projectMortgageFlow (cb,lastPayDate,mbn,prinPayType,dc,cr,p,ot) (cfDates, defRates, ppyRates,rateVector,remainTerms)
-      (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
+
+      recoveryDates = lastN recoveryLag $ sd:getPaymentDates m recoveryLag
+      lastProjTxn = last txns
+      extraTxns = [ CF.emptyTsRow d lastProjTxn  | d <- recoveryDates ]
+      
+      (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery (txns++extraTxns) amr)
 
   -- project current mortgage(with delinq)
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn Current) 

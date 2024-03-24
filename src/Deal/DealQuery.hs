@@ -341,7 +341,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     PoolCurCollection ps mPns ->
       let 
         pCf = getLatestCollectFrame t mPns
-        lastRows = Map.map (maybe 0 (\r -> sum (CF.lookupSource r <$> ps))) pCf
+        lastRows = Map.map (maybe 0 (\r -> sum (CF.lookupSource r <$> ps))) pCf -- `debug` ("Latest collect frame"++ show pCf)
       in 
         sum $ Map.elems lastRows
 
@@ -550,8 +550,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     _ -> error ("Failed to query balance of -> "++ show s)
 
-queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Bool
-queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds = 
+queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Date -> Bool
+queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d = 
   case ds of 
     TriggersStatus dealcycle tName -> 
       case trgs of 
@@ -583,10 +583,18 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds =
                              LE -> testRate <= r
                              E ->  testRate == r
     
+    HasPassedMaturity bns -> let 
+                               oustandingBnds = filter (not . isPaidOff) $ (bndMap Map.!) <$> bns
+                               monthsToMaturity = (\bn -> queryDealInt t (MonthsTillMaturity bn) d) <$> L.bndName <$> oustandingBnds
+                             in 
+                               all (<= 0) monthsToMaturity
+
     IsDealStatus st -> status t == st
 
-    TestAny b dss -> b `elem` [ queryDealBool t ds | ds <- dss ]
-    TestAll b dss -> all (== b) [ queryDealBool t ds | ds <- dss ] 
+    TestNot ds -> not (queryDealBool t ds d)
+
+    TestAny b dss -> b `elem` [ queryDealBool t ds d | ds <- dss ]
+    TestAll b dss -> all (== b) [ queryDealBool t ds d | ds <- dss ] 
 
     _ -> error ("Failed to query bool type formula"++ show ds)
 
@@ -603,13 +611,14 @@ testPre d t p =
     IfDate cmp _d -> toCmp cmp d _d
     IfCurve cmp s _ts -> toCmp cmp (queryDeal t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfRateCurve cmp s _ts -> toCmp cmp (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))
-    IfBool s True -> queryDealBool t s
-    IfBool s False -> not (queryDealBool t s)
+    IfBool s True -> queryDealBool t s d
+    IfBool s False -> not (queryDealBool t s d)
     If2 cmp s1 s2 -> toCmp cmp (queryDeal t (ps s1)) (queryDeal t (ps s2))
     IfRate2 cmp s1 s2 -> toCmp cmp (queryDealRate t (ps s1)) (queryDealRate t (ps s2))
     IfInt2 cmp s1 s2 -> toCmp cmp (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
     IfDealStatus st -> status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
     Always b -> b
+    IfNot _p -> not $ testPre d t _p
     where 
       toCmp x = case x of 
                   G -> (>)

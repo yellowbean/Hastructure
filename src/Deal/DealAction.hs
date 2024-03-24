@@ -279,34 +279,28 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ i
 
 
 calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
-calcDuePrin t calc_date b@(L.Bond bn L.Sequential bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
-  b {L.bndDuePrin = duePrin} 
-  where
-    duePrin = bond_bal 
+calcDuePrin t calc_date b@(L.Bond _ L.Sequential _ _ _ bondBal _ _ _ _ _ _ _)
+  = b {L.bndDuePrin = bondBal } 
 
-calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
-  if cd > calc_date then 
-    b {L.bndDuePrin = 0}
-  else
-    b {L.bndDuePrin = duePrin}
-  where
-    duePrin = bond_bal 
+calcDuePrin t calc_date b@(L.Bond bn (L.Lockout cd) bo bi _ bondBal _ _ _ _ _ _ _) 
+  | cd > calc_date = b {L.bndDuePrin = 0}
+  | otherwise = b {L.bndDuePrin = bondBal }
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PAC schedule) _ _ _ bondBal _ _ _ _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date  
-    duePrin = max (bond_bal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
+    duePrin = max (bondBal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
 
-calcDuePrin t calc_date b@(L.Bond bn (L.PacAnchor schedule bns) bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
+calcDuePrin t calc_date b@(L.Bond bn (L.PacAnchor schedule bns) _ _ _ bondBal _ _ _ _ _ _ _) =
   b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
   where
     scheduleDue = getValOnByDate schedule calc_date
     anchor_bond_balance = queryDeal t (CurrentBondBalanceOf bns)
     duePrin = if anchor_bond_balance > 0 then
-                 max (bond_bal - scheduleDue) 0
+                 max (bondBal - scheduleDue) 0
               else
-                 bond_bal
+                 bondBal
 
 calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate prin_arr int_arrears _ lstIntPay _ _) =
   if all isZbond activeBnds then
@@ -324,8 +318,8 @@ calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate prin_arr int
                       Nothing -> getClosingDate (dates t)
     dueInt = IR.calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F
 
-calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bond_bal _ prin_arr int_arrears _ _ _ _) =
-  b {L.bndDuePrin = bond_bal }
+calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bondBal _ _ _ _ _ _ _)
+  = b {L.bndDuePrin = bondBal }
 
 
 priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerf -> Maybe [RateAssumption] -> PriceResult
@@ -430,7 +424,7 @@ inspectVars :: P.Asset a => TestDeal a -> Date -> DealStats -> ResultComponent
 inspectVars t d ds =                     
   case getDealStatType ds of 
     RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
-    RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds)
+    RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds) d
     RtnInt  -> InspectInt d ds $ queryDealInt t (patchDateToStats d ds) d
     _       -> InspectBal d ds $ queryDeal t (patchDateToStats d ds)
 
@@ -833,6 +827,30 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
+
+performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an bond) = 
+  t {accounts = accMapAfterFund, bonds= bndMapUpdated }
+  where
+    fundAmt = case mlimit of 
+                 Just (DS ds) -> queryDeal t (patchDateToStats d ds)
+                 Just (DueCapAmt amt) -> amt
+                 _ -> error $ "must specify fund amount for bond "++ show bond
+                 
+    accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bond fundAmt)) an accMap
+    bndMapUpdated = Map.adjust ((L.fundWith d fundAmt) . (calcDueInt t d Nothing Nothing)) bond bndMap
+
+performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
+  = t {bonds = bndMapUpdated}
+  where 
+    writeAmt = case mlimit of
+                  Just (DS ds) -> queryDeal t (patchDateToStats d ds)
+                  Just (DueCapAmt amt) -> amt
+                  Nothing -> L.bndBalance $ bndMap Map.! bnd
+                  x -> error $ "not supported type to determine the amount to write off"++ show x
+
+    writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
+    bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
+
 
 performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets/cashflow frame
