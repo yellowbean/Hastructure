@@ -105,6 +105,7 @@ yearCountFraction dc sd ed
                         num = toRational (_eday - _sday) + 30*_gapMonth + 360*_diffYears
                       in 
                         num / 360
+      _ -> error $ "DayCount not supported" ++ show dc
       -- https://www.iso20022.org/15022/uhb/mt565-16-field-22f.htm
 
     where 

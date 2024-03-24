@@ -83,6 +83,7 @@ data AssetDefaultAssumption = DefaultConstant Rate
                             | DefaultCDR Rate
                             | DefaultVec [Rate]
                             | DefaultByAmt (Balance,[Rate])
+                            | DefaultAtEnd
                             deriving (Show,Generic)
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
@@ -140,6 +141,7 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate  (Maybe ExtraStress)
                          | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
+                         | ReceivableAssump  (Maybe AssetDefaultAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | FixedAssetAssump  Ts Ts   -- util rate, price
                          deriving (Show,Generic)
 

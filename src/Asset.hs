@@ -333,10 +333,10 @@ aggPool mStat xs
                                            ,Map.findWithDefault 0 HistoryRecoveries m
                                            ,Map.findWithDefault 0 HistoryLoss m)
       -- (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
-      txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns
+      txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns 
     in
       case Map.lookup AccruedInterest =<< mStat of
-        Nothing -> (CF.CashFlowFrame txns, stats)
+        Nothing -> (CF.CashFlowFrame txns, stats) 
         Just accruedIntAmt -> (CF.CashFlowFrame (CF.clawbackInt accruedIntAmt txns), stats)
     
 $(deriveJSON defaultOptions ''Pool)

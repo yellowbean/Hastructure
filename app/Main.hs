@@ -99,6 +99,7 @@ data PoolType = MPool (P.Pool AB.Mortgage)
               | IPool (P.Pool AB.Installment)
               | RPool (P.Pool AB.Lease)
               | FPool (P.Pool AB.FixedAsset)
+              | VPool (P.Pool AB.Receivable)
               deriving(Show, Generic)
 
 instance ToSchema PoolType
@@ -109,12 +110,14 @@ instance ToSchema (P.Pool AB.Loan)
 instance ToSchema (P.Pool AB.Installment)
 instance ToSchema (P.Pool AB.Lease)
 instance ToSchema (P.Pool AB.FixedAsset)
+instance ToSchema (P.Pool AB.Receivable)
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | LDeal (DB.TestDeal AB.Loan)
               | IDeal (DB.TestDeal AB.Installment) 
               | RDeal (DB.TestDeal AB.Lease) 
               | FDeal (DB.TestDeal AB.FixedAsset) 
+              | VDeal (DB.TestDeal AB.Receivable) 
               | UDeal (DB.TestDeal AB.AssetUnion) 
               deriving(Show, Generic)
 
@@ -138,6 +141,7 @@ instance ToSchema (DB.UnderlyingDeal AB.Mortgage)
 instance ToSchema (DB.UnderlyingDeal AB.Loan)
 instance ToSchema (DB.UnderlyingDeal AB.Installment)
 instance ToSchema (DB.UnderlyingDeal AB.Lease)
+instance ToSchema (DB.UnderlyingDeal AB.Receivable)
 instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
 instance ToSchema (DB.UnderlyingDeal AB.FixedAsset)
 
@@ -145,6 +149,7 @@ instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
 instance ToSchema (DB.TestDeal AB.Lease)
+instance ToSchema (DB.TestDeal AB.Receivable)
 instance ToSchema (DB.TestDeal AB.AssetUnion)
 instance ToSchema (DB.TestDeal AB.FixedAsset)
 instance ToSchema (DB.PoolType AB.AssetUnion)
@@ -153,6 +158,7 @@ instance ToSchema (DB.PoolType AB.Mortgage)
 instance ToSchema (DB.PoolType AB.Loan)
 instance ToSchema (DB.PoolType AB.Installment)
 instance ToSchema (DB.PoolType AB.Lease)
+instance ToSchema (DB.PoolType AB.Receivable)
 instance ToSchema (P.Pool AB.AssetUnion)
 instance ToSchema HE.RateCap
 instance ToSchema AB.LeaseStepUp 
@@ -222,11 +228,14 @@ instance ToSchema AB.OriginalInfo
 instance ToSchema IR.RateType
 instance ToSchema AB.AmortPlan
 instance ToSchema AB.AssetUnion
+instance ToSchema AB.Receivable
 instance ToSchema CutoffFields
 instance ToSchema PricingMethod
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
 instance ToSchema (RoundingBy IRate)
+instance ToSchema (RoundingBy Rate)
+instance ToSchema (RoundingBy Integer)
 instance ToSchema (RoundingBy Balance)
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.RevolvingAssumption
@@ -243,6 +252,7 @@ instance ToSchema AP.LeaseAssetGapAssump
 instance ToSchema AP.LeaseAssetRentAssump
 instance ToSchema (Table Balance Balance)
 instance ToSchema (Table Float Spread)
+instance ToSchema AB.ReceivableFeeType
 
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
@@ -277,6 +287,10 @@ wrapRun (UDeal d) mAssump mNonPerfAssump = let
                                        (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (UDeal _d,_pflow,_rs,_p)                                       
+wrapRun (VDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+                                     in 
+                                       (VDeal _d,_pflow,_rs,_p)                                       
 wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
 wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
@@ -284,6 +298,7 @@ wrapRunPool (MPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRa
 wrapRunPool (LPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool (IPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool (RPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+wrapRunPool (VPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe [RateAssumption]) (Maybe PricingMethod)
@@ -309,7 +324,13 @@ type ScenarioName = String
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
                 | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
                 | MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
+                | MultiScenarioAndCurveRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
                 deriving(Show, Generic)
+
+data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
+                   deriving(Show, Generic)
+
+
 
 instance ToSchema RunDealReq
 data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
@@ -333,6 +354,7 @@ type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName (CF.CashFlowFrame,Map.Map CutoffFields Balance))
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
+--            :<|> "runDealOAS" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName [PriceResult])
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
 
@@ -362,6 +384,7 @@ myServer = return engineSwagger
       :<|> runPoolScenarios
       :<|> runDeal
       :<|> runDealScenarios
+      -- :<|> runDealOAS
       :<|> runMultiDeals
       :<|> runDate
 --      :<|> error "not implemented"
@@ -422,8 +445,8 @@ main =
     let (Config _p) = case mc of
                         Left exp -> Config 8081
                         Right c -> c
+    print ("Engine start with version:"++ _version version1++";running at Port:"++ show _p)
     run _p 
-      -- $ errorMwJson @JSON @'["error","warning","status"]
       $ errorMwDefJson
       $ serve (Proxy :: Proxy API) myServer
 

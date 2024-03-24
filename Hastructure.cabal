@@ -37,6 +37,7 @@ library
       AssetClass.Loan
       AssetClass.MixedAsset
       AssetClass.Mortgage
+      AssetClass.Receivable
       Assumptions
       Call
       Cashflow

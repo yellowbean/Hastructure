@@ -877,6 +877,7 @@ readProceeds CollectedPrepayment row = CF.mflowPrepayment row
 readProceeds CollectedRental     row = CF.mflowRental row
 readProceeds CollectedPrepaymentPenalty row =  CF.mflowPrepaymentPenalty row
 readProceeds CollectedCash row =  CF.tsTotalCash row
+readProceeds CollectedFeePaid row = CF.mflowFeePaid row
 readProceeds a b = error $ "failed to read pool cashflow rule"++show a
 
 

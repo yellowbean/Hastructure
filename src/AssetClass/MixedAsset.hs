@@ -30,6 +30,8 @@ import AssetClass.Mortgage
 import AssetClass.Lease
 import AssetClass.Loan
 import AssetClass.Installment
+
+import AssetClass.Receivable
 import AssetClass.AssetCashflow
 import AssetClass.FixedAsset
 
@@ -138,6 +140,7 @@ splitWith (ACM.LO ast) rs = ACM.LO <$> P.splitWith ast rs
 splitWith (ACM.IL ast) rs = ACM.IL <$> P.splitWith ast rs
 splitWith (ACM.LS ast) rs = ACM.LS <$> P.splitWith ast rs
 splitWith (ACM.FA ast) rs = ACM.FA <$> P.splitWith ast rs
+-- splitWith (ACM.RE ast) rs = ACM.RE <$> P.splitWith ast rs
 
 updateOrigDate :: ACM.AssetUnion -> Date -> ACM.AssetUnion
 updateOrigDate (ACM.MO ast) d = ACM.MO $ P.updateOriginDate ast d 
@@ -145,6 +148,7 @@ updateOrigDate (ACM.LO ast) d = ACM.LO $ P.updateOriginDate ast d
 updateOrigDate (ACM.IL ast) d = ACM.IL $ P.updateOriginDate ast d 
 updateOrigDate (ACM.LS ast) d = ACM.LS $ P.updateOriginDate ast d 
 updateOrigDate (ACM.FA ast) d = ACM.FA $ P.updateOriginDate ast d
+-- updateOrigDate (ACM.RE ast) d = ACM.RE $ P.updateOriginDate ast d
 
 calcAlignDate :: ACM.AssetUnion -> Date -> Date
 calcAlignDate (ACM.MO ast) = P.calcAlignDate ast 
@@ -152,6 +156,7 @@ calcAlignDate (ACM.LO ast) = P.calcAlignDate ast
 calcAlignDate (ACM.IL ast) = P.calcAlignDate ast 
 calcAlignDate (ACM.LS ast) = P.calcAlignDate ast 
 calcAlignDate (ACM.FA ast) = P.calcAlignDate ast 
+-- calcAlignDate (ACM.RE ast) = P.calcAlignDate ast 
 
 
 projAssetUnion :: ACM.AssetUnion -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
@@ -160,6 +165,7 @@ projAssetUnion (ACM.LO ast) d assumps mRates = P.projCashflow ast d assumps mRat
 projAssetUnion (ACM.IL ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.LS ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.FA ast) d assumps mRates = P.projCashflow ast d assumps mRates
+projAssetUnion (ACM.RE ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion x _ _ _ = error ("Failed to match  proj AssetUnion"++ show x)
 
 projAssetUnionList :: [ACM.AssetUnion] -> Date -> A.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)

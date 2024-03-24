@@ -1,11 +1,18 @@
 # Changelog for Hastructure
 
 
-## 0.26.11
+## 0.26.2
+### 2024-03-24
+* FIX: patch recoveries for `Mortgage` type cashflow
+* ENHANCE: create new endpoint for `OAS`
+* NEW: add new asset class `Receivable` which represent a `invoice factored`,`trading receivable`
+* NEW: `DefaultAtEnd` assumption, which assumes asset default at last payment
+
+## 0.26.1
 ### 2024-03-09
 * NEW: `fundWith` which will increate the balance of bond and deposit cash to account.
 * NEW: `writeOff` which will write off balance of bond via a formula
-* NEW: a new predicate `passMaturiy` which True if bond has passed its expected maturity/pay off date.
+* NEW: a new predicate `passMaturity` which True if bonds has passed their expected maturity/pay off date.
 * NEW: `Not` as composite boolean test.
 * NEW: add new `OAS` pricing assumption, which return OAS spread given input scenarios.
 
