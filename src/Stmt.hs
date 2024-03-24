@@ -10,7 +10,7 @@ module Stmt
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
-   ,getFlow,FlowDirection(..), aggByTxnComment, Direction(..),scaleByFactor
+   ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
    ,scaleTxn,isEmptyTxn
   )
   where
@@ -250,4 +250,3 @@ class QueryByComment a where
 
 $(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)
-$(deriveJSON defaultOptions ''Direction)

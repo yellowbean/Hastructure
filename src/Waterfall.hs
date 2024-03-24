@@ -53,7 +53,7 @@ instance FromJSONKey ActionWhen where
 
 data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
               | ByAccountDraw LedgerName               -- Book amount equal to account draw amount
-              | ByDS          LedgerName Direction DealStats     -- Book amount equal to a formula/deal stats
+              | ByDS          LedgerName BookDirection DealStats     -- Book amount equal to a formula/deal stats
               deriving (Show,Generic,Eq,Ord)
 
 data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there is deficit, draw another account to pay the shortfall

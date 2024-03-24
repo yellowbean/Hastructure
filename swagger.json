@@ -978,7 +978,7 @@
                                         "minimum": -9223372036854775808
                                     },
                                     {
-                                        "$ref": "#/components/schemas/RoundingBy_(Ratio_Integer)"
+                                        "$ref": "#/components/schemas/Direction"
                                     }
                                 ],
                                 "maxItems": 3,
@@ -1818,8 +1818,8 @@
             "Direction": {
                 "type": "string",
                 "enum": [
-                    "Credit",
-                    "Debit"
+                    "Up",
+                    "Down"
                 ]
             },
             "CashflowReport": {
@@ -4571,7 +4571,7 @@
                         "type": "object",
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Direction"
+                                "$ref": "#/components/schemas/BookDirection"
                             },
                             "tag": {
                                 "type": "string",
@@ -10023,49 +10023,6 @@
                 ],
                 "type": "object"
             },
-            "RoundingBy_(Ratio_Integer)": {
-                "oneOf": [
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "RoundCeil"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    },
-                    {
-                        "type": "object",
-                        "properties": {
-                            "contents": {
-                                "format": "double",
-                                "type": "number"
-                            },
-                            "tag": {
-                                "type": "string",
-                                "enum": [
-                                    "RoundFloor"
-                                ]
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ]
-                    }
-                ],
-                "type": "object"
-            },
             "PoolType_Loan": {
                 "oneOf": [
                     {
@@ -12029,6 +11986,13 @@
                     "liqDueInt",
                     "liqDuePremium",
                     "liqStart"
+                ]
+            },
+            "BookDirection": {
+                "type": "string",
+                "enum": [
+                    "Credit",
+                    "Debit"
                 ]
             },
             "Day": {
@@ -14949,7 +14913,7 @@
                                         "type": "string"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Direction"
+                                        "$ref": "#/components/schemas/BookDirection"
                                     },
                                     {
                                         "$ref": "#/components/schemas/DealStats"
@@ -15484,7 +15448,7 @@
         }
     },
     "info": {
-        "version": "0.26.2",
+        "version": "0.26.3",
         "title": "Hastructure API",
         "license": {
             "name": "BSD 3"

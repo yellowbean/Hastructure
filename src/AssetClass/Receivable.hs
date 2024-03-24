@@ -47,9 +47,11 @@ calcDueFactorFee r@(Invoice (ReceivableInfo sd ob oa dd ft) st) asOfDay
       Just (FixedRateFee r) -> mulBR ob r
       Just (FactorFee r daysInPeriod rnd) -> 
         let 
-            periods = roundingBy rnd $  toRational $ div (daysBetween sd dd) (toInteger daysInPeriod)
+            periods = case rnd of 
+                        Up ->  ceiling ((fromIntegral (daysBetween sd dd)) / (fromIntegral daysInPeriod)) :: Int 
+                        Down -> floor ((fromIntegral (daysBetween sd dd)) / (fromIntegral daysInPeriod)) :: Int  
         in 
-            (mulBR ob (periods * r))
+            fromRational $ (toRational periods) * toRational (mulBR ob r) 
       Just (AdvanceFee r) -> mulBR oa (r  * (yearCountFraction DC_ACT_365F sd dd))
       Just (CompoundFee fs) -> 
         let 

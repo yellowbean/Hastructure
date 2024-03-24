@@ -18,10 +18,10 @@ module Types
   ,ResultComponent(..),SplitType(..),BookItem(..),BookItems,BalanceSheetReport(..),CashflowReport(..)
   ,Floater,CeName,RateAssumption(..)
   ,PrepaymentRate,DefaultRate,RecoveryRate,RemainTerms,Recovery,Prepayment
-  ,Table(..),lookupTable,TableDirection(..),epocDate,BorrowerNum
+  ,Table(..),lookupTable,Direction(..),epocDate,BorrowerNum
   ,PricingMethod(..),sortActionOnDate,PriceResult(..),IRR,Limit(..)
   ,RoundingBy(..),DateDirection(..)
-  ,TxnComment(..),Direction(..),DealStatType(..),getDealStatType
+  ,TxnComment(..),BookDirection(..),DealStatType(..),getDealStatType
   ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
   ,DealName,lookupIntervalTable,getPriceValue
   )
@@ -300,9 +300,9 @@ data DatePattern = MonthEnd
                  -- | DayOfWeek Int -- T.DayOfWeek
                  deriving (Show,Eq, Generic,Ord)
 
-data Direction = Credit
-               | Debit
-               deriving (Show,Ord, Eq,Read, Generic)
+data BookDirection = Credit
+                   | Debit
+                   deriving (Show,Ord, Eq,Read, Generic)
 
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
@@ -330,7 +330,7 @@ data TxnComment = PayInt [BondName]
                 | SwapInSettle
                 | SwapOutSettle
                 | PurchaseAsset
-                | TxnDirection Direction
+                | TxnDirection BookDirection
                 | TxnComments [TxnComment]
                 deriving (Eq, Show, Ord ,Read, Generic)
 
@@ -648,9 +648,9 @@ data RangeType = II     -- ^ include both start and end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
 
-data TableDirection = Up 
-                    | Down
-                    deriving (Show,Read,Generic,Eq)
+data Direction = Up 
+               | Down
+               deriving (Show,Read,Generic,Eq,Ord)
 
 data CutoffType = Inc 
                 | Exc
@@ -778,7 +778,7 @@ class Liable lb where
 data Table a b = ThresholdTable [(a,b)]
                  deriving (Show,Eq,Ord,Read,Generic)
 
-lookupTable :: Ord a => Table a b -> TableDirection -> (a -> Bool) -> Maybe b
+lookupTable :: Ord a => Table a b -> Direction -> (a -> Bool) -> Maybe b
 lookupTable (ThresholdTable rows) direction lkUpFunc
   = case findIndex lkUpFunc rs of 
       Nothing -> Nothing
@@ -791,7 +791,7 @@ lookupTable (ThresholdTable rows) direction lkUpFunc
                 Up -> reverse $ map snd rows
                 Down -> map snd rows
 
-lookupIntervalTable :: Ord a => Table a b -> TableDirection -> (a -> Bool) -> Maybe ((a,b),(a,b))
+lookupIntervalTable :: Ord a => Table a b -> Direction -> (a -> Bool) -> Maybe ((a,b),(a,b))
 lookupIntervalTable (ThresholdTable rows) direction lkUpFunc
   = case findIndex lkUpFunc rs of 
       Nothing -> Nothing
@@ -910,3 +910,5 @@ $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''RateAssumption)
 $(deriveJSON defaultOptions ''Table)
 $(deriveJSON defaultOptions ''PoolId)
+$(deriveJSON defaultOptions ''BookDirection)
+$(deriveJSON defaultOptions ''Direction)

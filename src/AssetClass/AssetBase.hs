@@ -100,7 +100,7 @@ data AmortRule = DecliningBalance        -- ^ DecliningBalance Method
 
 data ReceivableFeeType = FixedFee Balance                    -- ^ a flat fee amount
                        | FixedRateFee Rate                   -- ^ a percentage fee against balance for once
-                       | FactorFee Rate Int (RoundingBy Rate) -- ^ a percentage fee against balance for each period (N days)
+                       | FactorFee Rate Int Direction        -- ^ a percentage fee against balance for each period (N days)
                        | AdvanceFee Rate                     -- ^ annualized rate for discount fee based on advance amount
                        | CompoundFee [ReceivableFeeType]     -- ^ compound fee
                        deriving (Show,Generic,Eq,Ord)
