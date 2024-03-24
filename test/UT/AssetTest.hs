@@ -644,11 +644,11 @@ receivableTest =
     testGroup "Invoice CF test" [
       testCase "Plain Receivable" $
         assertEqual "Last Payment"
-        (Just (CF.ReceivableFlow (L.toDate "20240601") 0 0 1500 0 0 0 0 Nothing))
-        (CF.cfAt (fst $ P.projCashflow invoice1 (L.toDate "20240101") invoiceAssump Nothing) 0)
+        (Just (CF.ReceivableFlow (L.toDate "20240601") 0 0 1500 0 0 0 0 (Just (0.0,0.0,0.0,0.0,0.0,0.0))))
+        (CF.cfAt (fst $ P.projCashflow invoice1 (L.toDate "20240101") invoiceAssump Nothing) 1)
       ,testCase "Fix Fee" $
         assertEqual "Last Payment"
-        (Just (CF.ReceivableFlow (L.toDate "20240601") 0 0 1500 50 0 0 0 Nothing))
-        (CF.cfAt (fst $ P.projCashflow invoice2 (L.toDate "20240101") invoiceAssump Nothing) 0)
+        (Just (CF.ReceivableFlow (L.toDate "20240601") 0 0 1450 50 0 0 0 (Just (0.0,0.0,0.0,0.0,0.0,0.0))))
+        (CF.cfAt (fst $ P.projCashflow invoice2 (L.toDate "20240101") invoiceAssump Nothing) 1)
     ]
   
