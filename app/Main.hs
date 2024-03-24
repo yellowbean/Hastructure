@@ -82,6 +82,7 @@ import qualified DateUtil as DU
 
 
 import Debug.Trace
+import qualified Types as W
 debug = flip Debug.Trace.trace
 
 data Version = Version 
@@ -92,7 +93,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.26.3"
+version1 = Version "0.26.4"
 
 data PoolType = MPool (P.Pool AB.Mortgage)
               | LPool (P.Pool AB.Loan)
@@ -181,6 +182,8 @@ instance ToSchema Pre
 instance ToSchema W.ActionWhen
 instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
+instance ToSchema BookDirection
+instance ToSchema Direction
 instance ToSchema W.BookType
 instance ToSchema W.CollectionRule
 instance ToSchema Limit
@@ -212,7 +215,7 @@ instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
 instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
-instance ToSchema Stmt.Direction
+-- instance ToSchema Stmt.Direction
 instance ToSchema Stmt.TxnComment
 instance ToSchema CF.TsRow
 instance ToSchema (TsPoint Balance)
