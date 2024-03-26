@@ -88,6 +88,18 @@ instance Asset Receivable where
   updateOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft) st) newDate 
     = Invoice (ReceivableInfo newDate ob oa dd ft) st
 
+  projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) (Defaulted _))
+               asOfDay
+               massump@(A.ReceivableAssump _ amr ams, _ , _)
+               mRates
+    = (CF.CashFlowFrame futureTxns, historyM)
+    where
+      payDate = dd
+      initTxn = [CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing]
+      txns = [CF.ReceivableFlow asOfDay 0 0 0 0 ob 0 ob Nothing]
+      (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery (initTxn++txns) amr)
+
+
   projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) Current) 
                asOfDay
                massump@(A.ReceivableAssump (Just A.DefaultAtEnd) amr ams, _ , _)
