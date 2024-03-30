@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.MixedAsset
-  (projAssetUnion,projAssetUnionList,projectCashflow)
+  (projAssetUnion,projAssetUnionList,projectCashflow, calcAssetUnion)
   where
 
 import qualified Data.Time as T
@@ -43,7 +43,7 @@ import qualified Asset as Ast
 
 instance P.Asset AssetUnion where
 
-  calcCashflow ma asOfDay mRates = error "not implemented for asset union"
+  calcCashflow ma asOfDay mRates = calcAssetUnion ma asOfDay mRates
   
   getCurrentBal ma = curBal ma
 
@@ -158,6 +158,14 @@ calcAlignDate (ACM.LS ast) = P.calcAlignDate ast
 calcAlignDate (ACM.FA ast) = P.calcAlignDate ast 
 -- calcAlignDate (ACM.RE ast) = P.calcAlignDate ast 
 
+calcAssetUnion :: ACM.AssetUnion -> Date -> Maybe [RateAssumption] -> CF.CashFlowFrame
+calcAssetUnion (ACM.MO ast) d mRates = P.calcCashflow ast d mRates
+calcAssetUnion (ACM.LO ast) d mRates = P.calcCashflow ast d mRates
+calcAssetUnion (ACM.IL ast) d mRates = P.calcCashflow ast d mRates
+calcAssetUnion (ACM.LS ast) d mRates = P.calcCashflow ast d mRates
+calcAssetUnion (ACM.FA ast) d mRates = P.calcCashflow ast d mRates
+calcAssetUnion (ACM.RE ast) d mRates = P.calcCashflow ast d mRates
+calcAssetUnion x _ _ = error ("Failed to match  proj AssetUnion"++ show x)
 
 projAssetUnion :: ACM.AssetUnion -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
 projAssetUnion (ACM.MO ast) d assumps mRates = P.projCashflow ast d assumps mRates
