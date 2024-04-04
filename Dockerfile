@@ -5,7 +5,7 @@ RUN cd /opt/build && stack build  --copy-bins  \
     --local-bin-path /opt/build  --resolver lts-18.22 # --system-ghc
 
 
-FROM ubuntu:22.04
+FROM --platform=linux/amd64 ubuntu:22.04
 RUN mkdir -p /opt/myapp
 ARG BINARY_PATH
 WORKDIR /opt/myapp
