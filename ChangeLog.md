@@ -1,5 +1,9 @@
 # Changelog for Hastructure
 
+## 0.27.0
+### 2024-04-01
+* NEW: Now docker image ship with `Apple silicon` chip ! Happy hacking Mac users !
+
 
 ## 0.26.2
 ### 2024-03-24

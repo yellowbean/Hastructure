@@ -327,6 +327,7 @@ priceAssetUnion (ACM.MO m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.LO m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.IL m) d pm aps = P.priceAsset m d pm aps
 priceAssetUnion (ACM.LS m) d pm aps = P.priceAsset m d pm aps
+priceAssetUnion (ACM.RE m) d pm aps = P.priceAsset m d pm aps
 
 priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [PriceResult]
 priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates 
@@ -339,6 +340,7 @@ splitAssetUnion rs (ACM.MO m) = [ ACM.MO a | a <- P.splitWith m rs]
 splitAssetUnion rs (ACM.LO m) = [ ACM.LO a | a <- P.splitWith m rs]
 splitAssetUnion rs (ACM.IL m) = [ ACM.IL a | a <- P.splitWith m rs]
 splitAssetUnion rs (ACM.LS m) = [ ACM.LS a | a <- P.splitWith m rs]
+splitAssetUnion rs (ACM.RE m) = [ ACM.RE a | a <- P.splitWith m rs]
 
 buyRevolvingPool :: Date -> [Rate] -> RevolvingPool -> ([ACM.AssetUnion],RevolvingPool)
 buyRevolvingPool _ rs rp@(StaticAsset assets) 
@@ -376,6 +378,8 @@ updateOriginDate2 d (ACM.LO m) = ACM.LO $ updateOriginDate m (P.calcAlignDate m 
 updateOriginDate2 d (ACM.MO m) = ACM.MO $ updateOriginDate m (P.calcAlignDate m d)
 updateOriginDate2 d (ACM.IL m) = ACM.IL $ updateOriginDate m (P.calcAlignDate m d)
 updateOriginDate2 d (ACM.LS m) = ACM.LS $ updateOriginDate m (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.RE m) = ACM.RE $ updateOriginDate m (P.calcAlignDate m d)
+
 
 -- ^ get available supports in balance
 evalExtraSupportBalance :: P.Asset a => Date -> TestDeal a -> W.ExtraSupport  -> [Balance]

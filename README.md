@@ -44,6 +44,8 @@
   * Installment (Prepay Default Recovery Lag/Rate) 
   * Corp Loan (Prepay Default Recovery Lag/Rate)
   * Rentals (Gaps between leases,Rental Curve Assumption) 
+  * Receivables (Defaults,Recovery)
+  * Fixed Asset ( Uitility Rate)
 * Multiple Waterfalls
   * Clean up waterfall/ Pre,Post Enforcement waterfall
   * Pool collection waterfall
