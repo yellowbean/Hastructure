@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.27.1
+### 2024-04-15
+
+* FIX: multi-asset run was failure due to including schedule cashflow run.
+
 
 ## 0.26.2
 ### 2024-03-24

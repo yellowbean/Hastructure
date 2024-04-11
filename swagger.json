@@ -2906,6 +2906,43 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PricingMethod"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PoolId"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "type": "array",
+                                "minItems": 5
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "BuyAssetFrom"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "$ref": "#/components/schemas/PricingMethod"
                                     },
                                     {
@@ -4041,15 +4078,32 @@
                     {
                         "type": "object",
                         "properties": {
+                            "contents": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/RevolvingPool"
+                                        },
+                                        {
+                                            "$ref": "#/components/schemas/ApplyAssumptionType"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "type": "array",
+                                    "minItems": 2
+                                }
+                            },
                             "tag": {
                                 "type": "string",
                                 "enum": [
-                                    "Dummy4"
+                                    "AvailableAssetsBy"
                                 ]
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ]
                     }
                 ],

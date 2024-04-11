@@ -142,6 +142,7 @@ test-suite Hastructure-test
       DealTest.DealTest
       DealTest.MultiPoolDealTest
       DealTest.ResecDealTest
+      DealTest.RevolvingTest
       UT.AccountTest
       UT.AnalyticsTest
       UT.AssetTest
