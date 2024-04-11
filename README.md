@@ -43,6 +43,8 @@
   * Mortgage (Prepay, Prepay Penalty, Deliquency, Default,Recovery Lag/Rate)
   * Installment (Prepay Default Recovery Lag/Rate) 
   * Corp Loan (Prepay Default Recovery Lag/Rate)
+  * Receivable (Default Recovery Lag/Rate)
+  * Fixed Asset
   * Rentals (Gaps between leases,Rental Curve Assumption) 
   * Receivables (Defaults,Recovery)
   * Fixed Asset ( Uitility Rate)

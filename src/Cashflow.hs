@@ -508,7 +508,7 @@ mflowInterest (BondFlow _ _ _ i) = i
 mflowInterest (MortgageDelinqFlow _ _ _ x _ _ _ _ _ _ _ _ _) = x
 mflowInterest (MortgageFlow _ _ _ x _ _ _ _ _ _ _ _) = x
 mflowInterest (LoanFlow _ _ _ x _ _ _ _ _ _) = x
-mflowInterest _  = error "not supported"
+mflowInterest x  = error $ "not supported: getting interest from row" ++ show x
 
 mflowPrepayment :: TsRow -> Balance
 mflowPrepayment (MortgageFlow _ _ _ _ x _ _ _ _ _ _ _) = x

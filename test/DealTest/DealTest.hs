@@ -1,4 +1,4 @@
-module DealTest.DealTest(baseCase,baseTests)
+module DealTest.DealTest(baseCase,baseTests,emptyCase)
 
 where
 
@@ -30,6 +30,25 @@ import qualified Data.Time as T
 import qualified Data.Set as S
 import Numeric.Lens (base)
 import qualified Types as P
+
+emptyCase = D.TestDeal {
+  D.name = "empty case"
+  ,D.status = Amortizing
+  ,D.rateSwap = Nothing
+  ,D.currencySwap = Nothing
+  ,D.dates = PatternInterval $ 
+               (Map.fromList [
+                (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
+               ])
+  ,D.accounts = Map.empty
+  ,D.fees = Map.empty
+  ,D.bonds = Map.empty
+  ,D.pool = D.SoloPool (P.Pool {P.assets=[]})
+  ,D.waterfall = Map.empty
+  ,D.collects = []
+}
 
 baseCase = D.TestDeal {
   D.name = "base case"

@@ -287,7 +287,7 @@ wrapRun (FDeal d) mAssump mNonPerfAssump = let
                                      in 
                                        (FDeal _d,_pflow,_rs,_p)
 wrapRun (UDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump 
                                      in 
                                        (UDeal _d,_pflow,_rs,_p)                                       
 wrapRun (VDeal d) mAssump mNonPerfAssump = let 

@@ -129,14 +129,12 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                      ,originTerm :: Int
                                      ,period :: Period
                                      ,accRule :: AmortRule
-                                     ,capacity :: Capacity 
-                                    }
+                                     ,capacity :: Capacity }
                   | ReceivableInfo { startDate :: Date
                                    ,originBalance :: Balance
                                    ,originAdvance :: Balance
                                    ,dueDate :: Date
-                                   ,feeType :: Maybe ReceivableFeeType
-                                   }
+                                   ,feeType :: Maybe ReceivableFeeType }
                   deriving (Show,Generic,Ord,Eq)
 
 

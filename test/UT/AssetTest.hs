@@ -635,6 +635,7 @@ receivableTest =
   let 
     invoice1 = AB.Invoice (AB.ReceivableInfo (L.toDate "20240401") 1500 1000 (L.toDate "20240601") Nothing) AB.Current
     invoice2 = AB.Invoice (AB.ReceivableInfo (L.toDate "20240401") 1500 1000 (L.toDate "20240601") (Just (AB.FixedFee 50))) AB.Current
+    invoice0 = AB.Invoice (AB.ReceivableInfo (L.toDate "20240401") 1500 1000 (L.toDate "20240601") Nothing) (AB.Defaulted Nothing)
     invoiceAssump = (A.ReceivableAssump   
                         Nothing
                         Nothing 
@@ -650,5 +651,9 @@ receivableTest =
         assertEqual "Last Payment"
         (Just (CF.ReceivableFlow (L.toDate "20240601") 0 0 1450 50 0 0 0 (Just (0.0,0.0,0.0,0.0,0.0,0.0))))
         (CF.cfAt (fst $ P.projCashflow invoice2 (L.toDate "20240101") invoiceAssump Nothing) 1)
+      ,testCase "Defaulted invoice" $
+        assertEqual "Defauted invoice "
+        (Just (CF.ReceivableFlow (L.toDate "20240501") 0 0 0 0 1500 0 1500.0 (Just (0.0,0.0,0.0,1500.0,0.0,1500.0))))
+        (CF.cfAt (fst $ P.projCashflow invoice0 (L.toDate "20240501") invoiceAssump Nothing) 0)
     ]
   
