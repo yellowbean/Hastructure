@@ -72,6 +72,7 @@ import InterestRate (calcInt)
 import Liability (getDayCountFromInfo)
 import Hedge (RateCap(..),RateSwapBase(..),RateSwap(rsRefBalance))
 import qualified Hedge as HE
+import qualified Types as P
 
 debug = flip trace
 
@@ -261,7 +262,8 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
     newTriggers = Map.union (Map.map (set trgStatusLens True) triggeredTrgs) trgsMap
   
  
-run :: P.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] -> Maybe (RevolvingPool , AP.ApplyAssumptionType)-> [ResultComponent] -> (TestDeal a,[ResultComponent])
+run :: P.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] 
+        -> Maybe (Map.Map String (RevolvingPool,AP.ApplyAssumptionType))-> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = (prepareDeal t,log) `debug` "Deal Ended"
 run t pCfM (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
 run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus,waterfall=waterfallM,name=dealName,pool=pt} 
@@ -524,7 +526,8 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
       -- extract Revolving Assumption
       mRevolvingCtx = case mRevolving of
                         Nothing -> Nothing
-                        Just (AP.AvailableAssets rp rperf) -> Just (rp,rperf)
+                        Just (AP.AvailableAssets rp rperf) -> Just (Map.fromList [("Consol", (rp, rperf))])
+                        Just (AP.AvailableAssetsBy rMap) -> Just rMap
                         Just _ -> error ("Failed to match revolving assumption"++show mRevolving)
       -- run() is a recusive function loop over all actions till deal end conditions are met
       (finalDeal, logs) = run (removePoolCf newT) 
@@ -652,7 +655,8 @@ runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ = [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
 runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
--- contractual cashflow will use interest rate assumption
+-- project contractual cashflow if nothing found in pool perf assumption
+-- use interest rate assumption
 runPool (P.Pool as _ _ asof _ _) Nothing mRates = map (\x -> (P.calcCashflow x asof mRates,Map.empty)) as 
 
 -- asset cashflow with credit stress
@@ -783,7 +787,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                -> Map.mapWithKey 
                     (\k p -> P.aggPool (P.issuanceStat p) $ 
                                runPool p (AP.PoolLevel <$> Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump))
-                    pm
+                    pm 
              (MultiPool pm, _) 
                -> Map.map (\p -> P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)) pm
              (ResecDeal dm, _)
