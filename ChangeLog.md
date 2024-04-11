@@ -4,6 +4,11 @@
 ### 2024-04-15
 
 * FIX: multi-asset run was failure due to including schedule cashflow run.
+* ENHANCE: Enable revovling on `Receivable`
+
+## 0.27.0
+### 2024-04-01
+* NEW: Now docker image ship with `Apple silicon` chip ! Happy hacking Mac users !
 
 
 ## 0.26.2

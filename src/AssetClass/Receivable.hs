@@ -87,6 +87,9 @@ instance Asset Receivable where
 
   updateOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft) st) newDate 
     = Invoice (ReceivableInfo newDate ob oa dd ft) st
+    
+  splitWith r@(Invoice (ReceivableInfo sd ob oa dd ft) st) rs 
+    = [ (Invoice (ReceivableInfo sd (mulBR ob ratio) (mulBR oa ratio) dd ft) st) | ratio <- rs ]
 
   projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) (Defaulted _))
                asOfDay

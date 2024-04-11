@@ -46,6 +46,8 @@
   * Receivable (Default Recovery Lag/Rate)
   * Fixed Asset
   * Rentals (Gaps between leases,Rental Curve Assumption) 
+  * Receivables (Defaults,Recovery)
+  * Fixed Asset ( Uitility Rate)
 * Multiple Waterfalls
   * Clean up waterfall/ Pre,Post Enforcement waterfall
   * Pool collection waterfall
