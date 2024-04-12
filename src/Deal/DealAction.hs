@@ -475,21 +475,19 @@ performActionWrap d
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
-      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       newPcf = let 
                  pIdToChange = fromMaybe PoolConsol pId
                in 
                  Map.adjust (\(CF.CashFlowFrame trs) -> 
                               let 
                                 dsInterval = getDate <$> trs -- `debug` (">>> agg interval : "++ show (getDate <$> trs ))
-                                combinedTss = CF.combineTss [] trs newBoughtTxn
                               in 
-                                CF.CashFlowFrame $ CF.aggTsByDates combinedTss  dsInterval -- `debug` ("combined tss"++ show combinedTss)
-                                ) 
+                                CF.CashFlowFrame $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) 
                             pIdToChange
-                            pFlowMap   -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
+                            pFlowMap -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (Map.fromList [("Consol" ,(poolAfterBought, perfAssumps))])}  -- `debug` ("original p flow "++ show pFlowMap ++"new pf after buy"++ show d ++ show newPcf)
+                 ,revolvingAssump = Just (Map.fromList [("Consol" ,(poolAfterBought, perfAssumps))])}  
 
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
