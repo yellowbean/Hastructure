@@ -142,6 +142,7 @@ decreaseBorrowerNum bb eb mBn
                  else
                    divideBB eb bb
 
+-- | given a list of future cashflows and patch recovery & loss
 patchLossRecovery :: [CF.TsRow] -> Maybe A.RecoveryAssumption -> [CF.TsRow]
 patchLossRecovery trs Nothing 
   = CF.dropTailEmptyTxns $ [ CF.tsSetRecovery 0 (CF.tsSetLoss d r) | (d,r) <- zip defaultVec trs ] -- `debug` ("Hit Nothign on recovery"++ show defaultVec)

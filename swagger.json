@@ -11394,6 +11394,51 @@
                             "tag",
                             "contents"
                         ]
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "maximum": 9223372036854775807,
+                                                    "type": "integer",
+                                                    "minimum": -9223372036854775808
+                                                },
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "type": "array",
+                                            "minItems": 2
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "type": "array",
+                                "minItems": 2
+                            },
+                            "tag": {
+                                "type": "string",
+                                "enum": [
+                                    "RecoveryByDays"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ]
                     }
                 ],
                 "type": "object"

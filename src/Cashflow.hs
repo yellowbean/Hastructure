@@ -123,7 +123,7 @@ scaleTsRow r (MortgageFlow d b p i prep def rec los rat mbn pp st)
      rat 
      mbn 
      pp 
-     ((splitStats r) <$> st)
+     (splitStats r <$> st)
 scaleTsRow r (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) 
   = MortgageDelinqFlow d 
       (fromRational r * b)

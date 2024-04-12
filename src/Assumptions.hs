@@ -97,8 +97,9 @@ data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^
                                 | Dummy3
                                 deriving (Show,Generic)
 
-data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, recovery lag
-                        | RecoveryTiming (Rate,[Rate])  -- ^ recovery rate, with distribution of recoveries
+data RecoveryAssumption = Recovery (Rate,Int)                    -- ^ recovery rate, recovery lag
+                        | RecoveryTiming (Rate,[Rate])           -- ^ recovery rate, with distribution of recoveries
+                        | RecoveryByDays Rate [(Int, Rate)]  -- ^ recovery rate, with distribution of recoveries by offset dates
                         deriving (Show,Generic)
 
 data AssumpReceipe = DefaultAssump AssetDefaultAssumption
