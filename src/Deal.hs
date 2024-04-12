@@ -273,7 +273,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
     calls
     rAssump
     log
-  | all (== 0) futureCashToCollect && (queryDeal t AllAccBalance == 0) 
+  | all (== 0) futureCashToCollect && (queryDeal t AllAccBalance == 0) && (dStatus /= Revolving)
      = (prepareDeal $
          foldl (performAction (getDate ad)) t cleanUpActions `debug` ("CleanUp deal:"++ dealName)
         ,log) `debug` "End with pool cf == 0 and all account bals are 0" -- ++ "> Remain Actions" ++ show (ad:ads))

@@ -86,7 +86,10 @@ instance Asset Receivable where
   getRemainTerms r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = 1
 
   updateOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft) st) newDate 
-    = Invoice (ReceivableInfo newDate ob oa dd ft) st
+    = let 
+        gaps = daysBetween sd dd
+      in 
+        Invoice (ReceivableInfo newDate ob oa (T.addDays gaps newDate)  ft) st
     
   splitWith r@(Invoice (ReceivableInfo sd ob oa dd ft) st) rs 
     = [ (Invoice (ReceivableInfo sd (mulBR ob ratio) (mulBR oa ratio) dd ft) st) | ratio <- rs ]

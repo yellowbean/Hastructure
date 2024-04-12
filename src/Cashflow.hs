@@ -263,6 +263,7 @@ combineTss [] (r1:r1s) (r2:r2s)
   | otherwise = combineTss [updateFlowBalance (mflowBegBalance r2+mflowBalance r1) r1]
                            r1s
                            (r2:r2s)
+                           
 combineTss consols [] [] = reverse consols
 combineTss (consol:consols) (r:rs) [] = combineTss (appendTs consol r:consol:consols) rs []
 combineTss (consol:consols) [] (tr:trs) = combineTss (appendTs consol tr:consol:consols) [] trs
@@ -483,10 +484,11 @@ buildCollectedCF trs (d:ds) _trs =
   case newFlow of
     [] -> case Util.lastOf trs (not . null) of
             Nothing -> buildCollectedCF (trs++[[]]) ds _trs  -- `debug` ("empty trs"++ show d)
-            Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs -- `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d)
+            Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs -- `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d++"insert with "++show (viewTsRow d (last lastTr)))
     newFlow -> buildCollectedCF (trs++[newFlow]) ds remains
   where 
     (newFlow, remains) = splitBy d Inc _trs
+
 buildCollectedCF a b c = error $ "buildCollectedCF failed"++ show a++">>"++ show b++">>"++ show c
 
 
@@ -566,7 +568,7 @@ mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _ _ _ _) = x + p + ppy + def
 mflowBegBalance (LoanFlow _ x p _ ppy def _ _ _ _) = x + p + ppy + def
 mflowBegBalance (LeaseFlow _ b r) = b + r
 mflowBegBalance (FixedFlow a b c d e f ) = b + c
-mflowBegBalance (ReceivableFlow _ x _ b _ def _ _ _) = x + b + def
+mflowBegBalance (ReceivableFlow _ x _ b f def _ _ _) = x + b + def + f
 
 mflowLoss :: TsRow -> Balance
 mflowLoss (MortgageFlow _ _ _ _ _ _ _ x _ _ _ _) = x
@@ -662,7 +664,7 @@ viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
 viewTsRow _d (LeaseFlow a b c ) = LeaseFlow _d b 0
 viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
 viewTsRow _d (BondFlow a b c d) = BondFlow _d b 0 0
-viewTsRow _d (ReceivableFlow a b c d e f g h i) = ReceivableFlow _d b c 0 0 0 0 0 i
+viewTsRow _d (ReceivableFlow a b c d e f g h i) = ReceivableFlow _d b 0 0 0 0 0 0 i
 
 -- ^ given a cashflow,build a new cf row with begin balance
 buildBegTsRow :: Date -> TsRow -> TsRow
