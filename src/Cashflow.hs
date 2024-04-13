@@ -824,6 +824,14 @@ patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                where
                  newSt = (cPrin+c,0,0,cDefault+f,cRecovery+g,cLoss+h)
 
+patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
+              rs
+              ((LeaseFlow a b c) :trs)
+  = patchCumulative newSt
+                  (LeaseFlow a b c:rs)
+                  trs
+               where
+                 newSt = (0,0,0,0,0,0)
 
 patchCumulative a b c = error ("faile to patch cumulative stats for "++show a ++">>"++show b++">>"++show c)
 

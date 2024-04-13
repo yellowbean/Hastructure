@@ -157,4 +157,4 @@ instance Asset Receivable where
                       Just _ -> 0
       
       txns = [CF.ReceivableFlow payDate 0 0 principal feePaid defaultAmt 0 realizedLoss Nothing]
-      (futureTxns,historyM) = CF.cutoffTrs asOfDay $ txns++(buildRecoveryCfs payDate defaultAmt amr) `debug` ("recovery flow"++ show (buildRecoveryCfs payDate defaultAmt amr))
+      (futureTxns,historyM) = CF.cutoffTrs asOfDay $ txns++(buildRecoveryCfs payDate defaultAmt amr) -- `debug` ("recovery flow"++ show (buildRecoveryCfs payDate defaultAmt amr))
