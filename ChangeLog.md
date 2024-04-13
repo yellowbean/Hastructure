@@ -5,6 +5,7 @@
 
 * FIX: multi-asset run was failure due to including schedule cashflow run.
 * ENHANCE: Enable revovling on `Receivable`
+* ENHANCE: add `RecoveryByDays` to `Receivable` ,which describle recovery cash received after default.
 
 ## 0.27.0
 ### 2024-04-01
