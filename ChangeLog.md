@@ -15,9 +15,8 @@
 ## 0.26.2
 ### 2024-03-24
 * FIX: patch recoveries for `Mortgage` type cashflow
-* ENHANCE: create new endpoint for `OAS`
 * NEW: add new asset class `Receivable` which represent a `invoice factored`,`trading receivable`
-* NEW: `DefaultAtEnd` assumption, which assumes asset default at last payment
+* NEW: `DefaultAtEnd` assumption, which assumes asset default at last payment(For `Receivable`)
 
 ## 0.26.1
 ### 2024-03-09

@@ -62,6 +62,7 @@ import qualified AssetClass.Installment
 import qualified AssetClass.Mortgage 
 import qualified AssetClass.Loan 
 import qualified AssetClass.Lease 
+import qualified AssetClass.MixedAsset as MA
 import qualified AssetClass.AssetBase as AB 
 import qualified Assumptions as AP
 import qualified Cashflow as CF
@@ -304,16 +305,18 @@ wrapRunPool (RPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRa
 wrapRunPool (VPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
 wrapRunPool x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
 
-data RunAssetReq = RunAssetReq Date [AB.AssetUnion] AP.ApplyAssumptionType (Maybe [RateAssumption]) (Maybe PricingMethod)
+data RunAssetReq = RunAssetReq Date [AB.AssetUnion] (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)
 
 instance ToSchema RunAssetReq
 
 wrapRunAsset :: RunAssetReq -> ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
-wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates Nothing) 
-  = (P.aggPool Nothing ((\a -> D.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
+wrapRunAsset (RunAssetReq d assets Nothing mRates Nothing) 
+  = (P.aggPool Nothing ((\a -> (MA.calcAssetUnion a d mRates,Map.empty)) <$> assets), Nothing) 
+wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates Nothing) 
+  = (P.aggPool Nothing ((\a -> MA.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
 
-wrapRunAsset (RunAssetReq d assets (AP.PoolLevel assumps) mRates (Just pm)) 
+wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates (Just pm)) 
   = let 
       assetCf = P.aggPool Nothing $ (\a -> D.projAssetUnion a d assumps mRates ) <$> assets 
       pricingResult = (\a -> D.priceAssetUnion a d pm assumps mRates) <$> assets
