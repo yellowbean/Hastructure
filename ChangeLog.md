@@ -1,6 +1,6 @@
 # Changelog for Hastructure
 
-## 0.27.1
+## 0.27.4
 ### 2024-04-15
 * FIX: multi-asset run was failure due to including schedule cashflow run.
 * ENHANCE: Enable revovling on `Receivable`
