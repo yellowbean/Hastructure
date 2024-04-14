@@ -80,7 +80,6 @@ library
     , regex-pcre-builtin
     , regex-tdfa
     , servant
-    , servant-errors
     , servant-openapi3
     , servant-server
     , split
@@ -119,7 +118,7 @@ executable Hastructure-exe
     , regex-tdfa
     , scientific
     , servant
-    , servant-errors
+    , servant-checked-exceptions
     , servant-openapi3
     , servant-server
     , split
@@ -175,7 +174,6 @@ test-suite Hastructure-test
     , regex-pcre-builtin
     , regex-tdfa
     , servant
-    , servant-errors
     , servant-openapi3
     , servant-server
     , split

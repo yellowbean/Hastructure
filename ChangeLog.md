@@ -6,6 +6,7 @@
 * ENHANCE: Enable revovling on `Receivable`
 * ENHANCE: add `RecoveryByDays` to `Receivable` ,which describle recovery cash received after default.
 * BUG: fix single asset run on `lease`
+* ENHANCE: upgrade stack resolver from `lts-18.22` to `lts-20.26`
 
 
 ## 0.27.0

@@ -15,6 +15,10 @@ import Prelude ()
 import Prelude.Compat
 import System.Environment
 
+import Control.Monad.Catch       (MonadCatch, MonadThrow (..))
+import Control.Monad.IO.Class    (liftIO)
+
+
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Lens
@@ -45,6 +49,11 @@ import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Servant.Errors (errorMw, HasErrorBody(..),errorMwDefJson)
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
+
+import Network.HTTP.Types.Status
+import Control.Exception (throw)
+
+import Servant.Exception
 
 --import Data.OpenApi hiding(Server) 
 import Servant.OpenApi
@@ -81,6 +90,8 @@ import qualified Lib
 import qualified Util as U
 import qualified DateUtil as DU
 
+import Servant.Checked.Exceptions (NoThrow, Throws)
+import Servant.Checked.Exceptions.Internal.Servant.API (ErrStatus(toErrStatus))
 
 import Debug.Trace
 import qualified Types as W
@@ -354,7 +365,11 @@ $(deriveJSON defaultOptions ''RunPoolReq)
 $(deriveJSON defaultOptions ''RunAssetReq)
 $(deriveJSON defaultOptions ''RunDateReq)
 
-type EngineAPI = "version" :> Get '[JSON] Version
+-- Swagger API
+type SwaggerAPI = Throws MyException :> "swagger.json" :> Get '[JSON] OpenApi
+
+type EngineAPI = Throws MyException :>
+            "version" :> Get '[JSON] Version
             :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] ((CF.CashFlowFrame, Map.Map CutoffFields Balance),Maybe [PriceResult])
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (CF.CashFlowFrame, Map.Map CutoffFields Balance)
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName (CF.CashFlowFrame,Map.Map CutoffFields Balance))
@@ -362,24 +377,37 @@ type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
 --            :<|> "runDealOAS" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName [PriceResult])
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
-            :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
+            :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Throws MyException :> Post '[JSON] [Date]
 
 
 engineAPI :: Proxy EngineAPI
 engineAPI = Proxy
 
 
--- Swagger API
-type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 type API = SwaggerAPI :<|> EngineAPI
 
-engineSwagger :: OpenApi
-engineSwagger = toOpenApi engineAPI 
-  & info.title .~ "Hastructure API"
-  & info.version .~  T.pack (_version version1)
-  & info.description ?~ "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
-  & info.license ?~ "BSD 3"
+engineSwagger:: OpenApi
+engineSwagger = toOpenApi engineAPI
+                    & info.title .~ "Hastructure API"
+                    & info.version .~  T.pack (_version version1)
+                    & info.description ?~ "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
+                    & info.license ?~ "BSD 3"
 
+
+data MyException = ExceptionA 
+                 | ExceptionB
+                 deriving(Show)
+
+instance Exception MyException
+
+instance ToServantErr MyException where
+  status ExceptionA = status404
+  status ExceptionB = status500
+
+  message ExceptionB = "Something bad happened internally"
+  message e = T.pack $ show e
+
+  -- headers e = [("X-Reason", T.encodeUtf8 $ message e)]
 
 
 myServer :: Server API
@@ -430,8 +458,9 @@ myServer = return engineSwagger
             = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
           runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
             = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
-          runDate (RunDateReq sd dp)
-            = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+          -- runDate (RunDateReq sd dp) = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+
+          runDate (RunDateReq sd dp) = return $ throw ExceptionA
 
 
 writeSwaggerJSON :: IO ()
