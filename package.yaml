@@ -76,10 +76,11 @@ executables:
     - lucid
     - string-conversions
     - attoparsec
+    - exceptions
     # - servant-errors
     # - servant-exceptions
     # - exceptions
-    - servant-checked-exceptions
+    # - servant-checked-exceptions
     # - jsonschema-gen
     # - timeseries
 

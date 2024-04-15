@@ -49,8 +49,7 @@ import Data.Aeson.Types
 import Data.Fixed
 import Data.Ix
 
-import Data.List
-import Data.List (intercalate)
+import Data.List (intercalate, findIndex)
 -- import Cashflow (CashFlowFrame)
 
 import Debug.Trace
@@ -219,41 +218,6 @@ data PoolId = PoolName String                         -- ^ pool name
             | DealBondFlow DealName String Date Rate  -- ^ bond flow from deal
             deriving (Eq,Ord,Generic)
 
-instance Show PoolId where
-  show (PoolName n)  = n
-  show PoolConsol = "PoolConsol"
-  show (DealBondFlow dn bn sd r) = "BondFlow:"++dn++":"++bn++":"++show sd++":"++show r
-
-instance (Read PoolId) where
-  readsPrec d "PoolConsol" = [(PoolConsol,"")]
-  readsPrec d rStr = 
-    let 
-      pn = Data.List.Split.splitOn ":" rStr
-    in
-      case pn of
-        [dn,bn,sd,r] -> 
-          let 
-            sd' = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" sd
-            r' = read r::Rate
-          in 
-            [(DealBondFlow dn bn sd' r',"")]
-        ["PoolName",pn] -> [(PoolName pn,"")]
-        _ -> error $ "Invalid PoolId: "++ show pn
-
-
-instance ToJSON PoolId
-instance FromJSON PoolId
-
-
-instance ToJSONKey PoolId where
-  toJSONKey :: ToJSONKeyFunction PoolId
-  toJSONKey = toJSONKeyText (T.pack . show)
-
-instance FromJSONKey PoolId where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
-
 
 data Cmp = G      -- ^ Greater than 
          | GE     -- ^ Greater Equal than
@@ -293,7 +257,7 @@ data CutoffType = Inc
 data DateDirection = Future 
                    | Past
                    deriving (Show,Read,Generic)
-               
+
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
     cmp t1 t2 = compare (getDate t1) (getDate t2)
@@ -344,13 +308,6 @@ class TimeSeries ts where
       in 
         (filter ffunL tss, filter ffunR tss)
  
-instance TimeSeries (TsPoint a) where 
-    getDate (TsPoint d a) = d
-
-instance Ord a => Ord (TsPoint a) where
-  compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
-
-
 
 data Ts = FloatCurve [TsPoint Rational]
         | BoolCurve [TsPoint Bool]
@@ -416,51 +373,6 @@ data TxnComment = PayInt [BondName]
                 | TxnComments [TxnComment]
                 deriving (Eq, Show, Ord ,Read, Generic)
 
-instance ToJSON TxnComment where 
-  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
-  toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
-  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
-  toJSON (WriteOff bn amt ) =  String $ T.pack $ "<WriteOff:"++ bn ++","++ show amt ++ ">"
-  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
-  toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
-  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
-  toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
-  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
-  toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
-  toJSON (PoolInflow mPids ps) =  String $ T.pack $ "<Pool"++ maybe "" (intercalate "|" . (show <$>)) mPids ++":"++ show ps++">"
-  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
-  toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
-  toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
-  toJSON Empty =  String $ T.pack $ "" 
-  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
-  toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
-  toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
-  toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
-  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
-  toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
-  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
-  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
-  toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
-  toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
-  toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
-
-instance FromJSON TxnComment where
-    parseJSON = withText "Empty" parseTxn
-
-parseTxn :: T.Text -> Parser TxnComment 
-parseTxn "" = return Empty 
-parseTxn "<BankInt>" = return BankInt
-parseTxn t = case tagName of 
-  "Transfer" -> let 
-                  sv = T.splitOn (T.pack ",") $ T.pack contents
-                in 
-                  return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
-  where 
-      pat = "<(\\S+):(\\S+)>"::String
-      sr = (T.unpack t =~ pat)::[[String]]
-      tagName =  head sr!!1::String
-      contents = head sr!!2::String
-
 
 
 type Valuation = Centi
@@ -478,7 +390,6 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
                  deriving (Show, Eq, Generic)
-
 
 
 data DealStats = CurrentBondBalance
@@ -615,6 +526,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   deriving (Show,Generic,Read)
 
+
 data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
               --  cutoff pool       closing bond payment dates 
               | CustomDates Date [ActionOnDate] Date [ActionOnDate]
@@ -625,28 +537,6 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
               deriving (Show,Eq, Generic,Ord)
 
-
-
-
-       
-
-
-
-instance TimeSeries ActionOnDate where
-    getDate (RunWaterfall d _) = d
-    getDate (ResetLiqProvider d _) = d
-    getDate (PoolCollection d _) = d
-    getDate (EarnAccInt d _) = d
-    getDate (AccrueFee d _) = d
-    getDate (DealClosed d) = d
-    getDate (FireTrigger d _ _) = d
-    getDate (ChangeDealStatusTo d _ ) = d
-    getDate (InspectDS d _ ) = d
-    getDate (ResetIRSwapRate d _ ) = d
-    getDate (AccrueCapRate d _ ) = d
-    getDate (ResetBondRate d _ ) = d 
-    getDate (MakeWhole d _ _) = d 
-    getDate (BuildReport sd ed) = ed
 
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
 sortActionOnDate a1 a2 
@@ -669,43 +559,11 @@ sortActionOnDate a1 a2
     d1 = getDate a1 
     d2 = getDate a2 
 
-instance Ord ActionOnDate where
-  compare a1 a2 = compare (getDate a1) (getDate a2)
-
-instance Eq ActionOnDate where
-  a1 == a2 = getDate a1 == getDate a2
-
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 
-instance FromJSON DateType
-instance ToJSON DateType
-
--- instance ToJSON DateType where
---   toJSON = genericToJSON defaultOptions
--- 
--- instance FromJSON DateType where
---   fromJSON = 
-
-instance ToJSONKey DateType where
-  toJSONKey = genericToJSONKey opts
-
-instance FromJSONKey DateType where
-  fromJSONKey = genericFromJSONKey opts
-
 data OverrideType = CustomActionOnDates [ActionOnDate]
                     deriving (Show,Generic,Ord,Eq)
-
-instance ToJSON DealCycle
-instance FromJSON DealCycle
-
-instance ToJSONKey DealCycle where
-  toJSONKey = toJSONKeyText (T.pack . show)
-
-instance FromJSONKey DealCycle where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
 
 data CustomDataType = CustomConstant Rational 
                     | CustomCurve    Ts 
@@ -724,17 +582,6 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryCash          -- ^ cumulative cash
                   | AccruedInterest      -- ^ accrued interest at closing
                   deriving (Show,Ord,Eq,Read,Generic)
-
-instance ToJSON CutoffFields
-instance FromJSON CutoffFields
-
-instance ToJSONKey CutoffFields where
-  toJSONKey = toJSONKeyText (Text.pack . show)
-
-instance FromJSONKey CutoffFields where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
 
 
 data DealStatType = RtnBalance 
@@ -842,14 +689,6 @@ data Threshold = Below
                | EqAbove
                deriving (Show,Eq,Ord,Read,Generic)
 
-instance FromJSON Threshold
-instance ToJSON Threshold
-
-instance ToJSONKey Threshold where
-  toJSONKey = genericToJSONKey opts
-instance FromJSONKey Threshold where
-  fromJSONKey = genericFromJSONKey opts
-
 
 data SplitType = EqToLeft   -- if equal, the element belongs to left
                | EqToRight  -- if equal, the element belongs to right
@@ -923,14 +762,136 @@ data TimeHorizion = ByMonth
                   | ByQuarter
 
 
+instance Ord ActionOnDate where
+  compare a1 a2 = compare (getDate a1) (getDate a2)
+
+instance Eq ActionOnDate where
+  a1 == a2 = getDate a1 == getDate a2
+
+
+instance TimeSeries ActionOnDate where
+    getDate (RunWaterfall d _) = d
+    getDate (ResetLiqProvider d _) = d
+    getDate (PoolCollection d _) = d
+    getDate (EarnAccInt d _) = d
+    getDate (AccrueFee d _) = d
+    getDate (DealClosed d) = d
+    getDate (FireTrigger d _ _) = d
+    getDate (ChangeDealStatusTo d _ ) = d
+    getDate (InspectDS d _ ) = d
+    getDate (ResetIRSwapRate d _ ) = d
+    getDate (AccrueCapRate d _ ) = d
+    getDate (ResetBondRate d _ ) = d 
+    getDate (MakeWhole d _ _) = d 
+    getDate (BuildReport sd ed) = ed
+
+
+
+
+instance ToJSON TxnComment where 
+  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
+  toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
+  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (WriteOff bn amt ) =  String $ T.pack $ "<WriteOff:"++ bn ++","++ show amt ++ ">"
+  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
+  toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
+  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
+  toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
+  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
+  toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
+  toJSON (PoolInflow mPids ps) =  String $ T.pack $ "<Pool"++ maybe "" (intercalate "|" . (show <$>)) mPids ++":"++ show ps++">"
+  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
+  toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
+  toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
+  toJSON Empty =  String $ T.pack $ "" 
+  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
+  toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
+  toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
+  toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
+  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
+  toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
+  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
+  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
+  toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
+  toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
+  toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
+
+instance FromJSON TxnComment where
+    parseJSON = withText "Empty" parseTxn
+
+parseTxn :: T.Text -> Parser TxnComment 
+parseTxn "" = return Empty 
+parseTxn "<BankInt>" = return BankInt
+parseTxn t = case tagName of 
+  "Transfer" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
+  where 
+      pat = "<(\\S+):(\\S+)>"::String
+      sr = (T.unpack t =~ pat)::[[String]]
+      tagName =  head sr!!1::String
+      contents = head sr!!2::String
+
+
+
+instance TimeSeries (TsPoint a) where 
+    getDate (TsPoint d a) = d
+
+instance Ord a => Ord (TsPoint a) where
+  compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
+
+
+
+instance Show PoolId where
+  show (PoolName n)  = n
+  show PoolConsol = "PoolConsol"
+  show (DealBondFlow dn bn sd r) = "BondFlow:"++dn++":"++bn++":"++show sd++":"++show r
+
+instance (Read PoolId) where
+  readsPrec d "PoolConsol" = [(PoolConsol,"")]
+  readsPrec d rStr = 
+    let 
+      pn = Data.List.Split.splitOn ":" rStr
+    in
+      case pn of
+        [dn,bn,sd,r] -> 
+          let 
+            sd' = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" sd
+            r' = read r::Rate
+          in 
+            [(DealBondFlow dn bn sd' r',"")]
+        ["PoolName",pn] -> [(PoolName pn,"")]
+        _ -> error $ "Invalid PoolId: "++ show pn
+
+
+-- instance ToJSON PoolId
+-- instance FromJSON PoolId
+
+
+
+
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''Cmp)
 $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''RoundingBy)
+$(deriveJSON defaultOptions ''PoolId)
+
+instance ToJSONKey PoolId where
+  toJSONKey :: ToJSONKeyFunction PoolId
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey PoolId where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+
+
+
 $(deriveJSON defaultOptions ''DealStatus)
-$(deriveJSON defaultOptions ''PricingMethod)
 $(deriveJSON defaultOptions ''DealStats)
+$(deriveJSON defaultOptions ''PricingMethod)
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
 $(deriveJSON defaultOptions ''DayCount)
@@ -952,8 +913,56 @@ $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''RateAssumption)
-$(deriveJSON defaultOptions ''PoolId)
 $(deriveJSON defaultOptions ''BookDirection)
 $(deriveJSON defaultOptions ''Direction)
 -- $(deriveJSON defaultOptions ''DateType)
 -- $(deriveJSON defaultOptions ''Threshold)
+instance ToJSONKey Threshold where
+  toJSONKey = genericToJSONKey opts
+instance FromJSONKey Threshold where
+  fromJSONKey = genericFromJSONKey opts
+
+--instance FromJSON Threshold
+--instance ToJSON Threshold
+
+
+-- instance ToJSON CutoffFields
+-- instance FromJSON CutoffFields
+
+instance ToJSONKey CutoffFields where
+  toJSONKey = toJSONKeyText (Text.pack . show)
+
+instance FromJSONKey CutoffFields where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+
+
+
+-- instance ToJSON DealCycle
+-- instance FromJSON DealCycle
+
+instance ToJSONKey DealCycle where
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey DealCycle where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+
+
+-- instance FromJSON DateType
+-- instance ToJSON DateType
+
+-- instance ToJSON DateType where
+--   toJSON = genericToJSON defaultOptions
+-- 
+-- instance FromJSON DateType where
+--   fromJSON = 
+
+instance ToJSONKey DateType where
+  toJSONKey = genericToJSONKey opts
+
+instance FromJSONKey DateType where
+  fromJSONKey = genericFromJSONKey opts
+

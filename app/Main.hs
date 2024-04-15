@@ -46,14 +46,14 @@ import qualified Data.ByteString.Char8 as BS
 import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
-import Network.Wai.Middleware.Servant.Errors (errorMw, HasErrorBody(..),errorMwDefJson)
+-- import Network.Wai.Middleware.Servant.Errors (errorMw, HasErrorBody(..),errorMwDefJson)
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
 import Network.HTTP.Types.Status
 import Control.Exception (throw)
 
-import Servant.Exception
+-- import Servant.Exception
 
 --import Data.OpenApi hiding(Server) 
 import Servant.OpenApi
@@ -90,8 +90,8 @@ import qualified Lib
 import qualified Util as U
 import qualified DateUtil as DU
 
-import Servant.Checked.Exceptions (NoThrow, Throws)
-import Servant.Checked.Exceptions.Internal.Servant.API (ErrStatus(toErrStatus))
+-- import Servant.Checked.Exceptions (NoThrow, Throws)
+-- import Servant.Checked.Exceptions.Internal.Servant.API (ErrStatus(toErrStatus))
 
 import Debug.Trace
 import qualified Types as W
@@ -366,10 +366,9 @@ $(deriveJSON defaultOptions ''RunAssetReq)
 $(deriveJSON defaultOptions ''RunDateReq)
 
 -- Swagger API
-type SwaggerAPI = Throws MyException :> "swagger.json" :> Get '[JSON] OpenApi
+type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 
-type EngineAPI = Throws MyException :>
-            "version" :> Get '[JSON] Version
+type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] ((CF.CashFlowFrame, Map.Map CutoffFields Balance),Maybe [PriceResult])
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (CF.CashFlowFrame, Map.Map CutoffFields Balance)
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName (CF.CashFlowFrame,Map.Map CutoffFields Balance))
@@ -377,7 +376,7 @@ type EngineAPI = Throws MyException :>
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
 --            :<|> "runDealOAS" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName [PriceResult])
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
-            :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Throws MyException :> Post '[JSON] [Date]
+            :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
 
 
 engineAPI :: Proxy EngineAPI
@@ -394,18 +393,18 @@ engineSwagger = toOpenApi engineAPI
                     & info.license ?~ "BSD 3"
 
 
-data MyException = ExceptionA 
-                 | ExceptionB
-                 deriving(Show)
+-- data MyException = ExceptionA 
+--                  | ExceptionB
+--                  deriving(Show)
 
-instance Exception MyException
+-- instance Exception MyException
 
-instance ToServantErr MyException where
-  status ExceptionA = status404
-  status ExceptionB = status500
-
-  message ExceptionB = "Something bad happened internally"
-  message e = T.pack $ show e
+-- instance ToServantErr MyException where
+--   status ExceptionA = status404
+--   status ExceptionB = status500
+-- 
+--   message ExceptionB = "Something bad happened internally"
+--   message e = T.pack $ show e
 
   -- headers e = [("X-Reason", T.encodeUtf8 $ message e)]
 
@@ -458,9 +457,9 @@ myServer = return engineSwagger
             = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
           runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
             = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
-          -- runDate (RunDateReq sd dp) = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+          runDate (RunDateReq sd dp) = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
 
-          runDate (RunDateReq sd dp) = return $ throw ExceptionA
+          -- runDate (RunDateReq sd dp) = return $ throw ExceptionA
 
 
 writeSwaggerJSON :: IO ()
@@ -482,7 +481,7 @@ main =
                         Right c -> c
     print ("Engine start with version:"++ _version version1++";running at Port:"++ show _p)
     run _p 
-      $ errorMwDefJson
+--      $ errorMwDefJson
       $ serve (Proxy :: Proxy API) myServer
 
 $(deriveJSON defaultOptions ''DealType)
