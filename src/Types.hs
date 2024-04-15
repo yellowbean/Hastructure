@@ -3,9 +3,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE TypeFamilies #-}
-
 
 
 module Types
@@ -585,7 +582,6 @@ data DealStats = CurrentBondBalance
                | Round DealStats (RoundingBy Balance)
                deriving (Show,Eq,Ord,Read,Generic)
 
-$(deriveJSON defaultOptions ''DealStats)
 
 data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
                    | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
@@ -597,7 +593,6 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | Custom Rate                      -- ^ custom amount
                    deriving (Show, Eq ,Generic, Read,Ord)
 
-$(deriveJSON defaultOptions ''PricingMethod)
 
 data Table a b = ThresholdTable [(a,b)]
                  deriving (Show,Eq,Ord,Read,Generic)
@@ -928,12 +923,15 @@ data TimeHorizion = ByMonth
                   | ByQuarter
 
 
-$(deriveJSON defaultOptions ''RoundingBy)
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Ts)
-$(deriveJSON defaultOptions ''Index)
-$(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''Cmp)
+$(deriveJSON defaultOptions ''PoolSource)
+$(deriveJSON defaultOptions ''RoundingBy)
+$(deriveJSON defaultOptions ''DealStatus)
+$(deriveJSON defaultOptions ''PricingMethod)
+$(deriveJSON defaultOptions ''DealStats)
+$(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
 $(deriveJSON defaultOptions ''DayCount)
 $(deriveJSON defaultOptions ''Table)
