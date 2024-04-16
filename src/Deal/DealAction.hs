@@ -12,7 +12,8 @@ module Deal.DealAction (performActionWrap,performAction,calcDueFee
 
 import qualified Accounts as A
 import qualified Ledger as LD
-import qualified Asset as P
+import qualified Asset as Ast
+import qualified Pool as P
 import qualified Expense as F
 import qualified Liability as L
 import qualified CreditEnhancement as CE
@@ -67,7 +68,7 @@ import Control.Lens.TH
 debug = flip trace
 
 
-getPoolFlows :: P.Asset a => TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
+getPoolFlows :: Ast.Asset a => TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   case (sd,ed) of
     (Nothing,Nothing)   ->  trs
@@ -77,12 +78,12 @@ getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   where
     trs = getAllCollectedTxnsList t Nothing
 
-testTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Bool 
+testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Bool 
 testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
   | not cure && st = True 
   | otherwise = testPre d t cond 
 
-updateTrigger :: P.Asset a => TestDeal a -> Date -> Trigger -> Trigger
+updateTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
 updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
   | testTrigger t d trigger = trigger {trgStatus = True}  
   | otherwise = trigger
@@ -90,7 +91,7 @@ updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=con
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
 
-calcLiquidationAmount :: P.Asset a => PricingMethod -> P.Pool a -> Date -> Amount
+calcLiquidationAmount :: Ast.Asset a => PricingMethod -> P.Pool a -> Date -> Amount
 calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
   = case P.futureCf pool of 
       Nothing -> 0  -- `debug` ("No futureCF")
@@ -116,7 +117,7 @@ calcLiquidationAmount (PV discountRate recoveryPct) pool d
           in 
             pvCf + mulBI currentDefaulBal recoveryPct
 
-liquidatePool :: P.Asset a => PricingMethod -> Date -> String -> TestDeal a -> TestDeal a
+liquidatePool :: Ast.Asset a => PricingMethod -> Date -> String -> TestDeal a -> TestDeal a
 liquidatePool lm d accName t@TestDeal { accounts = accs , pool = pool} =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
@@ -129,7 +130,7 @@ liquidatePool lm d accName t@TestDeal { accounts = accs , pool = pool} =
     updateFn = A.deposit proceeds d LiquidationProceeds
 
 
-calcDueFee :: P.Asset a => TestDeal a -> Date -> F.Fee -> F.Fee
+calcDueFee :: Ast.Asset a => TestDeal a -> Date -> F.Fee -> F.Fee
 calcDueFee t calcDay f@(F.Fee fn (F.FixFee amt) fs fd fdDay fa _ _)
   | isJust fdDay = f  
   | calcDay >= fs && isNothing fdDay = f{ F.feeDue = amt, F.feeDueDate = Just calcDay} -- `debug` ("DEBUG--> init with amt "++show(fd)++show amt)
@@ -232,14 +233,14 @@ calcDueFee t calcDay f@(F.Fee fn (F.AmtByTbl _ ds tbl) fs fd fdday fa lpd _)
       lookupVal = queryDeal t (patchDateToStats calcDay ds)
       dueAmt = fromMaybe 0.0 $ lookupTable tbl Up (lookupVal >=)
 
-disableLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
+disableLiqProvider :: Ast.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate } 
   | d > endDate = liq{CE.liqCredit = Just 0}
   | otherwise = liq
 
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Nothing }  = liq
 
-updateLiqProvider :: P.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
+updateLiqProvider :: Ast.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = curCredit} -- refresh available balance
   = disableLiqProvider t d $ liq { CE.liqCredit = newCredit } 
     where 
@@ -250,7 +251,7 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
 
 updateLiqProvider t d liq = disableLiqProvider t d liq
 
-calcDueInt :: P.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe DealStats -> L.Bond -> L.Bond
+calcDueInt :: Ast.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe DealStats -> L.Bond -> L.Bond
 calcDueInt t calc_date mBal mRate b@(L.Bond _ _ oi io _ bal r dp di Nothing _ lastPrinPay _ ) 
  | calc_date <= closingDate = b
  | bal+di == 0 = b
@@ -279,7 +280,7 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ i
                 newDueInt = IR.calcInt (overrideBal+intDue) int_due_date calc_date overrideRate dc -- `debug` ("Using Rate"++show overrideRate++">>Bal"++ show overrideBal)
 
 
-calcDuePrin :: P.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
+calcDuePrin :: Ast.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
 calcDuePrin t calc_date b@(L.Bond _ L.Sequential _ _ _ bondBal _ _ _ _ _ _ _)
   = b {L.bndDuePrin = bondBal } 
 
@@ -324,11 +325,11 @@ calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bondBal _ _ _ _ _ _ _)
 
 
 priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerf -> Maybe [RateAssumption] -> PriceResult
-priceAssetUnion (ACM.MO m) d pm aps = P.priceAsset m d pm aps 
-priceAssetUnion (ACM.LO m) d pm aps = P.priceAsset m d pm aps
-priceAssetUnion (ACM.IL m) d pm aps = P.priceAsset m d pm aps
-priceAssetUnion (ACM.LS m) d pm aps = P.priceAsset m d pm aps
-priceAssetUnion (ACM.RE m) d pm aps = P.priceAsset m d pm aps
+priceAssetUnion (ACM.MO m) d pm aps = Ast.priceAsset m d pm aps 
+priceAssetUnion (ACM.LO m) d pm aps = Ast.priceAsset m d pm aps
+priceAssetUnion (ACM.IL m) d pm aps = Ast.priceAsset m d pm aps
+priceAssetUnion (ACM.LS m) d pm aps = Ast.priceAsset m d pm aps
+priceAssetUnion (ACM.RE m) d pm aps = Ast.priceAsset m d pm aps
 
 priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [PriceResult]
 priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates 
@@ -337,11 +338,11 @@ priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates
 
 -- | this would used in `static` revolving ,which assumes the revolving pool will decrease
 splitAssetUnion :: [Rate] -> ACM.AssetUnion -> [ACM.AssetUnion]
-splitAssetUnion rs (ACM.MO m) = [ ACM.MO a | a <- P.splitWith m rs]
-splitAssetUnion rs (ACM.LO m) = [ ACM.LO a | a <- P.splitWith m rs]
-splitAssetUnion rs (ACM.IL m) = [ ACM.IL a | a <- P.splitWith m rs]
-splitAssetUnion rs (ACM.LS m) = [ ACM.LS a | a <- P.splitWith m rs]
-splitAssetUnion rs (ACM.RE m) = [ ACM.RE a | a <- P.splitWith m rs]
+splitAssetUnion rs (ACM.MO m) = [ ACM.MO a | a <- Ast.splitWith m rs]
+splitAssetUnion rs (ACM.LO m) = [ ACM.LO a | a <- Ast.splitWith m rs]
+splitAssetUnion rs (ACM.IL m) = [ ACM.IL a | a <- Ast.splitWith m rs]
+splitAssetUnion rs (ACM.LS m) = [ ACM.LS a | a <- Ast.splitWith m rs]
+splitAssetUnion rs (ACM.RE m) = [ ACM.RE a | a <- Ast.splitWith m rs]
 
 buyRevolvingPool :: Date -> [Rate] -> RevolvingPool -> ([ACM.AssetUnion],RevolvingPool)
 buyRevolvingPool _ rs rp@(StaticAsset assets) 
@@ -375,15 +376,15 @@ data RunContext a = RunContext{
                   }
 
 updateOriginDate2 :: Date -> ACM.AssetUnion -> ACM.AssetUnion
-updateOriginDate2 d (ACM.LO m) = ACM.LO $ updateOriginDate m (P.calcAlignDate m d)
-updateOriginDate2 d (ACM.MO m) = ACM.MO $ updateOriginDate m (P.calcAlignDate m d)
-updateOriginDate2 d (ACM.IL m) = ACM.IL $ updateOriginDate m (P.calcAlignDate m d)
-updateOriginDate2 d (ACM.LS m) = ACM.LS $ updateOriginDate m (P.calcAlignDate m d)
-updateOriginDate2 d (ACM.RE m) = ACM.RE $ updateOriginDate m (P.calcAlignDate m d)
+updateOriginDate2 d (ACM.LO m) = ACM.LO $ updateOriginDate m (Ast.calcAlignDate m d)
+updateOriginDate2 d (ACM.MO m) = ACM.MO $ updateOriginDate m (Ast.calcAlignDate m d)
+updateOriginDate2 d (ACM.IL m) = ACM.IL $ updateOriginDate m (Ast.calcAlignDate m d)
+updateOriginDate2 d (ACM.LS m) = ACM.LS $ updateOriginDate m (Ast.calcAlignDate m d)
+updateOriginDate2 d (ACM.RE m) = ACM.RE $ updateOriginDate m (Ast.calcAlignDate m d)
 
 
 -- ^ get available supports in balance
-evalExtraSupportBalance :: P.Asset a => Date -> TestDeal a -> W.ExtraSupport  -> [Balance]
+evalExtraSupportBalance :: Ast.Asset a => Date -> TestDeal a -> W.ExtraSupport  -> [Balance]
 evalExtraSupportBalance d t (W.WithCondition pre s) 
   | testPre d t pre = evalExtraSupportBalance d t s
   | otherwise = [0]
@@ -425,7 +426,7 @@ drawExtraSupport d amt (W.MultiSupport supports) t
       (t,amt) 
       supports
 
-inspectVars :: P.Asset a => TestDeal a -> Date -> DealStats -> ResultComponent
+inspectVars :: Ast.Asset a => TestDeal a -> Date -> DealStats -> ResultComponent
 inspectVars t d ds =                     
   case getDealStatType ds of 
     RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
@@ -440,7 +441,7 @@ showInspection (InspectInt d ds r) = show r
 showInspection (InspectBal d ds r) = show r
 showInspection x = error $ "not implemented for showing ResultComponent " ++ show x
 
-performActionWrap :: P.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
+performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
                   ,rc@RunContext{runPoolFlow=pFlowMap
@@ -562,7 +563,7 @@ performActionWrap d (t, rc, logs) (W.ActionWithPre2 p actionsTrue actionsFalse)
 
 performActionWrap d (t, rc, logs) a = (performAction d t a,rc,logs) -- `debug` ("DEBUG: Action on "++ show a)
 
-performAction :: P.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
+performAction :: Ast.Asset a => Date -> TestDeal a -> W.Action -> TestDeal a
 performAction d t (W.ActionWithPre2 _pre actionsTrue actionsFalse)
   | testPre d t _pre = foldl (performAction d) t actionsTrue 
   | otherwise  = foldl (performAction d) t actionsFalse 

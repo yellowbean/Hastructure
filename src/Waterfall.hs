@@ -19,7 +19,8 @@ import Data.Fixed
 import GHC.Generics
 
 import Accounts (Account)
-import Asset (Pool)
+import Asset
+import Pool
 -- import AssetClass.Mortgage(Mortgage)
 import Expense
 import Liability

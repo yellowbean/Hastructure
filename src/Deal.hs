@@ -15,7 +15,8 @@ module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
 
 import qualified Accounts as A
 import qualified Ledger as LD
-import qualified Asset as P
+import qualified Asset as Ast
+import qualified Pool as P
 import qualified Expense as F
 import qualified Liability as L
 import qualified CreditEnhancement as CE
@@ -64,7 +65,8 @@ import GHC.Generics
 import Debug.Trace
 import Cashflow (buildBegTsRow)
 import Assumptions (NonPerfAssumption(NonPerfAssumption),lookupRate0)
-import Asset (Pool(issuanceStat))
+import Asset ()
+import Pool (issuanceStat)
 import qualified Types as P
 import Control.Lens hiding (element)
 import Control.Lens.TH
@@ -77,7 +79,7 @@ import qualified Types as P
 debug = flip trace
 
 
-setBondNewRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
+setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateSpread _ spd)) bal currentRate _ dueInt (Just dueIntDate) _ _ _)
   = b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
     where 
@@ -99,7 +101,7 @@ setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ 
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
 
-updateLiqProviderRate :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> CE.LiqFacility -> CE.LiqFacility
+updateLiqProviderRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPremiumRateType = mPrt
                                                , CE.liqRate = mr, CE.liqPremiumRate = mPr }
   = let 
@@ -155,7 +157,7 @@ updateRateSwapRate rAssumps d rs@HE.RateSwap{ HE.rsType = rt }
                      HE.FixedToFloating r flter -> (r , getRate flter)
       getRate x = AP.lookupRate rAssumps x d
 
-updateRateSwapBal :: P.Asset a => TestDeal a -> Date -> HE.RateSwap -> HE.RateSwap
+updateRateSwapBal :: Ast.Asset a => TestDeal a -> Date -> HE.RateSwap -> HE.RateSwap
 updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
   =  case base of 
        HE.Fixed _ -> rs  
@@ -163,7 +165,7 @@ updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
        HE.Schedule ts -> rs { HE.rsRefBalance = fromRational (getValByDate ts Inc d) }
 
 -- ^ accure rate cap 
-accrueRC :: P.Asset a => TestDeal a -> Date -> [RateAssumption] -> RateCap -> RateCap
+accrueRC :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> RateCap -> RateCap
 accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = index
                        ,rcStartDate = sd, rcEndDate = ed, rcNotional = notional
                        ,rcLastStlDate = mlsd
@@ -187,7 +189,7 @@ accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = inde
                   newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
 
 -- ^ test if a clean up call should be fired
-testCall :: P.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
+testCall :: Ast.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
 testCall t d opt = 
     case opt of 
        C.PoolBalance x -> queryDeal t (FutureCurrentPoolBalance Nothing) < x
@@ -201,24 +203,24 @@ testCall t d opt =
        C.Pre pre -> testPre d t pre
        _ -> error ("failed to find call options"++ show opt)
 
-testCalls :: P.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
+testCalls :: Ast.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
 testCalls t d [] = False  
 testCalls t d opts = any (testCall t d) opts  
 
 
-queryTrigger :: P.Asset a => TestDeal a -> DealCycle -> [Trigger]
+queryTrigger :: Ast.Asset a => TestDeal a -> DealCycle -> [Trigger]
 queryTrigger t@TestDeal{ triggers = trgs } wt 
   = case trgs of 
       Nothing -> []
       Just _trgs -> maybe [] Map.elems $ Map.lookup wt _trgs
 
 -- ^ run trigger sequentially
-testTriggers :: P.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
+testTriggers :: Ast.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
 testTriggers t d [] = False
 testTriggers t d triggers = any (testTrigger t d) triggers 
 
 -- ^ execute effects of trigger: making changes to deal
-runEffects :: P.Asset a => TestDeal a -> Date -> TriggerEffect -> TestDeal a 
+runEffects :: Ast.Asset a => TestDeal a -> Date -> TriggerEffect -> TestDeal a 
 runEffects t@TestDeal{accounts = accMap, fees = feeMap } d te 
   = case te of 
       DealStatusTo _ds -> t {status = _ds}
@@ -229,7 +231,7 @@ runEffects t@TestDeal{accounts = accMap, fees = feeMap } d te
       _ -> error $ "Failed to match trigger effects: "++show te
 
 -- ^ test trigger and add a log if deal status changed
-runTriggers :: P.Asset a => TestDeal a -> Date -> DealCycle -> (TestDeal a,[ResultComponent])
+runTriggers :: Ast.Asset a => TestDeal a -> Date -> DealCycle -> (TestDeal a,[ResultComponent])
 runTriggers t@TestDeal{status=oldStatus, triggers = Nothing} d dcycle = (t, [])
 runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle = 
     (newDeal {triggers = Just (Map.insert dcycle newTriggers trgM)}, newLogs)
@@ -262,7 +264,7 @@ runTriggers t@TestDeal{status=oldStatus, triggers = Just trgM} d dcycle =
     newTriggers = Map.union (Map.map (set trgStatusLens True) triggeredTrgs) trgsMap
   
  
-run :: P.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] 
+run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] 
         -> Maybe (Map.Map String (RevolvingPool,AP.ApplyAssumptionType))-> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = (prepareDeal t,log) `debug` "Deal Ended"
 run t pCfM (Just []) _ _ _ log  = (prepareDeal t,log)  `debug` "End with Empty ActionOnDate"
@@ -511,7 +513,7 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bond_prices)
     where 
       rateToday = getValByDate curve Inc     
 
-runDeal :: P.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
+runDeal :: Ast.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
         -> (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Maybe (Map.Map String L.PriceResult))
 runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                                                            ,AP.pricing   = mPricing
@@ -552,7 +554,7 @@ getRunResult t = os_bn_i ++ os_bn_b
     os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
     os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
 
-prepareDeal :: P.Asset a => TestDeal a -> TestDeal a
+prepareDeal :: Ast.Asset a => TestDeal a -> TestDeal a
 prepareDeal t@TestDeal {bonds = bndMap} 
   = let 
       pIdCf = view dealCashflow t
@@ -563,7 +565,7 @@ prepareDeal t@TestDeal {bonds = bndMap}
     in 
       t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap}  -- `debug` ("Consolidation in Preparing")
 
-appendCollectedCF :: P.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a
+appendCollectedCF :: Ast.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a
 -- ^ append cashflow frame (consolidate by a date) into deals collected pool
 appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
   = let 
@@ -589,7 +591,7 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
       t {pool = newPt} 
 
 -- ^ emtpy deal's pool cashflow
-removePoolCf :: P.Asset a => TestDeal a -> TestDeal a
+removePoolCf :: Ast.Asset a => TestDeal a -> TestDeal a
 removePoolCf t@TestDeal{pool=pt} =
   let 
     newPt = case pt of 
@@ -600,7 +602,7 @@ removePoolCf t@TestDeal{pool=pt} =
   in
     t {pool=newPt}
 
-setFutureCF :: P.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
+setFutureCF :: Ast.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
 setFutureCF t@TestDeal{pool = (SoloPool p )} cf 
   = let 
       newPool =  p {P.futureCf = Just cf}
@@ -649,31 +651,31 @@ calcDealStageDate (CurrentDates _ (Just revolvingEndDate) endDate _ _) = [(endDa
 calcDealStageDate _ = []
 
 -- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
-runPool :: P.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance )]
+runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance )]
 -- schedule cashflow just ignores the interest rate assumption
 runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ = [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
-runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ P.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
+runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
 -- project contractual cashflow if nothing found in pool perf assumption
 -- use interest rate assumption
-runPool (P.Pool as _ _ asof _ _) Nothing mRates = map (\x -> (P.calcCashflow x asof mRates,Map.empty)) as 
+runPool (P.Pool as _ _ asof _ _) Nothing mRates = map (\x -> (Ast.calcCashflow x asof mRates,Map.empty)) as 
 
 -- asset cashflow with credit stress
-runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates = map (\x -> P.projCashflow x asof assumps mRates) as  
+runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates = map (\x -> Ast.projCashflow x asof assumps mRates) as  
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
     numAssets = length as
     _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
   in
-    zipWith (\x a -> P.projCashflow x asof a mRates) as _assumps 
+    zipWith (\x a -> Ast.projCashflow x asof a mRates) as _assumps 
 
 -- safe net to catch other cases
 runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
 
 -- ^ patch issuance balance for PreClosing Deal
-patchIssuanceBalance :: P.Asset a => DealStatus -> Map.Map PoolId Balance -> PoolType a -> PoolType a
+patchIssuanceBalance :: Ast.Asset a => DealStatus -> Map.Map PoolId Balance -> PoolType a -> PoolType a
 patchIssuanceBalance (PreClosing _ ) balM pt =
   case pt of 
     SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 PoolConsol balM)) p
@@ -682,7 +684,7 @@ patchIssuanceBalance (PreClosing _ ) balM pt =
     
 patchIssuanceBalance _ bal p = p
 
-patchScheduleFlow :: P.Asset a => Map.Map PoolId CF.CashFlowFrame -> PoolType a -> PoolType a
+patchScheduleFlow :: Ast.Asset a => Map.Map PoolId CF.CashFlowFrame -> PoolType a -> PoolType a
 patchScheduleFlow flowM pt = 
   case pt of
     SoloPool p -> case Map.lookup PoolConsol flowM of
@@ -692,7 +694,7 @@ patchScheduleFlow flowM pt =
     ResecDeal pM -> ResecDeal pM
 
 
-getInits :: P.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], Map.Map PoolId CF.CashFlowFrame, Map.Map PoolId CF.CashFlowFrame)
+getInits :: Ast.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], Map.Map PoolId CF.CashFlowFrame, Map.Map PoolId CF.CashFlowFrame)
 getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump
   = (newT, allActionDates, pCollectionCfAfterCutoff, pUnstressedAfterCutoff)  -- `debug` ("init done actions->"++ show pCollectionCfAfterCutoff)
   where

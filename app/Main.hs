@@ -64,7 +64,8 @@ import Servant.API.ContentTypes (contentType)
 import Types 
 import qualified Deal as D
 import qualified Deal.DealBase as DB
-import qualified Asset as P
+import qualified Asset as Ast
+import qualified Pool as P
 import qualified Expense as F
 import qualified Ledger as LD
 import qualified AssetClass.Installment 
