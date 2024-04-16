@@ -45,5 +45,7 @@ data Trigger = Trigger {
 
 makeLensesFor [("trgStatus","trgStatusLens") ,("trgEffects","trgEffectsLens") ,("trgCondition","trgConditionLens") ,("trgCurable","trgCurableLens")] ''Trigger
 
-$(deriveJSON defaultOptions ''Trigger)
-$(deriveJSON defaultOptions ''TriggerEffect)
+$(concat <$> traverse (deriveJSON defaultOptions) [''TriggerEffect, ''Trigger])
+
+-- $(deriveJSON defaultOptions ''Trigger)
+-- $(deriveJSON defaultOptions ''TriggerEffect)

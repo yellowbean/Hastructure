@@ -157,6 +157,9 @@ data DateType = ClosingDate        -- ^ deal closing day
               | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
               deriving (Show,Ord,Eq,Generic,Read)
 
+
+
+
 data DatePattern = MonthEnd
                  | QuarterEnd
                  | YearEnd 
@@ -890,25 +893,34 @@ instance FromJSONKey PoolId where
 
 
 $(deriveJSON defaultOptions ''DealStatus)
-$(deriveJSON defaultOptions ''DealStats)
-$(deriveJSON defaultOptions ''PricingMethod)
+
+
+$(concat <$> traverse (deriveJSON defaultOptions) [''DealStats, ''PricingMethod, ''DealCycle, ''DateDesp, ''DateType, ''Period, ''ActionOnDate
+  ,''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport] )
+
+instance ToJSONKey DateType where
+  toJSONKey = genericToJSONKey defaultJSONKeyOptions
+
+instance FromJSONKey DateType where
+  fromJSONKey = genericFromJSONKey defaultJSONKeyOptions
+
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
 $(deriveJSON defaultOptions ''DayCount)
-$(deriveJSON defaultOptions ''Table)
-$(deriveJSON defaultOptions ''ActionOnDate)
+-- $(deriveJSON defaultOptions ''Table)
+-- $(deriveJSON defaultOptions ''ActionOnDate)
 $(deriveJSON defaultOptions ''OverrideType)
-$(deriveJSON defaultOptions ''DatePattern)
-$(deriveJSON defaultOptions ''DateType)
+-- $(deriveJSON defaultOptions ''DatePattern)
+-- $(deriveJSON defaultOptions ''DateType)
 $(deriveJSON defaultOptions ''Threshold)
-$(deriveJSON defaultOptions ''DateDesp)
-$(deriveJSON defaultOptions ''Period)
+-- $(deriveJSON defaultOptions ''DateDesp)
+-- $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''CustomDataType)
 $(deriveJSON defaultOptions ''ResultComponent)
-$(deriveJSON defaultOptions ''CashflowReport)
-$(deriveJSON defaultOptions ''BookItem)
-$(deriveJSON defaultOptions ''BalanceSheetReport)
-$(deriveJSON defaultOptions ''DealCycle)
+-- $(deriveJSON defaultOptions ''CashflowReport)
+-- $(deriveJSON defaultOptions ''BookItem)
+-- $(deriveJSON defaultOptions ''BalanceSheetReport)
+-- $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''CutoffFields)
@@ -959,10 +971,4 @@ instance FromJSONKey DealCycle where
 -- 
 -- instance FromJSON DateType where
 --   fromJSON = 
-
-instance ToJSONKey DateType where
-  toJSONKey = genericToJSONKey opts
-
-instance FromJSONKey DateType where
-  fromJSONKey = genericFromJSONKey opts
 

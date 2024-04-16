@@ -222,16 +222,22 @@ calcResetDates (r:rs) bs
 
 
 $(deriveJSON defaultOptions ''BondPricingInput)
-$(deriveJSON defaultOptions ''ApplyAssumptionType)
-$(deriveJSON defaultOptions ''AssetPerfAssumption)
-$(deriveJSON defaultOptions ''AssetDelinqPerfAssumption)
-$(deriveJSON defaultOptions ''AssetDefaultedPerfAssumption)
-$(deriveJSON defaultOptions ''AssetDefaultAssumption)
-$(deriveJSON defaultOptions ''AssetPrepayAssumption)
-$(deriveJSON defaultOptions ''RecoveryAssumption)
-$(deriveJSON defaultOptions ''ExtraStress)
-$(deriveJSON defaultOptions ''AssetDelinquencyAssumption)
-$(deriveJSON defaultOptions ''LeaseAssetGapAssump)
-$(deriveJSON defaultOptions ''LeaseAssetRentAssump)
-$(deriveJSON defaultOptions ''RevolvingAssumption)
-$(deriveJSON defaultOptions ''NonPerfAssumption)
+
+$(concat <$> traverse (deriveJSON defaultOptions) [''ApplyAssumptionType, ''AssetPerfAssumption
+  , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
+  , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
+  , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption])
+
+-- $(deriveJSON defaultOptions ''ApplyAssumptionType)
+-- $(deriveJSON defaultOptions ''AssetPerfAssumption)
+-- $(deriveJSON defaultOptions ''AssetDelinqPerfAssumption)
+-- $(deriveJSON defaultOptions ''AssetDefaultedPerfAssumption)
+-- $(deriveJSON defaultOptions ''AssetDefaultAssumption)
+-- $(deriveJSON defaultOptions ''AssetPrepayAssumption)
+-- $(deriveJSON defaultOptions ''RecoveryAssumption)
+-- $(deriveJSON defaultOptions ''ExtraStress)
+-- $(deriveJSON defaultOptions ''AssetDelinquencyAssumption)
+-- $(deriveJSON defaultOptions ''LeaseAssetGapAssump)
+-- $(deriveJSON defaultOptions ''LeaseAssetRentAssump)
+-- $(deriveJSON defaultOptions ''RevolvingAssumption)
+-- $(deriveJSON defaultOptions ''NonPerfAssumption)

@@ -115,15 +115,8 @@ data PoolType = MPool (P.Pool AB.Mortgage)
               | VPool (P.Pool AB.Receivable)
               deriving(Show, Generic)
 
-instance ToSchema PoolType
-$(deriveJSON defaultOptions ''PoolType)
 
-instance ToSchema (P.Pool AB.Mortgage)
-instance ToSchema (P.Pool AB.Loan)
-instance ToSchema (P.Pool AB.Installment)
-instance ToSchema (P.Pool AB.Lease)
-instance ToSchema (P.Pool AB.FixedAsset)
-instance ToSchema (P.Pool AB.Receivable)
+
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | LDeal (DB.TestDeal AB.Loan)
@@ -134,21 +127,39 @@ data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | UDeal (DB.TestDeal AB.AssetUnion) 
               deriving(Show, Generic)
 
-instance ToSchema Ts
-instance ToSchema ResultComponent
 instance ToSchema CF.CashFlowFrame
+
+instance ToSchema AB.Loan
+instance ToSchema AB.Installment
+instance ToSchema AB.AccrualPeriod
+instance ToSchema AB.LeaseStepUp
+instance ToSchema AB.Lease
+instance ToSchema AB.FixedAsset
+instance ToSchema AB.Receivable
+
+instance ToSchema CutoffFields
+
+instance ToSchema (P.Pool AB.Mortgage)
+instance ToSchema (P.Pool AB.Loan)
+instance ToSchema (P.Pool AB.Installment)
+instance ToSchema (P.Pool AB.Lease)
+instance ToSchema (P.Pool AB.FixedAsset)
+instance ToSchema (P.Pool AB.Receivable)
+
+instance ToSchema PoolType
+$(deriveJSON defaultOptions ''PoolType)
+
+-- instance ToSchema Balance
+-- instance ToSchema IRate
+-- instance RoundingBy
+
+instance ToSchema ResultComponent
 instance ToSchema AP.ApplyAssumptionType
 instance ToSchema AP.BondPricingInput
 instance ToSchema L.PriceResult
 
 instance ToSchema DealType
 
-instance ToSchema AB.Mortgage
-instance ToSchema IR.ARM
-instance ToSchema AB.Loan
-instance ToSchema AB.Installment
-instance ToSchema AB.Lease
-instance ToSchema AB.FixedAsset
 
 instance ToSchema (DB.UnderlyingDeal AB.Mortgage)
 instance ToSchema (DB.UnderlyingDeal AB.Loan)
@@ -174,9 +185,6 @@ instance ToSchema (DB.PoolType AB.Lease)
 instance ToSchema (DB.PoolType AB.Receivable)
 instance ToSchema (P.Pool AB.AssetUnion)
 instance ToSchema HE.RateCap
-instance ToSchema AB.LeaseStepUp 
-instance ToSchema AB.AccrualPeriod
-instance ToSchema AB.PrepayPenaltyType
 instance ToSchema DateDesp
 instance ToSchema DateType
 instance ToSchema LD.Ledger
@@ -195,7 +203,6 @@ instance ToSchema W.ActionWhen
 instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
 instance ToSchema BookDirection
-instance ToSchema Direction
 instance ToSchema W.BookType
 instance ToSchema W.CollectionRule
 instance ToSchema Limit
@@ -215,13 +222,9 @@ instance ToSchema TRG.TriggerEffect
 instance ToSchema OverrideType
 instance ToSchema ActionOnDate
 instance ToSchema DealStats
-instance ToSchema Period
 instance ToSchema PoolId
-instance ToSchema DayCount
 instance ToSchema DealStatus
-instance ToSchema DatePattern
 instance ToSchema Cmp
-instance ToSchema Types.Index
 instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
@@ -229,26 +232,12 @@ instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
 -- instance ToSchema Stmt.Direction
 instance ToSchema Stmt.TxnComment
-instance ToSchema CF.TsRow
-instance ToSchema (TsPoint Balance)
-instance ToSchema (TsPoint IRate)
-instance ToSchema (TsPoint Rational)
-instance ToSchema (TsPoint Bool)
-instance ToSchema AB.Status
-instance ToSchema AB.AmortRule
-instance ToSchema AB.Capacity
 instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
-instance ToSchema AB.OriginalInfo
-instance ToSchema IR.RateType
-instance ToSchema AB.AmortPlan
 instance ToSchema AB.AssetUnion
-instance ToSchema AB.Receivable
-instance ToSchema CutoffFields
 instance ToSchema PricingMethod
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
-instance ToSchema (RoundingBy IRate)
 instance ToSchema (RoundingBy Rate)
 instance ToSchema (RoundingBy Integer)
 instance ToSchema (RoundingBy Balance)
@@ -267,10 +256,7 @@ instance ToSchema AP.LeaseAssetGapAssump
 instance ToSchema AP.LeaseAssetRentAssump
 instance ToSchema (Table Balance Balance)
 instance ToSchema (Table Float Spread)
-instance ToSchema AB.ReceivableFeeType
 
-instance ToSchema (Ratio Integer) where 
-  declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
 
 instance ToSchema PoolSource
 instance ToSchema Threshold
@@ -360,10 +346,14 @@ data RunDateReq = RunDateReq Date DatePattern
                 deriving(Show, Generic)
 instance ToSchema RunDateReq
 
-$(deriveJSON defaultOptions ''RunDealReq)
-$(deriveJSON defaultOptions ''RunPoolReq)
-$(deriveJSON defaultOptions ''RunAssetReq)
-$(deriveJSON defaultOptions ''RunDateReq)
+
+$(deriveJSON defaultOptions ''DealType)
+
+$(concat <$> traverse (deriveJSON defaultOptions) [''RunDealReq, ''RunPoolReq,''RunAssetReq, ''RunDateReq])
+-- $(deriveJSON defaultOptions ''RunDealReq)
+-- $(deriveJSON defaultOptions ''RunPoolReq)
+-- $(deriveJSON defaultOptions ''RunAssetReq)
+-- $(deriveJSON defaultOptions ''RunDateReq)
 
 -- Swagger API
 type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
@@ -484,4 +474,4 @@ main =
 --      $ errorMwDefJson
       $ serve (Proxy :: Proxy API) myServer
 
-$(deriveJSON defaultOptions ''DealType)
+-- $(deriveJSON defaultOptions ''DealType)

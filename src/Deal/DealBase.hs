@@ -365,7 +365,7 @@ getAllCollectedTxnsList t mPns
 data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 
-
-$(deriveJSON defaultOptions ''UnderlyingDeal)
-$(deriveJSON defaultOptions ''PoolType)
-$(deriveJSON defaultOptions ''TestDeal)
+$(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType])
+-- $(deriveJSON defaultOptions ''UnderlyingDeal)
+-- $(deriveJSON defaultOptions ''PoolType)
+-- $(deriveJSON defaultOptions ''TestDeal)

@@ -158,8 +158,10 @@ instance IR.UseRate RateSwap where
 
 makeLensesFor [("rsType","rsTypeLens"),("rsRefBalance","rsRefBalLens")] ''RateSwap
 
-$(deriveJSON defaultOptions ''RateSwap)
-$(deriveJSON defaultOptions ''RateCap)
-$(deriveJSON defaultOptions ''RateSwapType)
-$(deriveJSON defaultOptions ''RateSwapBase)
-$(deriveJSON defaultOptions ''CurrencySwap)
+$(concat <$> traverse (deriveJSON defaultOptions) [''RateSwap, ''RateCap, ''RateSwapType, ''RateSwapBase, ''CurrencySwap])
+
+-- $(deriveJSON defaultOptions ''RateSwap)
+-- $(deriveJSON defaultOptions ''RateCap)
+-- $(deriveJSON defaultOptions ''RateSwapType)
+-- $(deriveJSON defaultOptions ''RateSwapBase)
+-- $(deriveJSON defaultOptions ''CurrencySwap)
