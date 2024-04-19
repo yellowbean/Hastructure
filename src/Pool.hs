@@ -18,9 +18,7 @@ import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
 import qualified AssetClass.AssetBase as ACM 
 import AssetClass.AssetCashflow
-
 import Asset (Asset(..))
-
 import qualified Data.Map as Map
 
 import Data.Ratio
@@ -34,6 +32,7 @@ import Types hiding (Current)
 import Data.Maybe
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import Assumptions (ApplyAssumptionType)
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
@@ -41,7 +40,7 @@ data Pool a = Pool {assets :: [a]                                           -- ^
                    ,asOfDate :: Date                                        -- ^ include cashflow after this date 
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
-                   } deriving (Show,Generic,Ord,Eq)
+                   } deriving (Show, Generic, Ord, Eq)
 
 
 poolFutureCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
@@ -108,5 +107,7 @@ aggPool mStat xs
       case Map.lookup AccruedInterest =<< mStat of
         Nothing -> (CF.CashFlowFrame txns, stats) 
         Just accruedIntAmt -> (CF.CashFlowFrame (CF.clawbackInt accruedIntAmt txns), stats)
-    
+
+ 
+
 $(deriveJSON defaultOptions ''Pool)

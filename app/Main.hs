@@ -108,16 +108,6 @@ instance ToSchema Version
 version1 :: Version 
 version1 = Version "0.26.5"
 
-data PoolType = MPool (P.Pool AB.Mortgage)
-              | LPool (P.Pool AB.Loan)
-              | IPool (P.Pool AB.Installment)
-              | RPool (P.Pool AB.Lease)
-              | FPool (P.Pool AB.FixedAsset)
-              | VPool (P.Pool AB.Receivable)
-              deriving(Show, Generic)
-
-
-
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | LDeal (DB.TestDeal AB.Loan)
@@ -146,54 +136,37 @@ instance ToSchema (P.Pool AB.Installment)
 instance ToSchema (P.Pool AB.Lease)
 instance ToSchema (P.Pool AB.FixedAsset)
 instance ToSchema (P.Pool AB.Receivable)
-
-instance ToSchema PoolType
-$(deriveJSON defaultOptions ''PoolType)
-
--- instance ToSchema Balance
--- instance ToSchema IRate
--- instance RoundingBy
-
-instance ToSchema ResultComponent
-instance ToSchema AP.ApplyAssumptionType
-instance ToSchema AP.BondPricingInput
-instance ToSchema L.PriceResult
-
-instance ToSchema DealType
-
-
-instance ToSchema (DB.UnderlyingDeal AB.Mortgage)
-instance ToSchema (DB.UnderlyingDeal AB.Loan)
-instance ToSchema (DB.UnderlyingDeal AB.Installment)
-instance ToSchema (DB.UnderlyingDeal AB.Lease)
-instance ToSchema (DB.UnderlyingDeal AB.Receivable)
-instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
-instance ToSchema (DB.UnderlyingDeal AB.FixedAsset)
-
-instance ToSchema (DB.TestDeal AB.Mortgage)
-instance ToSchema (DB.TestDeal AB.Loan)
-instance ToSchema (DB.TestDeal AB.Installment)
-instance ToSchema (DB.TestDeal AB.Lease)
-instance ToSchema (DB.TestDeal AB.Receivable)
-instance ToSchema (DB.TestDeal AB.AssetUnion)
-instance ToSchema (DB.TestDeal AB.FixedAsset)
-instance ToSchema (DB.PoolType AB.AssetUnion)
-instance ToSchema (DB.PoolType AB.FixedAsset)
-instance ToSchema (DB.PoolType AB.Mortgage)
-instance ToSchema (DB.PoolType AB.Loan)
-instance ToSchema (DB.PoolType AB.Installment)
-instance ToSchema (DB.PoolType AB.Lease)
-instance ToSchema (DB.PoolType AB.Receivable)
 instance ToSchema (P.Pool AB.AssetUnion)
-instance ToSchema HE.RateCap
-instance ToSchema DateDesp
+instance ToSchema AB.AssetUnion
+
+instance ToSchema PoolId
+
+instance ToSchema DealStatus
+
 instance ToSchema DateType
-instance ToSchema LD.Ledger
+instance ToSchema DateDesp
+instance ToSchema ActionOnDate
+instance ToSchema DealStats
+instance ToSchema Cmp
+instance ToSchema PricingMethod
+instance ToSchema Stmt.TxnComment
+instance ToSchema BookDirection
+instance ToSchema Limit
+instance ToSchema PoolSource
+instance ToSchema (RoundingBy Rate)
+instance ToSchema (RoundingBy Integer)
+instance ToSchema (RoundingBy Balance)
+instance ToSchema DealCycle
+instance ToSchema (Table Balance Balance)
+instance ToSchema (Table Float Spread)
+
 instance ToSchema A.Account
 instance ToSchema A.InterestInfo
-instance ToSchema A.ReserveAmount
 instance ToSchema F.Fee
 instance ToSchema F.FeeType
+instance ToSchema HE.RateCap
+instance ToSchema LD.Ledger
+instance ToSchema A.ReserveAmount
 instance ToSchema L.Bond
 instance ToSchema L.StepUp
 instance ToSchema L.BondType
@@ -203,10 +176,8 @@ instance ToSchema Pre
 instance ToSchema W.ActionWhen
 instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
-instance ToSchema BookDirection
 instance ToSchema W.BookType
 instance ToSchema W.CollectionRule
-instance ToSchema Limit
 instance ToSchema C.CallOption
 instance ToSchema CE.LiqFacility
 instance ToSchema HE.RateSwap
@@ -217,33 +188,23 @@ instance ToSchema CE.LiqSupportType
 instance ToSchema CE.LiqRepayType
 instance ToSchema CE.LiqDrawType
 instance ToSchema CustomDataType
-instance ToSchema DealCycle
 instance ToSchema TRG.Trigger
 instance ToSchema TRG.TriggerEffect
 instance ToSchema OverrideType
-instance ToSchema ActionOnDate
-instance ToSchema DealStats
-instance ToSchema PoolId
-instance ToSchema DealStatus
-instance ToSchema Cmp
 instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
 instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
 -- instance ToSchema Stmt.Direction
-instance ToSchema Stmt.TxnComment
 instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
-instance ToSchema AB.AssetUnion
-instance ToSchema PricingMethod
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
-instance ToSchema (RoundingBy Rate)
-instance ToSchema (RoundingBy Integer)
-instance ToSchema (RoundingBy Balance)
 instance ToSchema AP.NonPerfAssumption
+instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption
+instance ToSchema AP.ApplyAssumptionType
 instance ToSchema AP.AssetPerfAssumption
 instance ToSchema AP.AssetDelinqPerfAssumption
 instance ToSchema AP.AssetDefaultedPerfAssumption
@@ -255,12 +216,54 @@ instance ToSchema AP.ExtraStress
 instance ToSchema AP.AssetDelinquencyAssumption
 instance ToSchema AP.LeaseAssetGapAssump
 instance ToSchema AP.LeaseAssetRentAssump
-instance ToSchema (Table Balance Balance)
-instance ToSchema (Table Float Spread)
 
 
-instance ToSchema PoolSource
 instance ToSchema Threshold
+
+
+
+
+instance ToSchema (DB.TestDeal AB.Mortgage)
+instance ToSchema (DB.TestDeal AB.Loan)
+instance ToSchema (DB.TestDeal AB.Installment)
+instance ToSchema (DB.TestDeal AB.Lease)
+instance ToSchema (DB.TestDeal AB.Receivable)
+instance ToSchema (DB.TestDeal AB.AssetUnion)
+instance ToSchema (DB.TestDeal AB.FixedAsset)
+
+
+
+
+instance ToSchema (DB.PoolType AB.Mortgage)
+instance ToSchema (DB.PoolType AB.Loan)
+instance ToSchema (DB.PoolType AB.Installment)
+instance ToSchema (DB.PoolType AB.Lease)
+instance ToSchema (DB.PoolType AB.FixedAsset)
+instance ToSchema (DB.PoolType AB.Receivable)
+instance ToSchema (DB.PoolType AB.AssetUnion)
+
+instance ToSchema (DB.UnderlyingDeal AB.Mortgage)
+instance ToSchema (DB.UnderlyingDeal AB.Loan)
+instance ToSchema (DB.UnderlyingDeal AB.Installment)
+instance ToSchema (DB.UnderlyingDeal AB.Lease)
+instance ToSchema (DB.UnderlyingDeal AB.FixedAsset)
+instance ToSchema (DB.UnderlyingDeal AB.Receivable)
+instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
+
+
+
+
+
+-- instance ToSchema Balance
+-- instance ToSchema IRate
+-- instance RoundingBy
+
+instance ToSchema ResultComponent
+instance ToSchema L.PriceResult
+
+instance ToSchema DealType
+
+
 
 type RunResp = (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
@@ -295,13 +298,36 @@ wrapRun (VDeal d) mAssump mNonPerfAssump = let
                                        (VDeal _d,_pflow,_rs,_p)                                       
 wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
-wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
-wrapRunPool (MPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
-wrapRunPool (LPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
-wrapRunPool (IPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
-wrapRunPool (RPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
-wrapRunPool (VPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
-wrapRunPool x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
+-- wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
+-- wrapRunPool (MPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+-- wrapRunPool (LPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+-- wrapRunPool (IPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+-- wrapRunPool (RPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+-- wrapRunPool (FPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+-- wrapRunPool (VPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+-- wrapRunPool (UPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
+-- wrapRunPool x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
+
+data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
+                  | IPool (DB.PoolType AB.Installment)
+                  | MPool (DB.PoolType AB.Mortgage)
+                  | RPool (DB.PoolType AB.Lease)
+                  | FPool (DB.PoolType AB.FixedAsset)
+                  | VPool (DB.PoolType AB.Receivable)
+                  | UPool (DB.PoolType AB.AssetUnion)
+                  deriving(Show, Generic)
+
+
+wrapRunPoolType :: PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] ->  Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+wrapRunPoolType (MPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType (LPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType (IPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType (RPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType (FPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType (VPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType (UPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
+
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)
@@ -334,11 +360,11 @@ data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPer
 data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
                    deriving(Show, Generic)
 
-
+instance ToSchema PoolTypeWrap
 
 instance ToSchema RunDealReq
-data RunPoolReq = SingleRunPoolReq PoolType (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
-                | MultiScenarioRunPoolReq PoolType (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe [RateAssumption])
+data RunPoolReq = SingleRunPoolReq PoolTypeWrap (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
+                | MultiScenarioRunPoolReq PoolTypeWrap (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe [RateAssumption])
                 deriving(Show, Generic)
 
 instance ToSchema RunPoolReq
@@ -350,19 +376,17 @@ instance ToSchema RunDateReq
 
 $(deriveJSON defaultOptions ''DealType)
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''RunDealReq, ''RunPoolReq,''RunAssetReq, ''RunDateReq])
--- $(deriveJSON defaultOptions ''RunDealReq)
--- $(deriveJSON defaultOptions ''RunPoolReq)
--- $(deriveJSON defaultOptions ''RunAssetReq)
--- $(deriveJSON defaultOptions ''RunDateReq)
+$(concat <$> traverse (deriveJSON defaultOptions) [''RunDealReq, ''RunPoolReq,''RunAssetReq, ''RunDateReq,''PoolTypeWrap])
 
 -- Swagger API
 type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 
+type PoolRunResp = Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+
 type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] ((CF.CashFlowFrame, Map.Map CutoffFields Balance),Maybe [PriceResult])
-            :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-            :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName (CF.CashFlowFrame,Map.Map CutoffFields Balance))
+            :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] PoolRunResp
+            :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName PoolRunResp)
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
 --            :<|> "runDealOAS" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName [PriceResult])
@@ -415,35 +439,9 @@ myServer = return engineSwagger
         where 
           showVersion = return version1 
           runAsset req = return $ wrapRunAsset req
-          runPool (SingleRunPoolReq pt passumption mRates) = return $ wrapRunPool pt passumption mRates
-          runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPool pt (Just assump) mRates) mAssumps
+          runPool (SingleRunPoolReq pt passumption mRates) = return $ wrapRunPoolType pt passumption mRates
+          runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPoolType pt (Just assump) mRates) mAssumps
           runDeal (SingleRunReq dt assump nonPerfAssump) = return $ wrapRun dt assump nonPerfAssump 
-          -- runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump@AP.NonPerfAssumption{AP.pricing=Just bondPricingInput})
-          --   = case bondPricingInput of
-          --       AP.OASInput d bName price spreads curves -> 
-          --         let
-          --           priceCurves = Map.map (\curve -> 
-          --                                   (\spd -> U.shiftTsByAmt curve (toRational spd)) <$> spreads) curves -- curve as key , shifted curve list as value
-          --           pricingScenarios = Map.map (\curves -> Just . AP.DiscountCurve d <$> curves) priceCurves   -- curve as key, list of discount curves as value
-          --           nonPerfAssumpEachScenario = Map.map (\discountCurves -> 
-          --                                                 (\pvCurve -> nonPerfAssump { AP.pricing = pvCurve}) <$> discountCurves) pricingScenarios  -- curve as key, list of nonperfassump as value
-          --           runResultEachScenario = Map.intersectionWith 
-          --                                     (\pAssump dAssumps -> 
-          --                                       let 
-          --                                         runResults::[RunResp] = wrapRun dt (Just pAssump) <$> dAssumps
-          --                                         mPricingResults::([Maybe (Map String PriceResult)]) = (\(_a,_b,_c,_d) -> _d) <$> runResults
-          --                                         -- bondPrices = (maybe 0 (\y ->  getPriceValue . (Map.! y bName))) <$> mPricingResults
-          --                                       in 
-          --                                         [] -- bondPrices
-          --                                         ) 
-          --                                     mAssumps
-          --                                     nonPerfAssumpEachScenario    --- curve as key, list of bond prices as value
-          --           -- avgPricesPerSpreads =  (\xs -> sum xs / length xs)  <$>  transpose $ Map.elems runResultEachScenario  -- average PV list
-          --           -- spreadPriceTable = ThresholdTable $  zip avgPricesPerSpreads spreads
-
-          --         in 
-          --           return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
-          --       _ -> return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
           runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump)
             = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
           runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 

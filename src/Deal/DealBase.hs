@@ -98,7 +98,7 @@ uDealFutureTxn = lens getter setter
 data PoolType a = SoloPool (P.Pool a)
                 | MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map PoolId (UnderlyingDeal a))
-                deriving (Generic,Eq,Ord,Show)
+                deriving (Generic, Eq, Ord, Show)
 
 -- instance Show (PoolType a) where
 --   show (SoloPool x) = "SoloPool:"++ show x

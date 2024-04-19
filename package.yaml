@@ -79,8 +79,7 @@ executables:
     - exceptions
     # - servant-errors
     # - servant-exceptions
-    # - exceptions
-    # - servant-checked-exceptions
+    - servant-checked-exceptions
     # - jsonschema-gen
     # - timeseries
 

@@ -8,7 +8,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
-                ,lookupSource,reduceTs,combineTss
+                ,lookupSource,combineTss
                 ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,splitCashFlowFrameByDate,emptyTsRow,mflowAmortAmount
@@ -253,9 +253,10 @@ combineTs (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1) tr@(ReceivableFlo
 
 combineTss :: [TsRow] -> [TsRow] -> [TsRow] -> [TsRow]
 -- ^ combine two cashflows from two entities,(auto patch a beg balance)
+-- ^ left cashflow is ealier ,right one is later,combine both and yield cashflow with earlier date
 combineTss [] [] r = r
 combineTss [] r [] = r
-combineTss [] (r1:r1s) (r2:r2s) 
+combineTss [] (r1:r1s) (r2:r2s)
   | getDate r1 > getDate r2 = combineTss [] (r2:r2s) (r1:r1s)
   | getDate r1 == getDate r2 = combineTss [combineTs r1 r2] 
                                          r1s
@@ -272,6 +273,7 @@ combineTss (consol:consols) (r:rs) (tr:trs)
   | getDate r < getDate tr = combineTss (appendTs consol r:consol:consols) rs (tr:trs)
   | getDate r > getDate tr = combineTss (appendTs consol tr:consol:consols) (r:rs) trs 
 combineTss a b c = error $ "combineTss not supported "++show a++" "++show b++" "++show c
+
 
 
 appendTs :: TsRow -> TsRow -> TsRow 
@@ -453,13 +455,6 @@ clawbackInt bal txns
     in 
       [ tsReduceInt intDown txn | (txn,intDown) <- zip txns intDowns]
 
--- ^ consolidate cashflow from same entity , update balance of newer cashflow record
-reduceTs :: [TsRow] -> TsRow -> [TsRow]
-reduceTs [] _tr = [_tr]
-reduceTs (tr:trs) _tr 
-  | sameDate tr _tr = addTs tr _tr : trs 
-  | otherwise = appendTs tr _tr : tr : trs 
-
 aggregateTsByDate :: [TsRow] -> [TsRow] -> [TsRow]
 aggregateTsByDate rs [] = reverse rs
 aggregateTsByDate [] (tr:trs) = aggregateTsByDate [tr] trs
@@ -560,6 +555,15 @@ updateFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a b c d e f g i j 
 updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
 updateFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a b c d e f
 updateFlowBalance b (ReceivableFlow a x c d e f g h i) = ReceivableFlow a b c d e f g h i
+
+updateCumStats :: Maybe CumulativeStat -> TsRow -> TsRow
+updateCumStats Nothing x = x
+updateCumStats stat (MortgageDelinqFlow a b c d e f g h i j k l _) = MortgageDelinqFlow a b c d e f g h i j k l stat
+updateCumStats stat (MortgageFlow a b c d e f g h i j k _) = MortgageFlow a b c d e f g h i j k stat
+updateCumStats stat (LoanFlow a b c d e f g h i _) = LoanFlow a b c d e f g h i stat
+updateCumStats stat (ReceivableFlow a b c d e f g h _) = ReceivableFlow a b c d e f g h stat
+updateCumStats stat _ = error "not supported for update cumulative stats for record "
+
 
 mflowBegBalance :: TsRow -> Balance
 mflowBegBalance (BondFlow _ x p _) = x + p

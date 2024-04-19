@@ -10,7 +10,7 @@ module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,populateDealDates,accrueRC
             ,calcTargetAmount,updateLiqProvider
             ,projAssetUnion,priceAssetUnion
-            ,removePoolCf,setFutureCF
+            ,removePoolCf,setFutureCF,runPoolType,PoolType
             ) where
 
 import qualified Accounts as A
@@ -693,6 +693,46 @@ patchScheduleFlow flowM pt =
     MultiPool pM -> MultiPool $ Map.intersectionWith (set P.poolFutureScheduleCf) (Just <$> flowM) pM
     ResecDeal pM -> ResecDeal pM
 
+runPoolType :: Ast.Asset a => PoolType a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+runPoolType (SoloPool p) mAssumps mNonPerfAssump = Map.fromList [(PoolConsol,P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump))]
+runPoolType (MultiPool pm) (Just (AP.ByName assumpMap)) mNonPerfAssump
+  =  Map.mapWithKey 
+                    (\k p -> P.aggPool (P.issuanceStat p) $ 
+                               runPool p (AP.PoolLevel <$> Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump))
+                    pm
+
+runPoolType (MultiPool pm) (Just (AP.ByPoolId assumpMap)) mNonPerfAssump
+  =  Map.mapWithKey 
+                    (\k p -> P.aggPool (P.issuanceStat p) $ 
+                               runPool p (Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump))
+                    pm
+
+runPoolType (MultiPool pm) mAssumps mNonPerfAssump
+  = Map.map (\p -> P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)) pm
+
+runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
+  = Map.foldrWithKey (\(DealBondFlow dn bn sd pct) (dname, cflow, stat) m ->
+                          Map.insert (DealBondFlow dname bn sd pct) (cflow, stat) m)
+                          Map.empty $
+    Map.mapWithKey (\(DealBondFlow dn bn sd pct) (uDeal, mAssump) -> 
+                        let
+                          (poolAssump,dealAssump) = case mAssump of 
+                                                      Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+                                                      Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
+                          (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
+                          bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
+                          bondFlowRated = (\(BondTxn d b i p r c f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
+                        in
+                          (name uDeal, CF.CashFlowFrame bondFlowRated, Map.empty)) $
+    Map.mapWithKey (\_ (UnderlyingDeal uDeal _ _ _) -> 
+                      let 
+                        dName = name uDeal -- `debug` ("Getting name of underlying deal:"++ (name uDeal))
+                        mAssump = case mAssumps of 
+                                    Just (AP.ByDealName assumpMap) -> Map.lookup dName assumpMap
+                                    _ -> Nothing
+                      in 
+                        (uDeal, mAssump))
+                    dm
 
 getInits :: Ast.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> (TestDeal a,[ActionOnDate], Map.Map PoolId CF.CashFlowFrame, Map.Map PoolId CF.CashFlowFrame)
 getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump
@@ -782,39 +822,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
      
     -- (poolCf,historyStats) = P.aggPool (P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
     -- (poolCf,historyStats) = P.aggPool(P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
-    pCfM = case (thePool, mAssumps) of
-             (SoloPool p, _) 
-               -> Map.fromList [(PoolConsol,P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump))] 
-             (MultiPool pm, Just (AP.ByName assumpMap))
-               -> Map.mapWithKey 
-                    (\k p -> P.aggPool (P.issuanceStat p) $ 
-                               runPool p (AP.PoolLevel <$> Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump))
-                    pm 
-             (MultiPool pm, _) 
-               -> Map.map (\p -> P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)) pm
-             (ResecDeal dm, _)
-               ->  Map.foldrWithKey (\(DealBondFlow dn bn sd pct) (dname, cflow, stat) m ->
-                                      Map.insert (DealBondFlow dname bn sd pct) (cflow, stat) m)
-                                      Map.empty $
-                   Map.mapWithKey (\(DealBondFlow dn bn sd pct) (uDeal, mAssump) -> 
-                                      let
-                                        (poolAssump,dealAssump) = case mAssump of 
-                                                                    Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
-                                                                    Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
-                                        (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
-                                        bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
-                                        bondFlowRated = (\(BondTxn d b i p r c f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
-                                      in
-                                        (name uDeal, CF.CashFlowFrame bondFlowRated, Map.empty)) $
-                   Map.mapWithKey (\_ (UnderlyingDeal uDeal _ _ _) -> 
-                                    let 
-                                      dName = name uDeal -- `debug` ("Getting name of underlying deal:"++ (name uDeal))
-                                      mAssump = case mAssumps of 
-                                                  Just (AP.ByDealName assumpMap) -> Map.lookup dName assumpMap
-                                                  _ -> Nothing
-                                    in 
-                                      (uDeal, mAssump))
-                                  dm
+    pCfM = runPoolType thePool mAssumps mNonPerfAssump
     -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
     -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     poolCfTsM = Map.map (\(CF.CashFlowFrame txns, pstats) -> cutBy Inc Future startDate txns) pCfM -- `debug` ("Pool cfm"++ show pCfM)

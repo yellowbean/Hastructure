@@ -58,9 +58,11 @@ data ApplyAssumptionType = PoolLevel AssetPerf
                            -- ^ assumption which only apply to a set of assets in the pool
                          | ByName (Map.Map PoolId AssetPerf)
                            -- ^ assumption for a named pool
+                         | ByPoolId (Map.Map PoolId ApplyAssumptionType)
+                           -- ^ assumption for a named pool
                          | ByDealName (Map.Map DealName (ApplyAssumptionType, NonPerfAssumption))
                            -- ^ assumption for a named deal 
-                         deriving (Show,Generic)
+                         deriving (Show, Generic)
 
 data NonPerfAssumption = NonPerfAssumption {
   stopRunBy :: Maybe Date                              -- ^ optional stop day,which will stop cashflow projection
