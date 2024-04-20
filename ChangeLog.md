@@ -4,7 +4,7 @@
 ### 2024-04-15
 * ENHANCE: Pool run: enhance multip-scenario run and mulitple-assets type run
 * ENHANCE: Enable revovling on `Receivable`
-* ENHANCE: add `RecoveryByDays` to `Receivable` ,which describle recovery cash received after default.
+* ENHANCE: add `RecoveryByDays` to `Receivable` ,which describes recovery cash received after default.
 * FIX: Fix single asset run on `lease`
 * FIX: Failed to include cumulative stats on revolving buy assets
 * FIX: Multi-asset run was failure due to including schedule cashflow run.
