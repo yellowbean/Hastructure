@@ -17,8 +17,7 @@ import System.Environment
 
 import Control.Monad.Catch       (MonadCatch, MonadThrow (..))
 import Control.Monad.IO.Class    (liftIO)
-
-
+import Control.Exception (Exception)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Lens
@@ -32,7 +31,6 @@ import Data.List
 import Data.Map
 import Data.Proxy
 import qualified Data.Text as T
---import Data.Swagger
 import Data.Maybe
 import Data.Yaml as Y
 import Data.OpenApi hiding (Server,contentType)
@@ -46,20 +44,17 @@ import qualified Data.ByteString.Char8 as BS
 import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
--- import Network.Wai.Middleware.Servant.Errors (errorMw, HasErrorBody(..),errorMwDefJson)
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
 import Network.HTTP.Types.Status
 import Control.Exception (throw)
 
--- import Servant.Exception
-
---import Data.OpenApi hiding(Server) 
 import Servant.OpenApi
 import Servant
 import Servant.Types.SourceT (source)
 import Servant.API.ContentTypes (contentType)
+
 
 import Types 
 import qualified Deal as D
@@ -119,7 +114,6 @@ data DealType = MDeal (DB.TestDeal AB.Mortgage)
               deriving(Show, Generic)
 
 instance ToSchema CF.CashFlowFrame
-
 instance ToSchema AB.Loan
 instance ToSchema AB.Installment
 instance ToSchema AB.AccrualPeriod
@@ -127,9 +121,7 @@ instance ToSchema AB.LeaseStepUp
 instance ToSchema AB.Lease
 instance ToSchema AB.FixedAsset
 instance ToSchema AB.Receivable
-
 instance ToSchema CutoffFields
-
 instance ToSchema (P.Pool AB.Mortgage)
 instance ToSchema (P.Pool AB.Loan)
 instance ToSchema (P.Pool AB.Installment)
@@ -138,11 +130,8 @@ instance ToSchema (P.Pool AB.FixedAsset)
 instance ToSchema (P.Pool AB.Receivable)
 instance ToSchema (P.Pool AB.AssetUnion)
 instance ToSchema AB.AssetUnion
-
 instance ToSchema PoolId
-
 instance ToSchema DealStatus
-
 instance ToSchema DateType
 instance ToSchema DateDesp
 instance ToSchema ActionOnDate
@@ -159,7 +148,6 @@ instance ToSchema (RoundingBy Balance)
 instance ToSchema DealCycle
 instance ToSchema (Table Balance Balance)
 instance ToSchema (Table Float Spread)
-
 instance ToSchema A.Account
 instance ToSchema A.InterestInfo
 instance ToSchema F.Fee
@@ -196,7 +184,6 @@ instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
 instance ToSchema Stmt.Statement
 instance ToSchema Stmt.Txn
--- instance ToSchema Stmt.Direction
 instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
 instance ToSchema RV.RevolvingPool
@@ -217,11 +204,7 @@ instance ToSchema AP.AssetDelinquencyAssumption
 instance ToSchema AP.LeaseAssetGapAssump
 instance ToSchema AP.LeaseAssetRentAssump
 
-
 instance ToSchema Threshold
-
-
-
 
 instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)
@@ -230,9 +213,6 @@ instance ToSchema (DB.TestDeal AB.Lease)
 instance ToSchema (DB.TestDeal AB.Receivable)
 instance ToSchema (DB.TestDeal AB.AssetUnion)
 instance ToSchema (DB.TestDeal AB.FixedAsset)
-
-
-
 
 instance ToSchema (DB.PoolType AB.Mortgage)
 instance ToSchema (DB.PoolType AB.Loan)
@@ -250,20 +230,9 @@ instance ToSchema (DB.UnderlyingDeal AB.FixedAsset)
 instance ToSchema (DB.UnderlyingDeal AB.Receivable)
 instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
 
-
-
-
-
--- instance ToSchema Balance
--- instance ToSchema IRate
--- instance RoundingBy
-
 instance ToSchema ResultComponent
 instance ToSchema L.PriceResult
-
 instance ToSchema DealType
-
-
 
 type RunResp = (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
@@ -298,15 +267,6 @@ wrapRun (VDeal d) mAssump mNonPerfAssump = let
                                        (VDeal _d,_pflow,_rs,_p)                                       
 wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
--- wrapRunPool :: PoolType -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map CutoffFields Balance)
--- wrapRunPool (MPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
--- wrapRunPool (LPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
--- wrapRunPool (IPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
--- wrapRunPool (RPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
--- wrapRunPool (FPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
--- wrapRunPool (VPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
--- wrapRunPool (UPool p) assump mRates = P.aggPool Nothing $ D.runPool p assump mRates
--- wrapRunPool x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
 
 data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
                   | IPool (DB.PoolType AB.Installment)
@@ -358,7 +318,7 @@ data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPer
                 deriving(Show, Generic)
 
 data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
-                   deriving(Show, Generic)
+                    deriving(Show, Generic)
 
 instance ToSchema PoolTypeWrap
 
@@ -408,47 +368,43 @@ engineSwagger = toOpenApi engineAPI
                     & info.license ?~ "BSD 3"
 
 
--- data MyException = ExceptionA 
---                  | ExceptionB
---                  deriving(Show)
 
--- instance Exception MyException
+-- showVersion :: Handler (Envelope '[] Version)
+showVersion :: Handler Version
+showVersion = return version1
 
--- instance ToServantErr MyException where
---   status ExceptionA = status404
---   status ExceptionB = status500
--- 
---   message ExceptionB = "Something bad happened internally"
---   message e = T.pack $ show e
+runAsset :: RunAssetReq -> Handler ((CF.CashFlowFrame, Map.Map CutoffFields Balance),Maybe [PriceResult])
+runAsset req = return $ wrapRunAsset req
 
-  -- headers e = [("X-Reason", T.encodeUtf8 $ message e)]
+runPool :: RunPoolReq -> Handler PoolRunResp
+runPool (SingleRunPoolReq pt passumption mRates) = return $ wrapRunPoolType pt passumption mRates
 
+runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
+runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPoolType pt (Just assump) mRates) mAssumps
 
-myServer :: Server API
-myServer = return engineSwagger 
+runDeal :: RunDealReq -> Handler RunResp
+runDeal (SingleRunReq dt assump nonPerfAssump) =  return $ wrapRun dt assump nonPerfAssump
+
+runDealScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
+runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump) = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
+
+runMultiDeals :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
+runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
+
+runDate :: RunDateReq -> Handler [Date]
+runDate (RunDateReq sd dp) = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+
+myServer :: ServerT API Handler
+myServer =  return engineSwagger
       :<|> showVersion 
       :<|> runAsset
       :<|> runPool
       :<|> runPoolScenarios
       :<|> runDeal
       :<|> runDealScenarios
-      -- :<|> runDealOAS
       :<|> runMultiDeals
       :<|> runDate
 --      :<|> error "not implemented"
-        where 
-          showVersion = return version1 
-          runAsset req = return $ wrapRunAsset req
-          runPool (SingleRunPoolReq pt passumption mRates) = return $ wrapRunPoolType pt passumption mRates
-          runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPoolType pt (Just assump) mRates) mAssumps
-          runDeal (SingleRunReq dt assump nonPerfAssump) = return $ wrapRun dt assump nonPerfAssump 
-          runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump)
-            = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
-          runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
-            = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
-          runDate (RunDateReq sd dp) = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
-
-          -- runDate (RunDateReq sd dp) = return $ throw ExceptionA
 
 
 writeSwaggerJSON :: IO ()
@@ -458,6 +414,10 @@ data Config = Config { port :: Int}
             deriving (Show,Generic)
 
 instance FromJSON Config
+
+app :: Application
+app = serve (Proxy :: Proxy API) myServer
+
 
 main :: IO ()
 main = 
@@ -469,8 +429,6 @@ main =
                         Left exp -> Config 8081
                         Right c -> c
     print ("Engine start with version:"++ _version version1++";running at Port:"++ show _p)
-    run _p 
+    run _p app
 --      $ errorMwDefJson
-      $ serve (Proxy :: Proxy API) myServer
-
 -- $(deriveJSON defaultOptions ''DealType)
