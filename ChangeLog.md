@@ -2,10 +2,12 @@
 
 ## 0.27.4
 ### 2024-04-15
-* FIX: multi-asset run was failure due to including schedule cashflow run.
+* ENHANCE: Pool run: enhance multip-scenario run and mulitple-assets type run
 * ENHANCE: Enable revovling on `Receivable`
 * ENHANCE: add `RecoveryByDays` to `Receivable` ,which describle recovery cash received after default.
-* BUG: fix single asset run on `lease`
+* FIX: Fix single asset run on `lease`
+* FIX: Failed to include cumulative stats on revolving buy assets
+* FIX: Multi-asset run was failure due to including schedule cashflow run.
 * ENHANCE: upgrade stack resolver from `lts-18.22` to `lts-20.26`
 
 

@@ -572,14 +572,24 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
       newPt = case pt of
                 SoloPool p -> 
                   let
-                    txnToAppend::[CF.TsRow] = view CF.cashflowTxn (poolInflowMap Map.! PoolConsol)
+                    txnCollected::[CF.TsRow] = view CF.cashflowTxn (poolInflowMap Map.! PoolConsol)
+                    currentStats = case view P.poolFutureTxn p of
+                                      [] -> (0,0,0,0,0,0)
+                                      txns -> fromMaybe (0,0,0,0,0,0) $ view CF.txnCumulativeStats (last txns)
+                    txnToAppend = CF.patchCumulative currentStats [] txnCollected
                   in 
                     SoloPool $ over P.poolFutureTxn (++ txnToAppend) p
                 MultiPool poolM -> 
                   MultiPool $
                     Map.foldrWithKey
-                      (\k (CF.CashFlowFrame newTxns) acc->
-                        Map.adjust (over P.poolFutureTxn (++ newTxns)) k acc)
+                      (\k (CF.CashFlowFrame txnCollected) acc ->
+                        let 
+                          currentStats = case view P.poolFutureTxn (acc Map.! k) of
+                                          [] -> (0,0,0,0,0,0)
+                                          txns -> fromMaybe (0,0,0,0,0,0) $ view CF.txnCumulativeStats (last txns)
+                          txnToAppend = CF.patchCumulative currentStats [] txnCollected
+                        in 
+                          Map.adjust (over P.poolFutureTxn (++ txnToAppend)) k acc)
                       poolM poolInflowMap
                 ResecDeal uds -> 
                   ResecDeal $ 
