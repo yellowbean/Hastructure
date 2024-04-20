@@ -8,7 +8,7 @@
 * FIX: Fix single asset run on `lease`
 * FIX: Failed to include cumulative stats on revolving buy assets
 * FIX: Multi-asset run was failure due to including schedule cashflow run.
-* ENHANCE: upgrade stack resolver from `lts-18.22` to `lts-20.26`
+* ENHANCE: upgrade stack resolver from `lts-18.22` to `lts-22.6`
 
 
 ## 0.27.0
