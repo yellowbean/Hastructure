@@ -58,9 +58,11 @@ data ApplyAssumptionType = PoolLevel AssetPerf
                            -- ^ assumption which only apply to a set of assets in the pool
                          | ByName (Map.Map PoolId AssetPerf)
                            -- ^ assumption for a named pool
+                         | ByPoolId (Map.Map PoolId ApplyAssumptionType)
+                           -- ^ assumption for a named pool
                          | ByDealName (Map.Map DealName (ApplyAssumptionType, NonPerfAssumption))
                            -- ^ assumption for a named deal 
-                         deriving (Show,Generic)
+                         deriving (Show, Generic)
 
 data NonPerfAssumption = NonPerfAssumption {
   stopRunBy :: Maybe Date                              -- ^ optional stop day,which will stop cashflow projection
@@ -97,8 +99,9 @@ data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^
                                 | Dummy3
                                 deriving (Show,Generic)
 
-data RecoveryAssumption = Recovery (Rate,Int)           -- ^ recovery rate, recovery lag
-                        | RecoveryTiming (Rate,[Rate])  -- ^ recovery rate, with distribution of recoveries
+data RecoveryAssumption = Recovery (Rate,Int)                    -- ^ recovery rate, recovery lag
+                        | RecoveryTiming (Rate,[Rate])           -- ^ recovery rate, with distribution of recoveries
+                        | RecoveryByDays Rate [(Int, Rate)]  -- ^ recovery rate, with distribution of recoveries by offset dates
                         deriving (Show,Generic)
 
 data AssumpReceipe = DefaultAssump AssetDefaultAssumption
@@ -221,16 +224,22 @@ calcResetDates (r:rs) bs
 
 
 $(deriveJSON defaultOptions ''BondPricingInput)
-$(deriveJSON defaultOptions ''ApplyAssumptionType)
-$(deriveJSON defaultOptions ''AssetPerfAssumption)
-$(deriveJSON defaultOptions ''AssetDelinqPerfAssumption)
-$(deriveJSON defaultOptions ''AssetDefaultedPerfAssumption)
-$(deriveJSON defaultOptions ''AssetDefaultAssumption)
-$(deriveJSON defaultOptions ''AssetPrepayAssumption)
-$(deriveJSON defaultOptions ''RecoveryAssumption)
-$(deriveJSON defaultOptions ''ExtraStress)
-$(deriveJSON defaultOptions ''AssetDelinquencyAssumption)
-$(deriveJSON defaultOptions ''LeaseAssetGapAssump)
-$(deriveJSON defaultOptions ''LeaseAssetRentAssump)
-$(deriveJSON defaultOptions ''RevolvingAssumption)
-$(deriveJSON defaultOptions ''NonPerfAssumption)
+
+$(concat <$> traverse (deriveJSON defaultOptions) [''ApplyAssumptionType, ''AssetPerfAssumption
+  , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
+  , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
+  , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption])
+
+-- $(deriveJSON defaultOptions ''ApplyAssumptionType)
+-- $(deriveJSON defaultOptions ''AssetPerfAssumption)
+-- $(deriveJSON defaultOptions ''AssetDelinqPerfAssumption)
+-- $(deriveJSON defaultOptions ''AssetDefaultedPerfAssumption)
+-- $(deriveJSON defaultOptions ''AssetDefaultAssumption)
+-- $(deriveJSON defaultOptions ''AssetPrepayAssumption)
+-- $(deriveJSON defaultOptions ''RecoveryAssumption)
+-- $(deriveJSON defaultOptions ''ExtraStress)
+-- $(deriveJSON defaultOptions ''AssetDelinquencyAssumption)
+-- $(deriveJSON defaultOptions ''LeaseAssetGapAssump)
+-- $(deriveJSON defaultOptions ''LeaseAssetRentAssump)
+-- $(deriveJSON defaultOptions ''RevolvingAssumption)
+-- $(deriveJSON defaultOptions ''NonPerfAssumption)

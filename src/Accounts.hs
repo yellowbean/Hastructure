@@ -137,6 +137,10 @@ draw amount = deposit (- amount)
 updateReserveBalance :: ReserveAmount -> Account -> Account 
 updateReserveBalance ra acc = acc {accType = Just ra}
 
+instance QueryByComment Account where 
+    queryStmt (Account _ _ _ _ Nothing) tc = []
+    queryStmt (Account _ _ _ _ (Just (Statement txns))) tc = filter (\x -> getTxnComment x == tc) txns
+
 -- | query total balance transfer from account a to account b
 queryTrasnferBalance :: Account -> Account -> Balance
 queryTrasnferBalance Account{accStmt = Nothing } Account{accName = an} = 0
@@ -146,9 +150,6 @@ queryTrasnferBalance a@Account{accName = fromAccName, accStmt = Just (Statement 
 makeLensesFor [("accBalance","accBalLens") ,("accName","accNameLens") ,("accType","accTypeLens") ,("accStmt","accStmtLens")] ''Account
 
 
-instance QueryByComment Account where 
-    queryStmt (Account _ _ _ _ Nothing) tc = []
-    queryStmt (Account _ _ _ _ (Just (Statement txns))) tc = filter (\x -> getTxnComment x == tc) txns
 
 instance IR.UseRate Account where 
   isAdjustbleRate (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _) = True

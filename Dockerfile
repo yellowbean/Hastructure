@@ -1,8 +1,8 @@
-FROM fpco/stack-build:lts-19 as build
+FROM fpco/stack-build:lts-22.6 as build
 RUN mkdir /opt/build
 COPY . /opt/build
 RUN cd /opt/build && stack build  --copy-bins  \ 
-    --local-bin-path /opt/build  --resolver lts-18.22 # --system-ghc
+    --local-bin-path /opt/build  --resolver lts-22.6 # --system-ghc
 
 
 FROM --platform=linux/amd64 ubuntu:22.04

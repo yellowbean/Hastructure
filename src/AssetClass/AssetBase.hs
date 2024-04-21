@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
@@ -16,8 +17,12 @@ import Language.Haskell.TH
 import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Types hiding (Current,startDate,originTerm)
 
+import Data.OpenApi hiding (Server,contentType)
+
+import Types hiding (Current,startDate,originTerm)
+import Data.Ratio
+import Data.Proxy
 import Util
 import qualified Data.Map as Map
 import qualified InterestRate as IR
@@ -235,15 +240,20 @@ instance IR.UseRate Receivable where
   getIndex _ = Nothing
 
 
-$(deriveJSON defaultOptions ''AmortRule)
-$(deriveJSON defaultOptions ''Capacity)
+
+$(concat <$> traverse (deriveJSON defaultOptions) [''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
+    , ''Capacity, ''AmortRule, ''ReceivableFeeType])
+
+
+-- $(deriveJSON defaultOptions ''AmortRule)
+-- $(deriveJSON defaultOptions ''Capacity)
 $(deriveJSON defaultOptions ''AssociateExp)
 $(deriveJSON defaultOptions ''AssociateIncome)
-$(deriveJSON defaultOptions ''FixedAsset)
+-- $(deriveJSON defaultOptions ''FixedAsset)
 $(deriveJSON defaultOptions ''Status)
-$(deriveJSON defaultOptions ''AmortPlan)
-$(deriveJSON defaultOptions ''ReceivableFeeType)
-$(deriveJSON defaultOptions ''OriginalInfo)
+-- $(deriveJSON defaultOptions ''AmortPlan)
+-- $(deriveJSON defaultOptions ''ReceivableFeeType)
+-- $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''Installment)
 $(deriveJSON defaultOptions ''LeaseStepUp)
 $(deriveJSON defaultOptions ''Mortgage)
@@ -251,4 +261,37 @@ $(deriveJSON defaultOptions ''Loan)
 $(deriveJSON defaultOptions ''Lease)
 $(deriveJSON defaultOptions ''Receivable)
 $(deriveJSON defaultOptions ''AssetUnion)
-$(deriveJSON defaultOptions ''PrepayPenaltyType)
+-- $(deriveJSON defaultOptions ''PrepayPenaltyType)
+
+
+-- instance ToSchema TsPoint
+-- instance ToSchema (Ratio Integer)
+instance ToSchema Capacity
+instance ToSchema AmortRule
+-- instance ToSchema (Ratio Integer) 
+instance ToSchema (Ratio Integer) where 
+  declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
+
+
+instance ToSchema PrepayPenaltyType
+instance ToSchema Ts
+instance ToSchema (TsPoint Balance)
+instance ToSchema (TsPoint IRate)
+instance ToSchema (TsPoint Rational)
+instance ToSchema (TsPoint Bool)
+instance ToSchema (RoundingBy IRate)
+
+instance ToSchema Index
+instance ToSchema DayCount
+instance ToSchema Direction
+instance ToSchema AmortPlan
+instance ToSchema DatePattern
+instance ToSchema IR.RateType
+-- instance ToSchema (IR.RoundingBy IR.RateType)
+instance ToSchema CF.TsRow
+instance ToSchema Period
+instance ToSchema IR.ARM
+instance ToSchema Status
+instance ToSchema ReceivableFeeType
+instance ToSchema OriginalInfo
+instance ToSchema Mortgage 

@@ -8,7 +8,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
-                ,lookupSource,reduceTs,combineTss
+                ,lookupSource,combineTss
                 ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,splitCashFlowFrameByDate,emptyTsRow,mflowAmortAmount
@@ -19,7 +19,8 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,patchCumulative,extendTxns,dropTailEmptyTxns
-                ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid) where
+                ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
+                ,txnCumulativeStats) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -123,7 +124,7 @@ scaleTsRow r (MortgageFlow d b p i prep def rec los rat mbn pp st)
      rat 
      mbn 
      pp 
-     ((splitStats r) <$> st)
+     (splitStats r <$> st)
 scaleTsRow r (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) 
   = MortgageDelinqFlow d 
       (fromRational r * b)
@@ -253,9 +254,10 @@ combineTs (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1) tr@(ReceivableFlo
 
 combineTss :: [TsRow] -> [TsRow] -> [TsRow] -> [TsRow]
 -- ^ combine two cashflows from two entities,(auto patch a beg balance)
+-- ^ left cashflow is ealier ,right one is later,combine both and yield cashflow with earlier date
 combineTss [] [] r = r
 combineTss [] r [] = r
-combineTss [] (r1:r1s) (r2:r2s) 
+combineTss [] (r1:r1s) (r2:r2s)
   | getDate r1 > getDate r2 = combineTss [] (r2:r2s) (r1:r1s)
   | getDate r1 == getDate r2 = combineTss [combineTs r1 r2] 
                                          r1s
@@ -272,6 +274,7 @@ combineTss (consol:consols) (r:rs) (tr:trs)
   | getDate r < getDate tr = combineTss (appendTs consol r:consol:consols) rs (tr:trs)
   | getDate r > getDate tr = combineTss (appendTs consol tr:consol:consols) (r:rs) trs 
 combineTss a b c = error $ "combineTss not supported "++show a++" "++show b++" "++show c
+
 
 
 appendTs :: TsRow -> TsRow -> TsRow 
@@ -453,13 +456,6 @@ clawbackInt bal txns
     in 
       [ tsReduceInt intDown txn | (txn,intDown) <- zip txns intDowns]
 
--- ^ consolidate cashflow from same entity , update balance of newer cashflow record
-reduceTs :: [TsRow] -> TsRow -> [TsRow]
-reduceTs [] _tr = [_tr]
-reduceTs (tr:trs) _tr 
-  | sameDate tr _tr = addTs tr _tr : trs 
-  | otherwise = appendTs tr _tr : tr : trs 
-
 aggregateTsByDate :: [TsRow] -> [TsRow] -> [TsRow]
 aggregateTsByDate rs [] = reverse rs
 aggregateTsByDate [] (tr:trs) = aggregateTsByDate [tr] trs
@@ -495,7 +491,6 @@ buildCollectedCF a b c = error $ "buildCollectedCF failed"++ show a++">>"++ show
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates [] ds = []
 aggTsByDates trs ds = uncurry sumTsCF <$> filter (\(cfs,_d) -> (not . null) cfs) (zip (buildCollectedCF [] ds trs) ds) -- `debug` (">>> to sumTsCF "++ show (zip (buildCollectedCF [] ds trs) ds ))
-
 
 mflowPrincipal :: TsRow -> Balance
 mflowPrincipal (BondFlow _ _ p _) = p
@@ -560,6 +555,15 @@ updateFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a b c d e f g i j 
 updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
 updateFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a b c d e f
 updateFlowBalance b (ReceivableFlow a x c d e f g h i) = ReceivableFlow a b c d e f g h i
+
+updateCumStats :: Maybe CumulativeStat -> TsRow -> TsRow
+updateCumStats Nothing x = x
+updateCumStats stat (MortgageDelinqFlow a b c d e f g h i j k l _) = MortgageDelinqFlow a b c d e f g h i j k l stat
+updateCumStats stat (MortgageFlow a b c d e f g h i j k _) = MortgageFlow a b c d e f g h i j k stat
+updateCumStats stat (LoanFlow a b c d e f g h i _) = LoanFlow a b c d e f g h i stat
+updateCumStats stat (ReceivableFlow a b c d e f g h _) = ReceivableFlow a b c d e f g h stat
+updateCumStats stat _ = error "not supported for update cumulative stats for record "
+
 
 mflowBegBalance :: TsRow -> Balance
 mflowBegBalance (BondFlow _ x p _) = x + p
@@ -778,7 +782,47 @@ splitTs _ tr = error $ "Not support for spliting TsRow"++show tr
 splitTrs :: Rate -> [TsRow] -> [TsRow]
 splitTrs r trs = splitTs r <$> trs 
 
+-- addCumulative :: CumulativeStat -> [TsRow] -> [TsRow]
+-- addCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss) 
+--               (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN mStat)
+--   = MortgageDelinqFlow d (bal+cPrin) (p+cPrepay) i ppy (delinq+cDelinq) (def+cDefault) (recovery+cRecovery) (loss+cLoss) rate mB mPPN mStat
+-- 
+-- addCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss) 
+--               (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN mStat)
+--   = MortgageFlow d (bal+cPrin) (p+cPrepay) i ppy (def+cDefault) (recovery+cRecovery) (loss+cLoss) rate mB mPPN mStat
+
+
 -- type CumulativeStat = (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
+
+ -- EmptyCumulativeStat = (0,0,0,0,0,0)
+
+currentCumulativeStat :: [TsRow] -> CumulativeStat
+currentCumulativeStat [] = (0,0,0,0,0,0)
+currentCumulativeStat trs = 
+  let 
+    tr = last trs
+  in 
+    case tr of 
+      (MortgageDelinqFlow _ bal p i ppy delinq def recovery loss _ _ _ (Just x)) -> x
+      (MortgageFlow _ bal p i ppy def recovery loss _ _ _ (Just x)) -> x
+      (LoanFlow _ bal p i ppy def recovery loss _ (Just x)) -> x
+      (ReceivableFlow _ bal p i ppy def recovery loss (Just x)) -> x
+      _ -> (0,0,0,0,0,0)
+
+
+patchCumulativeAtInit :: Maybe CumulativeStat -> [TsRow] -> [TsRow]
+patchCumulativeAtInit _ [] = []
+patchCumulativeAtInit mStatsInit (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN mStat:trs)
+  = MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN (sumStats mStat mStatsInit):trs
+patchCumulativeAtInit mStatsInit (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN mStat:trs)
+  = MortgageFlow d bal p i ppy def recovery loss rate mB mPPN (sumStats mStat mStatsInit):trs
+patchCumulativeAtInit mStatsInit (LoanFlow d bal p i ppy def recovery loss rate mStat:trs)
+  = LoanFlow d bal p i ppy def recovery loss rate (sumStats mStat mStatsInit):trs
+patchCumulativeAtInit mStatsInit (ReceivableFlow d bal p i ppy def recovery loss mStat:trs)
+  = ReceivableFlow d bal p i ppy def recovery loss (sumStats mStat mStatsInit):trs
+patchCumulativeAtInit _ trs = trs
+
+
 patchCumulative :: CumulativeStat -> [TsRow] -> [TsRow] -> [TsRow]
 patchCumulative _ rs [] = reverse rs
 patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
@@ -824,6 +868,14 @@ patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                where
                  newSt = (cPrin+c,0,0,cDefault+f,cRecovery+g,cLoss+h)
 
+patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
+              rs
+              ((LeaseFlow a b c) :trs)
+  = patchCumulative newSt
+                  (LeaseFlow a b c:rs)
+                  trs
+               where
+                 newSt = (0,0,0,0,0,0)
 
 patchCumulative a b c = error ("faile to patch cumulative stats for "++show a ++">>"++show b++">>"++show c)
 
@@ -884,6 +936,33 @@ cashflowTxn = lens getter setter
   where 
     getter (CashFlowFrame txns) = txns
     setter (CashFlowFrame txns) newTxns = CashFlowFrame newTxns
+
+cashflowLastTxn :: Lens' CashFlowFrame TsRow
+cashflowLastTxn = lens getter setter
+  where 
+    getter (CashFlowFrame txns) = last txns
+    setter (CashFlowFrame txns) newTxn = CashFlowFrame $ init txns ++ [newTxn]
+
+txnCumulativeStats :: Lens' TsRow (Maybe CumulativeStat)
+txnCumulativeStats = lens getter setter
+  where 
+    getter (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN mStat) = mStat
+    getter (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN mStat) = mStat
+    getter (LoanFlow d bal p i ppy def recovery loss rate mStat) = mStat
+    getter (ReceivableFlow d bal p i ppy def recovery loss mStat) = mStat
+    getter _ = Nothing
+    
+    setter (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN _) mStat 
+      = MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN mStat
+    setter (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN _) mStat
+      = MortgageFlow d bal p i ppy def recovery loss rate mB mPPN mStat
+    setter (LoanFlow d bal p i ppy def recovery loss rate _) mStat
+      = LoanFlow d bal p i ppy def recovery loss rate mStat
+    setter (ReceivableFlow d bal p i ppy def recovery loss _) mStat
+      = ReceivableFlow d bal p i ppy def recovery loss mStat
+    setter x _ = x
+
+
 
 -- snapshotTxn :: TsRow -> Date -> TsRow
 -- snapshotTxn trs d = trs

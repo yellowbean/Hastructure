@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
 
+
 module Types
   (DayCount(..),DateType(..),OverrideType(..),CutoffFields(..)
   ,ActionOnDate(..),DealStatus(..),DatePattern(..)
@@ -48,8 +49,7 @@ import Data.Aeson.Types
 import Data.Fixed
 import Data.Ix
 
-import Data.List
-import Data.List (intercalate)
+import Data.List (intercalate, findIndex)
 -- import Cashflow (CashFlowFrame)
 
 import Debug.Trace
@@ -157,128 +157,8 @@ data DateType = ClosingDate        -- ^ deal closing day
               | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
               deriving (Show,Ord,Eq,Generic,Read)
 
-data Period = Daily 
-            | Weekly 
-            | Monthly 
-            | Quarterly 
-            | SemiAnnually 
-            | Annually
-            deriving (Show,Eq,Generic,Ord)
-
-type DateVector = (Date, DatePattern)
-
-data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
-              --  cutoff pool       closing bond payment dates 
-              | CustomDates Date [ActionOnDate] Date [ActionOnDate]
-              | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
-              --  cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
-              | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
-              --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
-              | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
-              deriving (Show,Eq, Generic,Ord)
-
-data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
-                  | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
-                  | AccrueFee Date FeeName               -- ^ accure fee
-                  | ResetLiqProvider Date String         -- ^ reset credit for liquidity provider
-                  | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
-                  | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
-                  | RunWaterfall Date String             -- ^ execute waterfall
-                  | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
-                  | FireTrigger Date DealCycle String    -- ^ fire a trigger
-                  | InspectDS Date DealStats             -- ^ inspect formula
-                  | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
-                  | AccrueCapRate Date String             -- ^ reset interest rate cap dates
-                  | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
-                  | MakeWhole Date Spread (Table Float Spread)
-                  | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
-                  deriving (Show,Generic,Read)
 
 
-instance TimeSeries ActionOnDate where
-    getDate (RunWaterfall d _) = d
-    getDate (ResetLiqProvider d _) = d
-    getDate (PoolCollection d _) = d
-    getDate (EarnAccInt d _) = d
-    getDate (AccrueFee d _) = d
-    getDate (DealClosed d) = d
-    getDate (FireTrigger d _ _) = d
-    getDate (ChangeDealStatusTo d _ ) = d
-    getDate (InspectDS d _ ) = d
-    getDate (ResetIRSwapRate d _ ) = d
-    getDate (AccrueCapRate d _ ) = d
-    getDate (ResetBondRate d _ ) = d 
-    getDate (MakeWhole d _ _) = d 
-    getDate (BuildReport sd ed) = ed
-
-sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
-sortActionOnDate a1 a2 
-  | d1 == d2 = case (a1,a2) of
-                 (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
-                 (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
-                 (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
-                 (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
-                 (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
-                 (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
-                 (EarnAccInt {} ,_) -> LT  -- earn should be first
-                 (_ , EarnAccInt {}) -> GT -- earn should be first
-                 (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
-                 (_ , ResetLiqProvider {}) -> GT -- reset liq be first
-                 (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
-                 (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
-                 (_,_) -> EQ 
-  | otherwise = compare d1 d2
-  where 
-    d1 = getDate a1 
-    d2 = getDate a2 
-
-instance Ord ActionOnDate where
-  compare a1 a2 = compare (getDate a1) (getDate a2)
-
-instance Eq ActionOnDate where
-  a1 == a2 = getDate a1 == getDate a2
-
-opts :: JSONKeyOptions
-opts = defaultJSONKeyOptions -- { keyModifier = toLower }
-
-instance ToJSONKey DateType where
-  toJSONKey = genericToJSONKey opts
-
-instance FromJSONKey DateType where
-  fromJSONKey = genericFromJSONKey opts
-
-data OverrideType = CustomActionOnDates [ActionOnDate]
-                    deriving (Show,Generic,Ord,Eq)
-
-data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated status with optinal accerlerated date
-                | DealDefaulted (Maybe Date)        -- ^ Deal is defaulted status with optinal default date
-                | Amortizing                        -- ^ Deal is amortizing 
-                | Revolving                         -- ^ Deal is revolving
-                | RampUp                            -- ^ Deal is being ramping up
-                | Ended                             -- ^ Deal is marked as closed
-                | PreClosing DealStatus             -- ^ Deal is not closed
-                | Called                            -- ^ Deal is called
-                deriving (Show,Ord,Eq,Read, Generic)
-
-data DealCycle = EndCollection         -- ^ | collection period <HERE> collection action , waterfall action
-               | EndCollectionWF       -- ^ | collection period  collection action <HERE>, waterfall action
-               | BeginDistributionWF   -- ^ | collection period  collection action , <HERE>waterfall action
-               | EndDistributionWF     -- ^ | collection period  collection action , waterfall action<HERE>
-               | InWF                  -- ^ | collection period  collection action , waterfall <HERE> action
-               deriving (Show, Ord, Eq, Read, Generic)
-
-instance ToJSONKey DealCycle where
-  toJSONKey = toJSONKeyText (T.pack . show)
-
-instance FromJSONKey DealCycle where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
-
-data CustomDataType = CustomConstant Rational 
-                    | CustomCurve    Ts 
-                    | CustomDS       DealStats
-                    deriving (Show,Ord,Eq,Read,Generic)
 
 data DatePattern = MonthEnd
                  | QuarterEnd
@@ -298,11 +178,173 @@ data DatePattern = MonthEnd
                  | Exclude DatePattern [DatePattern]
                  | OffsetBy DatePattern Int
                  -- | DayOfWeek Int -- T.DayOfWeek
-                 deriving (Show,Eq, Generic,Ord)
+                 deriving (Show, Eq, Generic, Ord)
+
+
+data Period = Daily 
+            | Weekly 
+            | Monthly 
+            | Quarterly 
+            | SemiAnnually 
+            | Annually
+            deriving (Show,Eq,Generic,Ord)
+
+type DateVector = (Date, DatePattern)
+
+data DealCycle = EndCollection         -- ^ | collection period <HERE> collection action , waterfall action
+               | EndCollectionWF       -- ^ | collection period  collection action <HERE>, waterfall action
+               | BeginDistributionWF   -- ^ | collection period  collection action , <HERE>waterfall action
+               | EndDistributionWF     -- ^ | collection period  collection action , waterfall action<HERE>
+               | InWF                  -- ^ | collection period  collection action , waterfall <HERE> action
+               deriving (Show, Ord, Eq, Read, Generic)
+
+
+data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated status with optinal accerlerated date
+                | DealDefaulted (Maybe Date)        -- ^ Deal is defaulted status with optinal default date
+                | Amortizing                        -- ^ Deal is amortizing 
+                | Revolving                         -- ^ Deal is revolving
+                | RampUp                            -- ^ Deal is being ramping up
+                | Ended                             -- ^ Deal is marked as closed
+                | PreClosing DealStatus             -- ^ Deal is not closed
+                | Called                            -- ^ Deal is called
+                deriving (Show,Ord,Eq,Read, Generic)
+
+
+data RoundingBy a = RoundCeil a 
+                  | RoundFloor a
+                  deriving (Show, Generic, Eq, Ord, Read)
+
+type DealName = String
+
+data PoolId = PoolName String                         -- ^ pool name
+            | PoolConsol                              -- ^ consolidate pool ( the only pool )
+            | DealBondFlow DealName String Date Rate  -- ^ bond flow from deal
+            deriving (Eq,Ord,Generic)
+
+
+data Cmp = G      -- ^ Greater than 
+         | GE     -- ^ Greater Equal than
+         | L      -- ^ Less than
+         | LE     -- ^ Less Equal than
+         | E      -- ^ Equals to
+         deriving (Show,Generic,Eq,Ord,Read)
+
+
+data PoolSource = CollectedInterest               -- ^ interest
+                | CollectedPrincipal              -- ^ schdule principal
+                | CollectedRecoveries             -- ^ recoveries 
+                | CollectedPrepayment             -- ^ prepayment
+                | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
+                | CollectedRental                 -- ^ rental from pool
+                | CollectedFeePaid                -- ^ fee from pool
+                | CollectedCash                   -- ^ cash from pool
+                | NewDefaults                     -- ^ new defaults in balance
+                | NewLosses                       -- ^ new losses in balance
+                | NewDelinquencies                -- ^ new delinquencies in balance
+                deriving (Show,Ord,Read,Eq, Generic)
+
+
+data TsPoint a = TsPoint Date a
+                deriving (Show,Eq,Read,Generic)
+
+data RangeType = II     -- ^ include both start and end date
+               | IE     -- ^ include start date ,but not end date
+               | EI     -- ^ exclude start date but include end date
+               | EE     -- ^ exclude either start date and end date 
+               | NO_IE  -- ^ no handling on start date and end date
+
+data CutoffType = Inc 
+                | Exc
+                deriving (Show,Read,Generic,Eq)
+
+data DateDirection = Future 
+                   | Past
+                   deriving (Show,Read,Generic)
+
+class TimeSeries ts where 
+    cmp :: ts -> ts -> Ordering
+    cmp t1 t2 = compare (getDate t1) (getDate t2)
+    sameDate :: ts -> ts -> Bool
+    sameDate t1 t2 =  getDate t1 == getDate t2
+    getDate :: ts -> Date
+    getDates :: [ts] -> [Date]
+    getDates ts = [ getDate t | t <- ts ]
+    filterByDate :: [ts] -> Date -> [ts]
+    filterByDate ts d = filter (\x -> getDate x == d ) ts
+    sliceBy :: RangeType -> StartDate -> EndDate -> [ts] -> [ts]
+    sliceBy rt sd ed ts
+      = case rt of 
+          II -> filter (\x -> getDate x >= sd && getDate x <= ed ) ts 
+          IE -> filter (\x -> getDate x >= sd && getDate x < ed ) ts 
+          EI -> filter (\x -> getDate x > sd && getDate x <= ed) ts 
+          EE -> filter (\x -> getDate x > sd && getDate x < ed ) ts 
+          _  -> error "Not support NO_IE for sliceBy in TimeSeries"
+    cutBy :: CutoffType -> DateDirection -> Date -> [ts] -> [ts]
+    cutBy ct dd d ts 
+      = case (ct,dd) of
+          (Inc, Future) ->  filter (\x -> getDate x >= d) ts
+          (Inc, Past) ->  filter (\x -> getDate x <= d) ts
+          (Exc, Future) ->  filter (\x -> getDate x > d) ts
+          (Exc, Past) ->  filter (\x -> getDate x < d) ts
+
+    cmpWith :: ts -> Date -> Ordering
+    cmpWith t d = compare (getDate t) d
+
+    isAfter :: ts -> Date -> Bool 
+    isAfter t d = getDate t > d
+    isOnAfter :: ts -> Date -> Bool 
+    isOnAfter t d = getDate t >= d
+    isBefore :: ts -> Date -> Bool 
+    isBefore t d = getDate t < d
+    isOnBefore :: ts -> Date -> Bool 
+    isOnBefore t d = getDate t <= d
+
+    splitBy :: Date -> CutoffType -> [ts] -> ([ts],[ts])
+    splitBy d ct tss = 
+      let 
+        ffunR x = case ct of
+                    Inc -> getDate x > d -- include ts in the Left
+                    Exc -> getDate x >= d  -- 
+        ffunL x = case ct of
+                    Inc -> getDate x <= d -- include ts in the Left
+                    Exc-> getDate x < d  -- 
+      in 
+        (filter ffunL tss, filter ffunR tss)
+ 
+
+data Ts = FloatCurve [TsPoint Rational]
+        | BoolCurve [TsPoint Bool]
+        | BalanceCurve [TsPoint Balance]
+        | LeftBalanceCurve [TsPoint Balance]
+        | RatioCurve [TsPoint Rational]
+        | ThresholdCurve [TsPoint Rational]
+        | IRateCurve [TsPoint IRate]
+        | FactorCurveClosed [TsPoint Rational] Date
+        | PricingCurve [TsPoint Rational] 
+        deriving (Show,Eq,Ord,Read,Generic)
+
+
+data Direction = Up 
+               | Down
+               deriving (Show,Read,Generic,Eq,Ord)
+
 
 data BookDirection = Credit
                    | Debit
                    deriving (Show,Ord, Eq,Read, Generic)
+
+data Limit = DuePct Rate            -- ^ up to % of total amount due
+           | DueCapAmt Balance      -- ^ up to $ amount 
+           | KeepBalAmt DealStats   -- ^ pay till a certain amount remains in an account
+           | DS DealStats           -- ^ transfer with limit described by a `DealStats`
+           | ClearLedger String     -- ^ when transfer, clear the ledger by transfer amount
+           | BookLedger String      -- ^ when transfer, book the ledger by the transfer amount
+           | RemainBalPct Rate      -- ^ pay till remain balance equals to a percentage of `stats`
+           | TillTarget             -- ^ transfer amount which make target account up reach reserve balanace
+           | TillSource             -- ^ transfer amount out till source account down back to reserve balance
+           | Multiple Limit Float   -- ^ factor of a limit
+           deriving (Show,Ord,Eq,Read,Generic)
+
 
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
@@ -334,123 +376,23 @@ data TxnComment = PayInt [BondName]
                 | TxnComments [TxnComment]
                 deriving (Eq, Show, Ord ,Read, Generic)
 
-instance ToJSON TxnComment where 
-  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
-  toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
-  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
-  toJSON (WriteOff bn amt ) =  String $ T.pack $ "<WriteOff:"++ bn ++","++ show amt ++ ">"
-  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
-  toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
-  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
-  toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
-  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
-  toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
-  toJSON (PoolInflow mPids ps) =  String $ T.pack $ "<Pool"++ maybe "" (intercalate "|" . (show <$>)) mPids ++":"++ show ps++">"
-  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
-  toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
-  toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
-  toJSON Empty =  String $ T.pack $ "" 
-  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
-  toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
-  toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
-  toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
-  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
-  toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
-  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
-  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
-  toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
-  toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
-  toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
-
-instance FromJSON TxnComment where
-    parseJSON = withText "Empty" parseTxn
-
-parseTxn :: T.Text -> Parser TxnComment 
-parseTxn "" = return Empty 
-parseTxn "<BankInt>" = return BankInt
-parseTxn t = case tagName of 
-  "Transfer" -> let 
-                  sv = T.splitOn (T.pack ",") $ T.pack contents
-                in 
-                  return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
-  where 
-      pat = "<(\\S+):(\\S+)>"::String
-      sr = (T.unpack t =~ pat)::[[String]]
-      tagName =  head sr!!1::String
-      contents = head sr!!2::String
-
-data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
-                  | HistoryRecoveries    -- ^ cumulative recoveries
-                  | HistoryInterest      -- ^ cumulative interest collected
-                  | HistoryPrepayment    -- ^ cumulative prepayment collected
-                  | HistoryPrincipal     -- ^ cumulative principal collected
-                  | HistoryRental        -- ^ cumulative rental collected
-                  | HistoryDefaults      -- ^ cumulative default balance
-                  | HistoryDelinquency   -- ^ cumulative delinquency balance
-                  | HistoryLoss          -- ^ cumulative loss/write-off balance
-                  | HistoryCash          -- ^ cumulative cash
-                  | AccruedInterest      -- ^ accrued interest at closing
-                  deriving (Show,Ord,Eq,Read,Generic)
-
-instance ToJSONKey CutoffFields where
-  toJSONKey = toJSONKeyText (Text.pack . show)
-
-instance FromJSONKey CutoffFields where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t)
-
-data PoolSource = CollectedInterest               -- ^ interest
-                | CollectedPrincipal              -- ^ schdule principal
-                | CollectedRecoveries             -- ^ recoveries 
-                | CollectedPrepayment             -- ^ prepayment
-                | CollectedPrepaymentPenalty      -- ^ prepayment pentalty
-                | CollectedRental                 -- ^ rental from pool
-                | CollectedFeePaid                -- ^ fee from pool
-                | CollectedCash                   -- ^ cash from pool
-                | NewDefaults                     -- ^ new defaults in balance
-                | NewLosses                       -- ^ new losses in balance
-                | NewDelinquencies                -- ^ new delinquencies in balance
-                deriving (Show,Ord,Read,Eq, Generic)
-
-type DealName = String
-
-data PoolId = PoolName String                         -- ^ pool name
-            | PoolConsol                              -- ^ consolidate pool ( the only pool )
-            | DealBondFlow DealName String Date Rate  -- ^ bond flow from deal
-            deriving (Eq,Ord,Generic)
-
-instance Show PoolId where
-  show (PoolName n)  = n
-  show PoolConsol = "PoolConsol"
-  show (DealBondFlow dn bn sd r) = "BondFlow:"++dn++":"++bn++":"++show sd++":"++show r
-
-instance (Read PoolId) where
-  readsPrec d "PoolConsol" = [(PoolConsol,"")]
-  readsPrec d rStr = 
-    let 
-      pn = Data.List.Split.splitOn ":" rStr
-    in
-      case pn of
-        [dn,bn,sd,r] -> 
-          let 
-            sd' = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" sd
-            r' = read r::Rate
-          in 
-            [(DealBondFlow dn bn sd' r',"")]
-        ["PoolName",pn] -> [(PoolName pn,"")]
-        _ -> error $ "Invalid PoolId: "++ show pn
 
 
-instance ToJSONKey PoolId where
-  toJSONKey :: ToJSONKeyFunction PoolId
-  toJSONKey = toJSONKeyText (T.pack . show)
+type Valuation = Centi
+type PerFace = Micro
+type WAL = Centi
+type Duration = Micro
+type Convexity = Micro
+type Yield = Micro
+type AccruedInterest = Centi
+type IRR = Rational
+data YieldResult = Yield
 
-
-instance FromJSONKey PoolId where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
+                 | AssetPrice Valuation WAL Duration Convexity AccruedInterest
+                 | OASResult PriceResult [Valuation] Spread  
+                 | ZSpread Spread 
+                 deriving (Show, Eq, Generic)
 
 
 data DealStats = CurrentBondBalance
@@ -554,6 +496,97 @@ data DealStats = CurrentBondBalance
                | Round DealStats (RoundingBy Balance)
                deriving (Show,Eq,Ord,Read,Generic)
 
+
+data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
+                   | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
+                   | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
+                   | PV IRate IRate                   -- ^ discount factor, recovery pct on default
+                   | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
+                   | PvRate Rate                      -- ^ [CF] Pricing cashflow with a constant rate
+                   | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
+                   | Custom Rate                      -- ^ custom amount
+                   deriving (Show, Eq ,Generic, Read,Ord)
+
+
+data Table a b = ThresholdTable [(a,b)]
+                 deriving (Show,Eq,Ord,Read,Generic)
+
+
+data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
+                  | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
+                  | AccrueFee Date FeeName               -- ^ accure fee
+                  | ResetLiqProvider Date String         -- ^ reset credit for liquidity provider
+                  | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
+                  | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
+                  | RunWaterfall Date String             -- ^ execute waterfall
+                  | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
+                  | FireTrigger Date DealCycle String    -- ^ fire a trigger
+                  | InspectDS Date DealStats             -- ^ inspect formula
+                  | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
+                  | AccrueCapRate Date String             -- ^ reset interest rate cap dates
+                  | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | MakeWhole Date Spread (Table Float Spread)
+                  | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
+                  deriving (Show,Generic,Read)
+
+
+data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
+              --  cutoff pool       closing bond payment dates 
+              | CustomDates Date [ActionOnDate] Date [ActionOnDate]
+              | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
+              --  cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
+              | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
+              --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
+              | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
+              deriving (Show,Eq, Generic,Ord)
+
+
+sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
+sortActionOnDate a1 a2 
+  | d1 == d2 = case (a1,a2) of
+                 (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
+                 (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
+                 (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
+                 (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
+                 (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
+                 (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
+                 (EarnAccInt {} ,_) -> LT  -- earn should be first
+                 (_ , EarnAccInt {}) -> GT -- earn should be first
+                 (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
+                 (_ , ResetLiqProvider {}) -> GT -- reset liq be first
+                 (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
+                 (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
+                 (_,_) -> EQ 
+  | otherwise = compare d1 d2
+  where 
+    d1 = getDate a1 
+    d2 = getDate a2 
+
+opts :: JSONKeyOptions
+opts = defaultJSONKeyOptions -- { keyModifier = toLower }
+
+data OverrideType = CustomActionOnDates [ActionOnDate]
+                    deriving (Show,Generic,Ord,Eq)
+
+data CustomDataType = CustomConstant Rational 
+                    | CustomCurve    Ts 
+                    | CustomDS       DealStats
+                    deriving (Show,Ord,Eq,Read,Generic)
+
+data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
+                  | HistoryRecoveries    -- ^ cumulative recoveries
+                  | HistoryInterest      -- ^ cumulative interest collected
+                  | HistoryPrepayment    -- ^ cumulative prepayment collected
+                  | HistoryPrincipal     -- ^ cumulative principal collected
+                  | HistoryRental        -- ^ cumulative rental collected
+                  | HistoryDefaults      -- ^ cumulative default balance
+                  | HistoryDelinquency   -- ^ cumulative delinquency balance
+                  | HistoryLoss          -- ^ cumulative loss/write-off balance
+                  | HistoryCash          -- ^ cumulative cash
+                  | AccruedInterest      -- ^ accrued interest at closing
+                  deriving (Show,Ord,Eq,Read,Generic)
+
+
 data DealStatType = RtnBalance 
                   | RtnRate 
                   | RtnBool 
@@ -592,13 +625,6 @@ getDealStatType _ = RtnBalance
 dealStatType _ = RtnBalance
 
 
-data Cmp = G      -- ^ Greater than 
-         | GE     -- ^ Greater Equal than
-         | L      -- ^ Less than
-         | LE     -- ^ Less Equal than
-         | E      -- ^ Equals to
-         deriving (Show,Generic,Eq,Ord,Read)
-
 
 data Pre = IfZero DealStats
          | If Cmp DealStats Balance
@@ -622,43 +648,6 @@ data Pre = IfZero DealStats
          deriving (Show,Generic,Eq,Ord)
 
 
-data TsPoint a = TsPoint Date a
-                deriving (Show,Eq,Read,Generic)
-
-instance TimeSeries (TsPoint a) where 
-    getDate (TsPoint d a) = d
-
-instance Ord a => Ord (TsPoint a) where
-  compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
-
-data Ts = FloatCurve [TsPoint Rational]
-        | BoolCurve [TsPoint Bool]
-        | BalanceCurve [TsPoint Balance]
-        | LeftBalanceCurve [TsPoint Balance]
-        | RatioCurve [TsPoint Rational]
-        | ThresholdCurve [TsPoint Rational]
-        | IRateCurve [TsPoint IRate]
-        | FactorCurveClosed [TsPoint Rational] Date
-        | PricingCurve [TsPoint Rational] 
-        deriving (Show,Eq,Ord,Read,Generic)
-
-data RangeType = II     -- ^ include both start and end date
-               | IE     -- ^ include start date ,but not end date
-               | EI     -- ^ exclude start date but include end date
-               | EE     -- ^ exclude either start date and end date 
-               | NO_IE  -- ^ no handling on start date and end date
-
-data Direction = Up 
-               | Down
-               deriving (Show,Read,Generic,Eq,Ord)
-
-data CutoffType = Inc 
-                | Exc
-                deriving (Show,Read,Generic,Eq)
-
-data DateDirection = Future 
-                   | Past
-                   deriving (Show,Read,Generic)
 
 type BookItems = [BookItem]
 
@@ -702,11 +691,6 @@ data Threshold = Below
                | Above
                | EqAbove
                deriving (Show,Eq,Ord,Read,Generic)
-      
-instance ToJSONKey Threshold where
-  toJSONKey = genericToJSONKey opts
-instance FromJSONKey Threshold where
-  fromJSONKey = genericFromJSONKey opts
 
 
 data SplitType = EqToLeft   -- if equal, the element belongs to left
@@ -714,57 +698,6 @@ data SplitType = EqToLeft   -- if equal, the element belongs to left
                | EqToLeftKeepOne
                | EqToLeftKeepOnes
                deriving (Show, Eq, Generic)
-
-class TimeSeries ts where 
-    cmp :: ts -> ts -> Ordering
-    cmp t1 t2 = compare (getDate t1) (getDate t2)
-    sameDate :: ts -> ts -> Bool
-    sameDate t1 t2 =  getDate t1 == getDate t2
-    getDate :: ts -> Date
-    getDates :: [ts] -> [Date]
-    getDates ts = [ getDate t | t <- ts ]
-    filterByDate :: [ts] -> Date -> [ts]
-    filterByDate ts d = filter (\x -> getDate x == d ) ts
-    sliceBy :: RangeType -> StartDate -> EndDate -> [ts] -> [ts]
-    sliceBy rt sd ed ts
-      = case rt of 
-          II -> filter (\x -> getDate x >= sd && getDate x <= ed ) ts 
-          IE -> filter (\x -> getDate x >= sd && getDate x < ed ) ts 
-          EI -> filter (\x -> getDate x > sd && getDate x <= ed) ts 
-          EE -> filter (\x -> getDate x > sd && getDate x < ed ) ts 
-          _  -> error "Not support NO_IE for sliceBy in TimeSeries"
-    cutBy :: CutoffType -> DateDirection -> Date -> [ts] -> [ts]
-    cutBy ct dd d ts 
-      = case (ct,dd) of
-          (Inc, Future) ->  filter (\x -> getDate x >= d) ts
-          (Inc, Past) ->  filter (\x -> getDate x <= d) ts
-          (Exc, Future) ->  filter (\x -> getDate x > d) ts
-          (Exc, Past) ->  filter (\x -> getDate x < d) ts
-
-    cmpWith :: ts -> Date -> Ordering
-    cmpWith t d = compare (getDate t) d
-
-    isAfter :: ts -> Date -> Bool 
-    isAfter t d = getDate t > d
-    isOnAfter :: ts -> Date -> Bool 
-    isOnAfter t d = getDate t >= d
-    isBefore :: ts -> Date -> Bool 
-    isBefore t d = getDate t < d
-    isOnBefore :: ts -> Date -> Bool 
-    isOnBefore t d = getDate t <= d
-
-    splitBy :: Date -> CutoffType -> [ts] -> ([ts],[ts])
-    splitBy d ct tss = 
-      let 
-        ffunR x = case ct of
-                    Inc -> getDate x > d -- include ts in the Left
-                    Exc -> getDate x >= d  -- 
-        ffunL x = case ct of
-                    Inc -> getDate x <= d -- include ts in the Left
-                    Exc -> getDate x < d  -- 
-      in 
-        (filter ffunL tss, filter ffunR tss)
-        
 
 class Liable lb where 
 
@@ -774,9 +707,6 @@ class Liable lb where
   -- optional implement
   -- getTotalDue :: [lb] -> Balance
   -- getTotalDue lbs =  sum $ getDue <$> lbs
-
-data Table a b = ThresholdTable [(a,b)]
-                 deriving (Show,Eq,Ord,Read,Generic)
 
 lookupTable :: Ord a => Table a b -> Direction -> (a -> Bool) -> Maybe b
 lookupTable (ThresholdTable rows) direction lkUpFunc
@@ -819,32 +749,6 @@ data RateAssumption = RateCurve Index Ts     --om a:message^ a rate curve ,which
                     | RateFlat Index IRate   -- ^ a rate constant
                     deriving (Show, Generic)
 
-data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
-                   | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
-                   | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
-                   | PV IRate IRate                   -- ^ discount factor, recovery pct on default
-                   | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
-                   | PvRate Rate                      -- ^ [CF] Pricing cashflow with a constant rate
-                   | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
-                   | Custom Rate                      -- ^ custom amount
-                   deriving (Show, Eq ,Generic, Read,Ord)
-
-type Valuation = Centi
-type PerFace = Micro
-type WAL = Centi
-type Duration = Micro
-type Convexity = Micro
-type Yield = Micro
-type AccruedInterest = Centi
-type IRR = Rational
-data YieldResult = Yield
-
-data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
-                 | AssetPrice Valuation WAL Duration Convexity AccruedInterest
-                 | OASResult PriceResult [Valuation] Spread  
-                 | ZSpread Spread 
-                 deriving (Show, Eq, Generic)
-
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
 getPriceValue (PriceResult v _ _ _ _ _) = v
@@ -861,54 +765,210 @@ data TimeHorizion = ByMonth
                   | ByQuarter
 
 
-data Limit = DuePct Rate            -- ^ up to % of total amount due
-           | DueCapAmt Balance      -- ^ up to $ amount 
-           | KeepBalAmt DealStats   -- ^ pay till a certain amount remains in an account
-           | DS DealStats           -- ^ transfer with limit described by a `DealStats`
-           | ClearLedger String     -- ^ when transfer, clear the ledger by transfer amount
-           | BookLedger String      -- ^ when transfer, book the ledger by the transfer amount
-           | RemainBalPct Rate      -- ^ pay till remain balance equals to a percentage of `stats`
-           | TillTarget             -- ^ transfer amount which make target account up reach reserve balanace
-           | TillSource             -- ^ transfer amount out till source account down back to reserve balance
-           | Multiple Limit Float   -- ^ factor of a limit
-           deriving (Show,Ord,Eq,Read,Generic)
+instance Ord ActionOnDate where
+  compare a1 a2 = compare (getDate a1) (getDate a2)
+
+instance Eq ActionOnDate where
+  a1 == a2 = getDate a1 == getDate a2
 
 
-data RoundingBy a = RoundCeil a 
-                  | RoundFloor a
-                  deriving (Show,Generic, Eq, Ord, Read)
+instance TimeSeries ActionOnDate where
+    getDate (RunWaterfall d _) = d
+    getDate (ResetLiqProvider d _) = d
+    getDate (PoolCollection d _) = d
+    getDate (EarnAccInt d _) = d
+    getDate (AccrueFee d _) = d
+    getDate (DealClosed d) = d
+    getDate (FireTrigger d _ _) = d
+    getDate (ChangeDealStatusTo d _ ) = d
+    getDate (InspectDS d _ ) = d
+    getDate (ResetIRSwapRate d _ ) = d
+    getDate (AccrueCapRate d _ ) = d
+    getDate (ResetBondRate d _ ) = d 
+    getDate (MakeWhole d _ _) = d 
+    getDate (BuildReport sd ed) = ed
 
 
+
+
+instance ToJSON TxnComment where 
+  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
+  toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
+  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (WriteOff bn amt ) =  String $ T.pack $ "<WriteOff:"++ bn ++","++ show amt ++ ">"
+  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
+  toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
+  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
+  toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
+  toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
+  toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
+  toJSON (PoolInflow mPids ps) =  String $ T.pack $ "<Pool"++ maybe "" (intercalate "|" . (show <$>)) mPids ++":"++ show ps++">"
+  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
+  toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
+  toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
+  toJSON Empty =  String $ T.pack $ "" 
+  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
+  toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
+  toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
+  toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
+  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
+  toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
+  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
+  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
+  toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
+  toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
+  toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
+
+instance FromJSON TxnComment where
+    parseJSON = withText "Empty" parseTxn
+
+parseTxn :: T.Text -> Parser TxnComment 
+parseTxn "" = return Empty 
+parseTxn "<BankInt>" = return BankInt
+parseTxn t = case tagName of 
+  "Transfer" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
+  where 
+      pat = "<(\\S+):(\\S+)>"::String
+      sr = (T.unpack t =~ pat)::[[String]]
+      tagName =  head sr!!1::String
+      contents = head sr!!2::String
+
+
+
+instance TimeSeries (TsPoint a) where 
+    getDate (TsPoint d a) = d
+
+instance Ord a => Ord (TsPoint a) where
+  compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
+
+
+
+instance Show PoolId where
+  show (PoolName n)  = n
+  show PoolConsol = "PoolConsol"
+  show (DealBondFlow dn bn sd r) = "BondFlow:"++dn++":"++bn++":"++show sd++":"++show r
+
+instance (Read PoolId) where
+  readsPrec d "PoolConsol" = [(PoolConsol,"")]
+  readsPrec d rStr = 
+    let 
+      pn = Data.List.Split.splitOn ":" rStr
+    in
+      case pn of
+        [dn,bn,sd,r] -> 
+          let 
+            sd' = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" sd
+            r' = read r::Rate
+          in 
+            [(DealBondFlow dn bn sd' r',"")]
+        ["PoolName",pn] -> [(PoolName pn,"")]
+        _ -> error $ "Invalid PoolId: "++ show pn
+
+
+-- instance ToJSON PoolId
+-- instance FromJSON PoolId
+
+
+
+
+$(deriveJSON defaultOptions ''TsPoint)
+$(deriveJSON defaultOptions ''Ts)
+$(deriveJSON defaultOptions ''Cmp)
+$(deriveJSON defaultOptions ''PoolSource)
+$(deriveJSON defaultOptions ''RoundingBy)
+$(deriveJSON defaultOptions ''PoolId)
+
+instance ToJSONKey PoolId where
+  toJSONKey :: ToJSONKeyFunction PoolId
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey PoolId where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+
+
+
+$(deriveJSON defaultOptions ''DealStatus)
+
+
+$(concat <$> traverse (deriveJSON defaultOptions) [''DealStats, ''PricingMethod, ''DealCycle, ''DateDesp, ''DateType, ''Period, ''ActionOnDate
+  ,''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport] )
+
+instance ToJSONKey DateType where
+  toJSONKey = genericToJSONKey defaultJSONKeyOptions
+
+instance FromJSONKey DateType where
+  fromJSONKey = genericFromJSONKey defaultJSONKeyOptions
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''Pre)
-$(deriveJSON defaultOptions ''DealStats)
-$(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''DayCount)
+-- $(deriveJSON defaultOptions ''Table)
+-- $(deriveJSON defaultOptions ''ActionOnDate)
 $(deriveJSON defaultOptions ''OverrideType)
-$(deriveJSON defaultOptions ''DatePattern)
-$(deriveJSON defaultOptions ''DateType)
-$(deriveJSON defaultOptions ''ActionOnDate)
-$(deriveJSON defaultOptions ''Ts)
-$(deriveJSON defaultOptions ''TsPoint)
+-- $(deriveJSON defaultOptions ''DatePattern)
+-- $(deriveJSON defaultOptions ''DateType)
 $(deriveJSON defaultOptions ''Threshold)
-$(deriveJSON defaultOptions ''DateDesp)
-$(deriveJSON defaultOptions ''Period)
-$(deriveJSON defaultOptions ''PoolSource)
+-- $(deriveJSON defaultOptions ''DateDesp)
+-- $(deriveJSON defaultOptions ''Period)
 $(deriveJSON defaultOptions ''CustomDataType)
 $(deriveJSON defaultOptions ''ResultComponent)
-$(deriveJSON defaultOptions ''CashflowReport)
-$(deriveJSON defaultOptions ''BookItem)
-$(deriveJSON defaultOptions ''BalanceSheetReport)
-$(deriveJSON defaultOptions ''DealCycle)
-$(deriveJSON defaultOptions ''Cmp)
-$(deriveJSON defaultOptions ''PricingMethod)
+-- $(deriveJSON defaultOptions ''CashflowReport)
+-- $(deriveJSON defaultOptions ''BookItem)
+-- $(deriveJSON defaultOptions ''BalanceSheetReport)
+-- $(deriveJSON defaultOptions ''DealCycle)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
-$(deriveJSON defaultOptions ''RoundingBy)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''RateAssumption)
-$(deriveJSON defaultOptions ''Table)
-$(deriveJSON defaultOptions ''PoolId)
 $(deriveJSON defaultOptions ''BookDirection)
 $(deriveJSON defaultOptions ''Direction)
+-- $(deriveJSON defaultOptions ''DateType)
+-- $(deriveJSON defaultOptions ''Threshold)
+instance ToJSONKey Threshold where
+  toJSONKey = genericToJSONKey opts
+instance FromJSONKey Threshold where
+  fromJSONKey = genericFromJSONKey opts
+
+--instance FromJSON Threshold
+--instance ToJSON Threshold
+
+
+-- instance ToJSON CutoffFields
+-- instance FromJSON CutoffFields
+
+instance ToJSONKey CutoffFields where
+  toJSONKey = toJSONKeyText (Text.pack . show)
+
+instance FromJSONKey CutoffFields where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (Text.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+
+
+
+-- instance ToJSON DealCycle
+-- instance FromJSON DealCycle
+
+instance ToJSONKey DealCycle where
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey DealCycle where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t)
+
+
+-- instance FromJSON DateType
+-- instance ToJSON DateType
+
+-- instance ToJSON DateType where
+--   toJSON = genericToJSON defaultOptions
+-- 
+-- instance FromJSON DateType where
+--   fromJSON = 
+

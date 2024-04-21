@@ -8,7 +8,8 @@ import Deal
 
 import qualified Accounts as A
 import qualified Stmt as S
-import qualified Asset as P
+import qualified Pool as P
+import qualified Asset as Ast
 import qualified AssetClass.Mortgage as ACM
 import qualified AssetClass.AssetBase as AB
 import qualified Expense as F

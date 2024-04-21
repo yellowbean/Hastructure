@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -49,12 +49,14 @@ library
       Deal.DealDate
       Deal.DealQuery
       Deal.DealValidation
+      Errors
       Expense
       Hedge
       InterestRate
       Ledger
       Liability
       Lib
+      Pool
       Reports
       Revolving
       Stmt
@@ -79,7 +81,6 @@ library
     , regex-pcre-builtin
     , regex-tdfa
     , servant
-    , servant-errors
     , servant-openapi3
     , servant-server
     , split
@@ -107,6 +108,7 @@ executable Hastructure-exe
     , base-compat
     , bytestring
     , containers
+    , exceptions
     , hashable
     , http-types
     , lens
@@ -118,7 +120,7 @@ executable Hastructure-exe
     , regex-tdfa
     , scientific
     , servant
-    , servant-errors
+    , servant-checked-exceptions
     , servant-openapi3
     , servant-server
     , split
@@ -174,7 +176,6 @@ test-suite Hastructure-test
     , regex-pcre-builtin
     , regex-tdfa
     , servant
-    , servant-errors
     , servant-openapi3
     , servant-server
     , split

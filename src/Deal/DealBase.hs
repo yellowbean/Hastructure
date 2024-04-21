@@ -13,7 +13,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
   where
 import qualified Accounts as A
 import qualified Ledger as LD
-import qualified Asset as P
+import qualified Asset as Ast
 import qualified Expense as F
 import qualified Liability as L
 import qualified CreditEnhancement as CE
@@ -49,7 +49,7 @@ import Control.Lens.TH
 import Data.IntMap (filterWithKey)
 import qualified Data.Text as T
 import Text.Read (readMaybe)
-import Asset (poolFutureCf)
+import qualified Pool as P
 import qualified Types as CF
 
 import Debug.Trace
@@ -76,19 +76,19 @@ data UnderlyingDeal a = UnderlyingDeal {
   ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)
 } deriving (Generic,Eq,Ord,Show)
 
-uDealFutureScheduleCf :: P.Asset a => Lens' (UnderlyingDeal a) (Maybe CF.CashFlowFrame)
+uDealFutureScheduleCf :: Ast.Asset a => Lens' (UnderlyingDeal a) (Maybe CF.CashFlowFrame)
 uDealFutureScheduleCf = lens getter setter
   where 
     getter = futureScheduleCf
     setter ud newCf = ud {futureScheduleCf = newCf}
 
-uDealFutureCf :: P.Asset a => Lens' (UnderlyingDeal a) (Maybe CF.CashFlowFrame)
+uDealFutureCf :: Ast.Asset a => Lens' (UnderlyingDeal a) (Maybe CF.CashFlowFrame)
 uDealFutureCf = lens getter setter
   where 
     getter = futureCf
     setter ud newCf = ud {futureCf = newCf}
 
-uDealFutureTxn :: P.Asset a => Lens' (UnderlyingDeal a) [CF.TsRow]
+uDealFutureTxn :: Ast.Asset a => Lens' (UnderlyingDeal a) [CF.TsRow]
 uDealFutureTxn = lens getter setter
   where 
     getter ud = fromMaybe [] $ CF.getTsCashFlowFrame <$> futureCf ud
@@ -98,7 +98,7 @@ uDealFutureTxn = lens getter setter
 data PoolType a = SoloPool (P.Pool a)
                 | MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map PoolId (UnderlyingDeal a))
-                deriving (Generic,Eq,Ord,Show)
+                deriving (Generic, Eq, Ord, Show)
 
 -- instance Show (PoolType a) where
 --   show (SoloPool x) = "SoloPool:"++ show x
@@ -216,31 +216,31 @@ instance SPV (TestDeal a) where
                  _ -> False
 
 
-dealBonds :: P.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
+dealBonds :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
 dealBonds = lens getter setter 
   where 
     getter d = bonds d 
     setter d newBndMap = d {bonds = newBndMap}
 
-dealAccounts :: P.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 
+dealAccounts :: Ast.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 
 dealAccounts = lens getter setter 
   where 
     getter d = accounts d 
     setter d newAccMap = d {accounts = newAccMap}
 
-dealFees :: P.Asset a => Lens' (TestDeal a) (Map.Map FeeName F.Fee) 
+dealFees :: Ast.Asset a => Lens' (TestDeal a) (Map.Map FeeName F.Fee) 
 dealFees = lens getter setter 
   where 
     getter d = fees d 
     setter d newFeeMap = d {fees = newFeeMap}
 
-dealPool :: P.Asset a => Lens' (TestDeal a) (PoolType a)
+dealPool :: Ast.Asset a => Lens' (TestDeal a) (PoolType a)
 dealPool = lens getter setter 
   where 
     getter d = pool d
     setter d newPool = d {pool = newPool}
 
-dealScheduledCashflow :: P.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.CashFlowFrame))
+dealScheduledCashflow :: Ast.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.CashFlowFrame))
 dealScheduledCashflow = lens getter setter
   where
     getter d = case pool d of
@@ -263,7 +263,7 @@ dealScheduledCashflow = lens getter setter
                             in
                               set dealPool (ResecDeal newPm) d
 
-dealCashflow :: P.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.CashFlowFrame))
+dealCashflow :: Ast.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.CashFlowFrame))
 dealCashflow = lens getter setter
   where 
     getter d = case pool d of
@@ -286,7 +286,7 @@ dealCashflow = lens getter setter
                               set dealPool (ResecDeal newPm) d
 
 
-getPoolIds :: P.Asset a => TestDeal a -> [PoolId]
+getPoolIds :: Ast.Asset a => TestDeal a -> [PoolId]
 getPoolIds t@TestDeal{pool = pt} 
   = case pt of
       SoloPool _ -> [PoolConsol] 
@@ -295,11 +295,11 @@ getPoolIds t@TestDeal{pool = pt}
       _ -> error "failed to match pool type in pool ids"
                          
 
-getBondByName :: P.Asset a => TestDeal a -> BondName -> Maybe L.Bond
+getBondByName :: Ast.Asset a => TestDeal a -> BondName -> Maybe L.Bond
 getBondByName t bName = Map.lookup bName (bonds t)
 
 -- ^ get issuance pool stat from pool map
-getIssuanceStats :: P.Asset a => TestDeal a  -> Maybe [PoolId] -> Map.Map PoolId (Map.Map CutoffFields Balance)
+getIssuanceStats :: Ast.Asset a => TestDeal a  -> Maybe [PoolId] -> Map.Map PoolId (Map.Map CutoffFields Balance)
 getIssuanceStats t@TestDeal{pool = pt} mPoolId
   = case pt of
       ResecDeal uDeals -> 
@@ -317,7 +317,7 @@ getIssuanceStats t@TestDeal{pool = pt} mPoolId
                       in
                         Map.map (fromMaybe Map.empty . P.issuanceStat) selectedPools
 
-getIssuanceStatsConsol :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map CutoffFields Balance
+getIssuanceStatsConsol :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map CutoffFields Balance
 getIssuanceStatsConsol t mPns 
   = let 
       ms = getIssuanceStats t mPns
@@ -337,10 +337,10 @@ getAllAsset t@TestDeal{pool = pt} mPns =
       Nothing -> assetMap 
       Just pns -> Map.filterWithKey (\k _ -> k `elem` pns ) assetMap
     
-getAllAssetList :: P.Asset a => TestDeal a -> [a]
+getAllAssetList :: Ast.Asset a => TestDeal a -> [a]
 getAllAssetList t = concat $ Map.elems (getAllAsset t Nothing)
 
-getAllCollectedFrame :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.CashFlowFrame)
+getAllCollectedFrame :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.CashFlowFrame)
 getAllCollectedFrame t mPid = 
   let 
     mCf = view dealCashflow t
@@ -349,13 +349,13 @@ getAllCollectedFrame t mPid =
       Nothing -> mCf -- `debug` ("Nothing when collecting cfs"++show mCf)
       Just pids -> Map.filterWithKey (\k _ -> k `elem` pids) mCf -- `debug` ("Just when collecting cfs"++show mCf)
 
-getLatestCollectFrame :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.TsRow)
+getLatestCollectFrame :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.TsRow)
 getLatestCollectFrame t mPns = Map.map (last . view CF.cashflowTxn <$>) (getAllCollectedFrame t mPns)
 
-getAllCollectedTxns :: P.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe [CF.TsRow])
+getAllCollectedTxns :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe [CF.TsRow])
 getAllCollectedTxns t mPns = Map.map (view CF.cashflowTxn <$>) (getAllCollectedFrame t mPns)
 
-getAllCollectedTxnsList :: P.Asset a => TestDeal a -> Maybe [PoolId] -> [CF.TsRow]
+getAllCollectedTxnsList :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> [CF.TsRow]
 getAllCollectedTxnsList t mPns 
   = concat $ fromMaybe [] <$>  listOfTxns
     where 
@@ -365,7 +365,7 @@ getAllCollectedTxnsList t mPns
 data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 
-
-$(deriveJSON defaultOptions ''UnderlyingDeal)
-$(deriveJSON defaultOptions ''PoolType)
-$(deriveJSON defaultOptions ''TestDeal)
+$(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType])
+-- $(deriveJSON defaultOptions ''UnderlyingDeal)
+-- $(deriveJSON defaultOptions ''PoolType)
+-- $(deriveJSON defaultOptions ''TestDeal)

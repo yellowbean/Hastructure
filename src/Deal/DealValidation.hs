@@ -15,7 +15,6 @@ import Types
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe
-import Data.ByteString (intercalate, foldl1')
 
 import qualified Waterfall as W
 import qualified CreditEnhancement as CE
@@ -29,7 +28,6 @@ import qualified InterestRate as IR
 
 import Data.Maybe
 import qualified Assumptions as A
-import Asset (getIssuanceField)
 
 
 import Debug.Trace

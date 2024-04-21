@@ -19,7 +19,8 @@ import Data.Fixed
 import GHC.Generics
 
 import Accounts (Account)
-import Asset (Pool)
+import Asset
+import Pool
 -- import AssetClass.Mortgage(Mortgage)
 import Expense
 import Liability
@@ -41,14 +42,6 @@ data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the
                 | DefaultDistribution             -- ^ default waterfall executed
                 | RampUp                          -- ^ ramp up
                 deriving (Show,Ord,Eq,Generic,Read)
-
-instance ToJSONKey ActionWhen where
-  toJSONKey = toJSONKeyText (T.pack . show)
-
-instance FromJSONKey ActionWhen where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 
 data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
@@ -119,9 +112,20 @@ data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName           
                     | CollectByPct (Maybe [PoolId]) PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
                     deriving (Show,Generic,Eq,Ord)
 
+$(deriveJSON defaultOptions ''BookType)
+$(deriveJSON defaultOptions ''ExtraSupport)
 
 $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)
-$(deriveJSON defaultOptions ''BookType)
-$(deriveJSON defaultOptions ''ExtraSupport)
+
+instance ToJSONKey ActionWhen where
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey ActionWhen where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+
+
+

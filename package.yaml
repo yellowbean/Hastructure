@@ -38,7 +38,6 @@ dependencies:
 - servant
 - servant-server
 - servant-openapi3
-- servant-errors
 - openapi3
 - swagger2
 - split
@@ -77,7 +76,10 @@ executables:
     - lucid
     - string-conversions
     - attoparsec
-    - servant-errors
+    - exceptions
+    # - servant-errors
+    # - servant-exceptions
+    - servant-checked-exceptions
     # - jsonschema-gen
     # - timeseries
 
@@ -95,3 +97,6 @@ tests:
     - tasty-hunit
     - tasty-hspec
     - tasty-golden
+
+
+allow-newer: true
