@@ -91,6 +91,7 @@ import qualified DateUtil as DU
 
 import Debug.Trace
 import qualified Types as W
+import Cashflow (patchCumulative)
 debug = flip Debug.Trace.trace
 
 data Version = Version 
@@ -278,7 +279,12 @@ data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
                   deriving(Show, Generic)
 
 
-wrapRunPoolType :: PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] ->  Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+type RunPoolTypeRtn = Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+
+patchCumulativeToPoolRun :: RunPoolTypeRtn -> RunPoolTypeRtn
+patchCumulativeToPoolRun = Map.map (\(CF.CashFlowFrame txns,stats) -> (CF.CashFlowFrame (CF.patchCumulative (0,0,0,0,0,0) txns []),stats))
+
+wrapRunPoolType :: PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] ->  RunPoolTypeRtn
 wrapRunPoolType (MPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (LPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (IPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
@@ -377,7 +383,7 @@ runAsset :: RunAssetReq -> Handler ((CF.CashFlowFrame, Map.Map CutoffFields Bala
 runAsset req = return $ wrapRunAsset req
 
 runPool :: RunPoolReq -> Handler PoolRunResp
-runPool (SingleRunPoolReq pt passumption mRates) = return $ wrapRunPoolType pt passumption mRates
+runPool (SingleRunPoolReq pt passumption mRates) = return $ patchCumulativeToPoolRun $ wrapRunPoolType pt passumption mRates
 
 runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
 runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPoolType pt (Just assump) mRates) mAssumps
