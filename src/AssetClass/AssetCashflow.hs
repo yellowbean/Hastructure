@@ -159,16 +159,22 @@ patchLossRecovery trs (Just (A.Recovery (rr,lag)))
       lossVec = (`mulBR` (1-rr)) <$> defaultVec  --  `debug` ("Rec after lag"++ show recoveryAfterLag)
       lossVecAfterLag = replicate lag 0.0 ++ lossVec  -- drop last lag elements
 
-patchLossRecovery trs (Just (A.RecoveryTiming (rr,rs)))
+patchLossRecovery trs (Just (A.RecoveryTiming (rr,recoveryTimingDistribution)))
   = CF.dropTailEmptyTxns $ [ CF.tsSetRecovery recVal (CF.tsSetLoss loss r) | (recVal,loss,r) <- zip3 sumRecovery sumLoss trs ]
     where
-      cfLength = length trs 
-      rLength = length rs
-      defaultVec = mflowDefault <$> trs
+      cfLength = length trs -- cashflow length
+      rLength = length recoveryTimingDistribution  -- recovery length
+      defaultVec = mflowDefault <$> trs  -- default balance of each row
+
+      rs = (rr *) <$> recoveryTimingDistribution 
+
       recoveriesVec = [ mulBR defaultVal <$> rs  | defaultVal <- defaultVec ] 
+      
       offsets = [0..(length defaultVec - rLength)]
+      
       paddedRecoveries = [ paddingDefault 0 (replicate prePadding 0 ++ recVal) cfLength 
                           | (prePadding,recVal) <- zip offsets recoveriesVec ]
+
       sumRecovery = sum <$> transpose paddedRecoveries
       lossVec = [ mulBR defaultVal (1-rr) | defaultVal <- defaultVec ]
       sumLoss = replicate (pred rLength) 0.0 ++ lossVec
