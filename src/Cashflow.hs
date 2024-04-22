@@ -537,6 +537,26 @@ mflowRecovery FixedFlow {} = 0
 mflowRecovery (ReceivableFlow _ _ _ _ _ _ x _ _ ) = x
 mflowRecovery _  = error "not supported"
 
+
+tsRowBalance :: Lens' TsRow Balance
+tsRowBalance = lens getter setter 
+  where 
+    getter (BondFlow _ x _ _) = x
+    getter (MortgageFlow _ x _ _ _ _ _ _ _ _ _ _) = x
+    getter (MortgageDelinqFlow _ x _ _ _ _ _ _ _ _ _ _ _) = x
+    getter (LoanFlow _ x _ _ _ _ _ _ _ _) = x
+    getter (LeaseFlow _ x _ ) = x
+    getter (FixedFlow _ x _ _ _ _) = x
+    getter (ReceivableFlow _ x _ _ _ _ _ _ _ ) = x
+    setter (BondFlow a _ p i) x = BondFlow a x p i
+    setter (MortgageFlow a _ p i prep def rec los rat mbn pn st) x = MortgageFlow a x p i prep def rec los rat mbn pn st
+    setter (MortgageDelinqFlow a _ p i prep delinq def rec los rat mbn pn st) x = MortgageDelinqFlow a x p i prep delinq def rec los rat mbn pn st
+    setter (LoanFlow a _ p i prep def rec los rat st) x = LoanFlow a x p i prep def rec los rat st
+    setter (LeaseFlow a _ r) x = LeaseFlow a x r
+    setter (FixedFlow a _ b c d e) x = FixedFlow a x b c d e
+    setter (ReceivableFlow a _ b c d e f g h) x = ReceivableFlow a x b c d e f g h
+
+
 mflowBalance :: TsRow -> Balance
 mflowBalance (BondFlow _ x _ _) = x
 mflowBalance (MortgageFlow _ x _ _ _ _ _ _ _ _ _ _) = x
