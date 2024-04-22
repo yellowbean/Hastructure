@@ -56,6 +56,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,CFT.testMergeTsRowsFromTwoEntities
                            ,CFT.testCumStat
                            ,CFT.testClawIntTest
+                           ,CFT.testPoolAggTest
                            ,BT.pricingTests
                            ,BT.bndConsolTest
                            ,LT.curveTests

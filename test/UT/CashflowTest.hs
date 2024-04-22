@@ -1,5 +1,5 @@
 module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest,testHaircut
-                      ,testMergeTsRowsFromTwoEntities,testCumStat,testClawIntTest)
+                      ,testMergeTsRowsFromTwoEntities,testCumStat,testClawIntTest,testPoolAggTest)
 where
 
 import Test.Tasty
@@ -8,6 +8,8 @@ import Test.Tasty.HUnit
 import qualified Data.Time as T
 import qualified Lib as L
 import qualified Asset as P
+import qualified Pool
+import qualified Data.Map as Map
 import qualified Assumptions as A
 import qualified Cashflow as CF
 import Types
@@ -373,4 +375,50 @@ testClawIntTest =
         assertEqual "AA"
         [5,20]
         (CF.mflowInterest <$> CF.clawbackInt 5 cflow)
+    ]
+
+testPoolAggTest = 
+  let 
+    trs = [CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing (Just (10,0,0,0,0,0))
+          , CF.MortgageFlow (L.toDate "20220301") 70 10 10 0 0 0 0 0 Nothing Nothing (Just (20,0,0,0,0,0)) ]
+    trs1 = [CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing (Just (10,0,0,0,0,0))
+          , CF.MortgageFlow (L.toDate "20220401") 70 10 10 0 0 0 0 0 Nothing Nothing (Just (20,0,0,0,0,0)) ]
+    trs2 = [CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing (Just (10,0,0,0,0,0))
+          , CF.MortgageFlow (L.toDate "20220401") 70 10 10 0 10 0 0 0 Nothing Nothing (Just (20,0,0,10,0,0)) ]
+          
+    cf = CF.CashFlowFrame trs    
+    cf1 = CF.CashFlowFrame trs1
+    cf2 = CF.CashFlowFrame trs2
+    
+  in 
+    testGroup "test on combine cashflow with stats"   
+    [
+      testCase "combineCF one extra row" $
+        assertEqual "cum stats should patch at last"
+        (CF.CashFlowFrame
+          [
+            CF.MortgageFlow (L.toDate "20220101") 200 20 20 0 0 0 0 0 Nothing Nothing (Just (20,0,0,0,0,0))
+            ,CF.MortgageFlow (L.toDate "20220301") 190 10 10 0 0 0 0 0 Nothing Nothing (Just (30,0,0,0,0,0))
+            ,CF.MortgageFlow (L.toDate "20220401") 180 10 10 0 0 0 0 0 Nothing Nothing (Just (40,0,0,0,0,0))
+          ]
+          )
+        (fst (Pool.aggPool Nothing [(cf,Map.empty),(cf1,Map.empty)]))
+      ,testCase "pool agg with init default=100" $
+        assertEqual "cum stats with default=100,no default on cfs"
+        (Map.fromList [(HistoryDefaults,100)])
+        (snd (Pool.aggPool (Just (Map.fromList [(HistoryDefaults,100)])) 
+                            [(cf,Map.empty),(cf1,Map.empty)]
+                            ))
+      ,testCase "pool agg with init default=100 and projected cf default" $
+        assertEqual "cum stats with default=100, projected default on cfs"
+        (Map.fromList [(HistoryDefaults,200)])
+        (snd (Pool.aggPool (Just (Map.fromList [(HistoryDefaults,100)])) 
+                            [(cf, (Map.fromList [(HistoryDefaults,100)])),(cf1,Map.empty)]
+                            ))
+      ,testCase "pool agg with init default=100 and projected cf default2" $
+        assertEqual "cum stats with default=100, projected default on cfs"
+        (Map.fromList [(HistoryDefaults,200)])
+        (snd (Pool.aggPool (Just (Map.fromList [(HistoryDefaults,100)])) 
+                            [(cf, (Map.fromList [(HistoryDefaults,100)])),(cf2, Map.empty)]
+                            ))                            
     ]

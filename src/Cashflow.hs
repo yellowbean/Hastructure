@@ -14,7 +14,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,splitCashFlowFrameByDate,emptyTsRow,mflowAmortAmount
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
                 ,getDate,getTxnLatestAsOf
-                ,mflowWeightAverageBalance,appendCashFlow,combineCashFlow
+                ,mflowWeightAverageBalance,combineCashFlow
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
@@ -259,9 +259,7 @@ combineTss [] [] r = r
 combineTss [] r [] = r
 combineTss [] (r1:r1s) (r2:r2s)
   | getDate r1 > getDate r2 = combineTss [] (r2:r2s) (r1:r1s)
-  | getDate r1 == getDate r2 = combineTss [combineTs r1 r2] 
-                                         r1s
-                                         r2s
+  | getDate r1 == getDate r2 = combineTss [combineTs r1 r2] r1s r2s -- `debug` ("combineTss after same"++show r1s++" "++show r2s)
   | otherwise = combineTss [updateFlowBalance (mflowBegBalance r2+mflowBalance r1) r1]
                            r1s
                            (r2:r2s)
@@ -281,18 +279,18 @@ appendTs :: TsRow -> TsRow -> TsRow
 -- ^ combine two cashflow records from two entities ,(early row on left, later row on right)
 appendTs bn1@(BondFlow d1 b1 _ _ ) bn2@(BondFlow d2 b2 p2 i2 ) 
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2 -- `debug` ("b1 >> "++show b1++">>"++show (mflowAmortAmount bn2))
-appendTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 _ def1 rec1 los1 rat1 mbn1 _ _) bn2@(MortgageDelinqFlow _ b2 p2 i2 prep2 _ def2 rec2 los2 rat2 mbn2 _ _)
+appendTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 _ def1 rec1 los1 rat1 mbn1 _ mstat1) bn2@(MortgageDelinqFlow _ b2 p2 i2 prep2 _ def2 rec2 los2 rat2 mbn2 _ mstat2)
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
-appendTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 _ _) bn2@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 _ _)
-  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
-appendTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 _) bn2@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 _)
-  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+appendTs bn1@(MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 _ mstat1) bn2@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 _ mstat2)
+  =  updateFlowBalance (b1 - mflowAmortAmount bn2) bn2 -- `debug` ("Summing stats"++ show bn1 ++ show mstat1++">>"++ show bn2 ++ show mstat2)
+appendTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mstat1) bn2@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mstat2)
+  =  updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs (LeaseFlow d1 b1 r1) bn2@(LeaseFlow d2 b2 r2) 
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs (FixedFlow d1 b1 de1 cde1 p1 c1 ) bn2@(FixedFlow d2 b2 de2 cde2 p2 c2)
   = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
-appendTs (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 _) bn2@(ReceivableFlow _ b2 af2 p2 fp2 def2 rec2 los2 _)
-  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+appendTs (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 mstat1) bn2@(ReceivableFlow _ b2 af2 p2 fp2 def2 rec2 los2 mstat2)
+  =  updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs _1 _2 = error $ "appendTs failed with "++ show _1 ++ ">>" ++ show _2
 
 -- ^ add up TsRow from same entity
@@ -469,8 +467,18 @@ firstDate (CashFlowFrame []) = error "empty cashflow frame to get first date"
 firstDate (CashFlowFrame [r]) = getDate r
 firstDate (CashFlowFrame (r:rs)) = getDate r
 
+
+-- ! combine two cashflow frame
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame 
-combine (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame $ combineTss [] txn1 txn2
+combine (CashFlowFrame []) (CashFlowFrame []) = CashFlowFrame []
+combine (CashFlowFrame []) cf2 = cf2
+combine cf1 (CashFlowFrame []) = cf1
+combine (CashFlowFrame txn1) (CashFlowFrame txn2) 
+  = let 
+      txns =  combineTss [] txn1 txn2
+      -- txnWithNoCumu = set txnCumulativeStats Nothing <$> combinedTxns
+    in 
+      CashFlowFrame txns 
 
 buildCollectedCF :: [[TsRow]] -> [Date] -> [TsRow] -> [[TsRow]]
 buildCollectedCF [] [] [] = []
@@ -556,14 +564,13 @@ updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
 updateFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a b c d e f
 updateFlowBalance b (ReceivableFlow a x c d e f g h i) = ReceivableFlow a b c d e f g h i
 
-updateCumStats :: Maybe CumulativeStat -> TsRow -> TsRow
-updateCumStats Nothing x = x
-updateCumStats stat (MortgageDelinqFlow a b c d e f g h i j k l _) = MortgageDelinqFlow a b c d e f g h i j k l stat
-updateCumStats stat (MortgageFlow a b c d e f g h i j k _) = MortgageFlow a b c d e f g h i j k stat
-updateCumStats stat (LoanFlow a b c d e f g h i _) = LoanFlow a b c d e f g h i stat
-updateCumStats stat (ReceivableFlow a b c d e f g h _) = ReceivableFlow a b c d e f g h stat
-updateCumStats stat _ = error "not supported for update cumulative stats for record "
-
+-- updateCumStats :: Maybe CumulativeStat -> TsRow -> TsRow
+-- updateCumStats Nothing x = x
+-- updateCumStats stat (MortgageDelinqFlow a b c d e f g h i j k l _) = MortgageDelinqFlow a b c d e f g h i j k l stat
+-- updateCumStats stat (MortgageFlow a b c d e f g h i j k _) = MortgageFlow a b c d e f g h i j k stat
+-- updateCumStats stat (LoanFlow a b c d e f g h i _) = LoanFlow a b c d e f g h i stat
+-- updateCumStats stat (ReceivableFlow a b c d e f g h _) = ReceivableFlow a b c d e f g h stat
+-- updateCumStats stat _ = error "not supported for update cumulative stats for record "
 
 mflowBegBalance :: TsRow -> Balance
 mflowBegBalance (BondFlow _ x p _) = x + p
@@ -644,11 +651,6 @@ mflowWeightAverageBalance sd ed trs
      _bals = map mflowBegBalance txns
      _dfs =  getIntervalFactors $ sd:_ds
 
-appendCashFlow :: CashFlowFrame -> [TsRow] -> CashFlowFrame
--- ^ append cashflows to a cashflow frame
-appendCashFlow (CashFlowFrame _tsr) tsr 
-  = CashFlowFrame $ _tsr ++ tsr
-
 emptyTsRow :: Date -> TsRow -> TsRow 
 -- ^ reset all cashflow fields to zero and init with a date
 emptyTsRow _d (MortgageDelinqFlow a x c d e f g h i j k l m) = MortgageDelinqFlow _d 0 0 0 0 0 0 0 0 0 Nothing Nothing Nothing
@@ -701,7 +703,7 @@ insertBegTsRow d (CashFlowFrame (txn:txns))
 
 combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 combineCashFlow cf1 (CashFlowFrame []) = cf1 
-combineCashFlow cf1 (CashFlowFrame txn) = appendCashFlow cf1 txn
+combineCashFlow (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame (txn1++txn2)
 
 totalLoss :: CashFlowFrame -> Balance
 totalLoss (CashFlowFrame rs) = sum $ mflowLoss <$> rs
@@ -808,6 +810,17 @@ currentCumulativeStat trs =
       (LoanFlow _ bal p i ppy def recovery loss _ (Just x)) -> x
       (ReceivableFlow _ bal p i ppy def recovery loss (Just x)) -> x
       _ -> (0,0,0,0,0,0)
+
+
+
+cashFlowInitCumulativeStats ::  Lens' CashFlowFrame (Maybe CumulativeStat)
+cashFlowInitCumulativeStats = lens getter setter 
+  where
+    getter (CashFlowFrame []) = Nothing
+    getter (CashFlowFrame (tr:trs)) = view txnCumulativeStats tr
+    
+    setter (CashFlowFrame []) mStat = CashFlowFrame []
+    setter (CashFlowFrame (tr:trs)) mStat = CashFlowFrame $ (set txnCumulativeStats mStat tr):trs
 
 
 patchCumulativeAtInit :: Maybe CumulativeStat -> [TsRow] -> [TsRow]
@@ -961,12 +974,6 @@ txnCumulativeStats = lens getter setter
     setter (ReceivableFlow d bal p i ppy def recovery loss _) mStat
       = ReceivableFlow d bal p i ppy def recovery loss mStat
     setter x _ = x
-
-
-
--- snapshotTxn :: TsRow -> Date -> TsRow
--- snapshotTxn trs d = trs
-
 
 
 $(deriveJSON defaultOptions ''TsRow)
