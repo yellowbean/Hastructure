@@ -6,7 +6,7 @@
 
 module Stmt
   (Statement(..),Txn(..)
-   ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
+   ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
@@ -32,6 +32,9 @@ import qualified Data.Set as Set
 import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Map as M
+
+import Control.Lens hiding (element,Empty)
+import Control.Lens.TH
 
 import Debug.Trace
 debug = flip trace
@@ -150,9 +153,12 @@ appendStmt :: Maybe Statement -> Txn -> Maybe Statement
 appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])
 appendStmt Nothing txn = Just $ Statement [txn]
 
-extractTxns :: [Txn] -> [Statement] -> [Txn]
-extractTxns rs ((Statement _txns):stmts) = extractTxns (rs++_txns) stmts
-extractTxns rs [] = rs
+
+statmentTxns :: Lens' Statement [Txn]
+statmentTxns = lens getter setter
+  where 
+    getter (Statement txns) = txns
+    setter (Statement _) txns = Statement txns
 
 
 consolTxn :: [Txn] -> Txn -> [Txn]
@@ -165,9 +171,6 @@ getTxns :: Maybe Statement -> [Txn]
 getTxns Nothing = []
 getTxns (Just (Statement txn)) = txn
 
-groupTxns :: Maybe Statement -> M.Map Date [Txn]
-groupTxns (Just (Statement txns))
-  = M.fromAscListWith (++) $ [(getDate txn,[txn]) | txn <- txns]
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 m2)

@@ -3,7 +3,7 @@
 
 module DateUtil(
     yearCountFraction,genSerialDates,genSerialDatesTill,genSerialDatesTill2,subDates,sliceDates,SliceType(..)
-    ,splitByDate,projDatesByPattern
+    ,splitByDate,projDatesByPattern,monthsAfter
 )
 
     where 
@@ -310,3 +310,6 @@ splitByDate xs d st
      --     case findIndices (\x -> (getDate x) <= d) xs of
      --       [] -> (xs,[])
      --       inds -> 
+
+monthsAfter :: Date -> Integer -> Date
+monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d

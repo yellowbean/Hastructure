@@ -48,7 +48,6 @@ data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating r
                   | FixedToFloating  IRate Floater        -- ^ Paying Fixed Rate and receiving Floating rate
                   deriving(Show,Generic,Eq,Ord)
 
-
 data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
                          ,rsSettleDates :: SettleDates   -- ^ define settle dates
                          ,rsNotional :: RateSwapBase     -- ^ define notional balance

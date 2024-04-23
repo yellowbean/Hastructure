@@ -824,13 +824,7 @@ currentCumulativeStat trs =
   let 
     tr = last trs
   in 
-    case tr of 
-      (MortgageDelinqFlow _ bal p i ppy delinq def recovery loss _ _ _ (Just x)) -> x
-      (MortgageFlow _ bal p i ppy def recovery loss _ _ _ (Just x)) -> x
-      (LoanFlow _ bal p i ppy def recovery loss _ (Just x)) -> x
-      (ReceivableFlow _ bal p i ppy def recovery loss (Just x)) -> x
-      _ -> (0,0,0,0,0,0)
-
+    fromMaybe (0,0,0,0,0,0) $ view txnCumulativeStats tr
 
 
 cashFlowInitCumulativeStats ::  Lens' CashFlowFrame (Maybe CumulativeStat)

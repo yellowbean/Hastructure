@@ -43,9 +43,9 @@ data Trigger = Trigger {
             ,trgCurable :: Bool                       -- ^ if it is curable trigger
             } deriving (Show, Eq, Generic,Ord)
 
-makeLensesFor [("trgStatus","trgStatusLens") ,("trgEffects","trgEffectsLens") ,("trgCondition","trgConditionLens") ,("trgCurable","trgCurableLens")] ''Trigger
+makeLensesFor [("trgStatus","trgStatusLens") 
+                ,("trgEffects","trgEffectsLens") 
+                ,("trgCondition","trgConditionLens") 
+                ,("trgCurable","trgCurableLens")] ''Trigger
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''TriggerEffect, ''Trigger])
-
--- $(deriveJSON defaultOptions ''Trigger)
--- $(deriveJSON defaultOptions ''TriggerEffect)
