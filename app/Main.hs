@@ -436,5 +436,4 @@ main =
                         Right c -> c
     print ("Engine start with version:"++ _version version1++";running at Port:"++ show _p)
     run _p app
---      $ errorMwDefJson
 -- $(deriveJSON defaultOptions ''DealType)
