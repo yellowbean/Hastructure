@@ -244,8 +244,9 @@ priceAsset m d (PVCurve curve) assumps mRates
       pv = pv3 curve d ds amts -- `debug` ("pricing"++ show d++ show ds++ show amts)
       cb =  getCurrentBal m
       wal = calcWAL ByYear cb d (zip amts ds)
+      duration = calcDuration d (zip ds amts) curve
     in 
-      AssetPrice pv wal (-1) (-1) (-1)  --TODO missing duration and convixity
+      AssetPrice pv wal duration (-1) (-1)  --TODO missing duration and convixity
 
 priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
   = let 
@@ -269,18 +270,6 @@ priceAsset m d (PvRate r) assumps mRates
       amts = CF.tsTotalCash <$> txns 
       wal = calcWAL ByYear cb d (zip amts ds) 
       pv = sum $ zipWith (pv2 (fromRational r) d) ds amts
+      duration = calcDuration d (zip ds amts) curve
     in 
-      AssetPrice pv wal (-1) (-1) (-1)  --TODO missing duration and convixity 
-      
-priceAsset m d (PVCurve rc) assumps mRates 
-  = let 
-      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
-      cb =  getCurrentBal m
-      ds = getDate <$> txns 
-      amts = CF.tsTotalCash <$> txns 
-      wal = calcWAL ByYear cb d (zip amts ds) 
-      pv = pv3 rc d ds amts
-    in 
-      AssetPrice pv wal (-1) (-1) (-1)  --TODO missing duration and convixity 
-
-
+      AssetPrice pv wal duration (-1) (-1)  --TODO missing duration and convixity 

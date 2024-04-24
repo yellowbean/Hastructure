@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.27.7
+### 2024-05-01
+* ENHANCE: Enable pricing on asset via a constant rate/rate curve; add `duration` for asset pricing (curve only)
+
+
 ## 0.27.4
 ### 2024-04-15
 * ENHANCE: Pool run: enhance multip-scenario run and mulitple-assets type run
