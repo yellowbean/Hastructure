@@ -688,11 +688,11 @@ runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 patchIssuanceBalance :: Ast.Asset a => DealStatus -> Map.Map PoolId Balance -> PoolType a -> PoolType a
 patchIssuanceBalance (PreClosing _ ) balM pt =
   case pt of 
-    SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 PoolConsol balM)) p
+    SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 PoolConsol balM)) p -- `debug` ("Insert with issuance balance"++ show (Map.findWithDefault 0.0 PoolConsol balM))
     MultiPool pM -> MultiPool $ Map.mapWithKey (\k v -> over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 k balM)) v) pM
     ResecDeal pM -> ResecDeal pM  --TODO patch balance for resec deal
     
-patchIssuanceBalance _ bal p = p
+patchIssuanceBalance _ bal p = p -- `debug` ("NO patching ?")
 
 patchScheduleFlow :: Ast.Asset a => Map.Map PoolId CF.CashFlowFrame -> PoolType a -> PoolType a
 patchScheduleFlow flowM pt = 
@@ -889,7 +889,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     -- newT = t {fees = newFeeMap, pool = thePool {P.issuanceStat = Just newPoolStat } } `debug` ("init with new pool stats"++ show newPoolStat)
     poolWithSchedule = patchScheduleFlow pUnstressedAfterCutoff thePool -- `debug` ("D")
     newT = t {fees = newFeeMap
-             , pool = patchIssuanceBalance status (Map.map (CF.mflowBalance . head) poolAggCfM) poolWithSchedule
+             , pool = patchIssuanceBalance status (Map.map (CF.mflowBegBalance . head) poolAggCfM) poolWithSchedule
              } -- patching with performing balance
 
 -- ^ UI translation : to read pool cash
