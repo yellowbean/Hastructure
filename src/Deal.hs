@@ -74,7 +74,6 @@ import InterestRate (calcInt)
 import Liability (getDayCountFromInfo)
 import Hedge (RateCap(..),RateSwapBase(..),RateSwap(rsRefBalance))
 import qualified Hedge as HE
-import qualified Types as P
 
 debug = flip trace
 
