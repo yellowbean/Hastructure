@@ -10576,7 +10576,7 @@
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-6,
+                                        "multipleOf": 1.0e-2,
                                         "type": "number"
                                     },
                                     {
@@ -10619,7 +10619,7 @@
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-6,
+                                        "multipleOf": 1.0e-2,
                                         "type": "number"
                                     },
                                     {
@@ -15650,7 +15650,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.6"
+        "version": "0.27.7"
     },
     "openapi": "3.0.0",
     "paths": {

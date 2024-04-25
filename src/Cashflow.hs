@@ -350,49 +350,32 @@ tsDefaultBal LeaseFlow {} = error "not supported"
 tsDefaultBal (FixedFlow _ _ x _ _ _) = x
 tsDefaultBal (ReceivableFlow _ _ _ _ _ x _ _ _ ) = x
 
-tsCumDefaultBal :: TsRow -> Balance
-tsCumDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
-tsCumDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumDefaultBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
-tsCumDefaultBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumDefaultBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
-tsCumDefaultBal (LoanFlow _ _ _ _ _ _ _ _ _  Nothing ) = 0.0
-tsCumDefaultBal (FixedFlow _ _ _ x _ _) = x
-tsCumDefaultBal (ReceivableFlow _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = d
-tsCumDefaultBal (ReceivableFlow _ _ _ _ _ _ _ _ Nothing) = 0
-tsCumDefaultBal x = error ("Failed to get cumulative default for record " ++ show x)
+tsCumulative :: Lens' TsRow (Maybe CumulativeStat)
+tsCumulative = lens getter setter
+  where
+    getter (MortgageDelinqFlow  _ _ _ _ _ _ _ _ _ _ _ _ mStat) = mStat
+    getter (MortgageFlow  _ _ _ _ _ _ _ _ _ _ _ mStat) = mStat
+    getter (LoanFlow  _ _ _ _ _ _ _ _ _ mStat) = mStat
+    getter (ReceivableFlow _ _ _ _ _ _ _ _ mStat) = mStat
+    getter _ = Nothing
 
-tsCumDelinqBal :: TsRow -> Balance
-tsCumDelinqBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = c
-tsCumDelinqBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = 0.0
-tsCumDelinqBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = c
-tsCumDelinqBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing ) = 0.0
-tsCumDelinqBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = c
-tsCumDelinqBal (LoanFlow _ _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumDelinqBal x = error ("Failed to get cumulative delinq for record " ++ show x)
+    setter (MortgageDelinqFlow  a b c d e f g h i j k l _) mStat = MortgageDelinqFlow a b c d e f g h i j k l mStat
+    setter (MortgageFlow  a b c d e f g h i j k _) mStat = MortgageFlow a b c d e f g h i j k mStat
+    setter (LoanFlow  a b c d e f g h i _) mStat = LoanFlow a b c d e f g h i mStat
+    setter (ReceivableFlow a b c d e f g h _) mStat = ReceivableFlow a b c d e f g h mStat
+    setter x _ = x
 
-tsCumLossBal :: TsRow -> Balance
-tsCumLossBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = f
-tsCumLossBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumLossBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = f
-tsCumLossBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumLossBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = f
-tsCumLossBal (LoanFlow _ _ _ _ _ _ _ _ _ Nothing) = 0.0 
-tsCumLossBal (ReceivableFlow _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = f
-tsCumLossBal (ReceivableFlow _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumLossBal x = error ("Failed to get cumulative loss for record " ++ show x)
+tsCumDefaultBal :: TsRow -> Maybe Balance
+tsCumDefaultBal tr = preview (tsCumulative . _Just . _4) tr
 
-tsCumRecoveriesBal :: TsRow -> Balance
-tsCumRecoveriesBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = e
-tsCumRecoveriesBal (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = 0.0
-tsCumRecoveriesBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = e
-tsCumRecoveriesBal (MortgageFlow _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumRecoveriesBal (LoanFlow _ _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = e
-tsCumRecoveriesBal (LoanFlow _ _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumRecoveriesBal (ReceivableFlow _ _ _ _ _ _ _ _ (Just (a,b,c,d,e,f))) = e
-tsCumRecoveriesBal (ReceivableFlow _ _ _ _ _ _ _ _ Nothing) = 0.0
-tsCumRecoveriesBal x = error ("Failed to get cumulative loss for record " ++ show x)
+tsCumDelinqBal :: TsRow -> Maybe Balance
+tsCumDelinqBal tr = preview (tsCumulative . _Just . _3) tr
 
+tsCumLossBal :: TsRow -> Maybe Balance
+tsCumLossBal tr = preview (tsCumulative . _Just . _6) tr
+
+tsCumRecoveriesBal :: TsRow -> Maybe Balance
+tsCumRecoveriesBal tr = preview (tsCumulative . _Just . _5) tr
 
 tsSetDate :: TsRow -> Date -> TsRow
 tsSetDate (CashFlow _ a) x  = CashFlow x a
@@ -403,6 +386,27 @@ tsSetDate (LoanFlow _ a b c d e f g h i) x = LoanFlow x a b c d e f g h i
 tsSetDate (LeaseFlow _ a b) x = LeaseFlow x a b
 tsSetDate (FixedFlow _ a b c d e) x = FixedFlow x a b c d e 
 tsSetDate (ReceivableFlow _ a b c d e f g h) x = ReceivableFlow x a b c d e f g h
+
+tsDate :: Lens' TsRow Date 
+tsDate = lens getter setter 
+  where 
+    getter (CashFlow x _) = x
+    getter (BondFlow x _ _ _) = x
+    getter (MortgageDelinqFlow x _ _ _ _ _ _ _ _ _ _ _ _) = x 
+    getter (MortgageFlow x _ _ _ _ _ _ _ _ _ _ _) = x
+    getter (LoanFlow x _ _ _ _ _ _ _ _ _) = x
+    getter (LeaseFlow x _ _) = x
+    getter (FixedFlow x _ _ _ _ _) = x
+    getter (ReceivableFlow x _ _ _ _ _ _ _ _) = x
+    setter (CashFlow _ a) x = CashFlow x a
+    setter (BondFlow _ a b c) x = BondFlow x a b c
+    setter (MortgageDelinqFlow _ a b c d e f g h i j k l) x = MortgageDelinqFlow x a b c d e f g h i j k l
+    setter (MortgageFlow _ a b c d e f g h i j k) x = MortgageFlow x a b c d e f g h i j k
+    setter (LoanFlow _ a b c d e f g h i) x = LoanFlow x a b c d e f g h i
+    setter (LeaseFlow _ a b) x = LeaseFlow x a b
+    setter (FixedFlow _ a b c d e) x = FixedFlow x a b c d e
+    setter (ReceivableFlow _ a b c d e f g h) x = ReceivableFlow x a b c d e f g h
+
 
 tsSetBalance :: Balance -> TsRow -> TsRow
 tsSetBalance x (CashFlow _d a) = CashFlow _d x
@@ -548,6 +552,7 @@ tsRowBalance = lens getter setter
     getter (LeaseFlow _ x _ ) = x
     getter (FixedFlow _ x _ _ _ _) = x
     getter (ReceivableFlow _ x _ _ _ _ _ _ _ ) = x
+
     setter (BondFlow a _ p i) x = BondFlow a x p i
     setter (MortgageFlow a _ p i prep def rec los rat mbn pn st) x = MortgageFlow a x p i prep def rec los rat mbn pn st
     setter (MortgageDelinqFlow a _ p i prep delinq def rec los rat mbn pn st) x = MortgageDelinqFlow a x p i prep delinq def rec los rat mbn pn st

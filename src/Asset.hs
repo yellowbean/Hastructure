@@ -260,7 +260,7 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
       amts = CF.tsTotalCash <$> txns 
       wal = calcWAL ByYear cb d (zip amts ds) -- `debug` ("pricing"++ show d++ show ds++ show amts)
     in 
-      AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
+      AssetPrice val wal (-1) (-1) (-1)  --TODO missing convixity
       
 priceAsset m d (PvRate r) assumps mRates 
   = let 
@@ -270,6 +270,7 @@ priceAsset m d (PvRate r) assumps mRates
       amts = CF.tsTotalCash <$> txns 
       wal = calcWAL ByYear cb d (zip amts ds) 
       pv = sum $ zipWith (pv2 (fromRational r) d) ds amts
+      curve = mkTs $ zip ds (repeat r)
       duration = calcDuration d (zip ds amts) curve
     in 
-      AssetPrice pv wal duration (-1) (-1)  --TODO missing duration and convixity 
+      AssetPrice pv wal (duration) (-1) (-1)  --TODO missing convixity 
