@@ -295,19 +295,15 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         let
           latestCollect = getLatestCollectFrame t mPns
           futureDefaults = sum $ Map.elems $ Map.map (maybe 0 (fromMaybe 0 . CF.tsCumDefaultBal )) $ latestCollect 
-          historyStat = getIssuanceStats t mPns
-          historyDefaults = sum $ Map.findWithDefault 0 HistoryDefaults <$> Map.elems historyStat
         in
-          futureDefaults + historyDefaults -- `debug` ("history defaults"++ show historyDefaults)
+          futureDefaults 
 
     CumulativePoolRecoveriesBalance mPns ->
         let
           latestCollect = getLatestCollectFrame t mPns
           futureRecoveries = sum $ Map.elems $ Map.map (maybe 0 (fromMaybe 0 . CF.tsCumRecoveriesBal)) $ latestCollect 
-          historyStat = getIssuanceStats t mPns
-          historyRecoveries = sum $ Map.findWithDefault 0 HistoryRecoveries <$> Map.elems historyStat
         in
-          futureRecoveries + historyRecoveries
+          futureRecoveries
     
     CumulativeNetLoss mPns ->
          queryDeal t (CumulativePoolDefaultedBalance mPns) - queryDeal t (CumulativePoolRecoveriesBalance mPns)

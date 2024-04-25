@@ -67,7 +67,6 @@ import Control.Lens.TH
 
 debug = flip trace
 
-
 getPoolFlows :: Ast.Asset a => TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
 getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   case (sd,ed) of

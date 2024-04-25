@@ -6,6 +6,7 @@ module Pool (Pool(..),aggPool
        ,getIssuanceField
        ,poolFutureCf,poolFutureTxn,poolIssuanceStat
        ,poolFutureScheduleCf,futureCf,futureScheduleCf
+       ,poolBegStats
 ) where
 
 
@@ -86,6 +87,22 @@ getIssuanceField p@Pool{issuanceStat = Just m} s
 getIssuanceField Pool{issuanceStat = Nothing} _ 
   = error "There is no pool stats"
 
+poolBegStats :: Pool a -> (Balance,Balance,Balance,Balance,Balance,Balance)
+poolBegStats p = 
+  let 
+    m = issuanceStat p
+    stats = case m of
+              Nothing -> (0,0,0,0,0,0)
+              Just m -> (Map.findWithDefault 0 HistoryPrincipal m
+                        ,Map.findWithDefault 0 HistoryPrepayment m
+                        ,Map.findWithDefault 0 HistoryDelinquency m
+                        ,Map.findWithDefault 0 HistoryDefaults m
+                        ,Map.findWithDefault 0 HistoryRecoveries m
+                        ,Map.findWithDefault 0 HistoryLoss m)
+  in
+    stats
+
+
 -- | Aggregate all cashflow into a single cashflow frame
 -- patch with pool level cumulative defaults/loss etc
 aggPool :: Maybe (Map.Map CutoffFields Balance) -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
@@ -107,8 +124,8 @@ aggPool mStat xs
                                            ,Map.findWithDefault 0 HistoryRecoveries m
                                            ,Map.findWithDefault 0 HistoryLoss m)
       -- (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
-      txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns 
-      -- txns = CF.patchCumulativeAtInit (Just cumulativeStatAtCutoff) _txns 
+      -- txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns 
+      txns = CF.patchCumulativeAtInit (Just cumulativeStatAtCutoff) _txns 
     in
       case Map.lookup AccruedInterest =<< mStat of
         Nothing -> (CF.CashFlowFrame txns, stats) 
