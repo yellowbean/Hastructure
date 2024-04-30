@@ -199,6 +199,7 @@ instance IR.UseRate LiqFacility where
         _ -> Nothing
 
 
+
 $(deriveJSON defaultOptions ''LiqRepayType)
 $(deriveJSON defaultOptions ''LiqDrawType)
 $(deriveJSON defaultOptions ''LiqSupportType)

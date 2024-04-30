@@ -512,6 +512,10 @@ data Table a b = ThresholdTable [(a,b)]
                  deriving (Show,Eq,Ord,Read,Generic)
 
 
+data ActionType = ActionResetRate  
+                | ActionAccrue 
+                 deriving (Show,Eq,Ord,Read,Generic)
+
 data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
                   | AccrueFee Date FeeName               -- ^ accure fee
@@ -523,8 +527,10 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | FireTrigger Date DealCycle String    -- ^ fire a trigger
                   | InspectDS Date DealStats             -- ^ inspect formula
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
-                  | AccrueCapRate Date String             -- ^ reset interest rate cap dates
+                  | AccrueCapRate Date String            -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | ResetSrtRate Date String 
+                  | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   deriving (Show,Generic,Read)

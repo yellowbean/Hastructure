@@ -31,6 +31,7 @@ import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
 import qualified CreditEnhancement as CE
+import qualified Hedge as HE
 import CreditEnhancement (LiquidityProviderName)
 import Ledger (Ledger,LedgerName)
 

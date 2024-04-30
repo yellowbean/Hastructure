@@ -100,6 +100,26 @@ setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ 
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
 
+
+updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.Srt -> HE.Srt
+updateSrtRate t d ras srt@HE.SRT{HE.srtPremiumType = rt} 
+    = srt { HE.srtPremiumRate = applyFloatRate2 rt d ras }
+
+
+accrueSrt :: Ast.Asset a => TestDeal a -> Date -> HE.Srt -> HE.Srt
+accrueSrt t d srt@HE.SRT{ HE.srtDuePremium = duePrem, HE.srtBalance = bal, HE.srtPremiumRate = rate
+                        , HE.srtDueInt = dueInt, HE.srtDuePremiumDate = mDueDate,  HE.srtType = st
+                        , HE.srtStart = sd } 
+  = srt { HE.srtRefBalance = newBal, HE.srtDuePremium = newPremium, HE.srtDuePremiumDate = Just d}
+  where 
+    newBal = case st of
+               SrtByEndDate ds dp -> queryDeal t (patchDateToStats d ds)
+               _ -> error "not support new bal type for Srt"
+    newPremium = duePrem +  calcInt newBal (fromMaybe sd mDueDate) d rate DC_ACT_365F
+    accrueInt = calcInt (HE.srtBalance srt + dueInt) (fromMaybe d (HE.srtDueIntDate srt)) d (HE.srtRate srt) DC_ACT_365F
+    dueInt = HE.srtDuePremium 
+
+
 updateLiqProviderRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPremiumRateType = mPrt
                                                , CE.liqRate = mr, CE.liqPremiumRate = mPr }
@@ -145,6 +165,17 @@ applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
 applyFloatRate (L.CapRate ii _rate) d ras = min _rate (applyFloatRate ii d ras)
 applyFloatRate (L.FloorRate ii _rate) d ras = max _rate (applyFloatRate ii d ras)
 
+applyFloatRate2 :: IR.RateType -> Date -> [RateAssumption] -> IRate
+applyFloatRate2 (IR.Fix _ r) _ _ = r
+applyFloatRate2 (IR.Floater _ idx spd _r _ mFloor mCap mRounding) d ras
+  = let 
+      rateAtDate = AP.lookupRate0 ras idx d 
+      flooring (Just f) v = max f v 
+      flooring Nothing v = v 
+      capping (Just f) v = min f v 
+      capping Nothing  v = v 
+    in 
+      flooring mFloor $ capping mCap $ rateAtDate + spd
 
 updateRateSwapRate :: [RateAssumption] -> Date -> HE.RateSwap -> HE.RateSwap
 updateRateSwapRate rAssumps d rs@HE.RateSwap{ HE.rsType = rt } 
@@ -420,6 +451,17 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                newlog = FinancialReport sd ed bsReport cashReport
              in 
                run t poolFlowMap (Just ads) rates calls rAssump $ log++[newlog] 
+         ResetSrtRate d srtName -> 
+              let 
+                newSrtMap = Map.adjust (updateSrtRate t d (fromMaybe [] rAssump)) srtName (srt t)
+              in 
+                run t{srt = newSrtMap} poolFlowMap (Just ads) rates calls rAssump log
+         AccrueSrt d srtName -> 
+              let 
+                newSrtMap = Map.adjust (accrueSrt t d) srtName (srt t)
+              in 
+                run t{srt = newSrtMap} poolFlowMap (Just ads) rates calls rAssump log
+                 
          FireTrigger d cyc n -> 
              let 
                triggerFired = case mTrgMap of 

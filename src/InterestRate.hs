@@ -119,7 +119,7 @@ class UseRate x where
   isAdjustbleRate :: x -> Bool
   getIndex :: x -> Maybe Index
   getIndexes :: x -> Maybe [Index]
-  getResetDates :: x -> Maybe DatePattern
+  getResetDates :: x -> Dates
 
 
 $(deriveJSON defaultOptions ''ARM)
