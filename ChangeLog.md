@@ -1,5 +1,12 @@
 # Changelog for Hastructure
 
+## 0.27.1
+### 2024-05-04
+* NEW: Formula:  `originalBondBalance`
+* ENHANCE: fix Formula: `PoolFactor`
+* NEW: enable "*" for Formulas
+* FIX: Unlimit Liquidity Provider
+
 ## 0.27.7
 ### 2024-05-01
 * ENHANCE: Enable pricing on asset via a constant rate/rate curve; add `duration` for asset pricing (curve only)
