@@ -1,6 +1,6 @@
 # Changelog for Hastructure
 
-## 0.27.1
+## 0.27.8
 ### 2024-05-04
 * NEW: Formula:  `originalBondBalance`
 * ENHANCE: fix Formula: `PoolFactor`
