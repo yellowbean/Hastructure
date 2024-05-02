@@ -101,22 +101,22 @@ setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _ _)
   = b { L.bndRate = applyFloatRate ii d ras }
 
 
-updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.Srt -> HE.Srt
+updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> HE.SRT
 updateSrtRate t d ras srt@HE.SRT{HE.srtPremiumType = rt} 
     = srt { HE.srtPremiumRate = applyFloatRate2 rt d ras }
 
 
-accrueSrt :: Ast.Asset a => TestDeal a -> Date -> HE.Srt -> HE.Srt
-accrueSrt t d srt@HE.SRT{ HE.srtDuePremium = duePrem, HE.srtBalance = bal, HE.srtPremiumRate = rate
-                        , HE.srtDueInt = dueInt, HE.srtDuePremiumDate = mDueDate,  HE.srtType = st
+accrueSrt :: Ast.Asset a => TestDeal a -> Date -> HE.SRT -> HE.SRT
+accrueSrt t d srt@HE.SRT{ HE.srtDuePremium = duePrem, HE.srtRefBalance = bal, HE.srtPremiumRate = rate
+                        , HE.srtDuePremiumDate = mDueDate,  HE.srtType = st
                         , HE.srtStart = sd } 
   = srt { HE.srtRefBalance = newBal, HE.srtDuePremium = newPremium, HE.srtDuePremiumDate = Just d}
   where 
     newBal = case st of
-               SrtByEndDate ds dp -> queryDeal t (patchDateToStats d ds)
+               HE.SrtByEndDay ds dp -> queryDeal t (patchDateToStats d ds)
                _ -> error "not support new bal type for Srt"
     newPremium = duePrem +  calcInt newBal (fromMaybe sd mDueDate) d rate DC_ACT_365F
-    accrueInt = calcInt (HE.srtBalance srt + dueInt) (fromMaybe d (HE.srtDueIntDate srt)) d (HE.srtRate srt) DC_ACT_365F
+    accrueInt = calcInt (HE.srtRefBalance srt + duePrem) (fromMaybe d (HE.srtDuePremiumDate srt)) d (HE.srtPremiumRate srt) DC_ACT_365F
     dueInt = HE.srtDuePremium 
 
 
@@ -451,16 +451,16 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                newlog = FinancialReport sd ed bsReport cashReport
              in 
                run t poolFlowMap (Just ads) rates calls rAssump $ log++[newlog] 
-         ResetSrtRate d srtName -> 
-              let 
-                newSrtMap = Map.adjust (updateSrtRate t d (fromMaybe [] rAssump)) srtName (srt t)
-              in 
-                run t{srt = newSrtMap} poolFlowMap (Just ads) rates calls rAssump log
-         AccrueSrt d srtName -> 
-              let 
-                newSrtMap = Map.adjust (accrueSrt t d) srtName (srt t)
-              in 
-                run t{srt = newSrtMap} poolFlowMap (Just ads) rates calls rAssump log
+         -- ResetSrtRate d srtName -> 
+         --      let 
+         --        newSrtMap = Map.adjust (updateSrtRate t d (fromMaybe [] rAssump)) srtName (srt t)
+         --      in 
+         --        run t{srt = newSrtMap} poolFlowMap (Just ads) rates calls rAssump log
+         -- AccrueSrt d srtName -> 
+         --      let 
+         --        newSrtMap = Map.adjust (accrueSrt t d) srtName (srt t)
+         --      in 
+         --        run t{srt = newSrtMap} poolFlowMap (Just ads) rates calls rAssump log
                  
          FireTrigger d cyc n -> 
              let 

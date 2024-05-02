@@ -190,6 +190,7 @@ poolSourceToIssuanceField CollectedRecoveries = HistoryRecoveries
 poolSourceToIssuanceField CollectedPrepayment = HistoryPrepayment
 poolSourceToIssuanceField CollectedRental = HistoryRental
 poolSourceToIssuanceField CollectedCash = HistoryCash
+poolSourceToIssuanceField NewLosses = HistoryLoss
 poolSourceToIssuanceField a = error ("Failed to match pool source when mapping to issuance field"++show a)
 
 
@@ -200,6 +201,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 bndMap
     OriginalBondBalance ->
       Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 bndMap
+    OriginalBondBalanceOf bnds ->
+      sum $ L.originBalance . L.bndOriginInfo <$> (bndMap Map.!) <$> bnds
     CurrentPoolBalance mPns ->
       foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (getAllAssetList t) --TODO TOBE FIX: mPns is not used
     CurrentPoolDefaultedBalance ->
@@ -336,10 +339,10 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
  
     PoolCurCollection ps mPns ->
       let 
-        pCf = getLatestCollectFrame t mPns
+        pCf = getLatestCollectFrame t mPns -- `debug` ("mPns"++ show mPns)
         lastRows = Map.map (maybe 0 (\r -> sum (CF.lookupSource r <$> ps))) pCf -- `debug` ("Latest collect frame"++ show pCf)
       in 
-        sum $ Map.elems lastRows
+        sum $ Map.elems lastRows -- `debug` ("lst row found"++ show lastRows)
 
     PoolCollectionStats idx ps mPns -> 
       let 
@@ -378,7 +381,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in 
         sum pvs -- `debug` ("pvs"++ show pvs)
 
-    CurrentBondBalanceOf bns -> sum $ L.bndBalance . (bndMap Map.!) <$> bns
+    CurrentBondBalanceOf bns -> sum $ L.bndBalance . (bndMap Map.!) <$> bns -- `debug` ("Current bond balance of"++show (sum $ L.bndBalance . (bndMap Map.!) <$> bns))
 
     BondsIntPaidAt d bns ->
        let
@@ -522,7 +525,10 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     Min ss -> minimum' [ queryDeal t s | s <- ss ]
 
 
-    Divide ds1 ds2 -> queryDeal t ds1 / queryDeal t ds2
+    Divide ds1 ds2 -> if (queryDeal t ds2) == 0 then 
+                        error $ show (ds2) ++" is zero" 
+                      else
+                        queryDeal t ds1 / queryDeal t ds2
 
     CustomData s d ->
         case custom t of 
@@ -536,7 +542,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     FloorAndCap floor cap s -> max (queryDeal t floor) $ min (queryDeal t cap) (queryDeal t s)
     
     Factor s f -> mulBR (queryDeal t s) f
-
+    Multiply ss -> foldl1 (*)  (queryDeal t <$> ss)
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
     Excess (s1:ss) -> max 0 $ queryDeal t s1 - queryDeal t (Sum ss)

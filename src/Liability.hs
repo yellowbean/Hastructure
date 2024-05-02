@@ -110,20 +110,21 @@ data BondType = Sequential                                 -- ^ Pass through typ
               deriving (Show, Eq, Generic, Ord)
 
 data Bond = Bond {
-  bndName :: String
-  ,bndType :: BondType                 -- ^ bond type ,which describle the how principal due was calculated
-  ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
-  ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
-  ,bndStepUp :: Maybe StepUp           -- ^ step up which update interest rate
-  ,bndBalance :: Balance               -- ^ current balance
-  ,bndRate :: IRate                    -- ^ current rate
-  ,bndDuePrin :: Balance               -- ^ principal due
-  ,bndDueInt :: Balance                -- ^ interest due
-  ,bndDueIntDate :: Maybe Date         -- ^ last interest due calc date
-  ,bndLastIntPay :: Maybe Date         -- ^ last interest pay date
-  ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
-  ,bndStmt :: Maybe S.Statement        -- ^ transaction history
-} deriving (Show, Eq, Generic, Ord)
+              bndName :: String
+              ,bndType :: BondType                 -- ^ bond type ,which describle the how principal due was calculated
+              ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
+              ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
+              ,bndStepUp :: Maybe StepUp           -- ^ step up which update interest rate
+              ,bndBalance :: Balance               -- ^ current balance
+              ,bndRate :: IRate                    -- ^ current rate
+              ,bndDuePrin :: Balance               -- ^ principal due
+              ,bndDueInt :: Balance                -- ^ interest due
+              ,bndDueIntDate :: Maybe Date         -- ^ last interest due calc date
+              ,bndLastIntPay :: Maybe Date         -- ^ last interest pay date
+              ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
+              ,bndStmt :: Maybe S.Statement        -- ^ transaction history
+            } 
+            deriving (Show, Eq, Generic, Ord)
 
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
@@ -408,7 +409,7 @@ instance S.QueryByComment Bond where
 instance Liable Bond where 
   isPaidOff b@Bond{bndName = bn,bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
     | bal==0 && di==0 = True 
-    | otherwise = False -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
+    | otherwise = False  `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool

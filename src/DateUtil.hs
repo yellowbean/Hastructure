@@ -19,6 +19,8 @@ import Data.Time (addDays)
 import Types
 import Data.Ix
 
+import Control.Exception 
+
 debug = flip trace
 
 -- http://www.deltaquants.com/day-count-conventions
@@ -235,6 +237,7 @@ genSerialDatesTill2 rt sd dp ed
       (NO_IE,_,_) -> _r
     where 
       _r = case dp of 
+             -- YearFirst -> throw $ userError "YearFirst not supported in genSerialDatesTill2"
              AllDatePattern dps -> concat [ genSerialDatesTill sd _dp ed | _dp <- dps ]
              StartsExclusive d _dp ->  filter (> d)  $ genSerialDatesTill2 rt sd _dp ed
              Exclude _d _dps ->

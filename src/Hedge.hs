@@ -7,7 +7,7 @@ module Hedge
   (RateSwap(..),RateCap(..)
   ,RateSwapType(..),RateSwapBase(..)
   ,accrueIRS,payoutIRS,receiveIRS,receiveRC
-  ,CurrencySwap(..),rsRefBalLens,SRT(..)
+  ,CurrencySwap(..),rsRefBalLens,SRT(..),SrtType(..)
   )
   where
 
@@ -190,7 +190,7 @@ instance IR.UseRate SRT where
         (IR.Floater _ idx _ _ _ _ _ _ ) -> Just [idx]
         _ -> Nothing
   
-  getResetDates srt@SRT{srtPremiumRate = rt , srtStart = sd, srtEnds = ed} 
+  getResetDates srt@SRT{srtPremiumType = rt , srtStart = sd, srtEnds = Just ed} 
     = case rt of 
         (IR.Floater _ _ _ _ dp _ _ _ ) -> genSerialDatesTill2 EI sd dp ed
         _ -> []
@@ -215,7 +215,7 @@ buildSrtResetAction (srt:srts) ed r =
        buildSrtResetAction 
         srts 
         ed 
-        [(ln,IR.getRateResetDates sd ed rt)]++r
+        [(ln,IR.getRateResetDates sd ed (Just rt))]++r
     _ -> buildSrtResetAction srts ed r
 
 

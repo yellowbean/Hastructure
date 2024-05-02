@@ -1648,6 +1648,64 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ResetSrtRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ResetSrtRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "AccrueSrt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "AccrueSrt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
@@ -4761,6 +4819,28 @@
                         "properties": {
                             "contents": {
                                 "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "OriginalBondBalanceOf"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "OriginalBondBalanceOf",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
                                     "$ref": "#/components/schemas/PoolId"
                                 },
                                 "type": "array"
@@ -6620,6 +6700,28 @@
                             "contents"
                         ],
                         "title": "Factor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DealStats"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Multiply"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Multiply",
                         "type": "object"
                     },
                     {
@@ -15650,7 +15752,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.8"
+        "version": "0.27.10"
     },
     "openapi": "3.0.0",
     "paths": {

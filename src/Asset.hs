@@ -77,6 +77,10 @@ class (Show a,IR.UseRate a) => Asset a where
   splitWith :: a -> [Rate] -> [a]
   -- | ! Change the origination date of an asset
   updateOriginDate :: a -> Date -> a
+  -- | get Last Interest Payment date
+  getLastInterestPaymentDate :: a -> Maybe Date
+  -- | Calculate Accrued Interest 
+  calcAccruedInterest :: a -> Date -> Balance
   -- | ! Internal use
   calcAlignDate :: a -> Date -> Date
   calcAlignDate ast d = let 
@@ -86,6 +90,7 @@ class (Show a,IR.UseRate a) => Asset a where
                           offset = daysBetween benchDate d
                         in 
                           T.addDays offset $ getOriginDate ast
+
                           
   {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 

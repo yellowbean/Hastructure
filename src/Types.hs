@@ -406,6 +406,7 @@ data DealStats = CurrentBondBalance
                | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
                | CumulativeNetLossRatio (Maybe [PoolId])
                | OriginalBondBalance
+               | OriginalBondBalanceOf [BondName]
                | OriginalPoolBalance (Maybe [PoolId])
                | DealIssuanceBalance (Maybe [PoolId])
                | CurrentPoolBorrowerNum (Maybe [PoolId])
@@ -478,6 +479,7 @@ data DealStats = CurrentBondBalance
                | PoolWaRate (Maybe [PoolId])
                | BondRate BondName
                | Factor DealStats Rational
+               | Multiply [DealStats]
                | Max [DealStats]
                | Min [DealStats]
                | Sum [DealStats]
@@ -512,8 +514,8 @@ data Table a b = ThresholdTable [(a,b)]
                  deriving (Show,Eq,Ord,Read,Generic)
 
 
-data ActionType = ActionResetRate  
-                | ActionAccrue 
+data ActionType = ActionResetRate  -- ^ reset interest rate from curve
+                | ActionAccrue     -- ^ accrue liablity
                  deriving (Show,Eq,Ord,Read,Generic)
 
 data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest

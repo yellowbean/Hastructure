@@ -17,7 +17,7 @@ import System.Environment
 
 import Control.Monad.Catch       (MonadCatch, MonadThrow (..))
 import Control.Monad.IO.Class    (liftIO)
-import Control.Exception (Exception)
+import Control.Exception (Exception,throwIO,throw)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Lens
@@ -358,6 +358,8 @@ type EngineAPI = "version" :> Get '[JSON] Version
 --            :<|> "runDealOAS" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName [PriceResult])
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
+
+-- instance NFData [Date]
 
 
 engineAPI :: Proxy EngineAPI
