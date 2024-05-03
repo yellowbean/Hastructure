@@ -102,7 +102,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.27.12"
+version1 = Version "0.27.13"
 
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
