@@ -2,10 +2,11 @@
 
 ## 0.27.11
 ### 2024-05-04
-* NEW: Formula:  `originalBondBalance`
+* NEW: Formula:  `originalBondBalance`,`BondDuePrin`
+* NEW: Waterfall Action: `CalcBondPrin`,`PayPrinWithDue`
 * ENHANCE: fix Formula: `PoolFactor`
-* NEW: enable "*" for Formulas
-* FIX: Unlimit Liquidity Provider
+* NEW: Enable "*" for Formulas
+* FIX: Unlimit Liquidity Provider has wrong available balance
 
 ## 0.27.7
 ### 2024-05-01

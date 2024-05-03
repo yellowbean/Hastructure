@@ -539,6 +539,79 @@
                             },
                             "tag": {
                                 "enum": [
+                                    "CalcBondPrin"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CalcBondPrin",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayPrinWithDue"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayPrinWithDue",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
                                     "PayPrin"
                                 ],
                                 "type": "string"
@@ -5922,6 +5995,28 @@
                             "contents"
                         ],
                         "title": "BondBalanceGapAt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondDuePrin"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondDuePrin",
                         "type": "object"
                     },
                     {
@@ -15752,7 +15847,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.10"
+        "version": "0.27.11"
     },
     "openapi": "3.0.0",
     "paths": {

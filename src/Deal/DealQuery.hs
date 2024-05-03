@@ -201,6 +201,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 bndMap
     OriginalBondBalance ->
       Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 bndMap
+    BondDuePrin bnds ->
+      sum $ L.bndDuePrin <$> ((bndMap Map.!) <$> bnds)
     OriginalBondBalanceOf bnds ->
       sum $ L.originBalance . L.bndOriginInfo <$> (bndMap Map.!) <$> bnds
     CurrentPoolBalance mPns ->

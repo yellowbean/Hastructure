@@ -72,6 +72,8 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
+            | CalcBondPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ calculate principal due amount in the bond names
+            | PayPrinWithDue AccountName [BondName] (Maybe ExtraSupport)                    -- ^ pay principal to bond with due amount
             | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond via pro-rata
             | PayPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ pay principal to bond via sequence
             | PayPrinResidual AccountName [BondName]                                        -- ^ pay principal regardless predefined balance schedule

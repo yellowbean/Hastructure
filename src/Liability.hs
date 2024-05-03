@@ -409,7 +409,7 @@ instance S.QueryByComment Bond where
 instance Liable Bond where 
   isPaidOff b@Bond{bndName = bn,bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
     | bal==0 && di==0 = True 
-    | otherwise = False  `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
+    | otherwise = False  -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool
