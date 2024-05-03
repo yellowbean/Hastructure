@@ -827,6 +827,7 @@ instance ToJSON TxnComment where
   toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
+  toJSON (FundWith b bal) = String $ T.pack $ "<FundWith:"++b++","++show bal++">"
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
