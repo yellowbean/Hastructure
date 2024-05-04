@@ -536,6 +536,8 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
+                  | StopRunFlag Date                     -- ^ stop the run with a message
+                  | HitStatedMaturity Date               -- ^ hit the stated maturity date
                   deriving (Show,Generic,Read)
 
 
@@ -692,6 +694,7 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      | InspectWaterfall Date (Maybe String) [DealStats] [String]
                      | ErrorMsg String
                      | WarningMsg String
+                     | EndRun (Maybe Date) String                             -- ^ end of run with a message
                      -- | SnapshotCashflow Date String CashFlowFrame
                      deriving (Show, Generic)
 
