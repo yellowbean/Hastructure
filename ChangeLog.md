@@ -1,5 +1,9 @@
 # Changelog for Hastructure
 
+## 0.27.12
+### 2024-05-04
+* ENHANCE: deal will return how it was ended in projection
+
 ## 0.27.11
 ### 2024-05-04
 * NEW: Formula:  `originalBondBalance`,`BondDuePrin`
