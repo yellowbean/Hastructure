@@ -1832,6 +1832,44 @@
                         ],
                         "title": "BuildReport",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "StopRunFlag"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "StopRunFlag",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "HitStatedMaturity"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "HitStatedMaturity",
+                        "type": "object"
                     }
                 ]
             },
@@ -12328,6 +12366,35 @@
                         ],
                         "title": "WarningMsg",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "EndRun"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "EndRun",
+                        "type": "object"
                     }
                 ]
             },
@@ -15847,7 +15914,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.12"
+        "version": "0.27.13"
     },
     "openapi": "3.0.0",
     "paths": {
