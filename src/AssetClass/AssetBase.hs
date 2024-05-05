@@ -174,10 +174,17 @@ data Receivable = Invoice OriginalInfo Status
                 | DUMMY4
                 deriving (Show,Generic,Eq,Ord)
 
-
 data MixedAsset = MixedPool (Map.Map String [AssetUnion])
                 | DUMMY2
                 deriving (Show,Generic,Eq,Ord)
+
+type LineOfCredit = Maybe Balance
+
+data Revolver = Heloc OriginalInfo LineOfCredit Balance IRate RemainTerms (Maybe BorrowerNum) Status
+              | DUMMY5
+              deriving (Show,Generic,Eq,Ord)
+
+
 
 -- FixedAsset 
 data Capacity = FixedCapacity Balance
