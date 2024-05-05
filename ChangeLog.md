@@ -1,5 +1,11 @@
 # Changelog for Hastructure
 
+## 0.27.13
+### 2024-05-05
+* ENHANCE: enable all `Combination Type` formula (via patching dates)
+* ENHANCE: add capability to query txn in (Fee/Bond/Account) via a `comment`
+
+
 ## 0.27.12
 ### 2024-05-04
 * ENHANCE: deal will return how it was ended in projection
