@@ -68,6 +68,7 @@ patchDateToStats d t
          ReserveExcess ans -> ReserveExcessAt d ans
          Sum _ds -> Sum $ map (patchDateToStats d) _ds
          Substract _ds -> Substract $ map (patchDateToStats d) _ds
+         Subtract _ds -> Subtract $ map (patchDateToStats d) _ds
          Min dss -> Min $ [ patchDateToStats d ds | ds <- dss ] 
          Max dss -> Max $ [ patchDateToStats d ds | ds <- dss ]
          Factor _ds r -> Factor (patchDateToStats d _ds) r
@@ -76,9 +77,18 @@ patchDateToStats d t
          CurrentPoolBorrowerNum mPns -> FutureCurrentPoolBorrowerNum d mPns
          FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
          BondTxnAmt ns mCmt -> BondTxnAmtBy d ns mCmt
-         AccTxnAmt ns mCmt -> AccTxnAmtBy d ns mCmt
+         AccTxnAmt ns mCmt -> AccTxnAmtBy d ns mCmt -- `debug` ("Hitttt")
          PoolScheduleCfPv pm pns -> FuturePoolScheduleCfPv d pm pns
-         _ -> t
+         Excess dss -> Excess $ [ patchDateToStats d ds | ds <- dss ]
+         Abs ds -> Abs $ patchDateToStats d ds
+         Avg dss -> Avg $ [ patchDateToStats d ds | ds <- dss ]
+         Divide ds1 ds2 -> Divide (patchDateToStats d ds1) (patchDateToStats d ds2)
+         FloorAndCap f c s -> FloorAndCap (patchDateToStats d f) (patchDateToStats d c) (patchDateToStats d s)
+         Multiply dss -> Multiply $ [ patchDateToStats d ds | ds <- dss ]
+         FloorWith ds f -> FloorWith (patchDateToStats d ds) (patchDateToStats d f)
+         CapWith ds c -> CapWith (patchDateToStats d ds) (patchDateToStats d c)
+         Round ds rb -> Round (patchDateToStats d ds) rb
+         _ -> t -- `debug` ("Failed to patch date to stats"++show t)
 
 
 queryDealRate :: P.Asset a => TestDeal a -> DealStats -> Micro

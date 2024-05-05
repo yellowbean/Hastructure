@@ -965,6 +965,25 @@ performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns mBalDs mRateDs)
   where 
     newBondMap = Map.map (calcDueInt t d mBalDs mRateDs) $ getBondsByName t (Just bns)
 
+performAction d t@TestDeal{bonds=bndMap} (W.CalcBondPrin2 mLimit bnds) 
+  = t {bonds = newBndMap} -- `debug` ("New map after calc due"++ show (Map.mapWithKey (\k v -> (k, L.bndDuePrin v)) newBndMap))
+  where 
+    limitCap = case mLimit of 
+                 Just (DS ds) -> queryDeal t (patchDateToStats d ds)
+                 Just (DueCapAmt amt) -> amt
+                 Nothing -> 0
+
+    bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds
+    bndsToPayNames = L.bndName <$> bndsToPay
+    bndsDueAmts = L.bndDuePrin . calcDuePrin t d <$> bndsToPay
+    
+    bndsAmountToBePaid = zip bndsToPayNames $ prorataFactors bndsDueAmts limitCap
+    
+    newBndMap = foldr 
+                  (\(bn,amt) acc -> Map.adjust (\b -> b {L.bndDuePrin = amt})  bn acc) 
+                  bndMap 
+                  bndsAmountToBePaid -- `debug` ("Calc Bond Prin"++ show bndsAmountToBePaid)
+
 performAction d t@TestDeal{bonds=bndMap} (W.CalcBondPrin mLimit accName bnds mSupport) 
   = t {bonds = newBndMap} -- `debug` ("New map after calc due"++ show (Map.mapWithKey (\k v -> (k, L.bndDuePrin v)) newBndMap))
   where 

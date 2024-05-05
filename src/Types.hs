@@ -843,6 +843,7 @@ parseTxn t = case tagName of
                   sv = T.splitOn (T.pack ",") $ T.pack contents
                 in 
                   return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
+  "Support" -> return $ LiquidationSupport contents
   where 
       pat = "<(\\S+):(\\S+)>"::String
       sr = (T.unpack t =~ pat)::[[String]]
