@@ -942,21 +942,14 @@ extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
 
 isEmptyRow :: TsRow -> Bool 
 isEmptyRow (MortgageDelinqFlow _ 0 0 0 0 0 0 0 0 _ _ _ _) = True
-isEmptyRow MortgageDelinqFlow {} = False
 isEmptyRow (MortgageFlow _ 0 0 0 0 0 0 0 _ _ _ _) = True
-isEmptyRow MortgageFlow {} = False
 isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
-isEmptyRow LoanFlow {} = False
 isEmptyRow (LeaseFlow _ 0 0) = True
-isEmptyRow LeaseFlow {} = False
 isEmptyRow (FixedFlow _ 0 0 0 0 0) = True
-isEmptyRow FixedFlow {} = False
 isEmptyRow (BondFlow _ 0 0 0) = True
-isEmptyRow BondFlow {} = False
 isEmptyRow (CashFlow _ 0) = True
-isEmptyRow CashFlow {} = False
 isEmptyRow (ReceivableFlow _ 0 0 0 0 0 0 0 _ ) = True
-isEmptyRow ReceivableFlow {} = False
+isEmptyRow _ = False
 
 -- ^ Remove empty cashflow from the tail
 dropTailEmptyTxns :: [TsRow] -> [TsRow]

@@ -254,7 +254,7 @@ calcDueInt :: Ast.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe Deal
 calcDueInt t calc_date mBal mRate b@(L.Bond _ _ oi io _ bal r dp di Nothing _ lastPrinPay _ ) 
  | calc_date <= closingDate = b
  | bal+di == 0 = b
- | otherwise = calcDueInt t calc_date mBal mRate (b {L.bndDueIntDate = Just closingDate })
+ | otherwise = calcDueInt t calc_date mBal mRate (b {L.bndDueIntDate = Just closingDate })  -- `debug` ("hit")
    where 
      closingDate = getClosingDate (dates t)
 
@@ -267,6 +267,7 @@ calcDueInt t calc_date _ _ b@(L.Bond bn L.Equity bo (L.InterestByYield y) _ bond
     newDue = L.backoutDueIntByYield calc_date b
 
 calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ intDue (Just int_due_date) lstIntPay _ _ ) 
+  | bond_bal == 0 = b
   | calc_date == int_due_date = b
   | otherwise = b {L.bndDueInt = newDueInt+intDue,L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
               where
@@ -276,7 +277,7 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ i
                        _ -> DC_ACT_365F
                 overrideBal = maybe bond_bal (queryDeal t ) mBal
                 overrideRate = maybe bond_rate (queryDealRate t) mRate
-                newDueInt = IR.calcInt (overrideBal+intDue) int_due_date calc_date overrideRate dc -- `debug` ("Using Rate"++show overrideRate++">>Bal"++ show overrideBal)
+                newDueInt = IR.calcInt (overrideBal+intDue) int_due_date calc_date overrideRate dc -- `debug` ("Using Rate"++show calc_date ++">>Bal"++ show overrideBal)
 
 
 calcDuePrin :: Ast.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
@@ -928,6 +929,7 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an 
                 
     accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bond fundAmt)) an accMap
     bndMapUpdated = Map.adjust ((L.fundWith d fundAmt) . (calcDueInt t d Nothing Nothing)) bond bndMap
+    -- bndMapUpdated = Map.adjust ((calcDueInt t d Nothing Nothing) ) bond bndMap
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
   = t {bonds = bndMapUpdated}

@@ -196,6 +196,7 @@ instance SPV (TestDeal a) where
 
   getBondBegBal t bn 
     = case L.bndStmt b of
+        Just (Statement []) -> L.bndBalance b -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
         Just (Statement stmts) -> getTxnBegBalance $ head stmts -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
         Nothing -> L.bndBalance b  -- `debug` ("Getting beg bal nothing"++bn)
         where
