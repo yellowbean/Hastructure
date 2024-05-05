@@ -844,6 +844,47 @@ parseTxn t = case tagName of
                 in 
                   return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
   "Support" -> return $ LiquidationSupport contents
+  "PayInt" -> return $ PayInt [contents]
+  "PayYield" -> return $ PayYield contents
+  "PayPrin" -> return $ PayPrin [contents]
+  "WriteOff" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ WriteOff (T.unpack (head sv)) (read (T.unpack (sv!!1))::Balance)
+  "PayPrinResidual" -> return $ PayPrinResidual [contents]
+  "PayFee" -> return $ PayFee contents
+  "SeqPayFee" -> return $ SeqPayFee [contents]
+  "PayFeeYield" -> return $ PayFeeYield contents
+  "TransferBy" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ TransferBy (T.unpack (head sv)) (T.unpack (sv!!1)) (read (T.unpack (sv!!2))::Limit)
+  "Pool" -> let 
+              sr = T.splitOn (T.pack ":") $ T.pack contents
+              mPids = if head sr == "Nothing" then 
+                        Nothing 
+                      else 
+                        Just (read <$> T.unpack <$> sr)::(Maybe [PoolId])
+            in 
+              return $ PoolInflow mPids (read (T.unpack (sr!!1))::PoolSource)
+  "Liquidation" -> return LiquidationProceeds
+  "DS" -> return $ UsingDS (read (contents)::DealStats)
+  "LiquidationSupportExp" -> let 
+                              sv = T.splitOn (T.pack ",") $ T.pack contents
+                            in 
+                              return $ LiquidationSupportInt (read (T.unpack (head sv))::Balance) (read (T.unpack (sv!!1))::Balance)
+  "SupportDraw" -> return SupportDraw
+  "Draw" -> return LiquidationDraw
+  "Repay" -> return LiquidationRepay
+  "Accure" -> return SwapAccrue
+  "SettleIn" -> return SwapInSettle
+  "SettleOut" -> return SwapOutSettle
+  "PurchaseAsset" -> return PurchaseAsset
+  "TxnDirection" -> return $ TxnDirection (read contents::BookDirection)
+  "FundWith" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ FundWith (T.unpack (head sv)) (read (T.unpack (sv!!1))::Balance)                         
   where 
       pat = "<(\\S+):(\\S+)>"::String
       sr = (T.unpack t =~ pat)::[[String]]
