@@ -8,7 +8,7 @@ module Accounts (Account(..),ReserveAmount(..),draw,deposit
                 ,accBalLens)
     where
 import qualified Data.Time as T
-import Stmt (Statement(..),appendStmt,Txn(..),getTxnBegBalance,getDate
+import Stmt (Statement(..),appendStmt,getTxnBegBalance,getDate
             ,TxnComment(..),QueryByComment(..),getTxnComment,getTxnAmt,weightAvgBalanceByDates)
 import Types
 import Lib

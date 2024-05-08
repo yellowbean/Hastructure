@@ -5,7 +5,7 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module Stmt
-  (Statement(..),Txn(..)
+  (Statement(..)
    ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
@@ -39,16 +39,6 @@ import Control.Lens.TH
 import Debug.Trace
 debug = flip trace
 
-type DueInt = Balance
-type DuePremium = Balance
-
-data Txn = BondTxn Date Balance Interest Principal IRate Cash (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
-         | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
-         | ExpTxn Date Balance Amount Balance TxnComment                                   -- ^ expense transaction record
-         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment     -- ^ liquidity provider transaction record
-         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                       -- ^ interest swap transaction record
-         | EntryTxn Date Balance Amount TxnComment                                         -- ^ ledger book entry
-         deriving (Show, Generic)
 
 aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance
 aggByTxnComment [] m = M.map sumTxn m 
@@ -225,8 +215,8 @@ instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ _) (BondTxn d2 _ _ _ _ _ _ _) = compare d1 d2
   compare (AccTxn d1 _ _ _ ) (AccTxn d2 _ _ _  ) = compare d1 d2
 
-instance Eq Txn where
-  (BondTxn d1 _ _ _ _ _ _ _) == (BondTxn d2 _ _ _ _ _ _ _) = d1 == d2
+-- instance Eq Txn where
+--  (BondTxn d1 _ _ _ _ _ _ _) == (BondTxn d2 _ _ _ _ _ _ _) = d1 == d2
 
 instance TimeSeries Txn where 
   getDate (BondTxn t _ _ _ _ _ _ _ ) = t
@@ -251,5 +241,4 @@ class QueryByComment a where
 -- queryTxnAmt txns comment 
 --   = sum $ geTxnAmt <$> queryTxn txns comment
 
-$(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)

@@ -24,7 +24,7 @@ module Types
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),BookDirection(..),DealStatType(..),getDealStatType
   ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
-  ,DealName,lookupIntervalTable,getPriceValue
+  ,DealName,lookupIntervalTable,getPriceValue,Txn(..)
   )
   
   where
@@ -53,6 +53,7 @@ import Data.List (intercalate, findIndex)
 -- import Cashflow (CashFlowFrame)
 
 import Debug.Trace
+-- import qualified Cashflow as CF
 debug = flip trace
 
 
@@ -346,6 +347,18 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
            deriving (Show,Ord,Eq,Read,Generic)
 
 
+type DueInt = Balance
+type DuePremium = Balance
+
+data Txn = BondTxn Date Balance Interest Principal IRate Cash (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
+         | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
+         | ExpTxn Date Balance Amount Balance TxnComment                                   -- ^ expense transaction record
+         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment     -- ^ liquidity provider transaction record
+         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                       -- ^ interest swap transaction record
+         | EntryTxn Date Balance Amount TxnComment                                         -- ^ ledger book entry
+         deriving (Show, Generic, Eq)
+
+
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
@@ -388,7 +401,7 @@ type AccruedInterest = Centi
 type IRR = Rational
 data YieldResult = Yield
 
-data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
+data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest [Txn]
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
@@ -763,12 +776,12 @@ data RateAssumption = RateCurve Index Ts     --om a:message^ a rate curve ,which
 
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
-getPriceValue (PriceResult v _ _ _ _ _) = v
+getPriceValue (PriceResult v _ _ _ _ _ _) = v
 getPriceValue x = error  $ "failed to match with type when geting price value" ++ show x
 
 
 getValuation :: PriceResult -> PerFace
-getValuation (PriceResult _ val _ _ _ _ ) = val
+getValuation (PriceResult _ val _ _ _ _ _) = val
 getValuation (OASResult pr _ _) = getValuation pr
 getValuation pr =  error $ "not support for pricing result"++ show pr
 
@@ -976,6 +989,8 @@ $(deriveJSON defaultOptions ''ResultComponent)
 -- $(deriveJSON defaultOptions ''BookItem)
 -- $(deriveJSON defaultOptions ''BalanceSheetReport)
 -- $(deriveJSON defaultOptions ''DealCycle)
+
+$(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''CutoffFields)

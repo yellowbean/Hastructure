@@ -10853,10 +10853,16 @@
                                     {
                                         "multipleOf": 1.0e-2,
                                         "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Txn"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 6,
-                                "minItems": 6,
+                                "maxItems": 7,
+                                "minItems": 7,
                                 "type": "array"
                             },
                             "tag": {
@@ -14004,38 +14010,6 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "items": {
-                                            "$ref": "#/components/schemas/Bond"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "IssueBonds"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "IssueBonds",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
                                         "type": "string"
                                     },
                                     {
@@ -15946,7 +15920,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.16"
+        "version": "0.27.17"
     },
     "openapi": "3.0.0",
     "paths": {

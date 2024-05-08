@@ -184,7 +184,7 @@ instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
 instance ToSchema Stmt.Statement
-instance ToSchema Stmt.Txn
+instance ToSchema Types.Txn
 instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
 instance ToSchema RV.RevolvingPool
