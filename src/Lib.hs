@@ -203,15 +203,19 @@ daysBetweenI :: Date -> Date -> Int
 daysBetweenI sd ed = fromInteger $ T.diffDays ed sd
 
 genDates :: Date -> Period -> Int -> [Date]
+genDates start_day BiWeekly n = 
+  [ T.addGregorianDurationClip (T.CalendarDiffDays 0 (toInteger i * 14)) start_day | i <- [1..n]] --`debug` ("Hit weekly")
+genDates start_day Weekly n = 
+  [ T.addGregorianDurationClip (T.CalendarDiffDays 0 (toInteger i * 7)) start_day | i <- [1..n]] --`debug` ("Hit weekly")
 genDates start_day p n =
-   [ T.addGregorianDurationClip (T.CalendarDiffDays (toInteger i*mul) 0) start_day | i <- [1..n]]
+  [ T.addGregorianDurationClip (T.CalendarDiffDays (toInteger i*mul) 0) start_day | i <- [1..n]]
    where
      mul = case p of
        Monthly -> 1
        Quarterly -> 3
        SemiAnnually -> 6
        Annually -> 12
-       _ -> 0
+       _ -> error $ "Invalid period" ++ show p
 
 nextDate :: Date -> Period -> Date
 nextDate d p

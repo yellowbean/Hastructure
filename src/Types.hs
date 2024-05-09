@@ -152,13 +152,12 @@ data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurob
               | DC_30_360_US     -- ^ 30/360 US Municipal , Bond basis
               deriving (Show,Eq,Generic,Ord)
 
+
 data DateType = ClosingDate        -- ^ deal closing day
               | CutoffDate         -- ^ after which, the pool cashflow was aggregated to SPV
               | FirstPayDate       -- ^ first payment day for bond/waterfall to run with
               | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
               deriving (Show,Ord,Eq,Generic,Read)
-
-
 
 
 data DatePattern = MonthEnd
@@ -174,6 +173,7 @@ data DatePattern = MonthEnd
                  | CustomDate [Date]
                  | DaysInYear [(Int, Int)]
                  | EveryNMonth Date Int
+                 | Weekday Int 
                  | AllDatePattern [DatePattern]
                  | StartsExclusive Date DatePattern
                  | Exclude DatePattern [DatePattern]
@@ -184,6 +184,7 @@ data DatePattern = MonthEnd
 
 data Period = Daily 
             | Weekly 
+            | BiWeekly
             | Monthly 
             | Quarterly 
             | SemiAnnually 
