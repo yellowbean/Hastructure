@@ -4578,6 +4578,27 @@
                     {
                         "properties": {
                             "contents": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Weekday"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Weekday",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/DatePattern"
                                 },

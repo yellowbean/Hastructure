@@ -177,6 +177,12 @@ genSerialDates dp ct sd num
                                                         , monthRange <- [1..12]]
                 where 
                   yrs = fromIntegral $ div num 12 + 1                   
+        Weekday wday -> 
+                [T.addDays (toInteger _n * 7) startDay | _n <- [0..]]  
+                where 
+                  dOfWeek = toEnum wday::T.DayOfWeek
+                  startDay = T.firstDayOfWeekOnAfter dOfWeek sd
+                  
         CustomDate ds -> ds
         EveryNMonth d n -> 
                 d:[ T.addGregorianDurationClip (T.CalendarDiffDays ((toInteger _n)*(toInteger n)) 0) d | _n <- [1..num] ]
