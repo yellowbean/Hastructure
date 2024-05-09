@@ -1970,6 +1970,27 @@
                     {
                         "properties": {
                             "contents": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "F_P_NO_FirstN"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "F_P_NO_FirstN",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "maximum": 9223372036854775807,
@@ -9260,6 +9281,7 @@
                 "enum": [
                     "Daily",
                     "Weekly",
+                    "BiWeekly",
                     "Monthly",
                     "Quarterly",
                     "SemiAnnually",

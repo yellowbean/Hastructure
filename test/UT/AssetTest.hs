@@ -23,6 +23,7 @@ import Types
 import InterestRate
 
 import Debug.Trace
+import qualified AssetClass.AssetBase as AB
 debug = flip trace
 
 tm = AB.Mortgage
@@ -263,6 +264,13 @@ installmentTest =
                  5
                  AB.Current
       loan4Cf = Ast.calcCashflow loan4 asofDate2 Nothing
+      
+      loan5 =  AB.Installment
+                 (AB.LoanOriginalInfo 1200 (Fix DC_ACT_365F 0.01) 12 L.Monthly (L.toDate "20220101") (AB.PO_FirstN 4)) 
+                 1000
+                 10
+                 AB.Current
+      loan5Cf = Ast.calcCashflow loan5 (L.toDate "20220101") Nothing
     in 
       testGroup "Installment cashflow Tests" [ 
        testCase "Loan 1" $
@@ -285,6 +293,18 @@ installmentTest =
            assertEqual "Balance/Principal/Int at period 1"
              (Just (CF.LoanFlow (L.toDate "20220901") 166.68 41.66 5 0 0 0 0 0.01 Nothing))
              (CF.cfAt loan4Cf 0)
+      ,testCase "First No Fee Loan at first period" $
+           assertEqual "Balance/Principal/Int at period 1"
+             (Just (CF.LoanFlow (L.toDate "20220401") 900 100 0 0 0 0 0 0.01 Nothing))
+             (CF.cfAt loan5Cf 0)
+      ,testCase "First No Fee Loan at first period" $
+           assertEqual "Balance/Principal/Int at period 3"
+             (Just (CF.LoanFlow (L.toDate "20220601") 700 100 12 0 0 0 0 0.01 Nothing))
+             (CF.cfAt loan5Cf 2)
+      ,testCase "First No Fee Loan at first period" $
+           assertEqual "Balance/Principal/Int at period 2"
+             (Just (CF.LoanFlow (L.toDate "20220501") 800 100 0 0 0 0 0 0.01 Nothing))
+             (CF.cfAt loan5Cf 1)
       ]
 
 
