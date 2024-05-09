@@ -1,5 +1,11 @@
 # Changelog for Hastructure
 
+## 0.27.x
+### 2024-05-09
+* NEW: add `weekday <n>` in the date pattern
+* FIX: expose `weekly` /`biweekly` in `Period`
+
+
 ## 0.27.13
 ### 2024-05-05
 * ENHANCE: enable all `Combination Type` formula (via patching dates)

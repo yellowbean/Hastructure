@@ -218,6 +218,7 @@ genSerialDatesTill sd ptn ed
               DayOfMonth _d -> cdM -- T.DayOfMonth 
               CustomDate ds -> 2 + toInteger (length ds)
               EveryNMonth _d _n -> div cdM (toInteger _n)
+              Weekday _d -> cdM * 4
               _ -> error $ "failed to match" ++ show ptn
               -- DayOfWeek Int -> -- T.DayOfWeek 
 
