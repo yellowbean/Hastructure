@@ -57,7 +57,7 @@ projectInstallmentFlow (startBal, lastPaidDate, (originRepay,originInt), startRa
                                mulBR originInt newFactor
                              else
                                0
-                      PO_FirstN n -> if (ot-rt) > n then
+                      PO_FirstN n -> if (ot-rt) >= n then
                                           mulBR originInt newFactor
                                         else
                                           0 
@@ -89,9 +89,10 @@ instance Asset Installment where
         prin_flow = replicate rt cpmt 
         int_flow =  case ptype of 
                       F_P -> replicate rt cfee
-                      PO_FirstN n -> lastN rt $ replicate n 0.0 ++ replicate (ot-n) cfee
+                      PO_FirstN n -> lastN rt $ replicate n 0.0 ++ replicate (ot-n) cfee -- `debug` ("aaa"++ show (replicate n 0.0))
         _flows = zipWith10 CF.LoanFlow cf_dates stressed_bal_flow prin_flow int_flow 
                                        (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt orate) (replicate rt Nothing)
+                                
         flows = cutBy Inc Future asOfDay _flows
 
 
