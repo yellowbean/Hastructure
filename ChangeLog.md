@@ -4,6 +4,7 @@
 ### 2024-05-09
 * NEW: add `weekday <n>` in the date pattern
 * FIX: expose `weekly` /`biweekly` in `Period`
+* NEW: `Installment` : now allow new `first N period without Fee` feature to model cashflow
 
 
 ## 0.27.13
