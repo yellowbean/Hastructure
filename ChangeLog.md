@@ -1,11 +1,11 @@
 # Changelog for Hastructure
 
-## 0.27.x
+## 0.27.19
 ### 2024-05-09
 * NEW: add `weekday <n>` in the date pattern
-* FIX: expose `weekly` /`biweekly` in `Period`
-* NEW: `Installment` : now allow new `first N period without Fee` feature to model cashflow
-
+* ENHANCE: expose `weekly` /`biweekly` in `Period`
+* NEW: now allow new `first N period without Fee` feature to model cashflow of type `Installment` 
+* FIX: negative pool balance for (revolving pool asset >= 2)
 
 ## 0.27.13
 ### 2024-05-05

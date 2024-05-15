@@ -20,7 +20,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchBeginBalance,patchCumulative,extendTxns,dropTailEmptyTxns
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
-                ,txnCumulativeStats) where
+                ,txnCumulativeStats,consolidateCashFlow) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -48,6 +48,7 @@ import Data.Text.Internal.Encoding.Fusion (streamUtf16BE)
 
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import Data.List.NonEmpty (nonEmpty)
 
 debug = flip trace
 
@@ -432,7 +433,6 @@ tsSetRecovery x (LoanFlow _d a b c d e f g h i) = LoanFlow _d a b c d e x g h i
 tsSetRecovery x (ReceivableFlow _d a b c d e f g h) = ReceivableFlow _d a b c d e x g h
 tsSetRecovery x _ = error $ "Failed to set Recovery for "++show x
 
-
 tsOffsetDate :: Integer -> TsRow -> TsRow
 tsOffsetDate x (CashFlow _d a) = CashFlow (T.addDays x _d) a
 tsOffsetDate x (BondFlow _d a b c) = BondFlow (T.addDays x _d) a b c
@@ -756,6 +756,15 @@ mergePoolCf cf1@(CashFlowFrame txns1) cf2@(CashFlowFrame txns2) -- first day of 
     [startDate1,startDate2] =  firstDate <$> [cf1,cf2]
     -- rightToLeft = startDate1 >= startDate2
 
+consolidateCashFlow :: CashFlowFrame -> CashFlowFrame
+consolidateCashFlow (CashFlowFrame []) = CashFlowFrame []
+consolidateCashFlow (CashFlowFrame (txn:txns))
+  = let 
+      totalBals = sum $ mflowAmortAmount <$> (txn:txns)
+    in 
+      CashFlowFrame (set tsRowBalance totalBals txn:txns)
+    
+
 shiftCfToStartDate :: Date -> CashFlowFrame -> CashFlowFrame
 shiftCfToStartDate d cf@(CashFlowFrame (txn:txns))
   = let 
@@ -950,6 +959,17 @@ isEmptyRow (BondFlow _ 0 0 0) = True
 isEmptyRow (CashFlow _ 0) = True
 isEmptyRow (ReceivableFlow _ 0 0 0 0 0 0 0 _ ) = True
 isEmptyRow _ = False
+
+isEmptyRow2 :: TsRow -> Bool 
+isEmptyRow2 (MortgageDelinqFlow _ _ 0 0 0 0 0 0 0 _ _ _ _) = True
+isEmptyRow2 (MortgageFlow _ _ 0 0 0 0 0 0 _ _ _ _) = True
+isEmptyRow2 (LoanFlow _ _ 0 0 0 0 0 0 i j ) = True
+isEmptyRow2 (LeaseFlow _ _ 0) = True
+isEmptyRow2 (FixedFlow _ _ 0 0 0 0) = True
+isEmptyRow2 (BondFlow _ _ 0 0) = True
+isEmptyRow2 (CashFlow _ 0) = True
+isEmptyRow2 (ReceivableFlow _ _ 0 0 0 0 0 0 _ ) = True
+isEmptyRow2 _ = False
 
 -- ^ Remove empty cashflow from the tail
 dropTailEmptyTxns :: [TsRow] -> [TsRow]
