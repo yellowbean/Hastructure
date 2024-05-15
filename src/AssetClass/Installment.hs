@@ -89,9 +89,14 @@ instance Asset Installment where
         prin_flow = replicate rt cpmt 
         int_flow =  case ptype of 
                       F_P -> replicate rt cfee
-                      PO_FirstN n -> lastN rt $ replicate n 0.0 ++ replicate (ot-n) cfee -- `debug` ("aaa"++ show (replicate n 0.0))
-        _flows = zipWith10 CF.LoanFlow cf_dates stressed_bal_flow prin_flow int_flow 
-                                       (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt 0.0) (replicate rt orate) (replicate rt Nothing)
+                      PO_FirstN n -> lastN rt $ replicate n 0.0 ++ replicate (ot-n) cfee 
+        -- initRow = CF.LoanFlow lastPaidDate startBal 0.0 0.0 0.0 0.0 0.0 0.0 startRate Nothing
+        _flows = let 
+                  _rt = succ rt 
+                 in 
+                  zipWith10 CF.LoanFlow (last_pay_date:cf_dates) (cb:stressed_bal_flow) (0:prin_flow) (0:int_flow) 
+                                        (replicate _rt 0.0) (replicate _rt 0.0) (replicate _rt 0.0) (replicate _rt 0.0) 
+                                        (replicate _rt orate) (replicate _rt Nothing)
                                 
         flows = cutBy Inc Future asOfDay _flows
 

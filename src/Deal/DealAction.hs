@@ -444,6 +444,9 @@ showInspection (InspectInt d ds r) = show r
 showInspection (InspectBal d ds r) = show r
 showInspection x = error $ "not implemented for showing ResultComponent " ++ show x
 
+
+
+
 performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
@@ -479,7 +482,7 @@ performActionWrap d
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
-      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      (CashFlowFrame newBoughtTxn) = CF.consolidateCashFlow $ fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  --  `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       newPcf = let 
                  pIdToChange = fromMaybe PoolConsol pId
                in 
@@ -487,9 +490,9 @@ performActionWrap d
                               let 
                                 dsInterval = getDate <$> trs -- `debug` (">>> agg interval : "++ show (getDate <$> trs ))
                               in 
-                                CF.CashFlowFrame $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) 
+                                CF.CashFlowFrame $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) -- `debug` ("date"++show d ++"\n>>Asset bought txn\n"++ show newBoughtTxn++"\n >>existing txns\n"++ show trs++"\n>>> consoled\n"++ show (CF.combineTss [] trs newBoughtTxn)) )
                             pIdToChange
-                            pFlowMap -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
+                            pFlowMap 
       newRc = rc {runPoolFlow = newPcf
                  ,revolvingAssump = Just (Map.fromList [("Consol" ,(poolAfterBought, perfAssumps))])}  
 
@@ -832,6 +835,47 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBySeq mLimit 
     dAfterSupport = case mSupport of 
                       Nothing -> t
                       Just s -> fst $ drawExtraSupport d supportPay s t
+
+
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayBondGroupPrin mLimit an bndGrpName by mSupport)= 
+  dAfterSupport { bonds = Map.fromList (zip bndsToPayNames bondsPaid) <> bndMap
+               , accounts = Map.adjust (A.draw accPay d (PayPrin [bndGrpName])) an accMap }
+  where 
+    accBal = A.accBalance $ accMap Map.! an
+    supportAvail = case mSupport of 
+                     Just support -> sum ( evalExtraSupportBalance d t support)
+                     Nothing -> 0
+    amtAvailable = case mLimit of
+                     Nothing -> accBal + supportAvail
+                     Just (DS ds) -> min (accBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+                     Just (DueCapAmt amt) -> min amt (accBal + supportAvail)
+                     _ -> error $ "Not support for limit when pay prin by seq" ++ show mLimit
+    
+    L.BondGroup bndsList = bndMap Map.! bndGrpName
+ 
+    bndsToPay = filter (not . L.isPaidOff) bndsList
+    bndsToPayNames = L.bndName <$> bndsToPay
+    bndsWithDue = calcDuePrin t d <$> bndsToPay
+
+    bndsDueAmts = L.bndDuePrin <$> bndsWithDue
+    payAmount = min (sum bndsDueAmts) amtAvailable -- actual payout total amount
+    
+    actualPaids =  paySeqLiabilitiesAmt payAmount bndsDueAmts
+    -- update bond paid
+    bondsPaid = uncurry (L.payPrin d) <$> zip actualPaids bndsToPay
+
+
+
+    -- update account 
+    accPay = min (sum actualPaids) accBal
+    -- update liq Provider
+    supportPay = sum actualPaids - accPay
+    dAfterSupport = case mSupport of 
+                      Nothing -> t
+                      Just s -> fst $ drawExtraSupport d supportPay s t
+
+
+
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinWithDue an bnds Nothing) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}

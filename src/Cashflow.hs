@@ -48,7 +48,6 @@ import Data.Text.Internal.Encoding.Fusion (streamUtf16BE)
 
 import Control.Lens hiding (element)
 import Control.Lens.TH
-import Data.List.NonEmpty (nonEmpty)
 
 debug = flip trace
 

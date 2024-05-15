@@ -295,16 +295,16 @@ installmentTest =
              (CF.cfAt loan4Cf 0)
       ,testCase "First No Fee Loan at first period" $
            assertEqual "Balance/Principal/Int at period 1"
-             (Just (CF.LoanFlow (L.toDate "20220401") 900 100 0 0 0 0 0 0.01 Nothing))
+             (Just (CF.LoanFlow (L.toDate "20220301") 1000 0 0 0 0 0 0 0.01 Nothing))
              (CF.cfAt loan5Cf 0)
       ,testCase "First No Fee Loan at first period" $
            assertEqual "Balance/Principal/Int at period 3"
-             (Just (CF.LoanFlow (L.toDate "20220601") 700 100 12 0 0 0 0 0.01 Nothing))
+             (Just (CF.LoanFlow (L.toDate "20220501") 800 100 0 0 0 0 0 0.01 Nothing))
              (CF.cfAt loan5Cf 2)
       ,testCase "First No Fee Loan at first period" $
-           assertEqual "Balance/Principal/Int at period 2"
-             (Just (CF.LoanFlow (L.toDate "20220501") 800 100 0 0 0 0 0 0.01 Nothing))
-             (CF.cfAt loan5Cf 1)
+           assertEqual "Balance/Principal/Int at period 4"
+             (Just (CF.LoanFlow (L.toDate "20220601") 700 100 12 0 0 0 0 0.01 Nothing))
+             (CF.cfAt loan5Cf 3) -- `debug` (show loan5Cf)
       ]
 
 

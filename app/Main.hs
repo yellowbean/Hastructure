@@ -162,6 +162,7 @@ instance ToSchema L.BondType
 instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
 instance ToSchema Pre
+instance ToSchema W.PayBondGroupBy
 instance ToSchema W.ActionWhen
 instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
