@@ -125,7 +125,7 @@ data Bond = Bond {
               ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
               ,bndStmt :: Maybe S.Statement        -- ^ transaction history
             } 
-            | BondGroup [Bond]
+--            | BondGroup [Bond]
             deriving (Show, Eq, Generic, Ord)
 
 consolStmt :: Bond -> Bond

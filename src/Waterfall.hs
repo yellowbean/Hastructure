@@ -56,7 +56,7 @@ data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there i
                   | WithCondition Pre ExtraSupport               -- ^ support only available if Pre is true
                   deriving (Show,Generic,Eq,Ord)
 
-data PayBondGroupBy = BySeq 
+data PayBondGroupBy = ByInputSeq 
                     | ByProRata
                     | ByRate
                     | ByMaturity

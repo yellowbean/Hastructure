@@ -1,7 +1,7 @@
 # Changelog for Hastructure
 
-## 0.27.19
-### 2024-05-09
+## 0.27.21
+### 2024-05-15
 * NEW: add `weekday <n>` in the date pattern
 * ENHANCE: expose `weekly` /`biweekly` in `Period`
 * NEW: now allow new `first N period without Fee` feature to model cashflow of type `Installment` 

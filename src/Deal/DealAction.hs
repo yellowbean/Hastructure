@@ -444,7 +444,13 @@ showInspection (InspectInt d ds r) = show r
 showInspection (InspectBal d ds r) = show r
 showInspection x = error $ "not implemented for showing ResultComponent " ++ show x
 
-
+-- allocPrinPayToBondGroup :: W.PayBondGroupBy -> [L.Bond] -> Amount -> [Amount]
+-- allocPrinPayToBondGroup payMethod bonds amt 
+--   = let 
+--       totalBal = sum $ L.bndBalance <$> bonds
+--       ratios = (\x -> x/totalBal) <$> L.bndBalance <$> bonds
+--     in 
+--       (\x -> x * amt) <$> ratios
 
 
 performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
@@ -837,42 +843,42 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBySeq mLimit 
                       Just s -> fst $ drawExtraSupport d supportPay s t
 
 
-performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayBondGroupPrin mLimit an bndGrpName by mSupport)= 
-  dAfterSupport { bonds = Map.fromList (zip bndsToPayNames bondsPaid) <> bndMap
-               , accounts = Map.adjust (A.draw accPay d (PayPrin [bndGrpName])) an accMap }
-  where 
-    accBal = A.accBalance $ accMap Map.! an
-    supportAvail = case mSupport of 
-                     Just support -> sum ( evalExtraSupportBalance d t support)
-                     Nothing -> 0
-    amtAvailable = case mLimit of
-                     Nothing -> accBal + supportAvail
-                     Just (DS ds) -> min (accBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
-                     Just (DueCapAmt amt) -> min amt (accBal + supportAvail)
-                     _ -> error $ "Not support for limit when pay prin by seq" ++ show mLimit
-    
-    L.BondGroup bndsList = bndMap Map.! bndGrpName
- 
-    bndsToPay = filter (not . L.isPaidOff) bndsList
-    bndsToPayNames = L.bndName <$> bndsToPay
-    bndsWithDue = calcDuePrin t d <$> bndsToPay
-
-    bndsDueAmts = L.bndDuePrin <$> bndsWithDue
-    payAmount = min (sum bndsDueAmts) amtAvailable -- actual payout total amount
-    
-    actualPaids =  paySeqLiabilitiesAmt payAmount bndsDueAmts
-    -- update bond paid
-    bondsPaid = uncurry (L.payPrin d) <$> zip actualPaids bndsToPay
+-- performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayBondGroupPrin mLimit an bndGrpName by mSupport)= 
+--   dAfterSupport { bonds = Map.fromList (zip bndsToPayNames bondsPaid) <> bndMap
+--                , accounts = Map.adjust (A.draw accPay d (PayPrin [bndGrpName])) an accMap }
+--   where 
+--     accBal = A.accBalance $ accMap Map.! an
+--     supportAvail = case mSupport of 
+--                      Just support -> sum ( evalExtraSupportBalance d t support)
+--                      Nothing -> 0
+--     amtAvailable = case mLimit of
+--                      Nothing -> accBal + supportAvail
+--                      Just (DS ds) -> min (accBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+--                      Just (DueCapAmt amt) -> min amt (accBal + supportAvail)
+--                      _ -> error $ "Not support for limit when pay prin by seq" ++ show mLimit
+--     
+--     L.BondGroup bndsList = bndMap Map.! bndGrpName
+--  
+--     bndsToPay = filter (not . L.isPaidOff) bndsList
+--     bndsToPayNames = L.bndName <$> bndsToPay
+--     bndsWithDue = calcDuePrin t d <$> bndsToPay
+-- 
+--     bndsDueAmts = L.bndDuePrin <$> bndsWithDue
+--     payAmount = min (sum bndsDueAmts) amtAvailable -- actual payout total amount
+--     
+--     actualPaids =  paySeqLiabilitiesAmt payAmount bndsDueAmts
+--     -- update bond paid
+--     bondsPaid = uncurry (L.payPrin d) <$> zip actualPaids bndsToPay
 
 
 
     -- update account 
-    accPay = min (sum actualPaids) accBal
-    -- update liq Provider
-    supportPay = sum actualPaids - accPay
-    dAfterSupport = case mSupport of 
-                      Nothing -> t
-                      Just s -> fst $ drawExtraSupport d supportPay s t
+--    accPay = min (sum actualPaids) accBal
+--    -- update liq Provider
+--    supportPay = sum actualPaids - accPay
+--    dAfterSupport = case mSupport of 
+--                      Nothing -> t
+--                      Just s -> fst $ drawExtraSupport d supportPay s t
 
 
 
