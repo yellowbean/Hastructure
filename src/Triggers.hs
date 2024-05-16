@@ -21,7 +21,7 @@ import Data.Maybe
 import Data.Map
 import GHC.Generics
 import Control.Lens
-import qualified Liability as L
+-- import qualified Liability as L
 
 type TriggerName = String
 
@@ -30,7 +30,7 @@ data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal
                    | DoAccrueFee FeeNames                       -- ^ accure fee
                    | AddTrigger Trigger                         -- ^ add a new trigger
                    | ChangeReserveBalance String ReserveAmount  -- ^ update reserve target balance  
-                   | IssueBonds [L.Bond] AccountName            -- ^ issue new bonds and deposit proceeds to account
+                   -- | IssueBonds [L.Bond] AccountName            -- ^ issue new bonds and deposit proceeds to account
                    | BuyAsset AccountName PricingMethod         -- ^ buy asset from the assumption using funds from account
                    | TriggerEffects [TriggerEffect]             -- ^ a combination of effects above
                    | DoNothing                                  -- ^ do nothing
@@ -43,9 +43,9 @@ data Trigger = Trigger {
             ,trgCurable :: Bool                       -- ^ if it is curable trigger
             } deriving (Show, Eq, Generic,Ord)
 
-makeLensesFor [("trgStatus","trgStatusLens") ,("trgEffects","trgEffectsLens") ,("trgCondition","trgConditionLens") ,("trgCurable","trgCurableLens")] ''Trigger
+makeLensesFor [("trgStatus","trgStatusLens") 
+                ,("trgEffects","trgEffectsLens") 
+                ,("trgCondition","trgConditionLens") 
+                ,("trgCurable","trgCurableLens")] ''Trigger
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''TriggerEffect, ''Trigger])
-
--- $(deriveJSON defaultOptions ''Trigger)
--- $(deriveJSON defaultOptions ''TriggerEffect)

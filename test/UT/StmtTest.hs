@@ -9,6 +9,7 @@ import Lib
 import Util
 import Stmt
 import Data.Ratio
+import Types
 
 txnTest = 
     testGroup "Txn test" 

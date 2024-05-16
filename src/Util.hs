@@ -7,7 +7,7 @@ module Util
     ,divideBB,getIntervalFactorsDc
     ,multiplyTs,zipTs,getTsVals,getTsSize,divideBI,mulIR, daysInterval
     ,replace,paddingDefault, capWith, getTsDates
-    ,shiftTsByAmt,calcWeightBalanceByDates, monthsAfter
+    ,shiftTsByAmt,calcWeightBalanceByDates
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN
     ,lastOf,findBox
@@ -253,9 +253,6 @@ calcWeightBalanceByDates dc bals ds
 
 testSumToOne :: [Rate] -> Bool
 testSumToOne rs = sum rs == 1.0
-
-monthsAfter :: Date -> Integer -> Date
-monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
 
 maximum' :: Ord a => [a] -> a
 maximum' = foldr1 (\x y ->if x >= y then x else y)

@@ -35,6 +35,7 @@ data AmortPlan = Level                    -- ^ for mortgage / french system  -> 
                 | Even                    -- ^ for linear mortgage   -> evenly distributed principal repayment
                 | I_P                     -- ^ interest only and principal due at last payment
                 | F_P                     -- ^ fee based 
+                | PO_FirstN Int       -- ^ 0 fee for first N period
                 | IO_FirstN Int AmortPlan -- ^ interest only for first N period
                 | NO_FirstN Int AmortPlan -- ^ non payment during first N period
                 | ScheduleRepayment Ts (Maybe DatePattern)   -- ^ custom principal follow
@@ -174,10 +175,17 @@ data Receivable = Invoice OriginalInfo Status
                 | DUMMY4
                 deriving (Show,Generic,Eq,Ord)
 
-
 data MixedAsset = MixedPool (Map.Map String [AssetUnion])
                 | DUMMY2
                 deriving (Show,Generic,Eq,Ord)
+
+type LineOfCredit = Maybe Balance
+
+data Revolver = Heloc OriginalInfo LineOfCredit Balance IRate RemainTerms (Maybe BorrowerNum) Status
+              | DUMMY5
+              deriving (Show,Generic,Eq,Ord)
+
+
 
 -- FixedAsset 
 data Capacity = FixedCapacity Balance

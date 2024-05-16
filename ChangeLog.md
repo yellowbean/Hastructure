@@ -1,5 +1,35 @@
 # Changelog for Hastructure
 
+## 0.27.21
+### 2024-05-15
+* NEW: add `weekday <n>` in the date pattern
+* ENHANCE: expose `weekly` /`biweekly` in `Period`
+* NEW: now allow new `first N period without Fee` feature to model cashflow of type `Installment` 
+* FIX: negative pool balance for (revolving pool asset >= 2)
+
+## 0.27.13
+### 2024-05-05
+* ENHANCE: enable all `Combination Type` formula (via patching dates)
+* ENHANCE: add capability to query txn in (Fee/Bond/Account) via a `comment`
+
+
+## 0.27.12
+### 2024-05-04
+* ENHANCE: deal will return how it was ended in projection
+
+## 0.27.11
+### 2024-05-04
+* NEW: Formula:  `originalBondBalance`,`BondDuePrin`
+* NEW: Waterfall Action: `CalcBondPrin`,`PayPrinWithDue`
+* ENHANCE: fix Formula: `PoolFactor`
+* NEW: Enable "*" for Formulas
+* FIX: Unlimit Liquidity Provider has wrong available balance
+
+## 0.27.7
+### 2024-05-01
+* ENHANCE: Enable pricing on asset via a constant rate/rate curve; add `duration` for asset pricing (curve only)
+
+
 ## 0.27.4
 ### 2024-04-15
 * ENHANCE: Pool run: enhance multip-scenario run and mulitple-assets type run

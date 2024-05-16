@@ -24,7 +24,7 @@ module Types
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),BookDirection(..),DealStatType(..),getDealStatType
   ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
-  ,DealName,lookupIntervalTable,getPriceValue
+  ,DealName,lookupIntervalTable,getPriceValue,Txn(..)
   )
   
   where
@@ -53,6 +53,7 @@ import Data.List (intercalate, findIndex)
 -- import Cashflow (CashFlowFrame)
 
 import Debug.Trace
+-- import qualified Cashflow as CF
 debug = flip trace
 
 
@@ -151,13 +152,12 @@ data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurob
               | DC_30_360_US     -- ^ 30/360 US Municipal , Bond basis
               deriving (Show,Eq,Generic,Ord)
 
+
 data DateType = ClosingDate        -- ^ deal closing day
               | CutoffDate         -- ^ after which, the pool cashflow was aggregated to SPV
               | FirstPayDate       -- ^ first payment day for bond/waterfall to run with
               | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
               deriving (Show,Ord,Eq,Generic,Read)
-
-
 
 
 data DatePattern = MonthEnd
@@ -173,6 +173,7 @@ data DatePattern = MonthEnd
                  | CustomDate [Date]
                  | DaysInYear [(Int, Int)]
                  | EveryNMonth Date Int
+                 | Weekday Int 
                  | AllDatePattern [DatePattern]
                  | StartsExclusive Date DatePattern
                  | Exclude DatePattern [DatePattern]
@@ -183,6 +184,7 @@ data DatePattern = MonthEnd
 
 data Period = Daily 
             | Weekly 
+            | BiWeekly
             | Monthly 
             | Quarterly 
             | SemiAnnually 
@@ -346,6 +348,18 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
            deriving (Show,Ord,Eq,Read,Generic)
 
 
+type DueInt = Balance
+type DuePremium = Balance
+
+data Txn = BondTxn Date Balance Interest Principal IRate Cash (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
+         | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
+         | ExpTxn Date Balance Amount Balance TxnComment                                   -- ^ expense transaction record
+         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment     -- ^ liquidity provider transaction record
+         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                       -- ^ interest swap transaction record
+         | EntryTxn Date Balance Amount TxnComment                                         -- ^ ledger book entry
+         deriving (Show, Generic, Eq)
+
+
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
@@ -381,14 +395,14 @@ data TxnComment = PayInt [BondName]
 type Valuation = Centi
 type PerFace = Micro
 type WAL = Centi
-type Duration = Micro
+type Duration = Balance
 type Convexity = Micro
 type Yield = Micro
 type AccruedInterest = Centi
 type IRR = Rational
 data YieldResult = Yield
 
-data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest -- valuation,wal,accu,duration
+data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest [Txn]
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
@@ -406,6 +420,7 @@ data DealStats = CurrentBondBalance
                | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
                | CumulativeNetLossRatio (Maybe [PoolId])
                | OriginalBondBalance
+               | OriginalBondBalanceOf [BondName]
                | OriginalPoolBalance (Maybe [PoolId])
                | DealIssuanceBalance (Maybe [PoolId])
                | CurrentPoolBorrowerNum (Maybe [PoolId])
@@ -449,6 +464,7 @@ data DealStats = CurrentBondBalance
                | BondsPrinPaidAt Date [BondName]
                | BondBalanceGap BondName
                | BondBalanceGapAt Date BondName
+               | BondDuePrin [BondName]
                | FeePaidAt Date FeeName
                | FeeTxnAmt [FeeName] (Maybe TxnComment)
                | BondTxnAmt [BondName] (Maybe TxnComment)
@@ -478,6 +494,7 @@ data DealStats = CurrentBondBalance
                | PoolWaRate (Maybe [PoolId])
                | BondRate BondName
                | Factor DealStats Rational
+               | Multiply [DealStats]
                | Max [DealStats]
                | Min [DealStats]
                | Sum [DealStats]
@@ -512,6 +529,10 @@ data Table a b = ThresholdTable [(a,b)]
                  deriving (Show,Eq,Ord,Read,Generic)
 
 
+data ActionType = ActionResetRate  -- ^ reset interest rate from curve
+                | ActionAccrue     -- ^ accrue liablity
+                 deriving (Show,Eq,Ord,Read,Generic)
+
 data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
                   | AccrueFee Date FeeName               -- ^ accure fee
@@ -523,10 +544,14 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | FireTrigger Date DealCycle String    -- ^ fire a trigger
                   | InspectDS Date DealStats             -- ^ inspect formula
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
-                  | AccrueCapRate Date String             -- ^ reset interest rate cap dates
+                  | AccrueCapRate Date String            -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | ResetSrtRate Date String 
+                  | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
+                  | StopRunFlag Date                     -- ^ stop the run with a message
+                  | HitStatedMaturity Date               -- ^ hit the stated maturity date
                   deriving (Show,Generic,Read)
 
 
@@ -683,6 +708,7 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      | InspectWaterfall Date (Maybe String) [DealStats] [String]
                      | ErrorMsg String
                      | WarningMsg String
+                     | EndRun (Maybe Date) String                             -- ^ end of run with a message
                      -- | SnapshotCashflow Date String CashFlowFrame
                      deriving (Show, Generic)
 
@@ -751,12 +777,12 @@ data RateAssumption = RateCurve Index Ts     --om a:message^ a rate curve ,which
 
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
-getPriceValue (PriceResult v _ _ _ _ _) = v
+getPriceValue (PriceResult v _ _ _ _ _ _) = v
 getPriceValue x = error  $ "failed to match with type when geting price value" ++ show x
 
 
 getValuation :: PriceResult -> PerFace
-getValuation (PriceResult _ val _ _ _ _ ) = val
+getValuation (PriceResult _ val _ _ _ _ _) = val
 getValuation (OASResult pr _ _) = getValuation pr
 getValuation pr =  error $ "not support for pricing result"++ show pr
 
@@ -818,6 +844,7 @@ instance ToJSON TxnComment where
   toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
+  toJSON (FundWith b bal) = String $ T.pack $ "<FundWith:"++b++","++show bal++">"
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
@@ -830,6 +857,48 @@ parseTxn t = case tagName of
                   sv = T.splitOn (T.pack ",") $ T.pack contents
                 in 
                   return $ Transfer (T.unpack (head sv)) (T.unpack (sv!!1))
+  "Support" -> return $ LiquidationSupport contents
+  "PayInt" -> return $ PayInt [contents]
+  "PayYield" -> return $ PayYield contents
+  "PayPrin" -> return $ PayPrin [contents]
+  "WriteOff" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ WriteOff (T.unpack (head sv)) (read (T.unpack (sv!!1))::Balance)
+  "PayPrinResidual" -> return $ PayPrinResidual [contents]
+  "PayFee" -> return $ PayFee contents
+  "SeqPayFee" -> return $ SeqPayFee [contents]
+  "PayFeeYield" -> return $ PayFeeYield contents
+  "TransferBy" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ TransferBy (T.unpack (head sv)) (T.unpack (sv!!1)) (read (T.unpack (sv!!2))::Limit)
+  "Pool" -> let 
+              sr = T.splitOn (T.pack ":") $ T.pack contents
+              mPids = if head sr == "Nothing" then 
+                        Nothing 
+                      else 
+                        Just (read <$> T.unpack <$> sr)::(Maybe [PoolId])
+            in 
+              return $ PoolInflow mPids (read (T.unpack (sr!!1))::PoolSource)
+  "Liquidation" -> return LiquidationProceeds
+  "DS" -> return $ UsingDS (read (contents)::DealStats)
+  "LiquidationSupportExp" -> let 
+                              sv = T.splitOn (T.pack ",") $ T.pack contents
+                            in 
+                              return $ LiquidationSupportInt (read (T.unpack (head sv))::Balance) (read (T.unpack (sv!!1))::Balance)
+  "SupportDraw" -> return SupportDraw
+  "Draw" -> return LiquidationDraw
+  "Repay" -> return LiquidationRepay
+  "Accure" -> return SwapAccrue
+  "SettleIn" -> return SwapInSettle
+  "SettleOut" -> return SwapOutSettle
+  "PurchaseAsset" -> return PurchaseAsset
+  "TxnDirection" -> return $ TxnDirection (read contents::BookDirection)
+  "FundWith" -> let 
+                  sv = T.splitOn (T.pack ",") $ T.pack contents
+                in 
+                  return $ FundWith (T.unpack (head sv)) (read (T.unpack (sv!!1))::Balance)                         
   where 
       pat = "<(\\S+):(\\S+)>"::String
       sr = (T.unpack t =~ pat)::[[String]]
@@ -921,6 +990,8 @@ $(deriveJSON defaultOptions ''ResultComponent)
 -- $(deriveJSON defaultOptions ''BookItem)
 -- $(deriveJSON defaultOptions ''BalanceSheetReport)
 -- $(deriveJSON defaultOptions ''DealCycle)
+
+$(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''Limit)
 $(deriveJSON defaultOptions ''CutoffFields)

@@ -77,6 +77,10 @@ class (Show a,IR.UseRate a) => Asset a where
   splitWith :: a -> [Rate] -> [a]
   -- | ! Change the origination date of an asset
   updateOriginDate :: a -> Date -> a
+  -- | get Last Interest Payment date
+  getLastInterestPaymentDate :: a -> Maybe Date
+  -- | Calculate Accrued Interest 
+  calcAccruedInterest :: a -> Date -> Balance
   -- | ! Internal use
   calcAlignDate :: a -> Date -> Date
   calcAlignDate ast d = let 
@@ -86,6 +90,7 @@ class (Show a,IR.UseRate a) => Asset a where
                           offset = daysBetween benchDate d
                         in 
                           T.addDays offset $ getOriginDate ast
+
                           
   {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 
@@ -244,8 +249,9 @@ priceAsset m d (PVCurve curve) assumps mRates
       pv = pv3 curve d ds amts -- `debug` ("pricing"++ show d++ show ds++ show amts)
       cb =  getCurrentBal m
       wal = calcWAL ByYear cb d (zip amts ds)
+      duration = calcDuration d (zip ds amts) curve
     in 
-      AssetPrice pv wal (-1) (-1) (-1)  --TODO missing duration and convixity
+      AssetPrice pv wal duration (-1) (-1)  --TODO missing duration and convixity
 
 priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
   = let 
@@ -259,6 +265,17 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
       amts = CF.tsTotalCash <$> txns 
       wal = calcWAL ByYear cb d (zip amts ds) -- `debug` ("pricing"++ show d++ show ds++ show amts)
     in 
-      AssetPrice val wal (-1) (-1) (-1)  --TODO missing duration and convixity
-
-
+      AssetPrice val wal (-1) (-1) (-1)  --TODO missing convixity
+      
+priceAsset m d (PvRate r) assumps mRates 
+  = let 
+      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
+      cb =  getCurrentBal m
+      ds = getDate <$> txns 
+      amts = CF.tsTotalCash <$> txns 
+      wal = calcWAL ByYear cb d (zip amts ds) 
+      pv = sum $ zipWith (pv2 (fromRational r) d) ds amts
+      curve = mkTs $ zip ds (repeat r)
+      duration = calcDuration d (zip ds amts) curve
+    in 
+      AssetPrice pv wal (duration) (-1) (-1)  --TODO missing convixity 

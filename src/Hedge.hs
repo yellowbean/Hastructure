@@ -7,7 +7,7 @@ module Hedge
   (RateSwap(..),RateCap(..)
   ,RateSwapType(..),RateSwapBase(..)
   ,accrueIRS,payoutIRS,receiveIRS,receiveRC
-  ,CurrencySwap(..),rsRefBalLens
+  ,CurrencySwap(..),rsRefBalLens,SRT(..),SrtType(..)
   )
   where
 
@@ -47,7 +47,6 @@ data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating r
                   | FloatingToFixed  Floater IRate        -- ^ Paying Floating Rate and receiving Fixed Rate
                   | FixedToFloating  IRate Floater        -- ^ Paying Fixed Rate and receiving Floating rate
                   deriving(Show,Generic,Eq,Ord)
-
 
 data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
                          ,rsSettleDates :: SettleDates   -- ^ define settle dates
@@ -157,6 +156,70 @@ instance IR.UseRate RateSwap where
         _ -> Nothing
 
 makeLensesFor [("rsType","rsTypeLens"),("rsRefBalance","rsRefBalLens")] ''RateSwap
+
+data SrtType = SrtByEndDay DealStats DatePattern  -- ^ autu accrue by end of day
+              deriving(Show,Generic,Eq,Ord)
+
+
+data SRT = SRT {
+    srtName :: String 
+    ,srtType :: SrtType 
+    ,srtPremiumType :: IR.RateType              -- ^ define how/when to update the balance
+    
+    ,srtRefBalance :: Balance                   -- ^ balance to calc premium
+    ,srtPremiumRate :: IRate                    -- ^ current interest rated on oustanding balance
+
+    ,srtOpenBalance :: Balance                  -- ^ total open balance
+    
+    ,srtDuePremiumDate :: Maybe Date            -- ^ last day of interest/premium calculated
+    ,srtDuePremium :: Balance                   -- ^ oustanding due on premium
+    
+    ,srtStart :: Date                           -- ^ when liquidiy provider came into effective
+    ,srtEnds :: Maybe Date                      -- ^ when liquidiy provider came into expired
+    ,srtStmt :: Maybe Statement                 -- ^ transaction history
+} deriving (Show,Generic,Eq,Ord)
+
+instance Liable SRT where 
+  isPaidOff srt@SRT{srtOpenBalance=bal,srtDuePremium=duePremium}
+    | bal==0 && duePremium==0 = True
+    | otherwise = False
+
+instance IR.UseRate SRT where 
+  getIndexes srt@SRT{srtPremiumType = rt} 
+    = case rt of 
+        (IR.Floater _ idx _ _ _ _ _ _ ) -> Just [idx]
+        _ -> Nothing
+  
+  getResetDates srt@SRT{srtPremiumType = rt , srtStart = sd, srtEnds = Just ed} 
+    = case rt of 
+        (IR.Floater _ _ _ _ dp _ _ _ ) -> genSerialDatesTill2 EI sd dp ed
+        _ -> []
+
+-- | update the reset events of liquidity provider
+buildSrtAccrueAction :: [SRT] -> Date -> [(String, Dates)] -> [(String, Dates)]
+buildSrtAccrueAction [] ed r = r
+buildSrtAccrueAction (srt:srts) ed r = 
+  case srt of 
+    (SRT srtName (SrtByEndDay _ dp ) _ _ _ _ _ _ ss _ _ )
+      -> buildSrtAccrueAction
+           srts
+           ed
+           [(srtName, projDatesByPattern dp ss ed)]++r
+    _ -> buildSrtAccrueAction srts ed r
+
+buildSrtResetAction :: [SRT] -> Date -> [(String, Dates)] -> [(String, Dates)]
+buildSrtResetAction [] ed r = r
+buildSrtResetAction (srt:srts) ed r = 
+  case srt of 
+    srt@SRT{srtPremiumType = rt, srtName = ln , srtStart = sd} -> 
+       buildSrtResetAction 
+        srts 
+        ed 
+        [(ln,IR.getRateResetDates sd ed (Just rt))]++r
+    _ -> buildSrtResetAction srts ed r
+
+
+
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''RateSwap, ''RateCap, ''RateSwapType, ''RateSwapBase, ''CurrencySwap])
 

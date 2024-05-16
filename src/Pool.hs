@@ -6,6 +6,7 @@ module Pool (Pool(..),aggPool
        ,getIssuanceField
        ,poolFutureCf,poolFutureTxn,poolIssuanceStat
        ,poolFutureScheduleCf,futureCf,futureScheduleCf
+       ,poolBegStats
 ) where
 
 
@@ -33,6 +34,10 @@ import Data.Maybe
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import Assumptions (ApplyAssumptionType)
+
+import Debug.Trace
+debug = flip trace
+
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
@@ -82,6 +87,22 @@ getIssuanceField p@Pool{issuanceStat = Just m} s
 getIssuanceField Pool{issuanceStat = Nothing} _ 
   = error "There is no pool stats"
 
+poolBegStats :: Pool a -> (Balance,Balance,Balance,Balance,Balance,Balance)
+poolBegStats p = 
+  let 
+    m = issuanceStat p
+    stats = case m of
+              Nothing -> (0,0,0,0,0,0)
+              Just m -> (Map.findWithDefault 0 HistoryPrincipal m
+                        ,Map.findWithDefault 0 HistoryPrepayment m
+                        ,Map.findWithDefault 0 HistoryDelinquency m
+                        ,Map.findWithDefault 0 HistoryDefaults m
+                        ,Map.findWithDefault 0 HistoryRecoveries m
+                        ,Map.findWithDefault 0 HistoryLoss m)
+  in
+    stats
+
+
 -- | Aggregate all cashflow into a single cashflow frame
 -- patch with pool level cumulative defaults/loss etc
 aggPool :: Maybe (Map.Map CutoffFields Balance) -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
@@ -91,7 +112,8 @@ aggPool mStat xs
   = let
       cfs = fst <$> xs
       CF.CashFlowFrame _txns = foldr1 CF.combine cfs 
-      stats = foldr1 (Map.unionWith (+)) $ snd <$> xs
+      -- total stats with begin stats + stats from each cfs
+      stats = foldr1 (Map.unionWith (+)) $  fromMaybe Map.empty mStat:(snd <$> xs)
       -- patch cumulative statistics
       cumulativeStatAtCutoff = case mStat of
                                  Nothing -> (0,0,0,0,0,0)
@@ -102,8 +124,8 @@ aggPool mStat xs
                                            ,Map.findWithDefault 0 HistoryRecoveries m
                                            ,Map.findWithDefault 0 HistoryLoss m)
       -- (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
-      -- txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns 
-      txns = CF.patchCumulativeAtInit (Just cumulativeStatAtCutoff) _txns 
+      txns = CF.patchCumulative cumulativeStatAtCutoff [] _txns 
+      -- txns = CF.patchCumulativeAtInit (Just cumulativeStatAtCutoff) _txns 
     in
       case Map.lookup AccruedInterest =<< mStat of
         Nothing -> (CF.CashFlowFrame txns, stats) 

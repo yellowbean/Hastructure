@@ -319,6 +319,14 @@ dateVectorPatternTest =
         assertEqual "LeapYear&Month End"
           [(toDate "20240229"), (toDate "20240331")]
           (genSerialDates MonthEnd Inc (toDate "20240215") 2)
+    , testCase "Week Day Test" $
+        assertEqual "week day 2"
+          [(toDate "20240514"), (toDate "20240521")]
+          (genSerialDates (Weekday 2) Inc (toDate "20240509") 2)
+    , testCase "Week Day Test" $
+        assertEqual "week day 0"
+          [(toDate "20240512"), (toDate "20240519")]
+          (genSerialDates (Weekday 0) Inc (toDate "20240509") 2)
     , testCase "" $
         assertEqual "till test"
         [(toDate "20220131"),(toDate "20220228")]

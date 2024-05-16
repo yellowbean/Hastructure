@@ -5,8 +5,8 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module Stmt
-  (Statement(..),Txn(..)
-   ,extractTxns,groupTxns,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
+  (Statement(..)
+   ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
@@ -33,19 +33,12 @@ import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Map as M
 
+import Control.Lens hiding (element,Empty)
+import Control.Lens.TH
+
 import Debug.Trace
 debug = flip trace
 
-type DueInt = Balance
-type DuePremium = Balance
-
-data Txn = BondTxn Date Balance Interest Principal IRate Cash (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
-         | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
-         | ExpTxn Date Balance Amount Balance TxnComment                                   -- ^ expense transaction record
-         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment     -- ^ liquidity provider transaction record
-         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                       -- ^ interest swap transaction record
-         | EntryTxn Date Balance Amount TxnComment                                         -- ^ ledger book entry
-         deriving (Show, Generic)
 
 aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance
 aggByTxnComment [] m = M.map sumTxn m 
@@ -150,9 +143,12 @@ appendStmt :: Maybe Statement -> Txn -> Maybe Statement
 appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])
 appendStmt Nothing txn = Just $ Statement [txn]
 
-extractTxns :: [Txn] -> [Statement] -> [Txn]
-extractTxns rs ((Statement _txns):stmts) = extractTxns (rs++_txns) stmts
-extractTxns rs [] = rs
+
+statmentTxns :: Lens' Statement [Txn]
+statmentTxns = lens getter setter
+  where 
+    getter (Statement txns) = txns
+    setter (Statement _) txns = Statement txns
 
 
 consolTxn :: [Txn] -> Txn -> [Txn]
@@ -165,9 +161,6 @@ getTxns :: Maybe Statement -> [Txn]
 getTxns Nothing = []
 getTxns (Just (Statement txn)) = txn
 
-groupTxns :: Maybe Statement -> M.Map Date [Txn]
-groupTxns (Just (Statement txns))
-  = M.fromAscListWith (++) $ [(getDate txn,[txn]) | txn <- txns]
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 m2)
@@ -222,8 +215,8 @@ instance Ord Txn where
   compare (BondTxn d1 _ _ _ _ _ _ _) (BondTxn d2 _ _ _ _ _ _ _) = compare d1 d2
   compare (AccTxn d1 _ _ _ ) (AccTxn d2 _ _ _  ) = compare d1 d2
 
-instance Eq Txn where
-  (BondTxn d1 _ _ _ _ _ _ _) == (BondTxn d2 _ _ _ _ _ _ _) = d1 == d2
+-- instance Eq Txn where
+--  (BondTxn d1 _ _ _ _ _ _ _) == (BondTxn d2 _ _ _ _ _ _ _) = d1 == d2
 
 instance TimeSeries Txn where 
   getDate (BondTxn t _ _ _ _ _ _ _ ) = t
@@ -248,5 +241,4 @@ class QueryByComment a where
 -- queryTxnAmt txns comment 
 --   = sum $ geTxnAmt <$> queryTxn txns comment
 
-$(deriveJSON defaultOptions ''Txn)
 $(deriveJSON defaultOptions ''Statement)

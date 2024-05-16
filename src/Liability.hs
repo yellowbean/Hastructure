@@ -44,6 +44,7 @@ import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
 import Language.Haskell.TH.Lens (_BytesPrimL)
 import Stmt (getTxnAmt)
+-- import Deal.DealBase (UnderlyingDeal(futureCf))
 
 debug = flip trace
 
@@ -110,20 +111,22 @@ data BondType = Sequential                                 -- ^ Pass through typ
               deriving (Show, Eq, Generic, Ord)
 
 data Bond = Bond {
-  bndName :: String
-  ,bndType :: BondType                 -- ^ bond type ,which describle the how principal due was calculated
-  ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
-  ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
-  ,bndStepUp :: Maybe StepUp           -- ^ step up which update interest rate
-  ,bndBalance :: Balance               -- ^ current balance
-  ,bndRate :: IRate                    -- ^ current rate
-  ,bndDuePrin :: Balance               -- ^ principal due
-  ,bndDueInt :: Balance                -- ^ interest due
-  ,bndDueIntDate :: Maybe Date         -- ^ last interest due calc date
-  ,bndLastIntPay :: Maybe Date         -- ^ last interest pay date
-  ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
-  ,bndStmt :: Maybe S.Statement        -- ^ transaction history
-} deriving (Show, Eq, Generic, Ord)
+              bndName :: String
+              ,bndType :: BondType                 -- ^ bond type ,which describle the how principal due was calculated
+              ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
+              ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
+              ,bndStepUp :: Maybe StepUp           -- ^ step up which update interest rate
+              ,bndBalance :: Balance               -- ^ current balance
+              ,bndRate :: IRate                    -- ^ current rate
+              ,bndDuePrin :: Balance               -- ^ principal due
+              ,bndDueInt :: Balance                -- ^ interest due
+              ,bndDueIntDate :: Maybe Date         -- ^ last interest due calc date
+              ,bndLastIntPay :: Maybe Date         -- ^ last interest pay date
+              ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
+              ,bndStmt :: Maybe S.Statement        -- ^ transaction history
+            } 
+--            | BondGroup [Bond]
+            deriving (Show, Eq, Generic, Ord)
 
 consolStmt :: Bond -> Bond
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
@@ -134,15 +137,18 @@ consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
     in 
       b {bndStmt = Just (S.Statement (reverse droppedTxns))}
 
+
+-- | build bond factors
 patchBondFactor :: Bond -> Bond
 patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Nothing} = b
-patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
-  = let 
-      oBal = originBalance bo
-      toFactor (S.BondTxn d b i p r0 c Nothing t) = (S.BondTxn d b i p r0 c (Just (fromRational (divideBB b oBal))) t)
-      newStmt = S.Statement $ toFactor <$> txns
-    in 
-      b {bndStmt = Just newStmt}
+patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) } 
+  | originBalance bo == 0 = b
+  | otherwise = let 
+                  oBal = originBalance bo
+                  toFactor (BondTxn d b i p r0 c Nothing t) = (BondTxn d b i p r0 c (Just (fromRational (divideBB b oBal))) t)
+                  newStmt = S.Statement $ toFactor <$> txns
+                in 
+                  b {bndStmt = Just newStmt}
       
 
 payInt :: Date -> Amount -> Bond -> Bond
@@ -151,19 +157,19 @@ payInt d amt bnd@(Bond bn Equity oi iinfo _ bal r duePrin dueInt dueIntDate lpay
   = bnd { bndDueInt = newDue, bndStmt = newStmt}
   where
     newDue = dueInt - amt
-    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
+    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
 
 payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDueInt=newDue, bndStmt=newStmt, bndLastIntPay = Just d}
   where
     newDue = dueInt - amt 
-    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt Nothing (S.PayInt [bn]))
+    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayInt [bn]))
 
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndStmt= newStmt}
   where
-    newStmt = S.appendStmt stmt (S.BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
+    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -172,7 +178,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt
   where
     newBal = bal - amt
     newDue = duePrin - amt 
-    newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 amt 0 amt Nothing (S.PayPrin [bn] ))
+    newStmt = S.appendStmt stmt (BondTxn d newBal 0 amt 0 amt Nothing (S.PayPrin [bn] ))
 
 writeOff :: Date -> Amount -> Bond -> Bond
 writeOff d 0 b = b -- `debug` ("Zero on wirte off")
@@ -180,23 +186,25 @@ writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayIn
   = bnd {bndBalance = newBal , bndStmt=newStmt}
   where
     newBal = bal - amt
-    newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 0 0 0 Nothing (S.WriteOff bn amt ))
+    newStmt = S.appendStmt stmt (BondTxn d newBal 0 0 0 0 Nothing (S.WriteOff bn amt ))
 
 fundWith :: Date -> Amount -> Bond -> Bond
 fundWith d 0 b = b
 fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndBalance = newBal , bndStmt=newStmt}
+  = bnd  {bndBalance = newBal 
+          , bndStmt=newStmt
+          }
   where
-    newBal = bal + amt
-    newStmt = S.appendStmt stmt (S.BondTxn d newBal 0 (negate amt) 0 0 Nothing (S.FundWith bn amt ))
+    newBal = bal + amt -- `debug` ("Add bal"++ show bal++ ">>>"++ show amt)
+    newStmt = S.appendStmt stmt (BondTxn d newBal 0 (negate amt) 0 0 Nothing (S.FundWith bn amt ))
 
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
-  | sum (S.getTxnAmt <$> futureCf) == 0 = PriceResult 0 0 0 0 0 0 
+  | sum (S.getTxnAmt <$> futureCfs) == 0 = PriceResult 0 0 0 0 0 0 []
   | otherwise = 
                 let
-                  presentValue = foldr (\x acc -> acc + pv rc d (S.getDate x) (S.getTxnAmt x)) 0 futureCf -- `debug` "PRICING -A"
+                  presentValue = foldr (\x acc -> acc + pv rc d (S.getDate x) (S.getTxnAmt x)) 0 futureCfs -- `debug` "PRICING -A"
                   cutoffBalance = case S.getTxnAsOf txns d of
                                       Nothing ->  (S.getTxnBegBalance . head) txns
                                       Just _txn -> S.getTxnBegBalance _txn
@@ -232,18 +240,18 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
                                                     in 
                                                         _x + acc) 
                                             0
-                                            futureCf) -- `debug` ("PRICING VALUE"++ show presentValue)
+                                            futureCfs) -- `debug` ("PRICING VALUE"++ show presentValue)
                               in 
                                 b/presentValue -- `debug` "PRICING -D" -- `debug` ("B->"++show b++"PV"++show presentValue)
                 in 
-                  PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt -- `debug` ("Obal->"++ show obal++"Rate>>"++ show (bndRate b))
+                  PriceResult presentValue (fromRational (100*(toRational presentValue)/(toRational obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt futureCfs-- `debug` ("Obal->"++ show obal++"Rate>>"++ show (bndRate b))
   where 
-    futureCf = cutBy Exc Future d txns
-    futureCfDates = getDate <$> futureCf
-    futureCfFlow = getTxnAmt <$> futureCf
+    futureCfs = cutBy Exc Future d txns
+    futureCfDates = getDate <$> futureCfs
+    futureCfFlow = getTxnAmt <$> futureCfs
 
 
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0 []
 
 calcWalBond :: Date -> Bond -> Rational
 calcWalBond d b@Bond{bndStmt = Nothing} = 0.0
@@ -408,7 +416,7 @@ instance S.QueryByComment Bond where
 instance Liable Bond where 
   isPaidOff b@Bond{bndName = bn,bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
     | bal==0 && di==0 = True 
-    | otherwise = False -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
+    | otherwise = False  -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool

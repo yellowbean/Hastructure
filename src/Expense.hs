@@ -10,7 +10,7 @@ module Expense (Fee(..),FeeType(..),payFee,payResidualFee
 
 import Lib(Period,paySeqLiabilities,Dates
            ,Amount,Balance,Date,Rate,Ts(..))
-import Stmt(appendStmt,Statement,Txn(..),TxnComment(..))
+import Stmt(appendStmt,Statement,TxnComment(..))
 import Data.Traversable
 import Language.Haskell.TH
 

@@ -17,7 +17,7 @@ import System.Environment
 
 import Control.Monad.Catch       (MonadCatch, MonadThrow (..))
 import Control.Monad.IO.Class    (liftIO)
-import Control.Exception (Exception)
+import Control.Exception (Exception,throwIO,throw)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Lens
@@ -102,7 +102,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.27.6"
+version1 = Version "0.27.21"
 
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
@@ -162,6 +162,7 @@ instance ToSchema L.BondType
 instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
 instance ToSchema Pre
+instance ToSchema W.PayBondGroupBy
 instance ToSchema W.ActionWhen
 instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
@@ -184,7 +185,7 @@ instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
 instance ToSchema Stmt.Statement
-instance ToSchema Stmt.Txn
+instance ToSchema Types.Txn
 instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
 instance ToSchema RV.RevolvingPool
@@ -359,6 +360,8 @@ type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
 
+-- instance NFData [Date]
+
 
 engineAPI :: Proxy EngineAPI
 engineAPI = Proxy
@@ -436,5 +439,4 @@ main =
                         Right c -> c
     print ("Engine start with version:"++ _version version1++";running at Port:"++ show _p)
     run _p app
---      $ errorMwDefJson
 -- $(deriveJSON defaultOptions ''DealType)

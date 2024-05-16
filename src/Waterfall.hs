@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,ActionWhen(..),BookType(..),ExtraSupport(..))
+  ,ActionWhen(..),BookType(..),ExtraSupport(..),PayBondGroupBy(..))
   where
 
 import Language.Haskell.TH
@@ -23,7 +23,7 @@ import Asset
 import Pool
 -- import AssetClass.Mortgage(Mortgage)
 import Expense
-import Liability
+-- import Liability
 import Types
 import Revolving
 import Triggers
@@ -31,6 +31,7 @@ import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
 import qualified CreditEnhancement as CE
+import qualified Hedge as HE
 import CreditEnhancement (LiquidityProviderName)
 import Ledger (Ledger,LedgerName)
 
@@ -55,6 +56,15 @@ data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there i
                   | WithCondition Pre ExtraSupport               -- ^ support only available if Pre is true
                   deriving (Show,Generic,Eq,Ord)
 
+data PayBondGroupBy = ByInputSeq 
+                    | ByProRata
+                    | ByRate
+                    | ByMaturity
+                    | ByStartDate
+                    | InverseSeq PayBondGroupBy
+                    deriving (Show,Generic,Eq,Ord)
+
+
 data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Fee
             | CalcFee [FeeName]                                                            -- ^ calculate fee due amount in the fee names
@@ -71,11 +81,17 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
+            | CalcBondPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ calculate principal due amount in the bond names
+            | CalcBondPrin2 (Maybe Limit) [BondName]                                        -- ^ calculate principal due amount in the bond names
+            | PayPrinWithDue AccountName [BondName] (Maybe ExtraSupport)                    -- ^ pay principal to bond till due amount
             | PayPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay principal to bond via pro-rata
             | PayPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ pay principal to bond via sequence
             | PayPrinResidual AccountName [BondName]                                        -- ^ pay principal regardless predefined balance schedule
             | PayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)     -- ^ pay int & prin to bonds sequentially
             | AccrueAndPayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
+            -- Bond Group 
+            | PayBondGroupPrin (Maybe Limit) AccountName BondName PayBondGroupBy (Maybe ExtraSupport) -- ^ pay bond group with cash from account with optional limit or extra support
+            | PayBondGroupInt (Maybe Limit) AccountName BondName PayBondGroupBy (Maybe ExtraSupport)  -- ^ pay bond group with cash from account with optional limit or extra support
             -- Bond - Balance
             | WriteOff (Maybe Limit) BondName
             | FundWith (Maybe Limit) AccountName BondName 
@@ -115,6 +131,7 @@ data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName           
 $(deriveJSON defaultOptions ''BookType)
 $(deriveJSON defaultOptions ''ExtraSupport)
 
+$(deriveJSON defaultOptions ''PayBondGroupBy)
 $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)

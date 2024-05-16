@@ -155,8 +155,8 @@ td2 = D.TestDeal {
 
                                 (toDate "20220201")
                                 Nothing
-                                (Just (S.Statement [S.SupportTxn (toDate "20220215") (Just 110) 10 40 0 0 S.Empty 
-                                                    ,S.SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 S.Empty])))]
+                                (Just (S.Statement [SupportTxn (toDate "20220215") (Just 110) 10 40 0 0 S.Empty 
+                                                    ,SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 S.Empty])))]
  ,D.triggers = Just $
                 Map.fromList $
                   [(BeginDistributionWF,
@@ -263,8 +263,8 @@ liqProviderTest =
                        (toDate "20220301")
                        Nothing
                        (Just (S.Statement 
-                               [S.SupportTxn (toDate "20220215") (Just 110) 40 40 0 0 S.Empty
-                               ,S.SupportTxn (toDate "20220315") (Just 100) 50 90 0 0 S.Empty
+                               [SupportTxn (toDate "20220215") (Just 110) 40 40 0 0 S.Empty
+                               ,SupportTxn (toDate "20220315") (Just 100) 50 90 0 0 S.Empty
                                ]))
   in 
     testGroup "Liq provider test" 

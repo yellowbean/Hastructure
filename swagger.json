@@ -539,6 +539,111 @@
                             },
                             "tag": {
                                 "enum": [
+                                    "CalcBondPrin"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CalcBondPrin",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CalcBondPrin2"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CalcBondPrin2",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayPrinWithDue"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayPrinWithDue",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
                                     "PayPrin"
                                 ],
                                 "type": "string"
@@ -1648,6 +1753,64 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ResetSrtRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ResetSrtRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "AccrueSrt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "AccrueSrt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
@@ -1700,6 +1863,44 @@
                             "contents"
                         ],
                         "title": "BuildReport",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "StopRunFlag"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "StopRunFlag",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "HitStatedMaturity"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "HitStatedMaturity",
                         "type": "object"
                     }
                 ]
@@ -1764,6 +1965,27 @@
                             "tag"
                         ],
                         "title": "F_P",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PO_FirstN"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PO_FirstN",
                         "type": "object"
                     },
                     {
@@ -4377,6 +4599,27 @@
                     {
                         "properties": {
                             "contents": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Weekday"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Weekday",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/DatePattern"
                                 },
@@ -4755,6 +4998,28 @@
                             "tag"
                         ],
                         "title": "OriginalBondBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "OriginalBondBalanceOf"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "OriginalBondBalanceOf",
                         "type": "object"
                     },
                     {
@@ -5847,6 +6112,28 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondDuePrin"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondDuePrin",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -6620,6 +6907,28 @@
                             "contents"
                         ],
                         "title": "Factor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DealStats"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Multiply"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Multiply",
                         "type": "object"
                     },
                     {
@@ -8972,6 +9281,7 @@
                 "enum": [
                     "Daily",
                     "Weekly",
+                    "BiWeekly",
                     "Monthly",
                     "Quarterly",
                     "SemiAnnually",
@@ -10576,7 +10886,7 @@
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-6,
+                                        "multipleOf": 1.0e-2,
                                         "type": "number"
                                     },
                                     {
@@ -10586,10 +10896,16 @@
                                     {
                                         "multipleOf": 1.0e-2,
                                         "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Txn"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 6,
-                                "minItems": 6,
+                                "maxItems": 7,
+                                "minItems": 7,
                                 "type": "array"
                             },
                             "tag": {
@@ -10619,7 +10935,7 @@
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-6,
+                                        "multipleOf": 1.0e-2,
                                         "type": "number"
                                     },
                                     {
@@ -12130,6 +12446,35 @@
                             "contents"
                         ],
                         "title": "WarningMsg",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "EndRun"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "EndRun",
                         "type": "object"
                     }
                 ]
@@ -13701,38 +14046,6 @@
                             "contents"
                         ],
                         "title": "ChangeReserveBalance",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/Bond"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "IssueBonds"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "IssueBonds",
                         "type": "object"
                     },
                     {
@@ -15650,7 +15963,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.5"
+        "version": "0.27.18"
     },
     "openapi": "3.0.0",
     "paths": {

@@ -3,7 +3,7 @@
 
 module DateUtil(
     yearCountFraction,genSerialDates,genSerialDatesTill,genSerialDatesTill2,subDates,sliceDates,SliceType(..)
-    ,splitByDate,projDatesByPattern
+    ,splitByDate,projDatesByPattern,monthsAfter
 )
 
     where 
@@ -18,6 +18,8 @@ import Debug.Trace
 import Data.Time (addDays)
 import Types
 import Data.Ix
+
+import Control.Exception 
 
 debug = flip trace
 
@@ -175,6 +177,12 @@ genSerialDates dp ct sd num
                                                         , monthRange <- [1..12]]
                 where 
                   yrs = fromIntegral $ div num 12 + 1                   
+        Weekday wday -> 
+                [T.addDays (toInteger _n * 7) startDay | _n <- [0..]]  
+                where 
+                  dOfWeek = toEnum wday::T.DayOfWeek
+                  startDay = T.firstDayOfWeekOnAfter dOfWeek sd
+                  
         CustomDate ds -> ds
         EveryNMonth d n -> 
                 d:[ T.addGregorianDurationClip (T.CalendarDiffDays ((toInteger _n)*(toInteger n)) 0) d | _n <- [1..num] ]
@@ -210,6 +218,7 @@ genSerialDatesTill sd ptn ed
               DayOfMonth _d -> cdM -- T.DayOfMonth 
               CustomDate ds -> 2 + toInteger (length ds)
               EveryNMonth _d _n -> div cdM (toInteger _n)
+              Weekday _d -> cdM * 4
               _ -> error $ "failed to match" ++ show ptn
               -- DayOfWeek Int -> -- T.DayOfWeek 
 
@@ -235,6 +244,7 @@ genSerialDatesTill2 rt sd dp ed
       (NO_IE,_,_) -> _r
     where 
       _r = case dp of 
+             -- YearFirst -> throw $ userError "YearFirst not supported in genSerialDatesTill2"
              AllDatePattern dps -> concat [ genSerialDatesTill sd _dp ed | _dp <- dps ]
              StartsExclusive d _dp ->  filter (> d)  $ genSerialDatesTill2 rt sd _dp ed
              Exclude _d _dps ->
@@ -310,3 +320,6 @@ splitByDate xs d st
      --     case findIndices (\x -> (getDate x) <= d) xs of
      --       [] -> (xs,[])
      --       inds -> 
+
+monthsAfter :: Date -> Integer -> Date
+monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
