@@ -393,6 +393,18 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in 
         sum pvs -- `debug` ("pvs"++ show pvs)
 
+    BondGroup grpName ds -> 
+      let 
+        L.BondGroup theBondGrp = bndMap Map.! grpName
+      in 
+        case ds of 
+          CurrentBondBalance -> sum $ L.bndBalance <$> (Map.elems theBondGrp)
+          OriginalBondBalance -> sum $ L.originBalance . L.bndOriginInfo <$> (Map.elems theBondGrp)
+
+          -- OriginalBondBalanceOf bns -> sum $ L.originBalance . L.bndOriginInfo <$> (bndMap Map.!) <$> bns
+          -- IsPaidOff bns -> all isPaidOff <$> (theBondGrp Map.!) <$> bns
+
+
     CurrentBondBalanceOf bns -> sum $ L.bndBalance . (bndMap Map.!) <$> bns -- `debug` ("Current bond balance of"++show (sum $ L.bndBalance . (bndMap Map.!) <$> bns))
 
     BondsIntPaidAt d bns ->

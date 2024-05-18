@@ -811,6 +811,142 @@
                                     },
                                     {
                                         "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PayOrderBy"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayPrinGroup"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayPrinGroup",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "AccrueIntGroup"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "AccrueIntGroup",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PayOrderBy"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayIntGroup"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayIntGroup",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PayOrderBy"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "AccrueAndPayIntGroup"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "AccrueAndPayIntGroup",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -3056,62 +3192,96 @@
                 "type": "object"
             },
             "Bond": {
-                "properties": {
-                    "bndBalance": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
+                "oneOf": [
+                    {
+                        "properties": {
+                            "bndBalance": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "bndDueInt": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "bndDueIntDate": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "bndDuePrin": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "bndInterestInfo": {
+                                "$ref": "#/components/schemas/InterestInfo"
+                            },
+                            "bndLastIntPay": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "bndLastPrinPay": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "bndName": {
+                                "type": "string"
+                            },
+                            "bndOriginInfo": {
+                                "$ref": "#/components/schemas/OriginalInfo"
+                            },
+                            "bndRate": {
+                                "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            "bndStepUp": {
+                                "$ref": "#/components/schemas/StepUp"
+                            },
+                            "bndStmt": {
+                                "$ref": "#/components/schemas/Statement"
+                            },
+                            "bndType": {
+                                "$ref": "#/components/schemas/BondType"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Bond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "bndName",
+                            "bndType",
+                            "bndOriginInfo",
+                            "bndInterestInfo",
+                            "bndBalance",
+                            "bndRate",
+                            "bndDuePrin",
+                            "bndDueInt",
+                            "tag"
+                        ],
+                        "title": "Bond",
+                        "type": "object"
                     },
-                    "bndDueInt": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
-                    },
-                    "bndDueIntDate": {
-                        "$ref": "#/components/schemas/Day"
-                    },
-                    "bndDuePrin": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
-                    },
-                    "bndInterestInfo": {
-                        "$ref": "#/components/schemas/InterestInfo"
-                    },
-                    "bndLastIntPay": {
-                        "$ref": "#/components/schemas/Day"
-                    },
-                    "bndLastPrinPay": {
-                        "$ref": "#/components/schemas/Day"
-                    },
-                    "bndName": {
-                        "type": "string"
-                    },
-                    "bndOriginInfo": {
-                        "$ref": "#/components/schemas/OriginalInfo"
-                    },
-                    "bndRate": {
-                        "multipleOf": 1.0e-6,
-                        "type": "number"
-                    },
-                    "bndStepUp": {
-                        "$ref": "#/components/schemas/StepUp"
-                    },
-                    "bndStmt": {
-                        "$ref": "#/components/schemas/Statement"
-                    },
-                    "bndType": {
-                        "$ref": "#/components/schemas/BondType"
+                    {
+                        "properties": {
+                            "contents": {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Bond"
+                                },
+                                "type": "object"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondGroup"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondGroup",
+                        "type": "object"
                     }
-                },
-                "required": [
-                    "bndName",
-                    "bndType",
-                    "bndOriginInfo",
-                    "bndInterestInfo",
-                    "bndBalance",
-                    "bndRate",
-                    "bndDuePrin",
-                    "bndDueInt"
-                ],
-                "type": "object"
+                ]
             },
             "BondPricingInput": {
                 "oneOf": [
@@ -6129,6 +6299,35 @@
                             "contents"
                         ],
                         "title": "BondDuePrin",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondGroup"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondGroup",
                         "type": "object"
                     },
                     {
@@ -9276,6 +9475,16 @@
                     "$ref": "#/components/schemas/ActionOnDate"
                 },
                 "type": "array"
+            },
+            "PayOrderBy": {
+                "enum": [
+                    "ByInputSeq",
+                    "ByProRataCurBal",
+                    "ByCurrentRate",
+                    "ByMaturity",
+                    "ByStartDate"
+                ],
+                "type": "string"
             },
             "Period": {
                 "enum": [
@@ -15963,7 +16172,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.18"
+        "version": "0.27.21"
     },
     "openapi": "3.0.0",
     "paths": {

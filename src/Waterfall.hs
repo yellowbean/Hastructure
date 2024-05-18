@@ -5,7 +5,7 @@
 
 module Waterfall
   (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
-  ,ActionWhen(..),BookType(..),ExtraSupport(..),PayBondGroupBy(..))
+  ,ActionWhen(..),BookType(..),ExtraSupport(..),PayOrderBy(..))
   where
 
 import Language.Haskell.TH
@@ -56,13 +56,13 @@ data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there i
                   | WithCondition Pre ExtraSupport               -- ^ support only available if Pre is true
                   deriving (Show,Generic,Eq,Ord)
 
-data PayBondGroupBy = ByInputSeq 
-                    | ByProRata
-                    | ByRate
-                    | ByMaturity
-                    | ByStartDate
-                    | InverseSeq PayBondGroupBy
-                    deriving (Show,Generic,Eq,Ord)
+data PayOrderBy = ByInputSeq 
+                | ByProRataCurBal
+                | ByCurrentRate
+                | ByMaturity
+                | ByStartDate
+                -- | InverseSeq PayOrderBy
+                deriving (Show,Generic,Eq,Ord)
 
 
 data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
@@ -90,8 +90,10 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)     -- ^ pay int & prin to bonds sequentially
             | AccrueAndPayIntPrinBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) 
             -- Bond Group 
-            | PayBondGroupPrin (Maybe Limit) AccountName BondName PayBondGroupBy (Maybe ExtraSupport) -- ^ pay bond group with cash from account with optional limit or extra support
-            | PayBondGroupInt (Maybe Limit) AccountName BondName PayBondGroupBy (Maybe ExtraSupport)  -- ^ pay bond group with cash from account with optional limit or extra support
+            | PayPrinGroup (Maybe Limit) AccountName BondName PayOrderBy (Maybe ExtraSupport) -- ^ pay bond group with cash from account with optional limit or extra support
+            | AccrueIntGroup [BondName]
+            | PayIntGroup (Maybe Limit) AccountName BondName PayOrderBy (Maybe ExtraSupport)  -- ^ pay bond group with cash from account with optional limit or extra support
+            | AccrueAndPayIntGroup (Maybe Limit) AccountName BondName PayOrderBy (Maybe ExtraSupport) 
             -- Bond - Balance
             | WriteOff (Maybe Limit) BondName
             | FundWith (Maybe Limit) AccountName BondName 
@@ -131,7 +133,7 @@ data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName           
 $(deriveJSON defaultOptions ''BookType)
 $(deriveJSON defaultOptions ''ExtraSupport)
 
-$(deriveJSON defaultOptions ''PayBondGroupBy)
+$(deriveJSON defaultOptions ''PayOrderBy)
 $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''CollectionRule)
 $(deriveJSON defaultOptions ''ActionWhen)

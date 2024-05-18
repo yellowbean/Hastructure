@@ -305,7 +305,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
   | all (== 0) futureCashToCollect && (queryDeal t AllAccBalance == 0) && (dStatus /= Revolving)
      = (prepareDeal $
          foldl (performAction (getDate ad)) t cleanUpActions 
-        ,log++[EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"]) -- `debug` ("stop at action"++ show ad)
+        ,log++[EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"]) `debug` ("End of pool collection")
   | otherwise
      = case ad of 
          PoolCollection d _ ->
@@ -557,7 +557,7 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                                                            ,AP.revolving = mRevolving
                                                            ,AP.interest  = mInterest} 
   | not runFlag = (t, Nothing, Just valLogs, Nothing)
-  | otherwise = (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
+  | otherwise = (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing)  `debug` ("Run Deal end with")
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
       -- getinits() will get (new deal snapshot, actions, pool cashflows, unstressed pool cashflow)
@@ -575,21 +575,21 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                               mInterest
                               opts
                               mRevolvingCtx
-                              [] -- `debug` ("start status"++show (status t) )-- `debug` ("run rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
-      poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame [])) (getAllCollectedFrame finalDeal Nothing) 
-      poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed 
+                              []  
+      poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame [])) (getAllCollectedFrame finalDeal Nothing)  
+      poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed  
       -- bond pricing if any                            
       bndPricing = case mPricing of
-                     Nothing -> Nothing   --  `debug` ("pricing bpi with Nothing")
-                     Just _bpi -> Just (priceBonds finalDeal _bpi) 
+                     Nothing -> Nothing     
+                     Just _bpi -> Just (priceBonds finalDeal _bpi)  
 
 -- | get bond principal and interest shortfalls from a deal
-getRunResult :: TestDeal a -> [ResultComponent]
-getRunResult t = os_bn_i ++ os_bn_b
+getRunResult :: Ast.Asset a => TestDeal a -> [ResultComponent]
+getRunResult t = os_bn_i ++ os_bn_b -- `debug` ("Done with get result")
   where 
-    bs = Map.elems $ bonds t
-    os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
-    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
+    bs = viewDealAllBonds t  
+    os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("B"++ show bs)
+    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("C"++ show bs)
 
 prepareDeal :: Ast.Asset a => TestDeal a -> TestDeal a
 prepareDeal t@TestDeal {bonds = bndMap} 
@@ -600,7 +600,7 @@ prepareDeal t@TestDeal {bonds = bndMap}
                           pIdCf
       t1 = set dealCashflow newPtMap t
     in 
-      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap}  -- `debug` ("Consolidation in Preparing")
+      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap}  `debug` ("Prepare Done")
 
 appendCollectedCF :: Ast.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a
 -- ^ append cashflow frame (consolidate by a date) into deals collected pool

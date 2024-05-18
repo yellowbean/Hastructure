@@ -25,7 +25,7 @@ import Lib (Period(..),Ts(..) ,TsPoint(..)
 
 import Util
 import DateUtil
-import Types
+import Types hiding (BondGroup)
 import Analytics
 import Data.Ratio 
 import Data.Maybe
@@ -37,7 +37,7 @@ import qualified Cashflow as CF
 import qualified InterestRate as IR
 
 import GHC.Generics
-
+import qualified Data.Map as Map
 
 import Debug.Trace
 import InterestRate (UseRate(getIndexes))
@@ -125,21 +125,23 @@ data Bond = Bond {
               ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
               ,bndStmt :: Maybe S.Statement        -- ^ transaction history
             } 
---            | BondGroup [Bond]
+            | BondGroup (Map.Map String Bond)      -- ^ bond group
             deriving (Show, Eq, Generic, Ord)
 
 consolStmt :: Bond -> Bond
-consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b 
+consolStmt (BondGroup bMap) = BondGroup $ Map.map consolStmt bMap
+consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b    
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
   = let 
-        combinedBondTxns = foldl S.consolTxn [txn] txns
-        droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns
+      combinedBondTxns = foldl S.consolTxn [txn] txns    
+      droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns 
     in 
       b {bndStmt = Just (S.Statement (reverse droppedTxns))}
 
 
 -- | build bond factors
 patchBondFactor :: Bond -> Bond
+patchBondFactor (BondGroup bMap) = BondGroup $ Map.map patchBondFactor bMap
 patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Nothing} = b
 patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) } 
   | originBalance bo == 0 = b
@@ -148,7 +150,7 @@ patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
                   toFactor (BondTxn d b i p r0 c Nothing t) = (BondTxn d b i p r0 c (Just (fromRational (divideBB b oBal))) t)
                   newStmt = S.Statement $ toFactor <$> txns
                 in 
-                  b {bndStmt = Just newStmt}
+                  b {bndStmt = Just newStmt} 
       
 
 payInt :: Date -> Amount -> Bond -> Bond
@@ -364,6 +366,7 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
 
 
 buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
+buildRateResetDates (BondGroup bMap) sd ed  =  concat $ (\x -> buildRateResetDates x sd ed) <$> Map.elems bMap
 buildRateResetDates b@Bond{bndInterestInfo = ii,bndStepUp = mSt } sd ed 
   = let 
       floaterRateResetDates = case ii of 
@@ -383,6 +386,7 @@ buildRateResetDates b@Bond{bndInterestInfo = ii,bndStepUp = mSt } sd ed
 
 
 scaleBond :: Rate -> Bond -> Bond
+scaleBond r (BondGroup bMap) = BondGroup $ Map.map (scaleBond r) bMap
 scaleBond r b@Bond{ bndOriginInfo = oi, bndInterestInfo = iinfo, bndStmt = mstmt
                   , bndBalance = bal, bndDuePrin = dp, bndDueInt = di, bndDueIntDate = did
                   , bndLastIntPay = lip, bndLastPrinPay = lpp
@@ -417,12 +421,16 @@ instance Liable Bond where
   isPaidOff b@Bond{bndName = bn,bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
     | bal==0 && di==0 = True 
     | otherwise = False  -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
+ 
+  isPaidOff (BondGroup bMap) = all (==True) $ isPaidOff <$> Map.elems bMap
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool
   isAdjustbleRate Bond{bndInterestInfo = iinfo} = isAdjustble iinfo
   -- getIndex Bond{bndInterestInfo = iinfo }
   getIndexes Bond{bndInterestInfo = iinfo}  = getIndexFromInfo iinfo
+  getIndexes (BondGroup bMap)  = if null combined then Nothing else Just combined
+                                  where combined = concat . catMaybes  $ (\b -> getIndexFromInfo (bndInterestInfo b)) <$> Map.elems bMap
      
 makeLensesFor [("bndType","bndTypeLens"),("bndOriginInfo","bndOriginInfoLens"),("bndInterestInfo","bndIntLens"),("bndStmt","bndStmtLens")] ''Bond
 

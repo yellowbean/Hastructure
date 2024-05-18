@@ -154,7 +154,7 @@ statmentTxns = lens getter setter
 consolTxn :: [Txn] -> Txn -> [Txn]
 consolTxn [] txn = [txn]
 consolTxn (txn:txns) txn0
-  | txn==txn0 = combineTxn txn txn0:txns
+  | getDate txn == getDate txn0 = combineTxn txn txn0:txns
   | otherwise = txn0:txn:txns 
 
 getTxns :: Maybe Statement -> [Txn]
@@ -164,7 +164,7 @@ getTxns (Just (Statement txn)) = txn
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (max r1 r2) (c1+c2) f1 (TxnComments [m1,m2])
+    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (max r1 r2) (c1+c2) f1 (TxnComments [m1,m2]) 
 
 data FlowDirection = Inflow 
                    | Outflow

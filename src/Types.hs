@@ -465,6 +465,7 @@ data DealStats = CurrentBondBalance
                | BondBalanceGap BondName
                | BondBalanceGapAt Date BondName
                | BondDuePrin [BondName]
+               | BondGroup BondName DealStats
                | FeePaidAt Date FeeName
                | FeeTxnAmt [FeeName] (Maybe TxnComment)
                | BondTxnAmt [BondName] (Maybe TxnComment)

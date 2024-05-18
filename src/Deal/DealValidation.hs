@@ -307,9 +307,10 @@ validateRun t@TestDeal{waterfall=waterfallM
                       ,triggers = triggerM
                       ,ledgers = ledgerM} 
   = let 
+      bndList = viewDealAllBonds t
       -- oustanding liability
       --- bond
-      bondWarnings = [ WarningMsg ("Bond "++bn++ " is not paid off")  | bn <- Map.elems (Map.map L.bndName $ Map.filter (not . isPaidOff) bondM) ]
+      bondWarnings = [ WarningMsg ("Bond "++bn++ " is not paid off")  | bn <- L.bndName <$> filter (not . isPaidOff) bndList ]
       --- fee
       feeWarnings = [ WarningMsg ("Fee "++fn++ " is not paid off")  | fn <- Map.elems (Map.map F.feeName $ Map.filter (not . isPaidOff) feeM) ]
       --- liquidity provider 

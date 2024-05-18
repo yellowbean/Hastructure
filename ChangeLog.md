@@ -1,5 +1,13 @@
 # Changelog for Hastructure
 
+
+## 0.28.1
+### TO-BE-DONE
+* BREAK : add `bondGroup`
+* BREAK : add `begin balance` for cashflow frame
+* BREAK : add `interest arrears` `interest over interest` on bonds
+* BREAK : include `tags` on assets
+
 ## 0.27.21
 ### 2024-05-15
 * NEW: add `weekday <n>` in the date pattern
@@ -22,7 +30,7 @@
 * NEW: Formula:  `originalBondBalance`,`BondDuePrin`
 * NEW: Waterfall Action: `CalcBondPrin`,`PayPrinWithDue`
 * ENHANCE: fix Formula: `PoolFactor`
-* NEW: Enable "*" for Formulas
+* NEW: Enable `*` between formulas
 * FIX: Unlimit Liquidity Provider has wrong available balance
 
 ## 0.27.7
