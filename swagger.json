@@ -9478,7 +9478,7 @@
             },
             "PayOrderBy": {
                 "enum": [
-                    "ByInputSeq",
+                    "ByName",
                     "ByProRataCurBal",
                     "ByCurrentRate",
                     "ByMaturity",

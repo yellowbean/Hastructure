@@ -122,8 +122,7 @@ queryDealRate t s =
           cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
         
 
-      BondRate bn -> 
-        toRational $ L.bndRate $ bonds t Map.! bn
+      BondRate bn -> toRational $ L.bndRate $ bonds t Map.! bn
       
       BondWaRate bns -> 
         let 
@@ -207,14 +206,12 @@ poolSourceToIssuanceField a = error ("Failed to match pool source when mapping t
 queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM, pool=pt } s = 
   case s of
-    CurrentBondBalance ->
-      Map.foldr (\x acc -> L.bndBalance x + acc) 0.0 bndMap
-    OriginalBondBalance ->
-      Map.foldr (\x acc -> L.originBalance (L.bndOriginInfo x) + acc) 0.0 bndMap
+    CurrentBondBalance -> Map.foldr (\x acc -> getCurBalance x + acc) 0.0 bndMap
+    OriginalBondBalance -> Map.foldr (\x acc -> getOriginBalance x + acc) 0.0 bndMap
     BondDuePrin bnds ->
       sum $ L.bndDuePrin <$> ((bndMap Map.!) <$> bnds)
     OriginalBondBalanceOf bnds ->
-      sum $ L.originBalance . L.bndOriginInfo <$> (bndMap Map.!) <$> bnds
+      sum $ getOriginBalance <$> (bndMap Map.!) <$> bnds
     CurrentPoolBalance mPns ->
       foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (getAllAssetList t) --TODO TOBE FIX: mPns is not used
     CurrentPoolDefaultedBalance ->
@@ -405,7 +402,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           -- IsPaidOff bns -> all isPaidOff <$> (theBondGrp Map.!) <$> bns
 
 
-    CurrentBondBalanceOf bns -> sum $ L.bndBalance . (bndMap Map.!) <$> bns -- `debug` ("Current bond balance of"++show (sum $ L.bndBalance . (bndMap Map.!) <$> bns))
+    CurrentBondBalanceOf bns -> sum $ getCurBalance <$> (bndMap Map.!) <$> bns -- `debug` ("Current bond balance of"++show (sum $ L.bndBalance . (bndMap Map.!) <$> bns))
 
     BondsIntPaidAt d bns ->
        let

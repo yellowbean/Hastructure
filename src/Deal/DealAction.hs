@@ -132,11 +132,13 @@ liquidatePool lm d accName t@TestDeal { accounts = accs , pool = pool} =
 allocAmtToBonds :: W.PayOrderBy -> Amount -> [(L.Bond,Amount)] -> [(L.Bond,Amount)]
 allocAmtToBonds theOrder amt bndsWithDue =
   case theOrder of 
-    W.ByInputSeq -> 
+    W.ByName -> 
       let 
-        r = paySeqLiabilitiesAmt amt (snd <$> bndsWithDue)
+        orderdBonds = sortBy (\(b1,_) (b2,_) -> compare (L.bndName b1) (L.bndName b2)) bndsWithDue
+        orderedAmt = snd <$> orderdBonds
+        r = paySeqLiabilitiesAmt amt orderedAmt
       in 
-        zip (fst <$> bndsWithDue) r
+        zip (fst <$> orderdBonds) r
     W.ByProRataCurBal -> 
       let 
         r = prorataFactors (snd <$> bndsWithDue) amt -- `debug` ("bd amt"++ show amt)
@@ -144,7 +146,7 @@ allocAmtToBonds theOrder amt bndsWithDue =
         zip (fst <$> bndsWithDue) r -- `debug` ("r >>"++ show r)
     W.ByCurrentRate ->
       let 
-        orderdBonds = sortBy (\(b1,_) (b2,_) -> compare (L.bndRate b1) (L.bndRate b2)) bndsWithDue
+        orderdBonds = sortBy (\(b1,_) (b2,_) -> flip compare (L.bndRate b1) (L.bndRate b2)) bndsWithDue
         orderedAmt = snd <$> orderdBonds
         r = paySeqLiabilitiesAmt amt orderedAmt
       in 

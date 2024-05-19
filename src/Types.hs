@@ -730,6 +730,8 @@ class Liable lb where
 
   -- must implement
   isPaidOff :: lb -> Bool
+  getCurBalance :: lb -> Balance
+  getOriginBalance :: lb -> Balance
 
   -- optional implement
   -- getTotalDue :: [lb] -> Balance

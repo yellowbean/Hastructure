@@ -424,6 +424,12 @@ instance Liable Bond where
  
   isPaidOff (BondGroup bMap) = all (==True) $ isPaidOff <$> Map.elems bMap
 
+  getCurBalance b@Bond{bndBalance=bal} = bal
+  getCurBalance (BondGroup bMap) = sum $ getCurBalance <$> Map.elems bMap
+  
+  getOriginBalance b@Bond{ bndOriginInfo = bo } = originBalance bo
+  getOriginBalance (BondGroup bMap) = sum $ getOriginBalance <$> Map.elems bMap
+
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool
   isAdjustbleRate Bond{bndInterestInfo = iinfo} = isAdjustble iinfo
