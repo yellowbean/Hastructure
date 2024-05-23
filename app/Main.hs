@@ -161,6 +161,7 @@ instance ToSchema L.StepUp
 instance ToSchema L.BondType
 instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
+instance ToSchema L.InterestOverInterestType
 instance ToSchema Pre
 instance ToSchema W.PayOrderBy
 instance ToSchema W.ActionWhen

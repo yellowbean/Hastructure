@@ -179,7 +179,7 @@ queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d =
           Nothing -> error "Should not happend"
           Just md -> fromInteger $ T.cdMonths $ T.diffGregorianDurationClip md d
         where
-            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn  
+            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn  
 
     ProjCollectPeriodNum -> maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
 

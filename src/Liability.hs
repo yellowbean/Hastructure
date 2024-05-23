@@ -11,7 +11,7 @@ module Liability
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield,scaleBond
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
-  ,calcWalBond,patchBondFactor,fundWith,writeOff)
+  ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..))
   where
 
 import Language.Haskell.TH
@@ -50,6 +50,11 @@ debug = flip trace
 
 type RateReset = DatePattern 
 
+data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by pct over current rate
+                             | OverFixSpread Spread -- ^ inflat ioi rate by fix spread
+                             deriving (Show, Eq, Generic, Ord)
+
+
 --------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
 data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount                                    -- ^ fixed rate
@@ -57,6 +62,7 @@ data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) 
                   | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
+                  | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
                   deriving (Show, Eq, Generic, Ord)
                   
 data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
@@ -117,10 +123,12 @@ data Bond = Bond {
               ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
               ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
               ,bndStepUp :: Maybe StepUp           -- ^ step up which update interest rate
+              -- status
               ,bndBalance :: Balance               -- ^ current balance
               ,bndRate :: IRate                    -- ^ current rate
-              ,bndDuePrin :: Balance               -- ^ principal due
+              ,bndDuePrin :: Balance               -- ^ principal due for current period
               ,bndDueInt :: Balance                -- ^ interest due
+              ,bndDueIntOverInt :: Balance         -- ^ IoI
               ,bndDueIntDate :: Maybe Date         -- ^ last interest due calc date
               ,bndLastIntPay :: Maybe Date         -- ^ last interest pay date
               ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
@@ -155,28 +163,28 @@ patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
       
 
 payInt :: Date -> Amount -> Bond -> Bond
-payInt d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
-payInt d amt bnd@(Bond bn Equity oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
+payInt d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
+payInt d amt bnd@(Bond bn Equity oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd { bndDueInt = newDue, bndStmt = newStmt}
   where
     newDue = dueInt - amt
     newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
 
-payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
+payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDueInt=newDue, bndStmt=newStmt, bndLastIntPay = Just d}
   where
     newDue = dueInt - amt 
     newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayInt [bn]))
 
 payYield :: Date -> Amount -> Bond -> Bond 
-payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
+payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndStmt= newStmt}
   where
     newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
 
 payPrin :: Date -> Amount -> Bond -> Bond
-payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIntDate lpayInt lpayPrin stmt) = bnd
-payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
+payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
+payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newStmt} -- `debug` ("after pay prin:"++ show d ++">"++ show bn++"due"++show newDue++"bal"++ show newBal )
   where
     newBal = bal - amt
@@ -185,7 +193,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt
 
 writeOff :: Date -> Amount -> Bond -> Bond
 writeOff d 0 b = b -- `debug` ("Zero on wirte off")
-writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
+writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndBalance = newBal , bndStmt=newStmt}
   where
     newBal = bal - amt
@@ -193,7 +201,7 @@ writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayIn
 
 fundWith :: Date -> Amount -> Bond -> Bond
 fundWith d 0 b = b
-fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayInt lpayPrin stmt)
+fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd  {bndBalance = newBal 
           , bndStmt=newStmt
           }
@@ -203,7 +211,7 @@ fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIntDate lpayIn
 
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
-priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
+priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ _ lastIntPayDay _ (Just (S.Statement txns)))
   | sum (S.getTxnAmt <$> futureCfs) == 0 = PriceResult 0 0 0 0 0 0 []
   | otherwise = 
                 let
@@ -254,7 +262,7 @@ priceBond d rc b@(Bond bn _ (OriginalInfo obal od _ _) iinfo _ bal cr _ _ _ last
     futureCfFlow = getTxnAmt <$> futureCfs
 
 
-priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0 []
+priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0 []
 
 calcWalBond :: Date -> Bond -> Rational
 calcWalBond d b@Bond{bndStmt = Nothing} = 0.0
@@ -291,15 +299,15 @@ _calcIRR amt initIrr today (BalanceCurve cashflows)
                    initIrr * 0.99
 
 calcBondYield :: Date -> Balance ->  Bond -> Rate
-calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
-calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
+calcBondYield _ _ (Bond _ _ _ _ _ _ _ _ _ _ _ _ _ Nothing) = 0
+calcBondYield d cost b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ _ (Just (S.Statement txns)))
   = _calcIRR cost 0.05 d (BalanceCurve cashflows)
     where
       cashflows = [ TsPoint (S.getDate txn) (S.getTxnAmt txn)  | txn <- txns ]
 
 -- ^ backout interest due for a Yield Maintainace type bond
 backoutDueIntByYield :: Date -> Bond -> Balance
-backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYield y) _ currentBalance  _ _ _ _ _ _ stmt)
+backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYield y) _ currentBalance _  _ _ _ _ _ _ stmt)
   = projFv - fvs - currentBalance  -- `debug` ("Date"++ show d ++"FV->"++show projFv++">>"++show fvs++">>cb"++show currentBalance)
     where
       projFv = fv2 y odate d obal 
@@ -311,7 +319,7 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYiel
 
 -- TO BE Deprecate, it was implemented in Cashflow Frame
 weightAverageBalance :: Date -> Date -> Bond -> Balance
-weightAverageBalance sd ed b@(Bond _ _ _ _ _ currentBalance _ _ _ _ _ _ stmt)
+weightAverageBalance sd ed b@(Bond _ _ _ _ _ currentBalance _ _ _ _ _ _ _ stmt)
   = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
     where
       _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
@@ -441,6 +449,7 @@ instance IR.UseRate Bond where
      
 makeLensesFor [("bndType","bndTypeLens"),("bndOriginInfo","bndOriginInfoLens"),("bndInterestInfo","bndIntLens"),("bndStmt","bndStmtLens")] ''Bond
 
+$(deriveJSON defaultOptions ''InterestOverInterestType)
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''BondType)
