@@ -35,6 +35,7 @@ import qualified Stmt as S
 import Data.List (findIndex,zip6,find)
 import qualified Cashflow as CF
 import qualified InterestRate as IR
+import qualified Lib
 
 import GHC.Generics
 import qualified Data.Map as Map
@@ -163,17 +164,25 @@ patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
       
 
 payInt :: Date -> Amount -> Bond -> Bond
+-- pay 0 interest, do nothing
 payInt d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
+
+-- pay interest to equity tranche with interest
 payInt d amt bnd@(Bond bn Equity oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd { bndDueInt = newDue, bndStmt = newStmt}
   where
-    newDue = dueInt - amt
+    rs = Lib.paySeqLiabilitiesAmt amt [dueIoI,dueInt]
+    newDueIoI = dueIoI - head rs
+    newDue = dueInt - rs !! 1
     newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
 
+-- pay interest
 payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDueInt=newDue, bndStmt=newStmt, bndLastIntPay = Just d}
   where
-    newDue = dueInt - amt 
+    rs = Lib.paySeqLiabilitiesAmt amt [dueIoI,dueInt]
+    newDueIoI = dueIoI - head rs
+    newDue = dueInt - rs !! 1
     newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayInt [bn]))
 
 payYield :: Date -> Amount -> Bond -> Bond 

@@ -95,6 +95,8 @@ paySeqLiabilities startAmt liabilities =
                          else
                             (0, target-amt):accum
 
+-- Input: 1000, [100,200,300] -> [100,200,300]
+-- Input: 100, [50,80] ->[50,50]
 paySeqLiabilitiesAmt :: Amount -> [Balance] -> [Amount]
 paySeqLiabilitiesAmt startAmt funds
   = zipWith (-) funds remainBals

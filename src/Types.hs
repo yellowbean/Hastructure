@@ -475,6 +475,7 @@ data DealStats = CurrentBondBalance
                | AccTxnAmtBy Date [AccName] (Maybe TxnComment)
                | FeesPaidAt Date [FeeName] 
                | CurrentDueBondInt [BondName]
+               | CurrentDueBondIntOverInt [BondName]
                | CurrentDueFee [FeeName]
                | LastBondIntPaid [BondName]
                | LastBondPrinPaid [BondName]

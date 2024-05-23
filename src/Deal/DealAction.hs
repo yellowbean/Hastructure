@@ -749,7 +749,7 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
                      Just (DueCapAmt amt) -> min amt $ availAccBal + supportAvail
 
     feesToPay = map (feeMap Map.!) fns
-    feeDueAmts = map F.feeDue feesToPay  
+    feeDueAmts = map F.feeDue feesToPay
                    -- Just (DuePct pct) -> map (\x -> mulBR (F.feeDue x) pct ) feesToPay
                    -- Just (DueCapAmt amt) -> prorataFactors (F.feeDue <$> feesToPay) amt
     -- total actual pay out
@@ -769,6 +769,34 @@ performAction d t (W.AccrueAndPayIntBySeq mLimit an bnds mSupport)
       dealWithBondDue = performAction d t (W.CalcBondInt bnds Nothing Nothing)
     in 
       performAction d dealWithBondDue (W.PayIntBySeq mLimit an bnds mSupport)
+
+performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap} (W.PayIntOverIntBySeq mLimit an bnds mSupport)
+  = let 
+      accBal = A.accBalance $ accMap Map.! an
+      supportAvail = case mSupport of 
+                       Just support -> sum ( evalExtraSupportBalance d t support)
+                       Nothing -> 0
+      amtAvailable = case mLimit of
+                       Nothing -> accBal + supportAvail
+                       Just (DS ds) -> min (accBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+                       Just (DueCapAmt amt) -> min amt (accBal + supportAvail)
+                       _ -> error $ "Not support for limit when pay int by seq" ++ show mLimit
+      bndsList = (Map.!) bndMap <$> bnds
+      dueAmts = L.bndDueIntOverInt<$> bndsList
+      actualPaids = paySeqLiabilitiesAmt amtAvailable dueAmts
+      -- update bond paid
+      bondsPaid = uncurry (L.payInt d) <$> zip actualPaids bndsList
+      -- update account 
+      accPay = min (sum actualPaids) accBal
+      -- update liq Provider
+      supportPay = sum actualPaids - accPay
+      dAfterSupport = case mSupport of 
+                        Nothing -> t
+                        Just s -> fst $ drawExtraSupport d supportPay s t
+    in
+      dAfterSupport { bonds = Map.fromList (zip bnds bondsPaid) <> bndMap
+                     , accounts = Map.adjust (A.draw accPay d (PayInt bnds)) an accMap }
+
 
 performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap} (W.PayIntBySeq mLimit an bnds mSupport)
   = let 
@@ -796,6 +824,38 @@ performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap} (W
     in
       dAfterSupport { bonds = Map.fromList (zip bnds bondsPaid) <> bndMap
                      , accounts = Map.adjust (A.draw accPay d (PayInt bnds)) an accMap }
+
+
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntOverInt mLimit an bnds mSupport) =
+  case mSupport of 
+    Just support -> fst $ drawExtraSupport d supportPaidOut support dealAfterAcc -- `debug` (">>support"++ show mSupport)
+    Nothing -> dealAfterAcc -- `debug` ("not mSupport"++ show mSupport)
+  where
+    accBal = A.accBalance $ accMap Map.! an
+    supportAvail = case mSupport of 
+                     Just support -> sum ( evalExtraSupportBalance d t support)
+                     Nothing -> 0 -- `debug` ("Not support found"++ show mSupport)
+    
+    availBal = case mLimit of 
+                 Nothing -> accBal + supportAvail --`debug` ("Support Avail"++ show supportAvail) 
+                 Just (DS ds) -> min (accBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
+                 Just (DueCapAmt amt) -> min (accBal + supportAvail) amt
+                 _ -> error ("Not support limit type for pay int" <> show mLimit)
+
+    bndsToPay = map (bndMap Map.!) bnds
+    bndsDueAmts = map L.bndDueIntOverInt bndsToPay
+    bndsNames = map L.bndName bndsToPay
+
+    actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("due mats"++ show bndsDueAmts ++">>"++ show availBal)
+    bndsAmountToBePaid = zip bndsToPay $ prorataFactors bndsDueAmts actualPaidOut
+
+    -- bond map updated
+    bndsPaid = map (\(l,amt) -> L.payInt d amt l) bndsAmountToBePaid
+    -- primary account paid out
+    accPaidOut = min actualPaidOut accBal
+    dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (PayInt bnds)) an accMap -- `debug` ("Actual Account draw"++ show actual)
+                     ,bonds = Map.fromList (zip bndsNames bndsPaid) <> bndMap }
+    supportPaidOut = actualPaidOut - accPaidOut -- `debug` ("Support Paid Out"++ show actualPaidOut++">>"++show accPaidOut)
 
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt mLimit an bnds mSupport) =

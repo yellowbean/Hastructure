@@ -74,8 +74,10 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | PayFeeResidual (Maybe Limit) AccountName FeeName                             -- ^ pay fee regardless fee due amount
             -- Bond - Interest
             | CalcBondInt [BondName] (Maybe DealStats) (Maybe DealStats)                   -- ^ calculate interest due amount in the bond names,with optional balance and rate
+            | PayIntOverInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)      -- ^ pay interest over interest only  
             | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay interest with cash from the account with optional limit or extra support
             | PayIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ with sequence
+            | PayIntOverIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) -- ^ pay interest over interest only with sequence
             | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)    -- ^ combination of CalcInt and PayInt
             | AccrueAndPayIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) -- ^ with sequence
             | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due

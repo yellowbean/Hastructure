@@ -73,6 +73,7 @@ td2 = D.TestDeal {
                              ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0
                              ,L.bndDueInt=0.0
+                             ,L.bndDueIntOverInt=0.0
                              ,L.bndDueIntDate=Nothing
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
