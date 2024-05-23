@@ -72,9 +72,9 @@ projectInstallmentFlow (startBal, lastPaidDate, (originRepay,originInt), startRa
 
 instance Asset Installment where
   calcCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd ptype) cb rt st) asOfDay _
-    = CF.CashFlowFrame flows 
+    = CF.CashFlowFrame (cb,asOfDay,Nothing) flows 
      where 
-        last_pay_date:cf_dates = lastN (rt+1) $ sd:getPaymentDates inst 0
+        lastPayDate:cf_dates = lastN (rt+1) $ sd:getPaymentDates inst 0
         opmt = divideBI ob ot  
         schedule_balances = scanl (-) ob (replicate ot opmt) 
         current_schedule_bal =  schedule_balances !! (ot - rt)   
@@ -90,11 +90,11 @@ instance Asset Installment where
         int_flow =  case ptype of 
                       F_P -> replicate rt cfee
                       PO_FirstN n -> lastN rt $ replicate n 0.0 ++ replicate (ot-n) cfee 
-        -- initRow = CF.LoanFlow lastPaidDate startBal 0.0 0.0 0.0 0.0 0.0 0.0 startRate Nothing
+        -- initRow = CF.LoanFlow lastPayDate cb 0.0 0.0 0.0 0.0 0.0 0.0 0.0 Nothing
         _flows = let 
                   _rt = succ rt 
                  in 
-                  zipWith10 CF.LoanFlow (last_pay_date:cf_dates) (cb:stressed_bal_flow) (0:prin_flow) (0:int_flow) 
+                  zipWith10 CF.LoanFlow (lastPayDate:cf_dates) (cb:stressed_bal_flow) (0:prin_flow) (0:int_flow) 
                                         (replicate _rt 0.0) (replicate _rt 0.0) (replicate _rt 0.0) (replicate _rt 0.0) 
                                         (replicate _rt orate) (replicate _rt Nothing)
                                 
@@ -127,7 +127,7 @@ instance Asset Installment where
                asOfDay 
                pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRates
-      = (applyHaircut ams (CF.CashFlowFrame futureTxns), historyM)
+      = (applyHaircut ams (CF.CashFlowFrame (begBal,begDate,accInt) futureTxns), historyM)
         where 
           recoveryLag = maybe 0 getRecoveryLag recoveryAssump
           lastPayDate:cfDates = lastN (rt + recoveryLag +1) $ sd:getPaymentDates inst recoveryLag
@@ -141,6 +141,10 @@ instance Asset Installment where
           scheduleBalances = scanl (-) ob (replicate ot opmt)
           currentScheduleBal = scheduleBalances !! (ot - rt) -- `debug` ("RT->"++show rt)
           currentFactor = divideBB cb currentScheduleBal
+
+          begBal = cb
+          begDate = asOfDay
+          accInt = Nothing
           
           ppyRates = Ast.buildPrepayRates (lastPayDate:cfDates) prepayAssump
           defRates = Ast.buildDefaultRates (lastPayDate:cfDates) defaultAssump
@@ -160,13 +164,13 @@ instance Asset Installment where
          bals = scanl (-) cb recoveries
          _txns = [  CF.LoanFlow d b 0 0 0 0 r 0 cr Nothing | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
       in 
-         (CF.CashFlowFrame $ cutBy Inc Future asOfDay (beforeRecoveryTxn++_txns),Map.empty)
+         (CF.CashFlowFrame (head bals,asOfDay,Nothing)$ cutBy Inc Future asOfDay (beforeRecoveryTxn++_txns),Map.empty)
       where 
         cr = getOriginRate inst
   
   -- ^ project cashflow with defaulted status
   projCashflow inst@(Installment _ cb rt (Defaulted Nothing)) asOfDay assumps _
-    = (CF.CashFlowFrame $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 (getOriginRate inst) Nothing],Map.empty)
+    = (CF.CashFlowFrame (cb, asOfDay, Nothing) $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 (getOriginRate inst) Nothing],Map.empty)
         
   splitWith (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) rs
     = [ Installment (LoanOriginalInfo (mulBR ob ratio) or ot p sd _type) (mulBR cb ratio) rt st | ratio <- rs ]

@@ -50,6 +50,7 @@ debug = flip trace
 
 type RateReset = DatePattern 
 
+--------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
 data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount                                    -- ^ fixed rate
                   | InterestByYield IRate
@@ -370,17 +371,17 @@ buildRateResetDates (BondGroup bMap) sd ed  =  concat $ (\x -> buildRateResetDat
 buildRateResetDates b@Bond{bndInterestInfo = ii,bndStepUp = mSt } sd ed 
   = let 
       floaterRateResetDates = case ii of 
-                                (Floater _ _ _ dp _ _ _) -> genSerialDatesTill2 NO_IE sd dp ed
+                                (Floater _ _ _ dp _ _ _) -> genSerialDatesTill2 NO_IE sd dp ed  -- `debug` ("building rest2"++show (bndName b )++"dp"++show dp++"ed"++show ed++"sd"++show sd  )
                                 (CapRate ii _)  -> buildRateResetDates b {bndInterestInfo = ii} sd ed 
                                 (FloorRate ii _)  -> buildRateResetDates b {bndInterestInfo = ii} sd ed 
                                 (RefRate _ _ _ dp)  -> genSerialDatesTill2 NO_IE sd dp ed 
-                                _ -> []
+                                x -> []  -- `debug` ("fall out"++ show x)
       stepUpDates = case mSt of
                       Nothing -> []
                       Just (PassDateSpread d _) -> [d]
                       Just (PassDateLadderSpread fstSd _ dp) -> genSerialDatesTill2 IE fstSd dp ed
     in 
-      floaterRateResetDates ++ stepUpDates
+      floaterRateResetDates ++ stepUpDates -- `debug` ("building rest1"++show floaterRateResetDates++"bname"++ show (bndName b ))
 
 
 

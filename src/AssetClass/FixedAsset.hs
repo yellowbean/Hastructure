@@ -99,5 +99,5 @@ instance Ast.Asset FixedAsset where
         
         txns = zipWith6 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash
       in 
-        (CF.CashFlowFrame $ cutBy Inc Future asOfDay txns, Map.empty)
+        (CF.CashFlowFrame (head scheduleBals,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns, Map.empty)
   

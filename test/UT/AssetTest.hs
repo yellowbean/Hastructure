@@ -26,6 +26,8 @@ import Debug.Trace
 import qualified AssetClass.AssetBase as AB
 debug = flip trace
 
+dummySt = (0,L.toDate "19000101",Nothing)
+
 tm = AB.Mortgage
      (AB.MortgageOriginalInfo 10000 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") AB.Level Nothing)
      8000 0.08 19 
@@ -467,8 +469,8 @@ delinqScheduleCFTest =
           ,CF.MortgageDelinqFlow (L.toDate "20231001") 500 500 0 0 0 0 0 0 0.08 Nothing Nothing Nothing
           ]
     pool = P.Pool ([]::[AB.Mortgage])
-                  (Just (CF.CashFlowFrame cfs))
-                  (Just (CF.CashFlowFrame cfs))
+                  (Just (CF.CashFlowFrame dummySt cfs))
+                  (Just (CF.CashFlowFrame dummySt cfs))
                   (L.toDate "20230801")
                   Nothing
                   (Just MonthEnd)
@@ -537,7 +539,7 @@ delinqMortgageTest =
                         Nothing 
                         Nothing
               ,A.DummyDelinqAssump,A.DummyDefaultAssump)
-    (CF.CashFlowFrame txns,m) = Ast.projCashflow tm1 (L.toDate "20200101") assump1 Nothing
+    (CF.CashFlowFrame _ txns,m) = Ast.projCashflow tm1 (L.toDate "20200101") assump1 Nothing
 
   in 
     testGroup "Mortgage Delinq Projection" [
@@ -585,7 +587,7 @@ btlMortgageTest =
                         Nothing 
                         Nothing
               ,A.DummyDelinqAssump,A.DummyDefaultAssump)            
-    (CF.CashFlowFrame txns,m) = Ast.projCashflow btl (L.toDate "20200101") assump1 Nothing
+    (CF.CashFlowFrame _ txns,m) = Ast.projCashflow btl (L.toDate "20200101") assump1 Nothing
   in 
     testGroup "Buy to let Mortgage Projection" [
       testCase "" $
@@ -615,13 +617,13 @@ nonPayMortgageTest =
                         Nothing 
                         Nothing
               ,A.DummyDelinqAssump,A.DummyDefaultAssump)
-    (CF.CashFlowFrame txns,_) = Ast.projCashflow m (L.toDate "20200101") assump1 Nothing
+    (CF.CashFlowFrame _ txns,_) = Ast.projCashflow m (L.toDate "20200101") assump1 Nothing
     m1 = AB.Mortgage
           (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") (AB.IO_FirstN 3 AB.Level) Nothing)
           240 0.08 24
           Nothing
           AB.Current
-    (CF.CashFlowFrame txns2,_) = Ast.projCashflow m1 (L.toDate "20200101") assump1 Nothing
+    (CF.CashFlowFrame _ txns2,_) = Ast.projCashflow m1 (L.toDate "20200101") assump1 Nothing
  
   in 
     testGroup "Non Payment Mortgage Projection" [

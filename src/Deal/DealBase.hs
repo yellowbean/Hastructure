@@ -92,7 +92,14 @@ uDealFutureTxn :: Ast.Asset a => Lens' (UnderlyingDeal a) [CF.TsRow]
 uDealFutureTxn = lens getter setter
   where 
     getter ud = fromMaybe [] $ CF.getTsCashFlowFrame <$> futureCf ud
-    setter ud newTxn = ud {futureCf = Just (CF.CashFlowFrame newTxn)}
+    setter ud newTxn = 
+        let 
+           mOriginalCfFrame = futureCf ud 
+
+        in 
+           case mOriginalCfFrame of 
+             Nothing -> ud {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) newTxn)}
+             Just (CF.CashFlowFrame (begBal,begDate,mInt) txns) -> ud {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) newTxn) }
 
 
 data PoolType a = SoloPool (P.Pool a)

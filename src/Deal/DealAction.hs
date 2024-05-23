@@ -94,7 +94,7 @@ calcLiquidationAmount :: Ast.Asset a => PricingMethod -> P.Pool a -> Date -> Amo
 calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
   = case P.futureCf pool of 
       Nothing -> 0  -- `debug` ("No futureCF")
-      Just _futureCf@(CashFlowFrame trs) ->
+      Just _futureCf@(CashFlowFrame _ trs) ->
         let 
           earlierTxns = cutBy Inc Past d trs
           currentCumulativeDefaultBal = sum $ map (\x -> CF.mflowDefault x - CF.mflowRecovery x - CF.mflowLoss x) earlierTxns
@@ -107,7 +107,7 @@ calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d
 calcLiquidationAmount (PV discountRate recoveryPct) pool d 
   = case P.futureCf pool of
       Nothing -> 0 
-      Just (CashFlowFrame trs) ->
+      Just (CashFlowFrame _ trs) ->
           let 
             futureTxns = cutBy Inc Future d trs
             earlierTxns = cutBy Exc Past d trs 
@@ -527,15 +527,15 @@ performActionWrap d
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
-      (CashFlowFrame newBoughtTxn) = CF.consolidateCashFlow $ fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  --  `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      (CashFlowFrame _ newBoughtTxn) = CF.consolidateCashFlow $ fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  --  `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       newPcf = let 
                  pIdToChange = fromMaybe PoolConsol pId
                in 
-                 Map.adjust (\(CF.CashFlowFrame trs) -> 
+                 Map.adjust (\(CF.CashFlowFrame st trs) -> 
                               let 
                                 dsInterval = getDate <$> trs -- `debug` (">>> agg interval : "++ show (getDate <$> trs ))
                               in 
-                                CF.CashFlowFrame $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) -- `debug` ("date"++show d ++"\n>>Asset bought txn\n"++ show newBoughtTxn++"\n >>existing txns\n"++ show trs++"\n>>> consoled\n"++ show (CF.combineTss [] trs newBoughtTxn)) )
+                                CF.CashFlowFrame st $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) -- `debug` ("date"++show d ++"\n>>Asset bought txn\n"++ show newBoughtTxn++"\n >>existing txns\n"++ show trs++"\n>>> consoled\n"++ show (CF.combineTss [] trs newBoughtTxn)) )
                             pIdToChange
                             pFlowMap 
       newRc = rc {runPoolFlow = newPcf
@@ -573,16 +573,16 @@ performActionWrap d
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
       newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
       
-      (CashFlowFrame newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      (CashFlowFrame _ newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       -- newPcf = CF.CashFlowFrame $ CF.combineTss [] (tr:trs) newBoughtTxn  -- `debug` ("reolvoing first txn\n"++ show (head newBoughtTxn))
       newPcf = let 
                  pIdToChange = fromMaybe PoolConsol pId
                in 
-                 Map.adjust (\(CF.CashFlowFrame trs) -> 
+                 Map.adjust (\(CF.CashFlowFrame st trs) -> 
                               let 
                                 dsInterval = getDate <$> trs -- `debug` (">>> agg interval : "++ show (getDate <$> trs ))
                               in 
-                                CF.CashFlowFrame $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) 
+                                CF.CashFlowFrame st $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) 
                             pIdToChange
                             pFlowMap -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
 
@@ -921,11 +921,20 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinGroup mLimit 
                       Just s -> fst $ drawExtraSupport d supportPay s t
 
 
+
+performAction d t@TestDeal{bonds=bndMap} (W.AccrueAndPayIntGroup mLimit an bndName by mSupport)
+  = let 
+       dAfterAcc = performAction d t (W.AccrueIntGroup [bndName])
+    in 
+       performAction d dAfterAcc (W.PayIntGroup mLimit an bndName by mSupport)
+
+
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueIntGroup bndNames)
   = t {bonds = Map.union bondGrpAccrued bndMap}
     where 
         bondGrp = Map.filterWithKey (\k _ -> S.member k (S.fromList bndNames)) bndMap
         bondGrpAccrued = Map.map (calcDueInt t d Nothing Nothing) bondGrp
+
 
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit an bndGrpName by mSupport)

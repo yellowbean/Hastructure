@@ -243,7 +243,7 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
 priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> PriceResult
 priceAsset m d (PVCurve curve) assumps mRates
   = let 
-      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
+      (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
       pv = pv3 curve d ds amts -- `debug` ("pricing"++ show d++ show ds++ show amts)
@@ -260,7 +260,7 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
               mulBR cb defaultedFactor -- `debug` ("Defulat CB"++ show cb)
             else
               mulBR cb currentFactor  -- `debug` ("CB"++ show cb)
-      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
+      (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 
       wal = calcWAL ByYear cb d (zip amts ds) -- `debug` ("pricing"++ show d++ show ds++ show amts)
@@ -269,7 +269,7 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
       
 priceAsset m d (PvRate r) assumps mRates 
   = let 
-      (CF.CashFlowFrame txns,_) = projCashflow m d assumps mRates
+      (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
       cb =  getCurrentBal m
       ds = getDate <$> txns 
       amts = CF.tsTotalCash <$> txns 

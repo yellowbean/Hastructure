@@ -65,10 +65,10 @@ poolFutureTxn = lens getter setter
   where 
     getter p = case futureCf p of
                  Nothing -> []::[CF.TsRow]
-                 Just (CF.CashFlowFrame txns) -> txns
+                 Just (CF.CashFlowFrame _ txns) -> txns
     setter p trs = case futureCf p of
-                     Nothing -> p {futureCf = Just (CF.CashFlowFrame trs)}
-                     Just (CF.CashFlowFrame _) -> p {futureCf = Just (CF.CashFlowFrame trs)}
+                     Nothing -> p {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) trs)}  --TODO fix this
+                     Just (CF.CashFlowFrame st _) -> p {futureCf = Just (CF.CashFlowFrame st trs)}
 
 poolIssuanceStat :: Asset a => Lens' (Pool a) (Map.Map CutoffFields Balance)
 poolIssuanceStat = lens getter setter
@@ -106,12 +106,12 @@ poolBegStats p =
 -- | Aggregate all cashflow into a single cashflow frame
 -- patch with pool level cumulative defaults/loss etc
 aggPool :: Maybe (Map.Map CutoffFields Balance) -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-aggPool Nothing [] = (CF.CashFlowFrame [],Map.empty)
-aggPool (Just m) [] = (CF.CashFlowFrame [], m)
+aggPool Nothing [] = (CF.CashFlowFrame (0,toDate "19000101",Nothing) [],Map.empty)
+aggPool (Just m) [] = (CF.CashFlowFrame (0,toDate "19000101",Nothing) [], m)
 aggPool mStat xs 
   = let
       cfs = fst <$> xs
-      CF.CashFlowFrame _txns = foldr1 CF.combine cfs 
+      CF.CashFlowFrame st _txns = foldr1 CF.combine cfs 
       -- total stats with begin stats + stats from each cfs
       stats = foldr1 (Map.unionWith (+)) $  fromMaybe Map.empty mStat:(snd <$> xs)
       -- patch cumulative statistics
@@ -128,8 +128,8 @@ aggPool mStat xs
       -- txns = CF.patchCumulativeAtInit (Just cumulativeStatAtCutoff) _txns 
     in
       case Map.lookup AccruedInterest =<< mStat of
-        Nothing -> (CF.CashFlowFrame txns, stats) 
-        Just accruedIntAmt -> (CF.CashFlowFrame (CF.clawbackInt accruedIntAmt txns), stats)
+        Nothing -> (CF.CashFlowFrame st txns, stats) 
+        Just accruedIntAmt -> (CF.CashFlowFrame st (CF.clawbackInt accruedIntAmt txns), stats)
 
  
 

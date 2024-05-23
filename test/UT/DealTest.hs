@@ -30,6 +30,9 @@ import qualified Data.Time as T
 import qualified Data.Set as S
 import Types (PoolId(PoolConsol))
 
+dummySt = (0,toDate "19000101",Nothing)
+
+
 td2 = D.TestDeal {
   D.name = "test deal1"
   ,D.status = Amortizing
@@ -193,7 +196,7 @@ queryTests =  testGroup "deal stat query Tests"
 triggerTests = testGroup "Trigger Tests"
   [ let 
       setup = 0 
-      poolflows = CF.CashFlowFrame $
+      poolflows = CF.CashFlowFrame dummySt $
                      [CF.MortgageDelinqFlow (toDate "20220201") 800 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
                      ,CF.MortgageDelinqFlow (toDate "20220301") 700 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
                      ,CF.MortgageDelinqFlow (toDate "20220401") 600 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
