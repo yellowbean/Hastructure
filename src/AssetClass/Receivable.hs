@@ -123,7 +123,7 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump (Just A.DefaultAtEnd) amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (ob,asOfDate,Nothing) futureTxns, historyM)
+    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
@@ -139,7 +139,7 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump amd amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (ob,asOfDate,Nothing) futureTxns, historyM)
+    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate

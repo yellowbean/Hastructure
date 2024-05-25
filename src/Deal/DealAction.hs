@@ -311,7 +311,7 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntIn
   = newBondWithIntInfo { L.bndInterestInfo = L.WithIoI intInfo ioiIntInfo}
     where 
       ioiRate = case ioiIntInfo of 
-                  L.OverCurrRateBy factor -> bond_rate * fromRational factor
+                  L.OverCurrRateBy factor -> bond_rate * fromRational (1+factor)
                   L.OverFixSpread spd -> bond_rate + spd
                   _ -> error "failed to match ioi rate type"
       newIoiInt = IR.calcInt intDue int_due_date calc_date ioiRate DC_ACT_365F
@@ -875,7 +875,8 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt mLimit an bnd
                  _ -> error ("Not support limit type for pay int" <> show mLimit)
 
     bndsToPay = map (bndMap Map.!) bnds
-    bndsDueAmts = map L.bndDueInt bndsToPay
+    bndsDueAmts = map L.totalDueInt bndsToPay
+    -- bndsDueIoIAmts = map L.bndDueIntOverInt bndsToPay
     bndsNames = map L.bndName bndsToPay
 
     actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("due mats"++ show bndsDueAmts ++">>"++ show availBal)
@@ -1031,7 +1032,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit a
     bndsToPay = Map.filter (not . L.isPaidOff) bndsMap
     
     bndsWithDueMap = Map.map (calcDueInt t d Nothing Nothing) bndsToPay
-    bndsDueAmtsMap = Map.map (\x -> (x, L.bndDueInt x)) bndsWithDueMap
+    bndsDueAmtsMap = Map.map (\x -> (x, L.totalDueInt x)) bndsWithDueMap
     totalDueAmount = sum $ snd <$> Map.elems bndsDueAmtsMap
     payAmount = min totalDueAmount amtAvailable -- actual payout total amount
     

@@ -774,7 +774,7 @@ runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
                                                       Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
                           (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
                           bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
-                          bondFlowRated = (\(BondTxn d b i p r c f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
+                          bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
                         in
                           (name uDeal, CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Map.empty)) $
     Map.mapWithKey (\_ (UnderlyingDeal uDeal _ _ _) -> 
@@ -908,7 +908,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                                 let 
                                                                   (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing Nothing (fromMaybe (NonPerfAssumption {}) mNonPerfAssump)
                                                                   bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn])
-                                                                  bondFlowRated = (\(BondTxn d b i p r c f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow
+                                                                  bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow
                                                                 in
                                                                   (name uDeal, CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Map.empty))
                                           dm

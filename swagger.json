@@ -6752,6 +6752,28 @@
                             },
                             "tag": {
                                 "enum": [
+                                    "CurrentDueBondIntTotal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentDueBondIntTotal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
                                     "CurrentDueFee"
                                 ],
                                 "type": "string"
@@ -15292,6 +15314,14 @@
                                         "type": "number"
                                     },
                                     {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
                                         "format": "float",
                                         "type": "number"
                                     },
@@ -15299,8 +15329,8 @@
                                         "$ref": "#/components/schemas/TxnComment"
                                     }
                                 ],
-                                "maxItems": 8,
-                                "minItems": 8,
+                                "maxItems": 10,
+                                "minItems": 10,
                                 "type": "array"
                             },
                             "tag": {

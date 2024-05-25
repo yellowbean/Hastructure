@@ -9,7 +9,7 @@ module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,weightAverageBalance,calcZspread,payYield,scaleBond
+  ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..))
   where
@@ -21,7 +21,7 @@ import Data.Fixed
 
 import qualified Data.Time as T
 import Lib (Period(..),Ts(..) ,TsPoint(..)
-           ,toDate,daysBetween ,getIntervalFactors,daysBetweenI)
+           , toDate, daysBetween, getIntervalFactors, daysBetweenI)
 
 import Util
 import DateUtil
@@ -78,6 +78,7 @@ isAdjustble Fix {} = False
 isAdjustble InterestByYield {} = False
 isAdjustble (CapRate r _ ) = isAdjustble r
 isAdjustble (FloorRate r _ ) = isAdjustble r
+isAdjustble (WithIoI r _) = isAdjustble r
 
 isStepUp :: Bond -> Bool
 isStepUp Bond{bndStepUp = Nothing} = False
@@ -91,6 +92,7 @@ getIndexFromInfo InterestByYield {} = Nothing
 getIndexFromInfo RefRate {} = Nothing 
 getIndexFromInfo (CapRate info _) = getIndexFromInfo info
 getIndexFromInfo (FloorRate info _) = getIndexFromInfo info
+getIndexFromInfo (WithIoI info _) = getIndexFromInfo info
 
 getDayCountFromInfo :: InterestInfo -> Maybe DayCount
 getDayCountFromInfo (Floater _ _ _ _ dc _ _) = Just dc
@@ -99,6 +101,7 @@ getDayCountFromInfo InterestByYield {} = Nothing
 getDayCountFromInfo RefRate {} = Nothing 
 getDayCountFromInfo (CapRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (FloorRate info _) = getDayCountFromInfo info
+getDayCountFromInfo (WithIoI info _) = getDayCountFromInfo info
 getDayCountFromInfo _ = Nothing
 
 data OriginalInfo = OriginalInfo {
@@ -157,7 +160,7 @@ patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
   | originBalance bo == 0 = b
   | otherwise = let 
                   oBal = originBalance bo
-                  toFactor (BondTxn d b i p r0 c Nothing t) = (BondTxn d b i p r0 c (Just (fromRational (divideBB b oBal))) t)
+                  toFactor (BondTxn d b i p r0 c e f Nothing t) = (BondTxn d b i p r0 c e f (Just (fromRational (divideBB b oBal))) t)
                   newStmt = S.Statement $ toFactor <$> txns
                 in 
                   b {bndStmt = Just newStmt} 
@@ -169,27 +172,27 @@ payInt d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin
 
 -- pay interest to equity tranche with interest
 payInt d amt bnd@(Bond bn Equity oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
-  = bnd { bndDueInt = newDue, bndStmt = newStmt}
+  = bnd { bndDueInt = newDue, bndStmt = newStmt, bndDueIntOverInt = newDueIoI,  bndLastIntPay = Just d}
   where
     rs = Lib.paySeqLiabilitiesAmt amt [dueIoI,dueInt]
     newDueIoI = dueIoI - head rs
     newDue = dueInt - rs !! 1
-    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
+    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayYield bn))
 
 -- pay interest
 payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndDueInt=newDue, bndStmt=newStmt, bndLastIntPay = Just d}
+  = bnd {bndDueInt=newDue, bndStmt=newStmt, bndLastIntPay = Just d, bndDueIntOverInt = newDueIoI}
   where
-    rs = Lib.paySeqLiabilitiesAmt amt [dueIoI,dueInt]
+    rs = Lib.paySeqLiabilitiesAmt amt [dueIoI, dueInt] -- `debug` ("date"++ show d++"due "++show dueIoI++">>"++show dueInt)
     newDueIoI = dueIoI - head rs
-    newDue = dueInt - rs !! 1
-    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayInt [bn]))
+    newDue = dueInt - rs !! 1 -- `debug` ("Avail fund"++ show amt ++" int paid out plan"++ show rs)
+    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayInt [bn])) -- `debug` ("date after"++ show d++"due "++show newDueIoI++">>"++show newDue)
 
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndStmt= newStmt}
   where
-    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt Nothing (S.PayYield bn))
+    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt dueInt dueIoI Nothing (S.PayYield bn))
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -198,7 +201,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate 
   where
     newBal = bal - amt
     newDue = duePrin - amt 
-    newStmt = S.appendStmt stmt (BondTxn d newBal 0 amt 0 amt Nothing (S.PayPrin [bn] ))
+    newStmt = S.appendStmt stmt (BondTxn d newBal 0 amt 0 amt dueInt dueIoI Nothing (S.PayPrin [bn] ))
 
 writeOff :: Date -> Amount -> Bond -> Bond
 writeOff d 0 b = b -- `debug` ("Zero on wirte off")
@@ -206,7 +209,7 @@ writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate
   = bnd {bndBalance = newBal , bndStmt=newStmt}
   where
     newBal = bal - amt
-    newStmt = S.appendStmt stmt (BondTxn d newBal 0 0 0 0 Nothing (S.WriteOff bn amt ))
+    newStmt = S.appendStmt stmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt ))
 
 fundWith :: Date -> Amount -> Bond -> Bond
 fundWith d 0 b = b
@@ -216,7 +219,7 @@ fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate
           }
   where
     newBal = bal + amt -- `debug` ("Add bal"++ show bal++ ">>>"++ show amt)
-    newStmt = S.appendStmt stmt (BondTxn d newBal 0 (negate amt) 0 0 Nothing (S.FundWith bn amt ))
+    newStmt = S.appendStmt stmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt ))
 
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
@@ -382,6 +385,9 @@ calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b@Bond{b
       else
         calcZspread (tradePrice,priceDay) (succ count) (newLevel, (spd, lastSpd), newSpd) b riskFreeCurve -- `debug` ("new price"++ show pricingFaceVal++"trade price"++ show tradePrice++ "new spd"++ show (fromRational newSpd))
 
+totalDueInt :: Bond -> Balance
+totalDueInt Bond{bndDueInt = a,bndDueIntOverInt = b } = a + b 
+totalDueInt (BondGroup bMap) = sum $ totalDueInt <$> Map.elems bMap
 
 buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
 buildRateResetDates (BondGroup bMap) sd ed  =  concat $ (\x -> buildRateResetDates x sd ed) <$> Map.elems bMap
