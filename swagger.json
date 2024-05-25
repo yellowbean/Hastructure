@@ -355,6 +355,44 @@
                             },
                             "tag": {
                                 "enum": [
+                                    "PayIntOverInt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayIntOverInt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
                                     "PayInt"
                                 ],
                                 "type": "string"
@@ -403,6 +441,44 @@
                             "contents"
                         ],
                         "title": "PayIntBySeq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayIntOverIntBySeq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayIntOverIntBySeq",
                         "type": "object"
                     },
                     {
@@ -3206,6 +3282,10 @@
                             "bndDueIntDate": {
                                 "$ref": "#/components/schemas/Day"
                             },
+                            "bndDueIntOverInt": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
                             "bndDuePrin": {
                                 "multipleOf": 1.0e-2,
                                 "type": "number"
@@ -3254,6 +3334,7 @@
                             "bndRate",
                             "bndDuePrin",
                             "bndDueInt",
+                            "bndDueIntOverInt",
                             "tag"
                         ],
                         "title": "Bond",
@@ -6637,6 +6718,28 @@
                             "contents"
                         ],
                         "title": "CurrentDueBondInt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CurrentDueBondIntOverInt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentDueBondIntOverInt",
                         "type": "object"
                     },
                     {

@@ -76,13 +76,10 @@ instance Asset Receivable where
   getPaymentDates r@(Invoice (ReceivableInfo sd ob oa dd ft) st) _ = [dd]
 
   calcCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) st) asOfDay _ 
-    = CF.CashFlowFrame (begBal,begDate,accrueInt) $ cutBy Inc Future asOfDay txns
+    = CF.CashFlowFrame (ob,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
-      begBal = ob 
-      begDate = sd
-      accrueInt = Nothing
       initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
 
       feePaid = min ob feeDue
@@ -113,12 +110,9 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump _ amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (begBal,begDate,accInt) futureTxns, historyM)
+    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
-      begBal = ob
-      begDate = sd
-      accInt = Nothing
       initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
       txns = [initTxn, CF.ReceivableFlow asOfDay 0 0 0 0 ob 0 ob Nothing]
       (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
@@ -129,13 +123,10 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump (Just A.DefaultAtEnd) amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (begBal,begDate,accInt) futureTxns, historyM)
+    = (CF.CashFlowFrame (ob,asOfDate,Nothing) futureTxns, historyM)
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
-      begBal = ob
-      begDate = sd
-      accInt = Nothing
       -- initTxn = [CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing]
 
       realizedLoss = case amr of
@@ -148,15 +139,11 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump amd amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (begBal,begDate,accInt) futureTxns, historyM)
+    = (CF.CashFlowFrame (ob,asOfDate,Nothing) futureTxns, historyM)
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
       initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
-      
-      begBal = ob
-      begDate = sd
-      accInt = Nothing
       
       defaultRates = A.buildDefaultRates (sd:[dd]) amd
       defaultAmt = mulBR ob (head defaultRates)

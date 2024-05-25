@@ -109,7 +109,7 @@ queryDealRate t s =
           originPoolBal = toRational $ queryDeal t (OriginalPoolBalance mPns) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
           cumuPoolDefBal = toRational $ queryDeal t (CumulativePoolDefaultedBalance mPns) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
         in 
-          cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
+          cumuPoolDefBal / originPoolBal  -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
       
       CumulativeNetLossRatio mPns ->
         toRational $ queryDeal t (CumulativeNetLoss mPns) / queryDeal t (OriginalPoolBalance mPns)
@@ -119,7 +119,7 @@ queryDealRate t s =
           originPoolBal = toRational (queryDeal t (OriginalPoolBalance mPns)) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
           cumuPoolDefBal = toRational (queryDeal t (PoolCumCollectionTill idx [NewDefaults] mPns)) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
         in 
-          cumuPoolDefBal / originPoolBal -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
+          cumuPoolDefBal / originPoolBal -- `debug` (show idx ++" cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
         
 
       BondRate bn -> toRational $ L.bndRate $ bonds t Map.! bn
@@ -200,6 +200,7 @@ poolSourceToIssuanceField CollectedPrepayment = HistoryPrepayment
 poolSourceToIssuanceField CollectedRental = HistoryRental
 poolSourceToIssuanceField CollectedCash = HistoryCash
 poolSourceToIssuanceField NewLosses = HistoryLoss
+poolSourceToIssuanceField NewDefaults = HistoryDefaults
 poolSourceToIssuanceField a = error ("Failed to match pool source when mapping to issuance field"++show a)
 
 
@@ -308,7 +309,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           latestCollect = getLatestCollectFrame t mPns
           futureDefaults = sum $ Map.elems $ Map.map (maybe 0 (fromMaybe 0 . CF.tsCumDefaultBal )) $ latestCollect 
         in
-          futureDefaults 
+          futureDefaults -- `debug` ("future Defaults"++ show futureDefaults++ show latestCollect)
 
     CumulativePoolRecoveriesBalance mPns ->
         let

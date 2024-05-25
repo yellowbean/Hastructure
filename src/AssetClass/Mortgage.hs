@@ -409,7 +409,7 @@ instance Ast.Asset Mortgage where
   -- project schedule cashflow with total default amount
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
               assumps@(pAssump@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams ),dAssump,fAssump) _
-    = (applyHaircut ams (CF.CashFlowFrame (begBal,begDate,Nothing) futureTxns) ,historyM)  -- `debug` ("Future txn"++ show futureTxns)
+    = (applyHaircut ams (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)  -- `debug` ("Future txn"++ show futureTxns)
       where
         begBal =  CF.mflowBegBalance $ head flows
         begDate = getDate $ head flows 
@@ -479,7 +479,8 @@ instance Ast.Asset Mortgage where
       txns = projectDelinqMortgageFlow ([],[]) cb mbn lastPayDate cfDates delinqRates ppyRates rateVector 
                                        (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType,ot) 
                                        (replicate cfDatesLength 0.0,replicate cfDatesLength 0.0,replicate cfDatesLength 0.0)
-      (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
+      (futureTxns,historyM)= CF.cutoffTrs asOfDay txns
+
   -- project defaulted Mortgage    
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn) cb cr rt mbn (Defaulted (Just defaultedDate)) ) 
                asOfDay
@@ -547,6 +548,7 @@ instance Ast.Asset Mortgage where
                                        (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType,ot) 
                                        (replicate cfDatesLength 0.0,replicate cfDatesLength 0.0,replicate cfDatesLength 0.0)
       (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
+  
   -- schedule mortgage flow without delinq
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
                assumps@(pAssump@(A.MortgageAssump _ _ _ ams ),dAssump,fAssump) _

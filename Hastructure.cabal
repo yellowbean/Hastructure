@@ -32,7 +32,6 @@ library
       AssetClass.AssetBase
       AssetClass.AssetCashflow
       AssetClass.FixedAsset
-      AssetClass.Heloc
       AssetClass.Installment
       AssetClass.Lease
       AssetClass.Loan
