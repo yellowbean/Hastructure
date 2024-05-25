@@ -436,8 +436,8 @@ instance S.QueryByComment Bond where
     = filter (\x -> S.getTxnComment x == tc) txns
 
 instance Liable Bond where 
-  isPaidOff b@Bond{bndName = bn,bndBalance=bal,bndDuePrin=dp, bndDueInt=di}
-    | bal==0 && di==0 = True 
+  isPaidOff b@Bond{bndName = bn,bndBalance=bal,bndDuePrin=dp, bndDueInt=di, bndDueIntOverInt=dioi}
+    | bal==0 && di==0 && dioi==0 = True 
     | otherwise = False  -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
  
   isPaidOff (BondGroup bMap) = all (==True) $ isPaidOff <$> Map.elems bMap

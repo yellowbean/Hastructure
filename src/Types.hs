@@ -350,6 +350,8 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
 
 type DueInt = Balance
 type DuePremium = Balance
+type DueInt = Balance
+type DueIoI = Balance
 
 data Txn = BondTxn Date Balance Interest Principal IRate Cash (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
          | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
@@ -476,6 +478,7 @@ data DealStats = CurrentBondBalance
                | FeesPaidAt Date [FeeName] 
                | CurrentDueBondInt [BondName]
                | CurrentDueBondIntOverInt [BondName]
+               | CurrentDueBondIntTotal [BondName]
                | CurrentDueFee [FeeName]
                | LastBondIntPaid [BondName]
                | LastBondPrinPaid [BondName]

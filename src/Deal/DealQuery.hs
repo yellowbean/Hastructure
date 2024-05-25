@@ -506,6 +506,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     CurrentDueBondIntOverInt bns -> 
       sum $ L.bndDueIntOverInt <$> (bndMap Map.!) <$> bns -- `debug` ("bond due int" ++ show ((bndMap Map.!) <$> bns ))
     
+    CurrentDueBondIntTotal bns -> sum (queryDeal t <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
+
     CurrentDueFee fns -> sum $ F.feeDue <$> (feeMap Map.!) <$> fns
 
     LiqCredit lqNames -> 
