@@ -208,13 +208,18 @@ queryDeal :: P.Asset a => TestDeal a -> DealStats -> Balance
 queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM, pool=pt } s = 
   case s of
     CurrentBondBalance -> Map.foldr (\x acc -> getCurBalance x + acc) 0.0 bndMap
+    
     OriginalBondBalance -> Map.foldr (\x acc -> getOriginBalance x + acc) 0.0 bndMap
-    BondDuePrin bnds ->
-      sum $ L.bndDuePrin <$> ((bndMap Map.!) <$> bnds)
-    OriginalBondBalanceOf bnds ->
-      sum $ getOriginBalance <$> (bndMap Map.!) <$> bnds
+    
+    BondDuePrin bnds -> sum $ L.bndDuePrin <$> ((bndMap Map.!) <$> bnds) --TODO Failed if bond group
+    
+    OriginalBondBalanceOf bnds -> sum $ getOriginBalance . (bndMap Map.!) <$> bnds
+
+    CurrentBondBalanceOf bns -> sum $ getCurBalance . (bndMap Map.!) <$> bns -- `debug` ("Current bond balance of"++show (sum $ L.bndBalance . (bndMap Map.!) <$> bns))
+    
     CurrentPoolBalance mPns ->
       foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (getAllAssetList t) --TODO TOBE FIX: mPns is not used
+    
     CurrentPoolDefaultedBalance ->
       foldl (\acc x -> acc + P.getCurrentBal x)
             0.0 $
@@ -391,19 +396,10 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in 
         sum pvs -- `debug` ("pvs"++ show pvs)
 
-    BondGroup grpName ds -> 
-      let 
-        L.BondGroup theBondGrp = bndMap Map.! grpName
-      in 
-        case ds of 
-          CurrentBondBalance -> sum $ L.bndBalance <$> (Map.elems theBondGrp)
-          OriginalBondBalance -> sum $ L.originBalance . L.bndOriginInfo <$> (Map.elems theBondGrp)
-
           -- OriginalBondBalanceOf bns -> sum $ L.originBalance . L.bndOriginInfo <$> (bndMap Map.!) <$> bns
           -- IsPaidOff bns -> all isPaidOff <$> (theBondGrp Map.!) <$> bns
 
 
-    CurrentBondBalanceOf bns -> sum $ getCurBalance <$> (bndMap Map.!) <$> bns -- `debug` ("Current bond balance of"++show (sum $ L.bndBalance . (bndMap Map.!) <$> bns))
 
     BondsIntPaidAt d bns ->
        let
@@ -515,6 +511,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         Nothing -> 0
         Just liqProviderM -> sum $ [ fromMaybe 0 (CE.liqCredit liq) | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
+
     LiqBalance lqNames -> 
       case liqProvider t of
         Nothing -> 0
@@ -543,14 +540,10 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           a - bs
           
     Substract s -> queryDeal t (Subtract s)
-    
     Avg dss ->  divideBI (sum ( queryDeal t <$> dss ))  (length dss)
-
     Constant n -> fromRational n
-
     Max ss -> maximum' [ queryDeal t s | s <- ss ]
     Min ss -> minimum' [ queryDeal t s | s <- ss ]
-
 
     Divide ds1 ds2 -> if (queryDeal t ds2) == 0 then 
                         error $ show (ds2) ++" is zero" 
