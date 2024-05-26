@@ -29,8 +29,11 @@ import Data.Aeson.Types
 import Data.Aeson hiding (json)
 import Text.Regex.TDFA
 import Data.Fixed
-
 import Types
+import Control.Lens
+import Data.List.Lens
+import Control.Lens.TH
+
 import Debug.Trace
 debug = flip trace
 
@@ -69,9 +72,16 @@ prorataFactors :: [Centi] -> Centi -> [Centi]
 prorataFactors bals amt =
   case s of 
     0.0 -> replicate (length bals) 0.0
-    _ -> map (\y -> fromRational (y * toRational amtToPay)) weights -- `debug` ("Weights->>"++ show weights)
-           where 
-              weights = map (\x -> toRational x / s) bals
+    _ -> let 
+           weights = map (\x -> toRational x / s) bals -- `debug` ("bals"++show bals++">>s>>"++show s++"amt to pay"++show amtToPay)
+           outPut = (\y -> fromRational (y * toRational amtToPay)) <$> weights -- `debug` ("Weights->>"++ show weights)
+           eps = amt - sum outPut
+         in 
+           if eps == 0.00 then
+              outPut
+           else
+              over (ix 0) (+ eps) outPut
+          
   where
     s = toRational $ sum bals
     amtToPay = min s (toRational amt)
@@ -85,6 +95,8 @@ paySeqLiabilities startAmt liabilities =
                          else
                             (0, target-amt):accum
 
+-- Input: 1000, [100,200,300] -> [100,200,300]
+-- Input: 100, [50,80] ->[50,50]
 paySeqLiabilitiesAmt :: Amount -> [Balance] -> [Amount]
 paySeqLiabilitiesAmt startAmt funds
   = zipWith (-) funds remainBals

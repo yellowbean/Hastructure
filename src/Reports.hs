@@ -75,7 +75,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
                                                    _issuancePbal = Map.findWithDefault 0 IssuanceBalance consolStat
                                                  in 
                                                    (max _pbal _issuancePbal, _dbal, 0)
-                                      Just cf@(CF.CashFlowFrame txns) 
+                                      Just cf@(CF.CashFlowFrame _ txns) 
                                         -> (CF.mflowBalance (last txns) ,CF.totalDefault cf ,negate (CF.totalRecovery cf))
         
         poolAst = [ Item "Pool Performing" performingBal

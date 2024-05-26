@@ -41,6 +41,7 @@ dependencies:
 - openapi3
 - swagger2
 - split
+- tabular
 
 library:
   source-dirs: 
@@ -77,6 +78,7 @@ executables:
     - string-conversions
     - attoparsec
     - exceptions
+    - tabular
     # - servant-errors
     # - servant-exceptions
     - servant-checked-exceptions

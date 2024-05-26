@@ -76,16 +76,16 @@ instance Asset Receivable where
   getPaymentDates r@(Invoice (ReceivableInfo sd ob oa dd ft) st) _ = [dd]
 
   calcCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) st) asOfDay _ 
-    = CF.CashFlowFrame $ initTxn ++ cutBy Inc Future asOfDay txns
+    = CF.CashFlowFrame (ob,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
-      initTxn = [CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing]
+      initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
 
       feePaid = min ob feeDue
       principal = max 0 $ ob - feeDue
 
-      txns = [CF.ReceivableFlow payDate 0 0 principal feePaid 0 0 0 Nothing]
+      txns = [initTxn,CF.ReceivableFlow payDate 0 0 principal feePaid 0 0 0 Nothing]
 
   getCurrentBal r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = ob
 
@@ -110,12 +110,12 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump _ amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame futureTxns, historyM)
+    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
-      initTxn = [CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing]
-      txns = [CF.ReceivableFlow asOfDay 0 0 0 0 ob 0 ob Nothing]
-      (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery (initTxn++txns) amr)
+      initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
+      txns = [initTxn, CF.ReceivableFlow asOfDay 0 0 0 0 ob 0 ob Nothing]
+      (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
 
 
   -- Performing Invoice
@@ -123,11 +123,12 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump (Just A.DefaultAtEnd) amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (initTxn++futureTxns), historyM)
+    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
-      initTxn = [CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing]
+      -- initTxn = [CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing]
+
       realizedLoss = case amr of
                       Nothing -> ob
                       Just _ -> 0
@@ -138,11 +139,11 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump amd amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (initTxn++futureTxns), historyM)
+    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
-      initTxn = [CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing]
+      initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
       
       defaultRates = A.buildDefaultRates (sd:[dd]) amd
       defaultAmt = mulBR ob (head defaultRates)
@@ -156,5 +157,5 @@ instance Asset Receivable where
                       Nothing -> defaultAmt
                       Just _ -> 0
       
-      txns = [CF.ReceivableFlow payDate 0 0 principal feePaid defaultAmt 0 realizedLoss Nothing]
+      txns = [initTxn, CF.ReceivableFlow payDate 0 0 principal feePaid defaultAmt 0 realizedLoss Nothing]
       (futureTxns,historyM) = CF.cutoffTrs asOfDay $ txns++(buildRecoveryCfs payDate defaultAmt amr) -- `debug` ("recovery flow"++ show (buildRecoveryCfs payDate defaultAmt amr))

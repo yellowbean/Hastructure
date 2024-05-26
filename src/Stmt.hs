@@ -33,6 +33,8 @@ import qualified Data.Vector as V
 import qualified Data.Text as T
 import qualified Data.Map as M
 
+import Control.Applicative (liftA2)
+
 import Control.Lens hiding (element,Empty)
 import Control.Lens.TH
 
@@ -49,7 +51,7 @@ aggByTxnComment (txn:txns) m
     c = getTxnComment txn
 
 scaleTxn :: Rate -> Txn -> Txn
-scaleTxn r (BondTxn d b i p r0 c f t) = BondTxn d (mulBR b r) (mulBR i r) (mulBR p r) r0 (mulBR c r) f t
+scaleTxn r (BondTxn d b i p r0 c di dioi f t) = BondTxn d (mulBR b r) (mulBR i r) (mulBR p r) r0 (mulBR c r) (mulBR di r) (mulBR dioi r) f t
 scaleTxn r (AccTxn d b a t) = AccTxn d (mulBR b r) (mulBR a r) t
 scaleTxn r (ExpTxn d b a b0 t) = ExpTxn d (mulBR b r) (mulBR a r) (mulBR b0 r) t
 scaleTxn r (SupportTxn d b a b0 i p t) = SupportTxn d (flip mulBR r <$> b) (mulBR a r) (mulBR b0 r) (mulBR i r) (mulBR p r) t
@@ -64,7 +66,7 @@ sumTxn :: [Txn] -> Balance
 sumTxn txns = sum $ getTxnAmt <$> txns
 
 getTxnComment :: Txn -> TxnComment
-getTxnComment (BondTxn _ _ _ _ _ _ _ t) = t
+getTxnComment (BondTxn _ _ _ _ _ _ _ _ _ t) = t
 getTxnComment (AccTxn _ _ _ t ) = t
 getTxnComment (ExpTxn _ _ _ _ t ) = t
 getTxnComment (SupportTxn _ _ _ _ _ _ t ) = t
@@ -72,23 +74,23 @@ getTxnComment (IrsTxn _ _ _ _ _ _ t ) = t
 getTxnComment (EntryTxn _ _ _ t ) = t
 
 getTxnBalance :: Txn -> Balance
-getTxnBalance (BondTxn _ t _ _ _ _ _ _) = t
+getTxnBalance (BondTxn _ t _ _ _ _ _ _ _ _) = t
 getTxnBalance (AccTxn _ t _ _ ) = t
 getTxnBalance (ExpTxn _ t _ _ _ ) = t
 getTxnBalance (SupportTxn _ _ _ t _ _ _ ) = t -- credit offered
 getTxnBalance (EntryTxn _ t _ _) = t
 
 getTxnBegBalance :: Txn -> Balance
-getTxnBegBalance (BondTxn _ t _ p _ _ _ _) = t + p
+getTxnBegBalance (BondTxn _ t _ p _ _ _ _ _ _) = t + p
 getTxnBegBalance (AccTxn _ b a _ ) = b - a
 getTxnBegBalance (SupportTxn _ _ a b _ _ _) = b - a
 getTxnBegBalance (EntryTxn _ a b _) = a + b 
 
 getTxnPrincipal :: Txn -> Balance
-getTxnPrincipal (BondTxn _ _ _ t _ _ _ _) = t
+getTxnPrincipal (BondTxn _ _ _ t _ _ _ _ _ _) = t
 
 getTxnAmt :: Txn -> Balance
-getTxnAmt (BondTxn _ _ _ _ _ t _ _) = t
+getTxnAmt (BondTxn _ _ _ _ _ t _ _ _ _) = t
 getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
 getTxnAmt (SupportTxn _ _ t _ _ _ _) = t
@@ -99,7 +101,7 @@ getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
 
 emptyTxn :: Txn -> Date -> Txn
-emptyTxn BondTxn {} d = BondTxn d 0 0 0 0 0 Nothing Empty
+emptyTxn BondTxn {} d = BondTxn d 0 0 0 0 0 0 0 Nothing Empty
 emptyTxn AccTxn {} d = AccTxn d 0 0 Empty
 emptyTxn ExpTxn {} d = ExpTxn d 0 0 0 Empty
 emptyTxn SupportTxn {} d = SupportTxn d Nothing 0 0 0 0 Empty
@@ -107,7 +109,7 @@ emptyTxn IrsTxn {} d = IrsTxn d 0 0 0 0 0 Empty
 emptyTxn EntryTxn {} d = EntryTxn d 0 0 Empty
 
 isEmptyTxn :: Txn -> Bool
-isEmptyTxn (BondTxn _ 0 0 0 _ 0 _ _) = True
+isEmptyTxn (BondTxn _ 0 0 0 _ 0 0 0 _ _) = True
 isEmptyTxn (AccTxn _ 0 0 Empty) = True
 isEmptyTxn (ExpTxn _ 0 0 0 Empty) = True
 isEmptyTxn (SupportTxn _ Nothing 0 0 0 0 Empty) = True
@@ -154,7 +156,7 @@ statmentTxns = lens getter setter
 consolTxn :: [Txn] -> Txn -> [Txn]
 consolTxn [] txn = [txn]
 consolTxn (txn:txns) txn0
-  | txn==txn0 = combineTxn txn txn0:txns
+  | getDate txn == getDate txn0 = combineTxn txn txn0:txns
   | otherwise = txn0:txn:txns 
 
 getTxns :: Maybe Statement -> [Txn]
@@ -163,8 +165,8 @@ getTxns (Just (Statement txn)) = txn
 
 
 combineTxn :: Txn -> Txn -> Txn
-combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (max r1 r2) (c1+c2) f1 (TxnComments [m1,m2])
+combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 g1 h1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 g2 h2 m2)
+    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (max r1 r2) (c1+c2) (min f1 f2) (min g1 g2) (liftA2 min h1 h2) (TxnComments [m1,m2]) 
 
 data FlowDirection = Inflow 
                    | Outflow
@@ -212,14 +214,14 @@ getFlow comment =
 
 instance Ord Txn where
   compare :: Txn -> Txn -> Ordering
-  compare (BondTxn d1 _ _ _ _ _ _ _) (BondTxn d2 _ _ _ _ _ _ _) = compare d1 d2
+  compare (BondTxn d1 _ _ _ _ _ _ _ _ _) (BondTxn d2 _ _ _ _ _ _ _ _ _) = compare d1 d2
   compare (AccTxn d1 _ _ _ ) (AccTxn d2 _ _ _  ) = compare d1 d2
 
 -- instance Eq Txn where
 --  (BondTxn d1 _ _ _ _ _ _ _) == (BondTxn d2 _ _ _ _ _ _ _) = d1 == d2
 
 instance TimeSeries Txn where 
-  getDate (BondTxn t _ _ _ _ _ _ _ ) = t
+  getDate (BondTxn t _ _ _ _ _ _ _ _ _ ) = t
   getDate (AccTxn t _ _ _ ) = t
   getDate (ExpTxn t _ _ _ _ ) = t
   getDate (SupportTxn t _ _ _ _ _ _) = t

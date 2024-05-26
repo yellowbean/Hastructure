@@ -9,7 +9,7 @@
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,dealScheduledCashflow
-                     ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn) 
+                     ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds) 
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -92,7 +92,14 @@ uDealFutureTxn :: Ast.Asset a => Lens' (UnderlyingDeal a) [CF.TsRow]
 uDealFutureTxn = lens getter setter
   where 
     getter ud = fromMaybe [] $ CF.getTsCashFlowFrame <$> futureCf ud
-    setter ud newTxn = ud {futureCf = Just (CF.CashFlowFrame newTxn)}
+    setter ud newTxn = 
+        let 
+           mOriginalCfFrame = futureCf ud 
+
+        in 
+           case mOriginalCfFrame of 
+             Nothing -> ud {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) newTxn)}
+             Just (CF.CashFlowFrame (begBal,begDate,mInt) txns) -> ud {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) newTxn) }
 
 
 data PoolType a = SoloPool (P.Pool a)
@@ -195,12 +202,16 @@ instance SPV (TestDeal a) where
       bndsM = Map.map L.consolStmt $ getBondsByName t bns
 
   getBondBegBal t bn 
-    = case L.bndStmt b of
-        Just (Statement []) -> L.bndBalance b -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
-        Just (Statement stmts) -> getTxnBegBalance $ head stmts -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
-        Nothing -> L.bndBalance b  -- `debug` ("Getting beg bal nothing"++bn)
-        where
-            b = bonds t Map.! bn
+    = 
+      case b of 
+        Nothing -> 0  `debug` ("it is not supposed to happen")
+        Just bnd ->
+          case L.bndStmt bnd of
+            Just (Statement []) -> L.bndBalance bnd -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
+            Just (Statement stmts) -> getTxnBegBalance $ head stmts -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
+            Nothing -> L.bndBalance bnd  -- `debug` ("Getting beg bal nothing"++bn)
+      where
+          b = find (\x -> ((L.bndName x) == bn)) (viewDealAllBonds t) 
 
   getFeeByName t fns
     = case fns of
@@ -216,6 +227,14 @@ instance SPV (TestDeal a) where
                  ResecDeal _ -> True
                  _ -> False
 
+viewDealAllBonds :: TestDeal a -> [L.Bond]
+viewDealAllBonds d = 
+    let 
+       bs = Map.elems (bonds d)
+       view a@(L.Bond {} ) = [a]
+       view a@(L.BondGroup bMap) = Map.elems bMap
+    in 
+       concat $ view <$> bs
 
 dealBonds :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
 dealBonds = lens getter setter 

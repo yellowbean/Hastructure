@@ -102,7 +102,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.27.21"
+version1 = Version "0.28.1"
 
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
@@ -161,8 +161,9 @@ instance ToSchema L.StepUp
 instance ToSchema L.BondType
 instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
+instance ToSchema L.InterestOverInterestType
 instance ToSchema Pre
-instance ToSchema W.PayBondGroupBy
+instance ToSchema W.PayOrderBy
 instance ToSchema W.ActionWhen
 instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
@@ -283,7 +284,7 @@ data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
 type RunPoolTypeRtn = Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
 
 patchCumulativeToPoolRun :: RunPoolTypeRtn -> RunPoolTypeRtn
-patchCumulativeToPoolRun = Map.map (\(CF.CashFlowFrame txns,stats) -> (CF.CashFlowFrame (CF.patchCumulative (0,0,0,0,0,0) txns []),stats))
+patchCumulativeToPoolRun = Map.map (\(CF.CashFlowFrame _ txns,stats) -> (CF.CashFlowFrame (0,Lib.toDate "19000101",Nothing) (CF.patchCumulative (0,0,0,0,0,0) txns []),stats))
 
 wrapRunPoolType :: PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] ->  RunPoolTypeRtn
 wrapRunPoolType (MPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})

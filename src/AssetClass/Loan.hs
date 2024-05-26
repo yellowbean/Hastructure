@@ -77,7 +77,7 @@ projectLoanFlow ((originBal,ot,or), startBal, lastPayDate, pt, dc,startRate, beg
 
 instance Asset Loan where
   calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) bal rate term _ ) asOfDay mRates 
-    = CF.CashFlowFrame $ cutBy Inc Future asOfDay txns 
+    = CF.CashFlowFrame (head bFlow,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns 
       where
         orate = getOriginRate pl
         pmt = calcPmt bal (periodRateFromAnnualRate p rate) term
@@ -135,7 +135,7 @@ instance Asset Loan where
                asOfDay 
                (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRate 
-    = (applyHaircut ams (CF.CashFlowFrame futureTxns), historyM)
+    = (applyHaircut ams (CF.CashFlowFrame (cb,asOfDay,Nothing) futureTxns), historyM)
     where
       recoveryLag = maybe 0 getRecoveryLag recoveryAssump
       lastPayDate:cfDates = lastN (rt + recoveryLag + 1) $ sd:getPaymentDates pl recoveryLag
@@ -167,10 +167,10 @@ instance Asset Loan where
         (_, txns) = splitByDate (beforeRecoveryTxn++_txns) asOfDay EqToRight -- `debug` ("AS OF Date"++show asOfDay)
         (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
       in 
-        (CF.CashFlowFrame futureTxns, historyM)
+        (CF.CashFlowFrame (cb,asOfDay,Nothing) futureTxns, historyM)
 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted Nothing)) asOfDay assumps _
-    = (CF.CashFlowFrame [CF.LoanFlow asOfDay 0 0 0 0 0 0 0 cr Nothing],Map.empty)
+    = (CF.CashFlowFrame (cb,asOfDay,Nothing) [CF.LoanFlow asOfDay 0 0 0 0 0 0 0 cr Nothing],Map.empty)
   
   projCashflow a b c d = error $ "failed to match projCashflow"++show a++show b++show c++show d
   

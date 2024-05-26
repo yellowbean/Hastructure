@@ -350,13 +350,14 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
 
 type DueInt = Balance
 type DuePremium = Balance
+type DueIoI = Balance
 
-data Txn = BondTxn Date Balance Interest Principal IRate Cash (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
-         | AccTxn Date Balance Amount TxnComment                                           -- ^ account transaction record 
-         | ExpTxn Date Balance Amount Balance TxnComment                                   -- ^ expense transaction record
-         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment     -- ^ liquidity provider transaction record
-         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                       -- ^ interest swap transaction record
-         | EntryTxn Date Balance Amount TxnComment                                         -- ^ ledger book entry
+data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
+         | AccTxn Date Balance Amount TxnComment                                                         -- ^ account transaction record 
+         | ExpTxn Date Balance Amount Balance TxnComment                                                 -- ^ expense transaction record
+         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment                   -- ^ liquidity provider transaction record
+         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                                     -- ^ interest swap transaction record
+         | EntryTxn Date Balance Amount TxnComment                                                       -- ^ ledger book entry
          deriving (Show, Generic, Eq)
 
 
@@ -474,6 +475,8 @@ data DealStats = CurrentBondBalance
                | AccTxnAmtBy Date [AccName] (Maybe TxnComment)
                | FeesPaidAt Date [FeeName] 
                | CurrentDueBondInt [BondName]
+               | CurrentDueBondIntOverInt [BondName]
+               | CurrentDueBondIntTotal [BondName]
                | CurrentDueFee [FeeName]
                | LastBondIntPaid [BondName]
                | LastBondPrinPaid [BondName]
@@ -729,6 +732,8 @@ class Liable lb where
 
   -- must implement
   isPaidOff :: lb -> Bool
+  getCurBalance :: lb -> Balance
+  getOriginBalance :: lb -> Balance
 
   -- optional implement
   -- getTotalDue :: [lb] -> Balance

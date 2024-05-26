@@ -79,26 +79,29 @@ debug = flip trace
 
 
 setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
-setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateSpread _ spd)) bal currentRate _ dueInt (Just dueIntDate) _ _ _)
+setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateSpread _ spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
   = b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
     where 
       (Just dc) = getDayCountFromInfo ii
       accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
 
-setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateLadderSpread _ spd _)) bal currentRate _ dueInt (Just dueIntDate) _ _ _)
+setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateLadderSpread _ spd _)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
   = b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
     where 
       (Just dc) = getDayCountFromInfo ii
       accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
 
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _ _) 
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _ _ _) 
   = let 
       rate = queryDealRate t (patchDateToStats d ds)
     in 
       b {L.bndRate = fromRational (toRational rate * toRational factor) }
 
-setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _ _) 
+setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _ _ _) 
   = b { L.bndRate = applyFloatRate ii d ras }
+
+setBondNewRate t d ras bg@(L.BondGroup bMap)
+  = L.BondGroup $ Map.map (setBondNewRate t d ras) bMap
 
 
 updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> HE.SRT
@@ -160,10 +163,11 @@ applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
         Just (RateFlat _idx _r) ->   _r
         Nothing -> 0.0
       ra = AP.getRateAssumption ras idx
-      _rate = idx_rate + spd
+      _rate = idx_rate + spd -- `debug` ("idx"++show idx_rate++"spd"++show spd)
 
 applyFloatRate (L.CapRate ii _rate) d ras = min _rate (applyFloatRate ii d ras)
 applyFloatRate (L.FloorRate ii _rate) d ras = max _rate (applyFloatRate ii d ras)
+applyFloatRate (L.Fix r _ ) d ras = r
 
 applyFloatRate2 :: IR.RateType -> Date -> [RateAssumption] -> IRate
 applyFloatRate2 (IR.Fix _ r) _ _ = r
@@ -305,7 +309,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
   | all (== 0) futureCashToCollect && (queryDeal t AllAccBalance == 0) && (dStatus /= Revolving)
      = (prepareDeal $
          foldl (performAction (getDate ad)) t cleanUpActions 
-        ,log++[EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"]) -- `debug` ("stop at action"++ show ad)
+        ,log++[EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"]) `debug` ("End of pool collection")
   | otherwise
      = case ad of 
          PoolCollection d _ ->
@@ -441,6 +445,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                newBndMap = Map.adjust (setBondNewRate t d rateList) bn bndMap -- `debug` ("Reset bond"++show bn)
              in 
                run t{bonds = newBndMap} poolFlowMap (Just ads) rates calls rAssump log
+         
          BuildReport sd ed ->
              let 
                bsReport = Rpt.buildBalanceSheet t ed 
@@ -483,7 +488,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          
          MakeWhole d spd walTbl -> 
              let 
-               schedulePoolFlowMap = Map.map (fromMaybe (CF.CashFlowFrame []))  $ view dealScheduledCashflow t
+               schedulePoolFlowMap = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) []))  $ view dealScheduledCashflow t
                factor = divideBB (queryDeal t (FutureCurrentPoolBegBalance Nothing)) (queryDeal t (FutureCurrentSchedulePoolBegBalance Nothing))
                reduceCfs = Map.map (over CF.cashflowTxn (\xs -> (CF.scaleTsRow factor) <$> xs)) schedulePoolFlowMap -- need to apply with factor and trucate with date
                (runDealWithSchedule,_) = run t reduceCfs (Just ads) rates calls rAssump $ log
@@ -557,7 +562,7 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                                                            ,AP.revolving = mRevolving
                                                            ,AP.interest  = mInterest} 
   | not runFlag = (t, Nothing, Just valLogs, Nothing)
-  | otherwise = (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
+  | otherwise = (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing)  `debug` ("Run Deal end with")
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
       -- getinits() will get (new deal snapshot, actions, pool cashflows, unstressed pool cashflow)
@@ -575,21 +580,21 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                               mInterest
                               opts
                               mRevolvingCtx
-                              [] -- `debug` ("start status"++show (status t) )-- `debug` ("run rAssump>>"++show revolvingAssump++"1st Action"++ show (head ads)++"PCF size"++show (CF.sizeCashFlowFrame pcf))
-      poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame [])) (getAllCollectedFrame finalDeal Nothing) 
-      poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed 
+                              []  
+      poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) [])) (getAllCollectedFrame finalDeal Nothing)  
+      poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed  
       -- bond pricing if any                            
       bndPricing = case mPricing of
-                     Nothing -> Nothing   --  `debug` ("pricing bpi with Nothing")
-                     Just _bpi -> Just (priceBonds finalDeal _bpi) 
+                     Nothing -> Nothing     
+                     Just _bpi -> Just (priceBonds finalDeal _bpi)  
 
 -- | get bond principal and interest shortfalls from a deal
-getRunResult :: TestDeal a -> [ResultComponent]
-getRunResult t = os_bn_i ++ os_bn_b
+getRunResult :: Ast.Asset a => TestDeal a -> [ResultComponent]
+getRunResult t = os_bn_i ++ os_bn_b -- `debug` ("Done with get result")
   where 
-    bs = Map.elems $ bonds t
-    os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
-    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ]
+    bs = viewDealAllBonds t  
+    os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("B"++ show bs)
+    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("C"++ show bs)
 
 prepareDeal :: Ast.Asset a => TestDeal a -> TestDeal a
 prepareDeal t@TestDeal {bonds = bndMap} 
@@ -600,7 +605,7 @@ prepareDeal t@TestDeal {bonds = bndMap}
                           pIdCf
       t1 = set dealCashflow newPtMap t
     in 
-      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap}  -- `debug` ("Consolidation in Preparing")
+      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap}  `debug` ("Prepare Done")
 
 appendCollectedCF :: Ast.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a
 -- ^ append cashflow frame (consolidate by a date) into deals collected pool
@@ -619,7 +624,7 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                 MultiPool poolM -> 
                   MultiPool $
                     Map.foldrWithKey
-                      (\k (CF.CashFlowFrame txnCollected) acc ->
+                      (\k (CF.CashFlowFrame _ txnCollected) acc ->
                         let 
                           currentStats = case view P.poolFutureTxn (acc Map.! k) of
                                           [] -> P.poolBegStats (acc Map.! k)
@@ -631,7 +636,7 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                 ResecDeal uds -> 
                   ResecDeal $ 
                     Map.foldrWithKey
-                      (\k (CF.CashFlowFrame newTxns) acc->
+                      (\k (CF.CashFlowFrame _ newTxns) acc->
                         Map.adjust (over uDealFutureTxn (++ newTxns)) k acc)
                       uds poolInflowMap
     in 
@@ -703,7 +708,7 @@ runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [Rat
 -- schedule cashflow just ignores the interest rate assumption
 runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ = [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
-runPool (P.Pool [] (Just (CF.CashFlowFrame txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
+runPool (P.Pool [] (Just (CF.CashFlowFrame _ txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
 -- project contractual cashflow if nothing found in pool perf assumption
 -- use interest rate assumption
@@ -769,9 +774,9 @@ runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
                                                       Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
                           (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
                           bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
-                          bondFlowRated = (\(BondTxn d b i p r c f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
+                          bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
                         in
-                          (name uDeal, CF.CashFlowFrame bondFlowRated, Map.empty)) $
+                          (name uDeal, CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Map.empty)) $
     Map.mapWithKey (\_ (UnderlyingDeal uDeal _ _ _) -> 
                       let 
                         dName = name uDeal -- `debug` ("Getting name of underlying deal:"++ (name uDeal))
@@ -841,7 +846,11 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                      rcM
     -- bond rate resets 
     bndRateResets = let 
-                      bndWithDate = Map.toList $ Map.map (\b -> L.buildRateResetDates b closingDate endDate) bndMap
+                      bndWithDate = Map.toList $ Map.map 
+                                                (\b -> L.buildRateResetDates b closingDate endDate) 
+                                                bndMap
+                      -- bnds = viewDealAllBonds t
+                      -- bndWithDate = zip  (L.bndName <$> bnds) $ (\b -> L.buildRateResetDates b closingDate endDate) <$> bnds
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate, bdate <- bdates ] 
     -- mannual triggers 
@@ -858,7 +867,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                        __actionDates = let 
                                         a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
                                                    ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
-                                                   ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] -- `debug` ("fee acc dates"++show feeAccrueDates)
+                                                   ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] 
                                       in
                                         case dates t of 
                                           PreClosingDates {} -> sortBy sortActionOnDate $ DealClosed closingDate:a  -- `debug` ("add a closing date"++show closingDate)
@@ -874,7 +883,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     pCfM = runPoolType thePool mAssumps mNonPerfAssump
     -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
     -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
-    poolCfTsM = Map.map (\(CF.CashFlowFrame txns, pstats) -> cutBy Inc Future startDate txns) pCfM -- `debug` ("Pool cfm"++ show pCfM)
+    poolCfTsM = Map.map (\(CF.CashFlowFrame _ txns, pstats) -> cutBy Inc Future startDate txns) pCfM -- `debug` ("Pool cfm"++ show pCfM)
     -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
     poolCfTsMwithBegRow = Map.map (\txns -> 
                                     case txns of 
@@ -884,7 +893,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                   poolCfTsM 
     poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow  
     -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
-    pCollectionCfAfterCutoff = Map.map CF.CashFlowFrame poolAggCfM 
+    pCollectionCfAfterCutoff = Map.map (CF.CashFlowFrame (0,startDate,Nothing)) poolAggCfM 
     
     pScheduleCfM = case thePool of
                      (SoloPool p) 
@@ -899,15 +908,15 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                                 let 
                                                                   (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing Nothing (fromMaybe (NonPerfAssumption {}) mNonPerfAssump)
                                                                   bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn])
-                                                                  bondFlowRated = (\(BondTxn d b i p r c f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow
+                                                                  bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow
                                                                 in
-                                                                  (name uDeal, CF.CashFlowFrame bondFlowRated, Map.empty))
+                                                                  (name uDeal, CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Map.empty))
                                           dm
-    pTxnOfSpv = Map.map (\(CF.CashFlowFrame txns, pstats) -> cutBy Inc Future startDate txns) pScheduleCfM  
+    pTxnOfSpv = Map.map (\(CF.CashFlowFrame _ txns, pstats) -> cutBy Inc Future startDate txns) pScheduleCfM  
     pTxnWithBegRow = Map.map (\(x:xs) -> buildBegTsRow startDate x:x:xs) pTxnOfSpv  
     -- pAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) pTxnWithBegRow
     pAggCfM = pTxnWithBegRow
-    pUnstressedAfterCutoff = Map.map CF.CashFlowFrame pAggCfM
+    pUnstressedAfterCutoff = Map.map (CF.CashFlowFrame (0,startDate,Nothing)) pAggCfM
     -- if preclosing deal , issuance balance is using beg balance of projected cashflow
     -- if it is ongoing deal, issuance balance is user input ( deal is not aware of issuance balance as point of time)
     -- issuanceBalance = case status t of

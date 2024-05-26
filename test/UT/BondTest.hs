@@ -19,8 +19,8 @@ import Data.Ratio
 import Debug.Trace
 debug = flip trace
 
-b1Txn =  [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 Nothing S.Empty
-                    ,BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 Nothing S.Empty
+b1Txn =  [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 0 0 Nothing S.Empty
+                    ,BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 0 0 Nothing S.Empty
                     ]
 b1 = B.Bond{B.bndName="A"
             ,B.bndType=B.Sequential
@@ -54,7 +54,7 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndDueIntDate=Nothing
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-            ,B.bndStmt=Just $ S.Statement [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 Nothing S.Empty]}
+            ,B.bndStmt=Just $ S.Statement [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 0 0 Nothing S.Empty]}
 
 
 pricingTests = testGroup "Pricing Tests"
@@ -97,9 +97,9 @@ pricingTests = testGroup "Pricing Tests"
         pr
     ,
      let
-       b2Txn =  [BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 Nothing S.Empty
-                           ,BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 Nothing S.Empty
-                           ,BondTxn (L.toDate "20220701") 0 10 3200 0.08 3300 Nothing S.Empty
+       b2Txn =  [BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 0 0 Nothing S.Empty
+                           ,BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 0 0 Nothing S.Empty
+                           ,BondTxn (L.toDate "20220701") 0 10 3200 0.08 3300 0 0 Nothing S.Empty
                            ]
        b2 = b1 { B.bndStmt = Just (S.Statement b2Txn)}
 
@@ -137,7 +137,7 @@ pricingTests = testGroup "Pricing Tests"
       assertEqual "pay int" 2400  $ B.bndBalance (B.payPrin pday 600 b5)
     ,
     let 
-      newCfStmt = Just $ S.Statement [ BondTxn (L.toDate "20220501") 1500 300 2800 0.08 3100 Nothing S.Empty] 
+      newCfStmt = Just $ S.Statement [ BondTxn (L.toDate "20220501") 1500 300 2800 0.08 3100 0 0 Nothing S.Empty] 
       b6 = b1 {B.bndStmt = newCfStmt}
       pday = L.toDate "20220301" -- `debug` ("stmt>>>>>"++ show (B.bndStmt b6))
       rateCurve = IRateCurve [TsPoint (L.toDate "20220201") 0.03 ,TsPoint (L.toDate "20220401") 0.04]
@@ -181,8 +181,8 @@ bndConsolTest = testGroup "Bond consoliation & patchtesting" [
     in 
       testCase "test on patching bond factor" $
       assertEqual ""
-      [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 (Just 0.5) S.Empty
-       ,BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 (Just 0.0) S.Empty
+      [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 0 0 (Just 0.5) S.Empty
+       ,BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 0 0 (Just 0.0) S.Empty
       ]
       b1f
 

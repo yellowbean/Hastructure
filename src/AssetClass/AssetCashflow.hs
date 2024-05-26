@@ -39,8 +39,8 @@ debug = flip trace
 applyHaircut :: Maybe A.ExtraStress -> CF.CashFlowFrame -> CF.CashFlowFrame
 applyHaircut Nothing cf = cf 
 applyHaircut (Just A.ExtraStress{A.poolHairCut = Nothing}) cf = cf
-applyHaircut (Just A.ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFrame txns)
-  = CF.CashFlowFrame $ 
+applyHaircut (Just A.ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFrame st txns)
+  = CF.CashFlowFrame st $ 
       (\txn -> foldr 
                  (\fn acc -> fn acc ) 
                  txn 
@@ -82,7 +82,7 @@ applyHaircut (Just A.ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFra
    
 -- ^ apply a penalty cashflow
 patchPrepayPenaltyFlow :: (Int,Maybe PrepayPenaltyType) -> CF.CashFlowFrame -> CF.CashFlowFrame
-patchPrepayPenaltyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame trs) 
+patchPrepayPenaltyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame st trs) 
   = let 
       (startDate,endDate) = CF.getDateRangeCashFlowFrame mflow
       prepaymentFlow = CF.mflowPrepayment <$> trs
@@ -94,7 +94,7 @@ patchPrepayPenaltyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame trs)
           let 
             rs = lastN flowSize $ replicate cutoff rate0 ++ replicate (ot-cutoff) rate1
           in 
-            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
+            CF.CashFlowFrame st $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (FixAmount amt mCutoff) -> 
           let 
             projFlow = case mCutoff of 
@@ -106,24 +106,24 @@ patchPrepayPenaltyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame trs)
                           0
                         | (f,ppy) <- zip projFlow prepaymentFlow]
           in 
-            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow actFlow trs
+            CF.CashFlowFrame st $ CF.setPrepaymentPenaltyFlow actFlow trs
         Just (FixPct r mCutoff) ->
           let 
             rs = case mCutoff of 
                    Nothing -> replicate flowSize r
                    Just cutoff -> lastN flowSize $ replicate cutoff r ++ replicate (ot-cutoff) 0
           in
-            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
+            CF.CashFlowFrame st $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (Sliding sr changeRate) -> 
           let 
             rs = lastN flowSize $ paddingDefault 0 (0:[sr,(sr-changeRate)..0]) ot
           in
-            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
+            CF.CashFlowFrame st $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
         Just (StepDown ps) ->
           let 
             rs = lastN flowSize $ paddingDefault 0 (concat [ replicate n r | (n,r) <- ps]) ot
           in 
-            CF.CashFlowFrame $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
+            CF.CashFlowFrame st $ CF.setPrepaymentPenaltyFlow (zipWith mulBR prepaymentFlow rs) trs
 
 getRecoveryLag :: A.RecoveryAssumption -> Int
 getRecoveryLag (A.Recovery (_,lag)) = lag 

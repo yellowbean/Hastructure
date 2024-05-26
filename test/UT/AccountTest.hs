@@ -17,6 +17,9 @@ import qualified Data.Time as T
 import qualified Data.Map as Map
 import UT.DealTest (td2)
 
+dummySt = (0,Lib.toDate "19000101",Nothing)
+
+
 intTests =
   let 
     acc1 = Account 200 "A1" (Just (BankAccount 0.03 (toDate "20221001") QuarterEnd)) Nothing Nothing
@@ -70,7 +73,7 @@ reserveAccTest =
     acc1 = Account 200 "A1" Nothing (Just (PctReserve (CurrentPoolBalance Nothing) 0.01)) Nothing
     acc2 = Account 150 "A2" Nothing (Just (FixReserve 210)) Nothing
     accMap = Map.fromList [("A1",acc1),("A2",acc2)]
-    testCFs = CF.CashFlowFrame
+    testCFs = CF.CashFlowFrame dummySt
                [CF.MortgageFlow (toDate "20220601") 150 20 10 0 0 0 0 0 Nothing Nothing Nothing
                ,CF.MortgageFlow (toDate "20220701") 130 20 10 0 0 0 0 0 Nothing Nothing Nothing
                ,CF.MortgageFlow (toDate "20220801") 110 20 10 0 0 0 0 0 Nothing Nothing Nothing
