@@ -12,6 +12,7 @@ import Text.Read (readMaybe)
 import Lib ( Pre, DealStatus )
 import Types
 import Accounts (ReserveAmount)
+import Waterfall (Action)
 import Data.Aeson ( defaultOptions )
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -33,6 +34,7 @@ data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal
                    -- | IssueBonds [L.Bond] AccountName            -- ^ issue new bonds and deposit proceeds to account
                    | BuyAsset AccountName PricingMethod         -- ^ buy asset from the assumption using funds from account
                    | TriggerEffects [TriggerEffect]             -- ^ a combination of effects above
+                   | RunActions [Action]                       -- ^ run a list of waterfall actions
                    | DoNothing                                  -- ^ do nothing
                    deriving (Show, Eq, Generic,Ord)
  

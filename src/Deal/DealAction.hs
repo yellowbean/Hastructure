@@ -512,14 +512,12 @@ performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultCo
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
                   ,rc@RunContext{runPoolFlow=pFlowMap
-                                -- ,revolvingAssump=Just (assetForSale,perfAssumps)
                                 ,revolvingAssump=Just rMap
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
                   (W.BuyAsset ml pricingMethod accName pId) 
    = (t { accounts = newAccMap }, newRc, logs )
     where 
-      -- (assetForSale, perfAssumps) = snd $ fst $ Map.toList rMap
       (assetForSale::RevolvingPool, perfAssumps::AP.ApplyAssumptionType) = head $ Map.elems rMap
       _assets = lookupAssetAvailable assetForSale d
       assets = updateOriginDate2 d <$> _assets -- `debug` ("Asset on revolv"++ show _assets)

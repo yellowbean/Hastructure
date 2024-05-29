@@ -1,12 +1,19 @@
 # Changelog for Hastructure
 
+## 0.28.2
+### 2024-05-27
+* NEW: enable `trigger` to run waterfall `actions`
+
 
 ## 0.28.1
-### TO-BE-DONE
-* BREAK : add `bondGroup`
-* BREAK : add `begin balance` for cashflow frame
-* BREAK : add `interest arrears` `interest over interest` on bonds
-* BREAK : include `tags` on assets
+### 2024-05-26
+* BREAK : add `bondGroup`, which group bonds and pay with prorata/sequential/by coupon rate/by maturity/by start date
+* BREAK : add `begin balance`/`accure interest`/`as of date` for cashflow frame
+* BREAK : add `interest arrears` `interest over interest` on bond cashflow
+* NEW: add `interest over interest` settings on bonds and expose `interest over interest` `interest due` flow
+* ENHANCE: add tabular representation of cashflow frame
+* FIX: fix rolling default rate query
+
 
 ## 0.27.21
 ### 2024-05-15
