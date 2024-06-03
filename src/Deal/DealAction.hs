@@ -499,14 +499,6 @@ showInspection (InspectInt d ds r) = show r
 showInspection (InspectBal d ds r) = show r
 showInspection x = error $ "not implemented for showing ResultComponent " ++ show x
 
--- allocPrinPayToBondGroup :: W.PayBondGroupBy -> [L.Bond] -> Amount -> [Amount]
--- allocPrinPayToBondGroup payMethod bonds amt 
---   = let 
---       totalBal = sum $ L.bndBalance <$> bonds
---       ratios = (\x -> x/totalBal) <$> L.bndBalance <$> bonds
---     in 
---       (\x -> x * amt) <$> ratios
-
 
 performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d 

@@ -281,7 +281,6 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc) d dcycle =
 
     -- get triggeres to run at `dealCycle`
     trgsMap = Map.findWithDefault Map.empty dcycle trgM
-    
     -- triggered trigger
     triggeredTrgs = Map.filter   
                           (\trg -> 
@@ -512,7 +511,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                depositBondFlow = Map.intersectionWith
                                   (\bnd (PriceResult pv _ _ _ _ _ _) -> 
                                     let 
-                                      ostBal = L.bndBalance bnd
+                                      ostBal = L.getCurBalance bnd
                                       prinToPay = min pv ostBal
                                       intToPay = max 0 (pv - prinToPay)
                                       bnd1 = L.payPrin d prinToPay bnd

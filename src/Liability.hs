@@ -7,7 +7,7 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
-  ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff
+  ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff,getCurBalance
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
