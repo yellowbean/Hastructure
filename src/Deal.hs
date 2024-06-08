@@ -316,6 +316,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
      = (prepareDeal $
          foldl (performAction (getDate ad)) t cleanUpActions 
         ,log++[EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"]) -- `debug` ("End of pool collection with logs with length "++ show (length log))
+
   | otherwise
      = case ad of 
          PoolCollection d _ ->
@@ -614,6 +615,7 @@ prepareDeal t@TestDeal {bonds = bndMap}
       t1 = set dealCashflow newPtMap t
     in 
       t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap}  -- `debug` ("Prepare Done")
+
 
 appendCollectedCF :: Ast.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a
 -- ^ append cashflow frame (consolidate by a date) into deals collected pool
