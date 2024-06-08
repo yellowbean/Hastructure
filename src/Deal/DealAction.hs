@@ -499,27 +499,17 @@ showInspection (InspectInt d ds r) = show r
 showInspection (InspectBal d ds r) = show r
 showInspection x = error $ "not implemented for showing ResultComponent " ++ show x
 
--- allocPrinPayToBondGroup :: W.PayBondGroupBy -> [L.Bond] -> Amount -> [Amount]
--- allocPrinPayToBondGroup payMethod bonds amt 
---   = let 
---       totalBal = sum $ L.bndBalance <$> bonds
---       ratios = (\x -> x/totalBal) <$> L.bndBalance <$> bonds
---     in 
---       (\x -> x * amt) <$> ratios
-
 
 performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
                   ,rc@RunContext{runPoolFlow=pFlowMap
-                                -- ,revolvingAssump=Just (assetForSale,perfAssumps)
                                 ,revolvingAssump=Just rMap
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
                   (W.BuyAsset ml pricingMethod accName pId) 
    = (t { accounts = newAccMap }, newRc, logs )
     where 
-      -- (assetForSale, perfAssumps) = snd $ fst $ Map.toList rMap
       (assetForSale::RevolvingPool, perfAssumps::AP.ApplyAssumptionType) = head $ Map.elems rMap
       _assets = lookupAssetAvailable assetForSale d
       assets = updateOriginDate2 d <$> _assets -- `debug` ("Asset on revolv"++ show _assets)
@@ -1110,7 +1100,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin Nothing an b
     bndsWithDue = map (calcDuePrin t d) bndsToPay  --
     bndsDueAmts = map L.bndDuePrin bndsWithDue
 
-    actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
+    actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("bonds to pay"++show bnds ++"bonds totoal due ->"++show(bndsDueAmts))
     
     bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts actualPaidOut)
     bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
@@ -1132,11 +1122,11 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds
     bndsToPayNames = L.bndName <$> bndsToPay
     availBal = A.accBalance acc
-    bndsDueAmts = map L.bndBalance bndsToPay
+    bndsDueAmts = map L.getCurBalance bndsToPay
 
-    actualPaidOut = min availBal $ sum  bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
-    bndsAmountToBePaid = zip bndsToPay (prorataFactors bndsDueAmts availBal)
-    bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
+    actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
+    bndsAmountToBePaid = zip bndsToPay (prorataFactors bndsDueAmts actualPaidOut)
+    bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid  -- `debug` ("pay bonds "++show bnds ++"pay prin->>>To"++show(prorataFactors bndsDueAmts availBal))
 
     bndMapUpdated =  Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap

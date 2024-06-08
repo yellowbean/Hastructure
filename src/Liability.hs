@@ -7,7 +7,7 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
-  ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff
+  ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff,getCurBalance
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
@@ -196,6 +196,7 @@ payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
+payPrin d _ bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
 payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newStmt} -- `debug` ("after pay prin:"++ show d ++">"++ show bn++"due"++show newDue++"bal"++ show newBal )
   where

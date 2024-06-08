@@ -14460,6 +14460,28 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Action"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RunActions"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RunActions",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "tag": {
                                 "enum": [
                                     "DoNothing"
@@ -16330,7 +16352,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.21"
+        "version": "0.28.1"
     },
     "openapi": "3.0.0",
     "paths": {

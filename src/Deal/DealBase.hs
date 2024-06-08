@@ -207,9 +207,9 @@ instance SPV (TestDeal a) where
         Nothing -> 0  `debug` ("it is not supposed to happen")
         Just bnd ->
           case L.bndStmt bnd of
-            Just (Statement []) -> L.bndBalance bnd -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
+            Just (Statement []) -> L.getCurBalance bnd -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
             Just (Statement stmts) -> getTxnBegBalance $ head stmts -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
-            Nothing -> L.bndBalance bnd  -- `debug` ("Getting beg bal nothing"++bn)
+            Nothing -> L.getCurBalance bnd  -- `debug` ("Getting beg bal nothing"++bn)
       where
           b = find (\x -> ((L.bndName x) == bn)) (viewDealAllBonds t) 
 
