@@ -201,7 +201,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate 
   = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newStmt} -- `debug` ("after pay prin:"++ show d ++">"++ show bn++"due"++show newDue++"bal"++ show newBal )
   where
     newBal = bal - amt
-    newDue = duePrin - amt -- `debug` ("bnd"++ show bn ++" pay"++show amt++"to balance"++ show bal++"result"++show newBal) 
+    newDue = duePrin - amt 
     newStmt = S.appendStmt stmt (BondTxn d newBal 0 amt 0 amt dueInt dueIoI Nothing (S.PayPrin [bn] ))
 
 writeOff :: Date -> Amount -> Bond -> Bond
