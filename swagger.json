@@ -6412,35 +6412,6 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "BondGroup"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "BondGroup",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
@@ -14460,6 +14431,28 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Action"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RunActions"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RunActions",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "tag": {
                                 "enum": [
                                     "DoNothing"
@@ -16330,7 +16323,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.27.21"
+        "version": "0.28.1"
     },
     "openapi": "3.0.0",
     "paths": {

@@ -1100,7 +1100,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin Nothing an b
     bndsWithDue = map (calcDuePrin t d) bndsToPay  --
     bndsDueAmts = map L.bndDuePrin bndsWithDue
 
-    actualPaidOut = min availBal $ sum bndsDueAmts  `debug` ("bonds to pay"++show bnds ++"bonds totoal due ->"++show(bndsDueAmts))
+    actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("bonds to pay"++show bnds ++"bonds totoal due ->"++show(bndsDueAmts))
     
     bndsAmountToBePaid = zip bndsWithDue (prorataFactors bndsDueAmts actualPaidOut)
     bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid --  `debug` ("pay prin->>>To"++show(bnds))
