@@ -3,7 +3,8 @@
 ## 0.28.2
 ### 2024-05-27
 * NEW: enable `trigger` to run waterfall `actions`
-
+* FIX: the `result log` used to be doubled each pool collection period
+* FIX: `payPrinResidual` will use all cash from account regardless principal due of bonds, which may caused negative balance of bonds( cash of account > principal due of bond)
 
 ## 0.28.1
 ### 2024-05-26
