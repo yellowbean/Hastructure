@@ -736,15 +736,16 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
     
     feesToPay = map (feeMap Map.!) fns
     feeDueAmts = map F.feeDue feesToPay
+    feeTotalDueAmt = sum feeDueAmts
 
     amtAvailable = availAccBal + supportAvail
                    -- Just (DuePct pct) -> map (\x -> mulBR (F.feeDue x) pct ) feesToPay
                    -- Just (DueCapAmt amt) -> prorataFactors (F.feeDue <$> feesToPay) amt
     dueAmtAfterCap = case mLimit of 
-                      Nothing -> sum feeDueAmts
-                      Just (DS ds) -> min (queryDeal t (patchDateToStats d ds)) $ sum feeDueAmts
-                      Just (DueCapAmt amt) -> min amt $ sum feeDueAmts  
-                      Just (DuePct pct) -> mulBR (sum feeDueAmts) pct
+                      Nothing -> feeTotalDueAmt
+                      Just (DS ds) -> min (queryDeal t (patchDateToStats d ds)) feeTotalDueAmt
+                      Just (DueCapAmt amt) -> min amt feeTotalDueAmt
+                      Just (DuePct pct) -> mulBR feeTotalDueAmt pct
     -- total actual pay out
     actualPaidOut = min amtAvailable dueAmtAfterCap
 
@@ -755,7 +756,7 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
     dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (SeqPayFee fns)) an accMap
                      ,fees = Map.fromList (zip fns feesPaid) <> feeMap}
 
-    supportPaidOut = sum feeDueAmts - accPaidOut
+    supportPaidOut = dueAmtAfterCap - accPaidOut
 
 performAction d t (W.AccrueAndPayIntBySeq mLimit an bnds mSupport)
   = let 
