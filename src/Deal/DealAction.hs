@@ -733,17 +733,20 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
     supportAvail = case mSupport of 
                      Just support -> sum ( evalExtraSupportBalance d t support)
                      Nothing -> 0
-    amtAvailable = case mLimit of
-                     Nothing -> availAccBal + supportAvail
-                     Just (DS ds) -> min (availAccBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
-                     Just (DueCapAmt amt) -> min amt $ availAccBal + supportAvail
-
+    
     feesToPay = map (feeMap Map.!) fns
     feeDueAmts = map F.feeDue feesToPay
+
+    amtAvailable = availAccBal + supportAvail
                    -- Just (DuePct pct) -> map (\x -> mulBR (F.feeDue x) pct ) feesToPay
                    -- Just (DueCapAmt amt) -> prorataFactors (F.feeDue <$> feesToPay) amt
+    dueAmtAfterCap = case mLimit of 
+                      Nothing -> sum feeDueAmts
+                      Just (DS ds) -> min (queryDeal t (patchDateToStats d ds)) $ sum feeDueAmts
+                      Just (DueCapAmt amt) -> min amt $ sum feeDueAmts  
+                      Just (DuePct pct) -> mulBR (sum feeDueAmts) pct
     -- total actual pay out
-    actualPaidOut = min amtAvailable $ sum feeDueAmts -- `debug` ("Fee Due Amounts"++show(feeDueAmts))
+    actualPaidOut = min amtAvailable dueAmtAfterCap
 
     feesAmountToBePaid = zip feesToPay $ prorataFactors feeDueAmts actualPaidOut
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid

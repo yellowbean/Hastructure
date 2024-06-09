@@ -6412,35 +6412,6 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "BondGroup"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "BondGroup",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
@@ -16352,7 +16323,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.1"
+        "version": "0.28.2"
     },
     "openapi": "3.0.0",
     "paths": {
