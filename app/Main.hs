@@ -337,7 +337,7 @@ data RunPoolReq = SingleRunPoolReq PoolTypeWrap (Maybe AP.ApplyAssumptionType) (
 
 instance ToSchema RunPoolReq
 
-data RunDateReq = RunDateReq Date DatePattern
+data RunDateReq = RunDateReq Date DatePattern (Maybe Date)
                 deriving(Show, Generic)
 instance ToSchema RunDateReq
 
@@ -402,7 +402,10 @@ runMultiDeals :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
 
 runDate :: RunDateReq -> Handler [Date]
-runDate (RunDateReq sd dp) = return $ DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+runDate (RunDateReq sd dp md) = return $ 
+                                    case md of
+                                      Nothing -> DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+                                      Just d -> DU.genSerialDatesTill2 IE sd dp d
 
 myServer :: ServerT API Handler
 myServer =  return engineSwagger
