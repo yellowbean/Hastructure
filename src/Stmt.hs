@@ -72,6 +72,7 @@ getTxnComment (ExpTxn _ _ _ _ t ) = t
 getTxnComment (SupportTxn _ _ _ _ _ _ t ) = t
 getTxnComment (IrsTxn _ _ _ _ _ _ t ) = t
 getTxnComment (EntryTxn _ _ _ t ) = t
+getTxnComment (TrgTxn _ _ t) = t
 
 getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ _ _ _) = t
@@ -96,6 +97,7 @@ getTxnAmt (ExpTxn _ _ t _ _ ) = t
 getTxnAmt (SupportTxn _ _ t _ _ _ _) = t
 getTxnAmt (IrsTxn _ _ t _ _ _ _ ) = t
 getTxnAmt (EntryTxn _ _ t _) = t
+getTxnAmt (TrgTxn {} ) = 0.0
 
 getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
@@ -107,6 +109,7 @@ emptyTxn ExpTxn {} d = ExpTxn d 0 0 0 Empty
 emptyTxn SupportTxn {} d = SupportTxn d Nothing 0 0 0 0 Empty
 emptyTxn IrsTxn {} d = IrsTxn d 0 0 0 0 0 Empty
 emptyTxn EntryTxn {} d = EntryTxn d 0 0 Empty
+emptyTxn TrgTxn {} d = TrgTxn d False Empty
 
 isEmptyTxn :: Txn -> Bool
 isEmptyTxn (BondTxn _ 0 0 0 _ 0 0 0 _ _) = True

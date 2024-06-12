@@ -77,15 +77,22 @@ getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   where
     trs = getAllCollectedTxnsList t Nothing
 
-testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Bool 
-testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
-  | not cure && st = True 
-  | otherwise = testPre d t cond 
 
-updateTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
-updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
-  | testTrigger t d trigger = trigger {trgStatus = True}  
-  | otherwise = trigger
+-- ^ 
+testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
+testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=cond,trgStmt = tStmt} 
+  | not curable && st = trigger
+  | otherwise = let 
+                  newSt = testPre d t cond
+                  newTxn = TrgTxn d newSt Stmt.Empty
+                in 
+                  trigger { trgStatus = newSt
+                           , trgStmt = Stmt.appendStmt tStmt newTxn}
+
+-- updateTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
+-- updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
+--   | testTrigger t d trigger = trigger {trgStatus = True}  
+--   | otherwise = trigger
 
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
@@ -1345,6 +1352,7 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapS
 performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tName)
   = t { triggers = Just (Map.insert loc newMap trgM) }
     where 
-      newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
+      -- newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
+      newMap = Map.adjust (testTrigger t d) tName (trgM Map.! loc)
 
 performAction d t action =  error $ "failed to match action>>"++show action++">>Deal"++show (name t)

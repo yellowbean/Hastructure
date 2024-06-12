@@ -249,9 +249,9 @@ queryTrigger t@TestDeal{ triggers = trgs } wt
       Just _trgs -> maybe [] Map.elems $ Map.lookup wt _trgs
 
 -- ^ run trigger sequentially
-testTriggers :: Ast.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
-testTriggers t d [] = False
-testTriggers t d triggers = any (testTrigger t d) triggers 
+-- testTriggers :: Ast.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
+-- testTriggers t d [] = False
+-- testTriggers t d triggers = any (testTrigger t d) triggers 
 
 -- ^ execute effects of trigger: making changes to deal
 runEffects :: Ast.Asset a => (TestDeal a, RunContext a) -> Date -> TriggerEffect -> (TestDeal a, RunContext a)
@@ -271,7 +271,7 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap },rc) d te
       DoNothing -> (t, rc)
       _ -> error $ "Failed to match trigger effects: "++show te
 
--- ^ test trigger and add a log if deal status changed
+-- ^ test triggers in the deal and add a log if deal status changed
 runTriggers :: Ast.Asset a => (TestDeal a, RunContext a) -> Date -> DealCycle -> (TestDeal a, RunContext a,[ResultComponent])
 runTriggers (t@TestDeal{status=oldStatus, triggers = Nothing},rc) d dcycle = (t, rc, [])
 runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc) d dcycle = 
@@ -281,14 +281,18 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc) d dcycle =
 
     -- get triggeres to run at `dealCycle`
     trgsMap = Map.findWithDefault Map.empty dcycle trgM
-    -- triggered trigger
-    triggeredTrgs = Map.filter   
-                          (\trg -> 
-                            (not (trgStatus trg) || trgStatus trg && trgCurable trg) && testTrigger t d trg)
-                          trgsMap
 
-    -- extract trigger effects to run                   
-    triggeredEffects = [ trgEffects _trg | _trg <- Map.elems triggeredTrgs ] 
+    -- get a map of triggers to test
+    trgsToTest = Map.filter   
+                          (\trg -> (not (trgStatus trg) || trgStatus trg && trgCurable trg))
+                          trgsMap
+    -- test triggers 
+    triggeredTrgs = Map.map
+                          (\trg -> testTrigger t d trg)
+                          trgsToTest
+
+    -- extract trigger effects to run, if the trigger is true                   
+    triggeredEffects = [ trgEffects _trg | _trg <- Map.elems triggeredTrgs, (trgStatus _trg) ] 
 
     -- run effects on deals
     -- aka (\_t _te -> runEffects _t d _te)
@@ -301,7 +305,7 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc) d dcycle =
     -- new status of trigger, update status of trigger to True
     triggeredNames = Map.keys triggeredTrgs
 
-    newTriggers = Map.union (Map.map (set trgStatusLens True) triggeredTrgs) trgsMap
+    newTriggers = Map.union triggeredTrgs trgsMap
   
  
 run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] 

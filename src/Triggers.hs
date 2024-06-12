@@ -8,6 +8,7 @@ module Triggers(
  where
 
 import qualified Data.Text as T
+import qualified Stmt as S
 import Text.Read (readMaybe)
 import Lib ( Pre, DealStatus )
 import Types
@@ -43,6 +44,7 @@ data Trigger = Trigger {
             ,trgEffects :: TriggerEffect              -- ^ what happen if it was triggered
             ,trgStatus :: Bool                        -- ^ if it is triggered or not 
             ,trgCurable :: Bool                       -- ^ if it is curable trigger
+            ,trgStmt :: Maybe S.Statement             -- ^ Transaction stmt
             } deriving (Show, Eq, Generic,Ord)
 
 makeLensesFor [("trgStatus","trgStatusLens") 
