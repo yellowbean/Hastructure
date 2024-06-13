@@ -3,7 +3,7 @@
 ## 0.28.3
 ### TODO
 * FIX: `limit` on `payFee` was not working with `duePct`
-
+* ENHANCE: expose `transaction statement` for `triggers`
 
 ## 0.28.2
 ### 2024-05-27
