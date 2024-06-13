@@ -77,15 +77,22 @@ getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
   where
     trs = getAllCollectedTxnsList t Nothing
 
-testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Bool 
-testTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond } 
-  | not cure && st = True 
-  | otherwise = testPre d t cond 
 
-updateTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
-updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
-  | testTrigger t d trigger = trigger {trgStatus = True}  
-  | otherwise = trigger
+-- ^ 
+testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
+testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=cond,trgStmt = tStmt} 
+  | not curable && st = trigger
+  | otherwise = let 
+                  newSt = testPre d t cond
+                  newTxn = TrgTxn d newSt Stmt.Empty
+                in 
+                  trigger { trgStatus = newSt
+                           , trgStmt = Stmt.appendStmt tStmt newTxn}
+
+-- updateTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
+-- updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
+--   | testTrigger t d trigger = trigger {trgStatus = True}  
+--   | otherwise = trigger
 
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
@@ -733,17 +740,21 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
     supportAvail = case mSupport of 
                      Just support -> sum ( evalExtraSupportBalance d t support)
                      Nothing -> 0
-    amtAvailable = case mLimit of
-                     Nothing -> availAccBal + supportAvail
-                     Just (DS ds) -> min (availAccBal + supportAvail) $ queryDeal t (patchDateToStats d ds)
-                     Just (DueCapAmt amt) -> min amt $ availAccBal + supportAvail
-
+    
     feesToPay = map (feeMap Map.!) fns
     feeDueAmts = map F.feeDue feesToPay
+    feeTotalDueAmt = sum feeDueAmts
+
+    amtAvailable = availAccBal + supportAvail
                    -- Just (DuePct pct) -> map (\x -> mulBR (F.feeDue x) pct ) feesToPay
                    -- Just (DueCapAmt amt) -> prorataFactors (F.feeDue <$> feesToPay) amt
+    dueAmtAfterCap = case mLimit of 
+                      Nothing -> feeTotalDueAmt
+                      Just (DS ds) -> min (queryDeal t (patchDateToStats d ds)) feeTotalDueAmt
+                      Just (DueCapAmt amt) -> min amt feeTotalDueAmt
+                      Just (DuePct pct) -> mulBR feeTotalDueAmt pct
     -- total actual pay out
-    actualPaidOut = min amtAvailable $ sum feeDueAmts -- `debug` ("Fee Due Amounts"++show(feeDueAmts))
+    actualPaidOut = min amtAvailable dueAmtAfterCap
 
     feesAmountToBePaid = zip feesToPay $ prorataFactors feeDueAmts actualPaidOut
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
@@ -752,7 +763,7 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
     dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (SeqPayFee fns)) an accMap
                      ,fees = Map.fromList (zip fns feesPaid) <> feeMap}
 
-    supportPaidOut = sum feeDueAmts - accPaidOut
+    supportPaidOut = dueAmtAfterCap - accPaidOut
 
 performAction d t (W.AccrueAndPayIntBySeq mLimit an bnds mSupport)
   = let 
@@ -1341,6 +1352,7 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapS
 performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tName)
   = t { triggers = Just (Map.insert loc newMap trgM) }
     where 
-      newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
+      -- newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
+      newMap = Map.adjust (testTrigger t d) tName (trgM Map.! loc)
 
 performAction d t action =  error $ "failed to match action>>"++show action++">>Deal"++show (name t)

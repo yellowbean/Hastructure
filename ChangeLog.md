@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.28.3
+### TODO
+* FIX: `limit` on `payFee` was not working with `duePct`
+
+
 ## 0.28.2
 ### 2024-05-27
 * NEW: enable `trigger` to run waterfall `actions`

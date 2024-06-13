@@ -24,7 +24,7 @@ module Types
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),BookDirection(..),DealStatType(..),getDealStatType
   ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
-  ,DealName,lookupIntervalTable,getPriceValue,Txn(..)
+  ,DealName,lookupIntervalTable,getPriceValue,Txn(..),preToStr
   )
   
   where
@@ -352,12 +352,15 @@ type DueInt = Balance
 type DuePremium = Balance
 type DueIoI = Balance
 
+
+
 data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
          | AccTxn Date Balance Amount TxnComment                                                         -- ^ account transaction record 
          | ExpTxn Date Balance Amount Balance TxnComment                                                 -- ^ expense transaction record
          | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment                   -- ^ liquidity provider transaction record
          | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                                     -- ^ interest swap transaction record
          | EntryTxn Date Balance Amount TxnComment                                                       -- ^ ledger book entry
+         | TrgTxn Date Bool TxnComment
          deriving (Show, Generic, Eq)
 
 
@@ -675,6 +678,8 @@ data Pre = IfZero DealStats
          | All [Pre]                            -- ^ 
          deriving (Show,Generic,Eq,Ord)
 
+preToStr :: Pre -> String
+preToStr p = show p
 
 
 type BookItems = [BookItem]
