@@ -13067,10 +13067,13 @@
                     },
                     {
                         "$ref": "#/components/schemas/DatePattern"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Day"
                     }
                 ],
-                "maxItems": 2,
-                "minItems": 2,
+                "maxItems": 3,
+                "minItems": 3,
                 "type": "array"
             },
             "RunDealReq": {
@@ -14277,6 +14280,9 @@
                     },
                     "trgStatus": {
                         "type": "boolean"
+                    },
+                    "trgStmt": {
+                        "$ref": "#/components/schemas/Statement"
                     }
                 },
                 "required": [
@@ -15552,6 +15558,38 @@
                         ],
                         "title": "EntryTxn",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TrgTxn"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TrgTxn",
+                        "type": "object"
                     }
                 ]
             },
@@ -16323,7 +16361,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.2"
+        "version": "0.28.6"
     },
     "openapi": "3.0.0",
     "paths": {

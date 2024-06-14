@@ -123,7 +123,7 @@ data BondType = Sequential                                 -- ^ Pass through typ
 
 data Bond = Bond {
               bndName :: String
-              ,bndType :: BondType                 -- ^ bond type ,which describle the how principal due was calculated
+              ,bndType :: BondType                 -- ^ bond type ,which describe the how principal due was calculated
               ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
               ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
               ,bndStepUp :: Maybe StepUp           -- ^ step up which update interest rate

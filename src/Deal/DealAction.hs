@@ -83,8 +83,8 @@ testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
 testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=cond,trgStmt = tStmt} 
   | not curable && st = trigger
   | otherwise = let 
-                  newSt = testPre d t cond
-                  newTxn = TrgTxn d newSt Stmt.Empty
+                  (memo, newSt) = testPre2 d t cond
+                  newTxn = TrgTxn d newSt (Stmt.Tag memo)
                 in 
                   trigger { trgStatus = newSt
                            , trgStmt = Stmt.appendStmt tStmt newTxn}

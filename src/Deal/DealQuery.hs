@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Deal.DealQuery (queryDealBool,queryDeal,queryDealInt,queryDealRate
-                       ,patchDateToStats, testPre, calcTargetAmount) 
+                       ,patchDateToStats, testPre, calcTargetAmount, testPre2) 
   where
 
 import Deal.DealBase
@@ -620,6 +620,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
 
     _ -> error ("Failed to query bool type formula"++ show ds)
 
+-- ^ test a condition with a deal and a date
 testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Bool
 testPre d t p =
   case p of
@@ -649,3 +650,34 @@ testPre d t p =
                   LE -> (<=)
                   E -> (==)
       ps = patchDateToStats d
+
+-- ^ convert a condition to string in a deal context
+preToStr :: P.Asset a => TestDeal a -> Date -> Pre -> String
+preToStr t d p =
+  case p of 
+    (IfZero ds) ->  "0 == " ++ show (queryDeal t (ps ds))
+    (If cmp ds bal) -> show (queryDeal t (ps ds)) ++" "++ show cmp ++" " ++show bal
+    (IfRate cmp ds r) -> show (queryDealRate t (ps ds)) ++" "++ show cmp ++" " ++show r
+    (IfInt cmp ds r) -> show (queryDealInt t (ps ds) d) ++" "++ show cmp ++" " ++show r
+    (IfCurve cmp ds ts) -> show (queryDeal t (ps ds)) ++" "++ show cmp ++" " ++show (fromRational (getValByDate ts Inc d))
+    (IfDate cmp _d) -> show d ++" "++ show cmp ++" " ++show _d
+    (IfBool ds b) -> show (queryDealBool t ds d) ++" == "++ show b
+    (If2 cmp ds1 ds2) -> show (queryDeal t (ps ds1)) ++" "++ show cmp ++" " ++show (queryDeal t (ps ds2))
+    (IfRate2 cmp ds1 ds2) -> show (queryDealRate t (ps ds1)) ++" "++ show cmp ++" " ++show (queryDealRate t (ps ds2))
+    (IfInt2 cmp ds1 ds2) -> show (queryDealInt t (ps ds1) d) ++" "++ show cmp ++" " ++show (queryDealInt t (ps ds2) d)
+    (IfDealStatus st) -> show (status t) ++" == "++ show st
+    (Always b) -> show b
+    (IfNot _p) -> "Not "++ preToStr t d _p
+    (Types.All pds) -> "All "++ show (map (preToStr t d) pds)
+    (Types.Any pds) -> "Any "++ show (map (preToStr t d) pds)
+    _ -> "Failed to read condition"++ show p
+
+  where 
+    ps = patchDateToStats d
+
+testPre2 :: P.Asset a => Date -> TestDeal a -> Pre -> (String, Bool)
+testPre2 d t p = 
+  let 
+    r = testPre d t p 
+  in 
+    (preToStr t d p, r)

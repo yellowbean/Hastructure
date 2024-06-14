@@ -24,7 +24,7 @@ module Types
   ,RoundingBy(..),DateDirection(..)
   ,TxnComment(..),BookDirection(..),DealStatType(..),getDealStatType
   ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
-  ,DealName,lookupIntervalTable,getPriceValue,Txn(..),preToStr
+  ,DealName,lookupIntervalTable,getPriceValue,Txn(..)
   )
   
   where
@@ -678,8 +678,6 @@ data Pre = IfZero DealStats
          | All [Pre]                            -- ^ 
          deriving (Show,Generic,Eq,Ord)
 
-preToStr :: Pre -> String
-preToStr p = show p
 
 
 type BookItems = [BookItem]
@@ -855,6 +853,7 @@ instance ToJSON TxnComment where
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
   toJSON (FundWith b bal) = String $ T.pack $ "<FundWith:"++b++","++show bal++">"
+  toJSON (Tag cmt) = String $ T.pack $ "<Tag:"++cmt++">"
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
@@ -908,7 +907,8 @@ parseTxn t = case tagName of
   "FundWith" -> let 
                   sv = T.splitOn (T.pack ",") $ T.pack contents
                 in 
-                  return $ FundWith (T.unpack (head sv)) (read (T.unpack (sv!!1))::Balance)                         
+                  return $ FundWith (T.unpack (head sv)) (read (T.unpack (sv!!1))::Balance)
+  "Tag" -> return $ Tag contents                  
   where 
       pat = "<(\\S+):(\\S+)>"::String
       sr = (T.unpack t =~ pat)::[[String]]
