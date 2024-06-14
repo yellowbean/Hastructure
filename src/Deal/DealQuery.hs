@@ -668,8 +668,8 @@ preToStr t d p =
     (IfDealStatus st) -> show (status t) ++" == "++ show st
     (Always b) -> show b
     (IfNot _p) -> "Not "++ preToStr t d _p
-    (Types.All pds) -> "All "++ show (map (preToStr t d) pds)
-    (Types.Any pds) -> "Any "++ show (map (preToStr t d) pds)
+    (Types.All pds) -> "All:"++ intercalate "|" (map (preToStr t d) pds)
+    (Types.Any pds) -> "Any:"++ intercalate "|" (map (preToStr t d) pds)
     _ -> "Failed to read condition"++ show p
 
   where 
