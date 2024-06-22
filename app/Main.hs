@@ -134,8 +134,8 @@ instance ToSchema AB.AssetUnion
 instance ToSchema PoolId
 instance ToSchema DealStatus
 instance ToSchema DateType
-instance ToSchema DateDesp
-instance ToSchema ActionOnDate
+instance ToSchema DB.DateDesp
+instance ToSchema DB.ActionOnDate
 instance ToSchema DealStats
 instance ToSchema Cmp
 instance ToSchema PricingMethod
@@ -181,7 +181,7 @@ instance ToSchema CE.LiqDrawType
 instance ToSchema CustomDataType
 instance ToSchema TRG.Trigger
 instance ToSchema TRG.TriggerEffect
-instance ToSchema OverrideType
+instance ToSchema DB.OverrideType
 instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
@@ -191,6 +191,7 @@ instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
+instance ToSchema (TsPoint AP.IssueBondEvent)
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption

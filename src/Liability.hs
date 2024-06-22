@@ -27,6 +27,7 @@ import Util
 import DateUtil
 import Types hiding (BondGroup)
 import Analytics
+
 import Data.Ratio 
 import Data.Maybe
 
@@ -48,27 +49,6 @@ import Stmt (getTxnAmt)
 -- import Deal.DealBase (UnderlyingDeal(futureCf))
 
 debug = flip trace
-
-type RateReset = DatePattern 
-
-data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by pct over current rate
-                             | OverFixSpread Spread -- ^ inflat ioi rate by fix spread
-                             deriving (Show, Eq, Generic, Ord)
-
-
---------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
-data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
-                  | Fix IRate DayCount                                    -- ^ fixed rate
-                  | InterestByYield IRate
-                  | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
-                  | CapRate InterestInfo IRate                            -- ^ cap rate 
-                  | FloorRate InterestInfo IRate                          -- ^ floor rate
-                  | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
-                  deriving (Show, Eq, Generic, Ord)
-                  
-data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
-            | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
-            deriving (Show, Eq, Generic, Ord)
 
 -- | test if a bond may changes its interest rate
 isAdjustble :: InterestInfo -> Bool 
@@ -104,14 +84,34 @@ getDayCountFromInfo (FloorRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (WithIoI info _) = getDayCountFromInfo info
 getDayCountFromInfo _ = Nothing
 
+type RateReset = DatePattern 
+type PlannedAmorSchedule = Ts
+
+data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by pct over current rate
+                             | OverFixSpread Spread -- ^ inflat ioi rate by fix spread
+                             deriving (Show, Eq, Generic, Ord, Read)
+
+
+--------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
+data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
+                  | Fix IRate DayCount                                    -- ^ fixed rate
+                  | InterestByYield IRate
+                  | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
+                  | CapRate InterestInfo IRate                            -- ^ cap rate 
+                  | FloorRate InterestInfo IRate                          -- ^ floor rate
+                  | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
+                  deriving (Show, Eq, Generic, Ord, Read)
+                  
+data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
+            | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
+            deriving (Show, Eq, Generic, Ord, Read)
+
 data OriginalInfo = OriginalInfo {
   originBalance::Balance           -- ^ issuance balance
   ,originDate::Date                -- ^ issuance date
   ,originRate::Rate                -- ^ issuance rate of the bond
   ,maturityDate :: Maybe Date      -- ^ optional maturity date
-} deriving (Show, Eq, Generic, Ord)
-
-type PlannedAmorSchedule = Ts
+} deriving (Show, Eq, Generic, Ord, Read)
 
 data BondType = Sequential                                 -- ^ Pass through type tranche
               | PAC PlannedAmorSchedule                    -- ^ bond with schedule amortization 
@@ -119,7 +119,7 @@ data BondType = Sequential                                 -- ^ Pass through typ
               | Lockout Date                               -- ^ No principal due till date
               | Z                                          -- ^ Z tranche
               | Equity                                     -- ^ Equity type tranche
-              deriving (Show, Eq, Generic, Ord)
+              deriving (Show, Eq, Generic, Ord, Read)
 
 data Bond = Bond {
               bndName :: String
@@ -139,7 +139,7 @@ data Bond = Bond {
               ,bndStmt :: Maybe S.Statement        -- ^ transaction history
             } 
             | BondGroup (Map.Map String Bond)      -- ^ bond group
-            deriving (Show, Eq, Generic, Ord)
+            deriving (Show, Eq, Generic, Ord, Read)            
 
 consolStmt :: Bond -> Bond
 consolStmt (BondGroup bMap) = BondGroup $ Map.map consolStmt bMap

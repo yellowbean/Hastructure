@@ -42,6 +42,13 @@ import Debug.Trace
 debug = flip trace
 
 
+
+
+
+
+
+
+
 aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance
 aggByTxnComment [] m = M.map sumTxn m 
 aggByTxnComment (txn:txns) m 
@@ -142,7 +149,7 @@ weightAvgBalance sd ed txns
 
 
 data Statement = Statement [Txn]
-        deriving (Show, Generic, Eq, Ord)
+              deriving (Show, Generic, Eq, Ord, Read)
 
 appendStmt :: Maybe Statement -> Txn -> Maybe Statement
 appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])

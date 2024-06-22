@@ -118,8 +118,8 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             -- Record booking
             | BookBy BookType                         -- ^ book an ledger with book types
             -- Pre
-            | ActionWithPre L.Pre [Action]            -- ^ execute actions if <pre> is true 
-            | ActionWithPre2 L.Pre [Action] [Action]  -- ^ execute action1 if <pre> is true ,else execute action2 
+            | ActionWithPre Pre [Action]            -- ^ execute actions if <pre> is true 
+            | ActionWithPre2 Pre [Action] [Action]  -- ^ execute action1 if <pre> is true ,else execute action2 
             -- Trigger
             | RunTrigger DealCycle String        -- ^ update the trigger status during the waterfall execution
             -- Debug

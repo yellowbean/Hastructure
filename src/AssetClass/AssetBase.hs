@@ -9,6 +9,7 @@ module AssetClass.AssetBase
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
   ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..),ReceivableFeeType(..),Receivable(..)
+  ,ProjectedCashflow(..)
   ,calcAssetPrinInt, calcPmt
   )
   where
@@ -170,6 +171,10 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic,Eq,Ord)
+
+data ProjectedCashflow = ProjectedFlowFixed Date [CF.TsRow] DatePattern
+                       | ProjectedFlowMixFloater Date [CF.TsRow] DatePattern (Rate, IRate) [(Rate, Spread, Index)]
+                       deriving (Show,Generic,Eq,Ord)
 
 data Receivable = Invoice OriginalInfo Status
                 | DUMMY4

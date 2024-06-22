@@ -11,6 +11,7 @@ module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,calcTargetAmount,updateLiqProvider
             ,projAssetUnion,priceAssetUnion
             ,removePoolCf,setFutureCF,runPoolType,PoolType
+            ,ActionOnDate(..),DateDesp(..),OverrideType(..)
             ) where
 
 import qualified Accounts as A
@@ -76,6 +77,8 @@ import Hedge (RateCap(..),RateSwapBase(..),RateSwap(rsRefBalance))
 import qualified Hedge as HE
 
 debug = flip trace
+
+
 
 
 setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
@@ -526,7 +529,30 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                   bondPricingResult
              in 
                run t {bonds = depositBondFlow, status = Ended } poolFlowMap (Just []) rates calls rAssump $ log++[EndRun (Just d) "MakeWhole call"]
-                
+         IssueBond d bGroupName accName bnd ->
+              let 
+                newBndName = L.bndName bnd
+
+                newBonds = case Map.lookup bGroupName bndMap of
+                              Nothing -> bndMap
+                              Just (L.Bond {}) -> bndMap
+                              Just (L.BondGroup bndGrpMap) -> let
+                                                                bndOInfo = (L.bndOriginInfo bnd) {L.originDate = d}
+                                                                bndToInsert = bnd {L.bndOriginInfo = bndOInfo,
+                                                                                   L.bndDueIntDate = Just d,
+                                                                                   L.bndLastIntPay = Just d, 
+                                                                                   L.bndLastPrinPay = Just d}
+                                                              in 
+                                                                Map.insert bGroupName 
+                                                                           (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap))
+                                                                           bndMap
+
+                issuanceProceeds = L.bndBalance bnd
+                newAcc = Map.adjust (A.deposit issuanceProceeds d (Tag ("Issuance Proceeds:"++newBndName)))
+                                    accName
+                                    accMap
+              in 
+                run t{bonds = newBonds, accounts = newAcc} poolFlowMap (Just ads) rates calls rAssump log
          _ -> error $ "Failed to match action on Date"++ show ad
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
@@ -784,7 +810,7 @@ runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
     Map.mapWithKey (\(DealBondFlow dn bn sd pct) (uDeal, mAssump) -> 
                         let
                           (poolAssump,dealAssump) = case mAssump of 
-                                                      Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+                                                      Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
                                                       Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
                           (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
                           bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
@@ -877,11 +903,18 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                       Just AP.NonPerfAssumption{AP.makeWholeWhen = Just (_d,_s,_t)} -> [MakeWhole _d _s _t]
                       _ -> [] 
 
+    -- issue bonds in the future 
+    bondIssuePlan = case mNonPerfAssump of 
+                      Just AP.NonPerfAssumption{AP.issueBondSchedule = Just bndPlan} 
+                        -> [ IssueBond _d bGroupName accName b | TsPoint _d (bGroupName,accName,b) <- bndPlan]
+                      _ -> []
+
     allActionDates = let 
                        __actionDates = let 
                                         a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
                                                    ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
-                                                   ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates] 
+                                                   ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates
+                                                   ,bondIssuePlan] 
                                       in
                                         case dates t of 
                                           PreClosingDates {} -> sortBy sortActionOnDate $ DealClosed closingDate:a  -- `debug` ("add a closing date"++show closingDate)

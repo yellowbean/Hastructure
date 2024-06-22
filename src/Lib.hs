@@ -14,8 +14,8 @@ module Lib
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors
     ,zipWith8,zipWith9,zipWith10,zipWith11,zipWith12
-    ,weightedBy, mkTs, DealStatus(..)
-    ,mkRateTs,Pre(..)
+    ,weightedBy, mkTs
+    ,mkRateTs
     ) where
 
 import qualified Data.Time as T
@@ -33,6 +33,7 @@ import Types
 import Control.Lens
 import Data.List.Lens
 import Control.Lens.TH
+-- import Deal.DealType
 
 import Debug.Trace
 debug = flip trace

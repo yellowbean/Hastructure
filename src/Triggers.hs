@@ -10,7 +10,7 @@ module Triggers(
 import qualified Data.Text as T
 import qualified Stmt as S
 import Text.Read (readMaybe)
-import Lib ( Pre, DealStatus )
+import Lib 
 import Types
 import Accounts (ReserveAmount)
 import Waterfall (Action)

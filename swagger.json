@@ -2056,6 +2056,41 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Bond"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IssueBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IssueBond",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Day"
                                     }
                                 ],
@@ -8487,19 +8522,34 @@
                                         "type": "number"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Day"
+                                        "$ref": "#/components/schemas/Index"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
                                     },
                                     {
                                         "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DayCount"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 7,
+                                "minItems": 7,
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "BankAccount"
+                                    "Floater"
                                 ],
                                 "type": "string"
                             }
@@ -8508,7 +8558,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "BankAccount",
+                        "title": "Floater",
                         "type": "object"
                     },
                     {
@@ -8516,14 +8566,65 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/Index"
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
                                     },
+                                    {
+                                        "$ref": "#/components/schemas/DayCount"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Fix"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Fix",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "InterestByYield"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "InterestByYield",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
                                     {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Day"
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "format": "float",
+                                        "type": "number"
                                     },
                                     {
                                         "$ref": "#/components/schemas/DatePattern"
@@ -8535,7 +8636,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "InvestmentAccount"
+                                    "RefRate"
                                 ],
                                 "type": "string"
                             }
@@ -8544,7 +8645,140 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "InvestmentAccount",
+                        "title": "RefRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CapRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CapRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FloorRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FloorRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/InterestOverInterestType"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WithIoI"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WithIoI",
+                        "type": "object"
+                    }
+                ]
+            },
+            "InterestOverInterestType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "OverCurrRateBy"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "OverCurrRateBy",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "OverFixSpread"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "OverFixSpread",
                         "type": "object"
                     }
                 ]
@@ -9519,6 +9753,12 @@
                     "interest": {
                         "items": {
                             "$ref": "#/components/schemas/RateAssumption"
+                        },
+                        "type": "array"
+                    },
+                    "issueBondSchedule": {
+                        "items": {
+                            "$ref": "#/components/schemas/TsPoint_([Char],[Char],Bond)"
                         },
                         "type": "array"
                     },
@@ -14728,6 +14968,32 @@
                 "minItems": 2,
                 "type": "array"
             },
+            "TsPoint_([Char],[Char],Bond)": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "items": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Bond"
+                            }
+                        ],
+                        "maxItems": 3,
+                        "minItems": 3,
+                        "type": "array"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
             "TsPoint_Bool": {
                 "items": [
                     {
@@ -16361,7 +16627,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.6"
+        "version": "0.28.8"
     },
     "openapi": "3.0.0",
     "paths": {
