@@ -10,7 +10,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,dealScheduledCashflow
                      ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..),OverrideType(..)
-                     ,sortActionOnDate
+                     ,sortActionOnDate,viewDealAllBonds,dealBondGroups
                      )                      
   where
 import qualified Accounts as A
@@ -316,6 +316,9 @@ instance SPV (TestDeal a) where
                  ResecDeal _ -> True
                  _ -> False
 
+
+
+
 viewDealAllBonds :: TestDeal a -> [L.Bond]
 viewDealAllBonds d = 
     let 
@@ -329,6 +332,16 @@ dealBonds :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
 dealBonds = lens getter setter 
   where 
     getter d = bonds d 
+    setter d newBndMap = d {bonds = newBndMap}
+
+dealBondGroups :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
+dealBondGroups = lens getter setter 
+  where 
+    getter d = Map.filter 
+                 (\case 
+                   (L.Bond {}) -> False
+                   (L.BondGroup {}) -> True)
+                 (bonds d)
     setter d newBndMap = d {bonds = newBndMap}
 
 dealAccounts :: Ast.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 
