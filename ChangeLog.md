@@ -1,7 +1,11 @@
 # Changelog for Hastructure
 
+## 0.28.8
+###  TODO
+* NEW: new assumption `issue bond` which allow funding by issue new bonds during cashflow projection.
+
 ## 0.28.3
-### TODO
+### 2024-06
 * FIX: `limit` on `payFee` was not working with `duePct`
 * ENHANCE: expose `transaction statement` for `triggers`
 
