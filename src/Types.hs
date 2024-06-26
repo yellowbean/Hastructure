@@ -428,6 +428,7 @@ data TxnComment = PayInt [BondName]
                 | SwapInSettle
                 | SwapOutSettle
                 | PurchaseAsset
+                | IssuanceProceeds String
                 | TxnDirection BookDirection
                 | TxnComments [TxnComment]
                 deriving (Eq, Show, Ord ,Read, Generic)
@@ -794,6 +795,7 @@ instance ToJSON TxnComment where
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
   toJSON (FundWith b bal) = String $ T.pack $ "<FundWith:"++b++","++show bal++">"
+  toJSON (IssuanceProceeds nb) = String $ T.pack $ "<IssuanceProceeds:"++nb++">"
   toJSON (Tag cmt) = String $ T.pack $ "<Tag:"++cmt++">"
 
 instance FromJSON TxnComment where
@@ -849,6 +851,8 @@ parseTxn t = case tagName of
                   sv = T.splitOn (T.pack ",") $ T.pack contents
                 in 
                   return $ FundWith (T.unpack (head sv)) (read (T.unpack (sv!!1))::Balance)
+--   toJSON (IssuanceProceeds nb) = String $ T.pack $ "<IssuanceProceeds:"++nb++">"
+  "IssuanceProceeds" -> return $ IssuanceProceeds contents                  
   "Tag" -> return $ Tag contents                  
   where 
       pat = "<(\\S+):(\\S+)>"::String

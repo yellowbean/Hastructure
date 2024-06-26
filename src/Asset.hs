@@ -96,12 +96,6 @@ class (Show a,IR.UseRate a) => Asset a where
 
 
 
-
-
-
-
-
-
 -- | apply ExtraStress on prepayment/default rates
 applyExtraStress :: Maybe A.ExtraStress -> [Date] -> [Rate] -> [Rate] -> ([Rate],[Rate])
 applyExtraStress Nothing _ ppy def = (ppy,def)

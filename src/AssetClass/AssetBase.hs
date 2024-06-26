@@ -172,9 +172,15 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic,Eq,Ord)
 
-data ProjectedCashflow = ProjectedFlowFixed Date [CF.TsRow] DatePattern
-                       | ProjectedFlowMixFloater Date [CF.TsRow] DatePattern (Rate, IRate) [(Rate, Spread, Index)]
+
+type FixRatePortion   = (Rate, IRate)
+type FloatRatePortion = (Rate, Spread, Index)
+
+
+data ProjectedCashflow = ProjectedFlowFixed CF.CashFlowFrame DatePattern
+                       | ProjectedFlowMixFloater CF.CashFlowFrame DatePattern FixRatePortion [FloatRatePortion]
                        deriving (Show,Generic,Eq,Ord)
+
 
 data Receivable = Invoice OriginalInfo Status
                 | DUMMY4

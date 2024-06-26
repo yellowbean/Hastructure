@@ -548,7 +548,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                                                            bndMap
 
                 issuanceProceeds = L.bndBalance bnd
-                newAcc = Map.adjust (A.deposit issuanceProceeds d (Tag ("Issuance Proceeds:"++newBndName)))
+                newAcc = Map.adjust (A.deposit issuanceProceeds d (IssuanceProceeds newBndName))
                                     accName
                                     accMap
               in 

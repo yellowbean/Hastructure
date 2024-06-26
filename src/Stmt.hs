@@ -209,6 +209,7 @@ getFlow comment =
       SwapOutSettle -> Outflow
       PurchaseAsset -> Outflow
       SupportDraw -> Noneflow
+      IssuanceProceeds _ -> Inflow
       TxnComments cmts -> 
         let 
           directionList = getFlow <$> cmts 
