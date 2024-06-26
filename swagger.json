@@ -16400,6 +16400,25 @@
                     {
                         "properties": {
                             "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IssuanceProceeds"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IssuanceProceeds",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "$ref": "#/components/schemas/BookDirection"
                             },
                             "tag": {
@@ -16627,7 +16646,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.8"
+        "version": "0.28.9"
     },
     "openapi": "3.0.0",
     "paths": {
