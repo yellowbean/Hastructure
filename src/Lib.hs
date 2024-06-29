@@ -28,15 +28,20 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Aeson hiding (json)
 import Text.Regex.TDFA
-import Data.Fixed
+import Data.Fixed (Fixed(..), HasResolution,Centi, resolution)
+import Data.Ratio
 import Types
 import Control.Lens
 import Data.List.Lens
 import Control.Lens.TH
 -- import Deal.DealType
 
+
 import Debug.Trace
 debug = flip trace
+
+
+
 
 annualRateToPeriodRate :: Period -> Float -> Float
 annualRateToPeriodRate p annualRate =

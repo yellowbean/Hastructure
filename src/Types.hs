@@ -492,6 +492,7 @@ data DealStats = CurrentBondBalance
                | CurrentBondBalanceOf [BondName]
                | IsMostSenior BondName [BondName]
                | IsPaidOff [BondName]
+               | IsOutstanding [BondName]
                | BondIntPaidAt Date BondName
                | BondsIntPaidAt Date [BondName]
                | BondPrinPaidAt Date BondName
@@ -539,6 +540,7 @@ data DealStats = CurrentBondBalance
                | Excess [DealStats]
                | Avg [DealStats]
                | Divide DealStats DealStats
+               | DivideRatio DealStats DealStats
                | Constant Rational
                | FloorAndCap DealStats DealStats DealStats
                | CustomData String Date

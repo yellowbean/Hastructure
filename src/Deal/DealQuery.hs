@@ -14,6 +14,9 @@ import qualified Asset as P
 import Data.List
 import Data.Fixed
 import Data.Maybe
+import Data.Text (replace, pack, unpack)
+import Numeric.Limits
+import GHC.Real
 import qualified Data.Map as Map
 import qualified Data.Set as S
 import qualified Liability as L
@@ -29,10 +32,10 @@ import qualified Analytics as A
 import Stmt
 import Util
 import DateUtil
-import Lib
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import Debug.Trace
+import Lib
 import Cashflow (CashFlowFrame(CashFlowFrame))
 import qualified Cashflow as P
 import qualified Util as CF
@@ -237,27 +240,6 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
     
     UnderlyingBondBalance mBndNames -> 0
-    --  let 
-    --    bBals = case pt of 
-    --              ResecDeal uBndMap -> 
-    --                case mBndNames of 
-    --                  Just bndNames -> sum $ Map.elems
-    --                                    $ Map.filterWithKey (\(UnderlyingBond (k,pct,_)) v -> S.member k (S.fromList bndNames)) bondsBals
-    --                  Nothing -> sum $ Map.elems bondsBals
-    --                where 
-    --                  bondsBals = Map.mapWithKey 
-    --                                (\(UnderlyingBond (bn,pct,_)) (UnderlyingDeal uDeal _ _ _ ) -> 
-    --                                  let 
-    --                                    bals = queryDeal uDeal (CurrentBondBalanceOf [bn])
-    --                                    pctBals = flip mulBR pct <$> [bals]
-    --                                  in 
-    --                                    sum pctBals)
-    --                                uBndMap
-    --              _ -> error "Failed to find underlying bond balance in the deal"
-    --           where 
-    --            pt = view dealPool t
-    --  in 
-    --    bBals
  
     AllAccBalance -> sum $ map A.accBalance $ Map.elems accMap 
     
@@ -546,7 +528,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     Min ss -> minimum' [ queryDeal t s | s <- ss ]
 
     Divide ds1 ds2 -> if (queryDeal t ds2) == 0 then 
-                        error $ show (ds2) ++" is zero" 
+                        -- (fromRational . toRational) GHC.Real.infinity `debug` ("Hit zero")
+                        (fromRational . toRational) Numeric.Limits.infinity -- `debug` ("Hit zero")
                       else
                         queryDeal t ds1 / queryDeal t ds2
 
@@ -562,7 +545,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     FloorAndCap floor cap s -> max (queryDeal t floor) $ min (queryDeal t cap) (queryDeal t s)
     
     Factor s f -> mulBR (queryDeal t s) f
-    Multiply ss -> foldl1 (*)  (queryDeal t <$> ss)
+    Multiply ss -> product (queryDeal t <$> ss)
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
     Excess (s1:ss) -> max 0 $ queryDeal t s1 - queryDeal t (Sum ss)
@@ -594,6 +577,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
           _ -> False
 
     IsPaidOff bns -> all isPaidOff $ (bndMap Map.!) <$> bns
+
+    IsOutstanding bns -> all (not . isPaidOff) $ (bndMap Map.!) <$> bns
     
     TestRate ds cmp r -> let
                            testRate = queryDealRate t ds
@@ -651,12 +636,20 @@ testPre d t p =
                   E -> (==)
       ps = patchDateToStats d
 
+replaceToInf :: String -> String
+replaceToInf x = unpack $ Data.Text.replace nInf "-inf" $ Data.Text.replace inf "inf" c
+                  where 
+                    c = pack x
+                    inf = pack "179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216.00" 
+                    nInf = pack "-179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216.00"
+
+
 -- ^ convert a condition to string in a deal context
 preToStr :: P.Asset a => TestDeal a -> Date -> Pre -> String
 preToStr t d p =
   case p of 
     (IfZero ds) ->  "0 == " ++ show (queryDeal t (ps ds))
-    (If cmp ds bal) -> show (queryDeal t (ps ds)) ++" "++ show cmp ++" " ++show bal
+    (If cmp ds bal) -> show (queryDeal t (ps ds)) ++" "++ show cmp ++" " ++show bal -- `debug` (">>> left"++ show (queryDeal t (ps ds)))
     (IfRate cmp ds r) -> show (queryDealRate t (ps ds)) ++" "++ show cmp ++" " ++show r
     (IfInt cmp ds r) -> show (queryDealInt t (ps ds) d) ++" "++ show cmp ++" " ++show r
     (IfCurve cmp ds ts) -> show (queryDeal t (ps ds)) ++" "++ show cmp ++" " ++show (fromRational (getValByDate ts Inc d))
@@ -680,4 +673,4 @@ testPre2 d t p =
   let 
     r = testPre d t p 
   in 
-    (preToStr t d p, r)
+    ( replaceToInf (preToStr t d p), r)

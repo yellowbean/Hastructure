@@ -78,6 +78,7 @@ library
     , containers
     , hashable
     , lens
+    , numeric-limits
     , openapi3
     , regex-base
     , regex-pcre-builtin
@@ -117,6 +118,7 @@ executable Hastructure-exe
     , lens
     , lucid
     , mtl
+    , numeric-limits
     , openapi3
     , regex-base
     , regex-pcre-builtin
@@ -175,6 +177,7 @@ test-suite Hastructure-test
     , containers
     , hashable
     , lens
+    , numeric-limits
     , openapi3
     , regex-base
     , regex-pcre-builtin

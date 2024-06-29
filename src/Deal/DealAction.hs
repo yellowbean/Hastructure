@@ -64,6 +64,7 @@ import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import GHC.Real (infinity)
 
 debug = flip trace
 
@@ -451,7 +452,7 @@ evalExtraSupportBalance d t (W.WithCondition pre s)
   | testPre d t pre = evalExtraSupportBalance d t s
   | otherwise = [0]
 evalExtraSupportBalance d t@TestDeal{accounts=accMap} (W.SupportAccount an _) = [A.accBalance $ accMap Map.! an]
-evalExtraSupportBalance d t@TestDeal{liqProvider=Just liqMap} (W.SupportLiqFacility liqName) = [ fromMaybe 1e100 (CE.liqCredit (liqMap Map.! liqName))] -- `debug` ("Returning"++ show [ fromMaybe 1e100 (CE.liqCredit (liqMap Map.! liqName))])
+evalExtraSupportBalance d t@TestDeal{liqProvider=Just liqMap} (W.SupportLiqFacility liqName) = [ fromMaybe (fromRational (toRational infinity)) (CE.liqCredit (liqMap Map.! liqName))] -- `debug` ("Returning"++ show [ fromMaybe 1e100 (CE.liqCredit (liqMap Map.! liqName))])
 evalExtraSupportBalance d t (W.MultiSupport supports) = concat $ evalExtraSupportBalance d t <$> supports
 
 
@@ -1349,10 +1350,14 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapS
       performAction d t2 (W.SwapPay accName sName)
 
 
-performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tName)
+performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tNames)
   = t { triggers = Just (Map.insert loc newMap trgM) }
     where 
       -- newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
-      newMap = Map.adjust (testTrigger t d) tName (trgM Map.! loc)
+      triggerM = trgM Map.! loc
+      newMap = foldr 
+                (Map.adjust (testTrigger t d))
+                triggerM
+                tNames
 
 performAction d t action =  error $ "failed to match action>>"++show action++">>Deal"++show (name t)
