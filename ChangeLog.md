@@ -3,6 +3,7 @@
 ## 0.28.8
 ###  TODO
 * NEW: new assumption `issue bond` which allow funding by issue new bonds during cashflow projection.
+* FIX: `formula` will return `inf` if a `divide` with zero instead of just throw exception
 
 ## 0.28.3
 ### 2024-06

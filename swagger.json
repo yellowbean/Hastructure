@@ -1530,7 +1530,10 @@
                                         "$ref": "#/components/schemas/DealCycle"
                                     },
                                     {
-                                        "type": "string"
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -6272,6 +6275,28 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IsOutstanding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IsOutstanding",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -7486,6 +7511,35 @@
                             "contents"
                         ],
                         "title": "Divide",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DivideRatio"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DivideRatio",
                         "type": "object"
                     },
                     {
