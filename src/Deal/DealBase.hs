@@ -11,6 +11,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,dealScheduledCashflow
                      ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..),OverrideType(..)
                      ,sortActionOnDate,viewDealAllBonds,dealBondGroups
+                     ,viewDealBondsByNames
                      )                      
   where
 import qualified Accounts as A
@@ -327,6 +328,25 @@ viewDealAllBonds d =
        view a@(L.BondGroup bMap) = Map.elems bMap
     in 
        concat $ view <$> bs
+
+viewDealBondsByNames :: Ast.Asset a => TestDeal a -> [BondName] -> [L.Bond]
+viewDealBondsByNames _ [] = []
+viewDealBondsByNames t@TestDeal{bonds= bndMap } bndNames
+  = let 
+      -- bonds and bond groups
+      bnds = filter (\b -> L.bndName b `elem` bndNames) $ viewDealAllBonds t
+      -- bndsFromGrp = $ Map.filter (\L.BondGroup {} -> True)  bndMap
+      bndsFromGrp = Map.foldrWithKey
+                      (\k (L.BondGroup bMap) acc -> 
+                        if k `elem` bndNames 
+                        then 
+                          acc ++ Map.elems bMap
+                        else 
+                          acc)
+                      []
+                      (view dealBondGroups t )
+    in 
+      bnds ++ bndsFromGrp
 
 dealBonds :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
 dealBonds = lens getter setter 

@@ -214,11 +214,11 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     OriginalBondBalance -> Map.foldr (\x acc -> getOriginBalance x + acc) 0.0 bndMap
     
-    BondDuePrin bnds -> sum $ L.bndDuePrin <$> ((bndMap Map.!) <$> bnds) --TODO Failed if bond group
+    BondDuePrin bnds -> sum $ L.bndDuePrin <$> viewDealBondsByNames t bnds
     
-    OriginalBondBalanceOf bnds -> sum $ getOriginBalance . (bndMap Map.!) <$> bnds
+    OriginalBondBalanceOf bnds -> sum $ getOriginBalance <$> viewDealBondsByNames t bnds
 
-    CurrentBondBalanceOf bns -> sum $ getCurBalance . (bndMap Map.!) <$> bns -- `debug` ("Current bond balance of"++show (sum $ L.bndBalance . (bndMap Map.!) <$> bns))
+    CurrentBondBalanceOf bns -> sum $ getCurBalance <$> viewDealBondsByNames t bns
     
     CurrentPoolBalance mPns ->
       foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (getAllAssetList t) --TODO TOBE FIX: mPns is not used
@@ -378,15 +378,9 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in 
         sum pvs -- `debug` ("pvs"++ show pvs)
 
-          -- OriginalBondBalanceOf bns -> sum $ L.originBalance . L.bndOriginInfo <$> (bndMap Map.!) <$> bns
-          -- IsPaidOff bns -> all isPaidOff <$> (theBondGrp Map.!) <$> bns
-
-
-
     BondsIntPaidAt d bns ->
        let
-          bSubMap =  getBondsByName t (Just bns)   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
-          stmts = map L.bndStmt $ Map.elems bSubMap
+          stmts = map L.bndStmt $ viewDealBondsByNames t bns
           ex s = case s of
                    Nothing -> 0
                    Just (Statement txns) 
@@ -400,8 +394,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     BondsPrinPaidAt d bns ->
        let
-          bSubMap =  getBondsByName t (Just bns)   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
-          stmts = map L.bndStmt $ Map.elems bSubMap
+          stmts = map L.bndStmt $ viewDealBondsByNames t bns
           ex s = case s of
                    Nothing -> 0
                    Just (Statement txns) 
@@ -427,7 +420,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     BondTxnAmtBy d bns mCmt -> 
       let 
-        bnds = (bndMap Map.!) <$> bns -- Map.elems $ getBondByName t (Just bns)
+        -- bnds = (bndMap Map.!) <$> bns -- Map.elems $ getBondByName t (Just bns)
+        bnds = viewDealBondsByNames t bns
       in 
         case mCmt of
           Just cmt -> sum [ queryTxnAmtAsOf bnd d cmt | bnd <- bnds ]
@@ -479,11 +473,11 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         sum $ map ex stmts
 
     CurrentDueBondInt bns -> 
-      sum $ L.bndDueInt <$> (bndMap Map.!) <$> bns -- `debug` ("bond due int" ++ show ((bndMap Map.!) <$> bns ))
+      sum $ L.bndDueInt <$> viewDealBondsByNames t bns  
 
     CurrentDueBondIntOverInt bns -> 
-      sum $ L.bndDueIntOverInt <$> (bndMap Map.!) <$> bns -- `debug` ("bond due int" ++ show ((bndMap Map.!) <$> bns ))
-    
+      sum $ L.bndDueIntOverInt <$> viewDealBondsByNames t bns  
+
     CurrentDueBondIntTotal bns -> sum (queryDeal t <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
 
     CurrentDueFee fns -> sum $ F.feeDue <$> (feeMap Map.!) <$> fns
