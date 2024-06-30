@@ -11,7 +11,8 @@ module Liability
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
-  ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..))
+  ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
+  ,getCurBalance)
   where
 
 import Language.Haskell.TH

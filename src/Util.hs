@@ -11,6 +11,7 @@ module Util
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN
     ,lastOf,findBox
+    ,safeDivide
     -- for debug
     ,zyj
     )
@@ -27,6 +28,7 @@ import Lib
 import Types
 import DateUtil
 
+import Numeric.Limits (infinity)
 import Text.Printf
 import Control.Exception
 
@@ -305,6 +307,9 @@ findBox (Exc,Exc) x ((l,h):xs)
   | otherwise = findBox (Exc,Exc) x xs
 
 
+safeDivide :: RealFloat a => a -> a -> a 
+safeDivide _ 0 = infinity
+safeDivide x y = x / y
 
 
 ----- DEBUG/PRINT

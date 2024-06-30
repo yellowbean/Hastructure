@@ -344,6 +344,7 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ i
 
 
 calcDuePrin :: Ast.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
+calcDuePrin t calc_date b@(L.BondGroup bMap) = L.BondGroup $ Map.map (calcDuePrin t calc_date) bMap
 calcDuePrin t calc_date b@(L.Bond _ L.Sequential _ _ _ bondBal _ _ _ _ _ _ _ _)
   = b {L.bndDuePrin = bondBal } 
 
@@ -393,6 +394,7 @@ priceAssetUnion (ACM.LO m) d pm aps = Ast.priceAsset m d pm aps
 priceAssetUnion (ACM.IL m) d pm aps = Ast.priceAsset m d pm aps
 priceAssetUnion (ACM.LS m) d pm aps = Ast.priceAsset m d pm aps
 priceAssetUnion (ACM.RE m) d pm aps = Ast.priceAsset m d pm aps
+priceAssetUnion (ACM.PF m) d pm aps = Ast.priceAsset m d pm aps
 
 priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [PriceResult]
 priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates 
@@ -784,7 +786,7 @@ performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap} (W
                        Just (DueCapAmt amt) -> min amt (accBal + supportAvail)
                        _ -> error $ "Not support for limit when pay int by seq" ++ show mLimit
       bndsList = (Map.!) bndMap <$> bnds
-      dueAmts = L.bndDueIntOverInt<$> bndsList
+      dueAmts = L.bndDueIntOverInt <$> bndsList
       actualPaids = paySeqLiabilitiesAmt amtAvailable dueAmts
       -- update bond paid
       bondsPaid = uncurry (L.payInt d) <$> zip actualPaids bndsList

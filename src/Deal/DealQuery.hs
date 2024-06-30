@@ -94,6 +94,7 @@ patchDateToStats d t
          _ -> t -- `debug` ("Failed to patch date to stats"++show t)
 
 
+
 queryDealRate :: P.Asset a => TestDeal a -> DealStats -> Micro
 queryDealRate t s =
   fromRational $ 
@@ -125,14 +126,27 @@ queryDealRate t s =
           cumuPoolDefBal / originPoolBal -- `debug` (show idx ++" cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
         
 
-      BondRate bn -> toRational $ L.bndRate $ bonds t Map.! bn
+      BondRate bn -> case Map.lookup bn (bonds t) of 
+                      Just b@(L.Bond {}) -> toRational $ L.bndRate b 
+                      Just b@(L.BondGroup bSubMap) -> 
+                        let 
+                          bnds = Map.elems bSubMap
+                          rates = toRational <$> L.bndRate <$> bnds
+                          bals = L.getCurBalance <$> bnds
+                        in 
+                          weightedBy bals rates
+                      Nothing -> 
+                        case viewDealBondsByNames t [bn] of 
+                          [b] -> toRational $ L.bndRate b
+                          _ -> error ("Failed to find bond by name"++bn)
       
       BondWaRate bns -> 
         let 
           rs = toRational <$> (\bn -> queryDealRate t (BondRate bn)) <$> bns
-          ws = toRational <$> (\bn -> queryDeal t (CurrentBondBalanceOf [bn])) <$> bns
+          ws = (\bn -> queryDeal t (CurrentBondBalanceOf [bn])) <$> bns
         in 
-          toRational $ sum (zipWith (+) ws rs) / sum ws
+          -- toRational $ safeDivide $ sum (zipWith (*) ws rs) $ sum ws
+          weightedBy ws rs
 
       PoolWaRate mPns -> 
         let 
