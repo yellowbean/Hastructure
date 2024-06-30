@@ -142,7 +142,7 @@ weightAvgBalance sd ed txns
 
 
 data Statement = Statement [Txn]
-        deriving (Show, Generic, Eq, Ord)
+              deriving (Show, Generic, Eq, Ord, Read)
 
 appendStmt :: Maybe Statement -> Txn -> Maybe Statement
 appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])
@@ -202,6 +202,7 @@ getFlow comment =
       SwapOutSettle -> Outflow
       PurchaseAsset -> Outflow
       SupportDraw -> Noneflow
+      IssuanceProceeds _ -> Inflow
       TxnComments cmts -> 
         let 
           directionList = getFlow <$> cmts 

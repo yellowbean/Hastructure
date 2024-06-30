@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Deal.DealQuery (queryDealBool,queryDeal,queryDealInt,queryDealRate
-                       ,patchDateToStats, testPre, calcTargetAmount) 
+                       ,patchDateToStats, testPre, calcTargetAmount, testPre2) 
   where
 
 import Deal.DealBase
@@ -14,6 +14,9 @@ import qualified Asset as P
 import Data.List
 import Data.Fixed
 import Data.Maybe
+import Data.Text (replace, pack, unpack)
+import Numeric.Limits
+import GHC.Real
 import qualified Data.Map as Map
 import qualified Data.Set as S
 import qualified Liability as L
@@ -29,10 +32,10 @@ import qualified Analytics as A
 import Stmt
 import Util
 import DateUtil
-import Lib
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import Debug.Trace
+import Lib
 import Cashflow (CashFlowFrame(CashFlowFrame))
 import qualified Cashflow as P
 import qualified Util as CF
@@ -91,6 +94,7 @@ patchDateToStats d t
          _ -> t -- `debug` ("Failed to patch date to stats"++show t)
 
 
+
 queryDealRate :: P.Asset a => TestDeal a -> DealStats -> Micro
 queryDealRate t s =
   fromRational $ 
@@ -122,14 +126,27 @@ queryDealRate t s =
           cumuPoolDefBal / originPoolBal -- `debug` (show idx ++" cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
         
 
-      BondRate bn -> toRational $ L.bndRate $ bonds t Map.! bn
+      BondRate bn -> case Map.lookup bn (bonds t) of 
+                      Just b@(L.Bond {}) -> toRational $ L.bndRate b 
+                      Just b@(L.BondGroup bSubMap) -> 
+                        let 
+                          bnds = Map.elems bSubMap
+                          rates = toRational <$> L.bndRate <$> bnds
+                          bals = L.getCurBalance <$> bnds
+                        in 
+                          weightedBy bals rates
+                      Nothing -> 
+                        case viewDealBondsByNames t [bn] of 
+                          [b] -> toRational $ L.bndRate b
+                          _ -> error ("Failed to find bond by name"++bn)
       
       BondWaRate bns -> 
         let 
           rs = toRational <$> (\bn -> queryDealRate t (BondRate bn)) <$> bns
-          ws = toRational <$> (\bn -> queryDeal t (CurrentBondBalanceOf [bn])) <$> bns
+          ws = (\bn -> queryDeal t (CurrentBondBalanceOf [bn])) <$> bns
         in 
-          toRational $ sum (zipWith (+) ws rs) / sum ws
+          -- toRational $ safeDivide $ sum (zipWith (*) ws rs) $ sum ws
+          weightedBy ws rs
 
       PoolWaRate mPns -> 
         let 
@@ -211,11 +228,11 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     OriginalBondBalance -> Map.foldr (\x acc -> getOriginBalance x + acc) 0.0 bndMap
     
-    BondDuePrin bnds -> sum $ L.bndDuePrin <$> ((bndMap Map.!) <$> bnds) --TODO Failed if bond group
+    BondDuePrin bnds -> sum $ L.bndDuePrin <$> viewDealBondsByNames t bnds
     
-    OriginalBondBalanceOf bnds -> sum $ getOriginBalance . (bndMap Map.!) <$> bnds
+    OriginalBondBalanceOf bnds -> sum $ getOriginBalance <$> viewDealBondsByNames t bnds
 
-    CurrentBondBalanceOf bns -> sum $ getCurBalance . (bndMap Map.!) <$> bns -- `debug` ("Current bond balance of"++show (sum $ L.bndBalance . (bndMap Map.!) <$> bns))
+    CurrentBondBalanceOf bns -> sum $ getCurBalance <$> viewDealBondsByNames t bns
     
     CurrentPoolBalance mPns ->
       foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (getAllAssetList t) --TODO TOBE FIX: mPns is not used
@@ -237,27 +254,6 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           Nothing -> error "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
     
     UnderlyingBondBalance mBndNames -> 0
-    --  let 
-    --    bBals = case pt of 
-    --              ResecDeal uBndMap -> 
-    --                case mBndNames of 
-    --                  Just bndNames -> sum $ Map.elems
-    --                                    $ Map.filterWithKey (\(UnderlyingBond (k,pct,_)) v -> S.member k (S.fromList bndNames)) bondsBals
-    --                  Nothing -> sum $ Map.elems bondsBals
-    --                where 
-    --                  bondsBals = Map.mapWithKey 
-    --                                (\(UnderlyingBond (bn,pct,_)) (UnderlyingDeal uDeal _ _ _ ) -> 
-    --                                  let 
-    --                                    bals = queryDeal uDeal (CurrentBondBalanceOf [bn])
-    --                                    pctBals = flip mulBR pct <$> [bals]
-    --                                  in 
-    --                                    sum pctBals)
-    --                                uBndMap
-    --              _ -> error "Failed to find underlying bond balance in the deal"
-    --           where 
-    --            pt = view dealPool t
-    --  in 
-    --    bBals
  
     AllAccBalance -> sum $ map A.accBalance $ Map.elems accMap 
     
@@ -396,15 +392,9 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       in 
         sum pvs -- `debug` ("pvs"++ show pvs)
 
-          -- OriginalBondBalanceOf bns -> sum $ L.originBalance . L.bndOriginInfo <$> (bndMap Map.!) <$> bns
-          -- IsPaidOff bns -> all isPaidOff <$> (theBondGrp Map.!) <$> bns
-
-
-
     BondsIntPaidAt d bns ->
        let
-          bSubMap =  getBondsByName t (Just bns)   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
-          stmts = map L.bndStmt $ Map.elems bSubMap
+          stmts = map L.bndStmt $ viewDealBondsByNames t bns
           ex s = case s of
                    Nothing -> 0
                    Just (Statement txns) 
@@ -418,8 +408,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     BondsPrinPaidAt d bns ->
        let
-          bSubMap =  getBondsByName t (Just bns)   -- Map.filterWithKey (\bn b -> S.member bn bnSet) (bonds t)
-          stmts = map L.bndStmt $ Map.elems bSubMap
+          stmts = map L.bndStmt $ viewDealBondsByNames t bns
           ex s = case s of
                    Nothing -> 0
                    Just (Statement txns) 
@@ -445,7 +434,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     BondTxnAmtBy d bns mCmt -> 
       let 
-        bnds = (bndMap Map.!) <$> bns -- Map.elems $ getBondByName t (Just bns)
+        -- bnds = (bndMap Map.!) <$> bns -- Map.elems $ getBondByName t (Just bns)
+        bnds = viewDealBondsByNames t bns
       in 
         case mCmt of
           Just cmt -> sum [ queryTxnAmtAsOf bnd d cmt | bnd <- bnds ]
@@ -497,11 +487,11 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         sum $ map ex stmts
 
     CurrentDueBondInt bns -> 
-      sum $ L.bndDueInt <$> (bndMap Map.!) <$> bns -- `debug` ("bond due int" ++ show ((bndMap Map.!) <$> bns ))
+      sum $ L.bndDueInt <$> viewDealBondsByNames t bns  
 
     CurrentDueBondIntOverInt bns -> 
-      sum $ L.bndDueIntOverInt <$> (bndMap Map.!) <$> bns -- `debug` ("bond due int" ++ show ((bndMap Map.!) <$> bns ))
-    
+      sum $ L.bndDueIntOverInt <$> viewDealBondsByNames t bns  
+
     CurrentDueBondIntTotal bns -> sum (queryDeal t <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
 
     CurrentDueFee fns -> sum $ F.feeDue <$> (feeMap Map.!) <$> fns
@@ -546,7 +536,8 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     Min ss -> minimum' [ queryDeal t s | s <- ss ]
 
     Divide ds1 ds2 -> if (queryDeal t ds2) == 0 then 
-                        error $ show (ds2) ++" is zero" 
+                        -- (fromRational . toRational) GHC.Real.infinity `debug` ("Hit zero")
+                        (fromRational . toRational) Numeric.Limits.infinity -- `debug` ("Hit zero")
                       else
                         queryDeal t ds1 / queryDeal t ds2
 
@@ -562,7 +553,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     FloorAndCap floor cap s -> max (queryDeal t floor) $ min (queryDeal t cap) (queryDeal t s)
     
     Factor s f -> mulBR (queryDeal t s) f
-    Multiply ss -> foldl1 (*)  (queryDeal t <$> ss)
+    Multiply ss -> product (queryDeal t <$> ss)
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
     Excess (s1:ss) -> max 0 $ queryDeal t s1 - queryDeal t (Sum ss)
@@ -594,6 +585,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
           _ -> False
 
     IsPaidOff bns -> all isPaidOff $ (bndMap Map.!) <$> bns
+
+    IsOutstanding bns -> all (not . isPaidOff) $ (bndMap Map.!) <$> bns
     
     TestRate ds cmp r -> let
                            testRate = queryDealRate t ds
@@ -620,6 +613,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
 
     _ -> error ("Failed to query bool type formula"++ show ds)
 
+-- ^ test a condition with a deal and a date
 testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Bool
 testPre d t p =
   case p of
@@ -649,3 +643,42 @@ testPre d t p =
                   LE -> (<=)
                   E -> (==)
       ps = patchDateToStats d
+
+replaceToInf :: String -> String
+replaceToInf x = unpack $ Data.Text.replace nInf "-inf" $ Data.Text.replace inf "inf" c
+                  where 
+                    c = pack x
+                    inf = pack "179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216.00" 
+                    nInf = pack "-179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216.00"
+
+
+-- ^ convert a condition to string in a deal context
+preToStr :: P.Asset a => TestDeal a -> Date -> Pre -> String
+preToStr t d p =
+  case p of 
+    (IfZero ds) ->  "0 == " ++ show (queryDeal t (ps ds))
+    (If cmp ds bal) -> show (queryDeal t (ps ds)) ++" "++ show cmp ++" " ++show bal -- `debug` (">>> left"++ show (queryDeal t (ps ds)))
+    (IfRate cmp ds r) -> show (queryDealRate t (ps ds)) ++" "++ show cmp ++" " ++show r
+    (IfInt cmp ds r) -> show (queryDealInt t (ps ds) d) ++" "++ show cmp ++" " ++show r
+    (IfCurve cmp ds ts) -> show (queryDeal t (ps ds)) ++" "++ show cmp ++" " ++show (fromRational (getValByDate ts Inc d))
+    (IfDate cmp _d) -> show d ++" "++ show cmp ++" " ++show _d
+    (IfBool ds b) -> show (queryDealBool t ds d) ++" == "++ show b
+    (If2 cmp ds1 ds2) -> show (queryDeal t (ps ds1)) ++" "++ show cmp ++" " ++show (queryDeal t (ps ds2))
+    (IfRate2 cmp ds1 ds2) -> show (queryDealRate t (ps ds1)) ++" "++ show cmp ++" " ++show (queryDealRate t (ps ds2))
+    (IfInt2 cmp ds1 ds2) -> show (queryDealInt t (ps ds1) d) ++" "++ show cmp ++" " ++show (queryDealInt t (ps ds2) d)
+    (IfDealStatus st) -> show (status t) ++" == "++ show st
+    (Always b) -> show b
+    (IfNot _p) -> "Not "++ preToStr t d _p
+    (Types.All pds) -> "All:"++ intercalate "|" (map (preToStr t d) pds)
+    (Types.Any pds) -> "Any:"++ intercalate "|" (map (preToStr t d) pds)
+    _ -> "Failed to read condition"++ show p
+
+  where 
+    ps = patchDateToStats d
+
+testPre2 :: P.Asset a => Date -> TestDeal a -> Pre -> (String, Bool)
+testPre2 d t p = 
+  let 
+    r = testPre d t p 
+  in 
+    ( replaceToInf (preToStr t d p), r)

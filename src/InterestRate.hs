@@ -31,7 +31,8 @@ import Types
       IRate,
       Dates,
       Date,
-      Balance, DealStats )
+      Balance )
+-- import Deal.DealType
 import Util
 import Lib
 

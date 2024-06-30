@@ -151,7 +151,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
                       let 
                         bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns mStmt
                       in 
-                        sum $ flip mulBIR r <$> bals  `debug` ("Gettnig bal of liq"++ show bals)
+                        sum $ flip mulBIR r <$> bals -- `debug` ("Gettnig bal of liq"++ show bals)
       accureFee = case prate of
                     Nothing -> 0 
                     Just r -> 

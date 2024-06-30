@@ -14,11 +14,12 @@ module Assumptions (BondPricingInput(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,getCDR,calcResetDates,AssumpReceipes)
+                    ,getCDR,calcResetDates,AssumpReceipes,IssueBondEvent)
 where
 
 import Call as C
 import Lib (Ts(..),TsPoint(..),toDate,mkRateTs)
+import Liability (Bond)
 import Util
 import DateUtil
 import qualified Data.Map as Map 
@@ -64,18 +65,21 @@ data ApplyAssumptionType = PoolLevel AssetPerf
                            -- ^ assumption for a named deal 
                          deriving (Show, Generic)
 
+type IssueBondEvent = (String,AccName,Bond) -- bond group name, account name, bond
+
 data NonPerfAssumption = NonPerfAssumption {
-  stopRunBy :: Maybe Date                              -- ^ optional stop day,which will stop cashflow projection
-  ,projectedExpense :: Maybe [(FeeName,Ts)]            -- ^ optional expense projection
-  ,callWhen :: Maybe [C.CallOption]                    -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
-  ,revolving :: Maybe RevolvingAssumption              -- ^ optional revolving assumption with revoving assets
-  ,interest :: Maybe [RateAssumption]                  -- ^ optional interest rates assumptions
-  ,inspectOn :: Maybe [(DatePattern,DealStats)]        -- ^ optional tuple list to inspect variables during waterfall run
-  ,buildFinancialReport :: Maybe DatePattern           -- ^ optional dates to build financial reports
-  ,pricing :: Maybe BondPricingInput                   -- ^ optional bond pricing input( discount curve etc)
-  ,fireTrigger :: Maybe [(Date,DealCycle,String)]        -- ^ optional fire a trigger
+  stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
+  ,projectedExpense :: Maybe [(FeeName,Ts)]                  -- ^ optional expense projection
+  ,callWhen :: Maybe [C.CallOption]                          -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
+  ,revolving :: Maybe RevolvingAssumption                    -- ^ optional revolving assumption with revoving assets
+  ,interest :: Maybe [RateAssumption]                        -- ^ optional interest rates assumptions
+  ,inspectOn :: Maybe [(DatePattern,DealStats)]              -- ^ optional tuple list to inspect variables during waterfall run
+  ,buildFinancialReport :: Maybe DatePattern                 -- ^ optional dates to build financial reports
+  ,pricing :: Maybe BondPricingInput                         -- ^ optional bond pricing input( discount curve etc)
+  ,fireTrigger :: Maybe [(Date,DealCycle,String)]            -- ^ optional fire a trigger
   ,makeWholeWhen :: Maybe (Date,Spread,Table Float Spread)
-} deriving (Show,Generic)
+  ,issueBondSchedule :: Maybe [TsPoint IssueBondEvent]                            
+} deriving (Show, Generic)
 
 data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request
                      | Multiple (Map.Map String ApplyAssumptionType)  NonPerfAssumption       -- ^ multiple assumption request in a single request
@@ -224,6 +228,8 @@ calcResetDates (r:rs) bs
 
 
 $(deriveJSON defaultOptions ''BondPricingInput)
+
+-- $(deriveJSON defaultOptions ''IssueBondEvent)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''ApplyAssumptionType, ''AssetPerfAssumption
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption

@@ -25,6 +25,8 @@ import qualified Asset as P
 import qualified Assumptions as AP
 import qualified InterestRate as IR
 
+import Control.Lens hiding (element)
+import Control.Lens.TH
 
 import Data.Maybe
 import qualified Assumptions as A
@@ -161,7 +163,7 @@ validateAction ((W.ActionWithPre2 p subActionList1 subActionList2):as) rs accKey
 validateAction (action:as) rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
   = validateAction as rs accKeys bndKeys feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys
 
-extractRequiredRates :: (P.Asset a,IR.UseRate a) => TestDeal a -> Set.Set Index
+extractRequiredRates :: (P.Asset a,IR.UseRate a) => TestDeal a -> Set.Set Types.Index
 extractRequiredRates t@TestDeal{accounts = accM 
                                ,fees = feeM 
                                ,bonds = bondM 
@@ -208,7 +210,7 @@ validateAggRule rules validPids =
 
 
 validateReq :: (IR.UseRate a,P.Asset a) => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
-validateReq t assump@A.NonPerfAssumption{A.interest = intM} 
+validateReq t@TestDeal{accounts = accMap} assump@A.NonPerfAssumption{A.interest = intM, A.issueBondSchedule = mIssuePlan} 
   = let 
       ratesRequired = extractRequiredRates t
       ratesSupplied = case intM of 
@@ -220,8 +222,27 @@ validateReq t assump@A.NonPerfAssumption{A.interest = intM}
                           else
                             [ErrorMsg ("Failed to find index "++show missingIndex++"in assumption rates"++ show ratesSupplied)]
 
+      -- issue plan validation
+      issuePlanError = case mIssuePlan of 
+                        Nothing -> []
+                        Just issueBndEventlist
+                          -> let 
+                              bgNamesInAssump = Set.fromList $ [ bgName | TsPoint d (bgName,_,_) <- issueBndEventlist ]
+                              bgNamesInDeal = Map.keysSet $ view dealBondGroups t
+                              bgNameErrors = [ ErrorMsg ("issueBond:Missing Bond Group Name in Deal:"++ missingBgName ) | missingBgName <- Set.elems (Set.difference bgNamesInAssump bgNamesInDeal)]
+
+                              newBndNames = Set.fromList $ [ L.bndName bnd | TsPoint d (_,_,bnd) <- issueBndEventlist ]
+                              existingBndNames = Set.fromList $ L.bndName <$> viewDealAllBonds t
+                              bndNameErrors = [ ErrorMsg ("issueBond:Existing Bond Name in Deal:"++ existsBndName ) | existsBndName <- Set.elems (Set.intersection newBndNames existingBndNames)]
+
+                              acNamesInAssump = Set.fromList $ [ acName | TsPoint d (_,acName,_) <- issueBndEventlist ]
+                              existingAccNames = Map.keysSet accMap
+                              accNameErrors = [ ErrorMsg ("issueBond:Missing Account Name in Deal:"++ missingAccName ) | missingAccName <- Set.elems (Set.difference acNamesInAssump existingAccNames)]
+                             in 
+                              bgNameErrors ++ accNameErrors ++ bndNameErrors
+
       (dealWarnings,dealErrors) = validatePreRun t 
-      finalErrors = missingIndexError ++ dealErrors                          
+      finalErrors = missingIndexError ++ dealErrors ++ issuePlanError 
       finalWarnings = dealWarnings
     in 
       (null finalErrors,finalErrors++finalWarnings)

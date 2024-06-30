@@ -42,6 +42,7 @@ dependencies:
 - swagger2
 - split
 - tabular
+- numeric-limits
 
 library:
   source-dirs: 

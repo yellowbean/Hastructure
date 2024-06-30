@@ -9,7 +9,10 @@
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,dealScheduledCashflow
-                     ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds) 
+                     ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..),OverrideType(..)
+                     ,sortActionOnDate,viewDealAllBonds,dealBondGroups
+                     ,viewDealBondsByNames
+                     )                      
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -59,6 +62,93 @@ debug = flip trace
 -- import qualified Data.HashMap.Strict as HM
 -- import Data.Text (unpack)
 -- import Control.Monad.IO.Class (liftIO)
+
+
+
+
+data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
+                  | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
+                  | AccrueFee Date FeeName               -- ^ accure fee
+                  | ResetLiqProvider Date String         -- ^ reset credit for liquidity provider
+                  | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
+                  | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
+                  | RunWaterfall Date String             -- ^ execute waterfall
+                  | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
+                  | FireTrigger Date DealCycle String    -- ^ fire a trigger
+                  | InspectDS Date DealStats             -- ^ inspect formula
+                  | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
+                  | AccrueCapRate Date String            -- ^ reset interest rate cap dates
+                  | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | ResetSrtRate Date String 
+                  | AccrueSrt Date String 
+                  | MakeWhole Date Spread (Table Float Spread)
+                  | IssueBond Date String AccName L.Bond
+                  | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
+                  | StopRunFlag Date                     -- ^ stop the run with a message
+                  | HitStatedMaturity Date               -- ^ hit the stated maturity date
+                  deriving (Show,Generic,Read)
+
+instance Ord ActionOnDate where
+  compare a1 a2 = compare (getDate a1) (getDate a2)
+
+instance Eq ActionOnDate where
+  a1 == a2 = getDate a1 == getDate a2
+
+
+instance TimeSeries ActionOnDate where
+    getDate (RunWaterfall d _) = d
+    getDate (ResetLiqProvider d _) = d
+    getDate (PoolCollection d _) = d
+    getDate (EarnAccInt d _) = d
+    getDate (AccrueFee d _) = d
+    getDate (DealClosed d) = d
+    getDate (FireTrigger d _ _) = d
+    getDate (ChangeDealStatusTo d _ ) = d
+    getDate (InspectDS d _ ) = d
+    getDate (ResetIRSwapRate d _ ) = d
+    getDate (AccrueCapRate d _ ) = d
+    getDate (ResetBondRate d _ ) = d 
+    getDate (MakeWhole d _ _) = d 
+    getDate (BuildReport sd ed) = ed
+    getDate (IssueBond d _ _ _) = d
+
+
+sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
+sortActionOnDate a1 a2 
+  | d1 == d2 = case (a1,a2) of
+                 (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
+                 (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
+                 (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
+                 (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
+                 (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
+                 (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
+                 (EarnAccInt {} ,_) -> LT  -- earn should be first
+                 (_ , EarnAccInt {}) -> GT -- earn should be first
+                 (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
+                 (_ , ResetLiqProvider {}) -> GT -- reset liq be first
+                 (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
+                 (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
+                 (_,_) -> EQ 
+  | otherwise = compare d1 d2
+  where 
+    d1 = getDate a1 
+    d2 = getDate a2 
+
+
+data OverrideType = CustomActionOnDates [ActionOnDate]
+                    deriving (Show,Generic,Ord,Eq)
+
+
+data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
+              --  cutoff pool       closing bond payment dates 
+              | CustomDates Date [ActionOnDate] Date [ActionOnDate]
+              | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
+              --  cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
+              | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
+              --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
+              | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
+              deriving (Show,Eq, Generic,Ord)
+
 
 class SPV a where
   getBondsByName :: a -> Maybe [String] -> Map.Map String L.Bond
@@ -227,6 +317,9 @@ instance SPV (TestDeal a) where
                  ResecDeal _ -> True
                  _ -> False
 
+
+
+
 viewDealAllBonds :: TestDeal a -> [L.Bond]
 viewDealAllBonds d = 
     let 
@@ -236,10 +329,39 @@ viewDealAllBonds d =
     in 
        concat $ view <$> bs
 
+viewDealBondsByNames :: Ast.Asset a => TestDeal a -> [BondName] -> [L.Bond]
+viewDealBondsByNames _ [] = []
+viewDealBondsByNames t@TestDeal{bonds= bndMap } bndNames
+  = let 
+      -- bonds and bond groups
+      bnds = filter (\b -> L.bndName b `elem` bndNames) $ viewDealAllBonds t
+      -- bndsFromGrp = $ Map.filter (\L.BondGroup {} -> True)  bndMap
+      bndsFromGrp = Map.foldrWithKey
+                      (\k (L.BondGroup bMap) acc -> 
+                        if k `elem` bndNames 
+                        then 
+                          acc ++ Map.elems bMap
+                        else 
+                          acc)
+                      []
+                      (view dealBondGroups t )
+    in 
+      bnds ++ bndsFromGrp
+
 dealBonds :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
 dealBonds = lens getter setter 
   where 
     getter d = bonds d 
+    setter d newBndMap = d {bonds = newBndMap}
+
+dealBondGroups :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
+dealBondGroups = lens getter setter 
+  where 
+    getter d = Map.filter 
+                 (\case 
+                   (L.Bond {}) -> False
+                   (L.BondGroup {}) -> True)
+                 (bonds d)
     setter d newBndMap = d {bonds = newBndMap}
 
 dealAccounts :: Ast.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 
@@ -385,7 +507,7 @@ getAllCollectedTxnsList t mPns
 data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType])
+$(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType, ''DateDesp, ''ActionOnDate, ''OverrideType])
 -- $(deriveJSON defaultOptions ''UnderlyingDeal)
 -- $(deriveJSON defaultOptions ''PoolType)
 -- $(deriveJSON defaultOptions ''TestDeal)

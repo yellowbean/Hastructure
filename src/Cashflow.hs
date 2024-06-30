@@ -28,6 +28,7 @@ import Lib (weightedBy,toDate,getIntervalFactors,daysBetween,paySeqLiabilitiesAm
 import Util (mulBR,mulBInt,mulIR,lastOf)
 import DateUtil ( splitByDate )
 import Types
+--import Deal.DealType
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.List as L
@@ -146,7 +147,7 @@ scaleTsRow r (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st)
       rat 
       mbn 
       pp
-      ((splitStats r) <$> st)
+      (splitStats r <$> st)
 scaleTsRow r (LoanFlow d b p i prep def rec los rat st) 
   = LoanFlow d (fromRational r * b) (fromRational r * p) (fromRational r * i) (fromRational r * prep) (fromRational r * def) (fromRational r * rec) (fromRational r * los) rat ((splitStats r) <$> st)
 scaleTsRow r (LeaseFlow d b rental) = LeaseFlow d (fromRational r * b) (fromRational r * rental)
@@ -161,6 +162,7 @@ type BeginStatus = (BeginBalance, BeginDate, AccuredInterest)
 
 data CashFlowFrame = CashFlowFrame BeginStatus [TsRow]
                    | MultiCashFlowFrame (Map.Map String [CashFlowFrame])
+--                   | CashFlowFrameIndex BeginStatus [TsRow] IR.Index
                    deriving (Eq,Generic,Ord)
 
 instance Show CashFlowFrame where
@@ -844,6 +846,8 @@ setPrepaymentPenalty _ _ = error "prepay pental only applies to MortgageFlow"
 setPrepaymentPenaltyFlow :: [Balance] -> [TsRow] -> [TsRow]
 setPrepaymentPenaltyFlow bals trs = [ setPrepaymentPenalty bal tr | (bal,tr) <- zip bals trs]
 
+
+-- ^ split single cashflow record by a rate
 splitTs :: Rate -> TsRow -> TsRow 
 splitTs r (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN mStat)
   = MortgageDelinqFlow d (mulBR bal r) (mulBR p r) (mulBR i r) (mulBR ppy r)

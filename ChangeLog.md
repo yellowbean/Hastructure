@@ -1,7 +1,17 @@
 # Changelog for Hastructure
 
-## 0.28.3
-### TODO
+## 0.28.13
+###  2024-06-30
+* NEW: new assumption `issue bond` which allow funding by issuing new bonds during cashflow projection.
+* NEW: new asset class `projectScheduleFlow` which can be divided projected cashflow with fix portion and float portions. The interest from the float portion will be affected by interest rate assumption.
+* ENHANCE: enable formula `bondRate`/`bondWaRate` on `bondGroup`
+* FIX: `formula` will return `inf` if a `divide` with zero instead of just throw exception
+* FIX: `financial reports` was failing because it can't access to `interest due` on bond group.
+* FIX: enable formula query on `bond groups` 
+
+
+## 0.28.8
+### 2024-06
 * FIX: `limit` on `payFee` was not working with `duePct`
 * ENHANCE: expose `transaction statement` for `triggers`
 

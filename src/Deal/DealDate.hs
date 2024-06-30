@@ -7,6 +7,7 @@ module Deal.DealDate (DealDates,getClosingDate,getFirstPayDate)
   where
 
 import qualified Data.Map as Map
+import Deal.DealBase
 import Types
 import Lib
 
