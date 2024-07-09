@@ -203,6 +203,8 @@ calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase 
                     OriginalBondBalance -> mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
                     CurrentBondBalance -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t)
                     CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondsByName t (Just bns))
+                    -- CurrentBondBalance -> Map.foldr (\v a-> a + weightAvgBalance accrueStart calcDay (getTxns (L.bndStmt v)) ) 0.0 (bonds t)
+                    -- CurrentBondBalanceOf bns -> sum $ (\v -> weightAvgBalance accrueStart calcDay (getTxns (L.bndStmt v))) <$>  viewDealBondsByNames t bns
         r = toRational $ queryDealRate t _r 
         newDue = mulBR baseBal r
 
@@ -623,6 +625,11 @@ performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
 performActionWrap d (t, rc, logs) (W.ActionWithPre p actions) 
   | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actions
   | otherwise = (t, rc, logs)
+   -- where 
+   -- trgsToRun = preHasTrigger p
+   -- trgsEffects = []
+   -- (newT, newRc) = runEffects (t, rc) d trgsEffects 
+    
 
 performActionWrap d (t, rc, logs) (W.ActionWithPre2 p actionsTrue actionsFalse) 
   | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actionsTrue

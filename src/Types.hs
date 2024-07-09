@@ -27,7 +27,7 @@ module Types
   ,DealName,lookupIntervalTable,CutoffFields(..),PriceResult(..)
   ,DueInt,DuePremium, DueIoI,DateVector,DealStats(..)
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
-  ,getDealStatType,getPriceValue
+  ,getDealStatType,getPriceValue,preHasTrigger
   )
   
   where
@@ -394,6 +394,7 @@ data Pre = IfZero DealStats
          deriving (Show,Generic,Eq,Ord)
 
 
+
 data Table a b = ThresholdTable [(a,b)]
                  deriving (Show,Eq,Ord,Read,Generic)
 
@@ -551,6 +552,11 @@ data DealStats = CurrentBondBalance
                | Round DealStats (RoundingBy Balance)
                deriving (Show,Eq,Ord,Read,Generic)
 
+preHasTrigger :: Pre -> [(DealCycle,String)]
+preHasTrigger (IfBool (TriggersStatus dc tName) _) = [(dc,tName)]
+preHasTrigger (Any ps) = concat $ preHasTrigger <$> ps
+preHasTrigger (All ps) = concat $ preHasTrigger <$> ps
+preHasTrigger _ = []
 
 
 data Limit = DuePct Rate            -- ^ up to % of total amount due

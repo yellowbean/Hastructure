@@ -78,9 +78,7 @@ import qualified Hedge as HE
 
 debug = flip trace
 
-
-
-
+-- ^ update bond interest rate from rate assumption
 setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
 setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateSpread _ spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
   = b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
@@ -240,6 +238,7 @@ testCall t d opt =
        C.Pre pre -> testPre d t pre
        _ -> error ("failed to find call options"++ show opt)
 
+-- ^ if any of the call options are satisfied
 testCalls :: Ast.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
 testCalls t d [] = False  
 testCalls t d opts = any (testCall t d) opts  
@@ -290,9 +289,7 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc) d dcycle =
                           (\trg -> (not (trgStatus trg) || trgStatus trg && trgCurable trg))
                           trgsMap
     -- test triggers 
-    triggeredTrgs = Map.map
-                          (\trg -> testTrigger t d trg)
-                          trgsToTest
+    triggeredTrgs = Map.map (testTrigger t d) trgsToTest
 
     -- extract trigger effects to run, if the trigger is true                   
     triggeredEffects = [ trgEffects _trg | _trg <- Map.elems triggeredTrgs, (trgStatus _trg) ] 

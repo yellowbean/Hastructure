@@ -9,7 +9,7 @@ module Stmt
    ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
-   ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
+   ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
    ,scaleTxn,isEmptyTxn
   )
@@ -127,10 +127,11 @@ sliceStmt sd ed (Statement txns)
 
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 
-  = map (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) intervals -- `debug` ("interval"++ show intervals++ show txns)
+  = (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) <$> intervals -- `debug` ("interval"++ show intervals++ show txns)
   where 
       intervals = zip (init ds) (tail ds) 
 
+-- ^ Txn must be full transactions
 weightAvgBalance :: Date -> Date -> [Txn] -> Balance -- txn has to be between sd & ed
 weightAvgBalance sd ed txns 
   = sum $ zipWith mulBR bals dsFactor -- `debug` ("WavgBalace "++show bals++show dsFactor)
@@ -140,6 +141,19 @@ weightAvgBalance sd ed txns
       ds = [sd] ++ map getDate _txns ++ [ed] 
       dsFactor = getIntervalFactors ds  -- `debug` ("DS>>>"++show ds)
 
+weightAvgBalance' :: Balance -> (Date,Balance) -> [Date] -> [Txn] -> Balance 
+weightAvgBalance' accBal (_,b) _ []  = accBal
+weightAvgBalance' accBal (_,b) [] txns  = accBal
+weightAvgBalance' accBal (lastDate,lastBal) (sd:ds) txns 
+  = weightAvgBalance' newAccBal (sd, nextBegBalance restTxns) ds restTxns
+  where 
+      (_txns,restTxns) = splitBy sd Exc txns
+      nextBegBalance [] = 0
+      nextBegBalance rTxns = getTxnBalance $ head rTxns
+      _txnDs = getDate <$> _txns
+      bals = lastBal:(getTxnBalance <$> _txns) 
+      dsFactor = getIntervalFactors ([lastDate]++_txnDs ++ [sd])
+      newAccBal = accBal + sum (zipWith mulBR bals dsFactor)
 
 data Statement = Statement [Txn]
               deriving (Show, Generic, Eq, Ord, Read)

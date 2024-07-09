@@ -47,6 +47,7 @@ import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
 import Language.Haskell.TH.Lens (_BytesPrimL)
 import Stmt (getTxnAmt)
+import Data.Char (GeneralCategory(NotAssigned))
 -- import Deal.DealBase (UnderlyingDeal(futureCf))
 
 debug = flip trace
@@ -331,18 +332,33 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYiel
                     Nothing -> []
 
 
--- TO BE Deprecate, it was implemented in Cashflow Frame
 weightAverageBalance :: Date -> Date -> Bond -> Balance
-weightAverageBalance sd ed b@(Bond _ _ _ _ _ currentBalance _ _ _ _ _ _ _ stmt)
-  = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
-    where
-      _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
-      _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
-      _ds = S.getDates txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
-      _b = consolStmt b   
-      txns =  case S.sliceStmt sd ed <$> bndStmt _b of
-                Nothing -> []
-                Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
+weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ stmt)
+  = S.weightAvgBalance'
+      0
+      (sd,)
+
+-- TO BE Deprecate, it was implemented in Cashflow Frame
+-- weightAverageBalance :: Date -> Date -> Bond -> Balance
+-- weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ stmt)
+--   = sum $ zipWith mulBR (_bals txns) _dfs `debug` ("date"++ show sd ++"ed"++ show ed++"Bals"++ show _bals)
+--     where
+--       allTxns = S.getTxns $ bndStmt (consolStmt b)
+--       _ds = S.getDates allTxns
+--       begBals = currentBalance:(S.getTxnBalance <$> allTxns) -- from current balance to the end
+--       balCurve = zipBalTs _ds begBals
+-- 
+--       _dfs =  getIntervalFactors $ [max bd sd]++ _ds ++ [ed]
+-- 
+--       txns = sliceBy IE sd ed $ S.getTxns $ bndStmt b
+      
+      -- _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
+      -- _b = consolStmt b   
+      -- txns =  case S.sliceStmt sd ed <$> bndStmt _b of
+      --           Nothing -> []
+      --           Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
+weightAverageBalance sd ed bg@(BondGroup bMap)
+  = sum $ weightAverageBalance sd ed <$> Map.elems bMap  `debug` (">>>"++ show (weightAverageBalance sd ed <$> Map.elems bMap))
 
 calcZspread :: (Rational,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
 calcZspread _ _ _ b@Bond{bndStmt = Nothing} _ = error "No Cashflow for bond"

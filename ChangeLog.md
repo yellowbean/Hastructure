@@ -1,5 +1,9 @@
 # Changelog for Hastructure
 
+## 0.28.14
+### 2024-07-06
+* FIX: enable `annualized rate fee type` with formula `bondbalance` on `bondGroup`
+
 ## 0.28.13
 ###  2024-06-30
 * NEW: new assumption `issue bond` which allow funding by issuing new bonds during cashflow projection.

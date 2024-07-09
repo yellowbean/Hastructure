@@ -70,6 +70,7 @@ getIntervalDays :: [Date] -> [Int]
 getIntervalDays ds = zipWith daysBetweenI (init ds) (tail ds)
   -- = map (\(x,y)-> (fromIntegral (T.diffDays y x))) $ zip (init ds) (tail ds)
 
+-- get fractional years from a set of dates
 getIntervalFactors :: [Date] -> [Rate]
 getIntervalFactors ds = (\x -> toRational x / 365) <$> getIntervalDays ds -- `debug` ("Interval Days"++show(ds))
 
