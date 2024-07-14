@@ -11,7 +11,7 @@ module Stmt
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
-   ,scaleTxn,isEmptyTxn
+   ,scaleTxn,isEmptyTxn, statementTxns
   )
   where
 
@@ -97,7 +97,7 @@ getTxnAmt (ExpTxn _ _ t _ _ ) = t
 getTxnAmt (SupportTxn _ _ t _ _ _ _) = t
 getTxnAmt (IrsTxn _ _ t _ _ _ _ ) = t
 getTxnAmt (EntryTxn _ _ t _) = t
-getTxnAmt (TrgTxn {} ) = 0.0
+getTxnAmt TrgTxn {} = 0.0
 
 getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
@@ -125,6 +125,19 @@ sliceStmt :: Date -> Date -> Statement -> Statement
 sliceStmt sd ed (Statement txns) 
   = Statement $ sliceBy II sd ed txns
 
+viewBalanceAsOf :: Date -> [Txn] -> Balance
+viewBalanceAsOf d [] = 0.0 
+viewBalanceAsOf d txns 
+  | d < begDate = getTxnBegBalance fstTxn
+  | d > endDate = getTxnBalance lstTxn
+  | otherwise = getTxnBalance $ fromJust $ getTxnAsOf txns d
+  where 
+    fstTxn = head txns
+    lstTxn = last txns
+    begDate = getDate fstTxn
+    endDate = getDate lstTxn
+
+ 
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 
   = (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) <$> intervals -- `debug` ("interval"++ show intervals++ show txns)
@@ -141,19 +154,16 @@ weightAvgBalance sd ed txns
       ds = [sd] ++ map getDate _txns ++ [ed] 
       dsFactor = getIntervalFactors ds  -- `debug` ("DS>>>"++show ds)
 
-weightAvgBalance' :: Balance -> (Date,Balance) -> [Date] -> [Txn] -> Balance 
-weightAvgBalance' accBal (_,b) _ []  = accBal
-weightAvgBalance' accBal (_,b) [] txns  = accBal
-weightAvgBalance' accBal (lastDate,lastBal) (sd:ds) txns 
-  = weightAvgBalance' newAccBal (sd, nextBegBalance restTxns) ds restTxns
-  where 
-      (_txns,restTxns) = splitBy sd Exc txns
-      nextBegBalance [] = 0
-      nextBegBalance rTxns = getTxnBalance $ head rTxns
-      _txnDs = getDate <$> _txns
-      bals = lastBal:(getTxnBalance <$> _txns) 
-      dsFactor = getIntervalFactors ([lastDate]++_txnDs ++ [sd])
-      newAccBal = accBal + sum (zipWith mulBR bals dsFactor)
+weightAvgBalance' :: Date -> Date -> [Txn] -> Balance 
+weightAvgBalance' sd ed [] = 0.0 
+weightAvgBalance' sd ed txns 
+  = let 
+      -- txns = sliceBy EE sd ed txns
+      viewDs = sort $ [sd,ed] ++ (getDate <$> (sliceBy EE  sd ed txns))
+      balances = flip viewBalanceAsOf txns <$> viewDs
+      factors = getIntervalFactors viewDs
+    in 
+      sum $ zipWith mulBR balances factors -- `debug` ("Factors"++show factors++"Balances"++show balances)   
 
 data Statement = Statement [Txn]
               deriving (Show, Generic, Eq, Ord, Read)
@@ -163,8 +173,8 @@ appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])
 appendStmt Nothing txn = Just $ Statement [txn]
 
 
-statmentTxns :: Lens' Statement [Txn]
-statmentTxns = lens getter setter
+statementTxns :: Lens' Statement [Txn]
+statementTxns = lens getter setter
   where 
     getter (Statement txns) = txns
     setter (Statement _) txns = Statement txns

@@ -45,9 +45,11 @@ import qualified Data.Map as Map
 import Debug.Trace
 import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
+import Control.Lens.TH
 import Language.Haskell.TH.Lens (_BytesPrimL)
 import Stmt (getTxnAmt)
 import Data.Char (GeneralCategory(NotAssigned))
+import qualified Stmt as L
 -- import Deal.DealBase (UnderlyingDeal(futureCf))
 
 debug = flip trace
@@ -332,11 +334,11 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYiel
                     Nothing -> []
 
 
-weightAverageBalance :: Date -> Date -> Bond -> Balance
-weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ stmt)
-  = S.weightAvgBalance'
-      0
-      (sd,)
+-- weightAverageBalance :: Date -> Date -> Bond -> Balance
+weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
+  = mulBR currentBalance (yearCountFraction DC_ACT_365F (max bd sd) ed) 
+weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ (Just stmt))
+  = L.weightAvgBalance' (max bd sd) ed (view S.statementTxns stmt)
 
 -- TO BE Deprecate, it was implemented in Cashflow Frame
 -- weightAverageBalance :: Date -> Date -> Bond -> Balance
@@ -358,7 +360,7 @@ weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBal
       --           Nothing -> []
       --           Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 weightAverageBalance sd ed bg@(BondGroup bMap)
-  = sum $ weightAverageBalance sd ed <$> Map.elems bMap  `debug` (">>>"++ show (weightAverageBalance sd ed <$> Map.elems bMap))
+  = sum $ weightAverageBalance sd ed <$> Map.elems bMap -- `debug` (">>>"++ show (weightAverageBalance sd ed <$> Map.elems bMap))
 
 calcZspread :: (Rational,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
 calcZspread _ _ _ b@Bond{bndStmt = Nothing} _ = error "No Cashflow for bond"

@@ -90,10 +90,6 @@ testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=con
                   trigger { trgStatus = newSt
                            , trgStmt = Stmt.appendStmt tStmt newTxn}
 
--- updateTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
--- updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
---   | testTrigger t d trigger = trigger {trgStatus = True}  
---   | otherwise = trigger
 
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
@@ -187,7 +183,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lp
 
 -- ^ annualized % fee base on pool balance/amount
 calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase _r) fs fd (Just _fdDay) fa lpd _)
-  = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show calcDay ++show baseBal ++show(newDue))                   
+  = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show newDue++"oldDue"++show fd)
       where 
         accrueStart = _fdDay
         baseBal = case feeBase of
@@ -206,7 +202,7 @@ calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase 
                     -- CurrentBondBalance -> Map.foldr (\v a-> a + weightAvgBalance accrueStart calcDay (getTxns (L.bndStmt v)) ) 0.0 (bonds t)
                     -- CurrentBondBalanceOf bns -> sum $ (\v -> weightAvgBalance accrueStart calcDay (getTxns (L.bndStmt v))) <$>  viewDealBondsByNames t bns
         r = toRational $ queryDealRate t _r 
-        newDue = mulBR baseBal r
+        newDue = mulBR baseBal r -- `debug` ("Fee Name"++fn ++"Date"++ show [accrueStart, calcDay] ++ "base bal"++ show baseBal++"new rate"++show r)
 
 -- ^ % fee base on pool balance/amount
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCurCollection its mPns) r ) fs fd fdDay fa lpd _)
