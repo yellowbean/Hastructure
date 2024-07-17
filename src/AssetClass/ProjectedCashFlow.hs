@@ -174,6 +174,8 @@ instance Ast.Asset ProjectedCashflow where
     getOriginDate f = error ""
     getOriginInfo f = error ""
 
+    getCurrentRate f = 0.0
+
     calcCashflow f@(ProjectedFlowFixed cf _) d _ = cf
 
     calcCashflow f@(ProjectedFlowMixFloater cf _ fxPortion floatPortion) d mRate

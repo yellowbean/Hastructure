@@ -91,8 +91,13 @@ testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=con
                            , trgStmt = Stmt.appendStmt tStmt newTxn}
 
 
-pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
-pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
+pricingAssets :: PricingMethod -> [(ACM.AssetUnion,AP.AssetPerf)] -> Maybe [RateAssumption] -> Date -> [PriceResult]
+pricingAssets pm assetsAndAssump ras d 
+ = let 
+    pricingResults = (\(ast,perf) -> priceAssetUnion ast d pm perf ras) <$> assetsAndAssump
+   in
+    pricingResults
+
 
 calcLiquidationAmount :: Ast.Asset a => PricingMethod -> P.Pool a -> Date -> Amount
 calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
@@ -387,12 +392,12 @@ calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bondBal _ _ _ _ _ _ _ _)
 
 
 priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerf -> Maybe [RateAssumption] -> PriceResult
-priceAssetUnion (ACM.MO m) d pm aps = Ast.priceAsset m d pm aps 
-priceAssetUnion (ACM.LO m) d pm aps = Ast.priceAsset m d pm aps
-priceAssetUnion (ACM.IL m) d pm aps = Ast.priceAsset m d pm aps
-priceAssetUnion (ACM.LS m) d pm aps = Ast.priceAsset m d pm aps
-priceAssetUnion (ACM.RE m) d pm aps = Ast.priceAsset m d pm aps
-priceAssetUnion (ACM.PF m) d pm aps = Ast.priceAsset m d pm aps
+priceAssetUnion (ACM.MO m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
+priceAssetUnion (ACM.LO m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
+priceAssetUnion (ACM.IL m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
+priceAssetUnion (ACM.LS m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc 
+priceAssetUnion (ACM.RE m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
+priceAssetUnion (ACM.PF m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
 
 priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [PriceResult]
 priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates 

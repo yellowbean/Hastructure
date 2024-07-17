@@ -46,6 +46,7 @@ import Assumptions (ExtraStress(ExtraStress))
 
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import DateUtil (yearCountFraction)
 
 
 debug = flip trace
@@ -59,6 +60,8 @@ class (Show a,IR.UseRate a) => Asset a where
   getOriginBal :: a -> Balance
   -- | Get original rate of an asset
   getOriginRate :: a -> IRate
+  -- | Get current rate of an asset
+  getCurrentRate :: a -> IRate
   -- | Get origination date of an asset
   getOriginDate :: a -> Date
   -- | Get origin info of an asset
@@ -136,7 +139,6 @@ buildDefaultRates ds mDa =
     _ -> error ("failed to find prepayment type"++ show mDa)    
   where
     size = length ds
-
 
 
 -- | build pool assumption rate (prepayment, defaults, recovery rate , recovery lag)
@@ -234,20 +236,31 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
     where
       recoveryAmt = mulBR bal recoveryRate
 
-priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> PriceResult
-priceAsset m d (PVCurve curve) assumps mRates
+
+priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> CutoffType -> PriceResult
+priceAsset m d (PVCurve curve) assumps mRates cType
   = let 
       (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
-      amts = CF.tsTotalCash <$> txns 
+      accruedInt = case ds of 
+              [] -> 0 
+              (fstTxnDate:_) -> 
+                let 
+                  accStartDate = last $ takeWhile (< fstTxnDate) pDays 
+                in 
+                  mulBR (mulBIR cb cr) (yearCountFraction DC_ACT_365F accStartDate d) 
+      amts = CF.tsTotalCash <$> (case cType of 
+                                  Exc -> CF.clawbackInt accruedInt txns 
+                                  Inc -> txns)
       pv = pv3 curve d ds amts -- `debug` ("pricing"++ show d++ show ds++ show amts)
-      cb =  getCurrentBal m
+      cb = getCurrentBal m
+      cr = getCurrentRate m
       wal = calcWAL ByYear cb d (zip amts ds)
       duration = calcDuration d (zip ds amts) curve
     in 
-      AssetPrice pv wal duration (-1) (-1)  --TODO missing duration and convixity
+      AssetPrice pv wal duration (-1) accruedInt
 
-priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
+priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates cType
   = let 
       cb =  getCurrentBal m
       val = if isDefaulted m then 
@@ -261,15 +274,26 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
     in 
       AssetPrice val wal (-1) (-1) (-1)  --TODO missing convixity
       
-priceAsset m d (PvRate r) assumps mRates 
+priceAsset m d (PvRate r) assumps mRates cType
   = let 
       (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
-      cb =  getCurrentBal m
+      cb = getCurrentBal m
+      pDays = getOriginDate m:(getPaymentDates m 0)
       ds = getDate <$> txns 
-      amts = CF.tsTotalCash <$> txns 
+      accruedInt = case ds of 
+                    [] -> 0 
+                    (fstTxnDate:_) -> 
+                      let 
+                        accStartDate = last $ takeWhile (< fstTxnDate) pDays 
+                      in 
+                        mulBR (mulBIR cb cr) (yearCountFraction DC_ACT_365F accStartDate d)  
+      amts = CF.tsTotalCash <$> (case cType of 
+                                  Exc -> CF.clawbackInt accruedInt txns 
+                                  Inc -> txns)
       wal = calcWAL ByYear cb d (zip amts ds) 
       pv = sum $ zipWith (pv2 (fromRational r) d) ds amts
       curve = mkTs $ zip ds (repeat r)
       duration = calcDuration d (zip ds amts) curve
+      cr = getCurrentRate m
     in 
-      AssetPrice pv wal (duration) (-1) (-1)  --TODO missing convixity 
+      AssetPrice pv wal duration (-1) accruedInt  --TODO missing convixity 

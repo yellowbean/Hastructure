@@ -107,6 +107,9 @@ instance Asset Loan where
         Fix _ _r -> _r
         Floater _ _ _ _r _ _ _ _ -> _r 
 
+  getCurrentRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+    = _rate
+
   getOriginBal pl@(PersonalLoan (LoanOriginalInfo ob _ _ _ _ _) _ _ _ _ ) = ob
 
   isDefaulted pl@(PersonalLoan _ _ _ _ (Defaulted _)) = True

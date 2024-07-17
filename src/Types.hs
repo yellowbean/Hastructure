@@ -621,6 +621,7 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | AccruedInterest      -- ^ accrued interest at closing
                   deriving (Show,Ord,Eq,Read,Generic)
 
+
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest [Txn]
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | OASResult PriceResult [Valuation] Spread  

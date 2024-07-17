@@ -336,6 +336,10 @@ instance Ast.Asset Mortgage where
           IR.Fix _ _r -> _r
           IR.Floater _ _ _ _r _ _ _ _ -> _r 
 
+  getCurrentRate (Mortgage _ _ r _ _ _) = r
+  getCurrentRate (AdjustRateMortgage _ _ _ r _ _ _) = r
+  getCurrentRate (ScheduleMortgageFlow _ flows _) = 0.0
+
   getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ _ _) extra = genDates sd p (ot+extra)
   getPaymentDates (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _) _ _ _ _ _ _) extra = genDates sd p (ot+extra)
   getPaymentDates (ScheduleMortgageFlow begDate flows dp) extra 

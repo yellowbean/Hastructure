@@ -1,5 +1,9 @@
 # Changelog for Hastructure
 
+## 0.28.15
+### 2024-07-15
+* NEW: pricing on asset with `rate curve`, pricing asset with `interest accrued`
+
 ## 0.28.14
 ### 2024-07-06
 * FIX: enable `annualized rate fee type` with formula `bondbalance` on `bondGroup`
