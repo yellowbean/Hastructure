@@ -242,6 +242,7 @@ priceAsset m d (PVCurve curve) assumps mRates cType
   = let 
       (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
+      pDays = getOriginDate m:(getPaymentDates m 0)
       accruedInt = case ds of 
               [] -> 0 
               (fstTxnDate:_) -> 

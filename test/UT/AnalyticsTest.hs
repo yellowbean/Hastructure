@@ -62,13 +62,23 @@ fvTest = testGroup "FV Test" [
 
 assetPricingTest = 
   testGroup "Pricing on Asset" [
-    testCase "Loan Pricing" $
+    testCase "Loan Pricing(Inc Int)" $
       assertEqual "Loan Pricing"
-        (AssetPrice 1037.38 0.76 0.7 (-1.0) 0.21) $
+        (AssetPrice 1037.38 0.76 0.7 (-1.0) 0.21)
         (priceAsset (PersonalLoan (LoanOriginalInfo 1200 (Fix DC_30_360_US 0.08) 12 Monthly (L.toDate "20240701") I_P) 1000 0.08 10 Current)
                     (L.toDate "20241002") 
                     (PvRate 0.03) 
                     (LoanAssump Nothing Nothing Nothing Nothing,DummyDelinqAssump,DummyDefaultAssump)
                     Nothing 
                     Inc)
+    ,testCase "Loan Pricing(Exc Int)" $
+      assertEqual "Loan Pricing"
+        (AssetPrice 1037.17 0.76 0.7 (-1.0) 0.21)
+        (priceAsset (PersonalLoan (LoanOriginalInfo 1200 (Fix DC_30_360_US 0.08) 12 Monthly (L.toDate "20240701") I_P) 1000 0.08 10 Current)
+                    (L.toDate "20241002") 
+                    (PvRate 0.03) 
+                    (LoanAssump Nothing Nothing Nothing Nothing,DummyDelinqAssump,DummyDefaultAssump)
+                    Nothing 
+                    Exc)
+ 
   ]
