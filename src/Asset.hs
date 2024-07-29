@@ -80,6 +80,8 @@ class (Show a,IR.UseRate a) => Asset a where
   splitWith :: a -> [Rate] -> [a]
   -- | ! Change the origination date of an asset
   updateOriginDate :: a -> Date -> a
+  -- | ! Change the current asset state to the date of origination
+  resetToOrig :: a -> a
   -- | Get Last Interest Payment date
   getLastInterestPaymentDate :: a -> Maybe Date
   -- | Calculate Accrued Interest 

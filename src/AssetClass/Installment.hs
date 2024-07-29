@@ -123,6 +123,9 @@ instance Asset Installment where
   updateOriginDate (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) nd
     = Installment (LoanOriginalInfo ob or ot p nd _type) cb rt st
 
+  resetToOrig (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st)
+    = Installment (LoanOriginalInfo ob or ot p sd _type) ob ot st
+
   projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd pt) cb rt Current) 
                asOfDay 
                pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump ams,_,_)

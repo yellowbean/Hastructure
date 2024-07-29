@@ -118,6 +118,9 @@ instance Asset Loan where
   getOriginInfo (PersonalLoan oi cb cr rt st) = oi
   getOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = sd
   
+  resetToOrig m@(PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) 
+    = PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) ob (getOriginRate m) ot st
+  
   getRemainTerms (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = rt
 
   updateOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) nd

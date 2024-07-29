@@ -93,6 +93,8 @@ instance Asset Receivable where
 
   getOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = sd
 
+  resetToOrig r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = r
+
   getRemainTerms r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = 1
 
   getOriginRate _ = 0

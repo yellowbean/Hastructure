@@ -311,6 +311,11 @@ class TimeSeries ts where
                     Exc-> getDate x < d  -- 
       in 
         (filter ffunL tss, filter ffunR tss)
+
+    getByDate :: Date -> [ts] -> Maybe ts
+    getByDate d ts = case filterByDate ts d of 
+                      [] -> Nothing
+                      (x:_) -> Just x
  
 
 data Ts = FloatCurve [TsPoint Rational]
