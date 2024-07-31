@@ -9,8 +9,9 @@ module Util
     ,replace,paddingDefault, capWith, getTsDates
     ,shiftTsByAmt,calcWeightBalanceByDates
     ,maximum',minimum',roundingBy,roundingByM
-    ,floorWith,slice,toPeriodRateByInterval, dropLastN
+    ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox
+    ,safeDivide
     -- for debug
     ,zyj
     )
@@ -27,6 +28,7 @@ import Lib
 import Types
 import DateUtil
 
+import Numeric.Limits (infinity)
 import Text.Printf
 import Control.Exception
 
@@ -184,6 +186,9 @@ getTsSize ts = length (getTsVals ts)
 zipTs :: [Date] -> [Rational] -> Ts 
 zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- zip ds rs ]
 
+zipBalTs :: [Date] -> [Balance] -> Ts
+zipBalTs ds rs = BalanceCurve [ TsPoint d r | (d,r) <- zip ds rs ]
+
 multiplyTs :: CutoffType -> Ts -> Ts -> Ts
 multiplyTs ct (FloatCurve ts1) ts2
   = FloatCurve [(TsPoint d (v * (getValByDate ts2 ct d))) | (TsPoint d v) <- ts1 ] 
@@ -305,6 +310,9 @@ findBox (Exc,Exc) x ((l,h):xs)
   | otherwise = findBox (Exc,Exc) x xs
 
 
+safeDivide :: RealFloat a => a -> a -> a 
+safeDivide _ 0 = infinity
+safeDivide x y = x / y
 
 
 ----- DEBUG/PRINT

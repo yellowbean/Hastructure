@@ -64,6 +64,9 @@ import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import GHC.Real (infinity)
+import Deal.DealQuery (patchDatesToStats)
+import Data.OpenApi (HasPatch(patch))
 
 debug = flip trace
 
@@ -83,16 +86,12 @@ testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
 testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=cond,trgStmt = tStmt} 
   | not curable && st = trigger
   | otherwise = let 
-                  newSt = testPre d t cond
-                  newTxn = TrgTxn d newSt Stmt.Empty
+                  (memo, newSt) = testPre2 d t cond
+                  newTxn = TrgTxn d newSt (Stmt.Tag memo)
                 in 
                   trigger { trgStatus = newSt
                            , trgStmt = Stmt.appendStmt tStmt newTxn}
 
--- updateTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
--- updateTrigger t d trigger@Trigger{ trgStatus=st,trgCurable=cure,trgCondition=cond}
---   | testTrigger t d trigger = trigger {trgStatus = True}  
---   | otherwise = trigger
 
 pricingAssets :: PricingMethod -> [ACM.AssetUnion] -> Date -> Amount 
 pricingAssets (BalanceFactor currentfactor defaultfactor) assets d = 0 
@@ -186,24 +185,13 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lp
 
 -- ^ annualized % fee base on pool balance/amount
 calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase _r) fs fd (Just _fdDay) fa lpd _)
-  = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show calcDay ++show baseBal ++show(newDue))                   
+  = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show newDue++"oldDue"++show fd)
       where 
         accrueStart = _fdDay
-        baseBal = case feeBase of
-                    CurrentPoolBalance mPns ->
-                      let 
-                        txnsByPool = getAllCollectedTxns t mPns
-                        waBalByPool = Map.map (CF.mflowWeightAverageBalance accrueStart calcDay <$>) txnsByPool
-                      in 
-                        sum $ fromMaybe 0  <$> Map.elems waBalByPool
-                    OriginalPoolBalance mPns -> mulBR 
-                                                  (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
-                                                  (yearCountFraction DC_ACT_365F accrueStart calcDay)
-                    OriginalBondBalance -> mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
-                    CurrentBondBalance -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t)
-                    CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondsByName t (Just bns))
-        r = toRational $ queryDealRate t _r 
-        newDue = mulBR baseBal r
+        patchedDs = patchDatesToStats t accrueStart calcDay feeBase
+        baseBal = queryDeal t patchedDs
+        r = toRational $ queryDealRate t _r -- `debug` ("Base "++ show calcDay ++">>"++ show baseBal++"From ds"++show patchedDs++"Fee Name"++fn)
+        newDue = mulBR baseBal r -- `debug` ("Fee Name"++fn ++"Date"++ show [accrueStart, calcDay] ++ "base bal"++ show baseBal++"new rate"++show r)
 
 -- ^ % fee base on pool balance/amount
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee (PoolCurCollection its mPns) r ) fs fd fdDay fa lpd _)
@@ -343,6 +331,7 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ i
 
 
 calcDuePrin :: Ast.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
+calcDuePrin t calc_date b@(L.BondGroup bMap) = L.BondGroup $ Map.map (calcDuePrin t calc_date) bMap
 calcDuePrin t calc_date b@(L.Bond _ L.Sequential _ _ _ bondBal _ _ _ _ _ _ _ _)
   = b {L.bndDuePrin = bondBal } 
 
@@ -392,6 +381,7 @@ priceAssetUnion (ACM.LO m) d pm aps = Ast.priceAsset m d pm aps
 priceAssetUnion (ACM.IL m) d pm aps = Ast.priceAsset m d pm aps
 priceAssetUnion (ACM.LS m) d pm aps = Ast.priceAsset m d pm aps
 priceAssetUnion (ACM.RE m) d pm aps = Ast.priceAsset m d pm aps
+priceAssetUnion (ACM.PF m) d pm aps = Ast.priceAsset m d pm aps
 
 priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [PriceResult]
 priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates 
@@ -451,7 +441,7 @@ evalExtraSupportBalance d t (W.WithCondition pre s)
   | testPre d t pre = evalExtraSupportBalance d t s
   | otherwise = [0]
 evalExtraSupportBalance d t@TestDeal{accounts=accMap} (W.SupportAccount an _) = [A.accBalance $ accMap Map.! an]
-evalExtraSupportBalance d t@TestDeal{liqProvider=Just liqMap} (W.SupportLiqFacility liqName) = [ fromMaybe 1e100 (CE.liqCredit (liqMap Map.! liqName))] -- `debug` ("Returning"++ show [ fromMaybe 1e100 (CE.liqCredit (liqMap Map.! liqName))])
+evalExtraSupportBalance d t@TestDeal{liqProvider=Just liqMap} (W.SupportLiqFacility liqName) = [ fromMaybe (fromRational (toRational infinity)) (CE.liqCredit (liqMap Map.! liqName))] -- `debug` ("Returning"++ show [ fromMaybe 1e100 (CE.liqCredit (liqMap Map.! liqName))])
 evalExtraSupportBalance d t (W.MultiSupport supports) = concat $ evalExtraSupportBalance d t <$> supports
 
 
@@ -620,6 +610,11 @@ performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
 performActionWrap d (t, rc, logs) (W.ActionWithPre p actions) 
   | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actions
   | otherwise = (t, rc, logs)
+   -- where 
+   -- trgsToRun = preHasTrigger p
+   -- trgsEffects = []
+   -- (newT, newRc) = runEffects (t, rc) d trgsEffects 
+    
 
 performActionWrap d (t, rc, logs) (W.ActionWithPre2 p actionsTrue actionsFalse) 
   | testPre d t p = foldl (performActionWrap d) (t,rc,logs) actionsTrue
@@ -721,7 +716,7 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFeeBySeq mLimit a
     
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
     -- update primary account map
-    accPaidOut = min actualPaidOut availAccBal
+    accPaidOut = min actualPaidOut availAccBal 
     dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (SeqPayFee fns)) an accMap
                      ,fees = Map.fromList (zip fns feesPaid) <> feeMap}
 
@@ -754,12 +749,12 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
                       Just (DueCapAmt amt) -> min amt feeTotalDueAmt
                       Just (DuePct pct) -> mulBR feeTotalDueAmt pct
     -- total actual pay out
-    actualPaidOut = min amtAvailable dueAmtAfterCap
+    actualPaidOut = min amtAvailable dueAmtAfterCap 
 
     feesAmountToBePaid = zip feesToPay $ prorataFactors feeDueAmts actualPaidOut
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
     -- update primary account map
-    accPaidOut = min actualPaidOut availAccBal
+    accPaidOut = min actualPaidOut availAccBal -- `debug` ("Actual paid out"++ show actualPaidOut++" acc bal"++ show availAccBal ++">>"++ show (snd <$> feesAmountToBePaid)++">>"++ show fns)
     dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (SeqPayFee fns)) an accMap
                      ,fees = Map.fromList (zip fns feesPaid) <> feeMap}
 
@@ -783,7 +778,7 @@ performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap} (W
                        Just (DueCapAmt amt) -> min amt (accBal + supportAvail)
                        _ -> error $ "Not support for limit when pay int by seq" ++ show mLimit
       bndsList = (Map.!) bndMap <$> bnds
-      dueAmts = L.bndDueIntOverInt<$> bndsList
+      dueAmts = L.bndDueIntOverInt <$> bndsList
       actualPaids = paySeqLiabilitiesAmt amtAvailable dueAmts
       -- update bond paid
       bondsPaid = uncurry (L.payInt d) <$> zip actualPaids bndsList
@@ -980,7 +975,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinGroup mLimit 
     bndsWithDueMap = Map.map (calcDuePrin t d) bndsToPay
     bndsDueAmtsMap = Map.map (\x -> (x, L.bndDuePrin x)) bndsWithDueMap
     totalDueAmount = sum $ snd <$> Map.elems bndsDueAmtsMap -- `debug` (">date"++show d++" due amt"++show bndsDueAmtsMap)
-    payAmount = min totalDueAmount amtAvailable -- `debug` (">date total dueAmt"++ show totalDueAmount)
+    payAmount = min totalDueAmount amtAvailable  -- `debug` (">date total available"++ show amtAvailable)
     
     -- actualPaids =  paySeqLiabilitiesAmt payAmount bndsDueAmts
     payOutPlan = allocAmtToBonds by payAmount (Map.elems bndsDueAmtsMap) -- `debug` (">date"++ show payAmount)
@@ -1002,7 +997,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinGroup mLimit 
 
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueAndPayIntGroup mLimit an bndName by mSupport)
   = let 
-       dAfterAcc = performAction d t (W.AccrueIntGroup [bndName])
+       dAfterAcc = performAction d t (W.AccrueIntGroup [bndName])-- `debug` ("Acc due int grp"++ show (getDueInt (bndMap Map.! bndName)))
     in 
        performAction d dAfterAcc (W.PayIntGroup mLimit an bndName by mSupport)
 
@@ -1349,10 +1344,14 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapS
       performAction d t2 (W.SwapPay accName sName)
 
 
-performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tName)
+performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tNames)
   = t { triggers = Just (Map.insert loc newMap trgM) }
     where 
       -- newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
-      newMap = Map.adjust (testTrigger t d) tName (trgM Map.! loc)
+      triggerM = trgM Map.! loc
+      newMap = foldr 
+                (Map.adjust (testTrigger t d))
+                triggerM
+                tNames
 
 performAction d t action =  error $ "failed to match action>>"++show action++">>Deal"++show (name t)

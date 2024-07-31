@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -37,6 +37,7 @@ library
       AssetClass.Loan
       AssetClass.MixedAsset
       AssetClass.Mortgage
+      AssetClass.ProjectedCashFlow
       AssetClass.Receivable
       Assumptions
       Call
@@ -63,6 +64,7 @@ library
       Triggers
       Types
       Util
+      Validation
       Waterfall
   other-modules:
       Paths_Hastructure
@@ -76,6 +78,7 @@ library
     , containers
     , hashable
     , lens
+    , numeric-limits
     , openapi3
     , regex-base
     , regex-pcre-builtin
@@ -115,6 +118,7 @@ executable Hastructure-exe
     , lens
     , lucid
     , mtl
+    , numeric-limits
     , openapi3
     , regex-base
     , regex-pcre-builtin
@@ -173,6 +177,7 @@ test-suite Hastructure-test
     , containers
     , hashable
     , lens
+    , numeric-limits
     , openapi3
     , regex-base
     , regex-pcre-builtin

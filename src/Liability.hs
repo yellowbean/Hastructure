@@ -11,7 +11,8 @@ module Liability
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
-  ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..))
+  ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
+  ,getCurBalance)
   where
 
 import Language.Haskell.TH
@@ -27,6 +28,7 @@ import Util
 import DateUtil
 import Types hiding (BondGroup)
 import Analytics
+
 import Data.Ratio 
 import Data.Maybe
 
@@ -43,32 +45,14 @@ import qualified Data.Map as Map
 import Debug.Trace
 import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
+import Control.Lens.TH
 import Language.Haskell.TH.Lens (_BytesPrimL)
 import Stmt (getTxnAmt)
+import Data.Char (GeneralCategory(NotAssigned))
+import qualified Stmt as L
 -- import Deal.DealBase (UnderlyingDeal(futureCf))
 
 debug = flip trace
-
-type RateReset = DatePattern 
-
-data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by pct over current rate
-                             | OverFixSpread Spread -- ^ inflat ioi rate by fix spread
-                             deriving (Show, Eq, Generic, Ord)
-
-
---------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
-data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
-                  | Fix IRate DayCount                                    -- ^ fixed rate
-                  | InterestByYield IRate
-                  | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
-                  | CapRate InterestInfo IRate                            -- ^ cap rate 
-                  | FloorRate InterestInfo IRate                          -- ^ floor rate
-                  | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
-                  deriving (Show, Eq, Generic, Ord)
-                  
-data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
-            | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
-            deriving (Show, Eq, Generic, Ord)
 
 -- | test if a bond may changes its interest rate
 isAdjustble :: InterestInfo -> Bool 
@@ -104,14 +88,34 @@ getDayCountFromInfo (FloorRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (WithIoI info _) = getDayCountFromInfo info
 getDayCountFromInfo _ = Nothing
 
+type RateReset = DatePattern 
+type PlannedAmorSchedule = Ts
+
+data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by pct over current rate
+                             | OverFixSpread Spread -- ^ inflat ioi rate by fix spread
+                             deriving (Show, Eq, Generic, Ord, Read)
+
+
+--------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
+data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
+                  | Fix IRate DayCount                                    -- ^ fixed rate
+                  | InterestByYield IRate
+                  | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
+                  | CapRate InterestInfo IRate                            -- ^ cap rate 
+                  | FloorRate InterestInfo IRate                          -- ^ floor rate
+                  | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
+                  deriving (Show, Eq, Generic, Ord, Read)
+                  
+data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
+            | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
+            deriving (Show, Eq, Generic, Ord, Read)
+
 data OriginalInfo = OriginalInfo {
   originBalance::Balance           -- ^ issuance balance
   ,originDate::Date                -- ^ issuance date
   ,originRate::Rate                -- ^ issuance rate of the bond
   ,maturityDate :: Maybe Date      -- ^ optional maturity date
-} deriving (Show, Eq, Generic, Ord)
-
-type PlannedAmorSchedule = Ts
+} deriving (Show, Eq, Generic, Ord, Read)
 
 data BondType = Sequential                                 -- ^ Pass through type tranche
               | PAC PlannedAmorSchedule                    -- ^ bond with schedule amortization 
@@ -119,11 +123,11 @@ data BondType = Sequential                                 -- ^ Pass through typ
               | Lockout Date                               -- ^ No principal due till date
               | Z                                          -- ^ Z tranche
               | Equity                                     -- ^ Equity type tranche
-              deriving (Show, Eq, Generic, Ord)
+              deriving (Show, Eq, Generic, Ord, Read)
 
 data Bond = Bond {
               bndName :: String
-              ,bndType :: BondType                 -- ^ bond type ,which describle the how principal due was calculated
+              ,bndType :: BondType                 -- ^ bond type ,which describe the how principal due was calculated
               ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
               ,bndInterestInfo :: InterestInfo     -- ^ interest info which used to update interest rate
               ,bndStepUp :: Maybe StepUp           -- ^ step up which update interest rate
@@ -139,7 +143,7 @@ data Bond = Bond {
               ,bndStmt :: Maybe S.Statement        -- ^ transaction history
             } 
             | BondGroup (Map.Map String Bond)      -- ^ bond group
-            deriving (Show, Eq, Generic, Ord)
+            deriving (Show, Eq, Generic, Ord, Read)            
 
 consolStmt :: Bond -> Bond
 consolStmt (BondGroup bMap) = BondGroup $ Map.map consolStmt bMap
@@ -330,18 +334,36 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYiel
                     Nothing -> []
 
 
+-- weightAverageBalance :: Date -> Date -> Bond -> Balance
+weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
+  = mulBR currentBalance (yearCountFraction DC_ACT_365F (max bd sd) ed) 
+weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ (Just stmt))
+  = L.weightAvgBalance' 
+      (max bd sd) 
+      ed 
+      (view S.statementTxns stmt)
+
 -- TO BE Deprecate, it was implemented in Cashflow Frame
-weightAverageBalance :: Date -> Date -> Bond -> Balance
-weightAverageBalance sd ed b@(Bond _ _ _ _ _ currentBalance _ _ _ _ _ _ _ stmt)
-  = sum $ zipWith mulBR _bals _dfs -- `debug` ("dfs"++show(sd)++show(ed)++show(_ds)++show(_bals)++show(_dfs))  -- `debug` (">> stmt"++show(sliceStmt (bndStmt _b) sd ed))
-    where
-      _dfs =  getIntervalFactors $ [sd]++ _ds ++ [ed]
-      _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
-      _ds = S.getDates txns -- `debug` ("Slice"++show((sliceStmt (bndStmt _b) sd ed)))
-      _b = consolStmt b   
-      txns =  case S.sliceStmt sd ed <$> bndStmt _b of
-                Nothing -> []
-                Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
+-- weightAverageBalance :: Date -> Date -> Bond -> Balance
+-- weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ stmt)
+--   = sum $ zipWith mulBR (_bals txns) _dfs `debug` ("date"++ show sd ++"ed"++ show ed++"Bals"++ show _bals)
+--     where
+--       allTxns = S.getTxns $ bndStmt (consolStmt b)
+--       _ds = S.getDates allTxns
+--       begBals = currentBalance:(S.getTxnBalance <$> allTxns) -- from current balance to the end
+--       balCurve = zipBalTs _ds begBals
+-- 
+--       _dfs =  getIntervalFactors $ [max bd sd]++ _ds ++ [ed]
+-- 
+--       txns = sliceBy IE sd ed $ S.getTxns $ bndStmt b
+      
+      -- _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
+      -- _b = consolStmt b   
+      -- txns =  case S.sliceStmt sd ed <$> bndStmt _b of
+      --           Nothing -> []
+      --           Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
+weightAverageBalance sd ed bg@(BondGroup bMap)
+  = sum $ weightAverageBalance sd ed <$> Map.elems bMap -- `debug` (">>>"++ show (weightAverageBalance sd ed <$> Map.elems bMap))
 
 calcZspread :: (Rational,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
 calcZspread _ _ _ b@Bond{bndStmt = Nothing} _ = error "No Cashflow for bond"
@@ -454,6 +476,9 @@ instance Liable Bond where
   
   getOriginBalance b@Bond{ bndOriginInfo = bo } = originBalance bo
   getOriginBalance (BondGroup bMap) = sum $ getOriginBalance <$> Map.elems bMap
+
+  getDueInt b@Bond{bndDueInt=di} = di
+  getDueInt (BondGroup bMap) = sum $ getDueInt <$> Map.elems bMap
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool

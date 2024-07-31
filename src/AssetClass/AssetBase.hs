@@ -9,6 +9,7 @@ module AssetClass.AssetBase
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
   ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..),ReceivableFeeType(..),Receivable(..)
+  ,ProjectedCashflow(..)
   ,calcAssetPrinInt, calcPmt
   )
   where
@@ -171,6 +172,16 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic,Eq,Ord)
 
+
+type FixRatePortion   = (Rate, IRate)
+type FloatRatePortion = (Rate, Spread, Index)
+
+
+data ProjectedCashflow = ProjectedFlowFixed CF.CashFlowFrame DatePattern
+                       | ProjectedFlowMixFloater CF.CashFlowFrame DatePattern FixRatePortion [FloatRatePortion]
+                       deriving (Show,Generic,Eq,Ord)
+
+
 data Receivable = Invoice OriginalInfo Status
                 | DUMMY4
                 deriving (Show,Generic,Eq,Ord)
@@ -212,6 +223,7 @@ data AssetUnion = MO Mortgage
                 | LS Lease
                 | FA FixedAsset
                 | RE Receivable
+                | PF ProjectedCashflow
                 deriving (Show, Generic,Ord,Eq)
 
 instance IR.UseRate AssetUnion where
@@ -221,6 +233,7 @@ instance IR.UseRate AssetUnion where
   getIndex (LS ma) = IR.getIndex ma
   getIndex (FA ma) = IR.getIndex ma
   getIndex (RE ma) = IR.getIndex ma
+  getIndex (PF ma) = IR.getIndex ma
 
 
 instance IR.UseRate Mortgage where 
@@ -247,36 +260,31 @@ instance IR.UseRate FixedAsset where
 instance IR.UseRate Receivable where
   getIndex _ = Nothing
 
+instance IR.UseRate ProjectedCashflow where 
+  getIndex (ProjectedFlowFixed cf _) = Nothing  
+
+  getIndex (ProjectedFlowMixFloater cf _ _ (f:fs)) = Just $ (\(a,b,c) -> c) f 
+  getIndexes (ProjectedFlowMixFloater cf _ _ fs ) 
+    = Just $ (\(a,b,c) -> c) <$> fs
 
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
     , ''Capacity, ''AmortRule, ''ReceivableFeeType])
 
 
--- $(deriveJSON defaultOptions ''AmortRule)
--- $(deriveJSON defaultOptions ''Capacity)
 $(deriveJSON defaultOptions ''AssociateExp)
 $(deriveJSON defaultOptions ''AssociateIncome)
--- $(deriveJSON defaultOptions ''FixedAsset)
 $(deriveJSON defaultOptions ''Status)
--- $(deriveJSON defaultOptions ''AmortPlan)
--- $(deriveJSON defaultOptions ''ReceivableFeeType)
--- $(deriveJSON defaultOptions ''OriginalInfo)
 $(deriveJSON defaultOptions ''Installment)
 $(deriveJSON defaultOptions ''LeaseStepUp)
 $(deriveJSON defaultOptions ''Mortgage)
 $(deriveJSON defaultOptions ''Loan)
 $(deriveJSON defaultOptions ''Lease)
 $(deriveJSON defaultOptions ''Receivable)
+$(deriveJSON defaultOptions ''ProjectedCashflow)
 $(deriveJSON defaultOptions ''AssetUnion)
--- $(deriveJSON defaultOptions ''PrepayPenaltyType)
-
-
--- instance ToSchema TsPoint
--- instance ToSchema (Ratio Integer)
 instance ToSchema Capacity
 instance ToSchema AmortRule
--- instance ToSchema (Ratio Integer) 
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
 
@@ -295,7 +303,6 @@ instance ToSchema Direction
 instance ToSchema AmortPlan
 instance ToSchema DatePattern
 instance ToSchema IR.RateType
--- instance ToSchema (IR.RoundingBy IR.RateType)
 instance ToSchema CF.TsRow
 instance ToSchema Period
 instance ToSchema IR.ARM

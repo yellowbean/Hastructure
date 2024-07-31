@@ -9,9 +9,9 @@ module Stmt
    ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
    ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
-   ,weightAvgBalanceByDates,weightAvgBalance, sumTxn, consolTxn
+   ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
-   ,scaleTxn,isEmptyTxn
+   ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf
   )
   where
 
@@ -97,7 +97,7 @@ getTxnAmt (ExpTxn _ _ t _ _ ) = t
 getTxnAmt (SupportTxn _ _ t _ _ _ _) = t
 getTxnAmt (IrsTxn _ _ t _ _ _ _ ) = t
 getTxnAmt (EntryTxn _ _ t _) = t
-getTxnAmt (TrgTxn {} ) = 0.0
+getTxnAmt TrgTxn {} = 0.0
 
 getTxnAsOf :: [Txn] -> Date -> Maybe Txn
 getTxnAsOf txns d = find (\x -> getDate x <= d) $ reverse txns
@@ -125,12 +125,25 @@ sliceStmt :: Date -> Date -> Statement -> Statement
 sliceStmt sd ed (Statement txns) 
   = Statement $ sliceBy II sd ed txns
 
+viewBalanceAsOf :: Date -> [Txn] -> Balance
+viewBalanceAsOf d [] = 0.0 
+viewBalanceAsOf d txns 
+  | d < begDate = getTxnBegBalance fstTxn -- `debug` (" get first txn")
+  | d > endDate = getTxnBalance lstTxn -- `debug` (" get last txn")
+  | otherwise = getTxnBalance $ fromJust $ getTxnAsOf txns d -- `debug` ("Found txn>>>>>"++show d++show (getTxnAsOf txns d))
+  where 
+    fstTxn = head txns
+    lstTxn = last txns
+    begDate = getDate fstTxn
+    endDate = getDate lstTxn
+
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 
-  = map (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) intervals -- `debug` ("interval"++ show intervals++ show txns)
+  = (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) <$> intervals -- `debug` ("interval"++ show intervals++ show txns)
   where 
       intervals = zip (init ds) (tail ds) 
 
+-- ^ Txn must be full transactions
 weightAvgBalance :: Date -> Date -> [Txn] -> Balance -- txn has to be between sd & ed
 weightAvgBalance sd ed txns 
   = sum $ zipWith mulBR bals dsFactor -- `debug` ("WavgBalace "++show bals++show dsFactor)
@@ -140,17 +153,28 @@ weightAvgBalance sd ed txns
       ds = [sd] ++ map getDate _txns ++ [ed] 
       dsFactor = getIntervalFactors ds  -- `debug` ("DS>>>"++show ds)
 
+weightAvgBalance' :: Date -> Date -> [Txn] -> Balance 
+weightAvgBalance' sd ed [] = 0.0 
+weightAvgBalance' sd ed (_txn:_txns)
+  = let 
+      -- txns = sliceBy EE sd ed txns
+      txns = reverse $ foldl consolTxn [_txn] _txns
+      viewDs = sort $ [sd,ed] ++ (getDate <$> (sliceBy EE  sd ed txns))
+      balances = flip viewBalanceAsOf txns <$> viewDs -- `debug` ("get bal snapshot"++ show viewDs++ ">>>"++show txns)
+      factors = getIntervalFactors viewDs
+    in 
+      sum $ zipWith mulBR balances factors --`debug` ("In weight avg bal: Factors"++show factors++"Balances"++show balances ++ "interval "++ show (sd,ed))   
 
 data Statement = Statement [Txn]
-        deriving (Show, Generic, Eq, Ord)
+              deriving (Show, Generic, Eq, Ord, Read)
 
 appendStmt :: Maybe Statement -> Txn -> Maybe Statement
 appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])
 appendStmt Nothing txn = Just $ Statement [txn]
 
 
-statmentTxns :: Lens' Statement [Txn]
-statmentTxns = lens getter setter
+statementTxns :: Lens' Statement [Txn]
+statementTxns = lens getter setter
   where 
     getter (Statement txns) = txns
     setter (Statement _) txns = Statement txns
@@ -202,6 +226,7 @@ getFlow comment =
       SwapOutSettle -> Outflow
       PurchaseAsset -> Outflow
       SupportDraw -> Noneflow
+      IssuanceProceeds _ -> Inflow
       TxnComments cmts -> 
         let 
           directionList = getFlow <$> cmts 

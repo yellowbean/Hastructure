@@ -126,7 +126,7 @@ deposit :: Amount -> Date -> TxnComment -> Account -> Account
 deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
     acc {accBalance = newBal, accStmt = newStmt}
   where
-    newBal = bal + amount
+    newBal = bal + amount -- `debug` ("Date:"++show d++ "deposit"++show amount++"from"++show bal)
     newStmt = appendStmt maybeStmt (AccTxn d newBal amount source)
 
 -- | draw cash from account with a comment

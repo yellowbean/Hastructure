@@ -67,6 +67,7 @@ import qualified AssetClass.Installment
 import qualified AssetClass.Mortgage 
 import qualified AssetClass.Loan 
 import qualified AssetClass.Lease 
+import qualified AssetClass.ProjectedCashFlow
 import qualified AssetClass.MixedAsset as MA
 import qualified AssetClass.AssetBase as AB 
 import qualified Assumptions as AP
@@ -102,7 +103,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.28.6"
+version1 = Version "0.28.15"
 
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
@@ -110,8 +111,9 @@ data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | IDeal (DB.TestDeal AB.Installment) 
               | RDeal (DB.TestDeal AB.Lease) 
               | FDeal (DB.TestDeal AB.FixedAsset) 
-              | VDeal (DB.TestDeal AB.Receivable) 
-              | UDeal (DB.TestDeal AB.AssetUnion) 
+              | VDeal (DB.TestDeal AB.Receivable)
+              | PDeal (DB.TestDeal AB.ProjectedCashflow) 
+              | UDeal (DB.TestDeal AB.AssetUnion)
               deriving(Show, Generic)
 
 instance ToSchema CF.CashFlowFrame
@@ -122,6 +124,7 @@ instance ToSchema AB.LeaseStepUp
 instance ToSchema AB.Lease
 instance ToSchema AB.FixedAsset
 instance ToSchema AB.Receivable
+instance ToSchema AB.ProjectedCashflow
 instance ToSchema CutoffFields
 instance ToSchema (P.Pool AB.Mortgage)
 instance ToSchema (P.Pool AB.Loan)
@@ -130,12 +133,13 @@ instance ToSchema (P.Pool AB.Lease)
 instance ToSchema (P.Pool AB.FixedAsset)
 instance ToSchema (P.Pool AB.Receivable)
 instance ToSchema (P.Pool AB.AssetUnion)
+instance ToSchema (P.Pool AB.ProjectedCashflow)
 instance ToSchema AB.AssetUnion
 instance ToSchema PoolId
 instance ToSchema DealStatus
 instance ToSchema DateType
-instance ToSchema DateDesp
-instance ToSchema ActionOnDate
+instance ToSchema DB.DateDesp
+instance ToSchema DB.ActionOnDate
 instance ToSchema DealStats
 instance ToSchema Cmp
 instance ToSchema PricingMethod
@@ -181,7 +185,7 @@ instance ToSchema CE.LiqDrawType
 instance ToSchema CustomDataType
 instance ToSchema TRG.Trigger
 instance ToSchema TRG.TriggerEffect
-instance ToSchema OverrideType
+instance ToSchema DB.OverrideType
 instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
@@ -191,6 +195,7 @@ instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
+instance ToSchema (TsPoint AP.IssueBondEvent)
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption
@@ -214,6 +219,7 @@ instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
 instance ToSchema (DB.TestDeal AB.Lease)
 instance ToSchema (DB.TestDeal AB.Receivable)
+instance ToSchema (DB.TestDeal AB.ProjectedCashflow)
 instance ToSchema (DB.TestDeal AB.AssetUnion)
 instance ToSchema (DB.TestDeal AB.FixedAsset)
 
@@ -223,6 +229,7 @@ instance ToSchema (DB.PoolType AB.Installment)
 instance ToSchema (DB.PoolType AB.Lease)
 instance ToSchema (DB.PoolType AB.FixedAsset)
 instance ToSchema (DB.PoolType AB.Receivable)
+instance ToSchema (DB.PoolType AB.ProjectedCashflow)
 instance ToSchema (DB.PoolType AB.AssetUnion)
 
 instance ToSchema (DB.UnderlyingDeal AB.Mortgage)
@@ -231,6 +238,7 @@ instance ToSchema (DB.UnderlyingDeal AB.Installment)
 instance ToSchema (DB.UnderlyingDeal AB.Lease)
 instance ToSchema (DB.UnderlyingDeal AB.FixedAsset)
 instance ToSchema (DB.UnderlyingDeal AB.Receivable)
+instance ToSchema (DB.UnderlyingDeal AB.ProjectedCashflow)
 instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
 
 instance ToSchema ResultComponent
@@ -268,6 +276,11 @@ wrapRun (VDeal d) mAssump mNonPerfAssump = let
                                        (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
                                      in 
                                        (VDeal _d,_pflow,_rs,_p)                                       
+wrapRun (PDeal d) mAssump mNonPerfAssump = let 
+                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+                                     in 
+                                       (PDeal _d,_pflow,_rs,_p)
+
 wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
 
@@ -277,6 +290,7 @@ data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
                   | RPool (DB.PoolType AB.Lease)
                   | FPool (DB.PoolType AB.FixedAsset)
                   | VPool (DB.PoolType AB.Receivable)
+                  | PPool (DB.PoolType AB.ProjectedCashflow)
                   | UPool (DB.PoolType AB.AssetUnion)
                   deriving(Show, Generic)
 
@@ -293,6 +307,7 @@ wrapRunPoolType (IPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.No
 wrapRunPoolType (RPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (FPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (VPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType (PPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (UPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
 

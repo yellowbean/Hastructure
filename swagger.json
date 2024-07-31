@@ -1530,7 +1530,10 @@
                                         "$ref": "#/components/schemas/DealCycle"
                                     },
                                     {
-                                        "type": "string"
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -2046,6 +2049,41 @@
                             "contents"
                         ],
                         "title": "MakeWhole",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Bond"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IssueBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IssueBond",
                         "type": "object"
                     },
                     {
@@ -3231,6 +3269,25 @@
                             "contents"
                         ],
                         "title": "RE",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/ProjectedCashflow"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PF"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PF",
                         "type": "object"
                     }
                 ]
@@ -6218,6 +6275,28 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IsOutstanding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IsOutstanding",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -7204,6 +7283,146 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WeightedAvgCurrentPoolBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WeightedAvgCurrentPoolBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WeightedAvgCurrentBondBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WeightedAvgCurrentBondBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WeightedAvgOriginalPoolBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WeightedAvgOriginalPoolBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WeightedAvgOriginalBondBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WeightedAvgOriginalBondBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
@@ -7432,6 +7651,35 @@
                             "contents"
                         ],
                         "title": "Divide",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DivideRatio"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DivideRatio",
                         "type": "object"
                     },
                     {
@@ -7892,6 +8140,25 @@
                             "contents"
                         ],
                         "title": "VDeal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TestDeal_ProjectedCashflow"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PDeal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PDeal",
                         "type": "object"
                     },
                     {
@@ -8487,19 +8754,34 @@
                                         "type": "number"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Day"
+                                        "$ref": "#/components/schemas/Index"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
                                     },
                                     {
                                         "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DayCount"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 7,
+                                "minItems": 7,
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "BankAccount"
+                                    "Floater"
                                 ],
                                 "type": "string"
                             }
@@ -8508,7 +8790,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "BankAccount",
+                        "title": "Floater",
                         "type": "object"
                     },
                     {
@@ -8516,14 +8798,65 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/Index"
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
                                     },
+                                    {
+                                        "$ref": "#/components/schemas/DayCount"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Fix"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Fix",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "InterestByYield"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "InterestByYield",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
                                     {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Day"
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "format": "float",
+                                        "type": "number"
                                     },
                                     {
                                         "$ref": "#/components/schemas/DatePattern"
@@ -8535,7 +8868,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "InvestmentAccount"
+                                    "RefRate"
                                 ],
                                 "type": "string"
                             }
@@ -8544,7 +8877,140 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "InvestmentAccount",
+                        "title": "RefRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CapRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CapRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FloorRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FloorRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/InterestOverInterestType"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WithIoI"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WithIoI",
+                        "type": "object"
+                    }
+                ]
+            },
+            "InterestOverInterestType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "OverCurrRateBy"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "OverCurrRateBy",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "OverFixSpread"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "OverFixSpread",
                         "type": "object"
                     }
                 ]
@@ -9522,6 +9988,12 @@
                         },
                         "type": "array"
                     },
+                    "issueBondSchedule": {
+                        "items": {
+                            "$ref": "#/components/schemas/TsPoint_([Char],[Char],Bond)"
+                        },
+                        "type": "array"
+                    },
                     "makeWholeWhen": {
                         "items": [
                             {
@@ -9823,6 +10295,25 @@
                             "contents"
                         ],
                         "title": "VPool",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/PoolType_ProjectedCashflow"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PPool"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PPool",
                         "type": "object"
                     },
                     {
@@ -10248,6 +10739,73 @@
                     }
                 ]
             },
+            "PoolType_ProjectedCashflow": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Pool_ProjectedCashflow"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "SoloPool"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "SoloPool",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/Pool_ProjectedCashflow"
+                                },
+                                "type": "object"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MultiPool"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "MultiPool",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/UnderlyingDeal_ProjectedCashflow"
+                                },
+                                "type": "object"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ResecDeal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ResecDeal",
+                        "type": "object"
+                    }
+                ]
+            },
             "PoolType_Receivable": {
                 "oneOf": [
                     {
@@ -10493,6 +11051,40 @@
                     "assets": {
                         "items": {
                             "$ref": "#/components/schemas/Mortgage"
+                        },
+                        "type": "array"
+                    },
+                    "extendPeriods": {
+                        "$ref": "#/components/schemas/DatePattern"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "issuanceStat": {
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        },
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "assets",
+                    "asOfDate"
+                ],
+                "type": "object"
+            },
+            "Pool_ProjectedCashflow": {
+                "properties": {
+                    "asOfDate": {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    "assets": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectedCashflow"
                         },
                         "type": "array"
                     },
@@ -11549,6 +12141,104 @@
                             "contents"
                         ],
                         "title": "Custom",
+                        "type": "object"
+                    }
+                ]
+            },
+            "ProjectedCashflow": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/CashFlowFrame"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ProjectedFlowFixed"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ProjectedFlowFixed",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/CashFlowFrame"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-6,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "format": "double",
+                                                    "type": "number"
+                                                },
+                                                {
+                                                    "multipleOf": 1.0e-6,
+                                                    "type": "number"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/Index"
+                                                }
+                                            ],
+                                            "maxItems": 3,
+                                            "minItems": 3,
+                                            "type": "array"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ProjectedFlowMixFloater"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ProjectedFlowMixFloater",
                         "type": "object"
                     }
                 ]
@@ -13067,10 +13757,13 @@
                     },
                     {
                         "$ref": "#/components/schemas/DatePattern"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Day"
                     }
                 ],
-                "maxItems": 2,
-                "minItems": 2,
+                "maxItems": 3,
+                "minItems": 3,
                 "type": "array"
             },
             "RunDealReq": {
@@ -14146,6 +14839,124 @@
                 ],
                 "type": "object"
             },
+            "TestDeal_ProjectedCashflow": {
+                "properties": {
+                    "accounts": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Account"
+                        },
+                        "type": "object"
+                    },
+                    "bonds": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Bond"
+                        },
+                        "type": "object"
+                    },
+                    "call": {
+                        "items": {
+                            "$ref": "#/components/schemas/CallOption"
+                        },
+                        "type": "array"
+                    },
+                    "collects": {
+                        "items": {
+                            "$ref": "#/components/schemas/CollectionRule"
+                        },
+                        "type": "array"
+                    },
+                    "currencySwap": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CurrencySwap"
+                        },
+                        "type": "object"
+                    },
+                    "custom": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/CustomDataType"
+                        },
+                        "type": "object"
+                    },
+                    "dates": {
+                        "$ref": "#/components/schemas/DateDesp"
+                    },
+                    "fees": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Fee"
+                        },
+                        "type": "object"
+                    },
+                    "ledgers": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Ledger"
+                        },
+                        "type": "object"
+                    },
+                    "liqProvider": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/LiqFacility"
+                        },
+                        "type": "object"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "overrides": {
+                        "items": {
+                            "$ref": "#/components/schemas/OverrideType"
+                        },
+                        "type": "array"
+                    },
+                    "pool": {
+                        "$ref": "#/components/schemas/PoolType_ProjectedCashflow"
+                    },
+                    "rateCap": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateCap"
+                        },
+                        "type": "object"
+                    },
+                    "rateSwap": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/RateSwap"
+                        },
+                        "type": "object"
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/DealStatus"
+                    },
+                    "triggers": {
+                        "additionalProperties": {
+                            "additionalProperties": {
+                                "$ref": "#/components/schemas/Trigger"
+                            },
+                            "type": "object"
+                        },
+                        "type": "object"
+                    },
+                    "waterfall": {
+                        "additionalProperties": {
+                            "items": {
+                                "$ref": "#/components/schemas/Action"
+                            },
+                            "type": "array"
+                        },
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "name",
+                    "status",
+                    "dates",
+                    "accounts",
+                    "fees",
+                    "bonds",
+                    "pool",
+                    "waterfall",
+                    "collects"
+                ],
+                "type": "object"
+            },
             "TestDeal_Receivable": {
                 "properties": {
                     "accounts": {
@@ -14277,6 +15088,9 @@
                     },
                     "trgStatus": {
                         "type": "boolean"
+                    },
+                    "trgStmt": {
+                        "$ref": "#/components/schemas/Statement"
                     }
                 },
                 "required": [
@@ -14716,6 +15530,32 @@
                     {
                         "format": "double",
                         "type": "number"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
+            "TsPoint_([Char],[Char],Bond)": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "items": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Bond"
+                            }
+                        ],
+                        "maxItems": 3,
+                        "minItems": 3,
+                        "type": "array"
                     }
                 ],
                 "maxItems": 2,
@@ -15552,6 +16392,38 @@
                         ],
                         "title": "EntryTxn",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TrgTxn"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TrgTxn",
+                        "type": "object"
                     }
                 ]
             },
@@ -16096,6 +16968,25 @@
                     {
                         "properties": {
                             "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IssuanceProceeds"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IssuanceProceeds",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "$ref": "#/components/schemas/BookDirection"
                             },
                             "tag": {
@@ -16280,6 +17171,30 @@
                 ],
                 "type": "object"
             },
+            "UnderlyingDeal_ProjectedCashflow": {
+                "properties": {
+                    "deal": {
+                        "$ref": "#/components/schemas/TestDeal_ProjectedCashflow"
+                    },
+                    "futureCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "futureScheduleCf": {
+                        "$ref": "#/components/schemas/CashFlowFrame"
+                    },
+                    "issuanceStat": {
+                        "additionalProperties": {
+                            "multipleOf": 1.0e-2,
+                            "type": "number"
+                        },
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "deal"
+                ],
+                "type": "object"
+            },
             "UnderlyingDeal_Receivable": {
                 "properties": {
                     "deal": {
@@ -16323,7 +17238,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.2"
+        "version": "0.28.14"
     },
     "openapi": "3.0.0",
     "paths": {
