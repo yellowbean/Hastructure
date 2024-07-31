@@ -209,8 +209,20 @@ validateAggRule rules validPids =
     osPid = Set.elems $ Set.difference (Set.fromList (concat (getPids <$> rules))) (Set.fromList validPids)
 
 
+validateFee :: F.Fee -> [ResultComponent]
+-- validateFee (F.Fee fn (F.AnnualRateFee (CurrentBondBalanceOf _) _) _ _ _ _ _ _) = [] 
+-- validateFee (F.Fee fn (F.AnnualRateFee (OriginalBondBalanceOf _) _) _ _ _ _ _ _) = [] 
+-- validateFee (F.Fee fn (F.AnnualRateFee (CurrentPoolBalance _) _) _ _ _ _ _ _) = [] 
+-- validateFee (F.Fee fn (F.AnnualRateFee (OriginalPoolBalance _) _) _ _ _ _ _ _) = [] 
+-- validateFee (F.Fee fn (F.AnnualRateFee CurrentBondBalance _) _ _ _ _ _ _) = [] 
+-- validateFee (F.Fee fn (F.AnnualRateFee OriginalBondBalance _) _ _ _ _ _ _) = [] 
+-- validateFee (F.Fee fn (F.AnnualRateFee ds _) _ _ _ _ _ _ )
+--   = [ErrorMsg ("Fee Name "++fn++" has an unsupported base "++show ds)]
+validateFee _ = []
+
+
 validateReq :: (IR.UseRate a,P.Asset a) => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
-validateReq t@TestDeal{accounts = accMap} assump@A.NonPerfAssumption{A.interest = intM, A.issueBondSchedule = mIssuePlan} 
+validateReq t@TestDeal{accounts = accMap, fees = feeMap} assump@A.NonPerfAssumption{A.interest = intM, A.issueBondSchedule = mIssuePlan} 
   = let 
       ratesRequired = extractRequiredRates t
       ratesSupplied = case intM of 
@@ -221,7 +233,8 @@ validateReq t@TestDeal{accounts = accMap} assump@A.NonPerfAssumption{A.interest 
                             []
                           else
                             [ErrorMsg ("Failed to find index "++show missingIndex++"in assumption rates"++ show ratesSupplied)]
-
+      -- fee validation 
+      feeErrors = concatMap validateFee $ Map.elems feeMap
       -- issue plan validation
       issuePlanError = case mIssuePlan of 
                         Nothing -> []
@@ -242,7 +255,7 @@ validateReq t@TestDeal{accounts = accMap} assump@A.NonPerfAssumption{A.interest 
                               bgNameErrors ++ accNameErrors ++ bndNameErrors
 
       (dealWarnings,dealErrors) = validatePreRun t 
-      finalErrors = missingIndexError ++ dealErrors ++ issuePlanError 
+      finalErrors = missingIndexError ++ dealErrors ++ issuePlanError ++ feeErrors
       finalWarnings = dealWarnings
     in 
       (null finalErrors,finalErrors++finalWarnings)

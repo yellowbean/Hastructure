@@ -5,7 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Deal.DealQuery (queryDealBool,queryDeal,queryDealInt,queryDealRate
-                       ,patchDateToStats, testPre, calcTargetAmount, testPre2) 
+                       ,patchDateToStats,patchDatesToStats,testPre, calcTargetAmount, testPre2) 
   where
 
 import Deal.DealBase
@@ -93,6 +93,26 @@ patchDateToStats d t
          Round ds rb -> Round (patchDateToStats d ds) rb
          _ -> t -- `debug` ("Failed to patch date to stats"++show t)
 
+patchDatesToStats :: P.Asset a => TestDeal a -> Date -> Date -> DealStats -> DealStats
+patchDatesToStats t d1 d2 ds 
+  = case ds of 
+      CurrentBondBalanceOf bns -> WeightedAvgCurrentBondBalance d1 d2 bns
+      OriginalBondBalanceOf bns -> WeightedAvgOriginalBondBalance d1 d2 bns
+      CurrentPoolBalance mPns -> WeightedAvgCurrentPoolBalance d1 d2 mPns
+      OriginalPoolBalance mPns -> WeightedAvgOriginalPoolBalance d1 d2 mPns
+      CurrentBondBalance -> WeightedAvgCurrentBondBalance d1 d2 (Map.keys $ bonds t)
+      OriginalBondBalance -> WeightedAvgOriginalBondBalance d1 d2 (Map.keys $ bonds t)
+      Excess dss -> Excess $ [ patchDatesToStats t d1 d2 ds | ds <- dss ]
+      Abs ds -> Abs $ patchDatesToStats t d1 d2 ds
+      Avg dss -> Avg $ [ patchDatesToStats t d1 d2 ds | ds <- dss ]
+      Divide ds1 ds2 -> Divide (patchDatesToStats t d1 d2 ds1) (patchDatesToStats t d1 d2 ds2)
+      FloorAndCap f c s -> FloorAndCap (patchDatesToStats t d1 d2 f) (patchDatesToStats t d1 d2 c) (patchDatesToStats t d1 d2 s)
+      Multiply dss -> Multiply $ [ patchDatesToStats t d1 d2 ds | ds <- dss ]
+      FloorWith ds f -> FloorWith (patchDatesToStats t d1 d2 ds) (patchDatesToStats t d1 d2 f)
+      CapWith ds c -> CapWith (patchDatesToStats t d1 d2 ds) (patchDatesToStats t d1 d2 c)
+      Round ds rb -> Round (patchDatesToStats t d1 d2 ds) rb
+      Sum dss -> Sum $ [ patchDatesToStats t d1 d2 ds | ds <- dss ]
+      x -> x
 
 
 queryDealRate :: P.Asset a => TestDeal a -> DealStats -> Micro
@@ -520,6 +540,31 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
                                         Nothing -> error $ "No "++ rsName ++" Found in rate swap map with key"++ show (Map.keys rm)
                                         Just rc -> H.rcNetCash rc
 
+    WeightedAvgCurrentBondBalance d1 d2 bns ->
+      Map.foldr (\v a-> a + (L.weightAverageBalance d1 d2 v)) -- `debug` (" Avg Bal for bond"++ show (L.weightAverageBalance d1 d2 v)) )
+                0.0 
+                (getBondsByName t (Just bns))
+
+    WeightedAvgCurrentPoolBalance d1 d2 mPns ->
+      let 
+        txnsByPool = getAllCollectedTxns t mPns
+        waBalByPool = Map.map (CF.mflowWeightAverageBalance d1 d2 <$>) txnsByPool
+      in 
+        sum $ fromMaybe 0  <$> Map.elems waBalByPool
+
+    WeightedAvgOriginalBondBalance d1 d2 bns ->
+      let 
+        bnds = viewDealBondsByNames t bns
+        oBals = getOriginBalance <$> bnds
+        bgDates = L.originDate . L.bndOriginInfo <$> bnds -- `debug` ("bals"++show oBals++">>"++ show d1++"-"++show d2)
+      in 
+        sum $ (\(b,sd) -> mulBR b (yearCountFraction DC_ACT_365F (max d1 sd) d2)) <$> (zip oBals bgDates) -- `debug` ("bgDates"++show bgDates)
+
+    WeightedAvgOriginalPoolBalance d1 d2 mPns ->
+      mulBR 
+        (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
+        (yearCountFraction DC_ACT_365F d1 d2)
+
     Sum _s -> sum $ map (queryDeal t) _s
 
     Subtract (ds:dss) -> 
@@ -556,7 +601,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     Multiply ss -> product (queryDeal t <$> ss)
     FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
     FloorWithZero s -> max (queryDeal t s) 0
-    Excess (s1:ss) -> max 0 $ queryDeal t s1 - queryDeal t (Sum ss)
+    Excess (s1:ss) -> max 0 $ queryDeal t s1 - queryDeal t (Sum ss) -- `debug` ("Excess"++show (queryDeal t s1)++"ss"++show ( queryDeal t (Sum ss)))
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
     Abs s -> abs $ queryDeal t s
     Round ds rb -> roundingBy rb (queryDeal t ds)

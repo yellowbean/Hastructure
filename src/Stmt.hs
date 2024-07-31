@@ -11,7 +11,7 @@ module Stmt
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
-   ,scaleTxn,isEmptyTxn, statementTxns
+   ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf
   )
   where
 
@@ -128,16 +128,15 @@ sliceStmt sd ed (Statement txns)
 viewBalanceAsOf :: Date -> [Txn] -> Balance
 viewBalanceAsOf d [] = 0.0 
 viewBalanceAsOf d txns 
-  | d < begDate = getTxnBegBalance fstTxn
-  | d > endDate = getTxnBalance lstTxn
-  | otherwise = getTxnBalance $ fromJust $ getTxnAsOf txns d
+  | d < begDate = getTxnBegBalance fstTxn -- `debug` (" get first txn")
+  | d > endDate = getTxnBalance lstTxn -- `debug` (" get last txn")
+  | otherwise = getTxnBalance $ fromJust $ getTxnAsOf txns d -- `debug` ("Found txn>>>>>"++show d++show (getTxnAsOf txns d))
   where 
     fstTxn = head txns
     lstTxn = last txns
     begDate = getDate fstTxn
     endDate = getDate lstTxn
 
- 
 weightAvgBalanceByDates :: [Date] -> [Txn] -> [Balance]
 weightAvgBalanceByDates ds txns 
   = (\(_sd,_ed) -> weightAvgBalance _sd _ed txns) <$> intervals -- `debug` ("interval"++ show intervals++ show txns)
@@ -156,14 +155,15 @@ weightAvgBalance sd ed txns
 
 weightAvgBalance' :: Date -> Date -> [Txn] -> Balance 
 weightAvgBalance' sd ed [] = 0.0 
-weightAvgBalance' sd ed txns 
+weightAvgBalance' sd ed (_txn:_txns)
   = let 
       -- txns = sliceBy EE sd ed txns
+      txns = reverse $ foldl consolTxn [_txn] _txns
       viewDs = sort $ [sd,ed] ++ (getDate <$> (sliceBy EE  sd ed txns))
-      balances = flip viewBalanceAsOf txns <$> viewDs
+      balances = flip viewBalanceAsOf txns <$> viewDs -- `debug` ("get bal snapshot"++ show viewDs++ ">>>"++show txns)
       factors = getIntervalFactors viewDs
     in 
-      sum $ zipWith mulBR balances factors -- `debug` ("Factors"++show factors++"Balances"++show balances)   
+      sum $ zipWith mulBR balances factors --`debug` ("In weight avg bal: Factors"++show factors++"Balances"++show balances ++ "interval "++ show (sd,ed))   
 
 data Statement = Statement [Txn]
               deriving (Show, Generic, Eq, Ord, Read)
