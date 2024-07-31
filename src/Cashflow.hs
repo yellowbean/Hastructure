@@ -964,7 +964,7 @@ patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
                where
                  newSt = (0,0,0,0,0,0)
 
-patchCumulative a b c = error ("faile to patch cumulative stats for "++show a ++">>"++show b++">>"++show c)
+patchCumulative a b c = error ("failed to patch cumulative stats for "++show a ++">>"++show b++">>"++show c)
 
 
 

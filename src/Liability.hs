@@ -338,7 +338,10 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYiel
 weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
   = mulBR currentBalance (yearCountFraction DC_ACT_365F (max bd sd) ed) 
 weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ (Just stmt))
-  = L.weightAvgBalance' (max bd sd) ed (view S.statementTxns stmt)
+  = L.weightAvgBalance' 
+      (max bd sd) 
+      ed 
+      (view S.statementTxns stmt)
 
 -- TO BE Deprecate, it was implemented in Cashflow Frame
 -- weightAverageBalance :: Date -> Date -> Bond -> Balance
@@ -473,6 +476,9 @@ instance Liable Bond where
   
   getOriginBalance b@Bond{ bndOriginInfo = bo } = originBalance bo
   getOriginBalance (BondGroup bMap) = sum $ getOriginBalance <$> Map.elems bMap
+
+  getDueInt b@Bond{bndDueInt=di} = di
+  getDueInt (BondGroup bMap) = sum $ getDueInt <$> Map.elems bMap
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool

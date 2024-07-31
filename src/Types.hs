@@ -536,6 +536,13 @@ data DealStats = CurrentBondBalance
                | TestNot DealStats
                | PoolWaRate (Maybe [PoolId])
                | BondRate BondName
+               -- weighted average balancer over period
+               | WeightedAvgCurrentPoolBalance Date Date (Maybe [PoolId])
+               | WeightedAvgCurrentBondBalance Date Date [BondName]
+               | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
+               | WeightedAvgOriginalBondBalance Date Date [BondName]
+
+               -- 
                | Factor DealStats Rational
                | Multiply [DealStats]
                | Max [DealStats]
@@ -653,6 +660,7 @@ class Liable lb where
   isPaidOff :: lb -> Bool
   getCurBalance :: lb -> Balance
   getOriginBalance :: lb -> Balance
+  getDueInt :: lb -> Balance
 
   -- optional implement
   -- getTotalDue :: [lb] -> Balance

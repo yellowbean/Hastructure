@@ -65,6 +65,8 @@ import Cashflow (CashFlowFrame(CashFlowFrame))
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import GHC.Real (infinity)
+import Deal.DealQuery (patchDatesToStats)
+import Data.OpenApi (HasPatch(patch))
 
 debug = flip trace
 
@@ -191,22 +193,9 @@ calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase 
   = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show newDue++"oldDue"++show fd)
       where 
         accrueStart = _fdDay
-        baseBal = case feeBase of
-                    CurrentPoolBalance mPns ->
-                      let 
-                        txnsByPool = getAllCollectedTxns t mPns
-                        waBalByPool = Map.map (CF.mflowWeightAverageBalance accrueStart calcDay <$>) txnsByPool
-                      in 
-                        sum $ fromMaybe 0  <$> Map.elems waBalByPool
-                    OriginalPoolBalance mPns -> mulBR 
-                                                  (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
-                                                  (yearCountFraction DC_ACT_365F accrueStart calcDay)
-                    OriginalBondBalance -> mulBR (queryDeal t OriginalBondBalance) (yearCountFraction DC_ACT_365F accrueStart calcDay)
-                    CurrentBondBalance -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (bonds t)
-                    CurrentBondBalanceOf bns -> Map.foldr (\v a-> a + L.weightAverageBalance accrueStart calcDay v ) 0.0 (getBondsByName t (Just bns))
-                    -- CurrentBondBalance -> Map.foldr (\v a-> a + weightAvgBalance accrueStart calcDay (getTxns (L.bndStmt v)) ) 0.0 (bonds t)
-                    -- CurrentBondBalanceOf bns -> sum $ (\v -> weightAvgBalance accrueStart calcDay (getTxns (L.bndStmt v))) <$>  viewDealBondsByNames t bns
-        r = toRational $ queryDealRate t _r 
+        patchedDs = patchDatesToStats t accrueStart calcDay feeBase
+        baseBal = queryDeal t patchedDs
+        r = toRational $ queryDealRate t _r -- `debug` ("Base "++ show calcDay ++">>"++ show baseBal++"From ds"++show patchedDs++"Fee Name"++fn)
         newDue = mulBR baseBal r -- `debug` ("Fee Name"++fn ++"Date"++ show [accrueStart, calcDay] ++ "base bal"++ show baseBal++"new rate"++show r)
 
 -- ^ % fee base on pool balance/amount
@@ -732,7 +721,7 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFeeBySeq mLimit a
     
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
     -- update primary account map
-    accPaidOut = min actualPaidOut availAccBal
+    accPaidOut = min actualPaidOut availAccBal 
     dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (SeqPayFee fns)) an accMap
                      ,fees = Map.fromList (zip fns feesPaid) <> feeMap}
 
@@ -765,12 +754,12 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
                       Just (DueCapAmt amt) -> min amt feeTotalDueAmt
                       Just (DuePct pct) -> mulBR feeTotalDueAmt pct
     -- total actual pay out
-    actualPaidOut = min amtAvailable dueAmtAfterCap
+    actualPaidOut = min amtAvailable dueAmtAfterCap 
 
     feesAmountToBePaid = zip feesToPay $ prorataFactors feeDueAmts actualPaidOut
     feesPaid = map (\(f,amt) -> F.payFee d amt f) feesAmountToBePaid
     -- update primary account map
-    accPaidOut = min actualPaidOut availAccBal
+    accPaidOut = min actualPaidOut availAccBal -- `debug` ("Actual paid out"++ show actualPaidOut++" acc bal"++ show availAccBal ++">>"++ show (snd <$> feesAmountToBePaid)++">>"++ show fns)
     dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (SeqPayFee fns)) an accMap
                      ,fees = Map.fromList (zip fns feesPaid) <> feeMap}
 
@@ -991,7 +980,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinGroup mLimit 
     bndsWithDueMap = Map.map (calcDuePrin t d) bndsToPay
     bndsDueAmtsMap = Map.map (\x -> (x, L.bndDuePrin x)) bndsWithDueMap
     totalDueAmount = sum $ snd <$> Map.elems bndsDueAmtsMap -- `debug` (">date"++show d++" due amt"++show bndsDueAmtsMap)
-    payAmount = min totalDueAmount amtAvailable -- `debug` (">date total dueAmt"++ show totalDueAmount)
+    payAmount = min totalDueAmount amtAvailable  -- `debug` (">date total available"++ show amtAvailable)
     
     -- actualPaids =  paySeqLiabilitiesAmt payAmount bndsDueAmts
     payOutPlan = allocAmtToBonds by payAmount (Map.elems bndsDueAmtsMap) -- `debug` (">date"++ show payAmount)
@@ -1013,7 +1002,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinGroup mLimit 
 
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueAndPayIntGroup mLimit an bndName by mSupport)
   = let 
-       dAfterAcc = performAction d t (W.AccrueIntGroup [bndName])
+       dAfterAcc = performAction d t (W.AccrueIntGroup [bndName])-- `debug` ("Acc due int grp"++ show (getDueInt (bndMap Map.! bndName)))
     in 
        performAction d dAfterAcc (W.PayIntGroup mLimit an bndName by mSupport)
 
