@@ -46,6 +46,13 @@ tm2 = AB.Mortgage
      Nothing 
      (AB.Defaulted Nothing)
 
+tm3 = AB.Mortgage
+        (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") (AB.Balloon 120)  Nothing)
+        240 0.08 19 
+        Nothing 
+        AB.Current
+
+
 asOfDate = L.toDate "20210605"
 
 (tmcf_00,_) = Ast.projCashflow tm asOfDate (A.MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
@@ -94,6 +101,12 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
                     (CF.mflowPrincipal (head trs)
                     ,CF.mflowDate (head trs)
                     ,length trs)
+     testCase "Balloon Mortgage test 1" $
+     let
+        tm1cf_00 = Ast.calcCashflow tm3 asOfDate Nothing
+        trs = CF.getTsCashFlowFrame tm1cf_00
+     in
+        assertEqual "first row" 12.63  (CF.mflowPrincipal (last trs))
   ]
 
 loanTests = 

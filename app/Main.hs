@@ -48,7 +48,6 @@ import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
 import Network.HTTP.Types.Status
-import Control.Exception (throw)
 
 import Servant.OpenApi
 import Servant
