@@ -35,30 +35,33 @@ import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (extendTxns)
 debug = flip trace
 
-projectMortgageFlow :: (Balance, Balance, Date, Maybe BorrowerNum, AmortPlan, DayCount, IRate, Period, Int) -> (Dates, [DefaultRate],[PrepaymentRate],[IRate],[Int]) -> [CF.TsRow]
+projectMortgageFlow :: (Balance, Balance, Date, Maybe BorrowerNum, AmortPlan, DayCount, IRate, Period, Int) -> (Dates, [DefaultRate],[PrepaymentRate],[IRate],[Int]) -> ([CF.TsRow], Balance)
 projectMortgageFlow (originBal, startBal, lastPayDate, mbn, pt, dc, startRate, p, oTerms) (cfDates, defRates, ppyRates, rateVector, remainTerms) = 
   let 
     initRow = CF.MortgageFlow lastPayDate startBal 0.0 0.0 0.0 0.0 0.0 0.0 startRate Nothing Nothing Nothing
-    amortFactors = 0
   in 
     foldl 
-      (\acc (pDate, defRate, ppyRate, intRate, rt)
+      (\(acc,lastOriginBal) (pDate, defRate, ppyRate, intRate, rt)
           -> let 
-               begBal = CF.mflowBalance (last acc)
-               lastPaidDate = getDate (last acc)
+               begBal = CF.mflowBalance (last acc) 
+               lastPaidDate = getDate (last acc) -- `debug` ("beg bal"++ show begBal)
                newDefault = mulBR begBal defRate 
                newPrepay = mulBR (begBal - newDefault) ppyRate
+               -- performing balance
                _balAfterPpy = begBal - newDefault - newPrepay
+               -- performing original balance 
+               amortBal = mulBR lastOriginBal $ (1-defRate) * (1-ppyRate)  
                amortTerm =  case pt of
                               Balloon aTerm -> aTerm
                               _ -> oTerms
+                
                (newInt,newPrin) = calcAssetPrinInt pt _balAfterPpy (periodRateFromAnnualRate p intRate) oTerms rt (amortBal, amortTerm)
                endBal = _balAfterPpy - newPrin
-               newMbn = decreaseBorrowerNum begBal endBal mbn
+               newMbn = decreaseBorrowerNum begBal endBal mbn -- `debug` ("rt in mortgage proj"++ show rt)
              in 
-               acc ++ [CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0 intRate newMbn Nothing Nothing]
+               (acc <> [CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0 intRate newMbn Nothing Nothing], amortBal)
       )
-      [initRow]
+      ([initRow], originBal)
       (zip5 cfDates defRates ppyRates rateVector remainTerms)            
              
 
@@ -489,10 +492,10 @@ instance Ast.Asset Mortgage where
       rateVector = A.projRates cr or mRates cfDates 
       
       remainTerms = reverse [0..rt]
-      dc = getDayCount or
+      dc = getDayCount or `debug` ("day count"++ show dc)
 
-      scheduleBalToday = calcScheduleBalaceToday m mRates asOfDay
-      txns = projectMortgageFlow (scheduleBalToday, cb,lastPayDate,mbn,prinPayType,dc,cr,p,ot) (cfDates, defRates, ppyRates,rateVector,remainTerms)
+      -- scheduleBalToday = calcScheduleBalaceToday m mRates asOfDay `debug` ("Schedule Balance at"++ show asOfDay++ show remainTerms)
+      (txns,_) = projectMortgageFlow (ob, cb,lastPayDate,mbn,prinPayType,dc,cr,p,ot) (cfDates, defRates, ppyRates,rateVector,remainTerms)
 
       recoveryDates = lastN recoveryLag $ sd:getPaymentDates m recoveryLag
       lastProjTxn = last txns
@@ -565,7 +568,7 @@ instance Ast.Asset Mortgage where
       remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt]
       dc = getDayCount or
       scheduleBalToday = calcScheduleBalaceToday m mRates asOfDay
-      txns = projectMortgageFlow (scheduleBalToday, cb,lastPayDate,mbn,prinPayType,dc,cr,p,ot) (cfDates, defRates, ppyRates,rateVector,remainTerms)
+      (txns,_) = projectMortgageFlow (scheduleBalToday, cb,lastPayDate,mbn,prinPayType,dc,cr,p,ot) (cfDates, defRates, ppyRates,rateVector,remainTerms)
       (futureTxns,historyM)= CF.cutoffTrs asOfDay (patchLossRecovery txns amr)
 
   -- project current AdjMortgage with delinq

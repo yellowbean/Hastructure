@@ -46,13 +46,17 @@ tm2 = AB.Mortgage
      Nothing 
      (AB.Defaulted Nothing)
 
-tm3 = AB.Mortgage
-        (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 24 L.Monthly (L.toDate "20210101") (AB.Balloon 120)  Nothing)
-        240 0.08 19 
+tm4 = AB.Mortgage
+        (AB.MortgageOriginalInfo 240 (Fix DC_30_360_US 0.08) 36 L.Monthly (L.toDate "20210701") (AB.Balloon 120)  Nothing)
+        120 0.08 36
         Nothing 
         AB.Current
 
-
+tm5 = AB.Mortgage
+        (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 36 L.Monthly (L.toDate "20210101") (AB.Balloon 120)  Nothing)
+        100 0.08 24 
+        Nothing 
+        AB.Current
 asOfDate = L.toDate "20210605"
 
 (tmcf_00,_) = Ast.projCashflow tm asOfDate (A.MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
@@ -93,7 +97,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
      testCase "Default asset won't have cashflow if no assumption" $
      let
         asDay = L.toDate "20220101"
-        (tm2cf_00,_) = Ast.projCashflow tm2 asDay (A.MortgageAssump Nothing Nothing Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
+        (tm2cf_00, _) = Ast.projCashflow tm2 asDay (A.MortgageAssump Nothing Nothing Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
         trs = CF.getTsCashFlowFrame tm2cf_00
      in
         assertEqual "Empty for principal"
@@ -101,12 +105,31 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
                     (CF.mflowPrincipal (head trs)
                     ,CF.mflowDate (head trs)
                     ,length trs)
+     ,
      testCase "Balloon Mortgage test 1" $
      let
-        tm1cf_00 = Ast.calcCashflow tm3 asOfDate Nothing
+        tm1cf_00 = Ast.calcCashflow tm4 asOfDate Nothing -- `debug` (">>>")
         trs = CF.getTsCashFlowFrame tm1cf_00
      in
-        assertEqual "first row" 12.63  (CF.mflowPrincipal (last trs))
+        assertEqual "first & last row row" 
+                    [94.29,0.62,0.66, 0.79] 
+                    [CF.mflowPrincipal (last trs)
+                    ,CF.mflowInterest (last trs)
+                    ,(CF.mflowPrincipal . head . tail) trs
+                    ,(CF.mflowInterest . head . tail) trs ] -- `debug` ("trs for balloon"++show tm1cf_00)
+     ,
+     testCase "Balloon Mortgage test 2" $
+     let
+        tm1cf_00 = Ast.calcCashflow tm5 asOfDate Nothing -- `debug` (">>>")
+        trs = CF.getTsCashFlowFrame tm1cf_00
+     in
+        assertEqual "first & last row row" 
+                    [84.19,0.56,0.64, 0.66] 
+                    [CF.mflowPrincipal (last trs)
+                    ,CF.mflowInterest (last trs)
+                    ,(CF.mflowPrincipal . head . tail) trs
+                    ,(CF.mflowInterest . head . tail) trs ] -- `debug` ("trs for balloon"++show tm1cf_00)
+      
   ]
 
 loanTests = 

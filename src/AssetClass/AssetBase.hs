@@ -18,6 +18,7 @@ import Language.Haskell.TH
 import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
+--import Asset
 
 import Data.OpenApi hiding (Server,contentType)
 
@@ -89,9 +90,9 @@ calcAssetPrinInt pt bal rate ot rt (amortBal, amortTerm) =
                      (interestAccrued, bal)
                    else
                      let 
-                       bPmt = calcPmt amortBal rate amortTerm 
+                       bPmt = calcPmt bal rate (amortTerm - periodPassed) -- `debug` ("Amort term"++show (amortTerm - periodPassed) <> " rt"++show periodPassed)
                      in 
-                       (interestAccrued, bPmt - interestAccrued) `debug` ("bal"++show bal++"rate"++show rate++"ot"++show ot++"rt"++show rt++"bPmt"++show bPmt)  
+                       (interestAccrued, bPmt - interestAccrued) -- `debug` ("bal"++show bal++"rate"++show rate++"ot"++show ot++"rt"++show rt++"bPmt"++show bPmt)  
                          
       _ -> error $ "unsupported pt "++ show pt
 
@@ -238,6 +239,7 @@ data AssetUnion = MO Mortgage
                 | RE Receivable
                 | PF ProjectedCashflow
                 deriving (Show, Generic,Ord,Eq)
+
 
 instance IR.UseRate AssetUnion where
   getIndex (MO ma) = IR.getIndex ma

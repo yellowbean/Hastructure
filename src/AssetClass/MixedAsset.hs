@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module AssetClass.MixedAsset
-  (projAssetUnion,projAssetUnionList,projectCashflow, calcAssetUnion)
+  (projAssetUnion,projAssetUnionList,projectCashflow, calcAssetUnion,curBal)
   where
 
 import qualified Data.Time as T

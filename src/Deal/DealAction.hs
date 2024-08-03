@@ -533,7 +533,8 @@ performActionWrap d
       purchaseRatios = toRational <$> [purchaseRatio,1-purchaseRatio]
 
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
-      newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
+      boughtAssetBal =  sum $ curBal <$> assetBought
+      newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset boughtAssetBal)) accName accsMap
       
       (CashFlowFrame _ newBoughtTxn) = CF.consolidateCashFlow $ fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  --  `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       newPcf = let 
@@ -579,7 +580,8 @@ performActionWrap d
       purchaseRatios = toRational <$> [purchaseRatio,1-purchaseRatio]
 
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
-      newAccMap = Map.adjust (A.draw purchaseAmt d PurchaseAsset) accName accsMap
+      boughtAssetBal =  sum $ curBal <$> assetBought
+      newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset boughtAssetBal)) accName accsMap
       
       (CashFlowFrame _ newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       -- newPcf = CF.CashFlowFrame $ CF.combineTss [] (tr:trs) newBoughtTxn  -- `debug` ("reolvoing first txn\n"++ show (head newBoughtTxn))
