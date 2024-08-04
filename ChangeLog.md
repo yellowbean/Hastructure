@@ -1,8 +1,14 @@
 # Changelog for Hastructure
 
+## 0.28.16
+### TBD
+* NEW: new mortgage type `Balloon`
+* ENHANCE: if there is revolving buy, expose `purchase asset balance` in transaction memo from account statment
+
 ## 0.28.15
 ### 2024-07-15
 * NEW: pricing on asset with `rate curve`, pricing asset with `interest accrued`
+
 ### 2024-7-31
 * FIX: enable compound formula on `weighted average` formula.
 

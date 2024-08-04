@@ -431,6 +431,7 @@ data RunContext a = RunContext{
                   ,revolvingAssump:: Maybe (Map.Map String (RevolvingPool ,AP.ApplyAssumptionType))
                   ,revolvingInterestRateAssump:: Maybe [RateAssumption]
                   }
+                  deriving (Show)
 
 updateOriginDate2 :: Date -> ACM.AssetUnion -> ACM.AssetUnion
 updateOriginDate2 d (ACM.LO m) = ACM.LO $ updateOriginDate m (Ast.calcAlignDate m d)
@@ -546,9 +547,9 @@ performActionWrap d
                               in 
                                 CF.CashFlowFrame st $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) -- `debug` ("date"++show d ++"\n>>Asset bought txn\n"++ show newBoughtTxn++"\n >>existing txns\n"++ show trs++"\n>>> consoled\n"++ show (CF.combineTss [] trs newBoughtTxn)) )
                             pIdToChange
-                            pFlowMap 
+                            pFlowMap `debug` (" origin cf before buy" <> show (Map.map  (over CF.cashflowTxn (cutBy Inc Past d)) pFlowMap))
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (Map.fromList [("Consol" ,(poolAfterBought, perfAssumps))])}  
+                 ,revolvingAssump = Just (Map.fromList [("Consol" ,(poolAfterBought, perfAssumps))])} `debug` ("new cf after buy" <> show (Map.map  (over CF.cashflowTxn (cutBy Inc Past d)) newPcf))
 
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
@@ -597,7 +598,7 @@ performActionWrap d
                             pFlowMap -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
 
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (Map.insert sourcePoolName (poolAfterBought, perfAssumps) rMap)}  
+                 ,revolvingAssump = Just (Map.insert sourcePoolName (poolAfterBought, perfAssumps) rMap)}  --  `debug` ("after buy pool"++ show newPcf)
 
 
 performActionWrap d 
