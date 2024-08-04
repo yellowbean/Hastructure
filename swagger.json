@@ -2328,6 +2328,27 @@
                         ],
                         "title": "ScheduleRepayment",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Balloon"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Balloon",
+                        "type": "object"
                     }
                 ]
             },
@@ -16952,6 +16973,10 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
                             "tag": {
                                 "enum": [
                                     "PurchaseAsset"
@@ -16960,7 +16985,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "PurchaseAsset",
                         "type": "object"
@@ -17238,7 +17264,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.14"
+        "version": "0.28.15"
     },
     "openapi": "3.0.0",
     "paths": {

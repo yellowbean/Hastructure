@@ -107,6 +107,9 @@ instance Asset Loan where
         Fix _ _r -> _r
         Floater _ _ _ _r _ _ _ _ -> _r 
 
+  getCurrentRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+    = _rate
+
   getOriginBal pl@(PersonalLoan (LoanOriginalInfo ob _ _ _ _ _) _ _ _ _ ) = ob
 
   isDefaulted pl@(PersonalLoan _ _ _ _ (Defaulted _)) = True
@@ -114,6 +117,9 @@ instance Asset Loan where
  
   getOriginInfo (PersonalLoan oi cb cr rt st) = oi
   getOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = sd
+  
+  resetToOrig m@(PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) 
+    = PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) ob (getOriginRate m) ot st
   
   getRemainTerms (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = rt
 

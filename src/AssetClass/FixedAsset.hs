@@ -70,6 +70,10 @@ instance Ast.Asset FixedAsset where
   getCurrentBal  fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
                                                  ,residualBalance=rb ,capacity=cap} rt) 
     = calcAmortBals fa!!(ot-rt)
+
+  resetToOrig fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
+                                                 ,residualBalance=rb ,capacity=cap} rt) 
+    = FixedAsset fai ot
   
   getPaymentDates 
     (FixedAsset fo@FixedAssetInfo{startDate=sd ,period=p,originTerm=ot} rt)

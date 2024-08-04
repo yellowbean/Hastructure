@@ -62,6 +62,7 @@ patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
    = case t of
          CurrentPoolBalance mPns -> FutureCurrentPoolBalance mPns
+         CurrentPoolBegBalance mPns -> FutureCurrentPoolBegBalance mPns
          PoolFactor mPns -> FutureCurrentPoolFactor d mPns
          LastBondIntPaid bns -> BondsIntPaidAt d bns
          LastFeePaid fns -> FeesPaidAt d fns

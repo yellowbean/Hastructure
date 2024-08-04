@@ -204,6 +204,11 @@ instance Asset Lease where
       = StepUpLease (LeaseInfo nd ot dp dr) lsu bal rt st
     updateOriginDate (RegularLease (LeaseInfo sd ot dp dr) bal rt st) nd 
       = RegularLease (LeaseInfo nd ot dp dr) bal rt st
+      
+    resetToOrig (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st) 
+      = fst . patchBalance $ StepUpLease (LeaseInfo sd ot dp dr) lsu bal ot st
+    resetToOrig (RegularLease (LeaseInfo sd ot dp dr) bal rt st) 
+      = fst . patchBalance $ RegularLease (LeaseInfo sd ot dp dr) bal ot st
 
     projCashflow l asOfDay ((AP.LeaseAssump gapAssump rentAssump ed exStress),_,_) mRates
       = (CF.CashFlowFrame (0,asOfDay,Nothing) allTxns, Map.empty)  

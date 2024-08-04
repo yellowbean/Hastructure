@@ -44,6 +44,7 @@ import Text.Printf
 
 import Debug.Trace
 import qualified Control.Lens as Map
+import Control.Applicative (liftA2)
 import Data.OpenApi (HasPatch(patch), HasXml (xml))
 import Data.Text.Internal.Encoding.Fusion (streamUtf16BE)
 
@@ -96,6 +97,8 @@ type NewDepreciation = Balance
 type AccuredFee = Balance
 type FeePaid = Balance
 
+startOfTime = T.fromGregorian 1900 1 1
+
 data TsRow = CashFlow Date Amount
            | BondFlow Date Balance Principal Interest
            | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
@@ -106,6 +109,24 @@ data TsRow = CashFlow Date Amount
            | ReceivableFlow Date Balance AccuredFee Principal FeePaid Default Recovery Loss (Maybe CumulativeStat) 
                 -- remain balance, amortized amount, unit, cash
            deriving(Show,Eq,Ord,Generic)
+
+instance Semigroup TsRow where 
+  CashFlow d1 a1 <> (CashFlow d2 a2) = CashFlow (max d1 d2) (a1 + a2)
+  BondFlow d1 b1 p1 i1 <> (BondFlow d2 b2 p2 i2) = BondFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2)
+  MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1 <> MortgageFlow d2 b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 pn2 st2
+    = MortgageFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2])))  (liftA2 (+) mbn1 mbn2)   (liftA2 (+) pn1 pn2)  (sumStats st1 st2)
+  MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1 st1 <> MortgageDelinqFlow d2 b2 p2 i2 prep2 delinq2 def2 rec2 los2 rat2 mbn2 pn2 st2
+    = MortgageDelinqFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (delinq1 + delinq2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (liftA2 (+) mbn1 mbn2) (liftA2 (+) pn1 pn2) (sumStats st1 st2)
+  LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1 <> LoanFlow d2 b2 p2 i2 prep2 def2 rec2 los2 rat2 st2
+    = LoanFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
+  LeaseFlow d1 b1 r1 <> LeaseFlow d2 b2 r2 
+    = LeaseFlow (max d1 d2) (b1 + b2) (r1 + r2)
+  FixedFlow d1 b1 ndep1 dep1 c1 a1 <> FixedFlow d2 b2 ndep2 dep2 c2 a2 
+    = FixedFlow (max d1 d2) (b1 + b2) (ndep1 + ndep2) (dep1 + dep2) (c1 + c2) (a1 + a2)
+  ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1 <> ReceivableFlow d2 b2 af2 p2 fp2 def2 rec2 los2 st2
+    = ReceivableFlow (max d1 d2) (b1 + b2) (af1 + af2) (p1 + p2) (fp1 + fp2) (def1 + def2) (rec1 + rec2) (los1 + los2) (sumStats st1 st2)
+  a <> b = error $ "TsRow Semigroup not supported "++show a++" "++show b
+
 
 instance TimeSeries TsRow where 
     getDate (CashFlow x _) = x
