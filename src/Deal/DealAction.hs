@@ -545,11 +545,11 @@ performActionWrap d
                               let 
                                 dsInterval = getDate <$> trs -- `debug` (">>> agg interval : "++ show (getDate <$> trs ))
                               in 
-                                CF.CashFlowFrame st $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) -- `debug` ("date"++show d ++"\n>>Asset bought txn\n"++ show newBoughtTxn++"\n >>existing txns\n"++ show trs++"\n>>> consoled\n"++ show (CF.combineTss [] trs newBoughtTxn)) )
+                                CF.CashFlowFrame st $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn `debug` ("new bought txn"++ show newBoughtTxn)) dsInterval) -- `debug` ("date"++show d ++"\n>>Asset bought txn\n"++ show newBoughtTxn++"\n >>existing txns\n"++ show trs++"\n>>> consoled\n"++ show (CF.combineTss [] trs newBoughtTxn)) )
                             pIdToChange
                             pFlowMap `debug` (" origin cf before buy" <> show (Map.map  (over CF.cashflowTxn (cutBy Inc Past d)) pFlowMap))
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (Map.fromList [("Consol" ,(poolAfterBought, perfAssumps))])} `debug` ("new cf after buy" <> show (Map.map  (over CF.cashflowTxn (cutBy Inc Past d)) newPcf))
+                 ,revolvingAssump = Just (Map.fromList [("Consol" ,(poolAfterBought, perfAssumps))])} -- `debug` ("new cf after buy" <> show (Map.map  (over CF.cashflowTxn (cutBy Inc Past d)) newPcf))
 
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
