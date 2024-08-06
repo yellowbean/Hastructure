@@ -1,5 +1,9 @@
 # Changelog for Hastructure
 
+## 0.28.16
+### 2024-8-6
+* FIX: correct `runPool` cashflow order and add UT 
+
 ## 0.28.15
 ### 2024-7-31
 * FIX: enable compound formula on `weighted average` formula.
