@@ -315,6 +315,11 @@ testCumStat =
     cflow1 = [CF.MortgageDelinqFlow (L.toDate "20230201") 200 30 20 30 1 2 3 4 0.0 Nothing (Just 15) (Just (30,30,1,2,3,4))
              ,CF.MortgageDelinqFlow (L.toDate "20230301") 190 40 30 40 1 2 3 4 0.0 Nothing (Just 20) (Just (70,70,2,4,6,8))
              ,CF.MortgageDelinqFlow (L.toDate "20230401") 180 50 40 50 1 2 3 4 0.0 Nothing (Just 30) (Just (120,120,3,6,9,12))]
+    
+    cflow2 =[CF.MortgageDelinqFlow (L.toDate "20230101") 100 20 10 20 1 2 3 4 0.0 Nothing (Just 10) Nothing
+        ,CF.MortgageDelinqFlow (L.toDate "20230201") 200 30 20 30 1 2 3 4 0.0 Nothing (Just 15) Nothing
+        ,CF.MortgageDelinqFlow (L.toDate "20230301") 190 40 30 40 1 2 3 4 0.0 Nothing (Just 20) Nothing
+        ,CF.MortgageDelinqFlow (L.toDate "20230401") 180 50 40 50 1 2 3 4 0.0 Nothing (Just 30) Nothing]
   in 
     testGroup "Test on calc CumStat"
     [ testCase "MortDelinq CumStat" $
@@ -357,6 +362,14 @@ testCumStat =
         assertEqual "sum prepayment penalty"
         65
         (CF.sumPoolFlow (CF.CashFlowFrame dummySt cflow1) CollectedPrepaymentPenalty)
+      ,testCase "Patch Cumulative 0" $
+        assertEqual "patch cum stats"
+        [CF.MortgageDelinqFlow (L.toDate "20230101") 100 20 10 20 1 2 3 4 0.0 Nothing (Just 10) (Just (20,20,1,2,3,4))
+        ,CF.MortgageDelinqFlow (L.toDate "20230201") 200 30 20 30 1 2 3 4 0.0 Nothing (Just 15) (Just (50,50,2,4,6,8))
+        ,CF.MortgageDelinqFlow (L.toDate "20230301") 190 40 30 40 1 2 3 4 0.0 Nothing (Just 20) (Just (90,90,3,6,9,12))
+        ,CF.MortgageDelinqFlow (L.toDate "20230401") 180 50 40 50 1 2 3 4 0.0 Nothing (Just 30) (Just (140,140,4,8,12,16))
+        ]
+        (CF.patchCumulative (0,0,0,0,0,0) [] cflow2)
     ]
 
 testClawIntTest = 
