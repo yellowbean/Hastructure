@@ -405,7 +405,8 @@ runPool :: RunPoolReq -> Handler PoolRunResp
 runPool (SingleRunPoolReq pt passumption mRates) = return $ patchCumulativeToPoolRun $ wrapRunPoolType pt passumption mRates
 
 runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
-runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPoolType pt (Just assump) mRates) mAssumps
+runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> patchCumulativeToPoolRun (wrapRunPoolType pt (Just assump) mRates)) 
+                                                                                  mAssumps
 
 runDeal :: RunDealReq -> Handler RunResp
 runDeal (SingleRunReq dt assump nonPerfAssump) =  return $ wrapRun dt assump nonPerfAssump
