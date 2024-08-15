@@ -787,16 +787,19 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      deriving (Show, Generic)
 
 
+listToStrWithComma :: [String] -> String
+listToStrWithComma xs = intercalate ","  xs
 
 
 instance ToJSON TxnComment where 
-  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
+  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ listToStrWithComma bns ++ ">"
   toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
-  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ listToStrWithComma bns ++ ">"
   toJSON (WriteOff bn amt ) =  String $ T.pack $ "<WriteOff:"++ bn ++","++ show amt ++ ">"
-  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
+  toJSON (FundWith b bal) = String $ T.pack $ "<FundWith:"++b++","++show bal++">"
+  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ listToStrWithComma bns ++ ">"
   toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
-  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
+  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ listToStrWithComma fns++">"
   toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
@@ -805,7 +808,6 @@ instance ToJSON TxnComment where
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 
-  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
   toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
   toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
@@ -816,9 +818,9 @@ instance ToJSON TxnComment where
   toJSON (PurchaseAsset bal) = String $ T.pack $ "<PurchaseAsset:"++show bal++">"
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
-  toJSON (FundWith b bal) = String $ T.pack $ "<FundWith:"++b++","++show bal++">"
   toJSON (IssuanceProceeds nb) = String $ T.pack $ "<IssuanceProceeds:"++nb++">"
   toJSON (Tag cmt) = String $ T.pack $ "<Tag:"++cmt++">"
+  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
