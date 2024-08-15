@@ -10,6 +10,7 @@
 ### 2024-08-06
 * FIX: correct `runPool` cashflow order and add UT
 
+
 ## 0.28.15
 ### 2024-7-31
 * FIX: enable compound formula on `weighted average` formula.
