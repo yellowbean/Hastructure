@@ -492,10 +492,11 @@ instance Ast.Asset Mortgage where
       rateVector = A.projRates cr or mRates cfDates 
       
       remainTerms = reverse [0..rt]
-      dc = getDayCount or `debug` ("day count"++ show dc)
+      dc = getDayCount or -- `debug` ("day count"++ show dc)
 
-      -- scheduleBalToday = calcScheduleBalaceToday m mRates asOfDay `debug` ("Schedule Balance at"++ show asOfDay++ show remainTerms)
-      (txns,_) = projectMortgageFlow (ob, cb,lastPayDate,mbn,prinPayType,dc,cr,p,ot) (cfDates, defRates, ppyRates,rateVector,remainTerms)
+      (txns,_) = projectMortgageFlow 
+                    (ob, cb,lastPayDate,mbn,prinPayType,dc,cr,p,ot) 
+                    (cfDates, defRates, ppyRates,rateVector,remainTerms)
 
       recoveryDates = lastN recoveryLag $ sd:getPaymentDates m recoveryLag
       lastProjTxn = last txns

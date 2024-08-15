@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+
+## 0.28.18
+### 2024-08-xx
+* NEW: new assumption `DefaultAtEndByRate` which apply 2 default rate,one for life time ,one for last payment. This assumption shall apply to `balloon` type ,or `loan` with big lump sum payment at last period.
+
 ## 0.28.17
 ### 2024-08-15
 * NEW: new mortgage type `Balloon`

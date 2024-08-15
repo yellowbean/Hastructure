@@ -138,6 +138,12 @@ buildDefaultRates ds mDa =
                                 Util.toPeriodRateByInterval
                                 (paddingDefault 0.0 vs (pred size))
                                 (getIntervalDays ds)
+    Just (A.DefaultAtEndByRate r rAtEnd)
+      -> case size of 
+          0 -> []
+          1 -> []
+          _ -> (Util.toPeriodRateByInterval r <$> getIntervalDays (init ds)) ++ (Util.toPeriodRateByInterval rAtEnd <$> getIntervalDays [head ds,last ds])
+
     _ -> error ("failed to find prepayment type"++ show mDa)    
   where
     size = length ds
