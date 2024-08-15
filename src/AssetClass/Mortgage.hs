@@ -48,14 +48,14 @@ projectMortgageFlow (originBal, startBal, lastPayDate, mbn, pt, dc, startRate, p
                newDefault = mulBR begBal defRate 
                newPrepay = mulBR (begBal - newDefault) ppyRate
                -- performing balance
-               _balAfterPpy = begBal - newDefault - newPrepay
+               _balAfterPpy = begBal - newDefault - newPrepay -- `debug` ("new ppy "++ show newPrepay ++ "beg bal"++ show (begBal - newDefault) ++ "ppy rate"++ show ppyRate)
                -- performing original balance 
                amortBal = mulBR lastOriginBal $ (1-defRate) * (1-ppyRate)  
                amortTerm =  case pt of
                               Balloon aTerm -> aTerm
                               _ -> oTerms
                 
-               (newInt,newPrin) = calcAssetPrinInt pt _balAfterPpy (periodRateFromAnnualRate p intRate) oTerms rt (amortBal, amortTerm)
+               (newInt,newPrin) = calcAssetPrinInt pt _balAfterPpy (periodRateFromAnnualRate p intRate) oTerms rt (amortBal, amortTerm) -- `debug` ("using bal for pmt"++ show _balAfterPpy)
                endBal = _balAfterPpy - newPrin
                newMbn = decreaseBorrowerNum begBal endBal mbn -- `debug` ("rt in mortgage proj"++ show rt)
              in 

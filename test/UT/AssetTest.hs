@@ -57,6 +57,16 @@ tm5 = AB.Mortgage
         100 0.08 24 
         Nothing 
         AB.Current
+
+
+tm6 = AB.Mortgage
+        (AB.MortgageOriginalInfo 240 (Fix DC_ACT_365F 0.08) 36 L.Monthly (L.toDate "20210101") (AB.Balloon 120)  Nothing)
+        120 0.08 36
+        Nothing 
+        AB.Current
+
+
+
 asOfDate = L.toDate "20210605"
 
 (tmcf_00,_) = Ast.projCashflow tm asOfDate (A.MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
@@ -129,7 +139,20 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
                     ,CF.mflowInterest (last trs)
                     ,(CF.mflowPrincipal . head . tail) trs
                     ,(CF.mflowInterest . head . tail) trs ] -- `debug` ("trs for balloon"++show tm1cf_00)
-      
+     ,testCase "Balloon Mortgage test 3" $
+     let
+        (tm1cf_00,_) = Ast.projCashflow tm6 (L.toDate "20201205")
+                         (A.MortgageAssump Nothing (Just (A.PrepaymentCPR 0.1)) Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing
+        trs = CF.getTsCashFlowFrame tm1cf_00
+     in
+        assertEqual "first & last row row" 
+                    [68.77, 0.45, 1.06, 0.65, 0.79] 
+                    [CF.mflowPrincipal (last trs)
+                    ,CF.mflowInterest (last trs)
+                    ,(CF.mflowPrepayment) (trs!!1)
+                    ,(CF.mflowPrincipal) (trs!!1)
+                    ,(CF.mflowInterest) (trs!!1) ] -- `debug` ("trs for balloon"++show tm1cf_00)
+        
   ]
 
 loanTests = 

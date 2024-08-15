@@ -90,9 +90,9 @@ calcAssetPrinInt pt bal rate ot rt (amortBal, amortTerm) =
                      (interestAccrued, bal)
                    else
                      let 
-                       bPmt = calcPmt bal rate (amortTerm - periodPassed) -- `debug` ("Amort term"++show (amortTerm - periodPassed) <> " rt"++show periodPassed)
+                       bPmt = calcPmt bal rate (amortTerm - periodPassed)  -- `debug` ("Amort term"++show (amortTerm - periodPassed) <> " rt"++show periodPassed)
                      in 
-                       (interestAccrued, bPmt - interestAccrued) -- `debug` ("bal"++show bal++"rate"++show rate++"ot"++show ot++"rt"++show rt++"bPmt"++show bPmt)  
+                       (interestAccrued, bPmt - interestAccrued) -- `debug` ("bal"++show bal++"rate"++show rate++"ot"++show ot++"rt"++show rt++"bPmt"++show bPmt++ "interest"++show interestAccrued)    
                          
       _ -> error $ "unsupported pt "++ show pt
 
