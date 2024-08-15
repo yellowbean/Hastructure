@@ -105,6 +105,7 @@ version1 :: Version
 version1 = Version "0.28.17"
 
 
+
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | LDeal (DB.TestDeal AB.Loan)
               | IDeal (DB.TestDeal AB.Installment) 
