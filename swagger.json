@@ -17005,8 +17005,18 @@
                     {
                         "properties": {
                             "contents": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
                             },
                             "tag": {
                                 "enum": [
@@ -17295,7 +17305,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.17"
+        "version": "0.28.18"
     },
     "openapi": "3.0.0",
     "paths": {

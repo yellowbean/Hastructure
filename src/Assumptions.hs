@@ -154,7 +154,7 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          deriving (Show,Generic)
 
 data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
-                         | AvailableAssetsBy (Map.Map String (RevolvingPool,ApplyAssumptionType))
+                         | AvailableAssetsBy (Map.Map String (RevolvingPool, ApplyAssumptionType))
                          deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 

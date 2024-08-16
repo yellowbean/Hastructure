@@ -433,7 +433,7 @@ data TxnComment = PayInt [BondName]
                 | SwapAccrue
                 | SwapInSettle
                 | SwapOutSettle
-                | PurchaseAsset Balance
+                | PurchaseAsset String Balance
                 | IssuanceProceeds String
                 | TxnDirection BookDirection
                 | TxnComments [TxnComment]
@@ -815,7 +815,7 @@ instance ToJSON TxnComment where
   toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
-  toJSON (PurchaseAsset bal) = String $ T.pack $ "<PurchaseAsset:"++show bal++">"
+  toJSON (PurchaseAsset rPoolName bal) = String $ T.pack $ "<PurchaseAsset:"<> rPoolName <>","++show bal++">"
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
   toJSON (IssuanceProceeds nb) = String $ T.pack $ "<IssuanceProceeds:"++nb++">"
@@ -869,7 +869,11 @@ parseTxn t = case tagName of
   "Accure" -> return SwapAccrue
   "SettleIn" -> return SwapInSettle
   "SettleOut" -> return SwapOutSettle
-  "PurchaseAsset" -> return $ PurchaseAsset (read contents::Balance)
+  "PurchaseAsset" -> let 
+                      sv = T.splitOn (T.pack ",") $ T.pack contents
+                     in 
+                      return $ PurchaseAsset (read (T.unpack (sv!!0))::String)  (read (T.unpack (sv!!1))::Balance)
+
   "TxnDirection" -> return $ TxnDirection (read contents::BookDirection)
   "FundWith" -> let 
                   sv = T.splitOn (T.pack ",") $ T.pack contents

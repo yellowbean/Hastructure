@@ -134,7 +134,6 @@ data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName           
 
 $(deriveJSON defaultOptions ''BookType)
 $(deriveJSON defaultOptions ''ExtraSupport)
-
 $(deriveJSON defaultOptions ''PayOrderBy)
 $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''CollectionRule)

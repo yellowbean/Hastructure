@@ -361,7 +361,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                else
                  run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates calls rAssump newLogs -- `debug` ("status in run waterfall"++show (status dRunWithTrigger1))
              Nothing ->
-               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates Nothing rAssump newLogs `debug` ("pool flow" ++ (show (runPoolFlow rc3))) -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates Nothing rAssump newLogs  -- `debug` ("pool flow" ++ (show (runPoolFlow rc3))) -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
            where
              runContext = RunContext poolFlowMap rAssump rates
              (dRunWithTrigger0, rc1, newLogs0) = runTriggers (t,runContext) d BeginDistributionWF

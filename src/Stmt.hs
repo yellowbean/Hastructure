@@ -224,7 +224,7 @@ getFlow comment =
       SwapAccrue  -> Noneflow
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow
-      PurchaseAsset _ -> Outflow
+      PurchaseAsset _ _ -> Outflow
       SupportDraw -> Noneflow
       IssuanceProceeds _ -> Inflow
       TxnComments cmts -> 
