@@ -1,8 +1,12 @@
 # Changelog for Hastructure
 
 
+## 0.28.19
+### 2024-08-18
+* NEW: new waterfall action `BuyAssetFrom` and new revolving assumption which support multiple revolving pool. Now a deal may have multiple pools with different assets and user can set waterfall action to buy assets with different type from different pools
+
 ## 0.28.18
-### 2024-08-xx
+### 2024-08-17
 * NEW: new assumption `DefaultAtEndByRate` which apply 2 default rate,one for life time ,one for last payment. This assumption shall apply to `balloon` type ,or `loan` with big lump sum payment at last period.
 
 ## 0.28.17
