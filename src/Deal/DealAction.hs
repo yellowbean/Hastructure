@@ -504,7 +504,7 @@ showInspection x = error $ "not implemented for showing ResultComponent " ++ sho
 
 performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) -> W.Action -> (TestDeal a, RunContext a, [ResultComponent])
 performActionWrap d (t, rc, logs) (W.BuyAsset ml pricingMethod accName pId) 
-   = performActionWrap d (t, rc, logs) (W.BuyAssetFrom ml pricingMethod accName Nothing pId)
+   = performActionWrap d (t, rc, logs) (W.BuyAssetFrom ml pricingMethod accName (Just "Consol") pId)
 
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap }
@@ -512,10 +512,10 @@ performActionWrap d
                                 ,revolvingAssump=Just rMap
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
-                  (W.BuyAssetFrom ml pricingMethod accName mSourcePoolName  pId) 
+                  (W.BuyAssetFrom ml pricingMethod accName mRevolvingPoolName  pId) 
    = (t { accounts = newAccMap }, newRc, logs )
     where 
-      revolvingPoolName = fromMaybe "Consol" mSourcePoolName
+      revolvingPoolName = fromMaybe "Consol" mRevolvingPoolName
       (assetForSale::RevolvingPool, perfAssumps::AP.ApplyAssumptionType) =  rMap Map.! revolvingPoolName -- `debug` ("Getting pool"++ revolvingPoolName) 
 
       _assets = lookupAssetAvailable assetForSale d
