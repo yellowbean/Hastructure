@@ -1,5 +1,10 @@
 # Changelog for Hastructure
 
+## 0.28.20
+### 2024-08-21
+* ENHANCE: expose new log `waterfall` which suggests all type of waterfalls have been executed during projection
+* FIX: remove legacy code for `loan` when projection without pool assumption.
+
 
 ## 0.28.19
 ### 2024-08-18
