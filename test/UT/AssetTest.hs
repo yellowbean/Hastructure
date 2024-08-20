@@ -206,7 +206,7 @@ loanTests =
       testGroup "Loan cashflow Tests" [ 
        testCase "Loan 1" $
            assertEqual "project period"
-             24 
+             25
              (CF.sizeCashFlowFrame loan1Cf)
       -- ,testCase "First cashflow" $
       --     assertEqual ""

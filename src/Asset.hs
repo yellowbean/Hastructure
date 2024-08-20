@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Asset ( Asset(..)
-       ,calcPiFlow,calc_p_i_flow_even,calc_p_i_flow_i_p
+       ,calcPiFlow
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
@@ -16,7 +16,7 @@ import Text.Read (readMaybe)
 import Lib (Period(..)
            ,Ts(..),periodRateFromAnnualRate,toDate
            ,getIntervalDays,zipWith9,mkTs,periodsBetween
-           ,mkRateTs,daysBetween)
+           ,mkRateTs,daysBetween, getIntervalFactors)
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
@@ -210,33 +210,6 @@ calcPiFlow dc bal pmt dates rs =
       resetFlags = A.calcResetDates rs []
       period_r = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) (rs!!d) dc | d <- [0..size-2]]
 
-_calc_p_i_flow_even :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
-_calc_p_i_flow_even evenPrin last_bal bals ps is [] = (bals,ps,is) -- `debug` ("Return->"++show(bals)++show(is))
-_calc_p_i_flow_even evenPrin last_bal bals ps is (r:rs)
-  | last_bal < 0.01 = (bals,ps,is)
-  | otherwise
-    = _calc_p_i_flow_even evenPrin new_bal (bals++[new_bal]) (ps++[evenPrin]) (is++[new_int]) rs -- `debug` ("new bal"++show(new_bal)++"INT"++show(new_int)++">>R"++show(rs))
-      where
-        new_int = mulBI last_bal r
-        new_bal = last_bal - evenPrin
-
-calc_p_i_flow_even :: Amount -> Balance -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
-calc_p_i_flow_even evenPrin bal dates r
-  = _calc_p_i_flow_even evenPrin bal [] [] [] period_r  -- `debug` ("SIze of rates"++show(length period_r))
-    where
-      size = length dates
-      period_r = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
-
-calc_p_i_flow_i_p :: Balance -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
-calc_p_i_flow_i_p bal dates r
-  = (_bals,_prins,_ints)
-    where
-      size =  length dates
-      flowSize = pred $ length $ tail dates
-      period_rs = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
-      _ints = [  mulBI bal _r | _r <- period_rs ]
-      _bals = replicate flowSize bal ++ [ 0 ]
-      _prins = replicate flowSize 0 ++ [ bal ]
 
 calcRecoveriesFromDefault :: Balance -> Rate -> [Rate] -> [Amount]
 calcRecoveriesFromDefault bal recoveryRate recoveryTiming
@@ -266,6 +239,7 @@ priceAsset m d (PVCurve curve) assumps mRates cType
       cr = getCurrentRate m
       wal = calcWAL ByYear cb d (zip amts ds)
       duration = calcDuration d (zip ds amts) curve
+
     in 
       AssetPrice pv wal duration (-1) accruedInt
 

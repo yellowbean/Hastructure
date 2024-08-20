@@ -27,6 +27,7 @@ module Types
   ,DealName,lookupIntervalTable,CutoffFields(..),PriceResult(..)
   ,DueInt,DuePremium, DueIoI,DateVector,DealStats(..)
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
+  ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
   )
   
@@ -359,9 +360,8 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | DealDefaulted (Maybe Date)        -- ^ Deal is defaulted status with optinal default date
                 | Amortizing                        -- ^ Deal is amortizing 
                 | Revolving                         -- ^ Deal is revolving
-                | RampUp                            -- ^ Deal is being ramping up
                 | Ended                             -- ^ Deal is marked as closed
-                | PreClosing DealStatus             -- ^ Deal is not closed
+                | PreClosing DealStatus             -- ^ Deal is not closed, pool cashflow belongs to SPV
                 | Called                            -- ^ Deal is called
                 deriving (Show,Ord,Eq,Read, Generic)
 
@@ -693,16 +693,6 @@ lookupIntervalTable (ThresholdTable rows) direction lkUpFunc
                 Down -> map fst rows
 
 
--- sortTable :: Ord a => Table a b -> (a -> a -> Bool) -> Table a b   -- sort table by a 
--- sortTable (ThresholdTable rows) sortFunc
---   = case direction of 
---       Up -> ThresholdTable $ sortBy (\(a1,_) (a2,_) -> compare a1 a2) rows
---       Down -> ThresholdTable $ sortBy (\(a1,_) (a2,_) -> compare a2 a1) rows
-
-
-
-
-
 data RateAssumption = RateCurve Index Ts     -- ^ a rate curve ,which value of rates depends on time
                     | RateFlat Index IRate   -- ^ a rate constant
                     deriving (Show, Generic)
@@ -741,12 +731,6 @@ instance (Read PoolId) where
         _ -> error $ "Invalid PoolId: "++ show pn
 
 
--- instance ToJSON PoolId
--- instance FromJSON PoolId
-
-
-
-
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''Cmp)
@@ -764,9 +748,14 @@ instance FromJSONKey PoolId where
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 
-
-
-
+data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the end of pool collection
+                | DistributionDay DealStatus      -- ^ waterfall executed depends on deal status
+                | CleanUp                         -- ^ waterfall exectued upon a clean up call
+                | OnClosingDay                    -- ^ waterfall executed on deal closing day
+                | DefaultDistribution             -- ^ default waterfall executed
+                | RampUp                          -- ^ ramp up
+                | WithinTrigger String            -- ^ waterfall executed within a trigger  
+                deriving (Show,Ord,Eq,Generic,Read)
 
 
 
@@ -778,6 +767,7 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      | InspectInt Date DealStats Int                  -- ^ A int value from inspection
                      | InspectRate Date DealStats Micro               -- ^ A rate value from inspection
                      | InspectBool Date DealStats Bool                -- ^ A bool value from inspection
+                     | RunningWaterfall Date ActionWhen               -- ^ running waterfall at a date 
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
                      | InspectWaterfall Date (Maybe String) [DealStats] [String]
                      | ErrorMsg String
@@ -788,8 +778,7 @@ data ResultComponent = CallAt Date                                    -- ^ the d
 
 
 listToStrWithComma :: [String] -> String
-listToStrWithComma xs = intercalate ","  xs
-
+listToStrWithComma = intercalate ","
 
 instance ToJSON TxnComment where 
   toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ listToStrWithComma bns ++ ">"
@@ -950,6 +939,16 @@ $(deriveJSON defaultOptions ''Pre)
 
 
 $(deriveJSON defaultOptions ''CustomDataType)
+$(deriveJSON defaultOptions ''ActionWhen)
+
+instance ToJSONKey ActionWhen where
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey ActionWhen where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+
 $(deriveJSON defaultOptions ''ResultComponent)
 
 $(deriveJSON defaultOptions ''PriceResult)

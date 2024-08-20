@@ -197,69 +197,6 @@ data PoolType a = SoloPool (P.Pool a)
                 | ResecDeal (Map.Map PoolId (UnderlyingDeal a))
                 deriving (Generic, Eq, Ord, Show)
 
--- instance Show (PoolType a) where
---   show (SoloPool x) = "SoloPool:"++ show x
---   show (MultiPool x) = "MultiPool:"++ show x
---   show (ResecDeal x) = "ResecDeal:"++ show x
--- 
--- instance Read (PoolType a) where
---   readsPrec _ "SoloPool" = [(SoloPool Map.empty,"")]
---   readsPrec _ "MultiPool" = [(MultiPool Map.empty,"")]
---   readsPrec _ "ResecDeal" = [(ResecDeal Map.empty,"")]
---   readsPrec _ _ = []
-
---instance Read UnderlyingBond where 
---  -- readsPrec _ "UnderlyingBond" = [(UnderlyingBond ("",0,0),"")]
---  readsPrec _ str =
---    case T.splitOn "_" (T.pack str) of
---      [bn, hp, d] -> [(UnderlyingBond (T.unpack bn, read (T.unpack hp)::Rational, read (T.unpack d)::Date), "")] `debug` ("Read success" )
---      _ -> [] `debug` ("read not match with "++ str)
---      --[bn, hp, d] -> case (reads (T.unpack hp), reads (T.unpack d)) of
---      --                 ((hpVal, _):_, (dVal, _):_) -> [(UnderlyingBond (T.unpack bn, hpVal, dVal), "")] `debug` ("Read success")
---      --                 _ -> [] `debug` ("read not match with "++ show (T.splitOn "_" (T.pack str)))
---
---instance Show UnderlyingBond where 
---  show (UnderlyingBond (bn,hp,d)) = bn ++ "_" ++ show hp ++ "_" ++ show d
---
---
---instance ToJSONKey UnderlyingBond where 
---  toJSONKey :: ToJSONKeyFunction UnderlyingBond
---  toJSONKey = toJSONKeyText $ \(UnderlyingBond (bn,hp,d)) -> T.pack $ bn ++ "_" ++ show hp ++ "_" ++ show d
---
---instance FromJSONKey UnderlyingBond where
-----   fromJSONKey = FromJSONKeyTextParser $ \case
-----     "name" -> pure $ (,) <$> parseJSONKey <*> parseJSONKey <*> parseJSONKey
-----     _ -> fail "Expected \"name\" key"
---     fromJSONKey = FromJSONKeyTextParser $ 
---       \t -> case readMaybe (T.unpack t) of
---               Just k -> pure k   `debug` ("parsed with "++ show k)
---               Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
-
-
--- buildPoolIdFromDeal ::  P.Asset a => PoolType a -> Map.Map (BondName, HoldingPct, Date) PoolId
--- buildPoolIdFromDeal (ResecDeal resecM) 
---   = Map.foldrWithKey 
---       (\(bn,hp,d) deal m 
---          -> Map.insert (bn,hp,d) (UnderlyingDeal (name deal) bn) m) 
---       Map.empty
---       resecM
--- 
--- buildPoolIdFromDeal _ = error "Not implemented for non-resec deal"
-
---                | ResecDeal (Map.Map UnderlyingBond (UnderlyingDeal a))
-
--- poolTypePool :: P.Asset a => Lens' (PoolType a) (Map.Map PoolId (P.Pool a))
--- poolTypePool = lens getter setter
---   where 
---     getter (SoloPool p) = Map.fromList [(PoolConsol,p)]
---     -- getter (ResecDeal uds) = Map.map (\(UnderlyingDeal d _ _) ud -> ud   ) uds
---     getter (MultiPool pm) = pm
---     getter (ResecDeal uds) = Map.map (\(UnderlyingDeal d _ _) -> d) uds
---     setter (SoloPool p) newPool = case Map.lookup PoolConsol newPool of
---                                     Just p -> SoloPool p
---                                     Nothing -> error $ "Can't set a solo pool to a multi pool"
---     setter (MultiPool pm) newPool = MultiPool newPool
-
 data TestDeal a = TestDeal { name :: DealName
                              ,status :: DealStatus
                              ,dates :: DateDesp
