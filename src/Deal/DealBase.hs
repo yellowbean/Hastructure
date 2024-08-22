@@ -116,6 +116,8 @@ instance TimeSeries ActionOnDate where
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
 sortActionOnDate a1 a2 
   | d1 == d2 = case (a1,a2) of
+                 (PoolCollection {}, DealClosed {}) -> LT -- pool collection should be executed before deal closed
+                 (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
                  (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
                  (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
                  (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
