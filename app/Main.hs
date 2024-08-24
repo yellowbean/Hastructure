@@ -102,7 +102,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.28.20"
+version1 = Version "0.28.21"
 
 
 
@@ -320,7 +320,7 @@ instance ToSchema RunAssetReq
 
 wrapRunAsset :: RunAssetReq -> ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
 wrapRunAsset (RunAssetReq d assets Nothing mRates Nothing) 
-  = (P.aggPool Nothing ((\a -> (MA.calcAssetUnion a d mRates,Map.empty)) <$> assets), Nothing) 
+  = (P.aggPool Nothing ((\a -> (MA.calcAssetUnion a d mRates, Map.empty)) <$> assets), Nothing) 
 wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates Nothing) 
   = (P.aggPool Nothing ((\a -> MA.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
 
