@@ -85,11 +85,12 @@ data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption            
                      | Multiple (Map.Map String ApplyAssumptionType)  NonPerfAssumption       -- ^ multiple assumption request in a single request
                      deriving (Show,Generic)
 
-data AssetDefaultAssumption = DefaultConstant Rate
-                            | DefaultCDR Rate
-                            | DefaultVec [Rate]
+data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using constant default rate
+                            | DefaultCDR Rate                   -- ^ using annualized default rate
+                            | DefaultVec [Rate]                 -- ^ using default rate vector
                             | DefaultByAmt (Balance,[Rate])
-                            | DefaultAtEnd
+                            | DefaultAtEnd                      -- ^ default 100% at end
+                            | DefaultAtEndByRate Rate Rate      -- ^ life time default rate and default rate at end
                             deriving (Show,Generic)
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
@@ -105,7 +106,7 @@ data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^
 
 data RecoveryAssumption = Recovery (Rate,Int)                    -- ^ recovery rate, recovery lag
                         | RecoveryTiming (Rate,[Rate])           -- ^ recovery rate, with distribution of recoveries
-                        | RecoveryByDays Rate [(Int, Rate)]  -- ^ recovery rate, with distribution of recoveries by offset dates
+                        | RecoveryByDays Rate [(Int, Rate)]      -- ^ recovery rate, with distribution of recoveries by offset dates
                         deriving (Show,Generic)
 
 data AssumpReceipe = DefaultAssump AssetDefaultAssumption
@@ -153,7 +154,7 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          deriving (Show,Generic)
 
 data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
-                         | AvailableAssetsBy (Map.Map String (RevolvingPool,ApplyAssumptionType))
+                         | AvailableAssetsBy (Map.Map String (RevolvingPool, ApplyAssumptionType))
                          deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 

@@ -34,7 +34,6 @@ import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (extendTxns)
 import Liability (backoutDueIntByYield)
 import qualified Asset as A
-import Data.List
 
 debug = flip trace
 
@@ -94,7 +93,12 @@ instance Asset Receivable where
 
   getOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = sd
 
+  resetToOrig r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = r
+
   getRemainTerms r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = 1
+
+  getOriginRate _ = 0
+  getCurrentRate _ = 0
 
   updateOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft) st) newDate 
     = let 

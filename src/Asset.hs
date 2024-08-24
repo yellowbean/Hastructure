@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Asset ( Asset(..)
-       ,calcPiFlow,calc_p_i_flow_even,calc_p_i_flow_i_p
+       ,calcPiFlow
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
@@ -16,7 +16,7 @@ import Text.Read (readMaybe)
 import Lib (Period(..)
            ,Ts(..),periodRateFromAnnualRate,toDate
            ,getIntervalDays,zipWith9,mkTs,periodsBetween
-           ,mkRateTs,daysBetween)
+           ,mkRateTs,daysBetween, getIntervalFactors)
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
@@ -39,13 +39,14 @@ import Data.Fixed
 import qualified InterestRate as IR
 import Util
 
-import AssetClass.AssetBase ( OriginalInfo, calcPmt )
+import AssetClass.AssetBase ( OriginalInfo, calcPmt, AssetUnion )
 
 import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
 
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import DateUtil (yearCountFraction)
 
 
 debug = flip trace
@@ -59,6 +60,8 @@ class (Show a,IR.UseRate a) => Asset a where
   getOriginBal :: a -> Balance
   -- | Get original rate of an asset
   getOriginRate :: a -> IRate
+  -- | Get current rate of an asset
+  getCurrentRate :: a -> IRate
   -- | Get origination date of an asset
   getOriginDate :: a -> Date
   -- | Get origin info of an asset
@@ -77,6 +80,8 @@ class (Show a,IR.UseRate a) => Asset a where
   splitWith :: a -> [Rate] -> [a]
   -- | ! Change the origination date of an asset
   updateOriginDate :: a -> Date -> a
+  -- | ! Change the current asset state to the date of origination
+  resetToOrig :: a -> a
   -- | Get Last Interest Payment date
   getLastInterestPaymentDate :: a -> Maybe Date
   -- | Calculate Accrued Interest 
@@ -133,10 +138,15 @@ buildDefaultRates ds mDa =
                                 Util.toPeriodRateByInterval
                                 (paddingDefault 0.0 vs (pred size))
                                 (getIntervalDays ds)
+    Just (A.DefaultAtEndByRate r rAtEnd)
+      -> case size of 
+          0 -> []
+          1 -> []
+          _ -> (Util.toPeriodRateByInterval r <$> getIntervalDays (init ds)) ++ (Util.toPeriodRateByInterval rAtEnd <$> getIntervalDays [head ds,last ds])
+
     _ -> error ("failed to find prepayment type"++ show mDa)    
   where
     size = length ds
-
 
 
 -- | build pool assumption rate (prepayment, defaults, recovery rate , recovery lag)
@@ -200,33 +210,6 @@ calcPiFlow dc bal pmt dates rs =
       resetFlags = A.calcResetDates rs []
       period_r = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) (rs!!d) dc | d <- [0..size-2]]
 
-_calc_p_i_flow_even :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
-_calc_p_i_flow_even evenPrin last_bal bals ps is [] = (bals,ps,is) -- `debug` ("Return->"++show(bals)++show(is))
-_calc_p_i_flow_even evenPrin last_bal bals ps is (r:rs)
-  | last_bal < 0.01 = (bals,ps,is)
-  | otherwise
-    = _calc_p_i_flow_even evenPrin new_bal (bals++[new_bal]) (ps++[evenPrin]) (is++[new_int]) rs -- `debug` ("new bal"++show(new_bal)++"INT"++show(new_int)++">>R"++show(rs))
-      where
-        new_int = mulBI last_bal r
-        new_bal = last_bal - evenPrin
-
-calc_p_i_flow_even :: Amount -> Balance -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
-calc_p_i_flow_even evenPrin bal dates r
-  = _calc_p_i_flow_even evenPrin bal [] [] [] period_r  -- `debug` ("SIze of rates"++show(length period_r))
-    where
-      size = length dates
-      period_r = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
-
-calc_p_i_flow_i_p :: Balance -> Dates -> IRate -> ([Balance],CF.Principals,CF.Interests)
-calc_p_i_flow_i_p bal dates r
-  = (_bals,_prins,_ints)
-    where
-      size =  length dates
-      flowSize = pred $ length $ tail dates
-      period_rs = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) r DC_ACT_360 | d <- [0..size-2]]
-      _ints = [  mulBI bal _r | _r <- period_rs ]
-      _bals = replicate flowSize bal ++ [ 0 ]
-      _prins = replicate flowSize 0 ++ [ bal ]
 
 calcRecoveriesFromDefault :: Balance -> Rate -> [Rate] -> [Amount]
 calcRecoveriesFromDefault bal recoveryRate recoveryTiming
@@ -234,20 +217,33 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
     where
       recoveryAmt = mulBR bal recoveryRate
 
-priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> PriceResult
-priceAsset m d (PVCurve curve) assumps mRates
+
+priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> CutoffType -> PriceResult
+priceAsset m d (PVCurve curve) assumps mRates cType
   = let 
       (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
       ds = getDate <$> txns 
-      amts = CF.tsTotalCash <$> txns 
+      pDays = getOriginDate m:(getPaymentDates m 0)
+      accruedInt = case ds of 
+              [] -> 0 
+              (fstTxnDate:_) -> 
+                let 
+                  accStartDate = last $ takeWhile (< fstTxnDate) pDays 
+                in 
+                  mulBR (mulBIR cb cr) (yearCountFraction DC_ACT_365F accStartDate d) 
+      amts = CF.tsTotalCash <$> (case cType of 
+                                  Exc -> CF.clawbackInt accruedInt txns 
+                                  Inc -> txns)
       pv = pv3 curve d ds amts -- `debug` ("pricing"++ show d++ show ds++ show amts)
-      cb =  getCurrentBal m
+      cb = getCurrentBal m
+      cr = getCurrentRate m
       wal = calcWAL ByYear cb d (zip amts ds)
       duration = calcDuration d (zip ds amts) curve
-    in 
-      AssetPrice pv wal duration (-1) (-1)  --TODO missing duration and convixity
 
-priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
+    in 
+      AssetPrice pv wal duration (-1) accruedInt
+
+priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates cType
   = let 
       cb =  getCurrentBal m
       val = if isDefaulted m then 
@@ -261,15 +257,26 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates
     in 
       AssetPrice val wal (-1) (-1) (-1)  --TODO missing convixity
       
-priceAsset m d (PvRate r) assumps mRates 
+priceAsset m d (PvRate r) assumps mRates cType
   = let 
       (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
-      cb =  getCurrentBal m
+      cb = getCurrentBal m
+      pDays = getOriginDate m:(getPaymentDates m 0)
       ds = getDate <$> txns 
-      amts = CF.tsTotalCash <$> txns 
+      accruedInt = case ds of 
+                    [] -> 0 
+                    (fstTxnDate:_) -> 
+                      let 
+                        accStartDate = last $ takeWhile (< fstTxnDate) pDays 
+                      in 
+                        mulBR (mulBIR cb cr) (yearCountFraction DC_ACT_365F accStartDate d)  
+      amts = CF.tsTotalCash <$> (case cType of 
+                                  Exc -> CF.clawbackInt accruedInt txns 
+                                  Inc -> txns)
       wal = calcWAL ByYear cb d (zip amts ds) 
       pv = sum $ zipWith (pv2 (fromRational r) d) ds amts
       curve = mkTs $ zip ds (repeat r)
       duration = calcDuration d (zip ds amts) curve
+      cr = getCurrentRate m
     in 
-      AssetPrice pv wal (duration) (-1) (-1)  --TODO missing convixity 
+      AssetPrice pv wal duration (-1) accruedInt  --TODO missing convixity 

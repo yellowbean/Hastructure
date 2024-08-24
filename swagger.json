@@ -2155,6 +2155,123 @@
                     }
                 ]
             },
+            "ActionWhen": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "EndOfPoolCollection"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "EndOfPoolCollection",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStatus"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DistributionDay"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DistributionDay",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "CleanUp"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "CleanUp",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "OnClosingDay"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "OnClosingDay",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "DefaultDistribution"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "DefaultDistribution",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "RampUp"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "RampUp",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WithinTrigger"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WithinTrigger",
+                        "type": "object"
+                    }
+                ]
+            },
             "AmortPlan": {
                 "oneOf": [
                     {
@@ -2327,6 +2444,27 @@
                             "contents"
                         ],
                         "title": "ScheduleRepayment",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Balloon"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Balloon",
                         "type": "object"
                     }
                 ]
@@ -2627,6 +2765,37 @@
                             "tag"
                         ],
                         "title": "DefaultAtEnd",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultAtEndByRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultAtEndByRate",
                         "type": "object"
                     }
                 ]
@@ -7958,21 +8127,6 @@
                             "tag"
                         ],
                         "title": "Revolving",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "tag": {
-                                "enum": [
-                                    "RampUp"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag"
-                        ],
-                        "title": "RampUp",
                         "type": "object"
                     },
                     {
@@ -13362,6 +13516,35 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/ActionWhen"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RunningWaterfall"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RunningWaterfall",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
@@ -16952,6 +17135,20 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
                             "tag": {
                                 "enum": [
                                     "PurchaseAsset"
@@ -16960,7 +17157,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "PurchaseAsset",
                         "type": "object"
@@ -17238,7 +17436,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.14"
+        "version": "0.28.20"
     },
     "openapi": "3.0.0",
     "paths": {

@@ -19,14 +19,9 @@ import Data.Fixed
 import GHC.Generics
 
 import Accounts (Account)
--- import Asset
--- import Pool
--- import AssetClass.Mortgage(Mortgage)
 import Expense
--- import Liability
 import Types
 import Revolving
--- import Triggers
 import Stmt (TxnComment(..))
 import qualified Lib as L
 import qualified Call as C
@@ -35,14 +30,6 @@ import qualified Hedge as HE
 import CreditEnhancement (LiquidityProviderName)
 import Ledger (Ledger,LedgerName)
 
-
-data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the end of pool collection
-                | DistributionDay DealStatus      -- ^ waterfall executed depends on deal status
-                | CleanUp                         -- ^ waterfall exectued upon a clean up call
-                | OnClosingDay                    -- ^ waterfall executed on deal closing day
-                | DefaultDistribution             -- ^ default waterfall executed
-                | RampUp                          -- ^ ramp up
-                deriving (Show,Ord,Eq,Generic,Read)
 
 
 data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
@@ -98,7 +85,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | AccrueAndPayIntGroup (Maybe Limit) AccountName BondName PayOrderBy (Maybe ExtraSupport) 
             -- Bond - Balance
             | WriteOff (Maybe Limit) BondName
-            | FundWith (Maybe Limit) AccountName BondName 
+            | FundWith (Maybe Limit) AccountName BondName             -- ^ extra more funds from bond and deposit cash to account
             -- Pool/Asset change
             | BuyAsset (Maybe Limit) PricingMethod AccountName (Maybe PoolId)                       -- ^ buy asset from revolving assumptions using funds from account
             | BuyAssetFrom (Maybe Limit) PricingMethod AccountName (Maybe String) (Maybe PoolId)    -- ^ buy asset from specific pool, with revolving assumptions using funds from account
@@ -134,19 +121,8 @@ data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName           
 
 $(deriveJSON defaultOptions ''BookType)
 $(deriveJSON defaultOptions ''ExtraSupport)
-
 $(deriveJSON defaultOptions ''PayOrderBy)
 $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''CollectionRule)
-$(deriveJSON defaultOptions ''ActionWhen)
-
-instance ToJSONKey ActionWhen where
-  toJSONKey = toJSONKeyText (T.pack . show)
-
-instance FromJSONKey ActionWhen where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
-
 
 

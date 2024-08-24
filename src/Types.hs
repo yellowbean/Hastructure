@@ -27,6 +27,7 @@ module Types
   ,DealName,lookupIntervalTable,CutoffFields(..),PriceResult(..)
   ,DueInt,DuePremium, DueIoI,DateVector,DealStats(..)
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
+  ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
   )
   
@@ -311,6 +312,11 @@ class TimeSeries ts where
                     Exc-> getDate x < d  -- 
       in 
         (filter ffunL tss, filter ffunR tss)
+
+    getByDate :: Date -> [ts] -> Maybe ts
+    getByDate d ts = case filterByDate ts d of 
+                      [] -> Nothing
+                      (x:_) -> Just x
  
 
 data Ts = FloatCurve [TsPoint Rational]
@@ -354,9 +360,8 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | DealDefaulted (Maybe Date)        -- ^ Deal is defaulted status with optinal default date
                 | Amortizing                        -- ^ Deal is amortizing 
                 | Revolving                         -- ^ Deal is revolving
-                | RampUp                            -- ^ Deal is being ramping up
                 | Ended                             -- ^ Deal is marked as closed
-                | PreClosing DealStatus             -- ^ Deal is not closed
+                | PreClosing DealStatus             -- ^ Deal is not closed, pool cashflow belongs to SPV
                 | Called                            -- ^ Deal is called
                 deriving (Show,Ord,Eq,Read, Generic)
 
@@ -428,7 +433,7 @@ data TxnComment = PayInt [BondName]
                 | SwapAccrue
                 | SwapInSettle
                 | SwapOutSettle
-                | PurchaseAsset
+                | PurchaseAsset String Balance
                 | IssuanceProceeds String
                 | TxnDirection BookDirection
                 | TxnComments [TxnComment]
@@ -628,6 +633,7 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | AccruedInterest      -- ^ accrued interest at closing
                   deriving (Show,Ord,Eq,Read,Generic)
 
+
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest [Txn]
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | OASResult PriceResult [Valuation] Spread  
@@ -687,16 +693,6 @@ lookupIntervalTable (ThresholdTable rows) direction lkUpFunc
                 Down -> map fst rows
 
 
--- sortTable :: Ord a => Table a b -> (a -> a -> Bool) -> Table a b   -- sort table by a 
--- sortTable (ThresholdTable rows) sortFunc
---   = case direction of 
---       Up -> ThresholdTable $ sortBy (\(a1,_) (a2,_) -> compare a1 a2) rows
---       Down -> ThresholdTable $ sortBy (\(a1,_) (a2,_) -> compare a2 a1) rows
-
-
-
-
-
 data RateAssumption = RateCurve Index Ts     -- ^ a rate curve ,which value of rates depends on time
                     | RateFlat Index IRate   -- ^ a rate constant
                     deriving (Show, Generic)
@@ -735,12 +731,6 @@ instance (Read PoolId) where
         _ -> error $ "Invalid PoolId: "++ show pn
 
 
--- instance ToJSON PoolId
--- instance FromJSON PoolId
-
-
-
-
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''Cmp)
@@ -758,9 +748,14 @@ instance FromJSONKey PoolId where
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 
-
-
-
+data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the end of pool collection
+                | DistributionDay DealStatus      -- ^ waterfall executed depends on deal status
+                | CleanUp                         -- ^ waterfall exectued upon a clean up call
+                | OnClosingDay                    -- ^ waterfall executed on deal closing day
+                | DefaultDistribution             -- ^ default waterfall executed
+                | RampUp                          -- ^ ramp up
+                | WithinTrigger String            -- ^ waterfall executed within a trigger  
+                deriving (Show,Ord,Eq,Generic,Read)
 
 
 
@@ -772,6 +767,7 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      | InspectInt Date DealStats Int                  -- ^ A int value from inspection
                      | InspectRate Date DealStats Micro               -- ^ A rate value from inspection
                      | InspectBool Date DealStats Bool                -- ^ A bool value from inspection
+                     | RunningWaterfall Date ActionWhen               -- ^ running waterfall at a date 
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
                      | InspectWaterfall Date (Maybe String) [DealStats] [String]
                      | ErrorMsg String
@@ -781,16 +777,18 @@ data ResultComponent = CallAt Date                                    -- ^ the d
                      deriving (Show, Generic)
 
 
-
+listToStrWithComma :: [String] -> String
+listToStrWithComma = intercalate ","
 
 instance ToJSON TxnComment where 
-  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ concat bns ++ ">"
+  toJSON (PayInt bns ) = String $ T.pack $ "<PayInt:"++ listToStrWithComma bns ++ ">"
   toJSON (PayYield bn ) = String $ T.pack $ "<PayYield:"++ bn ++">"
-  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ concat bns ++ ">"
+  toJSON (PayPrin bns ) =  String $ T.pack $ "<PayPrin:"++ listToStrWithComma bns ++ ">"
   toJSON (WriteOff bn amt ) =  String $ T.pack $ "<WriteOff:"++ bn ++","++ show amt ++ ">"
-  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ concat bns ++ ">"
+  toJSON (FundWith b bal) = String $ T.pack $ "<FundWith:"++b++","++show bal++">"
+  toJSON (PayPrinResidual bns ) =  String $ T.pack $ "<PayPrinResidual:"++ listToStrWithComma bns ++ ">"
   toJSON (PayFee fn ) =  String $ T.pack $ "<PayFee:" ++ fn ++ ">"
-  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ concat fns++">"
+  toJSON (SeqPayFee fns) =  String $ T.pack $ "<SeqPayFee:"++ listToStrWithComma fns++">"
   toJSON (PayFeeYield fn) =  String $ T.pack $ "<PayFeeYield:"++ fn++">"
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
@@ -799,7 +797,6 @@ instance ToJSON TxnComment where
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 
-  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
   toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
   toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
@@ -807,12 +804,12 @@ instance ToJSON TxnComment where
   toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
-  toJSON PurchaseAsset = String $ T.pack $ "<PurchaseAsset:>"
+  toJSON (PurchaseAsset rPoolName bal) = String $ T.pack $ "<PurchaseAsset:"<> rPoolName <>","++show bal++">"
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
-  toJSON (FundWith b bal) = String $ T.pack $ "<FundWith:"++b++","++show bal++">"
   toJSON (IssuanceProceeds nb) = String $ T.pack $ "<IssuanceProceeds:"++nb++">"
   toJSON (Tag cmt) = String $ T.pack $ "<Tag:"++cmt++">"
+  toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
@@ -861,7 +858,11 @@ parseTxn t = case tagName of
   "Accure" -> return SwapAccrue
   "SettleIn" -> return SwapInSettle
   "SettleOut" -> return SwapOutSettle
-  "PurchaseAsset" -> return PurchaseAsset
+  "PurchaseAsset" -> let 
+                      sv = T.splitOn (T.pack ",") $ T.pack contents
+                     in 
+                      return $ PurchaseAsset (read (T.unpack (sv!!0))::String)  (read (T.unpack (sv!!1))::Balance)
+
   "TxnDirection" -> return $ TxnDirection (read contents::BookDirection)
   "FundWith" -> let 
                   sv = T.splitOn (T.pack ",") $ T.pack contents
@@ -938,6 +939,16 @@ $(deriveJSON defaultOptions ''Pre)
 
 
 $(deriveJSON defaultOptions ''CustomDataType)
+$(deriveJSON defaultOptions ''ActionWhen)
+
+instance ToJSONKey ActionWhen where
+  toJSONKey = toJSONKeyText (T.pack . show)
+
+instance FromJSONKey ActionWhen where
+  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
+    Just k -> pure k
+    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+
 $(deriveJSON defaultOptions ''ResultComponent)
 
 $(deriveJSON defaultOptions ''PriceResult)

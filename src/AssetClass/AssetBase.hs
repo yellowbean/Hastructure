@@ -18,6 +18,7 @@ import Language.Haskell.TH
 import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
+--import Asset
 
 import Data.OpenApi hiding (Server,contentType)
 
@@ -30,6 +31,10 @@ import qualified InterestRate as IR
 import qualified Cashflow as CF
 -- import Assumptions (RevolvingAssumption(Dummy4))
 
+import Debug.Trace (trace)
+debug = flip Debug.Trace.trace
+
+
 type DailyRate = Balance
 
 data AmortPlan = Level                    -- ^ for mortgage / french system  -> fixed payment each period which consist of increasing princial and decreasing interest.
@@ -40,6 +45,7 @@ data AmortPlan = Level                    -- ^ for mortgage / french system  -> 
                 | IO_FirstN Int AmortPlan -- ^ interest only for first N period
                 | NO_FirstN Int AmortPlan -- ^ non payment during first N period
                 | ScheduleRepayment Ts (Maybe DatePattern)   -- ^ custom principal follow
+                | Balloon Int             -- ^ balloon payment with period N
                 deriving (Show, Generic, Ord, Eq)
 
 -- | calculate period payment (Annuity/Level mortgage)
@@ -57,8 +63,8 @@ calcPmt bal periodRate periods =
 type InterestAmount = Amount
 type PrincipalAmount = Amount
 
-calcAssetPrinInt :: AmortPlan -> Balance -> IRate -> Int -> Int -> (InterestAmount, PrincipalAmount)
-calcAssetPrinInt pt bal rate ot rt = 
+calcAssetPrinInt :: AmortPlan -> Balance -> IRate -> Int -> Int -> (Balance,Int) -> (InterestAmount, PrincipalAmount)
+calcAssetPrinInt pt bal rate ot rt (amortBal, amortTerm) = 
   let 
     interestAccrued = mulBIR bal rate
     pmt = calcPmt bal rate rt
@@ -72,13 +78,21 @@ calcAssetPrinInt pt bal rate ot rt =
              else
                (interestAccrued, 0)
       NO_FirstN n _pt -> if periodPassed >= n then 
-                          calcAssetPrinInt _pt bal rate ot rt
+                          calcAssetPrinInt _pt bal rate ot rt (amortBal, amortTerm)
                          else
                           (0, negate interestAccrued)
       IO_FirstN n _pt -> if periodPassed >= n then 
-                          calcAssetPrinInt _pt bal rate ot rt
+                          calcAssetPrinInt _pt bal rate ot rt (amortBal, amortTerm)
                          else
                           (interestAccrued, 0)
+      
+      Balloon n -> if rt == 1 then
+                     (interestAccrued, bal)
+                   else
+                     let 
+                       bPmt = calcPmt bal rate (amortTerm - periodPassed)  -- `debug` ("Amort term"++show (amortTerm - periodPassed) <> " rt"++show periodPassed)
+                     in 
+                       (interestAccrued, bPmt - interestAccrued) -- `debug` ("bal"++show bal++"rate"++show rate++"ot"++show ot++"rt"++show rt++"bPmt"++show bPmt++ "interest"++show interestAccrued)    
                          
       _ -> error $ "unsupported pt "++ show pt
 
@@ -225,6 +239,7 @@ data AssetUnion = MO Mortgage
                 | RE Receivable
                 | PF ProjectedCashflow
                 deriving (Show, Generic,Ord,Eq)
+
 
 instance IR.UseRate AssetUnion where
   getIndex (MO ma) = IR.getIndex ma

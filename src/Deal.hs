@@ -331,7 +331,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                outstandingFlow = Map.map (over CF.cashflowTxn (cutBy Exc Future d)) poolFlowMap
                -- deposit cashflow to SPV from external pool cf               
                accs = depositPoolFlow (collects t) d collectedFlow accMap -- `debug` ("d"++ show d++">>>"++ show collectedFlow++"\n")
-               dAfterDeposit = (appendCollectedCF d t collectedFlow) {accounts=accs}   -- `debug` ("CF size collected"++ show (CF.getTsCashFlowFrame))
+               dAfterDeposit = (appendCollectedCF d t collectedFlow) {accounts=accs}   -- `debug` ("Collected flow"++ show collectedFlow)
                
                -- newScheduleFlowMap = Map.map (over CF.cashflowTxn (cutBy Exc Future d)) (fromMaybe Map.empty (getScheduledCashflow t Nothing))
                dealAfterUpdateScheduleFlow = over dealScheduledCashflow 
@@ -340,11 +340,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
 
                runContext = RunContext outstandingFlow rAssump rates
                (dRunWithTrigger0, rc1, newLogs0) = runTriggers (dealAfterUpdateScheduleFlow,runContext) d EndCollection  
+               eopActionsLog = [ RunningWaterfall d W.EndOfPoolCollection | Map.member W.EndOfPoolCollection (waterfall t) ] -- `debug` ("new logs from trigger 1"++ show newLogs0)
                waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("new logs from trigger 1"++ show newLogs0)
                (dAfterAction,rc2,newLogs) = foldl (performActionWrap d) (dRunWithTrigger0 ,rc1 ,log ) waterfallToExe -- `debug` ("End collection action"++ show waterfallToExe)
                (dRunWithTrigger1,rc3,newLogs1) = runTriggers (dAfterAction,rc2) d EndCollectionWF -- `debug` ("new logs from waterfall 2"++ show newLogs)
              in 
-               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates calls rAssump (newLogs0++newLogs++newLogs1) --  `debug` ("Run  logs pool collection "++ show (length (log++newLogs0++newLogs++newLogs1))) -- `debug` ("last log"++ show (last ads))     -- `debug` ("End :after new pool flow"++ show (runPoolFlow rc))
+               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates calls rAssump (newLogs0++newLogs++ eopActionsLog ++newLogs1) --  `debug` ("Run  logs pool collection "++ show (length (log++newLogs0++newLogs++newLogs1))) -- `debug` ("last log"++ show (last ads))     -- `debug` ("End :after new pool flow"++ show (runPoolFlow rc))
            else
              run t Map.empty (Just ads) rates calls rAssump log  
    
@@ -354,27 +355,34 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                if testCalls dRunWithTrigger1 d callOpts then 
                  let 
                     dealAfterCleanUp = foldl (performAction d) dRunWithTrigger1 cleanUpActions 
-                    newStLogs = [DealStatusChangeTo d dStatus Called ] 
+                    newStLogs = if null cleanUpActions then 
+                                  [DealStatusChangeTo d dStatus Called]
+                                else 
+                                  [DealStatusChangeTo d dStatus Called,RunningWaterfall d W.CleanUp]
                     endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogs
                  in  
                     (prepareDeal dealAfterCleanUp, endingLogs++newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
                else
                  run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates calls rAssump newLogs -- `debug` ("status in run waterfall"++show (status dRunWithTrigger1))
              Nothing ->
-               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates Nothing rAssump newLogs  -- `debug` ("Run  logs waterfall "++ show (length newLogs)) -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates Nothing rAssump newLogs  -- `debug` ("pool flow" ++ (show (runPoolFlow rc3))) -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
            where
-                runContext = RunContext poolFlowMap rAssump rates
-                (dRunWithTrigger0, rc1, newLogs0) = runTriggers (t,runContext) d BeginDistributionWF
-                -- warning if not waterfall distribution found
-                newLogs1 = [WarningMsg ("No waterfall distribution found on date"++show d++"with status"++show dStatus) 
-                            | Map.notMember (W.DistributionDay dStatus) waterfallM]
-                waterfallToExe = Map.findWithDefault 
-                                   (Map.findWithDefault [] (W.DistributionDay dStatus) waterfallM)
-                                   W.DefaultDistribution 
-                                   waterfallM
-                (dAfterWaterfall,rc2,newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
-                (dRunWithTrigger1, rc3, newLogs2) = runTriggers (dAfterWaterfall,rc2) d EndDistributionWF  
-                newLogs =  newLogsWaterfall ++ newLogs0 ++ newLogs1 ++ newLogs2
+             runContext = RunContext poolFlowMap rAssump rates
+             (dRunWithTrigger0, rc1, newLogs0) = runTriggers (t,runContext) d BeginDistributionWF
+             -- warning if not waterfall distribution found
+             waterfallKey = if Map.member (W.DistributionDay dStatus) waterfallM then 
+                              W.DistributionDay dStatus
+                            else 
+                              W.DefaultDistribution
+             newLogs1 = if Map.member waterfallKey waterfallM then 
+                         [RunningWaterfall d waterfallKey]
+                        else 
+                         [WarningMsg ("No waterfall distribution found on date"++show d++"with waterfall key "++show waterfallKey)]
+                         
+             waterfallToExe = Map.findWithDefault [] waterfallKey waterfallM
+             (dAfterWaterfall, rc2, newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
+             (dRunWithTrigger1, rc3, newLogs2) = runTriggers (dAfterWaterfall,rc2) d EndDistributionWF  
+             newLogs =  newLogsWaterfall ++ newLogs0 ++ newLogs1 ++ newLogs2  -- `debug` ("new logs from waterfall"++ show newLogs)
 
          EarnAccInt d accName ->
            let 
@@ -422,8 +430,9 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              w = Map.findWithDefault [] W.OnClosingDay (waterfall t)  -- `debug` ("DDD0")
              rc = RunContext poolFlowMap rAssump rates  
              (newDeal, newRc, newLog) = foldl (performActionWrap d) (t, rc, log) w  -- `debug` ("ClosingDay Action:"++show w)
+             logForClosed = [RunningWaterfall d W.OnClosingDay| not (null w)] -- `debug` ("DDD1")]
            in 
-             run newDeal{status=newSt} (runPoolFlow newRc) (Just ads) rates calls rAssump (newLog++[DealStatusChangeTo d (PreClosing newSt) newSt]) -- `debug` ("new st at closing"++ show newSt)
+             run newDeal{status=newSt} (runPoolFlow newRc) (Just ads) rates calls rAssump (newLog++[DealStatusChangeTo d (PreClosing newSt) newSt]++logForClosed) -- `debug` ("new st at closing"++ show newSt)
 
          ChangeDealStatusTo d s -> run (t{status=s}) poolFlowMap (Just ads) rates calls rAssump log
 

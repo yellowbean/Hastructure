@@ -48,7 +48,6 @@ import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
 import Network.HTTP.Types.Status
-import Control.Exception (throw)
 
 import Servant.OpenApi
 import Servant
@@ -103,7 +102,8 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.28.16"
+version1 = Version "0.28.21"
+
 
 
 data DealType = MDeal (DB.TestDeal AB.Mortgage)
@@ -320,7 +320,7 @@ instance ToSchema RunAssetReq
 
 wrapRunAsset :: RunAssetReq -> ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
 wrapRunAsset (RunAssetReq d assets Nothing mRates Nothing) 
-  = (P.aggPool Nothing ((\a -> (MA.calcAssetUnion a d mRates,Map.empty)) <$> assets), Nothing) 
+  = (P.aggPool Nothing ((\a -> (MA.calcAssetUnion a d mRates, Map.empty)) <$> assets), Nothing) 
 wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates Nothing) 
   = (P.aggPool Nothing ((\a -> MA.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
 
@@ -406,7 +406,8 @@ runPool :: RunPoolReq -> Handler PoolRunResp
 runPool (SingleRunPoolReq pt passumption mRates) = return $ patchCumulativeToPoolRun $ wrapRunPoolType pt passumption mRates
 
 runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
-runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> wrapRunPoolType pt (Just assump) mRates) mAssumps
+runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> patchCumulativeToPoolRun (wrapRunPoolType pt (Just assump) mRates)) 
+                                                                                  mAssumps
 
 runDeal :: RunDealReq -> Handler RunResp
 runDeal (SingleRunReq dt assump nonPerfAssump) =  return $ wrapRun dt assump nonPerfAssump
