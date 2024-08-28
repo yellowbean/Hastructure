@@ -299,7 +299,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       let 
         ltc = getLatestCollectFrame t mPns
       in 
-        sum $ maybe 0 CF.mflowBalance <$> ltc
+        sum $ maybe 0 CF.mflowBalance <$> ltc 
 
     FutureCurrentSchedulePoolBalance mPns ->
       let 

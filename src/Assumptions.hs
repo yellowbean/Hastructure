@@ -72,6 +72,7 @@ type RateFormula = DealStats
 type BalanceFormula = DealStats
 
 data IssueBondEvent = IssueBondEvent (Maybe Pre) BondName AccName Bond (Maybe BalanceFormula) (Maybe RateFormula)
+                    | Dummy09
                     deriving (Show, Generic, Read)
 
 data NonPerfAssumption = NonPerfAssumption {

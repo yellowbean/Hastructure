@@ -2059,6 +2059,9 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/Pre"
+                                    },
+                                    {
                                         "type": "string"
                                     },
                                     {
@@ -2066,10 +2069,16 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/Bond"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
                                     }
                                 ],
-                                "maxItems": 4,
-                                "minItems": 4,
+                                "maxItems": 7,
+                                "minItems": 7,
                                 "type": "array"
                             },
                             "tag": {
@@ -9169,6 +9178,66 @@
                     }
                 ]
             },
+            "IssueBondEvent": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Pre"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Bond"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 6,
+                                "minItems": 6,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IssueBondEvent"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IssueBondEvent",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "Dummy09"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "Dummy09",
+                        "type": "object"
+                    }
+                ]
+            },
             "Lease": {
                 "oneOf": [
                     {
@@ -10144,7 +10213,7 @@
                     },
                     "issueBondSchedule": {
                         "items": {
-                            "$ref": "#/components/schemas/TsPoint_([Char],[Char],Bond)"
+                            "$ref": "#/components/schemas/TsPoint_IssueBondEvent"
                         },
                         "type": "array"
                     },
@@ -15719,32 +15788,6 @@
                 "minItems": 2,
                 "type": "array"
             },
-            "TsPoint_([Char],[Char],Bond)": {
-                "items": [
-                    {
-                        "$ref": "#/components/schemas/Day"
-                    },
-                    {
-                        "items": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "$ref": "#/components/schemas/Bond"
-                            }
-                        ],
-                        "maxItems": 3,
-                        "minItems": 3,
-                        "type": "array"
-                    }
-                ],
-                "maxItems": 2,
-                "minItems": 2,
-                "type": "array"
-            },
             "TsPoint_Bool": {
                 "items": [
                     {
@@ -15752,6 +15795,19 @@
                     },
                     {
                         "type": "boolean"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
+            "TsPoint_IssueBondEvent": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "$ref": "#/components/schemas/IssueBondEvent"
                     }
                 ],
                 "maxItems": 2,

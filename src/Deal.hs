@@ -540,21 +540,20 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          
          IssueBond d (Just p) bGroupName accName bnd mBal mRate ->
              case testPre d t p of
-               False -> run t poolFlowMap (Just ads) rates calls rAssump log
+               False -> run t poolFlowMap (Just ads) rates calls rAssump (log ++ [WarningMsg ("Failed to issue to bond group"++ bGroupName++ ":" ++show p)])
                True ->
                         let 
                           newBndName = L.bndName bnd
+                          newBalance = case mBal of
+                                        Just _q -> queryDeal t (patchDateToStats d _q)  
+                                        Nothing -> L.originBalance (L.bndOriginInfo bnd)
+                          newRate = case mRate of 
+                                        Just _q -> toRational $ queryDealRate t (patchDateToStats d _q)
+                                        Nothing -> L.originRate (L.bndOriginInfo bnd)
                           newBonds = case Map.lookup bGroupName bndMap of
                                         Nothing -> bndMap
                                         Just L.Bond {} -> bndMap
                                         Just (L.BondGroup bndGrpMap) -> let
-                                                                          newBalance = case mBal of
-                                                                                        Just _q -> queryDeal t _q
-                                                                                        Nothing -> L.originBalance (L.bndOriginInfo bnd)
-                                                                          newRate = case mRate of 
-                                                                                        Just _q -> toRational $ queryDealRate t _q
-                                                                                        Nothing -> L.originRate (L.bndOriginInfo bnd)
-
                                                                           bndOInfo = (L.bndOriginInfo bnd) {L.originDate = d, L.originRate = newRate, L.originBalance = newBalance }
                                                                           bndToInsert = bnd {L.bndOriginInfo = bndOInfo,
                                                                                              L.bndDueIntDate = Just d,
@@ -567,7 +566,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                                                                      (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap))
                                                                                      bndMap
 
-                          issuanceProceeds = L.bndBalance bnd
+                          issuanceProceeds = newBalance
                           newAcc = Map.adjust (A.deposit issuanceProceeds d (IssuanceProceeds newBndName))
                                               accName
                                               accMap
