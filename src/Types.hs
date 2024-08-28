@@ -396,7 +396,7 @@ data Pre = IfZero DealStats
          | IfNot Pre
          | Any [Pre]
          | All [Pre]                            -- ^ 
-         deriving (Show,Generic,Eq,Ord)
+         deriving (Show,Generic,Eq,Ord,Read)
 
 
 

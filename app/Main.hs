@@ -195,6 +195,7 @@ instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
 instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
+instance ToSchema AP.IssueBondEvent
 instance ToSchema (TsPoint AP.IssueBondEvent)
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.BondPricingInput

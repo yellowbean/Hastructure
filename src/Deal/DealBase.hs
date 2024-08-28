@@ -82,7 +82,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | ResetSrtRate Date String 
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
-                  | IssueBond Date String AccName L.Bond
+                  | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   | StopRunFlag Date                     -- ^ stop the run with a message
                   | HitStatedMaturity Date               -- ^ hit the stated maturity date
@@ -110,7 +110,7 @@ instance TimeSeries ActionOnDate where
     getDate (ResetBondRate d _ ) = d 
     getDate (MakeWhole d _ _) = d 
     getDate (BuildReport sd ed) = ed
-    getDate (IssueBond d _ _ _) = d
+    getDate (IssueBond d _ _ _ _ _ _) = d
 
 
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering

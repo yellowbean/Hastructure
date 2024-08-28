@@ -14,7 +14,7 @@ module Assumptions (BondPricingInput(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,getCDR,calcResetDates,AssumpReceipes,IssueBondEvent)
+                    ,getCDR,calcResetDates,AssumpReceipes,IssueBondEvent(..))
 where
 
 import Call as C
@@ -40,6 +40,7 @@ import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
 import InterestRate
+-- import Deal (ActionOnDate(IssueBond))
 -- import Triggers (TriggerName)
 debug = flip trace
 
@@ -65,7 +66,13 @@ data ApplyAssumptionType = PoolLevel AssetPerf
                            -- ^ assumption for a named deal 
                          deriving (Show, Generic)
 
-type IssueBondEvent = (String,AccName,Bond) -- bond group name, account name, bond
+-- type IssueBondEvent = (String,AccName,Bond) -- bond group name, account name, bond
+
+type RateFormula = DealStats
+type BalanceFormula = DealStats
+
+data IssueBondEvent = IssueBondEvent (Maybe Pre) BondName AccName Bond (Maybe BalanceFormula) (Maybe RateFormula)
+                    deriving (Show, Generic, Read)
 
 data NonPerfAssumption = NonPerfAssumption {
   stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
@@ -78,6 +85,7 @@ data NonPerfAssumption = NonPerfAssumption {
   ,pricing :: Maybe BondPricingInput                         -- ^ optional bond pricing input( discount curve etc)
   ,fireTrigger :: Maybe [(Date,DealCycle,String)]            -- ^ optional fire a trigger
   ,makeWholeWhen :: Maybe (Date,Spread,Table Float Spread)
+  -- ,issueBondSchedule :: Maybe [TsPoint IssueBondEvent]                            
   ,issueBondSchedule :: Maybe [TsPoint IssueBondEvent]                            
 } deriving (Show, Generic)
 
@@ -229,8 +237,8 @@ calcResetDates (r:rs) bs
 
 
 $(deriveJSON defaultOptions ''BondPricingInput)
+$(deriveJSON defaultOptions ''IssueBondEvent)
 
--- $(deriveJSON defaultOptions ''IssueBondEvent)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''ApplyAssumptionType, ''AssetPerfAssumption
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption

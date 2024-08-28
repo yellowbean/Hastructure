@@ -273,15 +273,15 @@ validateReq t@TestDeal{accounts = accMap, fees = feeMap} assump@A.NonPerfAssumpt
                         Nothing -> []
                         Just issueBndEventlist
                           -> let 
-                              bgNamesInAssump = Set.fromList $ [ bgName | TsPoint d (bgName,_,_) <- issueBndEventlist ]
+                              bgNamesInAssump = Set.fromList $ [ bgName | TsPoint d (A.IssueBondEvent _ bgName _ bnd _ _) <- issueBndEventlist ]
                               bgNamesInDeal = Map.keysSet $ view dealBondGroups t
                               bgNameErrors = [ ErrorMsg ("issueBond:Missing Bond Group Name in Deal:"++ missingBgName ) | missingBgName <- Set.elems (Set.difference bgNamesInAssump bgNamesInDeal)]
 
-                              newBndNames = Set.fromList $ [ L.bndName bnd | TsPoint d (_,_,bnd) <- issueBndEventlist ]
+                              newBndNames = Set.fromList $ [ L.bndName bnd | TsPoint d (A.IssueBondEvent _ _ _ bnd _ _) <- issueBndEventlist ]
                               existingBndNames = Set.fromList $ L.bndName <$> viewDealAllBonds t
                               bndNameErrors = [ ErrorMsg ("issueBond:Existing Bond Name in Deal:"++ existsBndName ) | existsBndName <- Set.elems (Set.intersection newBndNames existingBndNames)]
 
-                              acNamesInAssump = Set.fromList $ [ acName | TsPoint d (_,acName,_) <- issueBndEventlist ]
+                              acNamesInAssump = Set.fromList $ [ acName | TsPoint d (A.IssueBondEvent _ _ acName _ _ _) <- issueBndEventlist ]
                               existingAccNames = Map.keysSet accMap
                               accNameErrors = [ ErrorMsg ("issueBond:Missing Account Name in Deal:"++ missingAccName ) | missingAccName <- Set.elems (Set.difference acNamesInAssump existingAccNames)]
                              in 
