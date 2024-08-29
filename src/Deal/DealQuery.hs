@@ -190,10 +190,13 @@ queryDealRate t s =
           [_f,_c,_s] = toRational <$> (queryDealRate t) <$> [floor,cap,s]
         in 
           max _f (min _c _s)
+      Factor s r -> toRational $ (queryDealRate t s) * fromRational r
+      Multiply ss -> toRational $ product (queryDealRate t <$> ss)
       FloorWith s floor -> toRational $ max (queryDealRate t s) (queryDealRate t floor)
       FloorWithZero s -> toRational $ max (queryDealRate t s) 0
+      Excess (s1:ss) -> toRational $ max 0 $ queryDealRate t s1 - queryDealRate t (Sum ss) -- `debug` ("Excess"++show (queryDeal t s1)++"ss"++show ( queryDeal t (Sum ss)))
       CapWith s cap -> toRational $ min (queryDealRate t s) (queryDealRate t cap)
-      Factor s r -> toRational $ (queryDealRate t s) * fromRational r
+      Abs s -> toRational . abs $ queryDealRate t s
       
 
 queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
