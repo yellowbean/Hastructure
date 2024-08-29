@@ -284,8 +284,12 @@ validateReq t@TestDeal{accounts = accMap, fees = feeMap} assump@A.NonPerfAssumpt
                               acNamesInAssump = Set.fromList $ [ acName | TsPoint d (A.IssueBondEvent _ _ acName _ _ _) <- issueBndEventlist ]
                               existingAccNames = Map.keysSet accMap
                               accNameErrors = [ ErrorMsg ("issueBond:Missing Account Name in Deal:"++ missingAccName ) | missingAccName <- Set.elems (Set.difference acNamesInAssump existingAccNames)]
+                              
+                              bndNamesInAssump = [ L.bndName bnd | TsPoint d (A.IssueBondEvent _ bgName _ bnd _ _) <- issueBndEventlist ]
+                              bndUniqNames = Set.fromList bndNamesInAssump
+                              dupNamesErrors = [ ErrorMsg("Duplicate Bond Names in Funding Plan") | length bndUniqNames /= length bndNamesInAssump]
                              in 
-                              bgNameErrors ++ accNameErrors ++ bndNameErrors
+                              bgNameErrors ++ accNameErrors ++ bndNameErrors ++ dupNamesErrors
 
       -- revolving buy validation
       revolvingBuyError = let 
