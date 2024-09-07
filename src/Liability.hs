@@ -12,7 +12,7 @@ module Liability
   ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
-  ,getCurBalance)
+  ,getCurBalance,setBondOrigDate)
   where
 
 import Language.Haskell.TH
@@ -155,6 +155,9 @@ consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
     in 
       b {bndStmt = Just (S.Statement (reverse droppedTxns))}
 
+setBondOrigDate :: Date -> Bond -> Bond
+setBondOrigDate d b@Bond{bndOriginInfo = oi} = b {bndOriginInfo = oi{originDate = d}}
+setBondOrigDate d (BondGroup bMap) = BondGroup $ Map.map (setBondOrigDate d) bMap
 
 -- | build bond factors
 patchBondFactor :: Bond -> Bond
@@ -168,7 +171,6 @@ patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
                   newStmt = S.Statement $ toFactor <$> txns
                 in 
                   b {bndStmt = Just newStmt} 
-      
 
 payInt :: Date -> Amount -> Bond -> Bond
 -- pay 0 interest, do nothing
@@ -489,6 +491,7 @@ instance IR.UseRate Bond where
                                   where combined = concat . catMaybes  $ (\b -> getIndexFromInfo (bndInterestInfo b)) <$> Map.elems bMap
      
 makeLensesFor [("bndType","bndTypeLens"),("bndOriginInfo","bndOriginInfoLens"),("bndInterestInfo","bndIntLens"),("bndStmt","bndStmtLens")] ''Bond
+makeLensesFor [("bndOriginDate","bndOriginDateLens"),("bndOriginBalance","bndOriginBalanceLens"),("bndOriginRate","bndOriginRateLens")] ''OriginalInfo
 
 $(deriveJSON defaultOptions ''InterestOverInterestType)
 $(deriveJSON defaultOptions ''InterestInfo)

@@ -20,7 +20,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchCumulative,extendTxns,dropTailEmptyTxns
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
-                ,txnCumulativeStats,consolidateCashFlow,cashflowTxn) where
+                ,txnCumulativeStats,consolidateCashFlow) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -39,7 +39,6 @@ import Language.Haskell.TH
 import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
-
 import Text.Printf
 
 import Debug.Trace
@@ -48,14 +47,8 @@ import Control.Applicative (liftA2)
 import Data.OpenApi (HasPatch(patch), HasXml (xml))
 import Data.Text.Internal.Encoding.Fusion (streamUtf16BE)
 
-
-
 import qualified Text.Tabular as TT
--- import Text.Html (renderHtml, stringToHtml, (+++))
-
 import qualified Text.Tabular.AsciiArt as A
--- import qualified Text.Tabular.SimpleText as S
-
 import Control.Lens hiding (element)
 import Control.Lens.TH
 
@@ -654,13 +647,6 @@ updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
 updateFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a b c d e f
 updateFlowBalance b (ReceivableFlow a x c d e f g h i) = ReceivableFlow a b c d e f g h i
 
--- updateCumStats :: Maybe CumulativeStat -> TsRow -> TsRow
--- updateCumStats Nothing x = x
--- updateCumStats stat (MortgageDelinqFlow a b c d e f g h i j k l _) = MortgageDelinqFlow a b c d e f g h i j k l stat
--- updateCumStats stat (MortgageFlow a b c d e f g h i j k _) = MortgageFlow a b c d e f g h i j k stat
--- updateCumStats stat (LoanFlow a b c d e f g h i _) = LoanFlow a b c d e f g h i stat
--- updateCumStats stat (ReceivableFlow a b c d e f g h _) = ReceivableFlow a b c d e f g h stat
--- updateCumStats stat _ = error "not supported for update cumulative stats for record "
 
 mflowBegBalance :: TsRow -> Balance
 mflowBegBalance (BondFlow _ x p _) = x + p
@@ -791,9 +777,6 @@ insertBegTsRow d (CashFlowFrame st (txn:txns))
     in 
       CashFlowFrame st (begRow:txn:txns)
 
--- combineCashFlow :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
--- combineCashFlow cf1 (CashFlowFrame []) = cf1 
--- combineCashFlow (CashFlowFrame txn1) (CashFlowFrame txn2) = CashFlowFrame (txn1++txn2)
 
 totalLoss :: CashFlowFrame -> Balance
 totalLoss (CashFlowFrame _ rs) = sum $ mflowLoss <$> rs
@@ -1004,15 +987,6 @@ cutoffTrs d trs
     in
       (patchCumulative (0.0,0.0,0.0,0.0,0.0,0.0) [] afterTrs, m)
 
--- patchBeginBalance :: Date -> CashFlowFrame -> CashFlowFrame
--- patchBeginBalance _ (CashFlowFrame []) = CashFlowFrame []
--- patchBeginBalance d cf@(CashFlowFrame txns) 
---   = let 
---       begRow = buildBegTsRow d (head txns)
---     in 
---       CashFlowFrame (begRow:txns)
-
--- ^ Given a list of Dates, build empty cashflow rows
 extendTxns :: TsRow -> [Date] -> [TsRow]      
 extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
 

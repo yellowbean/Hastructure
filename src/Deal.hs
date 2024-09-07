@@ -250,34 +250,77 @@ queryTrigger t@TestDeal{ triggers = trgs } wt
       Nothing -> []
       Just _trgs -> maybe [] Map.elems $ Map.lookup wt _trgs
 
--- ^ run trigger sequentially
--- testTriggers :: Ast.Asset a => TestDeal a -> Date -> [Trigger] -> Bool
--- testTriggers t d [] = False
--- testTriggers t d triggers = any (testTrigger t d) triggers 
-
 -- ^ execute effects of trigger: making changes to deal
-runEffects :: Ast.Asset a => (TestDeal a, RunContext a) -> Date -> TriggerEffect -> (TestDeal a, RunContext a)
-runEffects (t@TestDeal{accounts = accMap, fees = feeMap },rc) d te 
+runEffects :: Ast.Asset a => (TestDeal a, RunContext a, [ActionOnDate]) -> Date -> TriggerEffect -> (TestDeal a, RunContext a, [ActionOnDate])
+runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bondMap, pool=pt
+                      ,collects = collRules},rc, actions) d te 
   = case te of 
-      DealStatusTo _ds -> (t {status = _ds}, rc)
-      DoAccrueFee fns -> (t {fees = foldr (Map.adjust (calcDueFee t d)) feeMap fns}, rc)
+      DealStatusTo _ds -> (t {status = _ds}, rc, actions)
+      DoAccrueFee fns -> (t {fees = foldr (Map.adjust (calcDueFee t d)) feeMap fns}, rc, actions)
       ChangeReserveBalance accName rAmt ->
-          (t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }, rc)
+          (t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }, rc, actions)
       
-      TriggerEffects efs -> foldl (`runEffects` d) (t,rc) efs
+      TriggerEffects efs -> foldl (`runEffects` d) (t,rc, actions) efs
       
-      RunActions actions -> let 
-                              (newT,newRc,newLogs) = foldl (performActionWrap d) (t, rc, []) actions
+      RunActions wActions -> let 
+                              (newT,newRc,newLogs) = foldl (performActionWrap d) (t, rc, []) wActions
                             in 
-                              (newT,newRc)
-      DoNothing -> (t, rc)
+                              (newT,newRc, actions)
+      CloseDeal (offset0,pDp) (offset1,bDp) (pm,accName,mIssuanceBal) mCollectRules
+        -> let 
+            closingDate = d
+            (WarehousingDates _ _ _ endDate) = dates t
+            Warehousing nextSt = st
+            -- issue bonds 
+            newBonds = Map.map (L.setBondOrigDate closingDate) bondMap
+            --- TODO for floater rate bond ,need to update rate in the bond 
+            draftBondBals = queryDeal t CurrentBondBalance
+
+            ---- determine the balance of issuance
+            totalIssuanceBalance = case mIssuanceBal of 
+                                    Nothing -> draftBondBals
+                                    Just fml -> queryDeal t fml
+            scaleFactor = toRational $ totalIssuanceBalance / draftBondBals
+            scaledBndMap = Map.map (L.scaleBond scaleFactor) newBonds
+
+            accAfterIssue = Map.adjust (A.deposit totalIssuanceBalance d (IssuanceProceeds "ALL")) accName accMap
+            -- sell assets
+            ----- valuation on pools
+            assetVal = case pt of 
+                        SoloPool p -> P.calcLiquidationAmount pm p closingDate 
+                        MultiPool pMap -> sum $ Map.map (\p -> P.calcLiquidationAmount pm p closingDate) pMap
+            assetBal = queryDeal t (FutureCurrentPoolBalance Nothing)
+            accAfterBought = Map.adjust (A.draw assetVal d (PurchaseAsset "ALL" assetBal)) accName accMap
+
+            -- reset pool flow flow
+            dealPoolFlowMap = Map.map (maybe 0 ((CF.mflowBalance . head) . (view CF.cashflowTxn)))
+                                      $ view dealCashflow t
+            newPt = patchIssuanceBalance st dealPoolFlowMap pt 
+            ---- reset pool stats
+            newPt2 = case newPt of 
+                      SoloPool _pt -> SoloPool $ over (P.poolFutureCf2 . CF.cashflowTxn) (CF.patchCumulative (0,0,0,0,0,0) []) _pt
+                      MultiPool pm -> MultiPool $ Map.map (over (P.poolFutureCf2 . CF.cashflowTxn) (CF.patchCumulative (0,0,0,0,0,0) [])) pm
+                      x -> x
+            -- build actions dates
+            firstPayDate = T.addDays (toInteger offset0) closingDate
+            firstCollectDate = T.addDays (toInteger offset1) closingDate
+
+            distributionDays = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE firstPayDate bDp endDate]
+            poolCollectionDays = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE firstCollectDate pDp endDate]
+            newActions = (DealClosed closingDate):(sortBy sortActionOnDate (distributionDays++poolCollectionDays))
+          in 
+            (t {status = nextSt, bonds = scaledBndMap, accounts=accAfterBought, pool = newPt2
+                ,collects = fromMaybe collRules mCollectRules}
+            , rc
+            , cutBy Inc Past d actions ++ newActions) --TODO add actions to close deal
+      DoNothing -> (t, rc, actions)
       _ -> error $ "Failed to match trigger effects: "++show te
 
 -- ^ test triggers in the deal and add a log if deal status changed
-runTriggers :: Ast.Asset a => (TestDeal a, RunContext a) -> Date -> DealCycle -> (TestDeal a, RunContext a,[ResultComponent])
-runTriggers (t@TestDeal{status=oldStatus, triggers = Nothing},rc) d dcycle = (t, rc, [])
-runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc) d dcycle = 
-    (newDeal {triggers = Just (Map.insert dcycle newTriggers trgM)}, newRc, newLogs) -- `debug` ("New logs from trigger"++ show d ++">>>"++show newLogs)
+runTriggers :: Ast.Asset a => (TestDeal a, RunContext a, [ActionOnDate]) -> Date -> DealCycle -> (TestDeal a, RunContext a, [ActionOnDate],[ResultComponent])
+runTriggers (t@TestDeal{status=oldStatus, triggers = Nothing},rc, actions) d dcycle = (t, rc, actions, [])
+runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc, actions) d dcycle = 
+    (newDeal {triggers = Just (Map.insert dcycle newTriggers trgM)}, newRc, newActions, newLogs) -- `debug` ("New logs from trigger"++ show d ++">>>"++show newLogs)
   where 
     -- _trgs = Map.findWithDefault [] dcycle trgM
 
@@ -296,7 +339,7 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc) d dcycle =
 
     -- run effects on deals
     -- aka (\_t _te -> runEffects _t d _te)
-    (newDeal, newRc) = foldl (`runEffects` d) (t,rc) triggeredEffects
+    (newDeal, newRc,newActions) = foldl (`runEffects` d) (t,rc,actions) triggeredEffects
 
     -- if deal status changed, then insert to log if changes
     newStatus = status newDeal 
@@ -339,13 +382,13 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                                   dAfterDeposit
 
                runContext = RunContext outstandingFlow rAssump rates
-               (dRunWithTrigger0, rc1, newLogs0) = runTriggers (dealAfterUpdateScheduleFlow,runContext) d EndCollection  
+               (dRunWithTrigger0, rc1,ads2, newLogs0) = runTriggers (dealAfterUpdateScheduleFlow,runContext,ads) d EndCollection  
                eopActionsLog = [ RunningWaterfall d W.EndOfPoolCollection | Map.member W.EndOfPoolCollection (waterfall t) ] -- `debug` ("new logs from trigger 1"++ show newLogs0)
                waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("new logs from trigger 1"++ show newLogs0)
                (dAfterAction,rc2,newLogs) = foldl (performActionWrap d) (dRunWithTrigger0 ,rc1 ,log ) waterfallToExe -- `debug` ("End collection action"++ show waterfallToExe)
-               (dRunWithTrigger1,rc3,newLogs1) = runTriggers (dAfterAction,rc2) d EndCollectionWF -- `debug` ("new logs from waterfall 2"++ show newLogs)
+               (dRunWithTrigger1,rc3,ads3,newLogs1) = runTriggers (dAfterAction,rc2,ads2) d EndCollectionWF -- `debug` ("new logs from waterfall 2"++ show newLogs)
              in 
-               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates calls rAssump (newLogs0++newLogs++ eopActionsLog ++newLogs1) --  `debug` ("Run  logs pool collection "++ show (length (log++newLogs0++newLogs++newLogs1))) -- `debug` ("last log"++ show (last ads))     -- `debug` ("End :after new pool flow"++ show (runPoolFlow rc))
+               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads3) rates calls rAssump (newLogs0++newLogs++ eopActionsLog ++newLogs1) --  `debug` ("Run  logs pool collection "++ show (length (log++newLogs0++newLogs++newLogs1))) -- `debug` ("last log"++ show (last ads))     -- `debug` ("End :after new pool flow"++ show (runPoolFlow rc))
            else
              run t Map.empty (Just ads) rates calls rAssump log  
    
@@ -363,12 +406,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                  in  
                     (prepareDeal dealAfterCleanUp, endingLogs++newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
                else
-                 run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates calls rAssump newLogs -- `debug` ("status in run waterfall"++show (status dRunWithTrigger1))
+                 run dRunWithTrigger1 (runPoolFlow rc3) (Just ads2) rates calls rAssump newLogs -- `debug` ("status in run waterfall"++show (status dRunWithTrigger1))
              Nothing ->
-               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads) rates Nothing rAssump newLogs  -- `debug` ("pool flow" ++ (show (runPoolFlow rc3))) -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
+               run dRunWithTrigger1 (runPoolFlow rc3) (Just ads2) rates Nothing rAssump newLogs  -- `debug` ("pool flow" ++ (show (runPoolFlow rc3))) -- `debug` ("Deal Status"++ show (status dRunWithTrigger1)) -- `debug` ("Call is Nothing")-- `debug` ("Running Waterfall at"++ show d)--  `debug` ("!!!Running waterfall"++show(ad)++"Next ad"++show(head ads)++"PoolFLOW>>"++show(poolFlow)++"AllACCBAL"++show(queryDeal t AllAccBalance))
            where
              runContext = RunContext poolFlowMap rAssump rates
-             (dRunWithTrigger0, rc1, newLogs0) = runTriggers (t,runContext) d BeginDistributionWF
+             (dRunWithTrigger0, rc1,ads1, newLogs0) = runTriggers (t,runContext,ads) d BeginDistributionWF
              -- warning if not waterfall distribution found
              waterfallKey = if Map.member (W.DistributionDay dStatus) waterfallM then 
                               W.DistributionDay dStatus
@@ -381,7 +424,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                          
              waterfallToExe = Map.findWithDefault [] waterfallKey waterfallM
              (dAfterWaterfall, rc2, newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe  -- `debug` ("Waterfall>>>"++show(waterfallToExe))
-             (dRunWithTrigger1, rc3, newLogs2) = runTriggers (dAfterWaterfall,rc2) d EndDistributionWF  
+             (dRunWithTrigger1, rc3,ads2, newLogs2) = runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  
              newLogs =  newLogsWaterfall ++ newLogs0 ++ newLogs1 ++ newLogs2  -- `debug` ("new logs from waterfall"++ show newLogs)
 
          EarnAccInt d accName ->
@@ -498,9 +541,9 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                
                runContext = RunContext poolFlowMap rAssump rates
 
-               (newT, rc@(RunContext newPool _ _)) = case triggerEffects of 
-                                                      Nothing -> (t,runContext)  `debug` "Nothing found on effects"
-                                                      Just efs -> runEffects (t,runContext) d efs
+               (newT, rc@(RunContext newPool _ _),adsFromTrigger) = case triggerEffects of 
+                                                      Nothing -> (t,runContext,ads)  `debug` "Nothing found on effects"
+                                                      Just efs -> runEffects (t,runContext, ads) d efs
                (oldStatus,newStatus) = (status t,status newT)
                stChangeLogs = [DealStatusChangeTo d oldStatus newStatus |  oldStatus /= newStatus] 
 
@@ -713,6 +756,7 @@ removePoolCf t@TestDeal{pool=pt} =
   in
     t {pool=newPt}
 
+-- ^ TODO: need to set cashflow to different pool other than SoloPool
 setFutureCF :: Ast.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
 setFutureCF t@TestDeal{pool = (SoloPool p )} cf 
   = let 
@@ -720,10 +764,16 @@ setFutureCF t@TestDeal{pool = (SoloPool p )} cf
       newPoolType = SoloPool newPool 
     in 
       t {pool = newPoolType }
-  
 
-populateDealDates :: DateDesp -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
-populateDealDates (CustomDates cutoff pa closing ba) 
+populateDealDates :: DateDesp -> DealStatus -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
+populateDealDates (WarehousingDates begDate rampingPoolDp rampingBondDp statedDate)
+                  (Warehousing _) 
+  = (begDate,begDate, getDate (head ba),pa,ba,statedDate)
+    where
+      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE begDate rampingPoolDp statedDate ]
+      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE begDate rampingBondDp statedDate ]
+
+populateDealDates (CustomDates cutoff pa closing ba) _ 
   = (cutoff  
     ,closing
     ,getDate (head ba)
@@ -731,8 +781,8 @@ populateDealDates (CustomDates cutoff pa closing ba)
     ,ba
     ,getDate (max (last pa) (last ba)))
 
-populateDealDates (PatternInterval _m) 
-  = (cutoff,closing,nextPay,pa,ba,max ed1 ed2) -- `debug` ("PA>>>"++ show pa)
+populateDealDates (PatternInterval _m) _
+  = (cutoff,closing,nextPay,pa,ba,max ed1 ed2) 
     where 
       (cutoff,dp1,ed1) = _m Map.! CutoffDate
       (nextPay,dp2,ed2) = _m Map.! FirstPayDate 
@@ -740,13 +790,13 @@ populateDealDates (PatternInterval _m)
       pa = [ PoolCollection _d "" | _d <- genSerialDatesTill cutoff dp1 ed1 ]
       ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill nextPay dp2 ed2 ]
 
-populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp))
-  = (cutoff,closing,firstPay,pa,ba,end) -- `debug` ("POOL A"++show pa) 
+populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp)) _
+  = (cutoff,closing,firstPay,pa,ba,end) 
     where 
       pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE firstCollect poolDp end ]
       ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE firstPay bondDp end ]
 
-populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollect,poolDp) (nextPay,bondDp))
+populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollect,poolDp) (nextPay,bondDp)) _
   = (lastCollect, lastPay,head futurePayDates, pa, ba, end) 
     where 
       futurePayDates = genSerialDatesTill2 IE nextPay bondDp end 
@@ -754,13 +804,6 @@ populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollec
       futureCollectDates = genSerialDatesTill2 IE nextCollect poolDp end 
       pa = [ PoolCollection _d "" | _d <- futureCollectDates]
 
--- | Given dates from deal object, pre-populate the dates would change deal status
-calcDealStageDate :: DateDesp -> [(Date,DealStatus)]
-calcDealStageDate (PreClosingDates _ closing Nothing endDate _ _) = [(endDate,Ended)]
-calcDealStageDate (PreClosingDates _ closing (Just revolvingEndDate) endDate _ _) = [(endDate,Ended)]
-calcDealStageDate (CurrentDates _ Nothing endDate _ _) = [(endDate,Ended)]
-calcDealStageDate (CurrentDates _ (Just revolvingEndDate) endDate _ _) = [(endDate,Ended)]
-calcDealStageDate _ = []
 
 -- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
 runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance )]
@@ -788,6 +831,7 @@ runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
 -- ^ patch issuance balance for PreClosing Deal
 patchIssuanceBalance :: Ast.Asset a => DealStatus -> Map.Map PoolId Balance -> PoolType a -> PoolType a
+patchIssuanceBalance (Warehousing _) balM pt = patchIssuanceBalance (PreClosing Amortizing) balM pt
 patchIssuanceBalance (PreClosing _ ) balM pt =
   case pt of 
     SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 PoolConsol balM)) p -- `debug` ("Insert with issuance balance"++ show (Map.findWithDefault 0.0 PoolConsol balM))
@@ -850,10 +894,9 @@ getInits :: Ast.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe A
 getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump
   = (newT, allActionDates, pCollectionCfAfterCutoff, pUnstressedAfterCutoff)  -- `debug` ("init done actions->"++ show pCollectionCfAfterCutoff)
   where
-    (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t)  
-    -- dealStatusDates = calcDealStageDate (dates t)  
-    -- dealStageDates = [ ChangeDealStatusTo d s | (d,s) <- dealStatusDates ]
-    intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) endDate [] -- `debug` (show (startDate,firstPayDate,pActionDates,bActionDates,endDate))
+    (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t) status
+
+    intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) endDate [] 
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
                                            , _d <- accIntDates ] 
     --fee accrue dates 
@@ -908,8 +951,6 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                       bndWithDate = Map.toList $ Map.map 
                                                 (\b -> L.buildRateResetDates b closingDate endDate) 
                                                 bndMap
-                      -- bnds = viewDealAllBonds t
-                      -- bndWithDate = zip  (L.bndName <$> bnds) $ (\b -> L.buildRateResetDates b closingDate endDate) <$> bnds
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate, bdate <- bdates ] 
     -- mannual triggers 
@@ -936,7 +977,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                    ,bondIssuePlan] 
                                       in
                                         case dates t of 
-                                          PreClosingDates {} -> sortBy sortActionOnDate $ DealClosed closingDate:a  -- `debug` ("add a closing date"++show closingDate)
+                                          PreClosingDates {} -> sortBy sortActionOnDate $ DealClosed closingDate:a 
                                           _ -> sortBy sortActionOnDate a
                        _actionDates = __actionDates++[HitStatedMaturity endDate]
                      in 
@@ -944,13 +985,8 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                          Just AP.NonPerfAssumption{AP.stopRunBy = Just d} -> cutBy Exc Past d __actionDates ++ [StopRunFlag d]
                          _ -> _actionDates  
      
-    -- (poolCf,historyStats) = P.aggPool (P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
-    -- (poolCf,historyStats) = P.aggPool(P.issuanceStat thePool) $ runPool thePool mAssumps (AP.interest =<< mNonPerfAssump)  -- `debug` ("rates assump"++ show (AP.interest =<< mNonPerfAssump)mNonPerfAssump)
     pCfM = runPoolType thePool mAssumps mNonPerfAssump
-    -- (poolCf,historyStats) = P.aggPool $ runPool thePool mAssumps (AP.interest <*> mNonPerfAssump) -- `debug` ("agg pool flow")
-    -- poolCfTs = cutBy Inc Future startDate $ CF.getTsCashFlowFrame poolCf -- `debug` ("Pool Cf in pool>>"++show poolCf++"\n start date"++ show startDate)
     poolCfTsM = Map.map (\(CF.CashFlowFrame _ txns, pstats) -> cutBy Inc Future startDate txns) pCfM -- `debug` ("Pool cfm"++ show pCfM)
-    -- poolAggCf = CF.aggTsByDates poolCfTs (getDates pActionDates)
     poolCfTsMwithBegRow = Map.map (\txns -> 
                                     case txns of 
                                       (x:xs) -> buildBegTsRow startDate x:x:xs
@@ -958,7 +994,6 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                       )
                                   poolCfTsM 
     poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow  
-    -- pCollectionCfAfterCutoff = CF.CashFlowFrame $ begRow:poolAggCf
     pCollectionCfAfterCutoff = Map.map (CF.CashFlowFrame (0,startDate,Nothing)) poolAggCfM 
     
     pScheduleCfM = case thePool of
@@ -1008,15 +1043,15 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
 
 -- ^ UI translation : to read pool cash
 readProceeds :: PoolSource -> CF.TsRow -> Balance
-readProceeds CollectedInterest  row = CF.mflowInterest row
-readProceeds CollectedPrincipal row = CF.mflowPrincipal row
-readProceeds CollectedRecoveries row = CF.mflowRecovery row
-readProceeds CollectedPrepayment row = CF.mflowPrepayment row
-readProceeds CollectedRental     row = CF.mflowRental row
-readProceeds CollectedPrepaymentPenalty row =  CF.mflowPrepaymentPenalty row
-readProceeds CollectedCash row =  CF.tsTotalCash row
-readProceeds CollectedFeePaid row = CF.mflowFeePaid row
-readProceeds a b = error $ "failed to read pool cashflow rule"++show a
+readProceeds CollectedInterest  = CF.mflowInterest
+readProceeds CollectedPrincipal = CF.mflowPrincipal
+readProceeds CollectedRecoveries = CF.mflowRecovery
+readProceeds CollectedPrepayment = CF.mflowPrepayment
+readProceeds CollectedRental     = CF.mflowRental
+readProceeds CollectedPrepaymentPenalty =  CF.mflowPrepaymentPenalty
+readProceeds CollectedCash =  CF.tsTotalCash
+readProceeds CollectedFeePaid = CF.mflowFeePaid
+readProceeds a = error $ "failed to read pool cashflow rule"++show a
 
 
 extractTxnsFromFlowFrameMap :: Maybe [PoolId] -> Map.Map PoolId CF.CashFlowFrame -> [CF.TsRow]
@@ -1056,3 +1091,5 @@ depositPoolFlow rules d pFlowMap amap
   = foldr (\rule acc -> depositInflow d rule pFlowMap acc) amap rules
 
 $(deriveJSON defaultOptions ''ExpectReturn)
+
+

@@ -6,7 +6,7 @@ module Pool (Pool(..),aggPool
        ,getIssuanceField
        ,poolFutureCf,poolFutureTxn,poolIssuanceStat
        ,poolFutureScheduleCf,futureCf,futureScheduleCf
-       ,poolBegStats
+       ,poolBegStats,poolFutureCf2,calcLiquidationAmount
 ) where
 
 
@@ -17,6 +17,7 @@ import Lib (Period(..)
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
+import qualified Analytics as AN
 import qualified AssetClass.AssetBase as ACM 
 import AssetClass.AssetCashflow
 import Asset (Asset(..))
@@ -36,6 +37,7 @@ import Control.Lens.TH
 import Assumptions (ApplyAssumptionType)
 
 import Debug.Trace
+import Util
 debug = flip trace
 
 
@@ -53,6 +55,12 @@ poolFutureCf = lens getter setter
   where 
     getter p = futureCf p
     setter p mNewCf = p {futureCf = mNewCf}
+
+poolFutureCf2 :: Asset a => Lens' (Pool a) CF.CashFlowFrame
+poolFutureCf2 = lens getter setter 
+  where 
+    getter p = fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) []) $ futureCf p
+    setter p newCf = p {futureCf = Just newCf}
 
 poolFutureScheduleCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
 poolFutureScheduleCf = lens getter setter
@@ -131,6 +139,32 @@ aggPool mStat xs
         Nothing -> (CF.CashFlowFrame st txns, stats) 
         Just accruedIntAmt -> (CF.CashFlowFrame st (CF.clawbackInt accruedIntAmt txns), stats)
 
- 
+
+calcLiquidationAmount :: Asset a => PricingMethod -> Pool a -> Date -> Amount
+calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
+  = case futureCf pool of 
+      Nothing -> 0  -- `debug` ("No futureCF")
+      Just _futureCf@(CF.CashFlowFrame _ trs) ->
+        let 
+          earlierTxns = cutBy Inc Past d trs
+          currentCumulativeDefaultBal = sum $ map (\x -> CF.mflowDefault x - CF.mflowRecovery x - CF.mflowLoss x) earlierTxns
+        in 
+          case earlierTxns of 
+            [] -> 0  -- `debug` ("No pool Inflow")
+            _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor)
+            -- TODO need to check if missing last row
+
+calcLiquidationAmount (PV discountRate recoveryPct) pool d 
+  = case futureCf pool of
+      Nothing -> 0 
+      Just (CF.CashFlowFrame _ trs) ->
+          let 
+            futureTxns = cutBy Inc Future d trs
+            earlierTxns = cutBy Exc Past d trs 
+            pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
+            currentDefaulBal = sum $ map (\x -> CF.mflowDefault x - CF.mflowRecovery x - CF.mflowLoss x) earlierTxns
+          in 
+            pvCf + mulBI currentDefaulBal recoveryPct
+
 
 $(deriveJSON defaultOptions ''Pool)

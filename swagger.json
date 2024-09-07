@@ -4740,6 +4740,54 @@
                                                 "$ref": "#/components/schemas/Day"
                                             },
                                             {
+                                                "$ref": "#/components/schemas/DatePattern"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/DatePattern"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "minItems": 3,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RampingDates"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RampingDates",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/Day"
+                                            },
+                                            {
                                                 "$ref": "#/components/schemas/Day"
                                             }
                                         ],
@@ -8140,21 +8188,6 @@
                     },
                     {
                         "properties": {
-                            "tag": {
-                                "enum": [
-                                    "Ended"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag"
-                        ],
-                        "title": "Ended",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
                             "contents": {
                                 "$ref": "#/components/schemas/DealStatus"
                             },
@@ -8174,6 +8207,25 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStatus"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RampingUp"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RampingUp",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "tag": {
                                 "enum": [
                                     "Called"
@@ -8185,6 +8237,21 @@
                             "tag"
                         ],
                         "title": "Called",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "Ended"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "Ended",
                         "type": "object"
                     }
                 ]
@@ -15446,6 +15513,21 @@
                     },
                     {
                         "properties": {
+                            "tag": {
+                                "enum": [
+                                    "CloseDeal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "CloseDeal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "contents": {
                                 "items": [
                                     {
@@ -17492,7 +17574,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.28.21"
+        "version": "0.29.1"
     },
     "openapi": "3.0.0",
     "paths": {

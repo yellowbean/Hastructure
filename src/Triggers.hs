@@ -13,7 +13,7 @@ import Text.Read (readMaybe)
 import Lib 
 import Types
 import Accounts (ReserveAmount)
-import Waterfall (Action)
+import Waterfall (Action,CollectionRule)
 import Data.Aeson ( defaultOptions )
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -28,15 +28,18 @@ import Control.Lens
 type TriggerName = String
 
 
-data TriggerEffect = DealStatusTo DealStatus                    -- ^ change deal status
-                   | DoAccrueFee FeeNames                       -- ^ accure fee
-                   | AddTrigger Trigger                         -- ^ add a new trigger
-                   | ChangeReserveBalance String ReserveAmount  -- ^ update reserve target balance  
-                   -- | IssueBonds [L.Bond] AccountName            -- ^ issue new bonds and deposit proceeds to account
-                   | BuyAsset AccountName PricingMethod         -- ^ buy asset from the assumption using funds from account
-                   | TriggerEffects [TriggerEffect]             -- ^ a combination of effects above
-                   | RunActions [Action]                       -- ^ run a list of waterfall actions
-                   | DoNothing                                  -- ^ do nothing
+data TriggerEffect = DealStatusTo DealStatus                           -- ^ change deal status
+                   | DoAccrueFee FeeNames                              -- ^ accure fee
+                   | AddTrigger Trigger                                -- ^ add a new trigger
+                   | ChangeReserveBalance String ReserveAmount         -- ^ update reserve target balance  
+                   | CloseDeal (Int, DatePattern) (Int, DatePattern)
+                               (PricingMethod, AccountName, Maybe DealStats)   
+                               (Maybe [CollectionRule])
+                               -- ^ close the deal
+                   | BuyAsset AccountName PricingMethod                -- ^ buy asset from the assumption using funds from account
+                   | TriggerEffects [TriggerEffect]                    -- ^ a combination of effects above
+                   | RunActions [Action]                               -- ^ run a list of waterfall actions
+                   | DoNothing                                         -- ^ do nothing
                    deriving (Show, Eq, Generic,Ord)
  
 data Trigger = Trigger {
