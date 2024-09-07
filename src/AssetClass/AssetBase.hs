@@ -9,7 +9,7 @@ module AssetClass.AssetBase
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
   ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..),ReceivableFeeType(..),Receivable(..)
-  ,ProjectedCashflow(..)
+  ,ProjectedCashflow(..),Obligor(..)
   ,calcAssetPrinInt, calcPmt
   )
   where
@@ -30,6 +30,8 @@ import qualified Data.Map as Map
 import qualified InterestRate as IR
 import qualified Cashflow as CF
 -- import Assumptions (RevolvingAssumption(Dummy4))
+import Control.Lens hiding (element,Index)
+import Control.Lens.TH
 
 import Debug.Trace (trace)
 debug = flip Debug.Trace.trace
@@ -296,6 +298,8 @@ $(concat <$> traverse (deriveJSON defaultOptions) [''Obligor, ''OriginalInfo, ''
     , ''Capacity, ''AmortRule, ''ReceivableFeeType])
 
 
+makePrisms ''OriginalInfo
+
 $(deriveJSON defaultOptions ''AssociateExp)
 $(deriveJSON defaultOptions ''AssociateIncome)
 $(deriveJSON defaultOptions ''Status)
@@ -311,7 +315,6 @@ instance ToSchema Capacity
 instance ToSchema AmortRule
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
-
 
 instance ToSchema PrepayPenaltyType
 instance ToSchema Ts

@@ -120,7 +120,11 @@ type Convexity = Micro
 type Yield = Micro
 type AccruedInterest = Centi
 type IRR = Rational
+
+
+
 data YieldResult = Yiel
+
 
 data Index = LPR5Y
             | LPR1Y

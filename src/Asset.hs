@@ -37,9 +37,10 @@ import Types hiding (Current)
 import Text.Printf
 import Data.Fixed
 import qualified InterestRate as IR
+import qualified Data.Set as Set
 import Util
 
-import AssetClass.AssetBase ( OriginalInfo, calcPmt, AssetUnion )
+import AssetClass.AssetBase ( OriginalInfo(..), calcPmt, AssetUnion, Obligor(..) )
 
 import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
@@ -96,6 +97,23 @@ class (Show a,IR.UseRate a) => Asset a where
                         in 
                           T.addDays offset $ getOriginDate ast
 
+  getObligorTags :: a -> Set.Set String
+  getObligorTags a = 
+      case getOriginInfo a of 
+        MortgageOriginalInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
+        LoanOriginalInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
+        LeaseInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
+        ReceivableInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
+        _ -> mempty
+
+  getObligorId :: a -> Maybe Int
+  getObligorId a = 
+      case getOriginInfo a of 
+        MortgageOriginalInfo{obligor = Just obr } -> Just (obligorId obr)
+        LoanOriginalInfo{obligor = Just obr } -> Just (obligorId obr)
+        LeaseInfo{obligor = Just obr } -> Just (obligorId obr)
+        ReceivableInfo{obligor = Just obr } -> Just (obligorId obr)
+        _ -> Nothing
                           
   {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 

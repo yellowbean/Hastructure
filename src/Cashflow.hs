@@ -868,20 +868,6 @@ splitTs _ tr = error $ "Not support for spliting TsRow"++show tr
 splitTrs :: Rate -> [TsRow] -> [TsRow]
 splitTrs r trs = splitTs r <$> trs 
 
--- addCumulative :: CumulativeStat -> [TsRow] -> [TsRow]
--- addCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss) 
---               (MortgageDelinqFlow d bal p i ppy delinq def recovery loss rate mB mPPN mStat)
---   = MortgageDelinqFlow d (bal+cPrin) (p+cPrepay) i ppy (delinq+cDelinq) (def+cDefault) (recovery+cRecovery) (loss+cLoss) rate mB mPPN mStat
--- 
--- addCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss) 
---               (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN mStat)
---   = MortgageFlow d (bal+cPrin) (p+cPrepay) i ppy (def+cDefault) (recovery+cRecovery) (loss+cLoss) rate mB mPPN mStat
-
-
--- type CumulativeStat = (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
-
- -- EmptyCumulativeStat = (0,0,0,0,0,0)
-
 currentCumulativeStat :: [TsRow] -> CumulativeStat
 currentCumulativeStat [] = (0,0,0,0,0,0)
 currentCumulativeStat trs = 

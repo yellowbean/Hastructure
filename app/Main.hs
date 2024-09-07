@@ -200,6 +200,8 @@ instance ToSchema (TsPoint AP.IssueBondEvent)
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption
+instance ToSchema AP.TagMatchRule
+instance ToSchema AP.ObligorStrategy
 instance ToSchema AP.ApplyAssumptionType
 instance ToSchema AP.AssetPerfAssumption
 instance ToSchema AP.AssetDelinqPerfAssumption

@@ -817,13 +817,58 @@ runPool (P.Pool [] (Just (CF.CashFlowFrame _ txn)) _ asof _ (Just dp)) (Just (AP
 runPool (P.Pool as _ _ asof _ _) Nothing mRates = map (\x -> (Ast.calcCashflow x asof mRates,Map.empty)) as 
 
 -- asset cashflow with credit stress
+---- By pool level
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates = map (\x -> Ast.projCashflow x asof assumps mRates) as  
+---- By index
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
     numAssets = length as
     _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
   in
     zipWith (\x a -> Ast.projCashflow x asof a mRates) as _assumps 
+---- By Obligor
+runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
+  let
+            -- result cf,rules,assets
+    matchAssets []   _ [] = [(CF.CashFlowFrame (0,epocDate,Nothing) [], Map.empty)] 
+    matchAssets cfs [] [] = cfs 
+    matchAssets cfs [] astList = cfs ++ ((\x -> (Ast.calcCashflow x asof mRates,Map.empty)) <$> astList)
+    matchAssets cfs (rule:rules) astList = 
+      case rule of 
+        AP.ObligorById ids assetPerf 
+          -> let 
+              idSet = S.fromList ids
+              (matchedAsts,unMatchedAsts) = partition 
+                                              (\x -> case Ast.getObligorId x of 
+                                                        Just oid -> S.member oid idSet
+                                                        Nothing -> False) 
+                                              astList
+              matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
+              in 
+                matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
+        AP.ObligorByTag tags tagRule assetPerf ->
+          let 
+            obrTags = S.fromList tags
+            (matchedAsts,unMatchedAsts) = partition (\x -> 
+                                            case tagRule of 
+                                              AP.TagEq -> Ast.getObligorTags x == obrTags
+                                              AP.TagSubset -> Ast.getObligorTags x `S.isSubsetOf` obrTags
+                                              AP.TagSuperset ->  obrTags `S.isSubsetOf` Ast.getObligorTags x
+                                              AP.TagAny -> not $ S.null $ S.intersection (Ast.getObligorTags x) obrTags
+                                            )
+                                            astList
+            matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
+          in 
+            matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
+        AP.ObligorByDefault assetPerf ->
+          matchAssets 
+            (cfs ++ ((\x -> Ast.projCashflow x asof assetPerf mRates) <$> astList))
+            []
+            []
+  in
+    matchAssets [] obligorRules as
+
+
 
 -- safe net to catch other cases
 runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
