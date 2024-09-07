@@ -127,23 +127,31 @@ data ReceivableFeeType = FixedFee Balance                    -- ^ a flat fee amo
                        deriving (Show,Generic,Eq,Ord)
 
 
+data Obligor = Obligor {obligorId :: Int
+                        , obligorTag :: [String]
+                        , obligorFields :: Map.Map String (Either String Double)
+                        } deriving (Show,Generic,Eq,Ord)
+
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
                                           ,originTerm :: Int
                                           ,period :: Period
                                           ,startDate :: Date
                                           ,prinType :: AmortPlan 
-                                          ,prepaymentPenalty :: Maybe PrepayPenaltyType }
+                                          ,prepaymentPenalty :: Maybe PrepayPenaltyType
+                                          ,obligor :: Maybe Obligor }
                   | LoanOriginalInfo { originBalance :: Balance
                                       ,originRate :: IR.RateType
                                       ,originTerm :: Int
                                       ,period :: Period
                                       ,startDate :: Date
-                                      ,prinType :: AmortPlan }
+                                      ,prinType :: AmortPlan 
+                                      ,obligor :: Maybe Obligor }
                   | LeaseInfo { startDate :: Date            -- ^ lease start date
                               ,originTerm :: Int             -- ^ total terms
                               ,paymentDates :: DatePattern   -- ^ payment dates pattern
-                              ,originRental :: Amount}       -- ^ rental by day
+                              ,originRental :: Amount        -- ^ rental by day
+                              ,obligor :: Maybe Obligor }       
                   | FixedAssetInfo { startDate :: Date 
                                      ,originBalance :: Balance 
                                      ,residualBalance :: Balance
@@ -155,7 +163,8 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                    ,originBalance :: Balance
                                    ,originAdvance :: Balance
                                    ,dueDate :: Date
-                                   ,feeType :: Maybe ReceivableFeeType }
+                                   ,feeType :: Maybe ReceivableFeeType
+                                   ,obligor :: Maybe Obligor }
                   deriving (Show,Generic,Ord,Eq)
 
 
@@ -283,7 +292,7 @@ instance IR.UseRate ProjectedCashflow where
     = Just $ (\(a,b,c) -> c) <$> fs
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
+$(concat <$> traverse (deriveJSON defaultOptions) [''Obligor, ''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
     , ''Capacity, ''AmortRule, ''ReceivableFeeType])
 
 
@@ -311,7 +320,7 @@ instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
 instance ToSchema (RoundingBy IRate)
-
+instance ToSchema Obligor
 instance ToSchema Index
 instance ToSchema DayCount
 instance ToSchema Direction

@@ -61,7 +61,7 @@ data ApplyAssumptionType = PoolLevel AssetPerf
                          | ByName (Map.Map PoolId AssetPerf)
                            -- ^ assumption for a named pool
                          | ByPoolId (Map.Map PoolId ApplyAssumptionType)
-                           -- ^ assumption for a named pool
+                           -- ^ assumption for a pool
                          | ByDealName (Map.Map DealName (ApplyAssumptionType, NonPerfAssumption))
                            -- ^ assumption for a named deal 
                          deriving (Show, Generic)

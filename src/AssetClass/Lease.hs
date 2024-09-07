@@ -64,8 +64,8 @@ accrueRentals rc@(LeftBalanceCurve tps) pd@(payD:payDs) accrueCutoff payAmts
       (payAmts ++ [accrueRentalBetween accrueCutoff payD rc]) -- `debug` ("ACCRENTALS"++ show accrueCutoff++">>"++show payD++"rc+"++ show rc)
 
 nextLease :: Lease -> (RentChangeCurve, TermChangeRate, DayGap) -> (Lease, Date)
-nextLease l@(RegularLease (LeaseInfo sd ot dp dr) bal rt _) (rcCurve,tc,gd) 
-  = (RegularLease (LeaseInfo nextStartDate nextOriginTerm dp nextDailyRate) newBal rt Current,nextEndDate) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
+nextLease l@(RegularLease (LeaseInfo sd ot dp dr ob) bal rt _) (rcCurve,tc,gd) 
+  = (RegularLease (LeaseInfo nextStartDate nextOriginTerm dp nextDailyRate ob) newBal rt Current,nextEndDate) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
     where 
         leaseEndDate = last $ projectCfDates dp sd ot 
         nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
@@ -76,8 +76,8 @@ nextLease l@(RegularLease (LeaseInfo sd ot dp dr) bal rt _) (rcCurve,tc,gd)
         nextDailyRate = dr + mulBR dr currentRateOnCurve*(fromRational yearsBetween)
         newBal =  fromRational $ mulBInteger nextDailyRate $ daysBetween nextStartDate nextEndDate
 
-nextLease l@(StepUpLease (LeaseInfo sd ot dp dr) lsteupInfo bal rt _) (rcCurve,tc,gd) 
-  = (StepUpLease (LeaseInfo nextStartDate nextOriginTerm dp nextDailyRate) lsteupInfo newBal rt Current,nextEndDate) --  `debug` ("leaseEndDate>>"++show leaseEndDate++">>>"++show (succ (toInteger gd)))
+nextLease l@(StepUpLease (LeaseInfo sd ot dp dr ob) lsteupInfo bal rt _) (rcCurve,tc,gd) 
+  = (StepUpLease (LeaseInfo nextStartDate nextOriginTerm dp nextDailyRate ob) lsteupInfo newBal rt Current,nextEndDate) --  `debug` ("leaseEndDate>>"++show leaseEndDate++">>>"++show (succ (toInteger gd)))
     where 
         leaseEndDate = last $ projectCfDates dp sd ot 
         nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
@@ -112,8 +112,8 @@ getGapDaysByBalance l tbl@(rows,defaultVal)
   = let 
       tbl = ThresholdTable rows 
       pmt = case l of 
-              (RegularLease (LeaseInfo _ _ _ dr) _ _ _) -> dr
-              (StepUpLease (LeaseInfo _ _ _ dr) _ _ _ _) -> dr
+              (RegularLease (LeaseInfo _ _ _ dr _) _ _ _) -> dr
+              (StepUpLease (LeaseInfo _ _ _ dr _) _ _ _ _) -> dr
     in 
       fromMaybe  defaultVal $ lookupTable tbl Down (>= pmt)
 
@@ -130,15 +130,15 @@ projectCfDates dp sd ot
 
 -- ^ return a lease contract with opening balance and a payment cashflow on each payment date
 patchBalance :: Lease -> (Lease,[Amount]) 
-patchBalance (RegularLease (LeaseInfo sd ot dp dr) bal rt st)
+patchBalance (RegularLease (LeaseInfo sd ot dp dr ob) bal rt st)
   = let 
       cf_dates = lastN (succ rt) $ projectCfDates dp sd ot
       pmts = [ fromRational (mulBInt dr ds) | ds <- getIntervalDays cf_dates ]
       new_bal = sum pmts -- `debug` ("cf_date" ++ show cf_dates)
     in
-      (RegularLease (LeaseInfo sd ot dp dr) new_bal rt st, pmts)
+      (RegularLease (LeaseInfo sd ot dp dr ob) new_bal rt st, pmts)
 
-patchBalance (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st)
+patchBalance (StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal rt st)
   = let 
       p_dates = projectCfDates dp sd ot 
       cf_dates = lastN (succ rt) $ projectCfDates dp sd ot
@@ -168,14 +168,14 @@ patchBalance (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st)
                    accrueRentals rate_curve (tail cf_dates) last_pay_date [] -- `debug` ("Using curve->"++show rate_curve++">>"++ show last_pay_date)
       new_bal = sum pmts  -- `debug` ("Patch balance pmts"++ show pmts)
     in 
-      (StepUpLease (LeaseInfo sd ot dp dr) lsu new_bal rt st,pmts)
+      (StepUpLease (LeaseInfo sd ot dp dr ob) lsu new_bal rt st,pmts)
 
 
 instance Asset Lease where 
     calcCashflow l@(RegularLease {}) d _ =
         CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
       where 
-        (RegularLease (LeaseInfo sd ot dp dr) bal rt st,pmts) = patchBalance l
+        (RegularLease (LeaseInfo sd ot dp dr ob) bal rt st,pmts) = patchBalance l
         cf_dates = lastN (succ rt) $ projectCfDates dp sd ot
         daysBetween = getIntervalDays cf_dates -- `debug` (">>>>>> genSerialDates"++ show cf_dates)
         bals = tail $ scanl (-) bal pmts -- `debug` ("PMTS for regular"++show pmts)
@@ -183,32 +183,32 @@ instance Asset Lease where
     calcCashflow l@(StepUpLease {}) d _ =
         CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
       where 
-        (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st,pmts) = patchBalance l -- `debug` ("1")
+        (StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal rt st,pmts) = patchBalance l -- `debug` ("1")
         p_dates = projectCfDates dp sd ot -- `debug` ("2")
         cf_dates = lastN (succ rt) p_dates -- `debug` ("3")   -- `debug` ("P dates"++ show p_dates)
         bals = tail $ scanl (-) bal pmts -- `debug` ("4"++show pmts)     -- `debug` ("PMTS->"++ show pmts) 
 
-    getPaymentDates l@(RegularLease (LeaseInfo sd ot dp _) _ rt _) _
+    getPaymentDates l@(RegularLease (LeaseInfo sd ot dp _ _) _ rt _) _
         = genSerialDates dp Inc sd ot 
 
-    getPaymentDates l@(StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) _
+    getPaymentDates l@(StepUpLease (LeaseInfo sd ot dp _ _) _ _ rt _) _
         = genSerialDates dp Inc sd ot 
 
-    getOriginDate (StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) = sd
-    getOriginDate (RegularLease (LeaseInfo sd ot dp _) _ rt _)  = sd
+    getOriginDate (StepUpLease (LeaseInfo sd ot dp _ _) _ _ rt _) = sd
+    getOriginDate (RegularLease (LeaseInfo sd ot dp _ _) _ rt _)  = sd
     
-    getRemainTerms (StepUpLease (LeaseInfo sd ot dp _) _ _ rt _) = rt
-    getRemainTerms (RegularLease (LeaseInfo sd ot dp _) _ rt _)  = rt
+    getRemainTerms (StepUpLease (LeaseInfo sd ot dp _ _) _ _ rt _) = rt
+    getRemainTerms (RegularLease (LeaseInfo sd ot dp _ _) _ rt _)  = rt
     
-    updateOriginDate (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st) nd 
-      = StepUpLease (LeaseInfo nd ot dp dr) lsu bal rt st
-    updateOriginDate (RegularLease (LeaseInfo sd ot dp dr) bal rt st) nd 
-      = RegularLease (LeaseInfo nd ot dp dr) bal rt st
+    updateOriginDate (StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal rt st) nd 
+      = StepUpLease (LeaseInfo nd ot dp dr ob) lsu bal rt st
+    updateOriginDate (RegularLease (LeaseInfo sd ot dp dr ob) bal rt st) nd 
+      = RegularLease (LeaseInfo nd ot dp dr ob) bal rt st
       
-    resetToOrig (StepUpLease (LeaseInfo sd ot dp dr) lsu bal rt st) 
-      = fst . patchBalance $ StepUpLease (LeaseInfo sd ot dp dr) lsu bal ot st
-    resetToOrig (RegularLease (LeaseInfo sd ot dp dr) bal rt st) 
-      = fst . patchBalance $ RegularLease (LeaseInfo sd ot dp dr) bal ot st
+    resetToOrig (StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal rt st) 
+      = fst . patchBalance $ StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal ot st
+    resetToOrig (RegularLease (LeaseInfo sd ot dp dr ob) bal rt st) 
+      = fst . patchBalance $ RegularLease (LeaseInfo sd ot dp dr ob) bal ot st
 
     projCashflow l asOfDay ((AP.LeaseAssump gapAssump rentAssump ed exStress),_,_) mRates
       = (CF.CashFlowFrame (0,asOfDay,Nothing) allTxns, Map.empty)  
@@ -237,8 +237,8 @@ instance Asset Lease where
                         StepUpLease _ _ bal _ _ -> bal
                         RegularLease _ bal _ _-> bal
 
-    getOriginRate (StepUpLease (LeaseInfo _ _ _ dr) _ _ _ _) = fromRational $ toRational dr
-    getOriginRate (RegularLease (LeaseInfo _ _ _ dr) _ _ _) = fromRational $ toRational dr
+    getOriginRate (StepUpLease (LeaseInfo _ _ _ dr _) _ _ _ _) = fromRational $ toRational dr
+    getOriginRate (RegularLease (LeaseInfo _ _ _ dr _) _ _ _) = fromRational $ toRational dr
 
     isDefaulted (StepUpLease _ _ _ rt Current) = False
     isDefaulted (StepUpLease _ _ _ rt _) = True
@@ -248,14 +248,14 @@ instance Asset Lease where
     getOriginBal l = 
       let 
             _sd = case l of 
-                RegularLease (LeaseInfo sd ot dp dr) bal _ _ -> sd 
-                StepUpLease (LeaseInfo sd ot dp dr) _ bal _ _  -> sd 
+                RegularLease (LeaseInfo sd ot dp dr _) bal _ _ -> sd 
+                StepUpLease (LeaseInfo sd ot dp dr _) _ bal _ _  -> sd 
             CF.CashFlowFrame _ txns = calcCashflow l _sd Nothing
         in  
             CF.mflowBegBalance $ head txns
 
-    splitWith (RegularLease (LeaseInfo sd ot dp dr) bal rt st ) rs
-      = [ RegularLease (LeaseInfo sd ot dp dr) (mulBR bal ratio) rt st | ratio <- rs ] 
-    splitWith (StepUpLease (LeaseInfo sd ot dp dr) stup bal rt st ) rs
-      = [ StepUpLease (LeaseInfo sd ot dp dr) stup (mulBR bal ratio) rt st | ratio <- rs]
+    splitWith (RegularLease (LeaseInfo sd ot dp dr ob) bal rt st ) rs
+      = [ RegularLease (LeaseInfo sd ot dp dr ob) (mulBR bal ratio) rt st | ratio <- rs ] 
+    splitWith (StepUpLease (LeaseInfo sd ot dp dr ob) stup bal rt st ) rs
+      = [ StepUpLease (LeaseInfo sd ot dp dr ob) stup (mulBR bal ratio) rt st | ratio <- rs]
 

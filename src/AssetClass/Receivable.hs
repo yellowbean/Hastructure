@@ -50,7 +50,7 @@ buildRecoveryCfs sd defaultedBal (Just (A.RecoveryByDays r dists))
 
 
 calcDueFactorFee :: Receivable -> Date -> Balance
-calcDueFactorFee r@(Invoice (ReceivableInfo sd ob oa dd ft) st) asOfDay
+calcDueFactorFee r@(Invoice (ReceivableInfo sd ob oa dd ft obr) st) asOfDay
   = case ft of
       Nothing -> 0
       Just (FixedFee b) -> b 
@@ -65,16 +65,16 @@ calcDueFactorFee r@(Invoice (ReceivableInfo sd ob oa dd ft) st) asOfDay
       Just (AdvanceFee r) -> mulBR oa (r  * (yearCountFraction DC_ACT_365F sd dd))
       Just (CompoundFee fs) -> 
         let 
-            newReceivables = [ Invoice (ReceivableInfo sd ob oa dd (Just newFeeType)) st  | newFeeType <- fs] 
+            newReceivables = [ Invoice (ReceivableInfo sd ob oa dd (Just newFeeType) obr) st  | newFeeType <- fs] 
         in 
             sum $ (`calcDueFactorFee` asOfDay) <$> newReceivables
 
 
 instance Asset Receivable where 
 
-  getPaymentDates r@(Invoice (ReceivableInfo sd ob oa dd ft) st) _ = [dd]
+  getPaymentDates r@(Invoice (ReceivableInfo sd ob oa dd ft _) st) _ = [dd]
 
-  calcCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) st) asOfDay _ 
+  calcCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft _) st) asOfDay _ 
     = CF.CashFlowFrame (ob,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns
     where
       payDate = dd
@@ -86,31 +86,31 @@ instance Asset Receivable where
 
       txns = [initTxn,CF.ReceivableFlow payDate 0 0 principal feePaid 0 0 0 Nothing]
 
-  getCurrentBal r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = ob
+  getCurrentBal r@(Invoice (ReceivableInfo sd ob oa dd ft _) st) = ob
 
-  isDefaulted r@(Invoice (ReceivableInfo sd ob oa dd ft) Current) = False
-  isDefaulted r@(Invoice (ReceivableInfo sd ob oa dd ft) _) = True
+  isDefaulted r@(Invoice (ReceivableInfo sd ob oa dd ft _) Current) = False
+  isDefaulted r@(Invoice (ReceivableInfo sd ob oa dd ft _) _) = True
 
-  getOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = sd
+  getOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft _) st) = sd
 
-  resetToOrig r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = r
+  resetToOrig r@(Invoice (ReceivableInfo sd ob oa dd ft _) st) = r
 
-  getRemainTerms r@(Invoice (ReceivableInfo sd ob oa dd ft) st) = 1
+  getRemainTerms r@(Invoice (ReceivableInfo sd ob oa dd ft _) st) = 1
 
   getOriginRate _ = 0
   getCurrentRate _ = 0
 
-  updateOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft) st) newDate 
+  updateOriginDate r@(Invoice (ReceivableInfo sd ob oa dd ft obr) st) newDate 
     = let 
         gaps = daysBetween sd dd
       in 
-        Invoice (ReceivableInfo newDate ob oa (T.addDays gaps newDate)  ft) st
+        Invoice (ReceivableInfo newDate ob oa (T.addDays gaps newDate) ft obr) st
     
-  splitWith r@(Invoice (ReceivableInfo sd ob oa dd ft) st) rs 
-    = [ (Invoice (ReceivableInfo sd (mulBR ob ratio) (mulBR oa ratio) dd ft) st) | ratio <- rs ]
+  splitWith r@(Invoice (ReceivableInfo sd ob oa dd ft obr) st) rs 
+    = [ (Invoice (ReceivableInfo sd (mulBR ob ratio) (mulBR oa ratio) dd ft obr) st) | ratio <- rs ]
 
   -- Defaulted Invoice
-  projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) (Defaulted _))
+  projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft _) (Defaulted _))
                asOfDay
                massump@(A.ReceivableAssump _ amr ams, _ , _)
                mRates
@@ -123,7 +123,7 @@ instance Asset Receivable where
 
 
   -- Performing Invoice
-  projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) Current) 
+  projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft _) Current) 
                asOfDay
                massump@(A.ReceivableAssump (Just A.DefaultAtEnd) amr ams, _ , _)
                mRates
@@ -139,7 +139,7 @@ instance Asset Receivable where
       txns = [CF.ReceivableFlow payDate 0 0 0 0 ob 0 realizedLoss Nothing]
       (futureTxns,historyM)= CF.cutoffTrs asOfDay $ txns++(buildRecoveryCfs payDate ob amr)
 
-  projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft) Current) 
+  projCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft _) Current) 
                asOfDay
                massump@(A.ReceivableAssump amd amr ams, _ , _)
                mRates
