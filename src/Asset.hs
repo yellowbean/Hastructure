@@ -106,7 +106,7 @@ class (Show a,IR.UseRate a) => Asset a where
         ReceivableInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
         _ -> mempty
 
-  getObligorId :: a -> Maybe Int
+  getObligorId :: a -> Maybe String
   getObligorId a = 
       case getOriginInfo a of 
         MortgageOriginalInfo{obligor = Just obr } -> Just (obligorId obr)

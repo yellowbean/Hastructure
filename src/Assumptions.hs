@@ -34,15 +34,11 @@ import Types
 import qualified Data.Time as T
 import Data.Fixed
 import Data.Ratio
-
 import Revolving
-
 import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
 import InterestRate
--- import Deal (ActionOnDate(IssueBond))
--- import Triggers (TriggerName)
 debug = flip trace
 
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
@@ -62,7 +58,7 @@ data TagMatchRule = TagEq      -- ^ match exactly
                   | TagAny     -- ^ match any tag hit
                   deriving (Show, Generic, Read)
 
-data ObligorStrategy = ObligorById [Int] AssetPerf
+data ObligorStrategy = ObligorById [String] AssetPerf
                      | ObligorByTag [ObligorTagStr] TagMatchRule AssetPerf
                      | ObligorByDefault AssetPerf
                      deriving (Show, Generic, Read)

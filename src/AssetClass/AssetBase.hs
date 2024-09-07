@@ -129,7 +129,7 @@ data ReceivableFeeType = FixedFee Balance                    -- ^ a flat fee amo
                        deriving (Show,Generic,Eq,Ord)
 
 
-data Obligor = Obligor {obligorId :: Int
+data Obligor = Obligor {obligorId :: String
                         , obligorTag :: [String]
                         , obligorFields :: Map.Map String (Either String Double)
                         } deriving (Show,Generic,Eq,Ord)
