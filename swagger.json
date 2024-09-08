@@ -2609,6 +2609,28 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ObligorStrategy"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByObligor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByObligor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/ApplyAssumptionType"
                                 },
@@ -4735,22 +4757,6 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "items": [
-                                            {
-                                                "$ref": "#/components/schemas/Day"
-                                            },
-                                            {
-                                                "$ref": "#/components/schemas/DatePattern"
-                                            },
-                                            {
-                                                "$ref": "#/components/schemas/DatePattern"
-                                            }
-                                        ],
-                                        "maxItems": 3,
-                                        "minItems": 3,
-                                        "type": "array"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
@@ -4758,6 +4764,9 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
                                     }
                                 ],
                                 "maxItems": 4,
@@ -4766,7 +4775,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "RampingDates"
+                                    "WarehousingDates"
                                 ],
                                 "type": "string"
                             }
@@ -4775,7 +4784,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "RampingDates",
+                        "title": "WarehousingDates",
                         "type": "object"
                     },
                     {
@@ -8212,7 +8221,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "RampingUp"
+                                    "Warehousing"
                                 ],
                                 "type": "string"
                             }
@@ -8221,7 +8230,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "RampingUp",
+                        "title": "Warehousing",
                         "type": "object"
                     },
                     {
@@ -8418,6 +8427,35 @@
                     "Down"
                 ],
                 "type": "string"
+            },
+            "Either_[Char]_Double": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "Left": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "Left"
+                        ],
+                        "title": "Left",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "Right": {
+                                "format": "double",
+                                "type": "number"
+                            }
+                        },
+                        "required": [
+                            "Right"
+                        ],
+                        "title": "Right",
+                        "type": "object"
+                    }
+                ]
             },
             "ExtraStress": {
                 "properties": {
@@ -10328,6 +10366,160 @@
                     }
                 },
                 "type": "object"
+            },
+            "Obligor": {
+                "properties": {
+                    "obligorFields": {
+                        "additionalProperties": {
+                            "$ref": "#/components/schemas/Either_[Char]_Double"
+                        },
+                        "type": "object"
+                    },
+                    "obligorId": {
+                        "type": "string"
+                    },
+                    "obligorTag": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "obligorId",
+                    "obligorTag",
+                    "obligorFields"
+                ],
+                "type": "object"
+            },
+            "ObligorStrategy": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/AssetPerfAssumption"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "minItems": 3,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ObligorById"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ObligorById",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TagMatchRule"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/AssetPerfAssumption"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "minItems": 3,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ObligorByTag"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ObligorByTag",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/AssetPerfAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ObligorByDefault"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ObligorByDefault",
+                        "type": "object"
+                    }
+                ]
             },
             "OriginalInfo": {
                 "properties": {
@@ -14450,6 +14642,15 @@
                 },
                 "type": "array"
             },
+            "TagMatchRule": {
+                "enum": [
+                    "TagEq",
+                    "TagSubset",
+                    "TagSuperset",
+                    "TagAny"
+                ],
+                "type": "string"
+            },
             "TestDeal_AssetUnion": {
                 "properties": {
                     "accounts": {
@@ -15513,6 +15714,65 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": [
+                                            {
+                                                "maximum": 9223372036854775807,
+                                                "minimum": -9223372036854775808,
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/DatePattern"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "maximum": 9223372036854775807,
+                                                "minimum": -9223372036854775808,
+                                                "type": "integer"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/DatePattern"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/PricingMethod"
+                                            },
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/DealStats"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "minItems": 3,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/CollectionRule"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
                             "tag": {
                                 "enum": [
                                     "CloseDeal"
@@ -15521,7 +15781,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "CloseDeal",
                         "type": "object"
