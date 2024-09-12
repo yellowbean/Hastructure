@@ -24,6 +24,7 @@ dependencies:
 - hashable
 - time 
 - lens
+- generic-lens
 - aeson
 - aeson-pretty
 - text

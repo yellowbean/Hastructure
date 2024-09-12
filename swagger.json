@@ -2103,6 +2103,73 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RefiBondRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RefiBondRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Bond"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RefiBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RefiBond",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Day"
                                     }
                                 ],
@@ -9330,7 +9397,7 @@
                         "properties": {
                             "tag": {
                                 "enum": [
-                                    "Dummy09"
+                                    "DummyIssueBondEvent"
                                 ],
                                 "type": "string"
                             }
@@ -9338,7 +9405,7 @@
                         "required": [
                             "tag"
                         ],
-                        "title": "Dummy09",
+                        "title": "DummyIssueBondEvent",
                         "type": "object"
                     }
                 ]
@@ -10355,6 +10422,12 @@
                             "maxItems": 2,
                             "minItems": 2,
                             "type": "array"
+                        },
+                        "type": "array"
+                    },
+                    "refinance": {
+                        "items": {
+                            "$ref": "#/components/schemas/TsPoint_RefiEvent"
                         },
                         "type": "array"
                     },
@@ -13453,6 +13526,93 @@
                     }
                 ]
             },
+            "RefiEvent": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RefiRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RefiRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Bond"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RefiBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RefiBond",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/RefiEvent"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RefiEvents"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RefiEvents",
+                        "type": "object"
+                    }
+                ]
+            },
             "ReserveAmount": {
                 "oneOf": [
                     {
@@ -16157,6 +16317,19 @@
                 "minItems": 2,
                 "type": "array"
             },
+            "TsPoint_RefiEvent": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "$ref": "#/components/schemas/RefiEvent"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
             "TsPoint_[AssetUnion]": {
                 "items": [
                     {
@@ -17835,7 +18008,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.29.1"
+        "version": "0.29.2"
     },
     "openapi": "3.0.0",
     "paths": {

@@ -259,6 +259,7 @@ data RangeType = II     -- ^ include both start and end date
                | EI     -- ^ exclude start date but include end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
+               deriving (Show,Eq,Read,Generic)
 
 data CutoffType = Inc 
                 | Exc
@@ -665,6 +666,8 @@ class Liable lb where
   getCurBalance :: lb -> Balance
   getOriginBalance :: lb -> Balance
   getDueInt :: lb -> Balance
+
+  getOutstandingAmount :: lb -> Balance
 
   -- optional implement
   -- getTotalDue :: [lb] -> Balance

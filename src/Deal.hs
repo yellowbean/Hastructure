@@ -4,6 +4,8 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
+-- {-# LANGUAGE OverloadedRecordDot, OverloadedRecordUpdate #-}
+-- {-# LANGUAGE OverloadedRecordDot #-}
 
 module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,performAction,queryDeal
@@ -615,6 +617,38 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                               accMap
                         in 
                           run t{bonds = newBonds, accounts = newAcc} poolFlowMap (Just ads) rates calls rAssump log
+         RefiBondRate d accName bName iInfo ->
+            let
+              -- settle accrued interest 
+              nBnd = calcDueInt t d Nothing Nothing $ bndMap Map.! bName
+              dueIntToPay = L.totalDueInt nBnd
+
+              ((shortfall,drawAmt),newAcc) = A.tryDraw dueIntToPay d (PayInt [bName]) (accMap Map.! accName)
+
+              newBnd = set L.bndIntLens iInfo $ L.payInt d drawAmt nBnd
+              newAccMap = Map.insert accName newAcc accMap
+              -- reset interest info
+              newBndMap = Map.insert bName newBnd bndMap
+            in 
+              run t{bonds = newBndMap, accounts = newAccMap} poolFlowMap (Just ads) rates calls rAssump log
+            
+         -- RefiBond d accName bnd -> 
+         --  let
+         --    bName = L.bndName bnd
+         --    origBnd = bndMap Map.! bName
+         --    
+         --    nBnd = calcDueInt t d Nothing Nothing origBnd 
+
+         --    totalDueAmt = L.getOutstandingAmount nBnd 
+         --    totalAmountIssued = L.getCurBalance bnd
+         --    
+         --    deltaAmt = totalAmountIssued - totalDueAmt
+
+
+         --    newBndMap = Map.insert bName bnd bndMap
+         --  in 
+         --    run t{bonds = newBndMap} poolFlowMap (Just ads) rates calls rAssump log
+
          _ -> error $ "Failed to match action on Date"++ show ad
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
@@ -849,14 +883,46 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) 
         AP.ObligorByTag tags tagRule assetPerf ->
           let 
             obrTags = S.fromList tags
-            (matchedAsts,unMatchedAsts) = partition (\x -> 
-                                            case tagRule of 
-                                              AP.TagEq -> Ast.getObligorTags x == obrTags
-                                              AP.TagSubset -> Ast.getObligorTags x `S.isSubsetOf` obrTags
-                                              AP.TagSuperset ->  obrTags `S.isSubsetOf` Ast.getObligorTags x
-                                              AP.TagAny -> not $ S.null $ S.intersection (Ast.getObligorTags x) obrTags
-                                            )
-                                            astList
+
+            matchRuleFn AP.TagEq s1 s2 = s1 == s2 
+            matchRuleFn AP.TagSubset s1 s2 = s1 `S.isSubsetOf` s2
+            matchRuleFn AP.TagSuperset s1 s2 = s2 `S.isSubsetOf` s1
+            matchRuleFn AP.TagAny s1 s2 = not $ S.null $ S.intersection s1 s2
+            matchRuleFn (AP.TagNot tRule) s1 s2 = not $ matchRuleFn tRule s1 s2
+            
+            (matchedAsts,unMatchedAsts) = partition (\x -> matchRuleFn tagRule (Ast.getObligorTags x) obrTags) astList
+            matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
+          in 
+            matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
+        
+        AP.ObligorByField fieldRules assetPerf -> 
+          let 
+
+            matchRuleFn (AP.FieldIn fv fvals) Nothing = False
+            matchRuleFn (AP.FieldIn fv fvals) (Just fm) = case Map.lookup fv fm of
+                                                    Just (Left v) -> v `elem` fvals
+                                                    Nothing -> False
+            matchRuleFn (AP.FieldCmp fv cmp dv) (Just fm) = case Map.lookup fv fm of
+                                                        Just (Right v) -> case cmp of 
+                                                                    G -> v > dv
+                                                                    L -> v < dv
+                                                                    GE -> v >= dv
+                                                                    LE -> v <= dv
+                                                        Nothing -> False
+            matchRuleFn (AP.FieldInRange fv rt dv1 dv2) (Just fm) = 
+              case Map.lookup fv fm of
+                Just (Right v) -> case rt of 
+                          II -> v <= dv2 && v >= dv1
+                          IE -> v <= dv2 && v > dv1
+                          EI -> v < dv2 && v >= dv1
+                          EE -> v < dv2 && v > dv1
+                          _ -> False
+                Nothing -> False
+            matchRuleFn (AP.FieldNot fRule) fm = not $ matchRuleFn fRule fm
+
+            matchRulesFn fs fm = all (\f -> matchRuleFn f fm) fs
+
+            (matchedAsts,unMatchedAsts) = partition (\x -> matchRulesFn fieldRules (Ast.getObligorFields x)) astList            
             matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
           in 
             matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
@@ -865,6 +931,8 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) 
             (cfs ++ ((\x -> Ast.projCashflow x asof assetPerf mRates) <$> astList))
             []
             []
+
+        
   in
     matchAssets [] obligorRules as
 
@@ -918,7 +986,7 @@ runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
     Map.mapWithKey (\(DealBondFlow dn bn sd pct) (uDeal, mAssump) -> 
                         let
                           (poolAssump,dealAssump) = case mAssump of 
-                                                      Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+                                                      Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
                                                       Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
                           (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
                           bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
@@ -998,6 +1066,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                 bndMap
                     in 
                       [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate, bdate <- bdates ] 
+              
     -- mannual triggers 
     mannualTrigger = case mNonPerfAssump of 
                        Just AP.NonPerfAssumption{AP.fireTrigger = Just evts} -> [ FireTrigger d cycle n | (d,cycle,n) <- evts]
@@ -1014,12 +1083,20 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                         -> [ IssueBond _d mPre bGroupName accName b mBal mRate | TsPoint _d (AP.IssueBondEvent mPre bGroupName accName b mBal mRate) <- bndPlan]
                       _ -> []
 
+    -- refinance bonds in the future 
+    bondRefiPlan = case mNonPerfAssump of 
+                      Just AP.NonPerfAssumption{AP.refinance = Just bndPlan} 
+                        -> [ RefiBondRate _d accName bName iInfo | TsPoint _d (AP.RefiRate accName bName iInfo) <- bndPlan]
+                          ++ [ RefiBond _d accName bnd | TsPoint _d (AP.RefiBond accName bnd) <- bndPlan] 
+                           
+                      _ -> []
+
     allActionDates = let 
                        __actionDates = let 
                                         a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
                                                    ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
                                                    ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates
-                                                   ,bondIssuePlan] 
+                                                   ,bondIssuePlan,bondRefiPlan] 
                                       in
                                         case dates t of 
                                           PreClosingDates {} -> sortBy sortActionOnDate $ DealClosed closingDate:a 

@@ -78,6 +78,7 @@ library
     , containers
     , hashable
     , lens
+    , generic-lens
     , numeric-limits
     , openapi3
     , regex-base
@@ -177,6 +178,7 @@ test-suite Hastructure-test
     , containers
     , hashable
     , lens
+    , generic-lens
     , numeric-limits
     , openapi3
     , regex-base

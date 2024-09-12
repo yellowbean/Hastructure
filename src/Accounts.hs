@@ -5,7 +5,7 @@
 module Accounts (Account(..),ReserveAmount(..),draw,deposit
                 ,transfer,depositInt,depositIntByCurve
                 ,InterestInfo(..),buildEarnIntAction,updateReserveBalance
-                ,accBalLens)
+                ,accBalLens,tryDraw)
     where
 import qualified Data.Time as T
 import Stmt (Statement(..),appendStmt,getTxnBegBalance,getDate
@@ -132,6 +132,13 @@ deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
 -- | draw cash from account with a comment
 draw :: Amount -> Date -> TxnComment -> Account -> Account
 draw amount = deposit (- amount) 
+
+-- | draw cash from account with a comment,return shortfall and acccount 
+tryDraw :: Amount -> Date -> TxnComment -> Account -> ((Amount,Amount),Account)
+tryDraw amt d tc acc@(Account bal _ _ _ maybeStmt) 
+  | amt > bal = ((amt - bal, bal), acc {accBalance = 0})
+  | otherwise = ((0, amt), draw amt d tc acc)
+
 
 -- | change reserve target info of account
 updateReserveBalance :: ReserveAmount -> Account -> Account 

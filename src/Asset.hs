@@ -1,12 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Asset ( Asset(..)
        ,calcPiFlow
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
-       ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
+       ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
+       ,getObligorTags,getObligorId
 ) where
 
 import qualified Data.Time as T
@@ -47,6 +52,8 @@ import Assumptions (ExtraStress(ExtraStress))
 
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import Data.Generics.Product.Fields
+import Data.Generics.Product.Any
 import DateUtil (yearCountFraction)
 
 
@@ -97,6 +104,15 @@ class (Show a,IR.UseRate a) => Asset a where
                         in 
                           T.addDays offset $ getOriginDate ast
 
+  getObligor :: a -> Maybe Obligor
+  getObligor a = 
+      case getOriginInfo a of 
+        FixedAssetInfo {} -> Nothing
+        MortgageOriginalInfo{obligor = x } -> x
+        LoanOriginalInfo{obligor = x } -> x
+        LeaseInfo{obligor =  x } -> x
+        ReceivableInfo{obligor = x } -> x
+
   getObligorTags :: a -> Set.Set String
   getObligorTags a = 
       case getOriginInfo a of 
@@ -114,7 +130,16 @@ class (Show a,IR.UseRate a) => Asset a where
         LeaseInfo{obligor = Just obr } -> Just (obligorId obr)
         ReceivableInfo{obligor = Just obr } -> Just (obligorId obr)
         _ -> Nothing
-                          
+
+  getObligorFields :: a -> Maybe (Map.Map String (Either String Double))
+  getObligorFields a = 
+    let 
+      obInfo = getObligor a
+    in
+      case obInfo of
+        Nothing -> Nothing 
+        Just ob -> Just (obligorFields ob)
+
   {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 
 

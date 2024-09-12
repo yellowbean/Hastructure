@@ -1076,8 +1076,9 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     bndMapUpdated =  Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
+-- TODO how to handle if bond name exist within a bond group
 performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an bond) = 
-  t {accounts = accMapAfterFund, bonds= bndMapUpdated }
+  t {accounts = accMapAfterFund, bonds= bndMapUpdated } 
   where
     fundAmt = case mlimit of 
                 Just (DS ds) -> queryDeal t (patchDateToStats d ds)
@@ -1086,7 +1087,6 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an 
                 
     accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bond fundAmt)) an accMap
     bndMapUpdated = Map.adjust ((L.fundWith d fundAmt) . (calcDueInt t d Nothing Nothing)) bond bndMap
-    -- bndMapUpdated = Map.adjust ((calcDueInt t d Nothing Nothing) ) bond bndMap
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
   = t {bonds = bndMapUpdated}

@@ -83,6 +83,8 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
+                  | RefiBondRate Date AccountName BondName L.InterestInfo
+                  | RefiBond Date AccountName L.Bond
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   | StopRunFlag Date                     -- ^ stop the run with a message
                   | HitStatedMaturity Date               -- ^ hit the stated maturity date
@@ -111,6 +113,8 @@ instance TimeSeries ActionOnDate where
     getDate (MakeWhole d _ _) = d 
     getDate (BuildReport sd ed) = ed
     getDate (IssueBond d _ _ _ _ _ _) = d
+    getDate (RefiBondRate d _ _ _) = d
+    getDate (RefiBond d _ _) = d
 
 
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
@@ -464,6 +468,3 @@ data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType, ''DateDesp, ''ActionOnDate, ''OverrideType])
--- $(deriveJSON defaultOptions ''UnderlyingDeal)
--- $(deriveJSON defaultOptions ''PoolType)
--- $(deriveJSON defaultOptions ''TestDeal)

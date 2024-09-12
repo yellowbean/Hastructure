@@ -197,10 +197,14 @@ instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
 instance ToSchema AP.IssueBondEvent
 instance ToSchema (TsPoint AP.IssueBondEvent)
+instance ToSchema (TsPoint AP.RefiEvent)
+instance ToSchema AP.RefiEvent
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption
 instance ToSchema AP.TagMatchRule
+instance ToSchema RangeType
+instance ToSchema AP.FieldMatchRule
 instance ToSchema AP.ObligorStrategy
 instance ToSchema AP.ApplyAssumptionType
 instance ToSchema AP.AssetPerfAssumption

@@ -15,12 +15,13 @@ module Assumptions (BondPricingInput(..)
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
                     ,getCDR,calcResetDates,AssumpReceipes,IssueBondEvent(..)
-                    ,TagMatchRule(..),ObligorStrategy(..))
+                    ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..)
+                    ,FieldMatchRule(..))
 where
 
 import Call as C
 import Lib (Ts(..),TsPoint(..),toDate,mkRateTs)
-import Liability (Bond)
+import Liability (Bond,InterestInfo)
 import Util
 import DateUtil
 import qualified Data.Map as Map 
@@ -56,10 +57,19 @@ data TagMatchRule = TagEq      -- ^ match exactly
                   | TagSubset
                   | TagSuperset
                   | TagAny     -- ^ match any tag hit
+                  | TagNot  TagMatchRule   -- ^ Negative match
                   deriving (Show, Generic, Read)
+
+data FieldMatchRule = FieldIn String [String]
+                    | FieldCmp String Cmp Double
+                    | FieldInRange String RangeType Double Double
+                    | FieldNot FieldMatchRule
+                    deriving (Show, Generic, Read)
+
 
 data ObligorStrategy = ObligorById [String] AssetPerf
                      | ObligorByTag [ObligorTagStr] TagMatchRule AssetPerf
+                     | ObligorByField [FieldMatchRule] AssetPerf
                      | ObligorByDefault AssetPerf
                      deriving (Show, Generic, Read)
 
@@ -75,8 +85,13 @@ type RateFormula = DealStats
 type BalanceFormula = DealStats
 
 data IssueBondEvent = IssueBondEvent (Maybe Pre) BondName AccName Bond (Maybe BalanceFormula) (Maybe RateFormula)
-                    | Dummy09
+                    | DummyIssueBondEvent
                     deriving (Show, Generic, Read)
+
+data RefiEvent = RefiRate AccountName BondName InterestInfo
+               | RefiBond AccountName Bond
+               | RefiEvents [RefiEvent]
+                deriving (Show, Generic, Read)
 
 data NonPerfAssumption = NonPerfAssumption {
   stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
@@ -90,6 +105,7 @@ data NonPerfAssumption = NonPerfAssumption {
   ,fireTrigger :: Maybe [(Date,DealCycle,String)]            -- ^ optional fire a trigger
   ,makeWholeWhen :: Maybe (Date,Spread,Table Float Spread)
   ,issueBondSchedule :: Maybe [TsPoint IssueBondEvent]                            
+  ,refinance :: Maybe [TsPoint RefiEvent]
 } deriving (Show, Generic)
 
 data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request
@@ -241,9 +257,11 @@ calcResetDates (r:rs) bs
 
 $(deriveJSON defaultOptions ''BondPricingInput)
 $(deriveJSON defaultOptions ''IssueBondEvent)
+$(deriveJSON defaultOptions ''RefiEvent)
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
+
+$(concat <$> traverse (deriveJSON defaultOptions) [''CutoffType,''RangeType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption])

@@ -12,7 +12,8 @@ module Liability
   ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
-  ,getCurBalance,setBondOrigDate)
+  ,getCurBalance,setBondOrigDate
+  ,bndOriginInfoLens,bndIntLens)
   where
 
 import Language.Haskell.TH
@@ -223,9 +224,9 @@ fundWith d 0 b = b
 fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd  {bndBalance = newBal 
           , bndStmt=newStmt
-          }
+          } 
   where
-    newBal = bal + amt -- `debug` ("Add bal"++ show bal++ ">>>"++ show amt)
+    newBal = bal + amt 
     newStmt = S.appendStmt stmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt ))
 
 
@@ -345,25 +346,6 @@ weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBal
       ed 
       (view S.statementTxns stmt)
 
--- TO BE Deprecate, it was implemented in Cashflow Frame
--- weightAverageBalance :: Date -> Date -> Bond -> Balance
--- weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ stmt)
---   = sum $ zipWith mulBR (_bals txns) _dfs `debug` ("date"++ show sd ++"ed"++ show ed++"Bals"++ show _bals)
---     where
---       allTxns = S.getTxns $ bndStmt (consolStmt b)
---       _ds = S.getDates allTxns
---       begBals = currentBalance:(S.getTxnBalance <$> allTxns) -- from current balance to the end
---       balCurve = zipBalTs _ds begBals
--- 
---       _dfs =  getIntervalFactors $ [max bd sd]++ _ds ++ [ed]
--- 
---       txns = sliceBy IE sd ed $ S.getTxns $ bndStmt b
-      
-      -- _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
-      -- _b = consolStmt b   
-      -- txns =  case S.sliceStmt sd ed <$> bndStmt _b of
-      --           Nothing -> []
-      --           Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 weightAverageBalance sd ed bg@(BondGroup bMap)
   = sum $ weightAverageBalance sd ed <$> Map.elems bMap -- `debug` (">>>"++ show (weightAverageBalance sd ed <$> Map.elems bMap))
 
@@ -479,8 +461,10 @@ instance Liable Bond where
   getOriginBalance b@Bond{ bndOriginInfo = bo } = originBalance bo
   getOriginBalance (BondGroup bMap) = sum $ getOriginBalance <$> Map.elems bMap
 
-  getDueInt b@Bond{bndDueInt=di} = di
+  getDueInt b@Bond{bndDueInt=di,bndDueIntOverInt=dioi} = di + dioi
   getDueInt (BondGroup bMap) = sum $ getDueInt <$> Map.elems bMap
+
+  getOutstandingAmount b = getDueInt b + getCurBalance b
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool
