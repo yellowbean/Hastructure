@@ -13,7 +13,7 @@ module Liability
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
   ,getCurBalance,setBondOrigDate
-  ,bndOriginInfoLens,bndIntLens)
+  ,bndOriginInfoLens,bndIntLens,getBeginRate)
   where
 
 import Language.Haskell.TH
@@ -106,7 +106,18 @@ data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
                   | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
                   deriving (Show, Eq, Generic, Ord, Read)
-                  
+
+getBeginRate :: InterestInfo -> IRate 
+getBeginRate (Floater a _ _ _ _ _ _ ) = a
+getBeginRate (Fix a _ ) = a
+getBeginRate (RefRate a _ _ _ ) = a
+getBeginRate (CapRate a  _ ) = getBeginRate a
+getBeginRate (FloorRate a  _ ) = getBeginRate a
+getBeginRate (WithIoI a _) = getBeginRate a
+getBeginRate InterestByYield {} = 0.0
+
+
+
 data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
             | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
             deriving (Show, Eq, Generic, Ord, Read)

@@ -626,28 +626,16 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               ((shortfall,drawAmt),newAcc) = A.tryDraw dueIntToPay d (PayInt [bName]) (accMap Map.! accName)
 
               newBnd = set L.bndIntLens iInfo $ L.payInt d drawAmt nBnd
+
               newAccMap = Map.insert accName newAcc accMap
               -- reset interest info
-              newBndMap = Map.insert bName newBnd bndMap
+              newRate = L.getBeginRate iInfo
+              newBndMap = Map.insert bName (newBnd {L.bndRate = newRate, L.bndDueIntDate = Just d 
+                                                    ,L.bndLastIntPay = Just d}) bndMap
             in 
               run t{bonds = newBndMap, accounts = newAccMap} poolFlowMap (Just ads) rates calls rAssump log
             
-         -- RefiBond d accName bnd -> 
-         --  let
-         --    bName = L.bndName bnd
-         --    origBnd = bndMap Map.! bName
-         --    
-         --    nBnd = calcDueInt t d Nothing Nothing origBnd 
-
-         --    totalDueAmt = L.getOutstandingAmount nBnd 
-         --    totalAmountIssued = L.getCurBalance bnd
-         --    
-         --    deltaAmt = totalAmountIssued - totalDueAmt
-
-
-         --    newBndMap = Map.insert bName bnd bndMap
-         --  in 
-         --    run t{bonds = newBndMap} poolFlowMap (Just ads) rates calls rAssump log
+         RefiBond d accName bnd -> undefined
 
          _ -> error $ "Failed to match action on Date"++ show ad
          where

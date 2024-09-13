@@ -221,8 +221,6 @@ data Revolver = Heloc OriginalInfo LineOfCredit Balance IRate RemainTerms (Maybe
               | DUMMY5
               deriving (Show,Generic,Eq,Ord)
 
-
-
 -- FixedAsset 
 data Capacity = FixedCapacity Balance
               | CapacityByTerm [(Int,Balance)]
