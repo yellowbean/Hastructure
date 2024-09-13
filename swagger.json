@@ -14729,13 +14729,13 @@
                                         "$ref": "#/components/schemas/DealType"
                                     },
                                     {
-                                        "additionalProperties": {
-                                            "$ref": "#/components/schemas/ApplyAssumptionType"
-                                        },
-                                        "type": "object"
+                                        "$ref": "#/components/schemas/ApplyAssumptionType"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/NonPerfAssumption"
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/NonPerfAssumption"
+                                        },
+                                        "type": "object"
                                     }
                                 ],
                                 "maxItems": 3,
@@ -14744,7 +14744,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "MultiScenarioAndCurveRunReq"
+                                    "MultiRunAssumpReq"
                                 ],
                                 "type": "string"
                             }
@@ -14753,7 +14753,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "MultiScenarioAndCurveRunReq",
+                        "title": "MultiRunAssumpReq",
                         "type": "object"
                     }
                 ]
@@ -18262,7 +18262,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.29.2"
+        "version": "0.29.3"
     },
     "openapi": "3.0.0",
     "paths": {
@@ -18394,6 +18394,62 @@
                                     "maxItems": 4,
                                     "minItems": 4,
                                     "type": "array"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/runDealByRunScenarios": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RunDealReq"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/DealType"
+                                            },
+                                            {
+                                                "additionalProperties": {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                },
+                                                "type": "object"
+                                            },
+                                            {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/ResultComponent"
+                                                },
+                                                "type": "array"
+                                            },
+                                            {
+                                                "additionalProperties": {
+                                                    "$ref": "#/components/schemas/PriceResult"
+                                                },
+                                                "type": "object"
+                                            }
+                                        ],
+                                        "maxItems": 4,
+                                        "minItems": 4,
+                                        "type": "array"
+                                    },
+                                    "type": "object"
                                 }
                             }
                         },
