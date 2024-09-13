@@ -8938,6 +8938,131 @@
                     }
                 ]
             },
+            "FieldMatchRule": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FieldIn"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FieldIn",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FieldCmp"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FieldCmp",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RangeType"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FieldInRange"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FieldInRange",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/FieldMatchRule"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FieldNot"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FieldNot",
+                        "type": "object"
+                    }
+                ]
+            },
             "FixedAsset": {
                 "oneOf": [
                     {
@@ -10558,6 +10683,51 @@
                             "contents"
                         ],
                         "title": "ObligorByTag",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/FieldMatchRule"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/AssetPerfAssumption"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/AssetDelinqPerfAssumption"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/AssetDefaultedPerfAssumption"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "minItems": 3,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ObligorByField"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ObligorByField",
                         "type": "object"
                     },
                     {
@@ -12798,6 +12968,16 @@
                     }
                 ]
             },
+            "RangeType": {
+                "enum": [
+                    "II",
+                    "IE",
+                    "EI",
+                    "EE",
+                    "NO_IE"
+                ],
+                "type": "string"
+            },
             "RateAssumption": {
                 "oneOf": [
                     {
@@ -14803,13 +14983,87 @@
                 "type": "array"
             },
             "TagMatchRule": {
-                "enum": [
-                    "TagEq",
-                    "TagSubset",
-                    "TagSuperset",
-                    "TagAny"
-                ],
-                "type": "string"
+                "oneOf": [
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "TagEq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "TagEq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "TagSubset"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "TagSubset",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "TagSuperset"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "TagSuperset",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "TagAny"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "TagAny",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/TagMatchRule"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TagNot"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TagNot",
+                        "type": "object"
+                    }
+                ]
             },
             "TestDeal_AssetUnion": {
                 "properties": {
