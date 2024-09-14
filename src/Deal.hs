@@ -632,8 +632,16 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               newRate = L.getBeginRate iInfo
               newBndMap = Map.insert bName (newBnd {L.bndRate = newRate, L.bndDueIntDate = Just d 
                                                     ,L.bndLastIntPay = Just d}) bndMap
+              -- TODO rebuild bond rate reset actions
+              lstDate = getDate (last ads)
+              resetDates = L.buildRateResetDates newBnd d lstDate 
+              bResetActions = [ ResetBondRate d bName | d <- resetDates ]
+              isResetActionEvent (ResetBondRate _ bName) = False 
+              isResetActionEvent _ = True
+              filteredAds = filter isResetActionEvent ads
+              newAds = sortBy sortActionOnDate $ filteredAds ++ bResetActions
             in 
-              run t{bonds = newBndMap, accounts = newAccMap} poolFlowMap (Just ads) rates calls rAssump log
+              run t{bonds = newBndMap, accounts = newAccMap} poolFlowMap (Just newAds) rates calls rAssump log
             
          RefiBond d accName bnd -> undefined
 
