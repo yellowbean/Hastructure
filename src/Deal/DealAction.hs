@@ -988,8 +988,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit a
                       Just s -> fst $ drawExtraSupport d supportPay s t
 
 
-
-
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinWithDue an bnds Nothing) =
   t {accounts = accMapAfterPay, bonds = bndMapUpdated}
   where
@@ -1076,7 +1074,6 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     bndMapUpdated =  Map.union (Map.fromList $ zip bndsToPayNames bndsPaid) bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
--- TODO how to handle if bond name exist within a bond group
 performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an bond) = 
   t {accounts = accMapAfterFund, bonds= bndMapUpdated } 
   where
