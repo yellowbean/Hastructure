@@ -680,8 +680,6 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
     feeTotalDueAmt = sum feeDueAmts
 
     amtAvailable = availAccBal + supportAvail
-                   -- Just (DuePct pct) -> map (\x -> mulBR (F.feeDue x) pct ) feesToPay
-                   -- Just (DueCapAmt amt) -> prorataFactors (F.feeDue <$> feesToPay) amt
     dueAmtAfterCap = case mLimit of 
                       Nothing -> feeTotalDueAmt
                       Just (DS ds) -> min (queryDeal t (patchDateToStats d ds)) feeTotalDueAmt
@@ -933,7 +931,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinGroup mLimit 
                       Just s -> fst $ drawExtraSupport d supportPay s t
 
 
-
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueAndPayIntGroup mLimit an bndName by mSupport)
   = let 
        dAfterAcc = performAction d t (W.AccrueIntGroup [bndName])-- `debug` ("Acc due int grp"++ show (getDueInt (bndMap Map.! bndName)))
@@ -946,7 +943,6 @@ performAction d t@TestDeal{bonds=bndMap} (W.AccrueIntGroup bndNames)
     where 
         bondGrp = Map.filterWithKey (\k _ -> S.member k (S.fromList bndNames)) bndMap
         bondGrpAccrued = Map.map (calcDueInt t d Nothing Nothing) bondGrp
-
 
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit an bndGrpName by mSupport)

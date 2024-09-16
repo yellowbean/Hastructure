@@ -66,14 +66,33 @@ validateAction ((W.PayFeeResidual _ accName feeName):as) rs accKeys bndKeys bgNa
     = validateAction as (rs ++ [ErrorMsg (feeName ++ " not in "++ show feeKeys++" Or "++accName++ " not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
-validateAction ((W.CalcBondInt bnds Nothing Nothing):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
-  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys)
-    = validateAction as (rs ++ [ErrorMsg (show bnds ++ " not in "++ show bndKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+validateAction ((W.CalcBondInt bnds _ _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) = validateAction as (rs ++ [ErrorMsg (show bnds ++ " not in "++ show bndKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
 validateAction ((W.PayInt _ accName bnds _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
     = validateAction as (rs ++ [ErrorMsg (show bnds ++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayIntBySeq _ accName bndNames _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bndNames) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bndNames ++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.AccrueAndPayIntBySeq _ accName bndNames _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bndNames) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bndNames ++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayIntOverIntBySeq _ accName bnds _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bnds ++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames  feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayIntOverInt _ accName bnds _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bnds ++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames  feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
 validateAction ((W.AccrueAndPayInt _ accName bnds _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
@@ -89,6 +108,78 @@ validateAction ((W.PayIntResidual _ accName bndName):as) rs accKeys bndKeys bgNa
 validateAction ((W.PayPrin _ accName bnds _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
   | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
     = validateAction as (rs ++ [ErrorMsg (show bnds++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayPrinResidual accName bnds):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bnds++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayPrinWithDue accName bnds _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bnds++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayPrinBySeq _ accName bnds _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bnds++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayPrinGroup _ accName bg _ _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | Set.notMember bg bgNames || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bg++ " not in "++ show bgNames ++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.AccrueAndPayIntGroup _ accName bg _ _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | Set.notMember bg bgNames || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bg++ " not in "++ show bgNames ++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayIntGroup _ accName bg _ _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | Set.notMember bg bgNames || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bg++ " not in "++ show bgNames ++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.AccrueIntGroup bgs ):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bgs) bgNames) = validateAction as (rs ++ [ErrorMsg (show bgs++ " not in "++ show bgNames)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayPrinResidual accName bnds):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bnds++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.BuyAsset _ _ accName _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | Set.notMember accName accKeys = validateAction as (rs ++ [ErrorMsg (accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.BuyAssetFrom _ _ accName mRPoolName mPid):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | Set.notMember accName accKeys = validateAction as (rs ++ [ErrorMsg (accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | Set.notMember (fromMaybe PoolConsol mPid) poolKeys = validateAction as (rs ++ [ErrorMsg (show mPid++" not in "++show poolKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayPrinBySeq _ accName bnds _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bnds) bndKeys) || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bnds++ " not in "++ show bndKeys++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayPrinGroup _ accName bg _ _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | Set.notMember bg bgNames || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bg++ " not in "++ show bgNames ++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.AccrueAndPayIntGroup _ accName bg _ _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | Set.notMember bg bgNames || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bg++ " not in "++ show bgNames ++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.PayIntGroup _ accName bg _ _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | Set.notMember bg bgNames || Set.notMember accName accKeys
+    = validateAction as (rs ++ [ErrorMsg (show bg++ " not in "++ show bgNames ++" Or "++accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+
+validateAction ((W.AccrueIntGroup bgs ):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys  ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList bgs) bgNames) = validateAction as (rs ++ [ErrorMsg (show bgs++ " not in "++ show bgNames)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
 validateAction ((W.PayPrinResidual accName bnds):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
