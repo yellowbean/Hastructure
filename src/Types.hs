@@ -248,6 +248,7 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | NewDefaults                     -- ^ new defaults in balance
                 | NewLosses                       -- ^ new losses in balance
                 | NewDelinquencies                -- ^ new delinquencies in balance
+                | CurBalance                      -- ^ performing balance
                 deriving (Show,Ord,Read,Eq, Generic)
 
 

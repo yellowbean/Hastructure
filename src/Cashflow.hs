@@ -8,7 +8,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss,mflowDate
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
-                ,lookupSource,combineTss
+                ,lookupSource,lookupSourceM,combineTss
                 ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,emptyTsRow,mflowAmortAmount
@@ -839,7 +839,12 @@ lookupSource tr CollectedCash = tsTotalCash tr
 lookupSource tr NewDelinquencies = mflowDelinq tr
 lookupSource tr NewDefaults = mflowDefault tr
 lookupSource tr NewLosses = mflowLoss tr
+lookupSource tr CurBalance = mflowBalance tr
 lookupSource tr x = error ("Failed to lookup source"++ show x)
+
+lookupSourceM :: Maybe TsRow -> PoolSource -> Balance
+lookupSourceM Nothing _ = 0
+lookupSourceM (Just tr) ps = lookupSource tr ps
 
 
 setPrepaymentPenalty :: Balance -> TsRow -> TsRow

@@ -382,16 +382,18 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     PoolCollectionStats idx ps mPns -> 
       let 
         pTxns::[[CF.TsRow]] = fromMaybe [] <$> (view CF.cashflowTxn <$>) <$> Map.elems (getAllCollectedFrame t mPns)
-        pRows = (\x -> x!!(length x + idx) ) <$>  pTxns
+        
+        pRows::[Maybe CF.TsRow] 
+          = (\x -> let 
+                      lookupIndx = length x + idx - 1
+                   in 
+                      if (( lookupIndx >= length x )||  (lookupIndx <0)) then 
+                        Nothing
+                      else
+                        Just (x!!lookupIndx)) <$>  pTxns
       in 
-        sum $ CF.lookupSource <$> pRows <*> ps
-      -- case P.futureCf poolM of
-      --       Just (CF.CashFlowFrame trs) 
-      --         ->let
-      --             theCollection = trs!!(length trs + idx)
-      --           in  
-      --             sum $ CF.lookupSource theCollection <$> ps
-      --       Nothing -> 0.0
+        sum $ CF.lookupSourceM <$> pRows <*> ps
+
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
         pScheduleFlow = view dealScheduledCashflow t
