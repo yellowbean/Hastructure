@@ -178,6 +178,12 @@ queryDealRate t s =
           weightedBy bals rates
 
       Constant r -> r
+      -- DivideRatio ds1 ds2 ->  toRational (queryDeal t ds1) / toRational (queryDeal t ds2)
+      DivideRatio ds1 ds2 -> if (queryDeal t ds2) == 0 then 
+                              toRational Numeric.Limits.infinity
+                            else
+                              (toRational (queryDeal t ds1)) / (toRational (queryDeal t ds2)) 
+      AvgRatio ss -> toRational (queryDealRate t (Sum ss)) / toRational (length ss)
       Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
       Min ss -> toRational $ minimum' [ queryDealRate t s | s <- ss ]
       Subtract (s1:ss) -> toRational $ (queryDealRate t s1) - queryDealRate t (Sum ss)
@@ -587,8 +593,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     Min ss -> minimum' [ queryDeal t s | s <- ss ]
 
     Divide ds1 ds2 -> if (queryDeal t ds2) == 0 then 
-                        -- (fromRational . toRational) GHC.Real.infinity `debug` ("Hit zero")
-                        (fromRational . toRational) Numeric.Limits.infinity -- `debug` ("Hit zero")
+                        (fromRational . toRational) Numeric.Limits.infinity
                       else
                         queryDeal t ds1 / queryDeal t ds2
 

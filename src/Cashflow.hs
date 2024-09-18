@@ -840,6 +840,7 @@ lookupSource tr NewDelinquencies = mflowDelinq tr
 lookupSource tr NewDefaults = mflowDefault tr
 lookupSource tr NewLosses = mflowLoss tr
 lookupSource tr CurBalance = mflowBalance tr
+lookupSource tr CurBegBalance = mflowBegBalance tr
 lookupSource tr x = error ("Failed to lookup source"++ show x)
 
 lookupSourceM :: Maybe TsRow -> PoolSource -> Balance

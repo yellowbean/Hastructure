@@ -52,7 +52,7 @@ import Text.Read (readMaybe)
 import Data.Aeson hiding (json)
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Data.Fixed
+import Data.Fixed hiding (Ratio)
 import Data.Ix
 
 
@@ -249,6 +249,7 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | NewLosses                       -- ^ new losses in balance
                 | NewDelinquencies                -- ^ new delinquencies in balance
                 | CurBalance                      -- ^ performing balance
+                | CurBegBalance                   -- ^ performing balance at the beginning of the period
                 deriving (Show,Ord,Read,Eq, Generic)
 
 
@@ -559,6 +560,7 @@ data DealStats = CurrentBondBalance
                | Subtract [DealStats]
                | Excess [DealStats]
                | Avg [DealStats]
+               | AvgRatio [DealStats]
                | Divide DealStats DealStats
                | DivideRatio DealStats DealStats
                | Constant Rational
@@ -902,6 +904,8 @@ getDealStatType (FutureCurrentPoolFactor _ _) = RtnRate
 getDealStatType (BondWaRate _) = RtnRate
 getDealStatType (PoolWaRate _) = RtnRate
 getDealStatType (BondRate _) = RtnRate
+getDealStatType (DivideRatio {}) = RtnRate
+getDealStatType (AvgRatio {}) = RtnRate
 
 getDealStatType (CurrentPoolBorrowerNum _) = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
