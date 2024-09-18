@@ -7929,6 +7929,28 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/DealStats"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "AvgRatio"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "AvgRatio",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/DealStats"
@@ -10902,7 +10924,9 @@
                     "CollectedCash",
                     "NewDefaults",
                     "NewLosses",
-                    "NewDelinquencies"
+                    "NewDelinquencies",
+                    "CurBalance",
+                    "CurBegBalance"
                 ],
                 "type": "string"
             },
@@ -18262,7 +18286,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.29.3"
+        "version": "0.29.4"
     },
     "openapi": "3.0.0",
     "paths": {
