@@ -32,9 +32,87 @@ jobs:
           name: release_url
           path: release_url.txt
           
+  build_artifact:
+    needs: [create_release]
+    name: ${{ matrix.os }}/GHC ${{ matrix.ghc }}/${{ github.ref }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        ghc:
+          - "9.4.4"
+          - "9.8.1"
+        cabal: ["3.8.1"]
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set tag name
+        uses: olegtarasov/get-tag@v2
+        id: tag
+        with:
+          tagRegex: "v(.*)"
+          tagRegexGroup: 1
+
+      - name: Setup Haskell
+        uses: actions/setup-haskell@v1.1.1
+        id: setup-haskell-cabal
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: ${{ matrix.cabal }}
+
+      - name: Freeze
+        run: |
+          cabal freeze
+
+      - name: Cache ~/.cabal/store
+        uses: actions/cache@v1
+        with:
+          path: ${{ steps.setup-haskell-cabal.outputs.cabal-store }}
+          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('cabal.project.freeze') }}
+
+      - name: Build binary
+        run: |
+          mkdir dist
+          cabal install exe:Hastructure --install-method=copy --overwrite-policy=always --installdir=dist
+
+      - if: matrix.os == 'windows-latest'
+        name: Set extension to .exe on Windows
+        run: echo "::set-env name=EXT::.exe"
+
+      - name: Set binary path name
+        run: echo "::set-env name=BINARY_PATH::./dist/Hastructure${{ env.EXT }}"
+
+      - name: Compress binary
+        uses: svenstaro/upx-action@2.0.1
+        with:
+          file: ${{ env.BINARY_PATH }}
+
+      - name: Load Release URL File from release job
+        uses: actions/download-artifact@v1
+        with:
+          name: release_url
+
+      - name: Get Release File Name & Upload URL
+        id: get_release_info
+        run: |
+          echo "::set-output name=upload_url::$(cat release_url/release_url.txt)"
+
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          asset_path: ${{ env.BINARY_PATH }}
+          asset_name: Hastructure-${{ steps.tag.outputs.tag }}-${{ runner.os }}-ghc-${{ matrix.ghc }}${{ env.EXT }}
+          asset_content_type: application/octet-stream
+          
   build:
 
-    needs: [create_release]
+    needs: [build_artifact]
 
     runs-on: ubuntu-latest
 
@@ -73,15 +151,7 @@ jobs:
         with:
           platforms: linux/amd64
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:latest
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:latest,  ${{ steps.meta.outputs.tags }}
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max       
           
-      -
-        name: Build and push - with version
-        uses: docker/build-push-action@v3
-        with:
-          context: "{{defaultContext}}"
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
