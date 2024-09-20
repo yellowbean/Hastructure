@@ -25,7 +25,7 @@ dependencies:
 - time 
 - lens
 - generic-lens
-- aeson
+- aeson == 2.1.2.1
 - aeson-pretty
 - text
 - bytestring
@@ -60,7 +60,7 @@ executables:
     dependencies:
     - Hastructure  
     - time
-    - aeson
+    - aeson 
     - text 
     - containers
     - unordered-containers
