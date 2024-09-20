@@ -92,6 +92,8 @@ patchDateToStats d t
          FloorWith ds f -> FloorWith (patchDateToStats d ds) (patchDateToStats d f)
          CapWith ds c -> CapWith (patchDateToStats d ds) (patchDateToStats d c)
          Round ds rb -> Round (patchDateToStats d ds) rb
+         DivideRatio ds1 ds2 -> DivideRatio (patchDateToStats d ds1) (patchDateToStats d ds2)
+         AvgRatio ss -> AvgRatio $ [ patchDateToStats d ds | ds <- ss ]
          _ -> t -- `debug` ("Failed to patch date to stats"++show t)
 
 patchDatesToStats :: P.Asset a => TestDeal a -> Date -> Date -> DealStats -> DealStats
@@ -113,6 +115,8 @@ patchDatesToStats t d1 d2 ds
       CapWith ds c -> CapWith (patchDatesToStats t d1 d2 ds) (patchDatesToStats t d1 d2 c)
       Round ds rb -> Round (patchDatesToStats t d1 d2 ds) rb
       Sum dss -> Sum $ [ patchDatesToStats t d1 d2 ds | ds <- dss ]
+      DivideRatio ds1 ds2 -> DivideRatio (patchDatesToStats t d1 d2 ds1) (patchDatesToStats t d1 d2 ds2)
+      AvgRatio ss -> AvgRatio $ [ patchDatesToStats t d1 d2 ds | ds <- ss ]
       x -> x
 
 
@@ -234,7 +238,6 @@ queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d =
     FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
     FloorWithZero s -> max (queryDealInt t s d) 0
     CapWith s cap -> min (queryDealInt t s d) (queryDealInt t cap d)
-
     Max ss -> maximum' $ [ queryDealInt t s d | s <- ss ]
     Min ss -> minimum' $ [ queryDealInt t s d | s <- ss ]
 
@@ -616,6 +619,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
     Abs s -> abs $ queryDeal t s
     Round ds rb -> roundingBy rb (queryDeal t ds)
+    DivideRatio s1 s2 -> fromRational . toRational $ queryDealRate t (DivideRatio s1 s2)
     
     _ -> error ("Failed to query balance of -> "++ show s)
 

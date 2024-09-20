@@ -470,8 +470,10 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                     run (t{liqProvider = Just newLiqMap}) poolFlowMap (Just ads) rates calls rAssump log
         
          DealClosed d ->
-           let 
-             (PreClosing newSt) = status t --  `debug` ("Switch to >>>"++ show (status t))
+           let
+             newSt = case dStatus of
+                        (PreClosing st) -> st
+                        _ -> error $ "DealClosed action is not in PreClosing status but got"++ show dStatus
              w = Map.findWithDefault [] W.OnClosingDay (waterfall t)  -- `debug` ("DDD0")
              rc = RunContext poolFlowMap rAssump rates  
              (newDeal, newRc, newLog) = foldl (performActionWrap d) (t, rc, log) w  -- `debug` ("ClosingDay Action:"++show w)
@@ -517,16 +519,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                newlog = FinancialReport sd ed bsReport cashReport
              in 
                run t poolFlowMap (Just ads) rates calls rAssump $ log++[newlog] 
-         -- ResetSrtRate d srtName -> 
-         --      let 
-         --        newSrtMap = Map.adjust (updateSrtRate t d (fromMaybe [] rAssump)) srtName (srt t)
-         --      in 
-         --        run t{srt = newSrtMap} poolFlowMap (Just ads) rates calls rAssump log
-         -- AccrueSrt d srtName -> 
-         --      let 
-         --        newSrtMap = Map.adjust (accrueSrt t d) srtName (srt t)
-         --      in 
-         --        run t{srt = newSrtMap} poolFlowMap (Just ads) rates calls rAssump log
+
                  
          FireTrigger d cyc n -> 
              let 
@@ -555,7 +548,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          
          MakeWhole d spd walTbl -> 
              let 
-               schedulePoolFlowMap = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) []))  $ view dealScheduledCashflow t
+               schedulePoolFlowMap = Map.map (fromMaybe (CF.CashFlowFrame (0,epocDate,Nothing) []))  $ view dealScheduledCashflow t
                factor = divideBB (queryDeal t (FutureCurrentPoolBegBalance Nothing)) (queryDeal t (FutureCurrentSchedulePoolBegBalance Nothing))
                reduceCfs = Map.map (over CF.cashflowTxn (\xs -> (CF.scaleTsRow factor) <$> xs)) schedulePoolFlowMap -- need to apply with factor and trucate with date
                (runDealWithSchedule,_) = run t reduceCfs (Just ads) rates calls rAssump $ log
