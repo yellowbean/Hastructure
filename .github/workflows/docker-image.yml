@@ -41,7 +41,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macOS-latest, windows-latest]
         ghc:
-          - "9.8.1"
+          - "9.6.6"
         cabal: ["3.8.1"]
 
     steps:
