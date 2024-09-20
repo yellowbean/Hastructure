@@ -100,39 +100,14 @@ pricingAssets pm assetsAndAssump ras d
     pricingResults
 
 
-calcLiquidationAmount :: Ast.Asset a => PricingMethod -> P.Pool a -> Date -> Amount
-calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
-  = case P.futureCf pool of 
-      Nothing -> 0  -- `debug` ("No futureCF")
-      Just _futureCf@(CashFlowFrame _ trs) ->
-        let 
-          earlierTxns = cutBy Inc Past d trs
-          currentCumulativeDefaultBal = sum $ map (\x -> CF.mflowDefault x - CF.mflowRecovery x - CF.mflowLoss x) earlierTxns
-        in 
-          case earlierTxns of 
-            [] -> 0  -- `debug` ("No pool Inflow")
-            _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor)
-            -- TODO need to check if missing last row
-
-calcLiquidationAmount (PV discountRate recoveryPct) pool d 
-  = case P.futureCf pool of
-      Nothing -> 0 
-      Just (CashFlowFrame _ trs) ->
-          let 
-            futureTxns = cutBy Inc Future d trs
-            earlierTxns = cutBy Exc Past d trs 
-            pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
-            currentDefaulBal = sum $ map (\x -> CF.mflowDefault x - CF.mflowRecovery x - CF.mflowLoss x) earlierTxns
-          in 
-            pvCf + mulBI currentDefaulBal recoveryPct
 
 liquidatePool :: Ast.Asset a => PricingMethod -> Date -> String -> TestDeal a -> TestDeal a
 liquidatePool lm d accName t@TestDeal { accounts = accs , pool = pool} =
   t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
   where
     proceedsByPool = case pool of 
-                     MultiPool pm -> Map.map (\p -> calcLiquidationAmount lm p d) pm
-                     SoloPool p -> Map.fromList [(PoolConsol,calcLiquidationAmount lm p d)]
+                     MultiPool pm -> Map.map (\p -> P.calcLiquidationAmount lm p d) pm
+                     SoloPool p -> Map.fromList [(PoolConsol,P.calcLiquidationAmount lm p d)]
                      ResecDeal uDeals -> error "Not implement on liquidate resec deal"
     
     proceeds = sum $ Map.elems proceedsByPool
@@ -705,8 +680,6 @@ performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFee mLimit an fns
     feeTotalDueAmt = sum feeDueAmts
 
     amtAvailable = availAccBal + supportAvail
-                   -- Just (DuePct pct) -> map (\x -> mulBR (F.feeDue x) pct ) feesToPay
-                   -- Just (DueCapAmt amt) -> prorataFactors (F.feeDue <$> feesToPay) amt
     dueAmtAfterCap = case mLimit of 
                       Nothing -> feeTotalDueAmt
                       Just (DS ds) -> min (queryDeal t (patchDateToStats d ds)) feeTotalDueAmt
@@ -958,7 +931,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinGroup mLimit 
                       Just s -> fst $ drawExtraSupport d supportPay s t
 
 
-
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueAndPayIntGroup mLimit an bndName by mSupport)
   = let 
        dAfterAcc = performAction d t (W.AccrueIntGroup [bndName])-- `debug` ("Acc due int grp"++ show (getDueInt (bndMap Map.! bndName)))
@@ -971,7 +943,6 @@ performAction d t@TestDeal{bonds=bndMap} (W.AccrueIntGroup bndNames)
     where 
         bondGrp = Map.filterWithKey (\k _ -> S.member k (S.fromList bndNames)) bndMap
         bondGrpAccrued = Map.map (calcDueInt t d Nothing Nothing) bondGrp
-
 
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit an bndGrpName by mSupport)
@@ -1011,8 +982,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit a
     dAfterSupport = case mSupport of 
                       Nothing -> t
                       Just s -> fst $ drawExtraSupport d supportPay s t
-
-
 
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinWithDue an bnds Nothing) =
@@ -1102,7 +1071,7 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
 performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an bond) = 
-  t {accounts = accMapAfterFund, bonds= bndMapUpdated }
+  t {accounts = accMapAfterFund, bonds= bndMapUpdated } 
   where
     fundAmt = case mlimit of 
                 Just (DS ds) -> queryDeal t (patchDateToStats d ds)
@@ -1111,7 +1080,6 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an 
                 
     accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bond fundAmt)) an accMap
     bndMapUpdated = Map.adjust ((L.fundWith d fundAmt) . (calcDueInt t d Nothing Nothing)) bond bndMap
-    -- bndMapUpdated = Map.adjust ((calcDueInt t d Nothing Nothing) ) bond bndMap
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
   = t {bonds = bndMapUpdated}
@@ -1130,8 +1098,8 @@ performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an)
   t {accounts = accMapAfterLiq } -- TODO need to remove assets/cashflow frame
   where
     liqAmtByPool = case pool of 
-                     MultiPool pm -> Map.map (\p -> calcLiquidationAmount lm p d) pm
-                     SoloPool p -> Map.fromList [(PoolConsol,calcLiquidationAmount lm p d)]
+                     MultiPool pm -> Map.map (\p -> P.calcLiquidationAmount lm p d) pm
+                     SoloPool p -> Map.fromList [(PoolConsol,P.calcLiquidationAmount lm p d)]
                      ResecDeal uDeals -> error "Not implement on liquidate resec deal"
 
     liqAmt = sum $ Map.elems liqAmtByPool

@@ -71,7 +71,7 @@ projectInstallmentFlow (startBal, lastPaidDate, (originRepay,originInt), startRa
 
 
 instance Asset Installment where
-  calcCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd ptype) cb rt st) asOfDay _
+  calcCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd ptype _) cb rt st) asOfDay _
     = CF.CashFlowFrame (cb,asOfDay,Nothing) flows 
      where 
         lastPayDate:cf_dates = lastN (rt+1) $ sd:getPaymentDates inst 0
@@ -103,9 +103,9 @@ instance Asset Installment where
 
   getCurrentBal (Installment _ b _ _ ) = b
   
-  getOriginBal (Installment (LoanOriginalInfo ob _ _ _ _ _) _ _ _) = ob
+  getOriginBal (Installment (LoanOriginalInfo ob _ _ _ _ _ _) _ _ _) = ob
 
-  getOriginRate (Installment (LoanOriginalInfo _ or _ _ _ _) _ _ _) 
+  getOriginRate (Installment (LoanOriginalInfo _ or _ _ _ _ _) _ _ _) 
     = case or of
        Fix _ _r -> _r
        Floater _ _ _ _r _ _ _ _ -> _r
@@ -113,20 +113,20 @@ instance Asset Installment where
   isDefaulted (Installment _ _ _ (Defaulted _)) = True
   isDefaulted (Installment {}) = False
 
-  getPaymentDates (Installment (LoanOriginalInfo _ _ ot p sd _) _ _ _) extra 
+  getPaymentDates (Installment (LoanOriginalInfo _ _ ot p sd _ _) _ _ _) extra 
     = genDates sd p (ot+extra)
 
-  getOriginDate (Installment (LoanOriginalInfo _ _ ot p sd _) _ _ _) = sd
+  getOriginDate (Installment (LoanOriginalInfo _ _ ot p sd _ _) _ _ _) = sd
   
-  getRemainTerms (Installment (LoanOriginalInfo _ _ ot p sd _) _ rt _) = rt
+  getRemainTerms (Installment (LoanOriginalInfo _ _ ot p sd _ _) _ rt _) = rt
 
-  updateOriginDate (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) nd
-    = Installment (LoanOriginalInfo ob or ot p nd _type) cb rt st
+  updateOriginDate (Installment (LoanOriginalInfo ob or ot p sd _type _obligor) cb rt st) nd
+    = Installment (LoanOriginalInfo ob or ot p nd _type _obligor) cb rt st
 
-  resetToOrig (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st)
-    = Installment (LoanOriginalInfo ob or ot p sd _type) ob ot st
+  resetToOrig (Installment (LoanOriginalInfo ob or ot p sd _type _obligor) cb rt st)
+    = Installment (LoanOriginalInfo ob or ot p sd _type _obligor) ob ot st
 
-  projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd pt) cb rt Current) 
+  projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd pt _) cb rt Current) 
                asOfDay 
                pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRates
@@ -152,7 +152,7 @@ instance Asset Installment where
 
 
   -- ^ project with defaulted at a date
-  projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd ptype) cb rt (Defaulted (Just defaultedDate))) 
+  projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd ptype _) cb rt (Defaulted (Just defaultedDate))) 
                asOfDay 
                (_,_,(A.DefaultedRecovery rr lag timing))
                mRates
@@ -171,7 +171,7 @@ instance Asset Installment where
   projCashflow inst@(Installment _ cb rt (Defaulted Nothing)) asOfDay assumps _
     = (CF.CashFlowFrame (cb, asOfDay, Nothing) $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 (getOriginRate inst) Nothing],Map.empty)
         
-  splitWith (Installment (LoanOriginalInfo ob or ot p sd _type) cb rt st) rs
-    = [ Installment (LoanOriginalInfo (mulBR ob ratio) or ot p sd _type) (mulBR cb ratio) rt st | ratio <- rs ]
+  splitWith (Installment (LoanOriginalInfo ob or ot p sd _type _obligor) cb rt st) rs
+    = [ Installment (LoanOriginalInfo (mulBR ob ratio) or ot p sd _type _obligor) (mulBR cb ratio) rt st | ratio <- rs ]
 
 

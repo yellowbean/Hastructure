@@ -76,6 +76,7 @@ library
     , base
     , bytestring
     , containers
+    , generic-lens
     , hashable
     , lens
     , numeric-limits
@@ -113,6 +114,7 @@ executable Hastructure-exe
     , bytestring
     , containers
     , exceptions
+    , generic-lens
     , hashable
     , http-types
     , lens
@@ -175,6 +177,7 @@ test-suite Hastructure-test
     , base
     , bytestring
     , containers
+    , generic-lens
     , hashable
     , lens
     , numeric-limits

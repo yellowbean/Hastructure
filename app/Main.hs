@@ -102,7 +102,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.28.21"
+version1 = Version "0.29.5"
 
 
 
@@ -197,9 +197,15 @@ instance ToSchema RV.RevolvingPool
 instance ToSchema (TsPoint [AB.AssetUnion])
 instance ToSchema AP.IssueBondEvent
 instance ToSchema (TsPoint AP.IssueBondEvent)
+instance ToSchema (TsPoint AP.RefiEvent)
+instance ToSchema AP.RefiEvent
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption
+instance ToSchema AP.TagMatchRule
+instance ToSchema RangeType
+instance ToSchema AP.FieldMatchRule
+instance ToSchema AP.ObligorStrategy
 instance ToSchema AP.ApplyAssumptionType
 instance ToSchema AP.AssetPerfAssumption
 instance ToSchema AP.AssetDelinqPerfAssumption
@@ -339,7 +345,7 @@ type ScenarioName = String
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
                 | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
                 | MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
-                | MultiScenarioAndCurveRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
+                | MultiRunAssumpReq DealType (Maybe AP.ApplyAssumptionType) (Map.Map ScenarioName AP.NonPerfAssumption)
                 deriving(Show, Generic)
 
 data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
@@ -374,8 +380,8 @@ type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName PoolRunResp)
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
---            :<|> "runDealOAS" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName [PriceResult])
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
+            :<|> "runDealByRunScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
 
 -- instance NFData [Date]
@@ -425,6 +431,11 @@ runDate (RunDateReq sd dp md) = return $
                                       Nothing -> DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
                                       Just d -> DU.genSerialDatesTill2 IE sd dp d
 
+runDealByRunScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
+runDealByRunScenarios (MultiRunAssumpReq dt mAssump nonPerfAssumpMap)
+  = return $ Map.map (\singleAssump -> wrapRun dt mAssump singleAssump) nonPerfAssumpMap
+
+
 myServer :: ServerT API Handler
 myServer =  return engineSwagger
       :<|> showVersion 
@@ -434,6 +445,7 @@ myServer =  return engineSwagger
       :<|> runDeal
       :<|> runDealScenarios
       :<|> runMultiDeals
+      :<|> runDealByRunScenarios
       :<|> runDate
 --      :<|> error "not implemented"
 

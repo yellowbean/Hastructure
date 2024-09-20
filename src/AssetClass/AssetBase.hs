@@ -9,7 +9,7 @@ module AssetClass.AssetBase
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
   ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..),ReceivableFeeType(..),Receivable(..)
-  ,ProjectedCashflow(..)
+  ,ProjectedCashflow(..),Obligor(..)
   ,calcAssetPrinInt, calcPmt
   )
   where
@@ -30,6 +30,8 @@ import qualified Data.Map as Map
 import qualified InterestRate as IR
 import qualified Cashflow as CF
 -- import Assumptions (RevolvingAssumption(Dummy4))
+import Control.Lens hiding (element,Index)
+import Control.Lens.TH
 
 import Debug.Trace (trace)
 debug = flip Debug.Trace.trace
@@ -127,23 +129,31 @@ data ReceivableFeeType = FixedFee Balance                    -- ^ a flat fee amo
                        deriving (Show,Generic,Eq,Ord)
 
 
+data Obligor = Obligor {obligorId :: String
+                        , obligorTag :: [String]
+                        , obligorFields :: Map.Map String (Either String Double)
+                        } deriving (Show,Generic,Eq,Ord)
+
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
                                           ,originTerm :: Int
                                           ,period :: Period
                                           ,startDate :: Date
                                           ,prinType :: AmortPlan 
-                                          ,prepaymentPenalty :: Maybe PrepayPenaltyType }
+                                          ,prepaymentPenalty :: Maybe PrepayPenaltyType
+                                          ,obligor :: Maybe Obligor }
                   | LoanOriginalInfo { originBalance :: Balance
                                       ,originRate :: IR.RateType
                                       ,originTerm :: Int
                                       ,period :: Period
                                       ,startDate :: Date
-                                      ,prinType :: AmortPlan }
+                                      ,prinType :: AmortPlan 
+                                      ,obligor :: Maybe Obligor }
                   | LeaseInfo { startDate :: Date            -- ^ lease start date
                               ,originTerm :: Int             -- ^ total terms
                               ,paymentDates :: DatePattern   -- ^ payment dates pattern
-                              ,originRental :: Amount}       -- ^ rental by day
+                              ,originRental :: Amount        -- ^ rental by day
+                              ,obligor :: Maybe Obligor }       
                   | FixedAssetInfo { startDate :: Date 
                                      ,originBalance :: Balance 
                                      ,residualBalance :: Balance
@@ -155,7 +165,8 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                    ,originBalance :: Balance
                                    ,originAdvance :: Balance
                                    ,dueDate :: Date
-                                   ,feeType :: Maybe ReceivableFeeType }
+                                   ,feeType :: Maybe ReceivableFeeType
+                                   ,obligor :: Maybe Obligor }
                   deriving (Show,Generic,Ord,Eq)
 
 
@@ -209,8 +220,6 @@ type LineOfCredit = Maybe Balance
 data Revolver = Heloc OriginalInfo LineOfCredit Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | DUMMY5
               deriving (Show,Generic,Eq,Ord)
-
-
 
 -- FixedAsset 
 data Capacity = FixedCapacity Balance
@@ -283,9 +292,11 @@ instance IR.UseRate ProjectedCashflow where
     = Just $ (\(a,b,c) -> c) <$> fs
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
+$(concat <$> traverse (deriveJSON defaultOptions) [''Obligor, ''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
     , ''Capacity, ''AmortRule, ''ReceivableFeeType])
 
+
+makePrisms ''OriginalInfo
 
 $(deriveJSON defaultOptions ''AssociateExp)
 $(deriveJSON defaultOptions ''AssociateIncome)
@@ -303,7 +314,6 @@ instance ToSchema AmortRule
 instance ToSchema (Ratio Integer) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
 
-
 instance ToSchema PrepayPenaltyType
 instance ToSchema Ts
 instance ToSchema (TsPoint Balance)
@@ -311,7 +321,7 @@ instance ToSchema (TsPoint IRate)
 instance ToSchema (TsPoint Rational)
 instance ToSchema (TsPoint Bool)
 instance ToSchema (RoundingBy IRate)
-
+instance ToSchema Obligor
 instance ToSchema Index
 instance ToSchema DayCount
 instance ToSchema Direction

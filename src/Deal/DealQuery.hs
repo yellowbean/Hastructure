@@ -92,6 +92,8 @@ patchDateToStats d t
          FloorWith ds f -> FloorWith (patchDateToStats d ds) (patchDateToStats d f)
          CapWith ds c -> CapWith (patchDateToStats d ds) (patchDateToStats d c)
          Round ds rb -> Round (patchDateToStats d ds) rb
+         DivideRatio ds1 ds2 -> DivideRatio (patchDateToStats d ds1) (patchDateToStats d ds2)
+         AvgRatio ss -> AvgRatio $ [ patchDateToStats d ds | ds <- ss ]
          _ -> t -- `debug` ("Failed to patch date to stats"++show t)
 
 patchDatesToStats :: P.Asset a => TestDeal a -> Date -> Date -> DealStats -> DealStats
@@ -113,6 +115,8 @@ patchDatesToStats t d1 d2 ds
       CapWith ds c -> CapWith (patchDatesToStats t d1 d2 ds) (patchDatesToStats t d1 d2 c)
       Round ds rb -> Round (patchDatesToStats t d1 d2 ds) rb
       Sum dss -> Sum $ [ patchDatesToStats t d1 d2 ds | ds <- dss ]
+      DivideRatio ds1 ds2 -> DivideRatio (patchDatesToStats t d1 d2 ds1) (patchDatesToStats t d1 d2 ds2)
+      AvgRatio ss -> AvgRatio $ [ patchDatesToStats t d1 d2 ds | ds <- ss ]
       x -> x
 
 
@@ -178,6 +182,12 @@ queryDealRate t s =
           weightedBy bals rates
 
       Constant r -> r
+      -- DivideRatio ds1 ds2 ->  toRational (queryDeal t ds1) / toRational (queryDeal t ds2)
+      DivideRatio ds1 ds2 -> if (queryDeal t ds2) == 0 then 
+                              toRational Numeric.Limits.infinity
+                            else
+                              (toRational (queryDeal t ds1)) / (toRational (queryDeal t ds2)) 
+      AvgRatio ss -> toRational (queryDealRate t (Sum ss)) / toRational (length ss)
       Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
       Min ss -> toRational $ minimum' [ queryDealRate t s | s <- ss ]
       Subtract (s1:ss) -> toRational $ (queryDealRate t s1) - queryDealRate t (Sum ss)
@@ -190,10 +200,13 @@ queryDealRate t s =
           [_f,_c,_s] = toRational <$> (queryDealRate t) <$> [floor,cap,s]
         in 
           max _f (min _c _s)
+      Factor s r -> toRational $ (queryDealRate t s) * fromRational r
+      Multiply ss -> toRational $ product (queryDealRate t <$> ss)
       FloorWith s floor -> toRational $ max (queryDealRate t s) (queryDealRate t floor)
       FloorWithZero s -> toRational $ max (queryDealRate t s) 0
+      Excess (s1:ss) -> toRational $ max 0 $ queryDealRate t s1 - queryDealRate t (Sum ss) -- `debug` ("Excess"++show (queryDeal t s1)++"ss"++show ( queryDeal t (Sum ss)))
       CapWith s cap -> toRational $ min (queryDealRate t s) (queryDealRate t cap)
-      Factor s r -> toRational $ (queryDealRate t s) * fromRational r
+      Abs s -> toRational . abs $ queryDealRate t s
       
 
 queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
@@ -225,7 +238,6 @@ queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d =
     FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
     FloorWithZero s -> max (queryDealInt t s d) 0
     CapWith s cap -> min (queryDealInt t s d) (queryDealInt t cap d)
-
     Max ss -> maximum' $ [ queryDealInt t s d | s <- ss ]
     Min ss -> minimum' $ [ queryDealInt t s d | s <- ss ]
 
@@ -299,7 +311,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
       let 
         ltc = getLatestCollectFrame t mPns
       in 
-        sum $ maybe 0 CF.mflowBalance <$> ltc
+        sum $ maybe 0 CF.mflowBalance <$> ltc 
 
     FutureCurrentSchedulePoolBalance mPns ->
       let 
@@ -379,16 +391,18 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     PoolCollectionStats idx ps mPns -> 
       let 
         pTxns::[[CF.TsRow]] = fromMaybe [] <$> (view CF.cashflowTxn <$>) <$> Map.elems (getAllCollectedFrame t mPns)
-        pRows = (\x -> x!!(length x + idx) ) <$>  pTxns
+        
+        pRows::[Maybe CF.TsRow] 
+          = (\x -> let 
+                      lookupIndx = length x + idx - 1
+                   in 
+                      if (( lookupIndx >= length x )||  (lookupIndx <0)) then 
+                        Nothing
+                      else
+                        Just (x!!lookupIndx)) <$>  pTxns
       in 
-        sum $ CF.lookupSource <$> pRows <*> ps
-      -- case P.futureCf poolM of
-      --       Just (CF.CashFlowFrame trs) 
-      --         ->let
-      --             theCollection = trs!!(length trs + idx)
-      --           in  
-      --             sum $ CF.lookupSource theCollection <$> ps
-      --       Nothing -> 0.0
+        sum $ CF.lookupSourceM <$> pRows <*> ps
+
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
         pScheduleFlow = view dealScheduledCashflow t
@@ -582,8 +596,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     Min ss -> minimum' [ queryDeal t s | s <- ss ]
 
     Divide ds1 ds2 -> if (queryDeal t ds2) == 0 then 
-                        -- (fromRational . toRational) GHC.Real.infinity `debug` ("Hit zero")
-                        (fromRational . toRational) Numeric.Limits.infinity -- `debug` ("Hit zero")
+                        (fromRational . toRational) Numeric.Limits.infinity
                       else
                         queryDeal t ds1 / queryDeal t ds2
 
@@ -606,6 +619,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
     Abs s -> abs $ queryDeal t s
     Round ds rb -> roundingBy rb (queryDeal t ds)
+    DivideRatio s1 s2 -> fromRational . toRational $ queryDealRate t (DivideRatio s1 s2)
     
     _ -> error ("Failed to query balance of -> "++ show s)
 

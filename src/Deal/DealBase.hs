@@ -11,7 +11,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,dealScheduledCashflow
                      ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..),OverrideType(..)
                      ,sortActionOnDate,dealBondGroups
-                     ,viewDealBondsByNames
+                     ,viewDealBondsByNames,poolTypePool
                      )                      
   where
 import qualified Accounts as A
@@ -83,6 +83,8 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
+                  | RefiBondRate Date AccountName BondName L.InterestInfo
+                  | RefiBond Date AccountName L.Bond
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   | StopRunFlag Date                     -- ^ stop the run with a message
                   | HitStatedMaturity Date               -- ^ hit the stated maturity date
@@ -111,6 +113,8 @@ instance TimeSeries ActionOnDate where
     getDate (MakeWhole d _ _) = d 
     getDate (BuildReport sd ed) = ed
     getDate (IssueBond d _ _ _ _ _ _) = d
+    getDate (RefiBondRate d _ _ _) = d
+    getDate (RefiBond d _ _) = d
 
 
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
@@ -141,14 +145,23 @@ data OverrideType = CustomActionOnDates [ActionOnDate]
                     deriving (Show,Generic,Ord,Eq)
 
 
+type CutoffDate = Date
+type ClosingDate = Date
+type RevolvingDate = Date
+type StatedDate = Date
+type DistributionDates = DatePattern
+type PoolCollectionDates = DatePattern
+
 data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
-              --  cutoff pool       closing bond payment dates 
-              | CustomDates Date [ActionOnDate] Date [ActionOnDate]
+              | CustomDates CutoffDate [ActionOnDate] ClosingDate [ActionOnDate]
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
               --  cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
-              | PreClosingDates Date Date (Maybe Date) Date DateVector DateVector
+              | PreClosingDates CutoffDate ClosingDate (Maybe RevolvingDate) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
+              --  (start date, ramp action dp) <Pool Coll DP> <Waterfall DP> <EndDate>
+              -- <Pool Collection DP> <Waterfall DP> 
+              | WarehousingDates Date PoolCollectionDates DistributionDates StatedDate 
               --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
-              | CurrentDates (Date,Date) (Maybe Date) Date DateVector DateVector
+              | CurrentDates (Date,Date) (Maybe Date) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
               deriving (Show,Eq, Generic,Ord)
 
 
@@ -321,6 +334,15 @@ dealPool = lens getter setter
     getter d = pool d
     setter d newPool = d {pool = newPool}
 
+poolTypePool :: Ast.Asset a => Lens' (PoolType a) (Map.Map PoolId (P.Pool a))
+poolTypePool = lens getter setter
+  where
+    getter = \case
+      SoloPool p -> Map.singleton PoolConsol p
+      MultiPool pm -> pm
+    setter (SoloPool p) newPm = SoloPool (newPm Map.! PoolConsol)
+    setter (MultiPool pm) newPm = MultiPool newPm
+
 dealScheduledCashflow :: Ast.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.CashFlowFrame))
 dealScheduledCashflow = lens getter setter
   where
@@ -365,7 +387,6 @@ dealCashflow = lens getter setter
                                                         set uDealFutureCf (newCfMap Map.! k) ud) pm
                             in
                               set dealPool (ResecDeal newPm) d
-
 
 getPoolIds :: Ast.Asset a => TestDeal a -> [PoolId]
 getPoolIds t@TestDeal{pool = pt} 
@@ -447,6 +468,3 @@ data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType, ''DateDesp, ''ActionOnDate, ''OverrideType])
--- $(deriveJSON defaultOptions ''UnderlyingDeal)
--- $(deriveJSON defaultOptions ''PoolType)
--- $(deriveJSON defaultOptions ''TestDeal)

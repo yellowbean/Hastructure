@@ -12,7 +12,8 @@ module Liability
   ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
-  ,getCurBalance)
+  ,getCurBalance,setBondOrigDate
+  ,bndOriginInfoLens,bndIntLens,getBeginRate)
   where
 
 import Language.Haskell.TH
@@ -105,7 +106,18 @@ data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
                   | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
                   deriving (Show, Eq, Generic, Ord, Read)
-                  
+
+getBeginRate :: InterestInfo -> IRate 
+getBeginRate (Floater a _ _ _ _ _ _ ) = a
+getBeginRate (Fix a _ ) = a
+getBeginRate (RefRate a _ _ _ ) = a
+getBeginRate (CapRate a  _ ) = getBeginRate a
+getBeginRate (FloorRate a  _ ) = getBeginRate a
+getBeginRate (WithIoI a _) = getBeginRate a
+getBeginRate InterestByYield {} = 0.0
+
+
+
 data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
             | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
             deriving (Show, Eq, Generic, Ord, Read)
@@ -155,6 +167,9 @@ consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
     in 
       b {bndStmt = Just (S.Statement (reverse droppedTxns))}
 
+setBondOrigDate :: Date -> Bond -> Bond
+setBondOrigDate d b@Bond{bndOriginInfo = oi} = b {bndOriginInfo = oi{originDate = d}}
+setBondOrigDate d (BondGroup bMap) = BondGroup $ Map.map (setBondOrigDate d) bMap
 
 -- | build bond factors
 patchBondFactor :: Bond -> Bond
@@ -168,7 +183,6 @@ patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) }
                   newStmt = S.Statement $ toFactor <$> txns
                 in 
                   b {bndStmt = Just newStmt} 
-      
 
 payInt :: Date -> Amount -> Bond -> Bond
 -- pay 0 interest, do nothing
@@ -221,9 +235,9 @@ fundWith d 0 b = b
 fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd  {bndBalance = newBal 
           , bndStmt=newStmt
-          }
+          } 
   where
-    newBal = bal + amt -- `debug` ("Add bal"++ show bal++ ">>>"++ show amt)
+    newBal = bal + amt 
     newStmt = S.appendStmt stmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt ))
 
 
@@ -343,25 +357,6 @@ weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBal
       ed 
       (view S.statementTxns stmt)
 
--- TO BE Deprecate, it was implemented in Cashflow Frame
--- weightAverageBalance :: Date -> Date -> Bond -> Balance
--- weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ stmt)
---   = sum $ zipWith mulBR (_bals txns) _dfs `debug` ("date"++ show sd ++"ed"++ show ed++"Bals"++ show _bals)
---     where
---       allTxns = S.getTxns $ bndStmt (consolStmt b)
---       _ds = S.getDates allTxns
---       begBals = currentBalance:(S.getTxnBalance <$> allTxns) -- from current balance to the end
---       balCurve = zipBalTs _ds begBals
--- 
---       _dfs =  getIntervalFactors $ [max bd sd]++ _ds ++ [ed]
--- 
---       txns = sliceBy IE sd ed $ S.getTxns $ bndStmt b
-      
-      -- _bals = currentBalance : map S.getTxnBegBalance txns -- `debug` ("txn"++show(txns))
-      -- _b = consolStmt b   
-      -- txns =  case S.sliceStmt sd ed <$> bndStmt _b of
-      --           Nothing -> []
-      --           Just (S.Statement _txns) -> _txns-- map getTxnBalance _txns
 weightAverageBalance sd ed bg@(BondGroup bMap)
   = sum $ weightAverageBalance sd ed <$> Map.elems bMap -- `debug` (">>>"++ show (weightAverageBalance sd ed <$> Map.elems bMap))
 
@@ -477,8 +472,10 @@ instance Liable Bond where
   getOriginBalance b@Bond{ bndOriginInfo = bo } = originBalance bo
   getOriginBalance (BondGroup bMap) = sum $ getOriginBalance <$> Map.elems bMap
 
-  getDueInt b@Bond{bndDueInt=di} = di
+  getDueInt b@Bond{bndDueInt=di,bndDueIntOverInt=dioi} = di + dioi
   getDueInt (BondGroup bMap) = sum $ getDueInt <$> Map.elems bMap
+
+  getOutstandingAmount b = getDueInt b + getCurBalance b
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool
@@ -489,6 +486,7 @@ instance IR.UseRate Bond where
                                   where combined = concat . catMaybes  $ (\b -> getIndexFromInfo (bndInterestInfo b)) <$> Map.elems bMap
      
 makeLensesFor [("bndType","bndTypeLens"),("bndOriginInfo","bndOriginInfoLens"),("bndInterestInfo","bndIntLens"),("bndStmt","bndStmtLens")] ''Bond
+makeLensesFor [("bndOriginDate","bndOriginDateLens"),("bndOriginBalance","bndOriginBalanceLens"),("bndOriginRate","bndOriginRateLens")] ''OriginalInfo
 
 $(deriveJSON defaultOptions ''InterestOverInterestType)
 $(deriveJSON defaultOptions ''InterestInfo)

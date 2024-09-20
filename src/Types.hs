@@ -29,6 +29,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
+  ,AccountName
   )
   
   where
@@ -51,7 +52,7 @@ import Text.Read (readMaybe)
 import Data.Aeson hiding (json)
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Data.Fixed
+import Data.Fixed hiding (Ratio)
 import Data.Ix
 
 
@@ -119,7 +120,11 @@ type Convexity = Micro
 type Yield = Micro
 type AccruedInterest = Centi
 type IRR = Rational
+
+
+
 data YieldResult = Yiel
+
 
 data Index = LPR5Y
             | LPR1Y
@@ -243,6 +248,8 @@ data PoolSource = CollectedInterest               -- ^ interest
                 | NewDefaults                     -- ^ new defaults in balance
                 | NewLosses                       -- ^ new losses in balance
                 | NewDelinquencies                -- ^ new delinquencies in balance
+                | CurBalance                      -- ^ performing balance
+                | CurBegBalance                   -- ^ performing balance at the beginning of the period
                 deriving (Show,Ord,Read,Eq, Generic)
 
 
@@ -254,6 +261,7 @@ data RangeType = II     -- ^ include both start and end date
                | EI     -- ^ exclude start date but include end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
+               deriving (Show,Eq,Read,Generic)
 
 data CutoffType = Inc 
                 | Exc
@@ -318,7 +326,7 @@ class TimeSeries ts where
                       [] -> Nothing
                       (x:_) -> Just x
  
-
+-- ^ different types of curves, which determine how to interpolate between two points
 data Ts = FloatCurve [TsPoint Rational]
         | BoolCurve [TsPoint Bool]
         | BalanceCurve [TsPoint Balance]
@@ -335,7 +343,7 @@ data Direction = Up
                | Down
                deriving (Show,Read,Generic,Eq,Ord)
 
-
+-- ^ direction of the transaction, in terms of the book keeping
 data BookDirection = Credit
                    | Debit
                    deriving (Show,Ord, Eq,Read, Generic)
@@ -345,9 +353,6 @@ type DueInt = Balance
 type DuePremium = Balance
 type DueIoI = Balance
 
-
-
-
 data DealCycle = EndCollection         -- ^ | collection period <HERE> collection action , waterfall action
                | EndCollectionWF       -- ^ | collection period  collection action <HERE>, waterfall action
                | BeginDistributionWF   -- ^ | collection period  collection action , <HERE>waterfall action
@@ -355,17 +360,18 @@ data DealCycle = EndCollection         -- ^ | collection period <HERE> collectio
                | InWF                  -- ^ | collection period  collection action , waterfall <HERE> action
                deriving (Show, Ord, Eq, Read, Generic)
 
-
+-- ^ different status of the deal
 data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated status with optinal accerlerated date
                 | DealDefaulted (Maybe Date)        -- ^ Deal is defaulted status with optinal default date
                 | Amortizing                        -- ^ Deal is amortizing 
                 | Revolving                         -- ^ Deal is revolving
-                | Ended                             -- ^ Deal is marked as closed
-                | PreClosing DealStatus             -- ^ Deal is not closed, pool cashflow belongs to SPV
+                | PreClosing DealStatus             -- ^ Deal is not closed, but has a closing date
+                | Warehousing DealStatus              -- ^ Deal is not closed, but closing date is not determined yet
                 | Called                            -- ^ Deal is called
+                | Ended                             -- ^ Deal is marked as closed
                 deriving (Show,Ord,Eq,Read, Generic)
 
-
+-- ^ different pricing methods
 data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
                    | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
@@ -376,7 +382,7 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | Custom Rate                      -- ^ custom amount
                    deriving (Show, Eq ,Generic, Read,Ord)
 
-
+-- ^ condition which can be evaluated to a boolean value
 data Pre = IfZero DealStats
          | If Cmp DealStats Balance
          | IfRate Cmp DealStats Micro
@@ -408,6 +414,7 @@ data ActionType = ActionResetRate  -- ^ reset interest rate from curve
                 | ActionAccrue     -- ^ accrue liablity
                  deriving (Show,Eq,Ord,Read,Generic)
 
+-- ^ comment of the transaction in the accounts
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
@@ -439,6 +446,7 @@ data TxnComment = PayInt [BondName]
                 | TxnComments [TxnComment]
                 deriving (Eq, Show, Ord ,Read, Generic)
 
+-- ^ transaction record in each entity
 data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
          | AccTxn Date Balance Amount TxnComment                                                         -- ^ account transaction record 
          | ExpTxn Date Balance Amount Balance TxnComment                                                 -- ^ expense transaction record
@@ -448,7 +456,7 @@ data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (May
          | TrgTxn Date Bool TxnComment
          deriving (Show, Generic, Eq, Read)
 
-
+-- ^ different types of deal stats
 data DealStats = CurrentBondBalance
                | CurrentPoolBalance (Maybe [PoolId])
                | CurrentPoolBegBalance (Maybe [PoolId])
@@ -552,6 +560,7 @@ data DealStats = CurrentBondBalance
                | Subtract [DealStats]
                | Excess [DealStats]
                | Avg [DealStats]
+               | AvgRatio [DealStats]
                | Divide DealStats DealStats
                | DivideRatio DealStats DealStats
                | Constant Rational
@@ -604,7 +613,6 @@ data CashflowReport = CashflowReport {
                         ,startDate :: Date 
                         ,endDate :: Date }
                         deriving (Show,Read,Generic)
-
 
 data Threshold = Below
                | EqBelow
@@ -661,6 +669,8 @@ class Liable lb where
   getCurBalance :: lb -> Balance
   getOriginBalance :: lb -> Balance
   getDueInt :: lb -> Balance
+
+  getOutstandingAmount :: lb -> Balance
 
   -- optional implement
   -- getTotalDue :: [lb] -> Balance
@@ -747,7 +757,7 @@ instance FromJSONKey PoolId where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
-
+-- ^ different types of waterfall execution
 data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the end of pool collection
                 | DistributionDay DealStatus      -- ^ waterfall executed depends on deal status
                 | CleanUp                         -- ^ waterfall exectued upon a clean up call
@@ -756,7 +766,6 @@ data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the
                 | RampUp                          -- ^ ramp up
                 | WithinTrigger String            -- ^ waterfall executed within a trigger  
                 deriving (Show,Ord,Eq,Generic,Read)
-
 
 
 data ResultComponent = CallAt Date                                    -- ^ the date when deal called
@@ -895,6 +904,8 @@ getDealStatType (FutureCurrentPoolFactor _ _) = RtnRate
 getDealStatType (BondWaRate _) = RtnRate
 getDealStatType (PoolWaRate _) = RtnRate
 getDealStatType (BondRate _) = RtnRate
+getDealStatType (DivideRatio {}) = RtnRate
+getDealStatType (AvgRatio {}) = RtnRate
 
 getDealStatType (CurrentPoolBorrowerNum _) = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
@@ -981,56 +992,15 @@ opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''DayCount)
--- $(deriveJSON defaultOptions ''Table)
--- $(deriveJSON defaultOptions ''ActionOnDate)
--- $(deriveJSON defaultOptions ''DatePattern)
--- $(deriveJSON defaultOptions ''DateType)
 $(deriveJSON defaultOptions ''Threshold)
 instance ToJSONKey Threshold where
   toJSONKey = genericToJSONKey opts
 instance FromJSONKey Threshold where
   fromJSONKey = genericFromJSONKey opts
--- $(deriveJSON defaultOptions ''DateDesp)
--- $(deriveJSON defaultOptions ''Period)
--- $(deriveJSON defaultOptions ''CashflowReport)
--- $(deriveJSON defaultOptions ''BookItem)
--- $(deriveJSON defaultOptions ''BalanceSheetReport)
--- $(deriveJSON defaultOptions ''DealCycle)
 
 
 $(deriveJSON defaultOptions ''RateAssumption)
 $(deriveJSON defaultOptions ''BookDirection)
 $(deriveJSON defaultOptions ''Direction)
--- $(deriveJSON defaultOptions ''DealStats)
--- $(deriveJSON defaultOptions ''Limit)
--- $(deriveJSON defaultOptions ''TxnComment)
--- $(deriveJSON defaultOptions ''Txn)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''Limit] )
--- $(deriveJSON defaultOptions ''DateType)
--- $(deriveJSON defaultOptions ''Threshold)
-
-
---instance FromJSON Threshold
---instance ToJSON Threshold
-
-
--- instance ToJSON CutoffFields
--- instance FromJSON CutoffFields
-
-
-
--- instance ToJSON DealCycle
--- instance FromJSON DealCycle
-
-
-
--- instance FromJSON DateType
--- instance ToJSON DateType
-
--- instance ToJSON DateType where
---   toJSON = genericToJSON defaultOptions
--- 
--- instance FromJSON DateType where
---   fromJSON = 
-

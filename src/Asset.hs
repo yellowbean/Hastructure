@@ -1,12 +1,17 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Asset ( Asset(..)
        ,calcPiFlow
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
-       ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
+       ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
+       ,getObligorTags,getObligorId
 ) where
 
 import qualified Data.Time as T
@@ -37,15 +42,18 @@ import Types hiding (Current)
 import Text.Printf
 import Data.Fixed
 import qualified InterestRate as IR
+import qualified Data.Set as Set
 import Util
 
-import AssetClass.AssetBase ( OriginalInfo, calcPmt, AssetUnion )
+import AssetClass.AssetBase ( OriginalInfo(..), calcPmt, AssetUnion, Obligor(..) )
 
 import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
 
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import Data.Generics.Product.Fields
+import Data.Generics.Product.Any
 import DateUtil (yearCountFraction)
 
 
@@ -96,7 +104,42 @@ class (Show a,IR.UseRate a) => Asset a where
                         in 
                           T.addDays offset $ getOriginDate ast
 
-                          
+  getObligor :: a -> Maybe Obligor
+  getObligor a = 
+      case getOriginInfo a of 
+        FixedAssetInfo {} -> Nothing
+        MortgageOriginalInfo{obligor = x } -> x
+        LoanOriginalInfo{obligor = x } -> x
+        LeaseInfo{obligor =  x } -> x
+        ReceivableInfo{obligor = x } -> x
+
+  getObligorTags :: a -> Set.Set String
+  getObligorTags a = 
+      case getOriginInfo a of 
+        MortgageOriginalInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
+        LoanOriginalInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
+        LeaseInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
+        ReceivableInfo{obligor = Just obr } -> Set.fromList (obligorTag obr)
+        _ -> mempty
+
+  getObligorId :: a -> Maybe String
+  getObligorId a = 
+      case getOriginInfo a of 
+        MortgageOriginalInfo{obligor = Just obr } -> Just (obligorId obr)
+        LoanOriginalInfo{obligor = Just obr } -> Just (obligorId obr)
+        LeaseInfo{obligor = Just obr } -> Just (obligorId obr)
+        ReceivableInfo{obligor = Just obr } -> Just (obligorId obr)
+        _ -> Nothing
+
+  getObligorFields :: a -> Maybe (Map.Map String (Either String Double))
+  getObligorFields a = 
+    let 
+      obInfo = getObligor a
+    in
+      case obInfo of
+        Nothing -> Nothing 
+        Just ob -> Just (obligorFields ob)
+
   {-# MINIMAL calcCashflow,getCurrentBal,getOriginBal,getOriginRate #-}
 
 

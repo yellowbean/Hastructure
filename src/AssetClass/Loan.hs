@@ -76,7 +76,7 @@ projectLoanFlow ((originBal,ot,or), startBal, lastPayDate, pt, dc,startRate, beg
       (zip5 cfDates ppyRates defRates rateVector remainTerms)  
 
 instance Asset Loan where
-  calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) bal rate term _ ) asOfDay mRates 
+  calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype _) bal rate term _ ) asOfDay mRates 
     = fst $
       projCashflow pl
                    asOfDay
@@ -84,68 +84,46 @@ instance Asset Loan where
                     ,A.DummyDelinqAssump
                     ,A.DummyDefaultAssump)
                    mRates
-  -- calcCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype) bal rate term _ ) asOfDay mRates 
-  --   = CF.CashFlowFrame (head bFlow,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns 
-  --     where
-  --       orate = getOriginRate pl
-  --       pmt = calcPmt bal (periodRateFromAnnualRate p rate) term
-  --       cfDates = lastN (term + 1) $ sd:getPaymentDates pl 0
-  --       l = pred (length cfDates)
-  --       ratesUsed = A.projRates rate or mRates cfDates -- `debug` ("rates used"++show (A.projRates rate or mRates cfDates))
-  --       dc = getDayCount or
-  --       (bFlow,prinFlow,intFlow) = case ptype of
-  --                                       Level -> calcPiFlow dc bal pmt cfDates ratesUsed
-  --                                       Even  -> calc_p_i_flow_even (bal / fromIntegral term) bal ratesUsed rate
-  --                                       I_P   -> calc_p_i_flow_i_p bal cfDates ratesUsed
-  --                                       ScheduleRepayment cf _ -> 
-  --                                         let 
-  --                                           periodIntervals = getIntervalFactors (sd:getTsDates cf)
-  --                                           schedulePrin = fromRational <$> getTsVals cf
-  --                                           bals = scanl (-) ob schedulePrin
-  --                                           ints = [  mulBIR (mulBR b f) r   | (b,f,r) <- zip3 bals periodIntervals ratesUsed ]
-  --                                         in 
-  --                                           (lastN term bals,lastN term schedulePrin,lastN term ints)
-  --       txns =  zipWith10 CF.LoanFlow (tail cfDates) bFlow prinFlow intFlow (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l 0.0) (replicate l rate) (replicate l Nothing) -- `debug` ("rates used in calc "++show ratesUsed)
 
-  getCurrentBal pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+  getCurrentBal pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype _) _bal _rate _term _ )
     = _bal
 
-  getOriginRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+  getOriginRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype _) _bal _rate _term _ )
     = case or of
         Fix _ _r -> _r
         Floater _ _ _ _r _ _ _ _ -> _r 
 
-  getCurrentRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype ) _bal _rate _term _ )
+  getCurrentRate pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd ptype _) _bal _rate _term _ )
     = _rate
 
-  getOriginBal pl@(PersonalLoan (LoanOriginalInfo ob _ _ _ _ _) _ _ _ _ ) = ob
+  getOriginBal pl@(PersonalLoan (LoanOriginalInfo ob _ _ _ _ _ _) _ _ _ _ ) = ob
 
   isDefaulted pl@(PersonalLoan _ _ _ _ (Defaulted _)) = True
   isDefaulted PersonalLoan {} = False
  
   getOriginInfo (PersonalLoan oi cb cr rt st) = oi
-  getOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = sd
+  getOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P _) cb cr rt st ) = sd
   
-  resetToOrig m@(PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) 
-    = PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) ob (getOriginRate m) ot st
+  resetToOrig m@(PersonalLoan (LoanOriginalInfo ob or ot p sd I_P obr) cb cr rt st ) 
+    = PersonalLoan (LoanOriginalInfo ob or ot p sd I_P obr) ob (getOriginRate m) ot st
   
-  getRemainTerms (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) = rt
+  getRemainTerms (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P _) cb cr rt st ) = rt
 
-  updateOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P) cb cr rt st ) nd
-    = PersonalLoan (LoanOriginalInfo ob or ot p nd I_P) cb cr rt st 
+  updateOriginDate (PersonalLoan (LoanOriginalInfo ob or ot p sd I_P obr) cb cr rt st ) nd
+    = PersonalLoan (LoanOriginalInfo ob or ot p nd I_P obr) cb cr rt st 
 
-  getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd (ScheduleRepayment ts mDp) ) _bal _rate _term _ ) extra
+  getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd (ScheduleRepayment ts mDp) _) _bal _rate _term _ ) extra
     = let 
         pdays = getTsDates ts 
         extraDates = genSerialDates (fromMaybe MonthEnd mDp) Inc (last pdays) extra
       in 
         pdays ++ extraDates
   
-  getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd _ ) _bal _rate _term _ )  extra
+  getPaymentDates pl@(PersonalLoan (LoanOriginalInfo ob _ ot p sd _ _) _bal _rate _term _ )  extra
     = genDates sd p (ot+extra)
   
   -- ^ Project cashflow for loans with prepayment/default/loss and interest rate assumptions
-  projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt Current) 
+  projCashflow pl@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType _) cb cr rt Current) 
                asOfDay 
                (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRate 
@@ -169,7 +147,7 @@ instance Asset Loan where
       (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
 
   -- ^ Project cashflow for defautled loans 
-  projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted (Just defaultedDate))) 
+  projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType _) cb cr rt (Defaulted (Just defaultedDate))) 
                asOfDay 
                (_,_,A.DefaultedRecovery rr lag timing)
                _
@@ -183,10 +161,10 @@ instance Asset Loan where
       in 
         (CF.CashFlowFrame (cb,asOfDay,Nothing) futureTxns, historyM)
 
-  projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt (Defaulted Nothing)) asOfDay assumps _
+  projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType _) cb cr rt (Defaulted Nothing)) asOfDay assumps _
     = (CF.CashFlowFrame (cb,asOfDay,Nothing) [CF.LoanFlow asOfDay 0 0 0 0 0 0 0 cr Nothing],Map.empty)
   
   projCashflow a b c d = error $ "failed to match projCashflow"++show a++show b++show c++show d
   
-  splitWith l@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType) cb cr rt st) rs
-    = [ PersonalLoan (LoanOriginalInfo (mulBR ob ratio) or ot p sd prinPayType) (mulBR cb ratio) cr rt st | ratio <- rs ]
+  splitWith l@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType obr) cb cr rt st) rs
+    = [ PersonalLoan (LoanOriginalInfo (mulBR ob ratio) or ot p sd prinPayType obr) (mulBR cb ratio) cr rt st | ratio <- rs ]

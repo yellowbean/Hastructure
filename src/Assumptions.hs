@@ -14,12 +14,14 @@ module Assumptions (BondPricingInput(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,getCDR,calcResetDates,AssumpReceipes,IssueBondEvent(..))
+                    ,getCDR,calcResetDates,AssumpReceipes,IssueBondEvent(..)
+                    ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..)
+                    ,FieldMatchRule(..))
 where
 
 import Call as C
 import Lib (Ts(..),TsPoint(..),toDate,mkRateTs)
-import Liability (Bond)
+import Liability (Bond,InterestInfo)
 import Util
 import DateUtil
 import qualified Data.Map as Map 
@@ -33,15 +35,11 @@ import Types
 import qualified Data.Time as T
 import Data.Fixed
 import Data.Ratio
-
 import Revolving
-
 import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
 import InterestRate
--- import Deal (ActionOnDate(IssueBond))
--- import Triggers (TriggerName)
 debug = flip trace
 
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
@@ -53,26 +51,47 @@ lookupAssumptionByIdx sbi i
         Just (_, aps ) ->  aps
         Nothing -> error ("Can't find idx"++ show i ++"in starfication list"++ show sbi)
 
+type ObligorTagStr = String
 
-data ApplyAssumptionType = PoolLevel AssetPerf
-                           -- ^ assumption apply to all assets in the pool
-                         | ByIndex [StratPerfByIdx]
-                           -- ^ assumption which only apply to a set of assets in the pool
-                         | ByName (Map.Map PoolId AssetPerf)
-                           -- ^ assumption for a named pool
-                         | ByPoolId (Map.Map PoolId ApplyAssumptionType)
-                           -- ^ assumption for a named pool
-                         | ByDealName (Map.Map DealName (ApplyAssumptionType, NonPerfAssumption))
-                           -- ^ assumption for a named deal 
+data TagMatchRule = TagEq      -- ^ match exactly
+                  | TagSubset
+                  | TagSuperset
+                  | TagAny     -- ^ match any tag hit
+                  | TagNot  TagMatchRule   -- ^ Negative match
+                  deriving (Show, Generic, Read)
+
+data FieldMatchRule = FieldIn String [String]
+                    | FieldCmp String Cmp Double
+                    | FieldInRange String RangeType Double Double
+                    | FieldNot FieldMatchRule
+                    deriving (Show, Generic, Read)
+
+
+data ObligorStrategy = ObligorById [String] AssetPerf
+                     | ObligorByTag [ObligorTagStr] TagMatchRule AssetPerf
+                     | ObligorByField [FieldMatchRule] AssetPerf
+                     | ObligorByDefault AssetPerf
+                     deriving (Show, Generic, Read)
+
+data ApplyAssumptionType = PoolLevel AssetPerf -- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratPerfByIdx] -- ^ assumption which only apply to a set of assets in the pool
+                         | ByName (Map.Map PoolId AssetPerf) -- ^ assumption for a named pool
+                         | ByObligor [ObligorStrategy]
+                         | ByPoolId (Map.Map PoolId ApplyAssumptionType) -- ^ assumption for a pool
+                         | ByDealName (Map.Map DealName (ApplyAssumptionType, NonPerfAssumption)) -- ^ assumption for a named deal 
                          deriving (Show, Generic)
-
--- type IssueBondEvent = (String,AccName,Bond) -- bond group name, account name, bond
 
 type RateFormula = DealStats
 type BalanceFormula = DealStats
 
 data IssueBondEvent = IssueBondEvent (Maybe Pre) BondName AccName Bond (Maybe BalanceFormula) (Maybe RateFormula)
+                    | DummyIssueBondEvent
                     deriving (Show, Generic, Read)
+
+data RefiEvent = RefiRate AccountName BondName InterestInfo
+               | RefiBond AccountName Bond
+               | RefiEvents [RefiEvent]
+                deriving (Show, Generic, Read)
 
 data NonPerfAssumption = NonPerfAssumption {
   stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
@@ -85,8 +104,8 @@ data NonPerfAssumption = NonPerfAssumption {
   ,pricing :: Maybe BondPricingInput                         -- ^ optional bond pricing input( discount curve etc)
   ,fireTrigger :: Maybe [(Date,DealCycle,String)]            -- ^ optional fire a trigger
   ,makeWholeWhen :: Maybe (Date,Spread,Table Float Spread)
-  -- ,issueBondSchedule :: Maybe [TsPoint IssueBondEvent]                            
   ,issueBondSchedule :: Maybe [TsPoint IssueBondEvent]                            
+  ,refinance :: Maybe [TsPoint RefiEvent]
 } deriving (Show, Generic)
 
 data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption                          -- ^ one assumption request
@@ -99,23 +118,23 @@ data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using const
                             | DefaultByAmt (Balance,[Rate])
                             | DefaultAtEnd                      -- ^ default 100% at end
                             | DefaultAtEndByRate Rate Rate      -- ^ life time default rate and default rate at end
-                            deriving (Show,Generic)
+                            deriving (Show,Generic,Read)
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentCPR Rate 
                            | PrepaymentVec [Rate] 
                            | PrepayByAmt (Balance,[Rate])
-                           deriving (Show,Generic)
+                           deriving (Show,Generic,Read)
 
 data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^ Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
                                 | DelinqByAmt (Balance,[Rate]) (Lag,Rate)
                                 | Dummy3
-                                deriving (Show,Generic)
+                                deriving (Show,Generic,Read)
 
 data RecoveryAssumption = Recovery (Rate,Int)                    -- ^ recovery rate, recovery lag
                         | RecoveryTiming (Rate,[Rate])           -- ^ recovery rate, with distribution of recoveries
                         | RecoveryByDays Rate [(Int, Rate)]      -- ^ recovery rate, with distribution of recoveries by offset dates
-                        deriving (Show,Generic)
+                        deriving (Show,Generic,Read)
 
 data AssumpReceipe = DefaultAssump AssetDefaultAssumption
                    | PrepayAssump AssetPrepayAssumption
@@ -131,26 +150,26 @@ type AssumpReceipes = [AssumpReceipe]
 
 data LeaseAssetGapAssump = GapDays Int                         -- ^ days between leases, when creating dummy leases
                          | GapDaysByAmount [(Amount,Int)] Int  -- ^ days depends on the size of leases, when a default a default days for size greater
-                         deriving (Show,Generic)
+                         deriving (Show,Generic,Read)
 
 data LeaseAssetRentAssump = BaseAnnualRate Rate
                           | BaseCurve Ts 
-                          deriving (Show,Generic)
+                          deriving (Show,Generic,Read)
 
 data ExtraStress = ExtraStress {
                      defaultFactors :: Maybe Ts                 -- ^ stress default rate via a time series based factor curve
                      ,prepaymentFactors :: Maybe Ts             -- ^ stress prepayment rate via a time series based factor curve
                      ,poolHairCut :: Maybe [(PoolSource, Rate)] -- ^ haircut on pool income source
-                   } deriving (Show,Generic)
+                   } deriving (Show,Generic,Read)
 
 type ExtendCashflowDates = DatePattern
 
 data AssetDefaultedPerfAssumption = DefaultedRecovery Rate Int [Rate]
                                   | DummyDefaultAssump
-                                  deriving (Show,Generic)
+                                  deriving (Show,Generic,Read)
 
 data AssetDelinqPerfAssumption = DummyDelinqAssump
-                               deriving (Show,Generic)
+                               deriving (Show,Generic,Read)
 
 data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)
                          | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
@@ -159,7 +178,7 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | ReceivableAssump  (Maybe AssetDefaultAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | FixedAssetAssump  Ts Ts   -- util rate, price
-                         deriving (Show,Generic)
+                         deriving (Show,Generic,Read)
 
 data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
                          | AvailableAssetsBy (Map.Map String (RevolvingPool, ApplyAssumptionType))
@@ -238,23 +257,11 @@ calcResetDates (r:rs) bs
 
 $(deriveJSON defaultOptions ''BondPricingInput)
 $(deriveJSON defaultOptions ''IssueBondEvent)
+$(deriveJSON defaultOptions ''RefiEvent)
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''ApplyAssumptionType, ''AssetPerfAssumption
+
+$(concat <$> traverse (deriveJSON defaultOptions) [''CutoffType,''RangeType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption])
-
--- $(deriveJSON defaultOptions ''ApplyAssumptionType)
--- $(deriveJSON defaultOptions ''AssetPerfAssumption)
--- $(deriveJSON defaultOptions ''AssetDelinqPerfAssumption)
--- $(deriveJSON defaultOptions ''AssetDefaultedPerfAssumption)
--- $(deriveJSON defaultOptions ''AssetDefaultAssumption)
--- $(deriveJSON defaultOptions ''AssetPrepayAssumption)
--- $(deriveJSON defaultOptions ''RecoveryAssumption)
--- $(deriveJSON defaultOptions ''ExtraStress)
--- $(deriveJSON defaultOptions ''AssetDelinquencyAssumption)
--- $(deriveJSON defaultOptions ''LeaseAssetGapAssump)
--- $(deriveJSON defaultOptions ''LeaseAssetRentAssump)
--- $(deriveJSON defaultOptions ''RevolvingAssumption)
--- $(deriveJSON defaultOptions ''NonPerfAssumption)
