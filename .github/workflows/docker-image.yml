@@ -75,7 +75,7 @@ jobs:
       - name: Build binary
         run: |
           mkdir dist
-          cabal install exe:Hastructure --install-method=copy --overwrite-policy=always --installdir=dist
+          cabal install Hastructure --install-method=copy --overwrite-policy=always --installdir=dist
 
       - if: matrix.os == 'windows-latest'
         name: Set extension to .exe on Windows
