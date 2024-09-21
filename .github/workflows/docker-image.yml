@@ -88,8 +88,7 @@ jobs:
 
 
       # See Note [environment variables]
-      - if: matrix.os != 'windows-latest'
-        name: Get Release File Name & Upload URL not on Widows
+      - name: Get Release File Name & Upload URL not on Widows
         run: |
           echo "upload_url=$(cat release_url/release_url.txt)" >> $GITHUB_ENV
 
