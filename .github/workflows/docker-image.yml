@@ -79,7 +79,7 @@ jobs:
           
       - if: matrix.os == 'windows-latest'
         name: Set binary path name on windows
-        run: echo "BINARY_PATH=dist/Hastructure-exe.exe"  >> $GITHUB_ENV
+        run: echo "BINARY_PATH=dist/Hastructure-exe.exe"  >> $env:$GITHUB_ENV
         
       - if: matrix.os != 'windows-latest'
         name: Set binary path name on non-windows
@@ -90,13 +90,17 @@ jobs:
         with:
           name: release_url
           path: release_url
-
+          
+      - if: matrix.os == 'windows-latest'
+        name: Get Release File Name & Upload URL on Widows
+        run: |
+          echo "upload_url=$(cat release_url/release_url.txt)" >> $env:GITHUB_ENV
 
       # See Note [environment variables]
-      - name: Get Release File Name & Upload URL not on Widows
+      - if: matrix.os != 'windows-latest'
+        name: Get Release File Name & Upload URL not on Widows
         run: |
           echo "upload_url=$(cat release_url/release_url.txt)" >> $GITHUB_ENV
-
 
       - name: Upload Release Asset
         id: upload-release-asset
