@@ -71,7 +71,7 @@ library
   hs-source-dirs:
       src
   build-depends:
-      aeson ==2.1.2.1
+      aeson
     , aeson-pretty
     , base
     , bytestring
