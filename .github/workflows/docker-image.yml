@@ -79,7 +79,7 @@ jobs:
           
       - if: matrix.os == 'windows-latest'
         name: Set binary path name on windows
-        run: echo "BINARY_PATH=dist/Hastructure-exe.exe"  >> $env:$GITHUB_ENV
+        run: echo "BINARY_PATH=dist/Hastructure-exe.exe"  >> $env:GITHUB_ENV
         
       - if: matrix.os != 'windows-latest'
         name: Set binary path name on non-windows
