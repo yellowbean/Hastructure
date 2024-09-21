@@ -60,7 +60,7 @@ executables:
     dependencies:
     - Hastructure  
     - time
-    - aeson == 2.2.3.0
+    - aeson
     - attoparsec-aeson
     - text 
     - containers
