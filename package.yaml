@@ -25,7 +25,7 @@ dependencies:
 - time 
 - lens
 - generic-lens
-- aeson == 2.2.3.0
+- aeson
 - aeson-pretty
 - text
 - bytestring
