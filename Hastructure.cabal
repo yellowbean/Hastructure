@@ -71,9 +71,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      aeson ==2.2.3.0
+      aeson
     , aeson-pretty
-    , attoparsec-aeson
     , base
     , bytestring
     , containers
@@ -107,10 +106,10 @@ executable Hastructure-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Hastructure
-    , aeson ==2.2.3.0
-    , attoparsec-aeson
+    , aeson
     , aeson-pretty
     , attoparsec
+    , attoparsec-aeson
     , base
     , base-compat
     , bytestring
@@ -174,7 +173,7 @@ test-suite Hastructure-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       Hastructure
-    , aeson ==2.2.3.0
+    , aeson
     , aeson-pretty
     , base
     , bytestring

@@ -44,8 +44,6 @@ packages:
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #
 extra-deps:
-   - aeson-2.2.3.0@sha256:011fa2d67d7a821aa5ec5c825adc919bb067d42dde8fac7c6e5db23239a58866,6589
-#  - servant-errors-0.1.7.0
 #   - time-1.12.2@sha256:88e8493d9130038d3b9968a2530a0900141cd3d938483c83dde56e12b875ebc8,6510
 #  - json-schema-0.7.4.2
 #  - timeseries-0.4.1@sha256:2c4b6995942e6aa3b474aa29bfc51016448cc3d7b58e46a459c26c60a96883cb,2892
