@@ -78,11 +78,12 @@ jobs:
           cabal install Hastructure --install-method=copy --overwrite-policy=always --installdir=dist
 
       - if: matrix.os == 'windows-latest'
-        name: Set extension to .exe on Windows
-        run: echo "name=EXT::.exe" >> $GITHUB_ENV
+        name: Set binary path name on windows
+        run: echo "BINARY_PATH=./dist/Hastructure.exe"  >> $GITHUB_ENV
 
-      - name: Set binary path name
-        run: echo "name=BINARY_PATH::./dist/Hastructure${{ env.EXT }}"  >> $GITHUB_ENV
+      - if: matrix.os != 'windows-latest'
+        name: Set binary path name on windows
+        run: echo "BINARY_PATH=./dist/Hastructure"  >> $GITHUB_ENV
 
       - name: Load Release URL File from release job
         uses: actions/download-artifact@v4
