@@ -83,7 +83,7 @@ jobs:
 
       - if: matrix.os != 'windows-latest'
         name: Set binary path name on windows
-        run: echo "BINARY_PATH=./dist/Hastructure"  >> $GITHUB_ENV
+        run: echo "BINARY_PATH=./dist/Hastructure-exe"  >> $GITHUB_ENV
 
       - name: Load Release URL File from release job
         uses: actions/download-artifact@v4
