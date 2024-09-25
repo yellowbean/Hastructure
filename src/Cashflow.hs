@@ -20,6 +20,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchCumulative,extendTxns,dropTailEmptyTxns
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
+                ,mergeCf,buildStartTsRow
                 ,txnCumulativeStats,consolidateCashFlow) where
 
 import Data.Time (Day)
@@ -207,8 +208,8 @@ instance Show CashFlowFrame where
         tbl = TT.Table (TT.Group TT.SingleLine rowHeader) (TT.Group TT.SingleLine colHeader) values
     in 
         A.render id id id tbl
-        
-                   
+
+
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 
@@ -758,6 +759,15 @@ buildBegTsRow d tr =
   in
     tsSetRate rate r
 
+buildStartTsRow :: CashFlowFrame -> Maybe TsRow
+buildStartTsRow (CashFlowFrame (begBal,begDate,accInt) []) = Nothing
+buildStartTsRow (CashFlowFrame (begBal,begDate,accInt) (txn:txns)) = 
+  let 
+    rEmpty = emptyTsRow begDate txn 
+    r = tsSetBalance begBal rEmpty
+    rate = mflowRate txn
+  in
+    Just $ tsSetRate rate r
 
 tsSetRate :: IRate -> TsRow -> TsRow
 tsSetRate _r (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow a b c d e f g h i _r k l m
@@ -803,6 +813,25 @@ mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2) -- first
   where 
     [startDate1,startDate2] = firstDate <$> [cf1,cf2]
     -- rightToLeft = startDate1 >= startDate2
+
+mergeCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
+mergeCf cf (CashFlowFrame _ []) = cf
+mergeCf (CashFlowFrame _ []) cf = cf
+mergeCf cf1@(CashFlowFrame (begBal1,begDate1,mAccInt1) txns1) cf2@(CashFlowFrame (begBal2,begDate2,mAccInt2)txns2) -- first day of left is earlier than right one
+  = let 
+      mSrow1 = buildStartTsRow cf1
+      mSrow2 = buildStartTsRow cf2
+      txns1' = case mSrow1 of
+                  Nothing -> txns1
+                  Just srow1 -> srow1:txns1
+      txns2' = case mSrow2 of
+                  Nothing -> txns2
+                  Just srow2 -> srow2:txns2
+      txns = combineTss [] txns1' txns2'
+      newSt = if begDate1 < begDate2 then (begBal1,begDate1,mAccInt1) else (begBal2,begDate2,mAccInt2)
+    in 
+      CashFlowFrame newSt txns
+
 
 consolidateCashFlow :: CashFlowFrame -> CashFlowFrame
 consolidateCashFlow (CashFlowFrame st []) = CashFlowFrame st []

@@ -223,7 +223,7 @@ projAssetUnionList assets d (A.PoolLevel assetPerf) mRate =
     cfs = fst <$> results
     bals = snd <$> results
   in 
-    (foldl1 CF.mergePoolCf cfs, Map.unionsWith (+) bals)
+    (foldl1 CF.mergeCf cfs, Map.unionsWith (+) bals)
 
 projAssetUnionList assets d _ mRate = error " not implemented on asset level assumption for revolving pool"
 
