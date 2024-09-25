@@ -516,20 +516,22 @@ performActionWrap d
       boughtAssetBal =  sum $ curBal <$> assetBought
       newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap
       
-      (CashFlowFrame _ newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      cfBought@(CashFlowFrame _ newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       newPcf = let 
                  pIdToChange = fromMaybe PoolConsol pId
                in 
-                 Map.adjust (\(CF.CashFlowFrame st trs) -> 
+                 Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                               let 
                                 dsInterval = getDate <$> trs -- `debug` (">>> agg interval : "++ show (getDate <$> trs ))
+                                mergedCf = CF.mergePoolCf cfOrigin cfBought
                               in 
-                                CF.CashFlowFrame st $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval) 
+                                -- CF.CashFlowFrame st $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval `debug` ("origin pool\n"++ show (CF.CashFlowFrame (0,epocDate,Nothing) trs)++"new bought txn\n"++ show (CF.CashFlowFrame (0,epocDate,Nothing)  newBoughtTxn)) )
+                                over CF.cashflowTxn (\xs -> CF.aggTsByDates xs dsInterval) mergedCf)
                             pIdToChange
-                            pFlowMap -- `debug` ("date"++show d ++">>Asset bought txn"++ show newBoughtTxn)
+                            pFlowMap -- `debug` ("date\n"++show d)
 
       newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)}  --  `debug` ("after buy pool"++ show newPcf)
+                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} --  `debug` ("after buy pool\n"++ show newPcf)
 
 
 performActionWrap d 
