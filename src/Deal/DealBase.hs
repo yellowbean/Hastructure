@@ -11,7 +11,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,dealScheduledCashflow
                      ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..),OverrideType(..)
                      ,sortActionOnDate,dealBondGroups
-                     ,viewDealBondsByNames,poolTypePool
+                     ,viewDealBondsByNames,poolTypePool,viewBondsInMap
                      )                      
   where
 import qualified Accounts as A
@@ -58,12 +58,6 @@ import qualified Types as CF
 import Debug.Trace
 import qualified Control.Lens as P
 debug = flip trace
--- import Data.Aeson.Types (Parser)
--- import qualified Data.HashMap.Strict as HM
--- import Data.Text (unpack)
--- import Control.Monad.IO.Class (liftIO)
-
-
 
 
 data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
@@ -280,6 +274,15 @@ viewDealAllBonds d =
        view a@(L.BondGroup bMap) = Map.elems bMap
     in 
        concat $ view <$> bs
+
+viewBondsInMap :: TestDeal a -> Map.Map String L.Bond
+viewBondsInMap t@TestDeal{ bonds = bndMap }
+  = let 
+      bnds = viewDealAllBonds t 
+      bndNames = L.bndName <$> bnds
+    in 
+      Map.fromList $ zip bndNames bnds
+
 
 viewDealBondsByNames :: Ast.Asset a => TestDeal a -> [BondName] -> [L.Bond]
 viewDealBondsByNames _ [] = []

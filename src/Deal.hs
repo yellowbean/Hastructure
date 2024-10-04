@@ -668,7 +668,7 @@ data ExpectReturn = DealStatus
                   deriving (Show,Generic)
 
 priceBonds :: TestDeal a -> AP.BondPricingInput -> Map.Map String L.PriceResult
-priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (bonds t)
+priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (viewBondsInMap t)
 priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bond_prices) 
   = Map.mapWithKey 
       (\bn (pd,price)-> L.ZSpread $
