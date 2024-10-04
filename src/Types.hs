@@ -584,7 +584,8 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
            | DueCapAmt Balance      -- ^ up to $ amount 
            | KeepBalAmt DealStats   -- ^ pay till a certain amount remains in an account
            | DS DealStats           -- ^ transfer with limit described by a `DealStats`
-           | ClearLedger String     -- ^ when transfer, clear the ledger by transfer amount
+           | ClearLedger BookDirection String     -- ^ when transfer, clear the ledger by transfer amount
+           | ClearLedgerBySeq BookDirection [String]  -- ^ clear a direction to a sequence of ledgers
            | BookLedger String      -- ^ when transfer, book the ledger by the transfer amount
            | RemainBalPct Rate      -- ^ pay till remain balance equals to a percentage of `stats`
            | TillTarget             -- ^ transfer amount which make target account up reach reserve balanace

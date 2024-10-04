@@ -292,6 +292,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     AccBalance ans -> sum $ A.accBalance . (accMap Map.!) <$> ans
     
+    -- ^ negatave -> credit balance , postive -> debit balance
     LedgerBalance ans ->
       case ledgerM of 
         Nothing -> error ("No ledgers were modeled , failed to find ledger:"++show ans )

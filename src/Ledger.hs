@@ -2,7 +2,8 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Ledger (Ledger(..),entryLog,LedgerName)
+module Ledger (Ledger(..),entryLog,LedgerName,queryGap,entryDebit,entryCredit,clearLedgersBySeq
+              ,queryDirection)
     where
 import qualified Data.Time as T
 import Stmt 
@@ -22,7 +23,6 @@ import Debug.Trace
 debug = flip trace
 
 
-
 type LedgerName = String
 
 data Ledger = Ledger {
@@ -34,10 +34,62 @@ data Ledger = Ledger {
 -- | Book an entry with date,amount and transaction to a ledger
 entryLog :: Amount -> Date -> TxnComment -> Ledger -> Ledger
 entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal} 
-  = ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }
-    where 
-      newBal = bal + amt
-      txn = EntryTxn d newBal amt cmt
+  | isTxnDirection Credit cmt  = let 
+                                   newBal = bal - amt
+                                   txn = EntryTxn d newBal amt cmt
+                                 in 
+                                   ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }
+  | otherwise = let 
+                  newBal = bal + amt
+                  txn = EntryTxn d newBal amt cmt
+                in 
+                  ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }
+                                   where 
+
+
+isTxnDirection :: BookDirection -> TxnComment -> Bool 
+isTxnDirection Credit (TxnDirection Credit) = True
+isTxnDirection Debit (TxnDirection Debit) = True
+isTxnDirection Credit (TxnComments txns) = any (isTxnDirection Credit) txns
+isTxnDirection Debit (TxnComments txns) = any (isTxnDirection Debit) txns
+isTxnDirection _ _ = False
+
+-- ^ credit is negative amount
+entryCredit :: Amount -> Date -> TxnComment -> Ledger -> Ledger 
+entryCredit amt d txn lg@Ledger{ledgName = ln}
+  | isTxnDirection Credit txn = entryLog (negate amt) d txn lg
+  | otherwise = undefined $ "Failed to write credit txn to ledger "++ ln ++ " with txn"++ show txn
+
+entryDebit :: Amount -> Date -> TxnComment -> Ledger -> Ledger 
+entryDebit amt d txn lg@Ledger{ledgName = ln}
+  | isTxnDirection Debit txn = entryLog amt d txn lg
+  | otherwise = undefined $ "Failed to write debit txn to ledger "++ ln ++ " with txn"++ show txn
+
+queryDirection :: Ledger -> (BookDirection ,Balance) 
+queryDirection (Ledger _ bal _)
+  |  bal >= 0 = (Debit, bal)
+  |  bal < 0 = (Credit, negate bal)
+
+-- ^ return ledger's bookable amount with direction input
+queryGap :: Ledger -> BookDirection -> Balance
+queryGap Ledger{ledgBalance = bal} dr 
+  = case (bal > 0, dr) of 
+      (True, Debit) -> 0
+      (True, Credit) -> bal
+      (False, Debit) -> negate bal 
+      (False, Credit) -> 0
+
+clearLedgersBySeq :: Amount -> BookDirection -> Date -> [Ledger] -> [Ledger] -> ([Ledger],Amount)
+clearLedgersBySeq 0 dr d rs unAllocLedgers = (rs++unAllocLedgers,0)
+clearLedgersBySeq amtToAlloc dr d rs [] = (rs,amtToAlloc)
+clearLedgersBySeq amtToAlloc dr d rs (ledger@Ledger{ledgBalance = bal}:ledgers)  
+  = let 
+      deductAmt = queryGap ledger dr
+      allocAmt = min deductAmt amtToAlloc
+      remainAmt = amtToAlloc - allocAmt
+      newLedger = entryLog allocAmt d (TxnDirection dr) ledger
+    in 
+      clearLedgersBySeq remainAmt dr d (newLedger:rs) ledgers
 
 instance QueryByComment Ledger where 
     queryStmt (Ledger _ _ Nothing) tc = []
