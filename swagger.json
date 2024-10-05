@@ -9943,6 +9943,38 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/BookDirection"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ClearLedgerBySeq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ClearLedgerBySeq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "type": "string"
                             },
                             "tag": {
@@ -14779,6 +14811,47 @@
                         ],
                         "title": "MultiRunAssumpReq",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/DealType"
+                                        },
+                                        "type": "object"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/ApplyAssumptionType"
+                                        },
+                                        "type": "object"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/NonPerfAssumption"
+                                        },
+                                        "type": "object"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MultiComboReq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "MultiComboReq",
+                        "type": "object"
                     }
                 ]
             },
@@ -18286,7 +18359,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.29.6"
+        "version": "0.29.8"
     },
     "openapi": "3.0.0",
     "paths": {
@@ -18417,6 +18490,85 @@
                                     ],
                                     "maxItems": 4,
                                     "minItems": 4,
+                                    "type": "array"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/runDealByCombo": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RunDealReq"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "items": {
+                                        "items": [
+                                            {
+                                                "items": [
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "type": "string"
+                                                    },
+                                                    {
+                                                        "type": "string"
+                                                    }
+                                                ],
+                                                "maxItems": 3,
+                                                "minItems": 3,
+                                                "type": "array"
+                                            },
+                                            {
+                                                "items": [
+                                                    {
+                                                        "$ref": "#/components/schemas/DealType"
+                                                    },
+                                                    {
+                                                        "additionalProperties": {
+                                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                                        },
+                                                        "type": "object"
+                                                    },
+                                                    {
+                                                        "items": {
+                                                            "$ref": "#/components/schemas/ResultComponent"
+                                                        },
+                                                        "type": "array"
+                                                    },
+                                                    {
+                                                        "additionalProperties": {
+                                                            "$ref": "#/components/schemas/PriceResult"
+                                                        },
+                                                        "type": "object"
+                                                    }
+                                                ],
+                                                "maxItems": 4,
+                                                "minItems": 4,
+                                                "type": "array"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
                                     "type": "array"
                                 }
                             }

@@ -611,7 +611,7 @@ performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.Transfer 
   where
     sourceAcc = accMap Map.! an1
     targetAcc = accMap Map.! an2 
-    targetAmt = LD.queryGap (ledgerM Map.! ln) dr 
+    targetAmt = LD.queryGap dr (ledgerM Map.! ln) 
     transferAmt = min (A.accBalance sourceAcc) targetAmt 
  
     accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 (ClearLedger dr ln))) an1 accMap -- `debug` (">>PDL >>Ledger bal"++show d ++ show targetAmt)
@@ -1084,12 +1084,12 @@ performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM } (W.WriteOff (J
   = t {bonds = bndMapUpdated, ledgers = Just newLedgerM}
   where 
     -- writeAmtUnSign = queryDeal t (LedgerBalance lns)
-    writeAmt = sum $ (`LD.queryGap` dr) <$> (ledgerM Map.!) <$> lns
+    writeAmt = sum $ (LD.queryGap dr) <$> (ledgerM Map.!) <$> lns
     writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
     bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
 
-    ledgerList = filter (\l -> LD.queryGap l dr > 0)  $ (ledgerM Map.!) <$> lns
-    (newLedgers,_) = LD.clearLedgersBySeq writeAmtCapped dr d [] ledgerList
+    ledgerList = filter (\l -> LD.queryGap dr l > 0)  $ (ledgerM Map.!) <$> lns
+    (newLedgers,_) = LD.clearLedgersBySeq dr d writeAmtCapped [] ledgerList
     newLedgerMap = lstToMapByFn LD.ledgName newLedgers
     newLedgerM = Map.union newLedgerMap ledgerM
 
@@ -1097,7 +1097,7 @@ performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM } (W.WriteOff (J
 performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM } (W.WriteOff (Just (ClearLedger dr ln)) bnd)
   = t {bonds = bndMapUpdated, ledgers = Just newLedgerM}
   where 
-    writeAmt = LD.queryGap (ledgerM Map.! ln) dr
+    writeAmt = LD.queryGap dr (ledgerM Map.! ln)
     writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
     bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
     newLedgerM = Map.adjust 

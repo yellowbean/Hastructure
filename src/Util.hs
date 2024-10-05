@@ -321,6 +321,19 @@ lstToMapByFn fn lst =
   in 
     M.fromList $ zip ks lst
 
+paySequentially :: Date -> Amount -> (a->Balance) -> (a->Amount->a) -> [a] -> [a] -> ([a],Amount)
+paySequentially d amt getDueAmt payFn paidList []
+  = (reverse paidList, amt)
+paySequentially d 0 getDueAmt payFn paidList tobePaidList
+  = (reverse (paidList++tobePaidList), 0)
+paySequentially d amt getDueAmt payFn paidList (l:tobePaidList)
+  = let 
+      dueAmt = getDueAmt l
+      actualPaidOut = min amt dueAmt 
+      remainAmt = amt - actualPaidOut
+      paidL = payFn l actualPaidOut
+    in 
+      paySequentially d remainAmt getDueAmt payFn (paidL:paidList) tobePaidList
 
 ----- DEBUG/PRINT
 -- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 

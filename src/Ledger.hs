@@ -71,25 +71,25 @@ queryDirection (Ledger _ bal _)
   |  bal < 0 = (Credit, negate bal)
 
 -- ^ return ledger's bookable amount with direction input
-queryGap :: Ledger -> BookDirection -> Balance
-queryGap Ledger{ledgBalance = bal} dr 
+queryGap :: BookDirection -> Ledger -> Balance
+queryGap dr Ledger{ledgBalance = bal}  
   = case (bal > 0, dr) of 
       (True, Debit) -> 0
       (True, Credit) -> bal
       (False, Debit) -> negate bal 
       (False, Credit) -> 0
 
-clearLedgersBySeq :: Amount -> BookDirection -> Date -> [Ledger] -> [Ledger] -> ([Ledger],Amount)
-clearLedgersBySeq 0 dr d rs unAllocLedgers = (rs++unAllocLedgers,0)
-clearLedgersBySeq amtToAlloc dr d rs [] = (rs,amtToAlloc)
-clearLedgersBySeq amtToAlloc dr d rs (ledger@Ledger{ledgBalance = bal}:ledgers)  
+clearLedgersBySeq :: BookDirection -> Date -> Amount -> [Ledger] -> [Ledger] -> ([Ledger],Amount)
+clearLedgersBySeq dr d 0 rs unAllocLedgers = (rs++unAllocLedgers,0)
+clearLedgersBySeq dr d amtToAlloc rs [] = (rs,amtToAlloc)
+clearLedgersBySeq dr d amtToAlloc rs (ledger@Ledger{ledgBalance = bal}:ledgers)  
   = let 
-      deductAmt = queryGap ledger dr
+      deductAmt = queryGap dr ledger
       allocAmt = min deductAmt amtToAlloc
       remainAmt = amtToAlloc - allocAmt
       newLedger = entryLog allocAmt d (TxnDirection dr) ledger
     in 
-      clearLedgersBySeq remainAmt dr d (newLedger:rs) ledgers
+      clearLedgersBySeq dr d remainAmt (newLedger:rs) ledgers
 
 instance QueryByComment Ledger where 
     queryStmt (Ledger _ _ Nothing) tc = []
