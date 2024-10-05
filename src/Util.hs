@@ -11,7 +11,7 @@ module Util
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox
-    ,safeDivide
+    ,safeDivide,lstToMapByFn
     -- for debug
     ,zyj
     )
@@ -313,6 +313,13 @@ findBox (Exc,Exc) x ((l,h):xs)
 safeDivide :: RealFloat a => a -> a -> a 
 safeDivide _ 0 = infinity
 safeDivide x y = x / y
+
+lstToMapByFn :: (a -> String) -> [a] -> M.Map String a 
+lstToMapByFn fn lst =
+  let 
+    ks = fn <$> lst 
+  in 
+    M.fromList $ zip ks lst
 
 
 ----- DEBUG/PRINT

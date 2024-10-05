@@ -418,6 +418,8 @@ data ActionType = ActionResetRate  -- ^ reset interest rate from curve
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
+                | PayGroupPrin [BondName]
+                | PayGroupInt [BondName]
                 | WriteOff BondName Balance
                 | FundWith BondName Balance
                 | PayPrinResidual [BondName] 

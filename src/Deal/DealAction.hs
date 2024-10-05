@@ -516,29 +516,28 @@ performActionWrap d
       boughtAssetBal =  sum $ curBal <$> assetBought
       newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap
       
-      cfBought@(CashFlowFrame _ newBoughtTxn) = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      cfBought = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       newPcf = let 
                  pIdToChange = fromMaybe PoolConsol pId
                in 
                  Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                               let 
-                                dsInterval = getDate <$> trs -- `debug` (">>> agg interval : "++ show (getDate <$> trs ))
-                                mergedCf = CF.mergePoolCf cfOrigin cfBought
+                                dsInterval = getDate <$> trs 
+                                mergedCf = CF.mergePoolCf cfOrigin cfBought -- `debug` ("origin cf\n"++show cfOrigin++"bought cf\n"++show cfBought)               
                               in 
-                                -- CF.CashFlowFrame st $ CF.aggTsByDates (CF.combineTss [] trs newBoughtTxn) dsInterval `debug` ("origin pool\n"++ show (CF.CashFlowFrame (0,epocDate,Nothing) trs)++"new bought txn\n"++ show (CF.CashFlowFrame (0,epocDate,Nothing)  newBoughtTxn)) )
-                                over CF.cashflowTxn (\xs -> CF.aggTsByDates xs dsInterval) mergedCf)
+                                over CF.cashflowTxn (\xs -> CF.aggTsByDates xs dsInterval) mergedCf) -- `debug` ("merged cf\n"++ show mergedCf)) -- 
                             pIdToChange
                             pFlowMap -- `debug` ("date\n"++show d)
 
-      newRc = rc {runPoolFlow = newPcf
-                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} --  `debug` ("after buy pool\n"++ show newPcf)
+      newRc = rc {runPoolFlow = newPcf 
+                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} `debug` (" new pool cf \n"++ show newPcf)
 
 
 performActionWrap d 
                   (t
                   ,rc@RunContext{runPoolFlow=pcf
                                 ,revolvingAssump=Nothing
-                                ,revolvingInterestRateAssump = mRates}
+                                ,revolvingInterestRateAssump=mRates}
                   ,logs)
                   (W.BuyAsset ml pricingMethod accName _)
   = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
@@ -607,21 +606,18 @@ performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL ds ledgersLis
                    ledgerM
                    (zip ledgerNames amtBookedToLedgers)
 
-performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.Transfer (Just (ClearLedger ln)) an1 an2 mComment) =
+performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} (W.Transfer (Just (ClearLedger dr ln)) an1 an2 mComment) =
   t {accounts = accMapAfterDeposit, ledgers = Just newLedgerM}  
   where
     sourceAcc = accMap Map.! an1
     targetAcc = accMap Map.! an2 
-    targetAmt = queryDeal t (LedgerBalance [ln]) 
+    targetAmt = LD.queryGap (ledgerM Map.! ln) dr 
     transferAmt = min (A.accBalance sourceAcc) targetAmt 
  
-    accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 (ClearLedger ln))) an1 accMap -- `debug` (">>PDL >>Ledger bal"++show d ++ show targetAmt)
-    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (TransferBy an1 an2 (ClearLedger ln))) an2 accMapAfterDraw
+    accMapAfterDraw = Map.adjust (A.draw transferAmt d (TransferBy an1 an2 (ClearLedger dr ln))) an1 accMap -- `debug` (">>PDL >>Ledger bal"++show d ++ show targetAmt)
+    accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (TransferBy an1 an2 (ClearLedger dr ln))) an2 accMapAfterDraw
 
-    newLedgerM = Map.adjust 
-                   (LD.entryLog (negate transferAmt) d (TxnDirection Credit))
-                   ln 
-                   ledgerM
+    newLedgerM = Map.adjust (LD.entryLog transferAmt d (TxnDirection dr)) ln ledgerM
 
 performAction d t@TestDeal{accounts=accMap} (W.Transfer (Just limit) an1 an2 mComment) =
   t {accounts = accMapAfterDeposit}  
@@ -896,7 +892,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinBySeq mLimit 
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinGroup mLimit an bndGrpName by mSupport)= 
   dAfterSupport { bonds = Map.insert bndGrpName (L.BondGroup bndMapAfterPay) bndMap 
-               , accounts = Map.adjust (A.draw accPay d (PayPrin [bndGrpName])) an accMap }
+               , accounts = Map.adjust (A.draw accPay d (PayGroupPrin [bndGrpName])) an accMap }
   where 
     accBal = A.accBalance $ accMap Map.! an
     supportAvail = case mSupport of 
@@ -949,7 +945,7 @@ performAction d t@TestDeal{bonds=bndMap} (W.AccrueIntGroup bndNames)
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit an bndGrpName by mSupport)
   = dAfterSupport { bonds = Map.insert bndGrpName (L.BondGroup bndMapAfterPay) bndMap 
-                  , accounts = Map.adjust (A.draw accPay d (PayInt [bndGrpName])) an accMap }
+                  , accounts = Map.adjust (A.draw accPay d (PayGroupInt [bndGrpName])) an accMap }
   where 
     accBal = A.accBalance $ accMap Map.! an
     supportAvail = case mSupport of 
@@ -1082,6 +1078,32 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an 
                 
     accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bond fundAmt)) an accMap
     bndMapUpdated = Map.adjust ((L.fundWith d fundAmt) . (calcDueInt t d Nothing Nothing)) bond bndMap
+ 
+-- ^ clear a sequence of legders
+performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM } (W.WriteOff (Just (ClearLedgerBySeq dr lns)) bnd)
+  = t {bonds = bndMapUpdated, ledgers = Just newLedgerM}
+  where 
+    -- writeAmtUnSign = queryDeal t (LedgerBalance lns)
+    writeAmt = sum $ (`LD.queryGap` dr) <$> (ledgerM Map.!) <$> lns
+    writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
+    bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
+
+    ledgerList = filter (\l -> LD.queryGap l dr > 0)  $ (ledgerM Map.!) <$> lns
+    (newLedgers,_) = LD.clearLedgersBySeq writeAmtCapped dr d [] ledgerList
+    newLedgerMap = lstToMapByFn LD.ledgName newLedgers
+    newLedgerM = Map.union newLedgerMap ledgerM
+
+
+performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM } (W.WriteOff (Just (ClearLedger dr ln)) bnd)
+  = t {bonds = bndMapUpdated, ledgers = Just newLedgerM}
+  where 
+    writeAmt = LD.queryGap (ledgerM Map.! ln) dr
+    writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
+    bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
+    newLedgerM = Map.adjust 
+                   (LD.entryLog writeAmtCapped d (TxnDirection dr))
+                   ln 
+                   ledgerM
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
   = t {bonds = bndMapUpdated}

@@ -528,7 +528,7 @@ firstDate (CashFlowFrame _ [r]) = getDate r
 firstDate (CashFlowFrame _ (r:rs)) = getDate r
 
 
--- ! combine two cashflow frame 
+-- ! combine two cashflow frames from two entities
 -- ! cashflow earlier on the left ,later cashflow on the right
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame 
 combine (CashFlowFrame st1 []) (CashFlowFrame st2 []) = CashFlowFrame st1 []
@@ -536,7 +536,6 @@ combine (CashFlowFrame _ []) cf2 = cf2
 combine cf1 (CashFlowFrame _ []) = cf1
 combine cf1@(CashFlowFrame st1@(begBal1,begDate1,acc1) txn1) cf2@(CashFlowFrame st2@(begBal2,begDate2,acc2) txn2) 
   | begDate1 > begDate2 = combine cf2 cf1
---  | begDate1 == begDate2 = combine cf2 cf1
   | otherwise =
     let 
       txns = combineTss [] txn1 txn2

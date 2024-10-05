@@ -355,7 +355,8 @@ extractRequiredRevolvingPool t@TestDeal{waterfall = waterfallM} =
 
 
 validateReq :: (IR.UseRate a,P.Asset a) => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
-validateReq t@TestDeal{accounts = accMap, fees = feeMap} assump@A.NonPerfAssumption{A.interest = intM, A.issueBondSchedule = mIssuePlan, A.revolving = mRevolvingAssump} 
+validateReq t@TestDeal{accounts = accMap, fees = feeMap} 
+            assump@A.NonPerfAssumption{A.interest = intM, A.issueBondSchedule = mIssuePlan, A.revolving = mRevolvingAssump} 
   = let 
       ratesRequired = extractRequiredRates t
       ratesSupplied = case intM of 
