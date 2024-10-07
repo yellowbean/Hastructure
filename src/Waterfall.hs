@@ -85,6 +85,7 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | AccrueAndPayIntGroup (Maybe Limit) AccountName BondName PayOrderBy (Maybe ExtraSupport) 
             -- Bond - Balance
             | WriteOff (Maybe Limit) BondName
+            | WriteOffBySeq (Maybe Limit) [BondName]
             | FundWith (Maybe Limit) AccountName BondName             -- ^ extra more funds from bond and deposit cash to account
             -- Pool/Asset change
             | BuyAsset (Maybe Limit) PricingMethod AccountName (Maybe PoolId)                       -- ^ buy asset from revolving assumptions using funds from account

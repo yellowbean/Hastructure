@@ -11,7 +11,7 @@ module Util
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox
-    ,safeDivide,lstToMapByFn
+    ,safeDivide,lstToMapByFn,paySequentially
     -- for debug
     ,zyj
     )
@@ -321,7 +321,7 @@ lstToMapByFn fn lst =
   in 
     M.fromList $ zip ks lst
 
-paySequentially :: Date -> Amount -> (a->Balance) -> (a->Amount->a) -> [a] -> [a] -> ([a],Amount)
+paySequentially :: Date -> Amount -> (a->Balance) -> (Amount->a->a) -> [a] -> [a] -> ([a],Amount)
 paySequentially d amt getDueAmt payFn paidList []
   = (reverse paidList, amt)
 paySequentially d 0 getDueAmt payFn paidList tobePaidList
@@ -331,7 +331,7 @@ paySequentially d amt getDueAmt payFn paidList (l:tobePaidList)
       dueAmt = getDueAmt l
       actualPaidOut = min amt dueAmt 
       remainAmt = amt - actualPaidOut
-      paidL = payFn l actualPaidOut
+      paidL = payFn actualPaidOut l
     in 
       paySequentially d remainAmt getDueAmt payFn (paidL:paidList) tobePaidList
 

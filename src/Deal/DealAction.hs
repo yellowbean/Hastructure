@@ -1118,6 +1118,38 @@ performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
     bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
 
 
+performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM} (W.WriteOffBySeq (Just (ClearLedger dr ln)) bnds)
+  = t {bonds = Map.union bndMapUpdated bndMap, ledgers = Just newLedgerM}
+  where 
+    writeAmt = LD.queryGap dr (ledgerM Map.! ln)
+    bndsToWriteOff = map (calcDueInt t d Nothing Nothing) $ map (bndMap Map.!) bnds
+    totalBondBal = sum $ L.bndBalance <$> bndsToWriteOff
+    writeAmtCapped = min writeAmt totalBondBal
+
+    (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bndsToWriteOff 
+    bndMapUpdated = lstToMapByFn L.bndName bndWrited
+    newLedgerM = Map.adjust 
+                   (LD.entryLog writeAmtCapped d (TxnDirection dr))
+                   ln 
+                   ledgerM
+
+
+performAction d t@TestDeal{bonds=bndMap } (W.WriteOffBySeq mlimit bnds)
+  = t {bonds = Map.union bndMapUpdated bndMap }
+  where 
+    bondsToWriteOff = map (calcDueInt t d Nothing Nothing) $ map (bndMap Map.!) bnds
+    totalBondBal = sum $ L.bndBalance <$> bondsToWriteOff
+    writeAmt = case mlimit of
+                  Just (DS ds) -> queryDeal t (patchDateToStats d ds)
+                  Just (DueCapAmt amt) -> amt
+                  Nothing -> totalBondBal
+                  x -> error $ "not supported type to determine the amount to write off"++ show x
+
+    writeAmtCapped = min writeAmt totalBondBal
+    (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bondsToWriteOff 
+    bndMapUpdated = lstToMapByFn L.bndName bndWrited
+
+
 performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets/cashflow frame
   where
