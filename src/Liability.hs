@@ -13,7 +13,7 @@ module Liability
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
   ,getCurBalance,setBondOrigDate
-  ,bndOriginInfoLens,bndIntLens,getBeginRate)
+  ,bndOriginInfoLens,bndIntLens,getBeginRate,_Bond,_BondGroup)
   where
 
 import Language.Haskell.TH
@@ -497,6 +497,9 @@ instance IR.UseRate Bond where
      
 makeLensesFor [("bndType","bndTypeLens"),("bndOriginInfo","bndOriginInfoLens"),("bndInterestInfo","bndIntLens"),("bndStmt","bndStmtLens")] ''Bond
 makeLensesFor [("bndOriginDate","bndOriginDateLens"),("bndOriginBalance","bndOriginBalanceLens"),("bndOriginRate","bndOriginRateLens")] ''OriginalInfo
+
+makePrisms ''Bond
+
 
 $(deriveJSON defaultOptions ''InterestOverInterestType)
 $(deriveJSON defaultOptions ''InterestInfo)
