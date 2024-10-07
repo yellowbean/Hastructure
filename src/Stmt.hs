@@ -112,7 +112,7 @@ emptyTxn EntryTxn {} d = EntryTxn d 0 0 Empty
 emptyTxn TrgTxn {} d = TrgTxn d False Empty
 
 isEmptyTxn :: Txn -> Bool
-isEmptyTxn (BondTxn _ 0 0 0 _ 0 0 0 _ _) = True
+isEmptyTxn (BondTxn _ 0 0 0 _ 0 0 0 _ Empty) = True
 isEmptyTxn (AccTxn _ 0 0 Empty) = True
 isEmptyTxn (ExpTxn _ 0 0 0 Empty) = True
 isEmptyTxn (SupportTxn _ Nothing 0 0 0 0 Empty) = True
