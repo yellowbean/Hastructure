@@ -383,7 +383,7 @@ type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runDealByRunScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
-            :<|> "runDealByCombo" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map (String,String,String) RunResp)
+            :<|> "runByCombo" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map String RunResp)
             :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
 
 
@@ -433,18 +433,19 @@ runDate (RunDateReq sd dp md) = return $
 
 runDealByRunScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runDealByRunScenarios (MultiRunAssumpReq dt mAssump nonPerfAssumpMap)
-  = return $ Map.map (\singleAssump -> wrapRun dt mAssump singleAssump) nonPerfAssumpMap
+  = return $ Map.map (wrapRun dt mAssump) nonPerfAssumpMap
 
 
-runDealByCombo :: RunDealReq -> Handler (Map.Map (String,String,String) RunResp)
+runDealByCombo :: RunDealReq -> Handler (Map.Map String RunResp)
 runDealByCombo (MultiComboReq dMap assumpMap nonPerfAssumpMap)
   = let 
-     dList = Map.toList dMap
-     aList = Map.toList assumpMap
-     nList = Map.toList nonPerfAssumpMap
-     r = [ ((dk,ak,nk), wrapRun d a n) | (dk,d) <- dList, (ak,a) <- aList, (nk,n) <- nList ]
+      dList = Map.toList dMap
+      aList = Map.toList assumpMap
+      nList = Map.toList nonPerfAssumpMap
+      r = [ (intercalate "^" [dk,ak,nk], wrapRun d a n) | (dk,d) <- dList, (ak,a) <- aList, (nk,n) <- nList ]
+      rMap = Map.fromList r
     in 
-      return $ Map.fromList r
+      return rMap -- `debug` ("RunDealByCombo->"++ show rMap)
 
 
 myServer :: ServerT API Handler
