@@ -11,7 +11,7 @@ module Util
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox
-    ,safeDivide,lstToMapByFn,paySequentially
+    ,safeDivide,lstToMapByFn,paySequentially,payProRata
     -- for debug
     ,zyj
     )
@@ -334,6 +334,20 @@ paySequentially d amt getDueAmt payFn paidList (l:tobePaidList)
       paidL = payFn actualPaidOut l
     in 
       paySequentially d remainAmt getDueAmt payFn (paidL:paidList) tobePaidList
+
+payProRata :: Date -> Amount -> (a->Balance) -> (Amount->a->a) -> [a] -> ([a],Amount)
+payProRata d amt getDueAmt payFn tobePaidList
+  = let 
+      dueAmts = getDueAmt <$> tobePaidList
+      totalDueAmt = sum  dueAmts
+      actualPaidOut = min amt totalDueAmt
+      remainAmt = amt - actualPaidOut
+
+      allocAmt = prorataFactors dueAmts actualPaidOut
+
+      paidList = [ payFn amt l | (amt,l) <- zip allocAmt tobePaidList ]
+    in 
+      (paidList, remainAmt)
 
 ----- DEBUG/PRINT
 -- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 

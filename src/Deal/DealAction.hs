@@ -530,7 +530,7 @@ performActionWrap d
                             pFlowMap -- `debug` ("date\n"++show d)
 
       newRc = rc {runPoolFlow = newPcf 
-                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} `debug` (" new pool cf \n"++ show newPcf)
+                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} -- `debug` (" new pool cf \n"++ show newPcf)
 
 
 performActionWrap d 
@@ -1100,10 +1100,7 @@ performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM } (W.WriteOff (J
     writeAmt = LD.queryGap dr (ledgerM Map.! ln)
     writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
     bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
-    newLedgerM = Map.adjust 
-                   (LD.entryLog writeAmtCapped d (TxnDirection dr))
-                   ln 
-                   ledgerM
+    newLedgerM = Map.adjust (LD.entryLog writeAmtCapped d (TxnDirection dr)) ln ledgerM
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
   = t {bonds = bndMapUpdated}
@@ -1122,16 +1119,13 @@ performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM} (W.WriteOffBySe
   = t {bonds = Map.union bndMapUpdated bndMap, ledgers = Just newLedgerM}
   where 
     writeAmt = LD.queryGap dr (ledgerM Map.! ln)
-    bndsToWriteOff = map (calcDueInt t d Nothing Nothing) $ map (bndMap Map.!) bnds
+    bndsToWriteOff = map (calcDueInt t d Nothing Nothing . bndMap Map.!) bnds
     totalBondBal = sum $ L.bndBalance <$> bndsToWriteOff
     writeAmtCapped = min writeAmt totalBondBal
 
     (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bndsToWriteOff 
     bndMapUpdated = lstToMapByFn L.bndName bndWrited
-    newLedgerM = Map.adjust 
-                   (LD.entryLog writeAmtCapped d (TxnDirection dr))
-                   ln 
-                   ledgerM
+    newLedgerM = Map.adjust (LD.entryLog writeAmtCapped d (TxnDirection dr)) ln ledgerM
 
 
 performAction d t@TestDeal{bonds=bndMap } (W.WriteOffBySeq mlimit bnds)
@@ -1335,7 +1329,6 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapS
 performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tNames)
   = t { triggers = Just (Map.insert loc newMap trgM) }
     where 
-      -- newMap = Map.adjust (updateTrigger t d) tName (trgM Map.! loc)
       triggerM = trgM Map.! loc
       newMap = foldr 
                 (Map.adjust (testTrigger t d))
