@@ -410,7 +410,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                else
                  let 
                    (dAfterWaterfall, rc2, newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe 
-                   (dRunWithTrigger1, rc3,ads2, newLogs2) = runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  
+                   (dRunWithTrigger1, rc3, ads2, newLogs2) = runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  
                    
                  in 
                    run dRunWithTrigger1 (runPoolFlow rc3) (Just ads2) rates calls rAssump (newLogsWaterfall++newLogs2++logsBeforeDist++[RunningWaterfall d waterfallKey]) 

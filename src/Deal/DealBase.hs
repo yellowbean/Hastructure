@@ -161,6 +161,7 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
 
 class SPV a where
   getBondsByName :: a -> Maybe [String] -> Map.Map String L.Bond
+  getActiveBonds :: a -> [String] -> [L.Bond]
   getBondBegBal :: a -> String -> Balance
   getBondStmtByName :: a -> Maybe [String] -> Map.Map String (Maybe Statement)
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
@@ -231,6 +232,12 @@ instance SPV (TestDeal a) where
     = case bns of
          Nothing -> bonds t
          Just _bns -> Map.filterWithKey (\k _ -> S.member k (S.fromList _bns)) (bonds t)
+  
+  getActiveBonds t bns = 
+    let 
+      bnds = (bonds t Map.!) <$> bns
+    in 
+      filter (not . L.isPaidOff) bnds
 
   getBondStmtByName t bns
     = Map.map L.bndStmt bndsM
