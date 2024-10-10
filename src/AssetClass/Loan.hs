@@ -143,7 +143,7 @@ instance Asset Loan where
                       in 
                         divideBB cb (scheduleBals!!(ot - rt))
                      _ -> 1.0  
-      (txns,_) = projectLoanFlow ((ob,ot,getOriginRate pl), cb,lastPayDate,prinPayType,dc,cr,initFactor) (cfDates,defRates,ppyRates,rateVector,remainTerms)  `debug` (" rateVector"++show rateVector)
+      (txns,_) = projectLoanFlow ((ob,ot,getOriginRate pl), cb,lastPayDate,prinPayType,dc,cr,initFactor) (cfDates,defRates,ppyRates,rateVector,remainTerms)  -- `debug` (" rateVector"++show rateVector)
       (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
 
   -- ^ Project cashflow for defautled loans 

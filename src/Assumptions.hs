@@ -14,7 +14,7 @@ module Assumptions (BondPricingInput(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,getCDR,calcResetDates,AssumpReceipes,IssueBondEvent(..)
+                    ,getCDR,calcResetDates,IssueBondEvent(..)
                     ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..)
                     ,FieldMatchRule(..))
 where
@@ -135,18 +135,6 @@ data RecoveryAssumption = Recovery (Rate,Int)                    -- ^ recovery r
                         | RecoveryTiming (Rate,[Rate])           -- ^ recovery rate, with distribution of recoveries
                         | RecoveryByDays Rate [(Int, Rate)]      -- ^ recovery rate, with distribution of recoveries by offset dates
                         deriving (Show,Generic,Read)
-
-data AssumpReceipe = DefaultAssump AssetDefaultAssumption
-                   | PrepayAssump AssetPrepayAssumption
-                   | DelinqAssump AssetDelinquencyAssumption
-                   | RecoveryAssump RecoveryAssumption
-                   | RunInt 
-                   | RunSchedulePrincipal
-                   | RunPmt
-                   | RunHaircut [(PoolSource, Rate)]
-                   deriving (Show,Generic)
-                   
-type AssumpReceipes = [AssumpReceipe]
 
 data LeaseAssetGapAssump = GapDays Int                         -- ^ days between leases, when creating dummy leases
                          | GapDaysByAmount [(Amount,Int)] Int  -- ^ days depends on the size of leases, when a default a default days for size greater

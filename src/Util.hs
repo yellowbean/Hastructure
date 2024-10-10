@@ -11,7 +11,7 @@ module Util
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox
-    ,safeDivide
+    ,safeDivide,lstToMapByFn,paySequentially,payProRata
     -- for debug
     ,zyj
     )
@@ -314,6 +314,40 @@ safeDivide :: RealFloat a => a -> a -> a
 safeDivide _ 0 = infinity
 safeDivide x y = x / y
 
+lstToMapByFn :: (a -> String) -> [a] -> M.Map String a 
+lstToMapByFn fn lst =
+  let 
+    ks = fn <$> lst 
+  in 
+    M.fromList $ zip ks lst
+
+paySequentially :: Date -> Amount -> (a->Balance) -> (Amount->a->a) -> [a] -> [a] -> ([a],Amount)
+paySequentially d amt getDueAmt payFn paidList []
+  = (reverse paidList, amt)
+paySequentially d 0 getDueAmt payFn paidList tobePaidList
+  = (reverse (paidList++tobePaidList), 0)
+paySequentially d amt getDueAmt payFn paidList (l:tobePaidList)
+  = let 
+      dueAmt = getDueAmt l
+      actualPaidOut = min amt dueAmt 
+      remainAmt = amt - actualPaidOut
+      paidL = payFn actualPaidOut l
+    in 
+      paySequentially d remainAmt getDueAmt payFn (paidL:paidList) tobePaidList
+
+payProRata :: Date -> Amount -> (a->Balance) -> (Amount->a->a) -> [a] -> ([a],Amount)
+payProRata d amt getDueAmt payFn tobePaidList
+  = let 
+      dueAmts = getDueAmt <$> tobePaidList
+      totalDueAmt = sum  dueAmts
+      actualPaidOut = min amt totalDueAmt
+      remainAmt = amt - actualPaidOut
+
+      allocAmt = prorataFactors dueAmts actualPaidOut
+
+      paidList = [ payFn amt l | (amt,l) <- zip allocAmt tobePaidList ]
+    in 
+      (paidList, remainAmt)
 
 ----- DEBUG/PRINT
 -- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 
