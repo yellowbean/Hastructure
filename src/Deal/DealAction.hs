@@ -1151,13 +1151,20 @@ performAction d t@TestDeal{bonds=bndMap } (W.WriteOffBySeq mlimit bnds)
     bndMapUpdated = lstToMapByFn L.bndName bndWrited
 
 
-performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an) =
+performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an mPid) =
   t {accounts = accMapAfterLiq } -- TODO need to remove assets/cashflow frame
   where
-    liqAmtByPool = case pool of 
-                     MultiPool pm -> Map.map (\p -> P.calcLiquidationAmount lm p d) pm
-                     SoloPool p -> Map.fromList [(PoolConsol,P.calcLiquidationAmount lm p d)]
-                     ResecDeal uDeals -> error "Not implement on liquidate resec deal"
+    liqAmtByPool = case (pool,mPid) of 
+                     (MultiPool pm,Nothing) -> Map.map (\p -> P.calcLiquidationAmount lm p d) pm
+                     (SoloPool p,Nothing) -> Map.fromList [(PoolConsol,P.calcLiquidationAmount lm p d)]
+                     (MultiPool pm,Just pids) -> let
+                                                  selectedPids = S.fromList pids
+                                                  selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
+                                                 in 
+                                                  Map.map (\p -> P.calcLiquidationAmount lm p d) selectedPoolMap
+                     (SoloPool p,Just [PoolConsol]) -> Map.fromList [(PoolConsol,P.calcLiquidationAmount lm p d)]
+                     (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
+                     (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
 
     liqAmt = sum $ Map.elems liqAmtByPool
     accMapAfterLiq = Map.adjust (A.deposit liqAmt d LiquidationProceeds) an accMap
