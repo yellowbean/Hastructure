@@ -44,6 +44,7 @@ import qualified Data.ByteString.Char8 as BS
 import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
+import Network.Wai.Middleware.Cors
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
@@ -472,7 +473,9 @@ data Config = Config { port :: Int}
 instance FromJSON Config
 
 app :: Application
-app = serve (Proxy :: Proxy API) myServer
+-- app = serve (Proxy :: Proxy API) myServer
+app = simpleCors $ serve (Proxy :: Proxy API) myServer
+
 
 
 main :: IO ()
