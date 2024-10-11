@@ -167,6 +167,10 @@ buildPrepayRates ds mPa =
                                     Util.toPeriodRateByInterval
                                     (paddingDefault 0.0 vs (pred size))
                                     (getIntervalDays ds)
+    Just (A.PrepaymentVecPadding vs) -> zipWith 
+                                         Util.toPeriodRateByInterval
+                                         (paddingDefault (last vs) vs (pred size))
+                                         (getIntervalDays ds)
     _ -> error ("failed to find prepayment type"++ show mPa)
   where
     size = length ds
@@ -181,6 +185,10 @@ buildDefaultRates ds mDa =
                                 Util.toPeriodRateByInterval
                                 (paddingDefault 0.0 vs (pred size))
                                 (getIntervalDays ds)
+    Just (A.DefaultVecPadding vs) -> zipWith 
+                                      Util.toPeriodRateByInterval
+                                      (paddingDefault (last vs) vs (pred size))
+                                      (getIntervalDays ds)
     Just (A.DefaultAtEndByRate r rAtEnd)
       -> case size of 
           0 -> []
