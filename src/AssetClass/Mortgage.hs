@@ -335,9 +335,8 @@ buildARMrates or@(IR.Floater _ idx sprd initRate dp _ _ mRoundBy )
         Nothing -> error $ "Failed to find index"++ show idx
 
 instance Ast.Asset Mortgage where
-  calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype _ _)  _bal _rate _term _mbn Current) d mRates
+  calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype _ _)  _bal _rate _term _mbn _) d mRates
     = fst (projCashflow m d (MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) mRates)
-
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows _)  d _ = CF.CashFlowFrame ( (CF.mflowBalance . head) flows, beg_date, Nothing ) flows
   calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates = error "to be implement on adjust rate mortgage"
@@ -463,10 +462,8 @@ instance Ast.Asset Mortgage where
         ppyRates = paddingDefault 0.0 (Ast.buildPrepayRates (begDate:originCfDates) amp) totalLength
         expectedDefaultBals = paddingDefault 0 (mulBR dBal <$> vs) totalLength
         unAppliedDefaultBals = tail $ scanl (-) dBal expectedDefaultBals
-        -- (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate (begDate:cfDates) pAssump 
         endDate = (CF.getDate . last) flows
         extraDates = genSerialDates dp Exc endDate recoveryLag
-        -- cfDates = (CF.getDate <$> flows) ++ extraDates
         flowsWithEx = flows ++ extendTxns (last flows) extraDates -- `debug` (">> end date"++ show endDate++">>> extra dates"++show extraDates)
         (txns,_) = projScheduleCashflowByDefaultAmt 
                      (begBal,begDate,begRate,begMbn) 
@@ -565,7 +562,6 @@ instance Ast.Asset Mortgage where
       rateVector = fromRational <$> getValByDates rateCurve Inc cfDates -- `debug` ("RateCurve"++ show rate_curve)
 
       (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams)
-      -- txns = projectMortgageFlow [] cb  mbn lastPayDate cfDates defRates ppyRates (replicate cfDatesLength 0.0) (replicate cfDatesLength 0.0) rateVector (recoveryLag,recoveryRate) p prinPayType 
       remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt]
       dc = getDayCount or
       scheduleBalToday = calcScheduleBalaceToday m mRates asOfDay
