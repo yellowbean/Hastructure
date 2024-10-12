@@ -2956,6 +2956,35 @@
                         ],
                         "title": "DefaultAtEndByRate",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultStressByTs"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultStressByTs",
+                        "type": "object"
                     }
                 ]
             },
@@ -3502,6 +3531,35 @@
                             "contents"
                         ],
                         "title": "PrepayByAmt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetPrepayAssumption"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PrepayStressByTs"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PrepayStressByTs",
                         "type": "object"
                     }
                 ]
