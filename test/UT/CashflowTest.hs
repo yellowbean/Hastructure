@@ -264,7 +264,7 @@ testMergePoolCf =
                            ,(CF.MortgageDelinqFlow (L.toDate "20230201") 200 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
                            ,(CF.MortgageDelinqFlow (L.toDate "20230301") 190 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
                            ,(CF.MortgageDelinqFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)]) 
-        (CF.mergePoolCf cf1 cf2)
+        (CF.mergePoolCf2 cf1 cf2)
       -- testCase "" $
       --   assertEqual "Merge Cashflow with status"
       --   (CF.CashFlowFrame dummySt 

@@ -115,10 +115,11 @@ data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption            
 data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using constant default rate
                             | DefaultCDR Rate                   -- ^ using annualized default rate
                             | DefaultVec [Rate]                 -- ^ using default rate vector
-                            | DefaultVecPadding [Rate]                 -- ^ using default rate vector
+                            | DefaultVecPadding [Rate]          -- ^ using default rate vector
                             | DefaultByAmt (Balance,[Rate])
                             | DefaultAtEnd                      -- ^ default 100% at end
                             | DefaultAtEndByRate Rate Rate      -- ^ life time default rate and default rate at end
+                            | DefaultStressByTs Ts AssetDefaultAssumption
                             deriving (Show,Generic,Read)
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
@@ -126,6 +127,7 @@ data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentVec [Rate] 
                            | PrepaymentVecPadding [Rate] 
                            | PrepayByAmt (Balance,[Rate])
+                           | PrepayStressByTs Ts AssetPrepayAssumption
                            deriving (Show,Generic,Read)
 
 data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^ Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss

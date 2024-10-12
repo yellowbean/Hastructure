@@ -100,6 +100,11 @@ getValByDate (FloatCurve dps) Exc d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
+getValByDate (FloatCurve dps) Inc d
+  = case find (\(TsPoint _d _) -> d >= _d) (reverse dps)  of 
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
 getValByDate (IRateCurve dps) Exc d
   = case find (\(TsPoint _d _) -> d > _d) (reverse dps)  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
@@ -189,9 +194,16 @@ zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- zip ds rs ]
 zipBalTs :: [Date] -> [Balance] -> Ts
 zipBalTs ds rs = BalanceCurve [ TsPoint d r | (d,r) <- zip ds rs ]
 
+-- ^ multiply 1st Ts with values from 2nd Ts
 multiplyTs :: CutoffType -> Ts -> Ts -> Ts
 multiplyTs ct (FloatCurve ts1) ts2
   = FloatCurve [(TsPoint d (v * (getValByDate ts2 ct d))) | (TsPoint d v) <- ts1 ] 
+
+multiplyTs ct (IRateCurve ts1) ts2
+  = IRateCurve [(TsPoint d (v * (fromRational (getValByDate ts2 ct d)))) | (TsPoint d v) <- ts1 ] 
+
+multiplyTs c a b = error  $ "Failed to match : multiplyTs"++ show c ++ show a ++ show b
+
 
 -- | swap a value in list with index supplied
 replace :: [a] -> Int -> a -> [a]
