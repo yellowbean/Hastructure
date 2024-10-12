@@ -252,17 +252,27 @@ testMergePoolCf =
     
     txn2 = CF.MortgageDelinqFlow (L.toDate "20230201") 100 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing
     txn3 = CF.MortgageDelinqFlow (L.toDate "20230301") 90 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing
-    cf1 = CF.CashFlowFrame dummySt [txn1,txn4]
-    cf2 = CF.CashFlowFrame dummySt [txn2,txn3]
+    
+    cf1 = CF.CashFlowFrame (110, L.toDate "20221201", Nothing) [txn1,txn4]
+    cf2 = CF.CashFlowFrame (110, L.toDate "20230101", Nothing) [txn2,txn3]
   in 
     testGroup "Merge Cashflow Test from two entities"  -- merge cashflow into existing one without update previous balance
     [ testCase "" $
         assertEqual "Merge Cashflow Test 1"
-        (CF.CashFlowFrame dummySt [(CF.MortgageDelinqFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+        (CF.CashFlowFrame (110 , L.toDate "20221201", Nothing)
+                           [(CF.MortgageDelinqFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
                            ,(CF.MortgageDelinqFlow (L.toDate "20230201") 200 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
                            ,(CF.MortgageDelinqFlow (L.toDate "20230301") 190 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
                            ,(CF.MortgageDelinqFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)]) 
         (CF.mergePoolCf cf1 cf2)
+      -- testCase "" $
+      --   assertEqual "Merge Cashflow with status"
+      --   (CF.CashFlowFrame dummySt 
+      --                      [(CF.MortgageDelinqFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+      --                      ,(CF.MortgageDelinqFlow (L.toDate "20230201") 200 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+      --                      ,(CF.MortgageDelinqFlow (L.toDate "20230301") 190 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+      --                      ,(CF.MortgageDelinqFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)]) 
+      --   (CF.mergePoolCf cf1 cf2),
     ]
 
 testHaircut = 

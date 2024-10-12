@@ -366,7 +366,7 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | Amortizing                        -- ^ Deal is amortizing 
                 | Revolving                         -- ^ Deal is revolving
                 | PreClosing DealStatus             -- ^ Deal is not closed, but has a closing date
-                | Warehousing DealStatus              -- ^ Deal is not closed, but closing date is not determined yet
+                | Warehousing (Maybe DealStatus)    -- ^ Deal is not closed, but closing date is not determined yet
                 | Called                            -- ^ Deal is called
                 | Ended                             -- ^ Deal is marked as closed
                 deriving (Show,Ord,Eq,Read, Generic)

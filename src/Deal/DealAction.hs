@@ -69,17 +69,6 @@ import Data.OpenApi (HasPatch(patch))
 
 debug = flip trace
 
-getPoolFlows :: Ast.Asset a => TestDeal a -> Maybe Date -> Maybe Date -> RangeType -> [CF.TsRow]
-getPoolFlows t@TestDeal{ pool = _pool } sd ed rt =
-  case (sd,ed) of
-    (Nothing,Nothing)   ->  trs
-    (Nothing,Just _ed)  ->  cutBy Inc Past _ed trs
-    (Just _sd,Nothing)  ->  cutBy Inc Future _sd trs 
-    (Just _sd,Just _ed) ->  sliceBy rt _sd _ed trs
-  where
-    trs = getAllCollectedTxnsList t Nothing
-
-
 -- ^ 
 testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Trigger
 testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=cond,trgStmt = tStmt} 
@@ -524,14 +513,14 @@ performActionWrap d
                  Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                               let 
                                 dsInterval = getDate <$> trs 
-                                mergedCf = CF.mergePoolCf cfOrigin cfBought -- `debug` ("origin cf\n"++show cfOrigin++"bought cf\n"++show cfBought)               
+                                mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("origin cf\n"++show cfOrigin++"bought cf\n"++show cfBought)               
                               in 
-                                over CF.cashflowTxn (\xs -> CF.aggTsByDates xs dsInterval) mergedCf) -- `debug` ("merged cf\n"++ show mergedCf)) -- 
+                                over CF.cashflowTxn (`CF.aggTsByDates` dsInterval) mergedCf) -- `debug` ("merged cf\n"++ show mergedCf)) -- 
                             pIdToChange
                             pFlowMap -- `debug` ("date\n"++show d)
 
       newRc = rc {runPoolFlow = newPcf 
-                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} -- `debug` (" new pool cf \n"++ show newPcf)
+                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} --  `debug` (" new pool cf \n"++ show newPcf)
 
 
 performActionWrap d 

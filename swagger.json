@@ -1051,6 +1051,38 @@
                                         "$ref": "#/components/schemas/Limit"
                                     },
                                     {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WriteOffBySeq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WriteOffBySeq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
                                         "type": "string"
                                     },
                                     {
@@ -1157,10 +1189,16 @@
                                     },
                                     {
                                         "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
@@ -2819,6 +2857,29 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultVecPadding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultVecPadding",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "multipleOf": 1.0e-2,
@@ -3384,6 +3445,29 @@
                             "contents"
                         ],
                         "title": "PrepaymentVec",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PrepaymentVecPadding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PrepaymentVecPadding",
                         "type": "object"
                     },
                     {
@@ -9924,7 +10008,17 @@
                     {
                         "properties": {
                             "contents": {
-                                "type": "string"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/BookDirection"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
                             },
                             "tag": {
                                 "enum": [
@@ -17601,6 +17695,50 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayGroupPrin"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayGroupPrin",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayGroupInt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayGroupInt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "type": "string"
@@ -18418,6 +18556,62 @@
                 }
             }
         },
+        "/runByCombo": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RunDealReq"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/DealType"
+                                            },
+                                            {
+                                                "additionalProperties": {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                },
+                                                "type": "object"
+                                            },
+                                            {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/ResultComponent"
+                                                },
+                                                "type": "array"
+                                            },
+                                            {
+                                                "additionalProperties": {
+                                                    "$ref": "#/components/schemas/PriceResult"
+                                                },
+                                                "type": "object"
+                                            }
+                                        ],
+                                        "maxItems": 4,
+                                        "minItems": 4,
+                                        "type": "array"
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
         "/runDate": {
             "post": {
                 "requestBody": {
@@ -18490,85 +18684,6 @@
                                     ],
                                     "maxItems": 4,
                                     "minItems": 4,
-                                    "type": "array"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "400": {
-                        "description": "Invalid `body`"
-                    }
-                }
-            }
-        },
-        "/runDealByCombo": {
-            "post": {
-                "requestBody": {
-                    "content": {
-                        "application/json;charset=utf-8": {
-                            "schema": {
-                                "$ref": "#/components/schemas/RunDealReq"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json;charset=utf-8": {
-                                "schema": {
-                                    "items": {
-                                        "items": [
-                                            {
-                                                "items": [
-                                                    {
-                                                        "type": "string"
-                                                    },
-                                                    {
-                                                        "type": "string"
-                                                    },
-                                                    {
-                                                        "type": "string"
-                                                    }
-                                                ],
-                                                "maxItems": 3,
-                                                "minItems": 3,
-                                                "type": "array"
-                                            },
-                                            {
-                                                "items": [
-                                                    {
-                                                        "$ref": "#/components/schemas/DealType"
-                                                    },
-                                                    {
-                                                        "additionalProperties": {
-                                                            "$ref": "#/components/schemas/CashFlowFrame"
-                                                        },
-                                                        "type": "object"
-                                                    },
-                                                    {
-                                                        "items": {
-                                                            "$ref": "#/components/schemas/ResultComponent"
-                                                        },
-                                                        "type": "array"
-                                                    },
-                                                    {
-                                                        "additionalProperties": {
-                                                            "$ref": "#/components/schemas/PriceResult"
-                                                        },
-                                                        "type": "object"
-                                                    }
-                                                ],
-                                                "maxItems": 4,
-                                                "minItems": 4,
-                                                "type": "array"
-                                            }
-                                        ],
-                                        "maxItems": 2,
-                                        "minItems": 2,
-                                        "type": "array"
-                                    },
                                     "type": "array"
                                 }
                             }

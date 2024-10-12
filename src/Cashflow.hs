@@ -21,7 +21,8 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,TsRow(..),cfAt,cutoffTrs,patchCumulative,extendTxns,dropTailEmptyTxns
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
                 ,mergeCf,buildStartTsRow
-                ,txnCumulativeStats,consolidateCashFlow) where
+                ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
+                ,splitCashFlowFrameByDate, mergePoolCf2) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -180,6 +181,13 @@ data CashFlowFrame = CashFlowFrame BeginStatus [TsRow]
 --                   | CashFlowFrameIndex BeginStatus [TsRow] IR.Index
                    deriving (Eq,Generic,Ord)
 
+cfBeginStatus :: Lens' CashFlowFrame BeginStatus
+cfBeginStatus = lens getter setter
+  where 
+    getter (CashFlowFrame st _) = st
+    setter (CashFlowFrame _ tsRows) st = CashFlowFrame st tsRows
+
+
 instance Show CashFlowFrame where
   show (CashFlowFrame st []) = "Empty CashflowFrame"++ show st
   -- show (CashFlowFrame st txns) = concat $ L.intersperse "\n" [ show txn | txn <- txns ]
@@ -222,6 +230,10 @@ getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
 getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date)
 getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
 
+getBegBalCashFlowFrame :: CashFlowFrame -> Balance
+getBegBalCashFlowFrame (CashFlowFrame _ []) = 0
+getBegBalCashFlowFrame (CashFlowFrame _ (cf:cfs)) = mflowBegBalance cf
+
 cfAt :: CashFlowFrame -> Int -> Maybe TsRow
 cfAt (CashFlowFrame _ trs) idx 
   | (idx < 0) || (idx >= length trs) = Nothing
@@ -234,12 +246,15 @@ getSingleTsCashFlowFrame :: CashFlowFrame -> Date -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame _ trs) d
   = head $ filter (\x -> getDate x == d) trs
 
--- splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
--- splitCashFlowFrameByDate (CashFlowFrame txns) d st
---   = let 
---       (ls,rs) = splitByDate txns d st
---     in 
---       (CashFlowFrame ls,CashFlowFrame rs)
+splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
+splitCashFlowFrameByDate (CashFlowFrame status txns) d st
+  = let 
+      (ls,rs) = splitByDate txns d st
+      newStatus = case rs of 
+                    [] -> (0, d, Nothing)
+                    (r:_) -> (mflowBegBalance r, d, Nothing)
+    in 
+      (CashFlowFrame status ls,CashFlowFrame newStatus rs)
 
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame _ txn) d = L.find (\x -> getDate x <= d) $ reverse txn
@@ -800,7 +815,8 @@ totalRecovery (CashFlowFrame _ rs) = sum $ mflowRecovery <$> rs
 mergePoolCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergePoolCf cf (CashFlowFrame _ []) = cf
 mergePoolCf (CashFlowFrame _ []) cf = cf
-mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2) -- first day of left is earlier than right one
+-- first day of left is earlier than right one
+mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2) 
   | startDate1 > startDate2 = mergePoolCf cf2 cf1 
   | otherwise 
       = let 
@@ -812,6 +828,44 @@ mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2) -- first
   where 
     [startDate1,startDate2] = firstDate <$> [cf1,cf2]
     -- rightToLeft = startDate1 >= startDate2
+
+aggTs :: [TsRow] -> [TsRow] -> [TsRow]
+aggTs [] [] = []
+aggTs rs [] = rs 
+aggTs [] (r:rs) = aggTs [r] rs
+aggTs (r:rs) (tr:trs) 
+  | sameDate r tr = aggTs (addTs r tr:rs) trs
+  | otherwise = aggTs (tr:r:rs) trs 
+
+patchBalance :: Balance -> [TsRow] -> [TsRow] -> [TsRow]
+patchBalance _ r [] = reverse r
+patchBalance bal r (tr:trs) = 
+  let 
+    amortAmt = mflowAmortAmount tr
+    newBal = bal - amortAmt
+  in 
+    patchBalance newBal (set tsRowBalance newBal tr:r) trs
+
+mergePoolCf2 :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
+mergePoolCf2 cf (CashFlowFrame _ []) = cf
+mergePoolCf2 (CashFlowFrame _ []) cf = cf
+mergePoolCf2 cf1@(CashFlowFrame st1@(bBal1,bDate1,a1) txns1) cf2@(CashFlowFrame (bBal2,bDate2,a2) txns2) 
+  | bDate1 > bDate2 = mergePoolCf2 cf2 cf1
+  -- both cashflow frame start on the same day OR left one starts earlier than right one
+  | bDate1 == bDate2 = 
+    let 
+      begBal = bBal1 + bBal2
+      txnsSorted = reverse $ L.sortOn getDate (txns1 ++ txns2)
+      txnAggregated = aggTs [] txnsSorted
+      txnPatchedBalance = patchBalance begBal [] txnAggregated 
+    in 
+      CashFlowFrame (begBal,bDate1,a1) txnPatchedBalance
+  | otherwise 
+      = let 
+          (resultCf1, cfToCombine) = splitCashFlowFrameByDate cf1 bDate2 EqToLeft 
+          (CashFlowFrame _ txnCombined) = mergePoolCf2 cfToCombine cf2
+        in 
+          over cashflowTxn (++ txnCombined) resultCf1 
 
 mergeCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergeCf cf (CashFlowFrame _ []) = cf
