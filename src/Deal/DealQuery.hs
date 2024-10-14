@@ -29,6 +29,7 @@ import qualified Triggers as Trg
 import qualified CreditEnhancement as CE
 import qualified Hedge as H
 import qualified Analytics as A
+import qualified Pool as Pl
 import Stmt
 import Util
 import DateUtil
@@ -309,10 +310,25 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         $ (-) (sum $ calcTargetAmount t d . (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
 
     FutureCurrentPoolBalance mPns ->
-      let 
-        ltc = getLatestCollectFrame t mPns
-      in 
-        sum $ maybe 0 CF.mflowBalance <$> ltc 
+      -- let 
+      --   -- TOBE FIX
+      --   ltc = getLatestCollectFrame t mPns
+      -- in 
+      --   sum $ maybe 0 CF.mflowBalance <$> ltc 
+      case (mPns,pt) of 
+        (Nothing,SoloPool p) -> Pl.getIssuanceField p RuntimeCurrentPoolBalance
+        (Nothing,MultiPool pm ) -> queryDeal t (FutureCurrentPoolBalance (Just $ Map.keys pm))
+        (Just pids,MultiPool pm) -> 
+          if S.isSubsetOf  (S.fromList pids) (S.fromList (Map.keys pm)) then 
+            let 
+              m = Map.filterWithKey (\k _ -> S.member k (S.fromList pids)) pm
+            in 
+              sum $ Map.elems $ Map.map (`Pl.getIssuanceField` RuntimeCurrentPoolBalance) m 
+          else 
+            error $ "Failed to find pool balance" ++ show mPns ++ " from deal "++ show pt
+
+
+
 
     FutureCurrentSchedulePoolBalance mPns ->
       let 

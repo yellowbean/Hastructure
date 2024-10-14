@@ -472,13 +472,13 @@ performActionWrap d (t, rc, logs) (W.BuyAsset ml pricingMethod accName pId)
    = performActionWrap d (t, rc, logs) (W.BuyAssetFrom ml pricingMethod accName (Just "Consol") pId)
 
 performActionWrap d 
-                  (t@TestDeal{ accounts = accsMap }
+                  (t@TestDeal{ accounts = accsMap , pool = pt}
                   ,rc@RunContext{runPoolFlow=pFlowMap
                                 ,revolvingAssump=Just rMap
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
                   (W.BuyAssetFrom ml pricingMethod accName mRevolvingPoolName  pId) 
-   = (t { accounts = newAccMap }, newRc, logs )
+   = (t { accounts = newAccMap , pool = newPt}, newRc, logs )
     where 
       revolvingPoolName = fromMaybe "Consol" mRevolvingPoolName
       (assetForSale::RevolvingPool, perfAssumps::AP.ApplyAssumptionType) =  rMap Map.! revolvingPoolName -- `debug` ("Getting pool"++ revolvingPoolName) 
@@ -503,24 +503,34 @@ performActionWrap d
       purchaseRatios = toRational <$> [purchaseRatio,1-purchaseRatio]
 
       (assetBought,poolAfterBought) = buyRevolvingPool d purchaseRatios assetForSale -- `debug` ("purchase ratio"++ show purchaseRatios)
+      
+      pIdToChange = fromMaybe PoolConsol pId
       boughtAssetBal =  sum $ curBal <$> assetBought
+      -- update runtime balance
+      newPt = case pt of 
+                SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.adjust (+ boughtAssetBal) RuntimeCurrentPoolBalance) p
+                MultiPool pm -> MultiPool $ Map.adjust
+                                              (over P.poolIssuanceStat (Map.adjust (+ boughtAssetBal) RuntimeCurrentPoolBalance))  
+                                              pIdToChange
+                                              pm
+                ResecDeal _ -> error "Not implement on buy resec deal"
+
+
+
       newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap
       
       cfBought = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
-      newPcf = let 
-                 pIdToChange = fromMaybe PoolConsol pId
-               in 
-                 Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
+      newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                               let 
                                 dsInterval = getDate <$> trs 
-                                mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("origin cf\n"++show cfOrigin++"bought cf\n"++show cfBought)               
+                                mergedCf = CF.mergePoolCf2 cfOrigin cfBought 
                               in 
-                                over CF.cashflowTxn (`CF.aggTsByDates` dsInterval) mergedCf) -- `debug` ("merged cf\n"++ show mergedCf)) -- 
-                            pIdToChange
-                            pFlowMap -- `debug` ("date\n"++show d)
+                                over CF.cashflowTxn (`CF.aggTsByDates` dsInterval) mergedCf)  
+                          pIdToChange
+                          pFlowMap -- `debug` ("date\n"++show d)
 
       newRc = rc {runPoolFlow = newPcf 
-                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} --  `debug` (" new pool cf \n"++ show newPcf)
+                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
 
 
 performActionWrap d 

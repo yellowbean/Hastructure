@@ -454,7 +454,6 @@ validatePreRun t@TestDeal{waterfall=waterfallM
 
       -- val on deal status and deal dates
       statusCheck (PreClosing _) PreClosingDates {} = [] 
-      statusCheck _ PreClosingDates {} = [ErrorMsg "Deal is using PreClosing Dates but its status is not PreClosing"]
       statusCheck (PreClosing _) _ = [ErrorMsg "Deal is in PreClosing status but it is not using preClosing dates"]
       statusCheck _ _ = []
 

@@ -475,7 +475,7 @@ data DealStats = CurrentBondBalance
                | DealIssuanceBalance (Maybe [PoolId])
                | CurrentPoolBorrowerNum (Maybe [PoolId])
                | ProjCollectPeriodNum
-               | BondFactor
+               | BondFactor     -- ^ TODO implement a specific bond
                | PoolFactor (Maybe [PoolId])
                | BondWaRate [BondName]
                | UseCustomData String
@@ -642,6 +642,7 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryLoss          -- ^ cumulative loss/write-off balance
                   | HistoryCash          -- ^ cumulative cash
                   | AccruedInterest      -- ^ accrued interest at closing
+                  | RuntimeCurrentPoolBalance   -- ^ current pool balance
                   deriving (Show,Ord,Eq,Read,Generic)
 
 

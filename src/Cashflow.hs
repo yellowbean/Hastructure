@@ -195,27 +195,27 @@ instance Show CashFlowFrame where
     let 
         ds = [ show d | d <- getDates txns]
         rowHeader = [TT.Header h | h <- ds ]
-        getCs (CashFlow {}) = ["Date","Amount"]
-        getCs (BondFlow {}) = ["Date", "Balance", "Principal", "Interest"]
-        getCs (MortgageFlow {}) = ["Date", "Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
-        getCs (MortgageDelinqFlow {}) = ["Date", "Balance", "Principal", "Interest", "Prepayment", "Delinquent", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
-        getCs (LoanFlow {}) = ["Date", "Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "CumulativeStat"]
-        getCs (LeaseFlow {}) = ["Date", "Balance", "Rental"]
-        getCs (FixedFlow {}) = ["Date", "Balance", "NewDepreciation", "Depreciation", "Balance", "Amount"]
-        getCs (ReceivableFlow {}) = ["Date", "Balance", "AccuredFee", "Principal", "FeePaid", "Default", "Recovery", "Loss", "CumulativeStat"]
+        getCs (CashFlow {}) = ["Amount"]
+        getCs (BondFlow {}) = ["Balance", "Principal", "Interest"]
+        getCs (MortgageFlow {}) = ["Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
+        getCs (MortgageDelinqFlow {}) = [ "Balance", "Principal", "Interest", "Prepayment", "Delinquent", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
+        getCs (LoanFlow {}) = ["Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "CumulativeStat"]
+        getCs (LeaseFlow {}) = [ "Balance", "Rental"]
+        getCs (FixedFlow {}) = [ "Balance", "NewDepreciation", "Depreciation", "Balance", "Amount"]
+        getCs (ReceivableFlow {}) = [ "Balance", "AccuredFee", "Principal", "FeePaid", "Default", "Recovery", "Loss", "CumulativeStat"]
         colHeader = [TT.Header c | c <- getCs (head txns) ]
-        getRs (CashFlow d a) = [show d, show a]
-        getRs (BondFlow d b p i) = [show d, show b, show p, show i]
-        getRs (MortgageFlow d b p i prep def rec los rat mbn pp st) = [show d, show b, show p, show i, show prep, show def, show rec, show los, show rat, show mbn, show pp, show st]
-        getRs (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) = [show d, show b, show p, show i, show prep, show delinq, show def, show rec, show los, show rat, show mbn, show pp, show st]
-        getRs (LoanFlow d b p i prep def rec los rat st) = [show d, show b, show p, show i, show prep, show def, show rec, show los, show rat, show st]
-        getRs (LeaseFlow d b r) = [show d, show b, show r]
-        getRs (FixedFlow d b ndep dep c a) = [show d, show b, show ndep, show dep, show c, show a]
-        getRs (ReceivableFlow d b af p fp def rec los st) = [show d, show b, show af, show p, show fp, show def, show rec, show los, show st]
+        getRs (CashFlow d a) = [show a]
+        getRs (BondFlow d b p i) = [ show b, show p, show i]
+        getRs (MortgageFlow d b p i prep def rec los rat mbn pp st) = [ show b, show p, show i, show prep, show def, show rec, show los, show rat, show mbn, show pp, show st]
+        getRs (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) = [ show b, show p, show i, show prep, show delinq, show def, show rec, show los, show rat, show mbn, show pp, show st]
+        getRs (LoanFlow d b p i prep def rec los rat st) = [ show b, show p, show i, show prep, show def, show rec, show los, show rat, show st]
+        getRs (LeaseFlow d b r) = [ show b, show r]
+        getRs (FixedFlow d b ndep dep c a) = [ show b, show ndep, show dep, show c, show a]
+        getRs (ReceivableFlow d b af p fp def rec los st) = [ show b, show af, show p, show fp, show def, show rec, show los, show st]
         values = [ getRs txn  | txn <- txns ]
         tbl = TT.Table (TT.Group TT.SingleLine rowHeader) (TT.Group TT.SingleLine colHeader) values
     in 
-        A.render id id id tbl
+        show st <> "\n" <> A.render id id id tbl
 
 
 sizeCashFlowFrame :: CashFlowFrame -> Int

@@ -377,6 +377,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                outstandingFlow = Map.map snd cutOffPoolFlowMap
                -- deposit cashflow to SPV from external pool cf               
                accs = depositPoolFlow (collects t) d collectedFlow accMap -- `debug` ("d"++ show d++">>>"++ show collectedFlow++"\n")
+               
                dAfterDeposit = (appendCollectedCF d t collectedFlow) {accounts=accs}   -- `debug` ("Collected flow"++ show collectedFlow)
                
                -- newScheduleFlowMap = Map.map (over CF.cashflowTxn (cutBy Exc Future d)) (fromMaybe Map.empty (getScheduledCashflow t Nothing))
@@ -750,12 +751,15 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                 SoloPool p -> 
                   let
                     txnCollected::[CF.TsRow] = view CF.cashflowTxn (poolInflowMap Map.! PoolConsol)
+                    balInCollected = case length txnCollected of
+                                       0 -> 0 
+                                       _ ->  CF.mflowBalance $ last txnCollected
                     currentStats = case view P.poolFutureTxn p of
                                       [] -> P.poolBegStats p
                                       txns -> fromMaybe (0,0,0,0,0,0) $ view CF.txnCumulativeStats (last txns)
                     txnToAppend = CF.patchCumulative currentStats [] txnCollected -- `debug` ("Start iwht current stats="++ show currentStats)
                   in 
-                    SoloPool $ over P.poolFutureTxn (++ txnToAppend) p
+                    SoloPool $ over P.poolIssuanceStat (Map.insert RuntimeCurrentPoolBalance balInCollected) $ over P.poolFutureTxn (++ txnToAppend) p
                 MultiPool poolM -> 
                   MultiPool $
                     Map.foldrWithKey
@@ -764,10 +768,17 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                           currentStats = case view P.poolFutureTxn (acc Map.! k) of
                                           [] -> P.poolBegStats (acc Map.! k)
                                           txns -> fromMaybe (0,0,0,0,0,0) $ view CF.txnCumulativeStats (last txns)
+                          balInCollected = case length txnCollected of 
+                                             0 -> 0 
+                                             _ ->  CF.mflowBalance $ last txnCollected
                           txnToAppend = CF.patchCumulative currentStats [] txnCollected
+                          accUpdated =  Map.adjust (over P.poolFutureTxn (++ txnToAppend)) k acc
                         in 
-                          Map.adjust (over P.poolFutureTxn (++ txnToAppend)) k acc)
-                      poolM poolInflowMap
+                          Map.adjust 
+                            (over P.poolIssuanceStat (Map.insert RuntimeCurrentPoolBalance balInCollected))
+                            k accUpdated)
+                      poolM
+                      poolInflowMap
                 ResecDeal uds -> 
                   ResecDeal $ 
                     Map.foldrWithKey
@@ -775,7 +786,7 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                         Map.adjust (over uDealFutureTxn (++ newTxns)) k acc)
                       uds poolInflowMap
     in 
-      t {pool = newPt} 
+      t {pool = newPt}  -- `debug` ("after insert bal"++ show newPt)
 
 -- ^ emtpy deal's pool cashflow
 removePoolCf :: Ast.Asset a => TestDeal a -> TestDeal a

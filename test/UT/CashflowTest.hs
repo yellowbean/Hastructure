@@ -248,32 +248,45 @@ testMergeTsRowsFromTwoEntities =
 testMergePoolCf = 
   let 
     txn1 = CF.MortgageDelinqFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing
-    txn4 = CF.MortgageDelinqFlow (L.toDate "20230401") 90 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing
-    
     txn2 = CF.MortgageDelinqFlow (L.toDate "20230201") 100 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing
     txn3 = CF.MortgageDelinqFlow (L.toDate "20230301") 90 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing
+    txn4 = CF.MortgageDelinqFlow (L.toDate "20230401") 90 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing
     
     cf1 = CF.CashFlowFrame (110, L.toDate "20221201", Nothing) [txn1,txn4]
     cf2 = CF.CashFlowFrame (110, L.toDate "20230101", Nothing) [txn2,txn3]
+
+    cf3 = CF.CashFlowFrame (110, L.toDate "20221201", Nothing) [txn2,txn4]
+    cf4 = CF.CashFlowFrame (110, L.toDate "20221201", Nothing) [txn1,txn3]
+
+    cf5 = CF.CashFlowFrame (100, L.toDate "20221201", Nothing) [txn3,txn4]
+    cf6 = CF.CashFlowFrame (110, L.toDate "20230101", Nothing) [txn2]
+
   in 
     testGroup "Merge Cashflow Test from two entities"  -- merge cashflow into existing one without update previous balance
-    [ testCase "" $
-        assertEqual "Merge Cashflow Test 1"
+    [ testCase "Merge Cashflow Test 1" $
+        assertEqual ""
         (CF.CashFlowFrame (110 , L.toDate "20221201", Nothing)
                            [(CF.MortgageDelinqFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
                            ,(CF.MortgageDelinqFlow (L.toDate "20230201") 200 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
                            ,(CF.MortgageDelinqFlow (L.toDate "20230301") 190 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
                            ,(CF.MortgageDelinqFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)]) 
         (CF.mergePoolCf2 cf1 cf2)
-      -- testCase "" $
-      --   assertEqual "Merge Cashflow with status"
-      --   (CF.CashFlowFrame dummySt 
-      --                      [(CF.MortgageDelinqFlow (L.toDate "20230101") 100 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
-      --                      ,(CF.MortgageDelinqFlow (L.toDate "20230201") 200 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
-      --                      ,(CF.MortgageDelinqFlow (L.toDate "20230301") 190 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
-      --                      ,(CF.MortgageDelinqFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)]) 
-      --   (CF.mergePoolCf cf1 cf2),
-    ]
+      ,testCase "Merge Cashflow with same begin date 1" $
+        assertEqual ""
+        (CF.CashFlowFrame (220 , L.toDate "20221201", Nothing)
+                           [(CF.MortgageDelinqFlow (L.toDate "20230101") 210 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+                           ,(CF.MortgageDelinqFlow (L.toDate "20230201") 200 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+                           ,(CF.MortgageDelinqFlow (L.toDate "20230301") 190 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+                           ,(CF.MortgageDelinqFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)]) 
+        (CF.mergePoolCf2 cf3 cf4)
+      ,testCase "Merge Cashflow with diff begin date 2" $
+        assertEqual ""
+        (CF.CashFlowFrame (100 , L.toDate "20221201", Nothing)
+                           [(CF.MortgageDelinqFlow (L.toDate "20230201") 200 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+                           ,(CF.MortgageDelinqFlow (L.toDate "20230301") 190 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)
+                           ,(CF.MortgageDelinqFlow (L.toDate "20230401") 180 10 10 0 0 0 0 0 0.0 Nothing Nothing Nothing)]) 
+        (CF.mergePoolCf2 cf5 cf6)
+      ]
 
 testHaircut = 
   let 

@@ -130,7 +130,7 @@ td2 = D.TestDeal {
                                  ]
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
-                 ,P.issuanceStat = Nothing}
+                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]}
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee Nothing "General" ["Service-Fee"] Nothing)
                                  ,(W.PayInt Nothing "General" ["A"] Nothing)
