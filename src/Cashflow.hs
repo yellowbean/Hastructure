@@ -22,7 +22,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
                 ,mergeCf,buildStartTsRow
                 ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
-                ,splitCashFlowFrameByDate, mergePoolCf2) where
+                ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -391,6 +391,11 @@ addTsCF (FixedFlow d1 b1 dep1 cd1 u1 c1) (FixedFlow d2 b2 dep2 cd2 u2 c2)
   = FixedFlow d1 (min b1 b2) (dep1 + dep2) (cd1 + cd2) u2 (c1 + c2)
 addTsCF (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1) (ReceivableFlow d2 b2 af2 p2 fp2 def2 rec2 los2 st2)
   = ReceivableFlow d1 (min b1 b2) (af1 + af2) (p1 + p2) (fp1 + fp2) (def1 + def2) (rec1 + rec2) (los1 + los2) (maxStats st1 st2)
+
+
+buildBegBal :: [TsRow] -> Balance
+buildBegBal [] = 0
+buildBegBal (x:_) = mflowBegBalance x
 
 
 sumTs :: [TsRow] -> Date -> TsRow

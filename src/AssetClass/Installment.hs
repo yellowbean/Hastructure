@@ -72,7 +72,7 @@ projectInstallmentFlow (startBal, lastPaidDate, (originRepay,originInt), startRa
 
 instance Asset Installment where
   calcCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd ptype _) cb rt st) asOfDay _
-    = CF.CashFlowFrame (cb,asOfDay,Nothing) flows 
+    = CF.CashFlowFrame (begBal,asOfDay,Nothing) flows 
      where 
         lastPayDate:cf_dates = lastN (rt+1) $ sd:getPaymentDates inst 0
         opmt = divideBI ob ot  
@@ -99,6 +99,7 @@ instance Asset Installment where
                                         (replicate _rt orate) (replicate _rt Nothing)
                                 
         flows = cutBy Inc Future asOfDay _flows
+        begBal = CF.buildBegBal flows
 
 
   getCurrentBal (Installment _ b _ _ ) = b
@@ -130,7 +131,7 @@ instance Asset Installment where
                asOfDay 
                pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRates
-      = (applyHaircut ams (CF.CashFlowFrame (cb,asOfDay,Nothing) futureTxns), historyM)
+      = (applyHaircut ams (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns), historyM)
         where 
           recoveryLag = maybe 0 getRecoveryLag recoveryAssump
           lastPayDate:cfDates = lastN (rt + recoveryLag +1) $ sd:getPaymentDates inst recoveryLag
@@ -149,6 +150,7 @@ instance Asset Installment where
           defRates = Ast.buildDefaultRates (lastPayDate:cfDates) defaultAssump
           (txns,_) = projectInstallmentFlow (cb,lastPayDate,(opmt,ofee),orate,currentFactor,pt,ot) (cfDates,defRates,ppyRates,remainTerms) 
           (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
+          begBal = CF.buildBegBal futureTxns
 
 
   -- ^ project with defaulted at a date
@@ -162,8 +164,10 @@ instance Asset Installment where
          recoveries = calcRecoveriesFromDefault cb rr timing
          bals = scanl (-) cb recoveries
          _txns = [  CF.LoanFlow d b 0 0 0 0 r 0 cr Nothing | (b,d,r) <- zip3 bals cf_dates2 recoveries ]
+         futureTxns = cutBy Inc Future asOfDay $ beforeRecoveryTxn++_txns
+         begBal = CF.buildBegBal futureTxns
       in 
-         (CF.CashFlowFrame (cb,asOfDay,Nothing)$ cutBy Inc Future asOfDay (beforeRecoveryTxn++_txns),Map.empty)
+         (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns ,Map.empty)
       where 
         cr = getOriginRate inst
   

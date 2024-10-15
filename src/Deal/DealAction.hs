@@ -89,19 +89,6 @@ pricingAssets pm assetsAndAssump ras d
     pricingResults
 
 
-
-liquidatePool :: Ast.Asset a => PricingMethod -> Date -> String -> TestDeal a -> TestDeal a
-liquidatePool lm d accName t@TestDeal { accounts = accs , pool = pool} =
-  t {accounts = Map.adjust updateFn accName accs} -- `debug` ("Accs->"++show(accs))
-  where
-    proceedsByPool = case pool of 
-                     MultiPool pm -> Map.map (\p -> P.calcLiquidationAmount lm p d) pm
-                     SoloPool p -> Map.fromList [(PoolConsol,P.calcLiquidationAmount lm p d)]
-                     ResecDeal uDeals -> error "Not implement on liquidate resec deal"
-    
-    proceeds = sum $ Map.elems proceedsByPool
-    updateFn = A.deposit proceeds d LiquidationProceeds
-
 -- actual payout amount to bond with due mounts
 allocAmtToBonds :: W.PayOrderBy -> Amount -> [(L.Bond,Amount)] -> [(L.Bond,Amount)]
 allocAmtToBonds theOrder amt bndsWithDue =
@@ -1149,9 +1136,11 @@ performAction d t@TestDeal{bonds=bndMap } (W.WriteOffBySeq mlimit bnds)
     (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bondsToWriteOff 
     bndMapUpdated = lstToMapByFn L.bndName bndWrited
 
-
+-- TODO need to sell assets/ in the future , in run time
+-- TODO need to remove assets/cashflow frame
+-- TODO need to set a limit
 performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an mPid) =
-  t {accounts = accMapAfterLiq } -- TODO need to remove assets/cashflow frame
+  t {accounts = accMapAfterLiq } 
   where
     liqAmtByPool = case (pool,mPid) of 
                      (MultiPool pm,Nothing) -> Map.map (\p -> P.calcLiquidationAmount lm p d) pm
