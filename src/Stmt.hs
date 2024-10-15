@@ -212,7 +212,7 @@ getFlow comment =
       PayFeeYield _ -> Outflow
       Transfer _ _ -> Interflow 
       PoolInflow _ _ -> Inflow
-      LiquidationProceeds -> Inflow
+      LiquidationProceeds _ -> Inflow
       LiquidationSupport _ -> Inflow
       LiquidationDraw -> Noneflow
       LiquidationRepay -> Outflow

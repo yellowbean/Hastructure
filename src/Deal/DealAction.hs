@@ -529,6 +529,55 @@ performActionWrap d
                   (W.BuyAsset ml pricingMethod accName _)
   = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
 
+-- TODO need to sell assets/ in the future , in run time
+-- TODO need to remove assets/cashflow frame
+-- TODO need to set a limit
+performActionWrap d 
+                  (t@TestDeal{accounts = accMap, pool = pt}  
+                  ,rc@RunContext{runPoolFlow = pcf}
+                  ,logs)
+                  (W.LiquidatePool lm an mPid)
+ = let
+     liqFunction = \(p@P.Pool{ P.issuanceStat = m}) 
+                     -> set P.poolFutureScheduleCf Nothing $ 
+                        set P.poolFutureCf Nothing $ 
+                        p { P.issuanceStat = Just (Map.insert RuntimeCurrentPoolBalance 0 (fromMaybe Map.empty m)) }
+
+     poolMapToLiq = case (pt, mPid) of 
+                      (MultiPool pm, Nothing) -> pm
+                      (SoloPool p, Nothing) -> Map.fromList [(PoolConsol,p)]
+                      (MultiPool pm,Just pids) -> let
+                                                   selectedPids = S.fromList pids
+                                                   selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
+                                                  in 
+                                                   selectedPoolMap
+                      (SoloPool p,Just [PoolConsol]) -> Map.fromList [(PoolConsol,p)]
+                      (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
+                      (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
+
+     liqAmtByPool = Map.map (\p -> P.calcLiquidationAmount lm p d) poolMapToLiq
+     liqAmt = sum $ Map.elems liqAmtByPool
+
+     -- Update future cashflow
+     newPt = case (pt, mPid) of 
+               (MultiPool pm, Nothing) -> MultiPool $ Map.map liqFunction pm
+               (SoloPool p, Nothing) -> SoloPool $ liqFunction p
+               (MultiPool pm,Just pids) -> let
+                                            selectedPids = S.fromList pids
+                                            selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
+                                           in 
+                                            MultiPool $ Map.map liqFunction selectedPoolMap
+               (SoloPool p,Just [PoolConsol]) -> SoloPool $ liqFunction p
+               (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
+               (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
+
+     liqComment = LiquidationProceeds (fromMaybe [] mPid)
+     accMapAfterLiq = Map.adjust (A.deposit liqAmt d liqComment) an accMap
+     newRc = rc
+   in 
+     (t {accounts = accMapAfterLiq , pool = newPt} , newRc, logs )
+
+
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
   = (t, rc, logs ++ [newLog])
     where 
@@ -1135,27 +1184,6 @@ performAction d t@TestDeal{bonds=bndMap } (W.WriteOffBySeq mlimit bnds)
     writeAmtCapped = min writeAmt totalBondBal
     (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bondsToWriteOff 
     bndMapUpdated = lstToMapByFn L.bndName bndWrited
-
--- TODO need to sell assets/ in the future , in run time
--- TODO need to remove assets/cashflow frame
--- TODO need to set a limit
-performAction d t@TestDeal{accounts=accMap, pool = pool} (W.LiquidatePool lm an mPid) =
-  t {accounts = accMapAfterLiq } 
-  where
-    liqAmtByPool = case (pool,mPid) of 
-                     (MultiPool pm,Nothing) -> Map.map (\p -> P.calcLiquidationAmount lm p d) pm
-                     (SoloPool p,Nothing) -> Map.fromList [(PoolConsol,P.calcLiquidationAmount lm p d)]
-                     (MultiPool pm,Just pids) -> let
-                                                  selectedPids = S.fromList pids
-                                                  selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
-                                                 in 
-                                                  Map.map (\p -> P.calcLiquidationAmount lm p d) selectedPoolMap
-                     (SoloPool p,Just [PoolConsol]) -> Map.fromList [(PoolConsol,P.calcLiquidationAmount lm p d)]
-                     (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
-                     (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
-
-    liqAmt = sum $ Map.elems liqAmtByPool
-    accMapAfterLiq = Map.adjust (A.deposit liqAmt d LiquidationProceeds) an accMap
 
 performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns) 
   = t {fees = newFeeMap <> feeMap }

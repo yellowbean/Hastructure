@@ -3,6 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 
 module Types
@@ -429,7 +430,7 @@ data TxnComment = PayInt [BondName]
                 | Transfer AccName AccName 
                 | TransferBy AccName AccName Limit
                 | PoolInflow (Maybe [PoolId]) PoolSource
-                | LiquidationProceeds
+                | LiquidationProceeds [PoolId]
                 | LiquidationSupport String
                 | LiquidationDraw
                 | LiquidationRepay
@@ -806,7 +807,7 @@ instance ToJSON TxnComment where
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
   toJSON (PoolInflow mPids ps) =  String $ T.pack $ "<Pool"++ maybe "" (intercalate "|" . (show <$>)) mPids ++":"++ show ps++">"
-  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
+  toJSON (LiquidationProceeds pids) =  String $ T.pack $ "<Liquidation:"++ (intercalate "," (show <$> pids)) ++">"
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 
@@ -859,7 +860,12 @@ parseTxn t = case tagName of
                         Just (read <$> T.unpack <$> sr)::(Maybe [PoolId])
             in 
               return $ PoolInflow mPids (read (T.unpack (sr!!1))::PoolSource)
-  "Liquidation" -> return LiquidationProceeds
+  "Liquidation" -> let 
+                      sv = T.splitOn (T.pack ",") $ T.pack contents
+                      pids::[PoolId] = read <$> T.unpack <$> sv
+                    in
+                      return $ LiquidationProceeds pids
+
   "DS" -> return $ UsingDS (read (contents)::DealStats)
   "LiquidationSupportExp" -> let 
                               sv = T.splitOn (T.pack ",") $ T.pack contents

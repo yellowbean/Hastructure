@@ -60,12 +60,15 @@ getItemBalance :: BookItem -> Balance
 getItemBalance (Item _ bal) = bal
 getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
 
+
+-- TODO fix pool bablance
 buildBalanceSheet :: P.Asset a => TestDeal a -> Date -> BalanceSheetReport
 buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqProvider = liqMap, rateSwap = rsMap } d 
     = BalanceSheetReport {asset=ast,liability=liab,equity=eqty,reportDate=d}
     where 
         ---accured interest
         accM = [ Item accName accBal | (accName,accBal) <- Map.toList $ Map.map A.accBalance (accounts t) ]
+        -- TODO Fix all pool
         consoleCF = getAllCollectedFrame t (Just [PoolConsol]) Map.! PoolConsol
         (performingBal,dBal,rBal) = case consoleCF of
                                       Nothing -> let 
