@@ -573,9 +573,10 @@ performActionWrap d
 
      liqComment = LiquidationProceeds (fromMaybe [] mPid)
      accMapAfterLiq = Map.adjust (A.deposit liqAmt d liqComment) an accMap
-     newRc = rc
+     -- REMOVE future cf
+     newPfInRc = foldr (\k acc -> (Map.adjust (set CF.cashflowTxn []) k acc)) pcf  (Map.keys poolMapToLiq)
    in 
-     (t {accounts = accMapAfterLiq , pool = newPt} , newRc, logs )
+     (t {accounts = accMapAfterLiq , pool = newPt} , rc {runPoolFlow = newPfInRc}, logs )
 
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
