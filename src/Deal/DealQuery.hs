@@ -310,11 +310,6 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         $ (-) (sum $ calcTargetAmount t d . (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
 
     FutureCurrentPoolBalance mPns ->
-      -- let 
-      --   -- TOBE FIX
-      --   ltc = getLatestCollectFrame t mPns
-      -- in 
-      --   sum $ maybe 0 CF.mflowBalance <$> ltc 
       case (mPns,pt) of 
         (Nothing,SoloPool p) -> Pl.getIssuanceField p RuntimeCurrentPoolBalance
         (Nothing,MultiPool pm ) -> queryDeal t (FutureCurrentPoolBalance (Just $ Map.keys pm))
@@ -325,7 +320,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
             in 
               sum $ Map.elems $ Map.map (`Pl.getIssuanceField` RuntimeCurrentPoolBalance) m 
           else 
-            error $ "Failed to find pool balance" ++ show mPns ++ " from deal "++ show pt
+            error $ "Failed to find pool balance" ++ show pids ++ " from deal "++ show (Map.keys pm)
 
 
 

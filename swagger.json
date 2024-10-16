@@ -18031,6 +18031,12 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "enum": [
                                     "LiquidationProceeds"
@@ -18039,7 +18045,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "LiquidationProceeds",
                         "type": "object"
@@ -18555,7 +18562,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.29.9"
+        "version": "0.29.10"
     },
     "openapi": "3.0.0",
     "paths": {

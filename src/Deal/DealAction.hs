@@ -510,13 +510,29 @@ performActionWrap d
       newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                               let 
                                 dsInterval = getDate <$> trs 
-                                mergedCf = CF.mergePoolCf2 cfOrigin cfBought 
+                                boughtCfDates = getDate <$> view CF.cashflowTxn cfBought
+
+                                newAggDates = case (dsInterval,boughtCfDates) of 
+                                                ([],[]) -> []
+                                                (_,[]) -> dsInterval
+                                                ([],_) -> boughtCfDates
+                                                (oDs,bDs) -> 
+                                                  let 
+                                                    lastOdate = last oDs
+                                                    lastBdate = last bDs
+                                                  in 
+                                                    if lastOdate > lastBdate then 
+                                                      []
+                                                    else 
+                                                      sliceDates (SliceAfter lastOdate) bDs
+
+                                mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("CF bought"++ show cfBought)
                               in 
-                                over CF.cashflowTxn (`CF.aggTsByDates` dsInterval) mergedCf)  
+                                over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf ) --`debug` ("agg dates \n"++ show dsInterval ++"Merged CF\n"++ show mergedCf))  
                           pIdToChange
                           pFlowMap -- `debug` ("date\n"++show d)
 
-      newRc = rc {runPoolFlow = newPcf 
+      newRc = rc {runPoolFlow = newPcf -- `debug` ("New run pool >>>>> \n"++ show newPcf)
                  ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
 
 
@@ -538,9 +554,9 @@ performActionWrap d
                   ,logs)
                   (W.LiquidatePool lm an mPid)
  = let
-     liqFunction = \(p@P.Pool{ P.issuanceStat = m}) 
-                     -> set P.poolFutureScheduleCf Nothing $ 
-                        set P.poolFutureCf Nothing $ 
+     liqFunction = \(p@P.Pool{ P.issuanceStat = m} ) 
+                     -> over (P.poolFutureScheduleCf . _Just) (CF.extendCashFlow d) $ 
+                        over (P.poolFutureCf . _Just) (CF.extendCashFlow d) $ 
                         p { P.issuanceStat = Just (Map.insert RuntimeCurrentPoolBalance 0 (fromMaybe Map.empty m)) }
 
      poolMapToLiq = case (pt, mPid) of 
@@ -555,10 +571,10 @@ performActionWrap d
                       (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
                       (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
 
-     liqAmtByPool = Map.map (\p -> P.calcLiquidationAmount lm p d) poolMapToLiq
+     liqAmtByPool = Map.map (\p -> P.calcLiquidationAmount lm p d) poolMapToLiq -- `debug` ("pool id to liq"++ show poolMapToLiq)
      liqAmt = sum $ Map.elems liqAmtByPool
 
-     -- Update future cashflow
+     -- Update collected cashflow
      newPt = case (pt, mPid) of 
                (MultiPool pm, Nothing) -> MultiPool $ Map.map liqFunction pm
                (SoloPool p, Nothing) -> SoloPool $ liqFunction p
@@ -566,7 +582,7 @@ performActionWrap d
                                             selectedPids = S.fromList pids
                                             selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
                                            in 
-                                            MultiPool $ Map.map liqFunction selectedPoolMap
+                                            MultiPool $ Map.union (Map.map liqFunction selectedPoolMap) pm
                (SoloPool p,Just [PoolConsol]) -> SoloPool $ liqFunction p
                (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
                (ResecDeal _,_) -> error "Not implement on liquidate resec deal"

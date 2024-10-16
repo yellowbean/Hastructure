@@ -22,7 +22,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
                 ,mergeCf,buildStartTsRow
                 ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
-                ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal) where
+                ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -757,6 +757,15 @@ emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 emptyTsRow _d (BondFlow a x c d) = BondFlow _d 0 0 0
 emptyTsRow _d (ReceivableFlow a x c d e f g h i) = ReceivableFlow _d 0 0 0 0 0 0 0 Nothing
 
+extendCashFlow :: Date -> CashFlowFrame -> CashFlowFrame
+extendCashFlow d (CashFlowFrame st []) = CashFlowFrame st []
+extendCashFlow d (CashFlowFrame st txns) 
+    = let 
+        lastRow = last txns
+        newTxn = emptyTsRow d lastRow
+      in 
+        CashFlowFrame st (txns++[newTxn])
+
 
 viewTsRow :: Date -> TsRow -> TsRow 
 -- ^ take a snapshot of a record from record balance/stats and a new date
@@ -1102,11 +1111,6 @@ cashflowTxn = lens getter setter
     getter (CashFlowFrame _ txns) = txns
     setter (CashFlowFrame st txns) newTxns = CashFlowFrame st newTxns
 
-cashflowLastTxn :: Lens' CashFlowFrame TsRow
-cashflowLastTxn = lens getter setter
-  where 
-    getter (CashFlowFrame _ txns) = last txns
-    setter (CashFlowFrame st txns) newTxn = CashFlowFrame st $ init txns ++ [newTxn]
 
 txnCumulativeStats :: Lens' TsRow (Maybe CumulativeStat)
 txnCumulativeStats = lens getter setter
