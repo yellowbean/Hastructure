@@ -13,7 +13,7 @@ module Liability
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
   ,getCurBalance,setBondOrigDate
-  ,bndOriginInfoLens,bndIntLens,getBeginRate)
+  ,bndOriginInfoLens,bndIntLens,getBeginRate,_Bond,_BondGroup)
   where
 
 import Language.Haskell.TH
@@ -116,8 +116,6 @@ getBeginRate (FloorRate a  _ ) = getBeginRate a
 getBeginRate (WithIoI a _) = getBeginRate a
 getBeginRate InterestByYield {} = 0.0
 
-
-
 data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
             | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
             deriving (Show, Eq, Generic, Ord, Read)
@@ -205,6 +203,18 @@ payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate l
     newDueIoI = dueIoI - head rs
     newDue = dueInt - rs !! 1 -- `debug` ("Avail fund"++ show amt ++" int paid out plan"++ show rs)
     newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayInt [bn])) -- `debug` ("date after"++ show d++"due "++show newDueIoI++">>"++show newDue)
+
+payIntBySeq :: Date -> Amount -> [Bond] -> [Bond] -> ([Bond],Amount)
+payIntBySeq d amt bondsPaid [] = (bondsPaid, amt)
+payIntBySeq d 0 bondsPaid bondsToPaid = (bondsPaid ++ bondsToPaid, 0)
+payIntBySeq d amt bondsPaid (b:bondsToPaid)
+  = let 
+      intD = getDueInt b
+      actPaidOut = min amt intD
+      remains = amt - actPaidOut
+    in 
+      payIntBySeq d remains (payInt d actPaidOut b:bondsPaid) bondsToPaid
+
 
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
@@ -487,6 +497,9 @@ instance IR.UseRate Bond where
      
 makeLensesFor [("bndType","bndTypeLens"),("bndOriginInfo","bndOriginInfoLens"),("bndInterestInfo","bndIntLens"),("bndStmt","bndStmtLens")] ''Bond
 makeLensesFor [("bndOriginDate","bndOriginDateLens"),("bndOriginBalance","bndOriginBalanceLens"),("bndOriginRate","bndOriginRateLens")] ''OriginalInfo
+
+makePrisms ''Bond
+
 
 $(deriveJSON defaultOptions ''InterestOverInterestType)
 $(deriveJSON defaultOptions ''InterestInfo)

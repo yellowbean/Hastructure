@@ -167,6 +167,16 @@ buildPrepayRates ds mPa =
                                     Util.toPeriodRateByInterval
                                     (paddingDefault 0.0 vs (pred size))
                                     (getIntervalDays ds)
+    Just (A.PrepaymentVecPadding vs) -> zipWith 
+                                         Util.toPeriodRateByInterval
+                                         (paddingDefault (last vs) vs (pred size))
+                                         (getIntervalDays ds)
+    Just (A.PrepayStressByTs ts x) -> 
+      let 
+        rs = buildPrepayRates ds (Just x)
+      in 
+        getTsVals $ multiplyTs Exc (zipTs (tail ds) rs) ts 
+
     _ -> error ("failed to find prepayment type"++ show mPa)
   where
     size = length ds
@@ -175,17 +185,29 @@ buildDefaultRates :: [Date] -> Maybe A.AssetDefaultAssumption -> [Rate]
 buildDefaultRates ds Nothing = replicate (pred (length ds)) 0.0
 buildDefaultRates ds mDa = 
   case mDa of
-    Just (A.DefaultConstant r) ->  replicate size r
+    Just (A.DefaultConstant r) -> replicate size r
     Just (A.DefaultCDR r) -> Util.toPeriodRateByInterval r <$> getIntervalDays ds
     Just (A.DefaultVec vs) -> zipWith 
                                 Util.toPeriodRateByInterval
                                 (paddingDefault 0.0 vs (pred size))
                                 (getIntervalDays ds)
+    Just (A.DefaultVecPadding vs) -> zipWith 
+                                      Util.toPeriodRateByInterval
+                                      (paddingDefault (last vs) vs (pred size))
+                                      (getIntervalDays ds)
     Just (A.DefaultAtEndByRate r rAtEnd)
       -> case size of 
           0 -> []
           1 -> []
           _ -> (Util.toPeriodRateByInterval r <$> getIntervalDays (init ds)) ++ (Util.toPeriodRateByInterval rAtEnd <$> getIntervalDays [head ds,last ds])
+
+    Just (A.DefaultStressByTs ts x) -> 
+      let 
+        rs = buildDefaultRates ds (Just x)
+        r = getTsVals $ multiplyTs Inc (zipTs (tail ds) rs) ts 
+      in 
+        r -- `debug` ("Default Stress"++ show [ (fromRational x)::Float | x <- r] )
+
 
     _ -> error ("failed to find prepayment type"++ show mDa)    
   where

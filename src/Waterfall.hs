@@ -85,11 +85,13 @@ data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
             | AccrueAndPayIntGroup (Maybe Limit) AccountName BondName PayOrderBy (Maybe ExtraSupport) 
             -- Bond - Balance
             | WriteOff (Maybe Limit) BondName
+            | WriteOffBySeq (Maybe Limit) [BondName]
             | FundWith (Maybe Limit) AccountName BondName             -- ^ extra more funds from bond and deposit cash to account
             -- Pool/Asset change
             | BuyAsset (Maybe Limit) PricingMethod AccountName (Maybe PoolId)                       -- ^ buy asset from revolving assumptions using funds from account
             | BuyAssetFrom (Maybe Limit) PricingMethod AccountName (Maybe String) (Maybe PoolId)    -- ^ buy asset from specific pool, with revolving assumptions using funds from account
-            | LiquidatePool PricingMethod AccountName                                               -- ^ sell all assets and deposit proceeds to account
+            | LiquidatePool PricingMethod AccountName  (Maybe [PoolId])                             -- ^ sell all assets and deposit proceeds to account
+            -- TODO include a limit for LIquidatePool
             -- Liquidation support
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType AccountName  -- ^ draw credit and deposit to account/fee/bond interest/principal
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName   -- ^ repay liquidity facility

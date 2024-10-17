@@ -11,12 +11,13 @@ module Util
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox
-    ,safeDivide
+    ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     -- for debug
     ,zyj
     )
     where
 import qualified Data.Time as T
+import qualified Data.Map as Map
 import Data.List
 import Data.Fixed
 import Data.Ratio ((%))
@@ -97,6 +98,11 @@ getValByDate (BalanceCurve dps) Inc d
 
 getValByDate (FloatCurve dps) Exc d
   = case find (\(TsPoint _d _) -> d > _d) (reverse dps)  of 
+      Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
+      Nothing -> 0              -- `debug` ("Getting 0 ")
+
+getValByDate (FloatCurve dps) Inc d
+  = case find (\(TsPoint _d _) -> d >= _d) (reverse dps)  of 
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
@@ -189,9 +195,16 @@ zipTs ds rs = FloatCurve [ TsPoint d r | (d,r) <- zip ds rs ]
 zipBalTs :: [Date] -> [Balance] -> Ts
 zipBalTs ds rs = BalanceCurve [ TsPoint d r | (d,r) <- zip ds rs ]
 
+-- ^ multiply 1st Ts with values from 2nd Ts
 multiplyTs :: CutoffType -> Ts -> Ts -> Ts
 multiplyTs ct (FloatCurve ts1) ts2
   = FloatCurve [(TsPoint d (v * (getValByDate ts2 ct d))) | (TsPoint d v) <- ts1 ] 
+
+multiplyTs ct (IRateCurve ts1) ts2
+  = IRateCurve [(TsPoint d (v * (fromRational (getValByDate ts2 ct d)))) | (TsPoint d v) <- ts1 ] 
+
+multiplyTs c a b = error  $ "Failed to match : multiplyTs"++ show c ++ show a ++ show b
+
 
 -- | swap a value in list with index supplied
 replace :: [a] -> Int -> a -> [a]
@@ -314,6 +327,43 @@ safeDivide :: RealFloat a => a -> a -> a
 safeDivide _ 0 = infinity
 safeDivide x y = x / y
 
+lstToMapByFn :: (a -> String) -> [a] -> M.Map String a 
+lstToMapByFn fn lst =
+  let 
+    ks = fn <$> lst 
+  in 
+    M.fromList $ zip ks lst
+
+paySequentially :: Date -> Amount -> (a->Balance) -> (Amount->a->a) -> [a] -> [a] -> ([a],Amount)
+paySequentially d amt getDueAmt payFn paidList []
+  = (reverse paidList, amt)
+paySequentially d 0 getDueAmt payFn paidList tobePaidList
+  = (reverse (paidList++tobePaidList), 0)
+paySequentially d amt getDueAmt payFn paidList (l:tobePaidList)
+  = let 
+      dueAmt = getDueAmt l
+      actualPaidOut = min amt dueAmt 
+      remainAmt = amt - actualPaidOut
+      paidL = payFn actualPaidOut l
+    in 
+      paySequentially d remainAmt getDueAmt payFn (paidL:paidList) tobePaidList
+
+payProRata :: Date -> Amount -> (a->Balance) -> (Amount->a->a) -> [a] -> ([a],Amount)
+payProRata d amt getDueAmt payFn tobePaidList
+  = let 
+      dueAmts = getDueAmt <$> tobePaidList
+      totalDueAmt = sum  dueAmts
+      actualPaidOut = min amt totalDueAmt
+      remainAmt = amt - actualPaidOut
+
+      allocAmt = prorataFactors dueAmts actualPaidOut
+
+      paidList = [ payFn amt l | (amt,l) <- zip allocAmt tobePaidList ]
+    in 
+      (paidList, remainAmt)
+
+mapWithinMap :: Ord k => (a -> a) -> [k] -> Map.Map k a -> Map.Map k a  
+mapWithinMap fn ks m = foldr (Map.adjust fn) m ks
 
 ----- DEBUG/PRINT
 -- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 

@@ -236,13 +236,21 @@ tsTest =
     d1 = T.fromGregorian 2007 12 28
     d2 = T.fromGregorian 2008 2 28
     dpairs = [(toDate "20061201",100)
-                  ,(toDate "20070201",80)  
-                  ,(toDate "20080201",60)]
+              ,(toDate "20070201",80)  
+              ,(toDate "20080201",60)]
     ed =  (toDate "20090101")
     testTs = mkTs [(toDate "20061201",100)
                   ,(toDate "20070201",80)  
                   ,(toDate "20080201",60)]
     tps = [TsPoint _d _v | (_d,_v) <- dpairs ]
+
+    rateCurve = FloatCurve [TsPoint (toDate "20061201") 0.03
+                           ,TsPoint (toDate "20070201") 0.05
+                           ,TsPoint (toDate "20080201") 0.07]
+
+    factorCurve = FloatCurve [TsPoint (toDate "20061201") 1.0
+                             ,TsPoint (toDate "20070201") 0.8
+                             ,TsPoint (toDate "20080201") 0.6]
   in
     testGroup "Test Trigger Factor Curve"
   [
@@ -276,12 +284,17 @@ tsTest =
           Exc
           (toDate "20081221") 
     ,testCase "FactorCurveClosed" $                         
-      assertEqual "After end date"
+      assertEqual "After end date" 
         1.0 $
         getValByDate 
           (FactorCurveClosed tps ed)
           Exc
           (toDate "20090601")
+    ,testCase "Multiply Ts" $
+      assertEqual " multiplyTs 1 "
+        (mkTs [(toDate "20061201", 0.03) ,(toDate "20070201", 0.04),(toDate "20080201", 0.042)]) 
+        (multiplyTs Inc rateCurve factorCurve)
+
   ]
 
 ts2Test = 
