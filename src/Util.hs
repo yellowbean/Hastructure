@@ -11,12 +11,13 @@ module Util
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox
-    ,safeDivide,lstToMapByFn,paySequentially,payProRata
+    ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     -- for debug
     ,zyj
     )
     where
 import qualified Data.Time as T
+import qualified Data.Map as Map
 import Data.List
 import Data.Fixed
 import Data.Ratio ((%))
@@ -360,6 +361,9 @@ payProRata d amt getDueAmt payFn tobePaidList
       paidList = [ payFn amt l | (amt,l) <- zip allocAmt tobePaidList ]
     in 
       (paidList, remainAmt)
+
+mapWithinMap :: Ord k => (a -> a) -> [k] -> Map.Map k a -> Map.Map k a  
+mapWithinMap fn ks m = foldr (Map.adjust fn) m ks
 
 ----- DEBUG/PRINT
 -- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 

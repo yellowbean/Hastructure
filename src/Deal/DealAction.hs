@@ -545,9 +545,7 @@ performActionWrap d
                   (W.BuyAsset ml pricingMethod accName _)
   = error $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
 
--- TODO need to sell assets/ in the future , in run time
--- TODO need to remove assets/cashflow frame
--- TODO need to set a limit
+-- TODO need to set a limit to sell
 performActionWrap d 
                   (t@TestDeal{accounts = accMap, pool = pt}  
                   ,rc@RunContext{runPoolFlow = pcf}
@@ -590,7 +588,7 @@ performActionWrap d
      liqComment = LiquidationProceeds (fromMaybe [] mPid)
      accMapAfterLiq = Map.adjust (A.deposit liqAmt d liqComment) an accMap
      -- REMOVE future cf
-     newPfInRc = foldr (\k acc -> (Map.adjust (set CF.cashflowTxn []) k acc)) pcf  (Map.keys poolMapToLiq)
+     newPfInRc = foldr (Map.adjust (set CF.cashflowTxn [])) pcf  (Map.keys poolMapToLiq)
    in 
      (t {accounts = accMapAfterLiq , pool = newPt} , rc {runPoolFlow = newPfInRc}, logs )
 

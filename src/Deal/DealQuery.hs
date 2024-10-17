@@ -696,7 +696,12 @@ testPre d t p =
     If cmp s amt -> toCmp cmp (queryDeal t (ps s))  amt
     IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt
     IfInt cmp s amt -> toCmp cmp (queryDealInt t (ps s) d) amt
+    
+    -- IfIntBetween cmp1 s1 cmp2 s2 amt -> toCmp cmp1 (queryDealInt t (ps s1) d) amt && toCmp cmp2 (queryDealInt t (ps s2) d) amt
+
     IfDate cmp _d -> toCmp cmp d _d
+    -- IfDateBetween cmp1 d1 cmp2 d2 -> toCmp cmp1 d d1 && toCmp cmp2 d d2
+
     IfCurve cmp s _ts -> toCmp cmp (queryDeal t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfRateCurve cmp s _ts -> toCmp cmp (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfBool s True -> queryDealBool t s d
@@ -705,6 +710,7 @@ testPre d t p =
     IfRate2 cmp s1 s2 -> toCmp cmp (queryDealRate t (ps s1)) (queryDealRate t (ps s2))
     IfInt2 cmp s1 s2 -> toCmp cmp (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
     IfDealStatus st -> status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
+    
     Always b -> b
     IfNot _p -> not $ testPre d t _p
     where 

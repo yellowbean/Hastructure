@@ -156,6 +156,12 @@ calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d
             _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor)
             -- TODO need to check if missing last row
 
+
+-- TODO: check futureCf is future CF or not
+-- | pricing via future schedule cashflow
+-- | pricing via predefined risk adjust cashflow
+-- | pricing via user define risk adjust cashflow
+-- TODO: in revolving buy future schedule cashflow should be updated as well
 calcLiquidationAmount (PV discountRate recoveryPct) pool d 
   = case futureCf pool of
       Nothing -> 0 
