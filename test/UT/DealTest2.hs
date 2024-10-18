@@ -1,4 +1,4 @@
-module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest)
+module UT.DealTest2 (td,queryTests)
 
 where
 
@@ -32,9 +32,8 @@ import Types (PoolId(PoolConsol))
 
 dummySt = (0,toDate "19000101",Nothing)
 
-
-td2 = D.TestDeal {
-  D.name = "test deal1"
+td = D.TestDeal {
+  D.name = "test deal"
   ,D.status = Amortizing
   ,D.rateSwap = Nothing
   ,D.currencySwap = Nothing
@@ -44,12 +43,8 @@ td2 = D.TestDeal {
                 ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
                 ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
                ])
-  ,D.accounts = (Map.fromList
-  [("General", (A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
-  })),
-   ("Reserve", (A.Account { A.accName="Reserve" ,A.accBalance=0.0 ,A.accType=Just (A.FixReserve 500), A.accInterest=Nothing ,A.accStmt=Nothing
-  }))
-  ])
+  ,D.accounts = Map.fromList
+                [("General", A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing })]
   ,D.fees = (Map.fromList [("Service-Fee"
                          ,F.Fee{F.feeName="service-fee"
                                 ,F.feeType = F.FixFee 10
@@ -130,134 +125,111 @@ td2 = D.TestDeal {
                                  ]
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
-                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]}
+                 ,P.issuanceStat = Nothing}
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee Nothing "General" ["Service-Fee"] Nothing)
                                  ,(W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
    ])]
- ,D.collects = [W.Collect Nothing W.CollectedInterest "General"
-             ,W.Collect Nothing W.CollectedPrincipal "General"]
+ ,D.collects = [W.Collect Nothing W.CollectedCash "General"]
  ,D.custom = Nothing
  ,D.call = Nothing
- ,D.liqProvider = Just $ Map.fromList $
-                    [("Liq1",CE.LiqFacility 
-                                "" 
-                                (CE.FixSupport 100)
-                                50
-                                (Just 100)
-                                Nothing
-                                Nothing
-                                Nothing
-                                Nothing
-                                Nothing 
-                                0
-                                0
-                                (toDate "20220201")
-                                Nothing
-                                (Just (S.Statement [SupportTxn (toDate "20220215") (Just 110) 10 40 0 0 S.Empty 
-                                                    ,SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 S.Empty])))]
- ,D.triggers = Just $
-                Map.fromList $
-                  [(BeginDistributionWF,
-                    Map.fromList [ ("revolving trigger",Trg.Trigger{Trg.trgCondition = IfDate G (toDate "20220501")
-                                                                    ,Trg.trgEffects = Trg.DealStatusTo Revolving
-                                                                    ,Trg.trgStatus = False 
-                                                                    ,Trg.trgCurable = False })]
-                                                                    )]
+ ,D.liqProvider = Nothing
+ ,D.triggers = Nothing
  ,D.overrides = Nothing
  ,D.ledgers = Nothing
 }
 
-queryTests =  testGroup "deal stat query Tests"
+bondGroups = Map.fromList [("A"
+                             ,L.BondGroup (Map.fromList 
+                               [
+                                ("A-1",L.Bond{
+                                        L.bndName="A-1"
+                                        ,L.bndType=L.Sequential
+                                        ,L.bndOriginInfo= L.OriginalInfo{
+                                                            L.originBalance=3000
+                                                            ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                            ,L.originRate= 0.08
+                                                            ,L.maturityDate = Nothing}
+                                        ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
+                                        ,L.bndBalance=1500
+                                        ,L.bndRate=0.08
+                                        ,L.bndDuePrin=0.0
+                                        ,L.bndDueInt=0.0
+                                        ,L.bndDueIntOverInt=0.0
+                                        ,L.bndDueIntDate=Nothing
+                                        ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                                        ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                                        ,L.bndStmt=Nothing}),
+                                ("A-2",L.Bond{
+                                        L.bndName="A-2"
+                                        ,L.bndType=L.Sequential
+                                        ,L.bndOriginInfo= L.OriginalInfo{
+                                                            L.originBalance=2000
+                                                            ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                            ,L.originRate= 0.08
+                                                            ,L.maturityDate = Nothing}
+                                        ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
+                                        ,L.bndBalance=1000
+                                        ,L.bndRate=0.08
+                                        ,L.bndDuePrin=0.0
+                                        ,L.bndDueInt=0.0
+                                        ,L.bndDueIntOverInt=0.0
+                                        ,L.bndDueIntDate=Nothing
+                                        ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                                        ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                                        ,L.bndStmt=Nothing})
+                                 ]            
+                                ))
+                             ,("B"
+                               ,L.Bond{
+                                L.bndName="B"
+                               ,L.bndType=L.Equity
+                               ,L.bndOriginInfo= L.OriginalInfo{
+                                                  L.originBalance=3000
+                                                  ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                  ,L.originRate= 0.08
+                                                  ,L.maturityDate = Nothing}
+                               ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
+                               ,L.bndBalance=500
+                               ,L.bndRate=0.08
+                               ,L.bndDuePrin=0.0
+                               ,L.bndDueInt=0.0
+                               ,L.bndDueIntDate=Nothing
+                               ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                               ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                               ,L.bndStmt=Nothing})
+                            ]
+
+tdBondGroup = td { D.bonds = bondGroups,
+                   D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
+                                  W.PayFee Nothing "General" ["Service-Fee"] Nothing
+                                 ,W.AccrueAndPayInt Nothing "General" ["A"] Nothing
+                                 ,W.PayPrinGroup Nothing "General" "A" W.ByProRataCurBal Nothing
+                                 ,W.PayPrin Nothing "General" ["B"] Nothing
+                ])]
+   }
+
+queryTests =  testGroup "Deal Group Test"
   [
     let
-     currentDefBal = queryDeal td2 CurrentPoolDefaultedBalance
+     currBndGrpBal = queryDeal tdBondGroup (CurrentBondBalanceOf ["A"])
     in
-     testCase "query current assets in defaulted status" $
-     assertEqual "should be 200" 200 currentDefBal
-  ]
-
-triggerTests = testGroup "Trigger Tests"
-  [ let 
-      setup = 0 
-      poolflows = CF.CashFlowFrame dummySt $
-                     [CF.MortgageDelinqFlow (toDate "20220201") 800 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
-                     ,CF.MortgageDelinqFlow (toDate "20220301") 700 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
-                     ,CF.MortgageDelinqFlow (toDate "20220401") 600 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
-                     ,CF.MortgageDelinqFlow (toDate "20220501") 500 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
-                     ,CF.MortgageDelinqFlow (toDate "20220601") 400 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
-                     ,CF.MortgageDelinqFlow (toDate "20220701") 300 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
-                     ]
-      poolflowM = Map.fromList [(PoolConsol, poolflows)]
-      ads = [PoolCollection (toDate "20220201") "" 
-             ,RunWaterfall  (toDate "20220225") ""
-             ,PoolCollection (toDate "20220301")""
-             ,RunWaterfall  (toDate "20220325") ""
-             ,PoolCollection (toDate "20220401")""
-             ,RunWaterfall  (toDate "20220425") ""
-             ,PoolCollection (toDate "20220501")""
-             ,RunWaterfall  (toDate "20220525") ""
-             ,PoolCollection (toDate "20220601")""
-             ,RunWaterfall  (toDate "20220625") ""
-             ,PoolCollection (toDate "20220701")""
-             ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_) = run td2 poolflowM (Just ads) Nothing Nothing Nothing []
+     testCase "group bond balance" $
+     assertEqual "should be 2500" 2500 currBndGrpBal
+    ,let 
+        bndsFound = D.viewDealAllBonds tdBondGroup
+     in 
+        testCase "view viewDealAllBonds " $
+        assertEqual "should be 3" 3 (length bndsFound)
+    ,let 
+        totalBndBal = queryDeal tdBondGroup CurrentBondBalance 
     in 
-      testCase "deal becomes revolving" $
-      assertEqual "revoving" 
-        Revolving 
-        (D.status fdeal)
+        testCase "total bond balance" $
+        assertEqual "should be 3000" 3000 totalBndBal
+    ,let
+        originBndbal = queryDeal tdBondGroup (OriginalBondBalanceOf ["A"])
+    in
+        testCase "original bond balance" $
+        assertEqual "should be 5000" 5000 originBndbal
   ]
-
-dateTests = 
-  let 
-   a = PreClosingDates
-        (toDate "20220601") 
-        (toDate "20220610") 
-        Nothing
-        (toDate "20220901") 
-        (toDate "20220630",MonthEnd)
-        (toDate "20220715",DayOfMonth 10)
-  in 
-   testGroup "Deal Tests" 
-   [ testCase "Dates pattern" $
-     assertEqual  ""
-    ((toDate "20220601"), (toDate "20220610"),(toDate "20220715")
-     ,[PoolCollection (toDate "20220630") "",PoolCollection (toDate "20220731") "",PoolCollection (toDate "20220831") ""]
-     ,[RunWaterfall (toDate "20220715") "",RunWaterfall (toDate "20220810") ""]
-     ,(toDate "20220901") )
-     (populateDealDates a Amortizing)
-   ]
-  
-liqProviderTest = 
-  let 
-    liq1 = CE.LiqFacility "" 
-                       (CE.FixSupport 100)
-
-                       90
-                       (Just 100)
-
-                       Nothing -- rate type
-                       Nothing -- premium rate type
-                       
-                       Nothing -- rate
-                       Nothing -- premium reate
-
-                       (Just (toDate "20220201"))
-                       0
-                       0
-                       
-                       (toDate "20220301")
-                       Nothing
-                       (Just (S.Statement 
-                               [SupportTxn (toDate "20220215") (Just 110) 40 40 0 0 S.Empty
-                               ,SupportTxn (toDate "20220315") (Just 100) 50 90 0 0 S.Empty
-                               ]))
-  in 
-    testGroup "Liq provider test" 
-      [testCase "Liq Provider Int test" $
-          assertEqual ""
-           (Just 100)
-           (CE.liqCredit $ CE.accrueLiqProvider (toDate "20221101") liq1)
-      ]

@@ -87,10 +87,12 @@ trs = CF.getTsCashFlowFrame tmcf_00
 
 mortgageCalcTests = testGroup "Mortgage Calc Test" 
   [
-    testCase "Calc Pmt" $
+    testCase "Calc Pmt 1" $
         assertEqual "PMT 01"
-           154.15
-           (AB.calcPmt 1200 0.12 24)
+           154.15 (AB.calcPmt 1200 0.12 24),
+    testCase "Calc Pmt 2" $
+        assertEqual "PMT 02"
+           100.0 (AB.calcPmt 1200 0.0 12)
   ]
 
 

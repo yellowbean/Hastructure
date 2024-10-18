@@ -160,6 +160,7 @@ test-suite Hastructure-test
       UT.BondTest
       UT.CashflowTest
       UT.DealTest
+      UT.DealTest2
       UT.ExpTest
       UT.InterestRateTest
       UT.LibTest

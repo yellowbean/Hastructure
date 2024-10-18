@@ -39,7 +39,7 @@ jobs:
           ls -la .
           rm -rf /opt/ghc
           rm -rf /opt/hostedtoolcache
-
+          
       -
         name: Build and push
         uses: docker/build-push-action@v3
@@ -48,4 +48,4 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:dev, ${{ steps.meta.outputs.tags }}
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
-          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max     
+          cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max  

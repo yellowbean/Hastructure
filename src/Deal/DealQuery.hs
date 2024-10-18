@@ -29,6 +29,7 @@ import qualified Triggers as Trg
 import qualified CreditEnhancement as CE
 import qualified Hedge as H
 import qualified Analytics as A
+import qualified Pool as Pl
 import Stmt
 import Util
 import DateUtil
@@ -292,6 +293,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     AccBalance ans -> sum $ A.accBalance . (accMap Map.!) <$> ans
     
+    -- ^ negatave -> credit balance , postive -> debit balance
     LedgerBalance ans ->
       case ledgerM of 
         Nothing -> error ("No ledgers were modeled , failed to find ledger:"++show ans )
@@ -308,10 +310,20 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         $ (-) (sum $ calcTargetAmount t d . (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
 
     FutureCurrentPoolBalance mPns ->
-      let 
-        ltc = getLatestCollectFrame t mPns
-      in 
-        sum $ maybe 0 CF.mflowBalance <$> ltc 
+      case (mPns,pt) of 
+        (Nothing,SoloPool p) -> Pl.getIssuanceField p RuntimeCurrentPoolBalance
+        (Nothing,MultiPool pm ) -> queryDeal t (FutureCurrentPoolBalance (Just $ Map.keys pm))
+        (Just pids,MultiPool pm) -> 
+          if S.isSubsetOf  (S.fromList pids) (S.fromList (Map.keys pm)) then 
+            let 
+              m = Map.filterWithKey (\k _ -> S.member k (S.fromList pids)) pm
+            in 
+              sum $ Map.elems $ Map.map (`Pl.getIssuanceField` RuntimeCurrentPoolBalance) m 
+          else 
+            error $ "Failed to find pool balance" ++ show pids ++ " from deal "++ show (Map.keys pm)
+
+
+
 
     FutureCurrentSchedulePoolBalance mPns ->
       let 
@@ -682,9 +694,16 @@ testPre d t p =
     IfZero s -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
     
     If cmp s amt -> toCmp cmp (queryDeal t (ps s))  amt
+    
     IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt
+
     IfInt cmp s amt -> toCmp cmp (queryDealInt t (ps s) d) amt
+    
+    -- IfIntBetween cmp1 s1 cmp2 s2 amt -> toCmp cmp1 (queryDealInt t (ps s1) d) amt && toCmp cmp2 (queryDealInt t (ps s2) d) amt
+
     IfDate cmp _d -> toCmp cmp d _d
+    -- IfDateBetween cmp1 d1 cmp2 d2 -> toCmp cmp1 d d1 && toCmp cmp2 d d2
+
     IfCurve cmp s _ts -> toCmp cmp (queryDeal t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfRateCurve cmp s _ts -> toCmp cmp (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfBool s True -> queryDealBool t s d
@@ -693,6 +712,7 @@ testPre d t p =
     IfRate2 cmp s1 s2 -> toCmp cmp (queryDealRate t (ps s1)) (queryDealRate t (ps s2))
     IfInt2 cmp s1 s2 -> toCmp cmp (queryDealInt t (ps s1) d) (queryDealInt t (ps s2) d)
     IfDealStatus st -> status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
+    
     Always b -> b
     IfNot _p -> not $ testPre d t _p
     where 
