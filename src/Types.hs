@@ -824,6 +824,9 @@ instance ToJSON TxnComment where
   toJSON (IssuanceProceeds nb) = String $ T.pack $ "<IssuanceProceeds:"++nb++">"
   toJSON (Tag cmt) = String $ T.pack $ "<Tag:"++cmt++">"
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
+  toJSON (PayGroupInt bns) = String $ T.pack $ "<PayGroupInt:"++ listToStrWithComma bns ++ ">"
+  toJSON (PayGroupPrin bns) = String $ T.pack $ "<PayGroupPrin:"++ listToStrWithComma bns ++ ">"
+  toJSON x = error $ "Not support for toJSON for "++show x
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
