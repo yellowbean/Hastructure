@@ -694,7 +694,9 @@ testPre d t p =
     IfZero s -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
     
     If cmp s amt -> toCmp cmp (queryDeal t (ps s))  amt
+    
     IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt
+
     IfInt cmp s amt -> toCmp cmp (queryDealInt t (ps s) d) amt
     
     -- IfIntBetween cmp1 s1 cmp2 s2 amt -> toCmp cmp1 (queryDealInt t (ps s1) d) amt && toCmp cmp2 (queryDealInt t (ps s2) d) amt

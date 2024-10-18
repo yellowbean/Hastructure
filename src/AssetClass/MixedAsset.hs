@@ -217,6 +217,7 @@ projAssetUnion (ACM.PF ast) d assumps mRates = P.projCashflow ast d assumps mRat
 projAssetUnion x _ _ _ = error ("Failed to match  proj AssetUnion"++ show x)
 
 projAssetUnionList :: [ACM.AssetUnion] -> Date -> A.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+projAssetUnionList [] d (A.PoolLevel assetPerf) mRate = (CF.CashFlowFrame (0,d,Nothing) [], Map.empty)
 projAssetUnionList assets d (A.PoolLevel assetPerf) mRate =
   let 
     results = [ projAssetUnion asset d assetPerf mRate | asset <- assets ]
@@ -224,7 +225,6 @@ projAssetUnionList assets d (A.PoolLevel assetPerf) mRate =
     bals = snd <$> results
   in 
     (foldl1 CF.mergePoolCf cfs, Map.unionsWith (+) bals)
-    -- (foldl1 CF.mergeCf cfs, Map.unionsWith (+) bals)
 
 projAssetUnionList assets d _ mRate = error " not implemented on asset level assumption for revolving pool"
 

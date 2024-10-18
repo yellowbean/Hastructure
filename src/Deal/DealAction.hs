@@ -353,6 +353,7 @@ splitAssetUnion rs (ACM.LS m) = [ ACM.LS a | a <- Ast.splitWith m rs]
 splitAssetUnion rs (ACM.RE m) = [ ACM.RE a | a <- Ast.splitWith m rs]
 
 buyRevolvingPool :: Date -> [Rate] -> RevolvingPool -> ([ACM.AssetUnion],RevolvingPool)
+buyRevolvingPool _ [0, 1] rp = ([],rp)
 buyRevolvingPool _ rs rp@(StaticAsset assets) 
   = let 
       splitedAssets = splitAssetUnion rs <$> assets
@@ -509,12 +510,12 @@ performActionWrap d
       cfBought = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                               let 
-                                dsInterval = getDate <$> trs 
-                                boughtCfDates = getDate <$> view CF.cashflowTxn cfBought
+                                dsInterval = getDate <$> trs -- `debug` ("asset to proj" ++ show  [updateOriginDate2 d ast | ast <- assetBought ]++ "with perf"++ show perfAssumps)
+                                boughtCfDates = getDate <$> view CF.cashflowTxn cfBought -- `debug` ("Origin CF\n"++ show ( over CF.cashflowTxn (slice 0 30)  cfOrigin))
 
                                 newAggDates = case (dsInterval,boughtCfDates) of 
                                                 ([],[]) -> []
-                                                (_,[]) -> dsInterval
+                                                (_,[]) -> [] -- `debug` ("hit with non cash date from bought"++ show dsInterval) 
                                                 ([],_) -> boughtCfDates
                                                 (oDs,bDs) -> 
                                                   let 
@@ -526,13 +527,13 @@ performActionWrap d
                                                     else 
                                                       sliceDates (SliceAfter lastOdate) bDs
 
-                                mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("CF bought"++ show cfBought)
+                                mergedCf = CF.mergePoolCf2 cfOrigin cfBought  -- `debug` ("CF bought \n"++ show (over CF.cashflowTxn (slice 0 30) cfBought) ++ "with agg dates"++ show newAggDates)
                               in 
-                                over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf ) --`debug` ("agg dates \n"++ show dsInterval ++"Merged CF\n"++ show mergedCf))  
+                                over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf )-- `debug` ("Merged CF\n"++ show (over CF.cashflowTxn (slice 0 20)  mergedCf)))
                           pIdToChange
                           pFlowMap -- `debug` ("date\n"++show d)
 
-      newRc = rc {runPoolFlow = newPcf -- `debug` ("New run pool >>>>> \n"++ show newPcf)
+      newRc = rc {runPoolFlow = newPcf  -- `debug` ("New run pool >>>>> \n"++ show (Map.map (over CF.cashflowTxn (slice 0 20)) newPcf))
                  ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
 
 

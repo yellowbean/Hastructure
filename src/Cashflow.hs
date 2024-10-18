@@ -22,7 +22,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
                 ,mergeCf,buildStartTsRow
                 ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
-                ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow) where
+                ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -864,8 +864,10 @@ mergePoolCf2 :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergePoolCf2 cf (CashFlowFrame _ []) = cf
 mergePoolCf2 (CashFlowFrame _ []) cf = cf
 mergePoolCf2 cf1@(CashFlowFrame st1@(bBal1,bDate1,a1) txns1) cf2@(CashFlowFrame (bBal2,bDate2,a2) txns2) 
+  | null txns2 = over cashflowTxn (patchBalance bBal1 []) cf1
   | bDate1 > bDate2 = mergePoolCf2 cf2 cf1
   -- both cashflow frame start on the same day OR left one starts earlier than right one
+  | bDate1 == bDate2 && bBal2 == 0 = over cashflowTxn (patchBalance bBal1 []) cf1
   | bDate1 == bDate2 = 
     let 
       begBal = bBal1 + bBal2
