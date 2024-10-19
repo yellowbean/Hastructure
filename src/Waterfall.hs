@@ -52,7 +52,10 @@ data PayOrderBy = ByName
                 deriving (Show,Generic,Eq,Ord)
 
 
-data Action = Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
+data Action =
+            -- Accounts 
+            Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
+            | TransferMultiple [(Maybe Limit, AccountName)] AccountName (Maybe TxnComment)
             -- Fee
             | CalcFee [FeeName]                                                            -- ^ calculate fee due amount in the fee names
             | PayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)              -- ^ pay fee with cash from account with optional limit or extra support

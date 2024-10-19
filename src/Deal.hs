@@ -1126,14 +1126,12 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
      
     pCfM = runPoolType thePool mAssumps mNonPerfAssump
     poolCfTsM = Map.map (\(CF.CashFlowFrame _ txns, pstats) -> cutBy Inc Future startDate txns) pCfM -- `debug` ("Pool cfm"++ show pCfM)
-    poolCfTsMwithBegRow = Map.map (\txns -> 
-                                    case txns of 
+    poolCfTsMwithBegRow = Map.map (\case  
                                       (x:xs) -> buildBegTsRow startDate x:x:xs
-                                      [] -> []
-                                      )
+                                      [] -> [])
                                   poolCfTsM 
     poolAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) poolCfTsMwithBegRow  
-    pCollectionCfAfterCutoff = Map.map (CF.CashFlowFrame (0,startDate,Nothing)) poolAggCfM 
+    pCollectionCfAfterCutoff = Map.map (CF.CashFlowFrame (0,startDate,Nothing)) poolAggCfM -- `debug` ("Pool agg cfm"++ show (Map.map (sliceBy II (toDate "20241201") (toDate "20241231") ) poolAggCfM))
     
     pScheduleCfM = case thePool of
                      (SoloPool p) 
@@ -1149,8 +1147,11 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                                   (dealRunned, _, _, _) = runDeal uDeal DealPoolFlowPricing Nothing (fromMaybe (NonPerfAssumption {}) mNonPerfAssump)
                                                                   bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn])
                                                                   bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i)  <$> Stmt.scaleByFactor pct bondFlow
+                                                                  begBal = case bondFlowRated of 
+                                                                              [] -> 0
+                                                                              _ -> CF.mflowBegBalance $ head bondFlowRated
                                                                 in
-                                                                  (name uDeal, CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Map.empty))
+                                                                  (name uDeal, CF.CashFlowFrame (begBal,sd,Nothing) bondFlowRated, Map.empty))
                                           dm
     pTxnOfSpv = Map.map (\(CF.CashFlowFrame _ txns, pstats) -> cutBy Inc Future startDate txns) pScheduleCfM  
     pTxnWithBegRow = Map.map (\(x:xs) -> buildBegTsRow startDate x:x:xs) pTxnOfSpv  

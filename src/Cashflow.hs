@@ -20,7 +20,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchCumulative,extendTxns,dropTailEmptyTxns
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
-                ,mergeCf,buildStartTsRow
+                ,mergeCf,buildStartTsRow, sliceCfFrame
                 ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
                 ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance) where
 
@@ -842,6 +842,20 @@ mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2)
   where 
     [startDate1,startDate2] = firstDate <$> [cf1,cf2]
     -- rightToLeft = startDate1 >= startDate2
+
+sliceCfFrame :: Date -> Date -> RangeType -> CashFlowFrame -> CashFlowFrame
+sliceCfFrame sd ed rt (CashFlowFrame st txns) 
+  = let 
+      txns' = case rt of 
+                EE -> filter (\x -> (mflowDate x > sd) && (mflowDate x < ed)) txns
+                EI -> filter (\x -> (mflowDate x > sd) && (mflowDate x <= ed)) txns
+                II -> filter (\x -> (mflowDate x >= sd) && (mflowDate x <= ed)) txns
+                IE -> filter (\x -> (mflowDate x >= sd) && (mflowDate x < ed)) txns
+    in 
+      CashFlowFrame st txns'
+
+
+
 
 aggTs :: [TsRow] -> [TsRow] -> [TsRow]
 aggTs [] [] = []

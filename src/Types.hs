@@ -807,7 +807,7 @@ instance ToJSON TxnComment where
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
   toJSON (PoolInflow mPids ps) =  String $ T.pack $ "<Pool"++ maybe "" (intercalate "|" . (show <$>)) mPids ++":"++ show ps++">"
-  toJSON (LiquidationProceeds pids) =  String $ T.pack $ "<Liquidation:"++ (intercalate "," (show <$> pids)) ++">"
+  toJSON (LiquidationProceeds pids) =  String $ T.pack $ "<Liquidation:"++ listToStrWithComma (show <$> pids) ++">"
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 

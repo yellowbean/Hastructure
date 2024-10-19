@@ -656,6 +656,13 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer mLimit an1 an2 mComment)
     accMapAfterDraw = Map.adjust (A.draw transferAmt d txnCom) an1 accMap
     accMapAfterDeposit = Map.adjust (A.deposit transferAmt d txnCom) an2 accMapAfterDraw
 
+performAction d t@TestDeal{accounts=accMap} (W.TransferMultiple sourceAccList targetAcc mComment)
+  = foldr (\(mLimit, sourceAccName) acc -> 
+             performAction d acc (W.Transfer mLimit sourceAccName targetAcc mComment))
+            t
+            sourceAccList  
+
+
 -- ^ book ledger 
 performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.ByDS ledger dr ds)) =
   let  
