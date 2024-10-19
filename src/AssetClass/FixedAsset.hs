@@ -102,6 +102,8 @@ instance Ast.Asset FixedAsset where
         cumuDepreciation = tail $ scanl (+) cumuDep amortizedBals 
         
         txns = zipWith6 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash
+        futureTxns = cutBy Inc Future asOfDay txns
+        begBal = CF.buildBegBal futureTxns
       in 
-        (CF.CashFlowFrame (head scheduleBals,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns, Map.empty)
+        (CF.CashFlowFrame (begBal,asOfDay,Nothing) $ futureTxns, Map.empty)
   

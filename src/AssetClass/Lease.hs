@@ -211,7 +211,7 @@ instance Asset Lease where
       = fst . patchBalance $ RegularLease (LeaseInfo sd ot dp dr ob) bal ot st
 
     projCashflow l asOfDay ((AP.LeaseAssump gapAssump rentAssump ed exStress),_,_) mRates
-      = (CF.CashFlowFrame (0,asOfDay,Nothing) allTxns, Map.empty)  
+      = (CF.CashFlowFrame (begBal,asOfDay,Nothing) allTxns, Map.empty)  
       where 
         currentCf = calcCashflow l asOfDay mRates
         -- (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump (A.LeaseAssump gapAssump rentAssump) -- (0.0,mkTs [],([(0.0,0)],0),0,epocDate)-- `debug` ("7")
@@ -232,6 +232,8 @@ instance Asset Lease where
                       []
         newCfs = [ calcCashflow l asOfDay mRates | l <- newLeases ]  -- `debug` ("new leases"++ show newLeases )
         allTxns = view CF.cashflowTxn currentCf ++ (concat $ (view CF.cashflowTxn) <$> newCfs)
+        begBal = CF.buildBegBal allTxns
+        
 
     getCurrentBal l = case l of 
                         StepUpLease _ _ bal _ _ -> bal

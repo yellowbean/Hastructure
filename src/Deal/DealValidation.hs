@@ -196,8 +196,9 @@ validateAction ((W.BuyAssetFrom _ _ accName mRPoolName mPid):as) rs accKeys bndK
   | Set.notMember (fromMaybe PoolConsol mPid) poolKeys = validateAction as (rs ++ [ErrorMsg (show mPid++" not in "++show poolKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
-validateAction ((W.LiquidatePool _ accName):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+validateAction ((W.LiquidatePool _ accName mPids):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | Set.notMember accName accKeys = validateAction as (rs ++ [ErrorMsg (accName++" not in "++show accKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | isJust mPids && not (Set.isSubsetOf (Set.fromList (fromMaybe [] mPids)) poolKeys) = validateAction as (rs ++ [ErrorMsg (show mPids++" not in "++show poolKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
 validateAction ((W.LiqSupport _ liqName _ accName):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
@@ -355,7 +356,8 @@ extractRequiredRevolvingPool t@TestDeal{waterfall = waterfallM} =
 
 
 validateReq :: (IR.UseRate a,P.Asset a) => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
-validateReq t@TestDeal{accounts = accMap, fees = feeMap} assump@A.NonPerfAssumption{A.interest = intM, A.issueBondSchedule = mIssuePlan, A.revolving = mRevolvingAssump} 
+validateReq t@TestDeal{accounts = accMap, fees = feeMap} 
+            assump@A.NonPerfAssumption{A.interest = intM, A.issueBondSchedule = mIssuePlan, A.revolving = mRevolvingAssump} 
   = let 
       ratesRequired = extractRequiredRates t
       ratesSupplied = case intM of 
@@ -452,7 +454,6 @@ validatePreRun t@TestDeal{waterfall=waterfallM
 
       -- val on deal status and deal dates
       statusCheck (PreClosing _) PreClosingDates {} = [] 
-      statusCheck _ PreClosingDates {} = [ErrorMsg "Deal is using PreClosing Dates but its status is not PreClosing"]
       statusCheck (PreClosing _) _ = [ErrorMsg "Deal is in PreClosing status but it is not using preClosing dates"]
       statusCheck _ _ = []
 

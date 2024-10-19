@@ -127,7 +127,7 @@ instance Asset Loan where
                asOfDay 
                (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRate 
-    = (applyHaircut ams (CF.CashFlowFrame (cb,asOfDay,Nothing) futureTxns), historyM)
+    = (applyHaircut ams (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns), historyM)
     where
       recoveryLag = maybe 0 getRecoveryLag recoveryAssump
       lastPayDate:cfDates = lastN (rt + recoveryLag + 1) $ sd:getPaymentDates pl recoveryLag
@@ -143,8 +143,9 @@ instance Asset Loan where
                       in 
                         divideBB cb (scheduleBals!!(ot - rt))
                      _ -> 1.0  
-      (txns,_) = projectLoanFlow ((ob,ot,getOriginRate pl), cb,lastPayDate,prinPayType,dc,cr,initFactor) (cfDates,defRates,ppyRates,rateVector,remainTerms)  `debug` (" rateVector"++show rateVector)
+      (txns,_) = projectLoanFlow ((ob,ot,getOriginRate pl), cb,lastPayDate,prinPayType,dc,cr,initFactor) (cfDates,defRates,ppyRates,rateVector,remainTerms)  -- `debug` (" rateVector"++show rateVector)
       (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
+      begBal = CF.buildBegBal futureTxns
 
   -- ^ Project cashflow for defautled loans 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType _) cb cr rt (Defaulted (Just defaultedDate))) 
@@ -158,8 +159,9 @@ instance Asset Loan where
         _txns = [  CF.LoanFlow d 0 0 0 0 0 r 0 cr Nothing | (d,r) <- zip cf_dates2 recoveries ]
         (_, txns) = splitByDate (beforeRecoveryTxn++_txns) asOfDay EqToRight -- `debug` ("AS OF Date"++show asOfDay)
         (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
+        begBal = CF.buildBegBal futureTxns
       in 
-        (CF.CashFlowFrame (cb,asOfDay,Nothing) futureTxns, historyM)
+        (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns, historyM)
 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType _) cb cr rt (Defaulted Nothing)) asOfDay assumps _
     = (CF.CashFlowFrame (cb,asOfDay,Nothing) [CF.LoanFlow asOfDay 0 0 0 0 0 0 0 cr Nothing],Map.empty)

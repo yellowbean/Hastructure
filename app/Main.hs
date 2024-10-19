@@ -44,6 +44,7 @@ import qualified Data.ByteString.Char8 as BS
 import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
+import Network.Wai.Middleware.Cors
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 
@@ -102,7 +103,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.29.5"
+version1 = Version "0.29.17"
 
 
 
@@ -343,9 +344,10 @@ wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates (Just pm
 type ScenarioName = String
 
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
-                | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
-                | MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
-                | MultiRunAssumpReq DealType (Maybe AP.ApplyAssumptionType) (Map.Map ScenarioName AP.NonPerfAssumption)
+                | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption --- multi pool perf
+                | MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption  -- multi deal struct
+                | MultiRunAssumpReq DealType (Maybe AP.ApplyAssumptionType) (Map.Map ScenarioName AP.NonPerfAssumption) -- multi run assump 
+                | MultiComboReq (Map.Map ScenarioName DealType)  (Map.Map ScenarioName (Maybe AP.ApplyAssumptionType))  (Map.Map ScenarioName AP.NonPerfAssumption)
                 deriving(Show, Generic)
 
 data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
@@ -382,9 +384,8 @@ type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runDealByScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runDealByRunScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
+            :<|> "runByCombo" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map String RunResp)
             :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
-
--- instance NFData [Date]
 
 
 engineAPI :: Proxy EngineAPI
@@ -433,7 +434,19 @@ runDate (RunDateReq sd dp md) = return $
 
 runDealByRunScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runDealByRunScenarios (MultiRunAssumpReq dt mAssump nonPerfAssumpMap)
-  = return $ Map.map (\singleAssump -> wrapRun dt mAssump singleAssump) nonPerfAssumpMap
+  = return $ Map.map (wrapRun dt mAssump) nonPerfAssumpMap
+
+
+runDealByCombo :: RunDealReq -> Handler (Map.Map String RunResp)
+runDealByCombo (MultiComboReq dMap assumpMap nonPerfAssumpMap)
+  = let 
+      dList = Map.toList dMap
+      aList = Map.toList assumpMap
+      nList = Map.toList nonPerfAssumpMap
+      r = [ (intercalate "^" [dk,ak,nk], wrapRun d a n) | (dk,d) <- dList, (ak,a) <- aList, (nk,n) <- nList ]
+      rMap = Map.fromList r
+    in 
+      return rMap -- `debug` ("RunDealByCombo->"++ show rMap)
 
 
 myServer :: ServerT API Handler
@@ -446,6 +459,7 @@ myServer =  return engineSwagger
       :<|> runDealScenarios
       :<|> runMultiDeals
       :<|> runDealByRunScenarios
+      :<|> runDealByCombo
       :<|> runDate
 --      :<|> error "not implemented"
 
@@ -459,7 +473,9 @@ data Config = Config { port :: Int}
 instance FromJSON Config
 
 app :: Application
-app = serve (Proxy :: Proxy API) myServer
+-- app = serve (Proxy :: Proxy API) myServer
+app = simpleCors $ serve (Proxy :: Proxy API) myServer
+
 
 
 main :: IO ()

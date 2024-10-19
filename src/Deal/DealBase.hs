@@ -11,7 +11,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,dealScheduledCashflow
                      ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..),OverrideType(..)
                      ,sortActionOnDate,dealBondGroups
-                     ,viewDealBondsByNames,poolTypePool
+                     ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
                      )                      
   where
 import qualified Accounts as A
@@ -58,12 +58,6 @@ import qualified Types as CF
 import Debug.Trace
 import qualified Control.Lens as P
 debug = flip trace
--- import Data.Aeson.Types (Parser)
--- import qualified Data.HashMap.Strict as HM
--- import Data.Text (unpack)
--- import Control.Monad.IO.Class (liftIO)
-
-
 
 
 data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
@@ -167,6 +161,7 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
 
 class SPV a where
   getBondsByName :: a -> Maybe [String] -> Map.Map String L.Bond
+  getActiveBonds :: a -> [String] -> [L.Bond]
   getBondBegBal :: a -> String -> Balance
   getBondStmtByName :: a -> Maybe [String] -> Map.Map String (Maybe Statement)
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
@@ -237,6 +232,12 @@ instance SPV (TestDeal a) where
     = case bns of
          Nothing -> bonds t
          Just _bns -> Map.filterWithKey (\k _ -> S.member k (S.fromList _bns)) (bonds t)
+  
+  getActiveBonds t bns = 
+    let 
+      bnds = (bonds t Map.!) <$> bns
+    in 
+      filter (not . L.isPaidOff) bnds
 
   getBondStmtByName t bns
     = Map.map L.bndStmt bndsM
@@ -269,9 +270,17 @@ instance SPV (TestDeal a) where
                  ResecDeal _ -> True
                  _ -> False
 
+_expandBonds :: Map.Map BondName L.Bond -> [L.Bond]
+_expandBonds bMap = 
+  let 
+    bs = Map.elems bMap
+    view a@(L.Bond {}) = [a]
+    view a@(L.BondGroup bMap) = Map.elems bMap
+  in 
+    concat $ view <$> bs
 
 
-
+-- ^ list all bonds and bond groups in list
 viewDealAllBonds :: TestDeal a -> [L.Bond]
 viewDealAllBonds d = 
     let 
@@ -281,6 +290,16 @@ viewDealAllBonds d =
     in 
        concat $ view <$> bs
 
+-- ^ flatten all bonds/bond groups in a map
+viewBondsInMap :: TestDeal a -> Map.Map String L.Bond
+viewBondsInMap t@TestDeal{ bonds = bndMap }
+  = let 
+      bnds = viewDealAllBonds t 
+      bndNames = L.bndName <$> bnds
+    in 
+      Map.fromList $ zip bndNames bnds
+
+-- ^ support bond group
 viewDealBondsByNames :: Ast.Asset a => TestDeal a -> [BondName] -> [L.Bond]
 viewDealBondsByNames _ [] = []
 viewDealBondsByNames t@TestDeal{bonds= bndMap } bndNames
@@ -300,21 +319,27 @@ viewDealBondsByNames t@TestDeal{bonds= bndMap } bndNames
     in 
       bnds ++ bndsFromGrp
 
+-- ^ not support bond group
 dealBonds :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
 dealBonds = lens getter setter 
   where 
     getter d = bonds d 
     setter d newBndMap = d {bonds = newBndMap}
 
+-- ^ get & set bond group only
 dealBondGroups :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)
 dealBondGroups = lens getter setter 
   where 
-    getter d = Map.filter 
-                 (\case 
-                   (L.Bond {}) -> False
-                   (L.BondGroup {}) -> True)
-                 (bonds d)
-    setter d newBndMap = d {bonds = newBndMap}
+    getter d = Map.filter (has L._BondGroup) (bonds d)
+    setter d newBndMap = d {bonds = Map.filter (has L._BondGroup) newBndMap}
+
+bondGroupsBonds :: Lens' L.Bond (Map.Map BondName L.Bond)
+bondGroupsBonds = lens getter setter 
+  where 
+    getter (L.BondGroup bMap) = bMap
+    getter _ = Map.empty
+    setter (L.BondGroup _) newBMap = L.BondGroup newBMap
+    setter x _ = x
 
 dealAccounts :: Ast.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 
 dealAccounts = lens getter setter 

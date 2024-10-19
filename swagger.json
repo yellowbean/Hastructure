@@ -129,6 +129,51 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/Limit"
+                                                },
+                                                {
+                                                    "type": "string"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TransferMultiple"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TransferMultiple",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "type": "string"
                                 },
@@ -1051,6 +1096,38 @@
                                         "$ref": "#/components/schemas/Limit"
                                     },
                                     {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WriteOffBySeq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WriteOffBySeq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
                                         "type": "string"
                                     },
                                     {
@@ -1157,10 +1234,16 @@
                                     },
                                     {
                                         "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
@@ -2819,6 +2902,29 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultVecPadding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultVecPadding",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "multipleOf": 1.0e-2,
@@ -2894,6 +3000,35 @@
                             "contents"
                         ],
                         "title": "DefaultAtEndByRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultStressByTs"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultStressByTs",
                         "type": "object"
                     }
                 ]
@@ -3389,6 +3524,29 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PrepaymentVecPadding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PrepaymentVecPadding",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "multipleOf": 1.0e-2,
@@ -3418,6 +3576,35 @@
                             "contents"
                         ],
                         "title": "PrepayByAmt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/AssetPrepayAssumption"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PrepayStressByTs"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PrepayStressByTs",
                         "type": "object"
                     }
                 ]
@@ -9924,7 +10111,17 @@
                     {
                         "properties": {
                             "contents": {
-                                "type": "string"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/BookDirection"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
                             },
                             "tag": {
                                 "enum": [
@@ -9938,6 +10135,38 @@
                             "contents"
                         ],
                         "title": "ClearLedger",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/BookDirection"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ClearLedgerBySeq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ClearLedgerBySeq",
                         "type": "object"
                     },
                     {
@@ -14779,6 +15008,47 @@
                         ],
                         "title": "MultiRunAssumpReq",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/DealType"
+                                        },
+                                        "type": "object"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/ApplyAssumptionType"
+                                        },
+                                        "type": "object"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/NonPerfAssumption"
+                                        },
+                                        "type": "object"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MultiComboReq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "MultiComboReq",
+                        "type": "object"
                     }
                 ]
             },
@@ -17528,6 +17798,50 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayGroupPrin"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayGroupPrin",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayGroupInt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayGroupInt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "type": "string"
@@ -17762,6 +18076,12 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
                             "tag": {
                                 "enum": [
                                     "LiquidationProceeds"
@@ -17770,7 +18090,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "LiquidationProceeds",
                         "type": "object"
@@ -18286,7 +18607,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.29.4"
+        "version": "0.29.15"
     },
     "openapi": "3.0.0",
     "paths": {
@@ -18334,6 +18655,62 @@
                                     "maxItems": 2,
                                     "minItems": 2,
                                     "type": "array"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/runByCombo": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RunDealReq"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "additionalProperties": {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/DealType"
+                                            },
+                                            {
+                                                "additionalProperties": {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                },
+                                                "type": "object"
+                                            },
+                                            {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/ResultComponent"
+                                                },
+                                                "type": "array"
+                                            },
+                                            {
+                                                "additionalProperties": {
+                                                    "$ref": "#/components/schemas/PriceResult"
+                                                },
+                                                "type": "object"
+                                            }
+                                        ],
+                                        "maxItems": 4,
+                                        "minItems": 4,
+                                        "type": "array"
+                                    },
+                                    "type": "object"
                                 }
                             }
                         },

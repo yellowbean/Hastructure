@@ -20,7 +20,9 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchCumulative,extendTxns,dropTailEmptyTxns
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
-                ,txnCumulativeStats,consolidateCashFlow) where
+                ,mergeCf,buildStartTsRow, sliceCfFrame
+                ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
+                ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -179,6 +181,13 @@ data CashFlowFrame = CashFlowFrame BeginStatus [TsRow]
 --                   | CashFlowFrameIndex BeginStatus [TsRow] IR.Index
                    deriving (Eq,Generic,Ord)
 
+cfBeginStatus :: Lens' CashFlowFrame BeginStatus
+cfBeginStatus = lens getter setter
+  where 
+    getter (CashFlowFrame st _) = st
+    setter (CashFlowFrame _ tsRows) st = CashFlowFrame st tsRows
+
+
 instance Show CashFlowFrame where
   show (CashFlowFrame st []) = "Empty CashflowFrame"++ show st
   -- show (CashFlowFrame st txns) = concat $ L.intersperse "\n" [ show txn | txn <- txns ]
@@ -186,29 +195,29 @@ instance Show CashFlowFrame where
     let 
         ds = [ show d | d <- getDates txns]
         rowHeader = [TT.Header h | h <- ds ]
-        getCs (CashFlow {}) = ["Date","Amount"]
-        getCs (BondFlow {}) = ["Date", "Balance", "Principal", "Interest"]
-        getCs (MortgageFlow {}) = ["Date", "Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
-        getCs (MortgageDelinqFlow {}) = ["Date", "Balance", "Principal", "Interest", "Prepayment", "Delinquent", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
-        getCs (LoanFlow {}) = ["Date", "Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "CumulativeStat"]
-        getCs (LeaseFlow {}) = ["Date", "Balance", "Rental"]
-        getCs (FixedFlow {}) = ["Date", "Balance", "NewDepreciation", "Depreciation", "Balance", "Amount"]
-        getCs (ReceivableFlow {}) = ["Date", "Balance", "AccuredFee", "Principal", "FeePaid", "Default", "Recovery", "Loss", "CumulativeStat"]
+        getCs (CashFlow {}) = ["Amount"]
+        getCs (BondFlow {}) = ["Balance", "Principal", "Interest"]
+        getCs (MortgageFlow {}) = ["Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
+        getCs (MortgageDelinqFlow {}) = [ "Balance", "Principal", "Interest", "Prepayment", "Delinquent", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
+        getCs (LoanFlow {}) = ["Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "CumulativeStat"]
+        getCs (LeaseFlow {}) = [ "Balance", "Rental"]
+        getCs (FixedFlow {}) = [ "Balance", "NewDepreciation", "Depreciation", "Balance", "Amount"]
+        getCs (ReceivableFlow {}) = [ "Balance", "AccuredFee", "Principal", "FeePaid", "Default", "Recovery", "Loss", "CumulativeStat"]
         colHeader = [TT.Header c | c <- getCs (head txns) ]
-        getRs (CashFlow d a) = [show d, show a]
-        getRs (BondFlow d b p i) = [show d, show b, show p, show i]
-        getRs (MortgageFlow d b p i prep def rec los rat mbn pp st) = [show d, show b, show p, show i, show prep, show def, show rec, show los, show rat, show mbn, show pp, show st]
-        getRs (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) = [show d, show b, show p, show i, show prep, show delinq, show def, show rec, show los, show rat, show mbn, show pp, show st]
-        getRs (LoanFlow d b p i prep def rec los rat st) = [show d, show b, show p, show i, show prep, show def, show rec, show los, show rat, show st]
-        getRs (LeaseFlow d b r) = [show d, show b, show r]
-        getRs (FixedFlow d b ndep dep c a) = [show d, show b, show ndep, show dep, show c, show a]
-        getRs (ReceivableFlow d b af p fp def rec los st) = [show d, show b, show af, show p, show fp, show def, show rec, show los, show st]
+        getRs (CashFlow d a) = [show a]
+        getRs (BondFlow d b p i) = [ show b, show p, show i]
+        getRs (MortgageFlow d b p i prep def rec los rat mbn pp st) = [ show b, show p, show i, show prep, show def, show rec, show los, show rat, show mbn, show pp, show st]
+        getRs (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) = [ show b, show p, show i, show prep, show delinq, show def, show rec, show los, show rat, show mbn, show pp, show st]
+        getRs (LoanFlow d b p i prep def rec los rat st) = [ show b, show p, show i, show prep, show def, show rec, show los, show rat, show st]
+        getRs (LeaseFlow d b r) = [ show b, show r]
+        getRs (FixedFlow d b ndep dep c a) = [ show b, show ndep, show dep, show c, show a]
+        getRs (ReceivableFlow d b af p fp def rec los st) = [ show b, show af, show p, show fp, show def, show rec, show los, show st]
         values = [ getRs txn  | txn <- txns ]
         tbl = TT.Table (TT.Group TT.SingleLine rowHeader) (TT.Group TT.SingleLine colHeader) values
     in 
-        A.render id id id tbl
-        
-                   
+        show st <> "\n" <> A.render id id id tbl
+
+
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 
@@ -220,6 +229,10 @@ getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
 
 getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date)
 getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
+
+getBegBalCashFlowFrame :: CashFlowFrame -> Balance
+getBegBalCashFlowFrame (CashFlowFrame _ []) = 0
+getBegBalCashFlowFrame (CashFlowFrame _ (cf:cfs)) = mflowBegBalance cf
 
 cfAt :: CashFlowFrame -> Int -> Maybe TsRow
 cfAt (CashFlowFrame _ trs) idx 
@@ -233,12 +246,15 @@ getSingleTsCashFlowFrame :: CashFlowFrame -> Date -> TsRow
 getSingleTsCashFlowFrame (CashFlowFrame _ trs) d
   = head $ filter (\x -> getDate x == d) trs
 
--- splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
--- splitCashFlowFrameByDate (CashFlowFrame txns) d st
---   = let 
---       (ls,rs) = splitByDate txns d st
---     in 
---       (CashFlowFrame ls,CashFlowFrame rs)
+splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
+splitCashFlowFrameByDate (CashFlowFrame status txns) d st
+  = let 
+      (ls,rs) = splitByDate txns d st
+      newStatus = case rs of 
+                    [] -> (0, d, Nothing)
+                    (r:_) -> (mflowBegBalance r, d, Nothing)
+    in 
+      (CashFlowFrame status ls,CashFlowFrame newStatus rs)
 
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame _ txn) d = L.find (\x -> getDate x <= d) $ reverse txn
@@ -375,6 +391,11 @@ addTsCF (FixedFlow d1 b1 dep1 cd1 u1 c1) (FixedFlow d2 b2 dep2 cd2 u2 c2)
   = FixedFlow d1 (min b1 b2) (dep1 + dep2) (cd1 + cd2) u2 (c1 + c2)
 addTsCF (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1) (ReceivableFlow d2 b2 af2 p2 fp2 def2 rec2 los2 st2)
   = ReceivableFlow d1 (min b1 b2) (af1 + af2) (p1 + p2) (fp1 + fp2) (def1 + def2) (rec1 + rec2) (los1 + los2) (maxStats st1 st2)
+
+
+buildBegBal :: [TsRow] -> Balance
+buildBegBal [] = 0
+buildBegBal (x:_) = mflowBegBalance x
 
 
 sumTs :: [TsRow] -> Date -> TsRow
@@ -527,7 +548,7 @@ firstDate (CashFlowFrame _ [r]) = getDate r
 firstDate (CashFlowFrame _ (r:rs)) = getDate r
 
 
--- ! combine two cashflow frame 
+-- ! combine two cashflow frames from two entities
 -- ! cashflow earlier on the left ,later cashflow on the right
 combine :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame 
 combine (CashFlowFrame st1 []) (CashFlowFrame st2 []) = CashFlowFrame st1 []
@@ -535,7 +556,6 @@ combine (CashFlowFrame _ []) cf2 = cf2
 combine cf1 (CashFlowFrame _ []) = cf1
 combine cf1@(CashFlowFrame st1@(begBal1,begDate1,acc1) txn1) cf2@(CashFlowFrame st2@(begBal2,begDate2,acc2) txn2) 
   | begDate1 > begDate2 = combine cf2 cf1
---  | begDate1 == begDate2 = combine cf2 cf1
   | otherwise =
     let 
       txns = combineTss [] txn1 txn2
@@ -737,6 +757,15 @@ emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 emptyTsRow _d (BondFlow a x c d) = BondFlow _d 0 0 0
 emptyTsRow _d (ReceivableFlow a x c d e f g h i) = ReceivableFlow _d 0 0 0 0 0 0 0 Nothing
 
+extendCashFlow :: Date -> CashFlowFrame -> CashFlowFrame
+extendCashFlow d (CashFlowFrame st []) = CashFlowFrame st []
+extendCashFlow d (CashFlowFrame st txns) 
+    = let 
+        lastRow = last txns
+        newTxn = emptyTsRow d lastRow
+      in 
+        CashFlowFrame st (txns++[newTxn])
+
 
 viewTsRow :: Date -> TsRow -> TsRow 
 -- ^ take a snapshot of a record from record balance/stats and a new date
@@ -758,6 +787,15 @@ buildBegTsRow d tr =
   in
     tsSetRate rate r
 
+buildStartTsRow :: CashFlowFrame -> Maybe TsRow
+buildStartTsRow (CashFlowFrame (begBal,begDate,accInt) []) = Nothing
+buildStartTsRow (CashFlowFrame (begBal,begDate,accInt) (txn:txns)) = 
+  let 
+    rEmpty = emptyTsRow begDate txn 
+    r = tsSetBalance begBal rEmpty
+    rate = mflowRate txn
+  in
+    Just $ tsSetRate rate r
 
 tsSetRate :: IRate -> TsRow -> TsRow
 tsSetRate _r (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow a b c d e f g h i _r k l m
@@ -791,7 +829,8 @@ totalRecovery (CashFlowFrame _ rs) = sum $ mflowRecovery <$> rs
 mergePoolCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergePoolCf cf (CashFlowFrame _ []) = cf
 mergePoolCf (CashFlowFrame _ []) cf = cf
-mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2) -- first day of left is earlier than right one
+-- first day of left is earlier than right one
+mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2) 
   | startDate1 > startDate2 = mergePoolCf cf2 cf1 
   | otherwise 
       = let 
@@ -803,6 +842,79 @@ mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2) -- first
   where 
     [startDate1,startDate2] = firstDate <$> [cf1,cf2]
     -- rightToLeft = startDate1 >= startDate2
+
+sliceCfFrame :: Date -> Date -> RangeType -> CashFlowFrame -> CashFlowFrame
+sliceCfFrame sd ed rt (CashFlowFrame st txns) 
+  = let 
+      txns' = case rt of 
+                EE -> filter (\x -> (mflowDate x > sd) && (mflowDate x < ed)) txns
+                EI -> filter (\x -> (mflowDate x > sd) && (mflowDate x <= ed)) txns
+                II -> filter (\x -> (mflowDate x >= sd) && (mflowDate x <= ed)) txns
+                IE -> filter (\x -> (mflowDate x >= sd) && (mflowDate x < ed)) txns
+    in 
+      CashFlowFrame st txns'
+
+
+
+
+aggTs :: [TsRow] -> [TsRow] -> [TsRow]
+aggTs [] [] = []
+aggTs rs [] = rs 
+aggTs [] (r:rs) = aggTs [r] rs
+aggTs (r:rs) (tr:trs) 
+  | sameDate r tr = aggTs (addTs r tr:rs) trs
+  | otherwise = aggTs (tr:r:rs) trs 
+
+patchBalance :: Balance -> [TsRow] -> [TsRow] -> [TsRow]
+patchBalance _ r [] = reverse r
+patchBalance bal r (tr:trs) = 
+  let 
+    amortAmt = mflowAmortAmount tr
+    newBal = bal - amortAmt
+  in 
+    patchBalance newBal (set tsRowBalance newBal tr:r) trs
+
+mergePoolCf2 :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
+mergePoolCf2 cf (CashFlowFrame _ []) = cf
+mergePoolCf2 (CashFlowFrame _ []) cf = cf
+mergePoolCf2 cf1@(CashFlowFrame st1@(bBal1,bDate1,a1) txns1) cf2@(CashFlowFrame (bBal2,bDate2,a2) txns2) 
+  | null txns2 = over cashflowTxn (patchBalance bBal1 []) cf1
+  | bDate1 > bDate2 = mergePoolCf2 cf2 cf1
+  -- both cashflow frame start on the same day OR left one starts earlier than right one
+  | bDate1 == bDate2 && bBal2 == 0 = over cashflowTxn (patchBalance bBal1 []) cf1
+  | bDate1 == bDate2 = 
+    let 
+      begBal = bBal1 + bBal2
+      txnsSorted = reverse $ L.sortOn getDate (txns1 ++ txns2)
+      txnAggregated = aggTs [] txnsSorted
+      txnPatchedBalance = patchBalance begBal [] txnAggregated 
+    in 
+      CashFlowFrame (begBal,bDate1,a1) txnPatchedBalance
+  | otherwise 
+      = let 
+          (resultCf1, cfToCombine) = splitCashFlowFrameByDate cf1 bDate2 EqToLeft 
+          (CashFlowFrame _ txnCombined) = mergePoolCf2 cfToCombine cf2
+        in 
+          over cashflowTxn (++ txnCombined) resultCf1 
+
+mergeCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
+mergeCf cf (CashFlowFrame _ []) = cf
+mergeCf (CashFlowFrame _ []) cf = cf
+mergeCf cf1@(CashFlowFrame (begBal1,begDate1,mAccInt1) txns1) cf2@(CashFlowFrame (begBal2,begDate2,mAccInt2)txns2) -- first day of left is earlier than right one
+  = let 
+      mSrow1 = buildStartTsRow cf1
+      mSrow2 = buildStartTsRow cf2
+      txns1' = case mSrow1 of
+                  Nothing -> txns1
+                  Just srow1 -> srow1:txns1
+      txns2' = case mSrow2 of
+                  Nothing -> txns2
+                  Just srow2 -> srow2:txns2
+      txns = combineTss [] txns1' txns2'
+      newSt = if begDate1 < begDate2 then (begBal1,begDate1,mAccInt1) else (begBal2,begDate2,mAccInt2)
+    in 
+      CashFlowFrame newSt txns
+
 
 consolidateCashFlow :: CashFlowFrame -> CashFlowFrame
 consolidateCashFlow (CashFlowFrame st []) = CashFlowFrame st []
@@ -1015,11 +1127,6 @@ cashflowTxn = lens getter setter
     getter (CashFlowFrame _ txns) = txns
     setter (CashFlowFrame st txns) newTxns = CashFlowFrame st newTxns
 
-cashflowLastTxn :: Lens' CashFlowFrame TsRow
-cashflowLastTxn = lens getter setter
-  where 
-    getter (CashFlowFrame _ txns) = last txns
-    setter (CashFlowFrame st txns) newTxn = CashFlowFrame st $ init txns ++ [newTxn]
 
 txnCumulativeStats :: Lens' TsRow (Maybe CumulativeStat)
 txnCumulativeStats = lens getter setter

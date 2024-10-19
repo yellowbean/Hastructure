@@ -14,7 +14,7 @@ module Assumptions (BondPricingInput(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,getCDR,calcResetDates,AssumpReceipes,IssueBondEvent(..)
+                    ,getCDR,calcResetDates,IssueBondEvent(..)
                     ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..)
                     ,FieldMatchRule(..))
 where
@@ -115,15 +115,19 @@ data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption            
 data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using constant default rate
                             | DefaultCDR Rate                   -- ^ using annualized default rate
                             | DefaultVec [Rate]                 -- ^ using default rate vector
+                            | DefaultVecPadding [Rate]          -- ^ using default rate vector
                             | DefaultByAmt (Balance,[Rate])
                             | DefaultAtEnd                      -- ^ default 100% at end
                             | DefaultAtEndByRate Rate Rate      -- ^ life time default rate and default rate at end
+                            | DefaultStressByTs Ts AssetDefaultAssumption
                             deriving (Show,Generic,Read)
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentCPR Rate 
                            | PrepaymentVec [Rate] 
+                           | PrepaymentVecPadding [Rate] 
                            | PrepayByAmt (Balance,[Rate])
+                           | PrepayStressByTs Ts AssetPrepayAssumption
                            deriving (Show,Generic,Read)
 
 data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^ Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
@@ -135,18 +139,6 @@ data RecoveryAssumption = Recovery (Rate,Int)                    -- ^ recovery r
                         | RecoveryTiming (Rate,[Rate])           -- ^ recovery rate, with distribution of recoveries
                         | RecoveryByDays Rate [(Int, Rate)]      -- ^ recovery rate, with distribution of recoveries by offset dates
                         deriving (Show,Generic,Read)
-
-data AssumpReceipe = DefaultAssump AssetDefaultAssumption
-                   | PrepayAssump AssetPrepayAssumption
-                   | DelinqAssump AssetDelinquencyAssumption
-                   | RecoveryAssump RecoveryAssumption
-                   | RunInt 
-                   | RunSchedulePrincipal
-                   | RunPmt
-                   | RunHaircut [(PoolSource, Rate)]
-                   deriving (Show,Generic)
-                   
-type AssumpReceipes = [AssumpReceipe]
 
 data LeaseAssetGapAssump = GapDays Int                         -- ^ days between leases, when creating dummy leases
                          | GapDaysByAmount [(Amount,Int)] Int  -- ^ days depends on the size of leases, when a default a default days for size greater

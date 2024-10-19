@@ -11,6 +11,7 @@ import qualified UT.BondTest as BT
 import qualified UT.LibTest as LT
 import qualified UT.ExpTest as ET
 import qualified UT.DealTest as DT
+import qualified UT.DealTest2 as DT2
 import qualified UT.QueryTest as QT
 import qualified UT.StmtTest as ST
 import qualified UT.UtilTest as UtilT
@@ -70,6 +71,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,DT.triggerTests
                            ,DT.dateTests
                            ,DT.liqProviderTest
+                           ,DT2.queryTests
                            ,UtilT.daycountTests1
                            ,UtilT.daycountTests2
                            ,UtilT.daycountTests3

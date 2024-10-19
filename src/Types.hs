@@ -3,6 +3,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 
 module Types
@@ -366,7 +367,7 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | Amortizing                        -- ^ Deal is amortizing 
                 | Revolving                         -- ^ Deal is revolving
                 | PreClosing DealStatus             -- ^ Deal is not closed, but has a closing date
-                | Warehousing DealStatus              -- ^ Deal is not closed, but closing date is not determined yet
+                | Warehousing (Maybe DealStatus)    -- ^ Deal is not closed, but closing date is not determined yet
                 | Called                            -- ^ Deal is called
                 | Ended                             -- ^ Deal is marked as closed
                 deriving (Show,Ord,Eq,Read, Generic)
@@ -418,6 +419,8 @@ data ActionType = ActionResetRate  -- ^ reset interest rate from curve
 data TxnComment = PayInt [BondName]
                 | PayYield BondName 
                 | PayPrin [BondName] 
+                | PayGroupPrin [BondName]
+                | PayGroupInt [BondName]
                 | WriteOff BondName Balance
                 | FundWith BondName Balance
                 | PayPrinResidual [BondName] 
@@ -427,7 +430,7 @@ data TxnComment = PayInt [BondName]
                 | Transfer AccName AccName 
                 | TransferBy AccName AccName Limit
                 | PoolInflow (Maybe [PoolId]) PoolSource
-                | LiquidationProceeds
+                | LiquidationProceeds [PoolId]
                 | LiquidationSupport String
                 | LiquidationDraw
                 | LiquidationRepay
@@ -473,7 +476,7 @@ data DealStats = CurrentBondBalance
                | DealIssuanceBalance (Maybe [PoolId])
                | CurrentPoolBorrowerNum (Maybe [PoolId])
                | ProjCollectPeriodNum
-               | BondFactor
+               | BondFactor     -- ^ TODO implement a specific bond
                | PoolFactor (Maybe [PoolId])
                | BondWaRate [BondName]
                | UseCustomData String
@@ -584,7 +587,8 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
            | DueCapAmt Balance      -- ^ up to $ amount 
            | KeepBalAmt DealStats   -- ^ pay till a certain amount remains in an account
            | DS DealStats           -- ^ transfer with limit described by a `DealStats`
-           | ClearLedger String     -- ^ when transfer, clear the ledger by transfer amount
+           | ClearLedger BookDirection String     -- ^ when transfer, clear the ledger by transfer amount
+           | ClearLedgerBySeq BookDirection [String]  -- ^ clear a direction to a sequence of ledgers
            | BookLedger String      -- ^ when transfer, book the ledger by the transfer amount
            | RemainBalPct Rate      -- ^ pay till remain balance equals to a percentage of `stats`
            | TillTarget             -- ^ transfer amount which make target account up reach reserve balanace
@@ -639,6 +643,7 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryLoss          -- ^ cumulative loss/write-off balance
                   | HistoryCash          -- ^ cumulative cash
                   | AccruedInterest      -- ^ accrued interest at closing
+                  | RuntimeCurrentPoolBalance   -- ^ current pool balance
                   deriving (Show,Ord,Eq,Read,Generic)
 
 
@@ -802,7 +807,7 @@ instance ToJSON TxnComment where
   toJSON (Transfer an1 an2) =  String $ T.pack $ "<Transfer:"++ an1 ++","++ an2++">"
   toJSON (TransferBy an1 an2 limit) =  String $ T.pack $ "<TransferBy:"++ an1 ++","++ an2++","++show limit++">"
   toJSON (PoolInflow mPids ps) =  String $ T.pack $ "<Pool"++ maybe "" (intercalate "|" . (show <$>)) mPids ++":"++ show ps++">"
-  toJSON LiquidationProceeds =  String $ T.pack $ "<Liquidation>"
+  toJSON (LiquidationProceeds pids) =  String $ T.pack $ "<Liquidation:"++ listToStrWithComma (show <$> pids) ++">"
   toJSON (UsingDS ds) =  String $ T.pack $ "<DS:"++ show ds++">"
   toJSON BankInt =  String $ T.pack $ "<BankInterest:>"
   toJSON Empty =  String $ T.pack $ "" 
@@ -819,6 +824,9 @@ instance ToJSON TxnComment where
   toJSON (IssuanceProceeds nb) = String $ T.pack $ "<IssuanceProceeds:"++nb++">"
   toJSON (Tag cmt) = String $ T.pack $ "<Tag:"++cmt++">"
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
+  toJSON (PayGroupInt bns) = String $ T.pack $ "<PayGroupInt:"++ listToStrWithComma bns ++ ">"
+  toJSON (PayGroupPrin bns) = String $ T.pack $ "<PayGroupPrin:"++ listToStrWithComma bns ++ ">"
+  toJSON x = error $ "Not support for toJSON for "++show x
 
 instance FromJSON TxnComment where
     parseJSON = withText "Empty" parseTxn
@@ -855,7 +863,12 @@ parseTxn t = case tagName of
                         Just (read <$> T.unpack <$> sr)::(Maybe [PoolId])
             in 
               return $ PoolInflow mPids (read (T.unpack (sr!!1))::PoolSource)
-  "Liquidation" -> return LiquidationProceeds
+  "Liquidation" -> let 
+                      sv = T.splitOn (T.pack ",") $ T.pack contents
+                      pids::[PoolId] = read <$> T.unpack <$> sv
+                    in
+                      return $ LiquidationProceeds pids
+
   "DS" -> return $ UsingDS (read (contents)::DealStats)
   "LiquidationSupportExp" -> let 
                               sv = T.splitOn (T.pack ",") $ T.pack contents
