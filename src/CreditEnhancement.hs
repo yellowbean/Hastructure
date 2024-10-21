@@ -5,7 +5,7 @@
 
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
-  ,LiquidityProviderName,draw,repay,accrueLiqProvider
+  ,LiquidityProviderName,draw,repay,accrueLiqProvider,availableForDraw
   ,LiqRepayType(..),LiqDrawType(..)
   )
   where
@@ -40,7 +40,7 @@ data LiqSupportType = ReplenishSupport DatePattern Balance    -- ^ credit will b
 data LiqFacility = LiqFacility {
     liqName :: String 
     ,liqType :: LiqSupportType 
-    ,liqBalance :: Balance                   -- ^ total support balance supported
+    ,liqBalance :: Balance                   -- ^ total balance supported/drawed
     ,liqCredit :: Maybe Balance              -- ^ available balance to support. Nothing -> unlimit 
     ,liqRateType :: Maybe IR.RateType        -- ^ interest rate type 
     ,liqPremiumRateType :: Maybe IR.RateType -- ^ premium rate type
@@ -83,6 +83,7 @@ buildLiqRateResetAction (liq:liqProviders) ed r =
     _ -> buildLiqRateResetAction liqProviders ed r
 
 draw :: Amount -> Date -> LiqFacility -> LiqFacility
+draw  amt d liq@LiqFacility{ liqBalance = 0.0 } = liq 
 draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqStmt = mStmt
                             ,liqCredit = mCredit
@@ -130,6 +131,10 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
       newStmt = appendStmt mStmt $ 
                            SupportTxn d newCredit amt newBal newIntDue newDuePremium LiquidationRepay
 
+availableForDraw :: LiqFacility -> Maybe Amount
+availableForDraw LiqFacility{liqCredit = Nothing} = Nothing 
+availableForDraw LiqFacility{liqCredit = Just credit, liqDueInt = dueInt,liqDuePremium = duePremium} 
+  = Just $ max 0 $ credit - dueInt - duePremium
 
 -- | accure fee and interest of a liquidity provider
 accrueLiqProvider ::  Date -> LiqFacility -> LiqFacility
@@ -139,8 +144,8 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
       defaultStmt = Statement [SupportTxn sd mCredit 0 curBal dueInt duePremium Empty]
 
 accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt)
-  = liq { liqCredit = newCredit
-         ,liqStmt = newStmt
+  = liq { liqStmt = newStmt
+         ,liqCredit = newCredit
          ,liqDueInt = newDueInt
          ,liqDuePremium = newDueFee }
     where 
@@ -167,9 +172,9 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
       
       newDueFee = accureFee + duePremium
       newDueInt = accureInt + dueInt
-      newCredit = (\x-> x - accureInt - accureFee) <$> mCredit 
+      newCredit = (\x -> max 0 (x - accureFee - accureInt)) <$> mCredit
       newStmt = appendStmt mStmt $ SupportTxn d 
-                                             newCredit
+                                             mCredit
                                              (accureInt + accureFee) 
                                              curBal
                                              newDueInt 
