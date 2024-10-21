@@ -267,7 +267,7 @@ addTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) tr@(Mort
   = let 
       bn = (+) <$> mbn1 <*> mbn2
       p =  (+) <$> pn1 <*> pn2
-      st = subStats st1 st2
+      st = sumStats st1 st2
     in 
       MortgageFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st
 addTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1 st1) tr@(MortgageDelinqFlow _ b2 p2 i2 prep2 delinq2 def2 rec2 los2 rat2 mbn2 pn2 st2)
@@ -275,18 +275,18 @@ addTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1
       bn = (+) <$> mbn1 <*> mbn2
       p =  (+) <$> pn1 <*> pn2
       delinq = (+) delinq1 delinq2
-      st = subStats st1 st2
+      st = sumStats st1 st2
     in 
       MortgageDelinqFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st
 
 addTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) tr@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 st2)
-  = LoanFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (subStats st1 st2)
+  = LoanFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
 
 addTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
   = LeaseFlow d1 (b1 - mflowAmortAmount tr) (r1 + r2)
 
 addTs (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1) tr@(ReceivableFlow _ b2 af2 p2 fp2 def2 rec2 los2 st2)
-  = ReceivableFlow d1 (b1 - mflowAmortAmount tr) (af1 + af2) (p1 + p2) (fp1 + fp2) (def1 + def2) (rec1 + rec2) (los1 + los2) (subStats st1 st2)
+  = ReceivableFlow d1 (b1 - mflowAmortAmount tr) (af1 + af2) (p1 + p2) (fp1 + fp2) (def1 + def2) (rec1 + rec2) (los1 + los2) (sumStats st1 st2)
 
 combineTs :: TsRow -> TsRow -> TsRow     
 
@@ -856,43 +856,53 @@ sliceCfFrame sd ed rt (CashFlowFrame st txns)
 
 
 
-
+-- ^ agg cashflow (but not updating the cumulative stats)
 aggTs :: [TsRow] -> [TsRow] -> [TsRow]
+-- ^ short circuit
 aggTs [] [] = []
+-- ^ return result update the cumulative stats
 aggTs rs [] = rs 
+-- ^ init with the first row
 aggTs [] (r:rs) = aggTs [r] rs
 aggTs (r:rs) (tr:trs) 
   | sameDate r tr = aggTs (addTs r tr:rs) trs
   | otherwise = aggTs (tr:r:rs) trs 
 
-patchBalance :: Balance -> [TsRow] -> [TsRow] -> [TsRow]
-patchBalance _ r [] = reverse r
-patchBalance bal r (tr:trs) = 
+patchBalance :: (Balance,Maybe CumulativeStat) -> [TsRow] -> [TsRow] -> [TsRow]
+patchBalance (bal,stat) [] [] = []
+patchBalance (bal,stat) r [] = (last r):(patchCumulative (fromMaybe (0,0,0,0,0,0) stat) [] $ tail $ reverse r)
+patchBalance (bal,stat) r (tr:trs) = 
   let 
     amortAmt = mflowAmortAmount tr
     newBal = bal - amortAmt
+    rWithUpdatedBal = set tsRowBalance newBal tr
   in 
-    patchBalance newBal (set tsRowBalance newBal tr:r) trs
+    patchBalance (newBal,stat) (rWithUpdatedBal:r) trs
 
 mergePoolCf2 :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergePoolCf2 cf (CashFlowFrame _ []) = cf
 mergePoolCf2 (CashFlowFrame _ []) cf = cf
 mergePoolCf2 cf1@(CashFlowFrame st1@(bBal1,bDate1,a1) txns1) cf2@(CashFlowFrame (bBal2,bDate2,a2) txns2) 
-  | null txns2 = over cashflowTxn (patchBalance bBal1 []) cf1
+  | null txns2 = over cashflowTxn (patchBalance (bBal1,head txns1 ^. tsCumulative) []) cf1
   | bDate1 > bDate2 = mergePoolCf2 cf2 cf1
   -- both cashflow frame start on the same day OR left one starts earlier than right one
-  | bDate1 == bDate2 && bBal2 == 0 = over cashflowTxn (patchBalance bBal1 []) cf1
+  -- 20241021:why? | bDate1 == bDate2 && bBal2 == 0 = over cashflowTxn (patchBalance bBal1 []) cf1
+  | bDate1 == bDate2 && bBal2 == 0 = cf1
   | bDate1 == bDate2 = 
     let 
       begBal = bBal1 + bBal2
+      begStat 
+        | getDate (head txns1) == getDate (head txns2) = sumStats (view tsCumulative (head txns1)) (view tsCumulative (head txns2))
+        | getDate (head txns1) < getDate (head txns2) = view tsCumulative (head txns1)
+        | otherwise = view tsCumulative (head txns2)
       txnsSorted = reverse $ L.sortOn getDate (txns1 ++ txns2)
       txnAggregated = aggTs [] txnsSorted
-      txnPatchedBalance = patchBalance begBal [] txnAggregated 
+      txnPatchedBalance = patchBalance (begBal,begStat) [] txnAggregated -- `debug` ("\n Pathcing with stat"++ show begStat)
     in 
-      CashFlowFrame (begBal,bDate1,a1) txnPatchedBalance
+      CashFlowFrame (begBal, bDate1, a1) txnPatchedBalance
   | otherwise 
       = let 
-          (resultCf1, cfToCombine) = splitCashFlowFrameByDate cf1 bDate2 EqToLeft 
+          (resultCf1, cfToCombine) = splitCashFlowFrameByDate cf1 bDate2 EqToRight
           (CashFlowFrame _ txnCombined) = mergePoolCf2 cfToCombine cf2
         in 
           over cashflowTxn (++ txnCombined) resultCf1 
