@@ -870,7 +870,9 @@ aggTs (r:rs) (tr:trs)
 
 patchBalance :: (Balance,Maybe CumulativeStat) -> [TsRow] -> [TsRow] -> [TsRow]
 patchBalance (bal,stat) [] [] = []
-patchBalance (bal,stat) r [] = (last r):(patchCumulative (fromMaybe (0,0,0,0,0,0) stat) [] $ tail $ reverse r)
+patchBalance (bal,mStat) r [] = case mStat of 
+                                 Just stat ->  (last r):(patchCumulative stat [] $ tail $ reverse r)
+                                 Nothing -> patchCumulative (0,0,0,0,0,0) [] $ reverse r
 patchBalance (bal,stat) r (tr:trs) = 
   let 
     amortAmt = mflowAmortAmount tr
@@ -902,7 +904,7 @@ mergePoolCf2 cf1@(CashFlowFrame st1@(bBal1,bDate1,a1) txns1) cf2@(CashFlowFrame 
       CashFlowFrame (begBal, bDate1, a1) txnPatchedBalance
   | otherwise 
       = let 
-          (resultCf1, cfToCombine) = splitCashFlowFrameByDate cf1 bDate2 EqToRight
+          (resultCf1, cfToCombine) = splitCashFlowFrameByDate cf1 bDate2 EqToRight 
           (CashFlowFrame _ txnCombined) = mergePoolCf2 cfToCombine cf2
         in 
           over cashflowTxn (++ txnCombined) resultCf1 
