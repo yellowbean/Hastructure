@@ -100,7 +100,7 @@ data TsRow = CashFlow Date Amount
            | MortgageDelinqFlow Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe CumulativeStat)
            | LeaseFlow Date Balance Rental
-           | FixedFlow Date Balance NewDepreciation Depreciation Balance Amount
+           | FixedFlow Date Balance NewDepreciation Depreciation Balance Balance -- unit cash 
            | ReceivableFlow Date Balance AccuredFee Principal FeePaid Default Recovery Loss (Maybe CumulativeStat) 
                 -- remain balance, amortized amount, unit, cash
            deriving(Show,Eq,Ord,Generic)
@@ -868,10 +868,11 @@ aggTs (r:rs) (tr:trs)
   | sameDate r tr = aggTs (addTs r tr:rs) trs
   | otherwise = aggTs (tr:r:rs) trs 
 
+
 patchBalance :: (Balance,Maybe CumulativeStat) -> [TsRow] -> [TsRow] -> [TsRow]
 patchBalance (bal,stat) [] [] = []
 patchBalance (bal,mStat) r [] = case mStat of 
-                                 Just stat ->  (last r):(patchCumulative stat [] $ tail $ reverse r)
+                                 Just stat -> patchCumulative stat [] $ reverse r
                                  Nothing -> patchCumulative (0,0,0,0,0,0) [] $ reverse r
 patchBalance (bal,stat) r (tr:trs) = 
   let 
@@ -880,6 +881,32 @@ patchBalance (bal,stat) r (tr:trs) =
     rWithUpdatedBal = set tsRowBalance newBal tr
   in 
     patchBalance (newBal,stat) (rWithUpdatedBal:r) trs
+
+-- type CumulativeStat = (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
+calcBeginStats :: Maybe CumulativeStat -> TsRow -> CumulativeStat
+calcBeginStats Nothing tr = (0,0,0,0,0,0)
+calcBeginStats (Just (cumPrin,cumPrepay,cumDlinq,cumDef,cumRec,cumLoss)) tr
+  = case tr of 
+      (MortgageFlow _ _ p _ ppy def rec los _ _ _ _) -> 
+        (cumPrin - p,cumPrepay - ppy, 0 , cumDef - def, cumRec - rec , cumLoss - los)
+      (MortgageDelinqFlow _ _ p _ ppy delinq def rec los _ _ _ _) -> 
+        (cumPrin - p,cumPrepay - ppy, cumDlinq - delinq , cumDef - def, cumRec - rec , cumLoss - los)
+      (LoanFlow _ _ p _ ppy def rec los _ _) -> 
+        (cumPrin - p,cumPrepay - ppy, 0 , cumDef - def, cumRec - rec , cumLoss - los)
+      (ReceivableFlow _ _ _ p f def rec los _) -> 
+        (cumPrin - p, 0 , 0 , cumDef - def, cumRec - rec , cumLoss - los)
+      (BondFlow _ _ p i) -> 
+        (cumPrin - p,0 , 0 , 0, 0, 0)
+      (LeaseFlow _ b r) -> 
+        (cumPrin - r,0 , 0, 0, 0, 0)
+      (FixedFlow _ b c d e _ ) -> (0, 0 ,0 , 0, 0, 0)
+      (CashFlow _ amt) -> (0,0,0,0,0,0)
+
+
+getCfBegStats :: CashFlowFrame -> CumulativeStat
+getCfBegStats (CashFlowFrame _ []) = (0,0,0,0,0,0)
+getCfBegStats (CashFlowFrame _ (tr:trs)) = calcBeginStats (view tsCumulative tr) tr
+
 
 mergePoolCf2 :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergePoolCf2 cf (CashFlowFrame _ []) = cf
@@ -893,10 +920,8 @@ mergePoolCf2 cf1@(CashFlowFrame st1@(bBal1,bDate1,a1) txns1) cf2@(CashFlowFrame 
   | bDate1 == bDate2 = 
     let 
       begBal = bBal1 + bBal2
-      begStat 
-        | getDate (head txns1) == getDate (head txns2) = sumStats (view tsCumulative (head txns1)) (view tsCumulative (head txns2))
-        | getDate (head txns1) < getDate (head txns2) = view tsCumulative (head txns1)
-        | otherwise = view tsCumulative (head txns2)
+      
+      begStat = sumStats (Just (getCfBegStats cf1)) (Just (getCfBegStats cf2))
       txnsSorted = reverse $ L.sortOn getDate (txns1 ++ txns2)
       txnAggregated = aggTs [] txnsSorted
       txnPatchedBalance = patchBalance (begBal,begStat) [] txnAggregated -- `debug` ("\n Pathcing with stat"++ show begStat)
