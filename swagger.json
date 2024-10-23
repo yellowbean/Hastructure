@@ -1935,7 +1935,10 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/DealStats"
+                                        "items": {
+                                            "$ref": "#/components/schemas/DealStats"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -9355,6 +9358,71 @@
                 ],
                 "type": "string"
             },
+            "InspectType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "InspectPt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "InspectPt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/DealStats"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "InspectRpt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "InspectRpt",
+                        "type": "object"
+                    }
+                ]
+            },
             "Installment": {
                 "oneOf": [
                     {
@@ -10739,17 +10807,7 @@
                     },
                     "inspectOn": {
                         "items": {
-                            "items": [
-                                {
-                                    "$ref": "#/components/schemas/DatePattern"
-                                },
-                                {
-                                    "$ref": "#/components/schemas/DealStats"
-                                }
-                            ],
-                            "maxItems": 2,
-                            "minItems": 2,
-                            "type": "array"
+                            "$ref": "#/components/schemas/InspectType"
                         },
                         "type": "array"
                     },
@@ -18132,6 +18190,9 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
                             "tag": {
                                 "enum": [
                                     "LiquidationRepay"
@@ -18140,7 +18201,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "LiquidationRepay",
                         "type": "object"
