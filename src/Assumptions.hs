@@ -15,7 +15,7 @@ module Assumptions (BondPricingInput(..)
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
                     ,getCDR,calcResetDates,IssueBondEvent(..)
-                    ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..)
+                    ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..),InspectType(..)
                     ,FieldMatchRule(..))
 where
 
@@ -93,13 +93,19 @@ data RefiEvent = RefiRate AccountName BondName InterestInfo
                | RefiEvents [RefiEvent]
                 deriving (Show, Generic, Read)
 
+data InspectType = InspectPt DatePattern DealStats
+                 | InspectRpt DatePattern [DealStats]
+                deriving (Show, Generic, Read)
+
+
 data NonPerfAssumption = NonPerfAssumption {
   stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
   ,projectedExpense :: Maybe [(FeeName,Ts)]                  -- ^ optional expense projection
   ,callWhen :: Maybe [C.CallOption]                          -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
   ,revolving :: Maybe RevolvingAssumption                    -- ^ optional revolving assumption with revoving assets
   ,interest :: Maybe [RateAssumption]                        -- ^ optional interest rates assumptions
-  ,inspectOn :: Maybe [(DatePattern,DealStats)]              -- ^ optional tuple list to inspect variables during waterfall run
+  -- ,inspectOn :: Maybe [(DatePattern,DealStats)]              -- ^ optional tuple list to inspect variables during waterfall run
+  ,inspectOn :: Maybe [InspectType]                            -- ^ optional tuple list to inspect variables during waterfall run
   ,buildFinancialReport :: Maybe DatePattern                 -- ^ optional dates to build financial reports
   ,pricing :: Maybe BondPricingInput                         -- ^ optional bond pricing input( discount curve etc)
   ,fireTrigger :: Maybe [(Date,DealCycle,String)]            -- ^ optional fire a trigger
@@ -256,4 +262,4 @@ $(deriveJSON defaultOptions ''RefiEvent)
 $(concat <$> traverse (deriveJSON defaultOptions) [''CutoffType,''RangeType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
-  , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption])
+  , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption,''InspectType])

@@ -215,7 +215,7 @@ getFlow comment =
       LiquidationProceeds _ -> Inflow
       LiquidationSupport _ -> Inflow
       LiquidationDraw -> Noneflow
-      LiquidationRepay -> Outflow
+      LiquidationRepay _ -> Outflow
       LiquidationSupportInt _ _ -> Noneflow
       BankInt -> Inflow
       Empty -> Noneflow 

@@ -433,7 +433,7 @@ data TxnComment = PayInt [BondName]
                 | LiquidationProceeds [PoolId]
                 | LiquidationSupport String
                 | LiquidationDraw
-                | LiquidationRepay
+                | LiquidationRepay String
                 | LiquidationSupportInt Balance Balance
                 | BankInt
                 | SupportDraw
@@ -814,7 +814,7 @@ instance ToJSON TxnComment where
   toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
   toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
-  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
+  toJSON (LiquidationRepay s) = String $ T.pack $ "<Repay:"++ s ++">"
   toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
@@ -876,7 +876,7 @@ parseTxn t = case tagName of
                               return $ LiquidationSupportInt (read (T.unpack (head sv))::Balance) (read (T.unpack (sv!!1))::Balance)
   "SupportDraw" -> return SupportDraw
   "Draw" -> return LiquidationDraw
-  "Repay" -> return LiquidationRepay
+  "Repay" -> return $ LiquidationRepay contents
   "Accure" -> return SwapAccrue
   "SettleIn" -> return SwapInSettle
   "SettleOut" -> return SwapOutSettle

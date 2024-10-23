@@ -517,11 +517,11 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
            in 
              run (t{rateCap = newRateCap}) poolFlowMap (Just ads) rates calls rAssump log
 
-         InspectDS d ds -> 
+         InspectDS d dss -> 
            let 
-             newlog = inspectVars t d ds 
+             newlog = inspectListVars t d dss 
            in 
-             run t poolFlowMap (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("Add log"++show newlog)
+             run t poolFlowMap (Just ads) rates calls rAssump $ log++newlog -- `debug` ("Add log"++show newlog)
          
          ResetBondRate d bn -> 
              let 
@@ -1047,10 +1047,11 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                             [ ResetLiqProviderRate _d _liqName |(_liqName,__liqResetDates) <- _liqRateResetDates
                                                                , _d <- __liqResetDates ]                            
     --inspect dates 
+    expandInspect (AP.InspectPt dp ds) = [ InspectDS _d [ds] | _d <- genSerialDatesTill2 II startDate dp endDate ]
+    expandInspect (AP.InspectRpt dp dss) = [ InspectDS _d dss | _d <- genSerialDatesTill2 II startDate dp endDate ] 
     inspectDates = case mNonPerfAssump of
-                     Just AP.NonPerfAssumption{AP.inspectOn= Just inspect_vars }
-                       -> concat [[ InspectDS _d ds | _d <- genSerialDatesTill2 II startDate dp endDate]  | (dp,ds) <- inspect_vars ]
-                     _ -> []
+                     Just AP.NonPerfAssumption{AP.inspectOn = Just inspectList } -> concat $ expandInspect <$> inspectList
+                     Nothing -> []
     
     financialRptDates = case mNonPerfAssump of 
                           Just AP.NonPerfAssumption{AP.buildFinancialReport= Just dp } 

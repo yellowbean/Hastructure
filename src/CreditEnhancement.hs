@@ -6,7 +6,7 @@
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
   ,LiquidityProviderName,draw,repay,accrueLiqProvider,availableForDraw
-  ,LiqRepayType(..),LiqDrawType(..)
+  ,LiqDrawType(..),LiqRepayType(..)
   )
   where
 
@@ -124,12 +124,13 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
     where 
       (newBal,newCredit,newIntDue,newDuePremium) = 
         case pt of 
-          LiqBal -> ( liqBal - amt, (amt +) <$> mCredit,liqDueInt, liqDuePremium )
+          LiqBal -> ( liqBal - amt, (amt +) <$> mCredit, liqDueInt, liqDuePremium )  --TODO credit may be caped by credit limit
           LiqPremium -> ( liqBal, mCredit , liqDueInt,   liqDuePremium  - amt)
           LiqInt -> (liqBal, mCredit , liqDueInt - amt , liqDuePremium )
 
       newStmt = appendStmt mStmt $ 
-                           SupportTxn d newCredit amt newBal newIntDue newDuePremium LiquidationRepay
+                           SupportTxn d newCredit amt newBal newIntDue newDuePremium $ 
+                           LiquidationRepay (show pt) -- `debug` ("date "++ show d ++" insert rpt type"++show pt)
 
 availableForDraw :: LiqFacility -> Maybe Amount
 availableForDraw LiqFacility{liqCredit = Nothing} = Nothing 
@@ -145,7 +146,6 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
 
 accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt)
   = liq { liqStmt = newStmt
-         ,liqCredit = newCredit
          ,liqDueInt = newDueInt
          ,liqDuePremium = newDueFee }
     where 
@@ -172,7 +172,6 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
       
       newDueFee = accureFee + duePremium
       newDueInt = accureInt + dueInt
-      newCredit = (\x -> max 0 (x - accureFee - accureInt)) <$> mCredit
       newStmt = appendStmt mStmt $ SupportTxn d 
                                              mCredit
                                              (accureInt + accureFee) 

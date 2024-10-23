@@ -187,7 +187,7 @@ queryDealRate t s =
       DivideRatio ds1 ds2 -> if (queryDeal t ds2) == 0 then 
                               toRational Numeric.Limits.infinity
                             else
-                              (toRational (queryDeal t ds1)) / (toRational (queryDeal t ds2)) 
+                              (toRational (queryDeal t ds1)) / (toRational (queryDeal t ds2)) -- `debug` ("\n Ratio divide"++show (queryDeal t ds1)++"ds2"++show (queryDeal t ds2)++"ds1"++show ds1++"ds2"++show ds2)
       AvgRatio ss -> toRational (queryDealRate t (Sum ss)) / toRational (length ss)
       Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
       Min ss -> toRational $ minimum' [ queryDealRate t s | s <- ss ]
@@ -592,7 +592,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
         (yearCountFraction DC_ACT_365F d1 d2)
 
-    Sum _s -> sum $ map (queryDeal t) _s
+    Sum _s -> sum $ map (queryDeal t) _s -- `debug` (">>>SUM"++ show _s ++">>"++ show (map (queryDeal t) _s) )
 
     Subtract (ds:dss) -> 
         let 
@@ -693,9 +693,9 @@ testPre d t p =
     Types.Any pds -> any (testPre d t) pds 
     IfZero s -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
     
-    If cmp s amt -> toCmp cmp (queryDeal t (ps s))  amt
+    If cmp s amt -> toCmp cmp (queryDeal t (ps s))  amt -- `debug` (show d++"if cmp "++show (queryDeal t (ps s))++"amt"++show amt)
     
-    IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt
+    IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt -- `debug` (show d++"rate"++show (queryDealRate t (ps s))++"amt"++show amt)
 
     IfInt cmp s amt -> toCmp cmp (queryDealInt t (ps s) d) amt
     

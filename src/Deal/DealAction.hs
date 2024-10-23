@@ -7,7 +7,7 @@
 module Deal.DealAction (performActionWrap,performAction,calcDueFee
                        ,testTrigger,RunContext(..),updateLiqProvider
                        ,calcDueInt,priceAssetUnion
-                       ,priceAssetUnionList,inspectVars) 
+                       ,priceAssetUnionList,inspectVars,inspectListVars) 
   where
 
 import qualified Accounts as A
@@ -449,6 +449,9 @@ drawExtraSupport d amt (W.MultiSupport supports) t
       (t,amt) 
       supports
 
+inspectListVars :: Ast.Asset a => TestDeal a -> Date -> [DealStats] -> [ResultComponent]
+inspectListVars t d dss = [ inspectVars t d ds | ds <- dss]                     
+
 inspectVars :: Ast.Asset a => TestDeal a -> Date -> DealStats -> ResultComponent
 inspectVars t d ds =                     
   case getDealStatType ds of 
@@ -517,10 +520,11 @@ performActionWrap d
       newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap -- `debug` ("Asset bought total bal"++ show boughtAssetBal)
       
       cfBought = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      
       newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                               let 
-                                dsInterval = getDate <$> trs   -- `debug` ("Date"++ show d ++ "origin cf \n"++ show cfOrigin)
-                                boughtCfDates = getDate <$> view CF.cashflowTxn cfBought -- `debug` ("Cf bought 0"++ show cfBought)
+                                dsInterval = getDate <$> trs  --  `debug` ("Date"++ show d ++ "origin cf \n"++ show cfOrigin)
+                                boughtCfDates = getDate <$> view CF.cashflowTxn cfBought -- `debug` ("Date"++ show d++ "Cf bought 0\n"++ show cfBought)
 
                                 newAggDates = case (dsInterval,boughtCfDates) of 
                                                 ([],[]) -> []
@@ -538,7 +542,7 @@ performActionWrap d
 
                                 mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("Buy Date : "++show d ++ "CF bought \n"++ show (over CF.cashflowTxn (slice 0 30) cfBought) )
                               in 
-                                over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf) --`debug` ("Merged CF\n"++ show (over CF.cashflowTxn (slice 0 20)  mergedCf)))
+                                over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf )--`debug` ("Date "++show d++" Merged CF\n"++ show (over CF.cashflowTxn (slice 0 20)  mergedCf)))
                           pIdToChange
                           pFlowMap --  `debug` ("pid To change"++ show pIdToChange++ "P flow map"++ show pFlowMap)
 
@@ -1320,17 +1324,40 @@ performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqS
       newBondMap = Map.adjust (L.payInt d transferAmt ) bn bndMap
       newLiqMap = Map.adjust (CE.draw transferAmt d ) pName _liqProvider 
 
+
+-- ^ payout due interest / due fee / oustanding balance to liq provider
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.LiqRepay limit rpt an pName)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap }
   where 
-      liqDue = CE.liqBalance $ _liqProvider Map.! pName
-      cap = min liqDue $ A.accBalance $ accs Map.! an
+      liqDueAmts CE.LiqBal = [ CE.liqBalance $ _liqProvider Map.! pName]
+      liqDueAmts CE.LiqInt =  [ CE.liqDueInt $ _liqProvider Map.! pName ]
+      liqDueAmts CE.LiqPremium = [ CE.liqDuePremium $ _liqProvider Map.! pName]
+      liqDueAmts (CE.LiqRepayTypes lrts) = concat $ liqDueAmts <$> lrts
+      
+      dueBreakdown = liqDueAmts rpt
+      liqTotalDues = sum dueBreakdown
+      
+      cap = min liqTotalDues $ A.accBalance $ accs Map.! an
+
+
       transferAmt = case limit of 
                       Just (DS ds) -> min cap $ queryDeal t (patchDateToStats d ds) -- `debug` ("Cap acc"++ show cap)
                       Nothing -> cap
                       _ -> error $ "Not implement the limit"++ show limit++"For Repay to liqProvider"
+      
+      paidOutsToLiq = paySeqLiabilitiesAmt transferAmt dueBreakdown
+
+      rptsToPair = case rpt of 
+                     CE.LiqRepayTypes lrts -> lrts
+                     x  -> [x]
+      paidOutWithType = zip rptsToPair paidOutsToLiq -- `debug` ("rpts To pair"++ show rptsToPair)
+
+
       newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs -- `debug` ("repay liq amt"++ show transferAmt)
-      newLiqMap = Map.adjust (CE.repay transferAmt d rpt ) pName _liqProvider 
+      newLiqMap = foldl
+                    (\acc (_rpt,_amt) -> Map.adjust (CE.repay _amt d _rpt ) pName acc)
+                    _liqProvider
+                    paidOutWithType -- `debug` ("paid out"++ show paidOutWithType)
 
 performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.LiqYield limit an pName)
   = t { accounts = newAccMap, liqProvider = Just newLiqMap }
