@@ -1051,7 +1051,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     expandInspect (AP.InspectRpt dp dss) = [ InspectDS _d dss | _d <- genSerialDatesTill2 II startDate dp endDate ] 
     inspectDates = case mNonPerfAssump of
                      Just AP.NonPerfAssumption{AP.inspectOn = Just inspectList } -> concat $ expandInspect <$> inspectList
-                     Nothing -> []
+                     _ -> []
     
     financialRptDates = case mNonPerfAssump of 
                           Just AP.NonPerfAssumption{AP.buildFinancialReport= Just dp } 
