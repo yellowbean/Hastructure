@@ -5,8 +5,8 @@
 
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
-  ,LiquidityProviderName,draw,repay,accrueLiqProvider
-  ,LiqRepayType(..),LiqDrawType(..)
+  ,LiquidityProviderName,draw,repay,accrueLiqProvider,availableForDraw
+  ,LiqDrawType(..),LiqRepayType(..)
   )
   where
 
@@ -40,7 +40,7 @@ data LiqSupportType = ReplenishSupport DatePattern Balance    -- ^ credit will b
 data LiqFacility = LiqFacility {
     liqName :: String 
     ,liqType :: LiqSupportType 
-    ,liqBalance :: Balance                   -- ^ total support balance supported
+    ,liqBalance :: Balance                   -- ^ total balance supported/drawed
     ,liqCredit :: Maybe Balance              -- ^ available balance to support. Nothing -> unlimit 
     ,liqRateType :: Maybe IR.RateType        -- ^ interest rate type 
     ,liqPremiumRateType :: Maybe IR.RateType -- ^ premium rate type
@@ -83,6 +83,7 @@ buildLiqRateResetAction (liq:liqProviders) ed r =
     _ -> buildLiqRateResetAction liqProviders ed r
 
 draw :: Amount -> Date -> LiqFacility -> LiqFacility
+draw  amt d liq@LiqFacility{ liqBalance = 0.0 } = liq 
 draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqStmt = mStmt
                             ,liqCredit = mCredit
@@ -105,7 +106,7 @@ data LiqDrawType = LiqToAcc        -- ^ draw credit and deposit cash to account
 data LiqRepayType = LiqBal         -- ^ repay oustanding balance of liquidation provider
                   | LiqPremium     -- ^ repay oustanding premium fee of lp
                   | LiqInt         -- ^ repay oustanding interest of lp
-                  | LiqRepayTypes [LiqRepayType] --TODO not implemented
+                  | LiqRepayTypes [LiqRepayType]  -- ^ repay by sequence
                   deriving (Show,Generic,Ord,Eq)
 
 repay :: Amount -> Date -> LiqRepayType -> LiqFacility -> LiqFacility
@@ -123,13 +124,18 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
     where 
       (newBal,newCredit,newIntDue,newDuePremium) = 
         case pt of 
-          LiqBal -> ( liqBal - amt, (amt +) <$> mCredit,liqDueInt, liqDuePremium )
+          LiqBal -> ( liqBal - amt, (amt +) <$> mCredit, liqDueInt, liqDuePremium )  --TODO credit may be caped by credit limit
           LiqPremium -> ( liqBal, mCredit , liqDueInt,   liqDuePremium  - amt)
           LiqInt -> (liqBal, mCredit , liqDueInt - amt , liqDuePremium )
 
       newStmt = appendStmt mStmt $ 
-                           SupportTxn d newCredit amt newBal newIntDue newDuePremium LiquidationRepay
+                           SupportTxn d newCredit amt newBal newIntDue newDuePremium $ 
+                           LiquidationRepay (show pt) -- `debug` ("date "++ show d ++" insert rpt type"++show pt)
 
+availableForDraw :: LiqFacility -> Maybe Amount
+availableForDraw LiqFacility{liqCredit = Nothing} = Nothing 
+availableForDraw LiqFacility{liqCredit = Just credit, liqDueInt = dueInt,liqDuePremium = duePremium} 
+  = Just $ max 0 $ credit - dueInt - duePremium
 
 -- | accure fee and interest of a liquidity provider
 accrueLiqProvider ::  Date -> LiqFacility -> LiqFacility
@@ -139,8 +145,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
       defaultStmt = Statement [SupportTxn sd mCredit 0 curBal dueInt duePremium Empty]
 
 accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt)
-  = liq { liqCredit = newCredit
-         ,liqStmt = newStmt
+  = liq { liqStmt = newStmt
          ,liqDueInt = newDueInt
          ,liqDuePremium = newDueFee }
     where 
@@ -167,9 +172,8 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rat
       
       newDueFee = accureFee + duePremium
       newDueInt = accureInt + dueInt
-      newCredit = (\x-> x - accureInt - accureFee) <$> mCredit 
       newStmt = appendStmt mStmt $ SupportTxn d 
-                                             newCredit
+                                             mCredit
                                              (accureInt + accureFee) 
                                              curBal
                                              newDueInt 

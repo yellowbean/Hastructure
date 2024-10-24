@@ -69,7 +69,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | RunWaterfall Date String             -- ^ execute waterfall
                   | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
                   | FireTrigger Date DealCycle String    -- ^ fire a trigger
-                  | InspectDS Date DealStats             -- ^ inspect formula
+                  | InspectDS Date [DealStats]           -- ^ inspect formulas
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
                   | AccrueCapRate Date String            -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info

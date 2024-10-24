@@ -262,7 +262,7 @@ data RangeType = II     -- ^ include both start and end date
                | EI     -- ^ exclude start date but include end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
-               deriving (Show,Eq,Read,Generic)
+               deriving (Show,Eq,Read,Generic,Ord)
 
 data CutoffType = Inc 
                 | Exc
@@ -387,11 +387,19 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
 data Pre = IfZero DealStats
          | If Cmp DealStats Balance
          | IfRate Cmp DealStats Micro
-         | IfInt Cmp DealStats Int
          | IfCurve Cmp DealStats Ts
          | IfRateCurve Cmp DealStats Ts
          | IfIntCurve Cmp DealStats Ts
+         
+         -- Integer
+         | IfInt Cmp DealStats Int
+         | IfIntBetween DealStats RangeType Int Int
+         | IfIntIn DealStats [Int]
+         -- Dates
          | IfDate Cmp Date
+         | IfDateBetween RangeType Date Date
+         | IfDateIn Dates
+         
          | IfBool DealStats Bool
          -- compare deal 
          | If2 Cmp DealStats DealStats
@@ -433,7 +441,7 @@ data TxnComment = PayInt [BondName]
                 | LiquidationProceeds [PoolId]
                 | LiquidationSupport String
                 | LiquidationDraw
-                | LiquidationRepay
+                | LiquidationRepay String
                 | LiquidationSupportInt Balance Balance
                 | BankInt
                 | SupportDraw
@@ -814,7 +822,7 @@ instance ToJSON TxnComment where
   toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
   toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
-  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
+  toJSON (LiquidationRepay s) = String $ T.pack $ "<Repay:"++ s ++">"
   toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
@@ -876,7 +884,7 @@ parseTxn t = case tagName of
                               return $ LiquidationSupportInt (read (T.unpack (head sv))::Balance) (read (T.unpack (sv!!1))::Balance)
   "SupportDraw" -> return SupportDraw
   "Draw" -> return LiquidationDraw
-  "Repay" -> return LiquidationRepay
+  "Repay" -> return $ LiquidationRepay contents
   "Accure" -> return SwapAccrue
   "SettleIn" -> return SwapInSettle
   "SettleOut" -> return SwapOutSettle
@@ -959,6 +967,9 @@ instance ToJSONKey DateType where
 instance FromJSONKey DateType where
   fromJSONKey = genericFromJSONKey defaultJSONKeyOptions
 
+
+
+$(deriveJSON defaultOptions ''RangeType)
 $(deriveJSON defaultOptions ''Pre)
 
 

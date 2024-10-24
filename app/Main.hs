@@ -103,7 +103,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.29.17"
+version1 = Version "0.29.20"
 
 
 
@@ -200,6 +200,7 @@ instance ToSchema AP.IssueBondEvent
 instance ToSchema (TsPoint AP.IssueBondEvent)
 instance ToSchema (TsPoint AP.RefiEvent)
 instance ToSchema AP.RefiEvent
+instance ToSchema AP.InspectType
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption

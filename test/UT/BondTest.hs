@@ -184,8 +184,50 @@ bndConsolTest = testGroup "Bond consoliation & patchtesting" [
       [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 0 0 (Just 0.5) S.Empty
        ,BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 0 0 (Just 0.0) S.Empty
       ]
-      b1f
+      b1f,
+    let 
+      txns = [ BondTxn (L.toDate "20220501") 1500 0 (-500) 0.08 0 0 0 (Just 0.5) S.Empty
+              ,BondTxn (L.toDate "20220501") 2000 0 (-500) 0.08 0 0 0 (Just 0.0) S.Empty]
+      bTest = b1 {B.bndStmt = Just (S.Statement txns)}
+      bTestConsol = B.bndStmt $ B.consolStmt bTest
+    in
+      testCase "merge txn with two drawdowns" $
+      assertEqual ""
+      (Just (S.Statement [ BondTxn (L.toDate "20220501") 2000 0 (-1000) 0.08 0 0 0 (Just 0.0) (S.TxnComments [S.Empty, S.Empty])]))
+      bTestConsol,
+    let 
+      txns = [ BondTxn (L.toDate "20220501") 1500 0 (-500) 0.08 0 0 0 (Just 0.5) S.Empty
+              ,BondTxn (L.toDate "20220501") 1500 0 500 0.08 0 0 0 (Just 0.0) S.Empty]
+      bTest = b1 {B.bndStmt = Just (S.Statement txns)}
+      bTestConsol = B.bndStmt $ B.consolStmt bTest
+    in
+      testCase "merge txn with one drawdown at begin" $
+      assertEqual ""
+      (Just (S.Statement [ BondTxn (L.toDate "20220501") 1500 0 0 0.08 0 0 0 (Just 0.0) (S.TxnComments [S.Empty, S.Empty])]))
+      bTestConsol,
+    let 
+      txns = [BondTxn (L.toDate "20220501") 1500 0 500 0.08 0 0 0 (Just 0.0) S.Empty,
+              BondTxn (L.toDate "20220501") 2000 0 (-500) 0.08 0 0 0 (Just 0.5) S.Empty]
+      bTest = b1 {B.bndStmt = Just (S.Statement txns)}
+      bTestConsol = B.bndStmt $ B.consolStmt bTest
+    in
+      testCase "merge txn with one drawdown at end" $
+      assertEqual ""
+      (Just (S.Statement [ BondTxn (L.toDate "20220501") 2000 0 0 0.08 0 0 0 (Just 0.5) (S.TxnComments [S.Empty, S.Empty])]))
+      bTestConsol,
+    let 
+      txns = [BondTxn (L.toDate "20220501") 1500 0 500 0.08 0 0 0 (Just 0.0) S.Empty,
+              BondTxn (L.toDate "20220501") 1000 0 500 0.08 0 0 0 (Just 0.5) S.Empty]
+      bTest = b1 {B.bndStmt = Just (S.Statement txns)}
+      bTestConsol = B.bndStmt $ B.consolStmt bTest
+    in
+      testCase "merge txn with one drawdown at end" $
+      assertEqual ""
+      (Just (S.Statement [ BondTxn (L.toDate "20220501") 1000 0 1000 0.08 0 0 0 (Just 0.5) (S.TxnComments [S.Empty, S.Empty])]))
+      bTestConsol
 
 
 
+     
+      
                                                              ]

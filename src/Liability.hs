@@ -158,6 +158,7 @@ data Bond = Bond {
 consolStmt :: Bond -> Bond
 consolStmt (BondGroup bMap) = BondGroup $ Map.map consolStmt bMap
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b    
+consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement [])} = b
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
   = let 
       combinedBondTxns = foldl S.consolTxn [txn] txns    

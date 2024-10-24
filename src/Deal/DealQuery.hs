@@ -187,7 +187,7 @@ queryDealRate t s =
       DivideRatio ds1 ds2 -> if (queryDeal t ds2) == 0 then 
                               toRational Numeric.Limits.infinity
                             else
-                              (toRational (queryDeal t ds1)) / (toRational (queryDeal t ds2)) 
+                              (toRational (queryDeal t ds1)) / (toRational (queryDeal t ds2)) -- `debug` ("\n Ratio divide"++show (queryDeal t ds1)++"ds2"++show (queryDeal t ds2)++"ds1"++show ds1++"ds2"++show ds2)
       AvgRatio ss -> toRational (queryDealRate t (Sum ss)) / toRational (length ss)
       Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
       Min ss -> toRational $ minimum' [ queryDealRate t s | s <- ss ]
@@ -592,7 +592,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
         (yearCountFraction DC_ACT_365F d1 d2)
 
-    Sum _s -> sum $ map (queryDeal t) _s
+    Sum _s -> sum $ map (queryDeal t) _s -- `debug` (">>>SUM"++ show _s ++">>"++ show (map (queryDeal t) _s) )
 
     Subtract (ds:dss) -> 
         let 
@@ -693,16 +693,31 @@ testPre d t p =
     Types.Any pds -> any (testPre d t) pds 
     IfZero s -> queryDeal t s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
     
-    If cmp s amt -> toCmp cmp (queryDeal t (ps s))  amt
+    If cmp s amt -> toCmp cmp (queryDeal t (ps s))  amt -- `debug` (show d++"if cmp "++show (queryDeal t (ps s))++"amt"++show amt)
     
-    IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt
+    IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt -- `debug` (show d++"rate"++show (queryDealRate t (ps s))++"amt"++show amt)
 
+    -- Integer test
     IfInt cmp s amt -> toCmp cmp (queryDealInt t (ps s) d) amt
+    IfIntIn s iset -> queryDealInt t (ps s) d `elem` iset
+    IfIntBetween s rt i1 i2 ->
+      let 
+        val = queryDealInt t (ps s) d
+      in 
+        case rt of 
+          II -> val >= i1 && val <= i2
+          IE -> val >= i1 && val < i2
+          EI -> val > i1 && val <= i2
+          EE -> val > i1 && val < i2 
     
     -- IfIntBetween cmp1 s1 cmp2 s2 amt -> toCmp cmp1 (queryDealInt t (ps s1) d) amt && toCmp cmp2 (queryDealInt t (ps s2) d) amt
 
     IfDate cmp _d -> toCmp cmp d _d
-    -- IfDateBetween cmp1 d1 cmp2 d2 -> toCmp cmp1 d d1 && toCmp cmp2 d d2
+    IfDateBetween II d1 d2 ->  d >= d1 && (d <= d2)
+    IfDateBetween EI d1 d2 ->  d > d1 && (d <= d2)
+    IfDateBetween IE d1 d2 ->  d >= d1 && (d < d2)
+    IfDateBetween EE d1 d2 ->  d > d1 && (d < d2)
+    IfDateIn ds -> d `elem` ds
 
     IfCurve cmp s _ts -> toCmp cmp (queryDeal t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfRateCurve cmp s _ts -> toCmp cmp (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))
