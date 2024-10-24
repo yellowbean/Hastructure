@@ -697,12 +697,27 @@ testPre d t p =
     
     IfRate cmp s amt -> toCmp cmp (queryDealRate t (ps s)) amt -- `debug` (show d++"rate"++show (queryDealRate t (ps s))++"amt"++show amt)
 
+    -- Integer test
     IfInt cmp s amt -> toCmp cmp (queryDealInt t (ps s) d) amt
+    IfIntIn s iset -> queryDealInt t (ps s) d `elem` iset
+    IfIntBetween s rt i1 i2 ->
+      let 
+        val = queryDealInt t (ps s) d
+      in 
+        case rt of 
+          II -> val >= i1 && val <= i2
+          IE -> val >= i1 && val < i2
+          EI -> val > i1 && val <= i2
+          EE -> val > i1 && val < i2 
     
     -- IfIntBetween cmp1 s1 cmp2 s2 amt -> toCmp cmp1 (queryDealInt t (ps s1) d) amt && toCmp cmp2 (queryDealInt t (ps s2) d) amt
 
     IfDate cmp _d -> toCmp cmp d _d
-    -- IfDateBetween cmp1 d1 cmp2 d2 -> toCmp cmp1 d d1 && toCmp cmp2 d d2
+    IfDateBetween II d1 d2 ->  d >= d1 && (d <= d2)
+    IfDateBetween EI d1 d2 ->  d > d1 && (d <= d2)
+    IfDateBetween IE d1 d2 ->  d >= d1 && (d < d2)
+    IfDateBetween EE d1 d2 ->  d > d1 && (d < d2)
+    IfDateIn ds -> d `elem` ds
 
     IfCurve cmp s _ts -> toCmp cmp (queryDeal t (ps s)) (fromRational (getValByDate _ts Inc d))
     IfRateCurve cmp s _ts -> toCmp cmp (queryDealRate t (ps s)) (fromRational (getValByDate _ts Inc d))

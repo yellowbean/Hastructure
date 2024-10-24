@@ -106,7 +106,7 @@ data LiqDrawType = LiqToAcc        -- ^ draw credit and deposit cash to account
 data LiqRepayType = LiqBal         -- ^ repay oustanding balance of liquidation provider
                   | LiqPremium     -- ^ repay oustanding premium fee of lp
                   | LiqInt         -- ^ repay oustanding interest of lp
-                  | LiqRepayTypes [LiqRepayType] --TODO not implemented
+                  | LiqRepayTypes [LiqRepayType]  -- ^ repay by sequence
                   deriving (Show,Generic,Ord,Eq)
 
 repay :: Amount -> Date -> LiqRepayType -> LiqFacility -> LiqFacility

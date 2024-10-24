@@ -262,7 +262,7 @@ data RangeType = II     -- ^ include both start and end date
                | EI     -- ^ exclude start date but include end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
-               deriving (Show,Eq,Read,Generic)
+               deriving (Show,Eq,Read,Generic,Ord)
 
 data CutoffType = Inc 
                 | Exc
@@ -387,11 +387,19 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
 data Pre = IfZero DealStats
          | If Cmp DealStats Balance
          | IfRate Cmp DealStats Micro
-         | IfInt Cmp DealStats Int
          | IfCurve Cmp DealStats Ts
          | IfRateCurve Cmp DealStats Ts
          | IfIntCurve Cmp DealStats Ts
+         
+         -- Integer
+         | IfInt Cmp DealStats Int
+         | IfIntBetween DealStats RangeType Int Int
+         | IfIntIn DealStats [Int]
+         -- Dates
          | IfDate Cmp Date
+         | IfDateBetween RangeType Date Date
+         | IfDateIn Dates
+         
          | IfBool DealStats Bool
          -- compare deal 
          | If2 Cmp DealStats DealStats
@@ -959,6 +967,9 @@ instance ToJSONKey DateType where
 instance FromJSONKey DateType where
   fromJSONKey = genericFromJSONKey defaultJSONKeyOptions
 
+
+
+$(deriveJSON defaultOptions ''RangeType)
 $(deriveJSON defaultOptions ''Pre)
 
 
