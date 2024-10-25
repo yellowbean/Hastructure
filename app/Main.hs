@@ -175,6 +175,7 @@ instance ToSchema W.Action
 instance ToSchema W.BookType
 instance ToSchema W.CollectionRule
 instance ToSchema C.CallOption
+instance ToSchema CE.LiqCreditCalc
 instance ToSchema CE.LiqFacility
 instance ToSchema HE.RateSwap
 instance ToSchema HE.RateSwapType

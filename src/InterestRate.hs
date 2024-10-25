@@ -118,6 +118,7 @@ calcInt bal startDate endDate intRate dayCount =
 
 class UseRate x where 
   isAdjustbleRate :: x -> Bool
+  -- get first index available,if not found return Nothing
   getIndex :: x -> Maybe Index
   getIndexes :: x -> Maybe [Index]
   getResetDates :: x -> Dates

@@ -1365,7 +1365,10 @@
                     {
                         "properties": {
                             "contents": {
-                                "type": "string"
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
                             },
                             "tag": {
                                 "enum": [
@@ -10338,6 +10341,14 @@
                     }
                 ]
             },
+            "LiqCreditCalc": {
+                "enum": [
+                    "IncludeDueInt",
+                    "IncludeDuePremium",
+                    "IncludeBoth"
+                ],
+                "type": "string"
+            },
             "LiqDrawType": {
                 "enum": [
                     "LiqToAcc",
@@ -10356,6 +10367,9 @@
                     "liqCredit": {
                         "multipleOf": 1.0e-2,
                         "type": "number"
+                    },
+                    "liqCreditCalc": {
+                        "$ref": "#/components/schemas/LiqCreditCalc"
                     },
                     "liqDueInt": {
                         "multipleOf": 1.0e-2,
@@ -12279,40 +12293,6 @@
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "maximum": 9223372036854775807,
-                                        "minimum": -9223372036854775808,
-                                        "type": "integer"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "minItems": 3,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "IfInt"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "IfInt",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Cmp"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/Ts"
                                     }
                                 ],
@@ -12406,6 +12386,113 @@
                                         "$ref": "#/components/schemas/Cmp"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfInt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfInt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RangeType"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfIntBetween"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfIntBetween",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "items": {
+                                            "maximum": 9223372036854775807,
+                                            "minimum": -9223372036854775808,
+                                            "type": "integer"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfIntIn"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfIntIn",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Day"
                                     }
                                 ],
@@ -12425,6 +12512,60 @@
                             "contents"
                         ],
                         "title": "IfDate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/RangeType"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfDateBetween"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfDateBetween",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Day"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfDateIn"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfDateIn",
                         "type": "object"
                     },
                     {
@@ -18669,7 +18810,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.29.18"
+        "version": "0.29.20"
     },
     "openapi": "3.0.0",
     "paths": {
