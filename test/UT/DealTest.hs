@@ -29,6 +29,7 @@ import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
 import Types (PoolId(PoolConsol))
+import qualified CreditEnhancement as CE
 
 dummySt = (0,toDate "19000101",Nothing)
 
@@ -150,6 +151,7 @@ td2 = D.TestDeal {
                                 Nothing
                                 Nothing
                                 Nothing
+                                Nothing
                                 Nothing 
                                 0
                                 0
@@ -237,6 +239,7 @@ liqProviderTest =
 
                        90
                        (Just 100)
+                       (Just CE.IncludeDueInt)
 
                        Nothing -- rate type
                        Nothing -- premium rate type

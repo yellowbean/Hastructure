@@ -108,16 +108,20 @@ buildLiqRateResetAction (liq:liqProviders) ed r =
 
 -- | draw cash from liquidity provider
 draw :: Amount -> Date -> LiqFacility -> LiqFacility
-draw  amt d liq@LiqFacility{ liqBalance = 0.0 } = liq 
 draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqStmt = mStmt
                             ,liqCredit = mCredit
                             ,liqDueInt = dueInt 
                             ,liqDuePremium = duePremium} 
-  = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = newStmt}
+  | isJust mCredit && (fromMaybe 0 mCredit) <= 0 = 
+    liq { liqStmt = appendStmt 
+                    mStmt $
+                    SupportTxn d mCredit 0 liqBal dueInt duePremium LiquidationDraw
+                    }
+  | otherwise = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = newStmt}
     where 
-        newCredit = (\x -> x - amt) <$> mCredit
-        newBal = liqBal + amt
+        newCredit = (\x -> x - amt) <$> mCredit -- `debug` ("date "++ show d ++" insert orgin credit : "++show mCredit)
+        newBal = liqBal + amt -- `debug` (show d ++"New bal"++ show liqBal ++ " "++ show amt++ "new credit: "++ show newCredit)
         newStmt = appendStmt 
                     mStmt $
                     SupportTxn d newCredit amt newBal dueInt duePremium LiquidationDraw
@@ -167,7 +171,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mP
   = liq { liqStmt = newStmt
          ,liqDueInt = newDueInt
          ,liqDuePremium = newDueFee
-         ,liqCredit = max 0 <$> newCredit }
+         ,liqCredit = newCredit }
     where 
       lastAccDate = fromMaybe sd dueDate
       accureInt = case rate of 
