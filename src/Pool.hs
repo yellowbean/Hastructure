@@ -160,9 +160,8 @@ calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d
 
 
 -- TODO: check futureCf is future CF or not, seems it is collected CF
--- | pricing via future schedule cashflow
--- | pricing via predefined risk adjust cashflow
--- | pricing via user define risk adjust cashflow
+-- | pricing via future scheduled cashflow( zero risk adjust)
+-- | pricing via user define risk adjust cashflow( own assumption)
 -- TODO: in revolving buy future schedule cashflow should be updated as well
 calcLiquidationAmount (PV discountRate recoveryPct) pool d 
   = case futureCf pool of
@@ -204,16 +203,15 @@ pricingPoolFlow d pool@Pool{ futureCf = mCollectedCf, issuanceStat = mStat } fut
         BalanceFactor currentFactor defaultFactor -> 
           mulBR currentPerformingBal currentFactor + mulBR currentCumulativeDefaultBal defaultFactor
 
-        PV discountRate defaultFactor ->
+        PvRate discountRate ->
           let 
-            futureTxn = CF.getTsCashFlowFrame futureCfUncollected
+            futureTxn = CF.getTsCashFlowFrame futureCfUncollected `debug` ("PV with cf"++ show d ++ ">>"++show futureCfUncollected)
             futureCfCash = CF.tsTotalCash <$> futureTxn
             futureDates = getDate <$> futureTxn
-
-            valueOfDefault = mulBR currentCumulativeDefaultBal defaultFactor
-            pvOfCf = AN.pv21 discountRate d futureDates futureCfCash
           in 
-            pvOfCf + valueOfDefault
+            AN.pv21 discountRate d futureDates futureCfCash
+
+        
 
 
 $(deriveJSON defaultOptions ''Pool)

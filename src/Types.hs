@@ -377,7 +377,7 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
                    | PV IRate Rate                    -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
-                   | PvRate Rate                      -- ^ [CF] Pricing cashflow with a constant rate
+                   | PvRate IRate                      -- ^ [CF] Pricing cashflow with a constant rate
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
                    deriving (Show, Eq ,Generic, Read,Ord)

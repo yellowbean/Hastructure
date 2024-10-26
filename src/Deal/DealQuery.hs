@@ -433,7 +433,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
                    _ -> curBal / scheduleBal -- `debug` ("cur Bal"++show curBal ++">> sheduleBal"++ show scheduleBal)
         cfForPv = (factor *) <$> txnsCfs -- `debug` (">>> factor"++ show factor)
         pvs = case pm of
-                PvRate r -> uncurry (A.pv2 (fromRational r) asOfDay) <$> zip txnsDs cfForPv
+                PvRate r -> uncurry (A.pv2 r asOfDay) <$> zip txnsDs cfForPv
                 PvByRef ds -> uncurry (A.pv2 (queryDealRate t ds) asOfDay) <$> zip txnsDs cfForPv
                 _ -> error $ "Failed to use pricing method on pool" ++ show pm ++"on pool id"++ show mPns
       in 

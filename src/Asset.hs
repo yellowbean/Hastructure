@@ -326,7 +326,7 @@ priceAsset m d (PvRate r) assumps mRates cType
   = let 
       (CF.CashFlowFrame _ txns,_) = projCashflow m d assumps mRates
       cb = getCurrentBal m
-      pDays = getOriginDate m:(getPaymentDates m 0)
+      pDays = getOriginDate m:getPaymentDates m 0
       ds = getDate <$> txns 
       accruedInt = case ds of 
                     [] -> 0 
@@ -339,8 +339,8 @@ priceAsset m d (PvRate r) assumps mRates cType
                                   Exc -> CF.clawbackInt accruedInt txns 
                                   Inc -> txns)
       wal = calcWAL ByYear cb d (zip amts ds) 
-      pv = sum $ zipWith (pv2 (fromRational r) d) ds amts
-      curve = mkTs $ zip ds (repeat r)
+      pv = sum $ zipWith (pv2  r d) ds amts
+      curve = mkTs $ zip ds (repeat (toRational r))
       duration = calcDuration d (zip ds amts) curve
       cr = getCurrentRate m
     in 
