@@ -5,8 +5,8 @@
 module Pool (Pool(..),aggPool
        ,getIssuanceField
        ,poolFutureCf,poolFutureTxn,poolIssuanceStat
-       ,poolFutureScheduleCf,futureCf,futureScheduleCf
-       ,poolBegStats,poolFutureCf2,calcLiquidationAmount
+       ,poolFutureScheduleCf
+       ,poolBegStats,poolFutureCf2,calcLiquidationAmount,pricingPoolFlow
 ) where
 
 
@@ -38,6 +38,8 @@ import Assumptions (ApplyAssumptionType)
 
 import Debug.Trace
 import Util
+import Cashflow (CashFlowFrame)
+import qualified Stmt as CF
 debug = flip trace
 
 
@@ -157,7 +159,7 @@ calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d
             -- TODO need to check if missing last row
 
 
--- TODO: check futureCf is future CF or not
+-- TODO: check futureCf is future CF or not, seems it is collected CF
 -- | pricing via future schedule cashflow
 -- | pricing via predefined risk adjust cashflow
 -- | pricing via user define risk adjust cashflow
@@ -167,12 +169,51 @@ calcLiquidationAmount (PV discountRate recoveryPct) pool d
       Nothing -> 0 
       Just (CF.CashFlowFrame _ trs) ->
           let 
-            futureTxns = cutBy Inc Future d trs
-            earlierTxns = cutBy Exc Past d trs 
-            pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns 
+            futureTxns = cutBy Inc Future d trs -- `debug` (" pv date"++show d++ " with rate"++show discountRate)
+            earlierTxns = cutBy Exc Past d trs -- `debug` ("Total txn"++show trs)
+            pvCf = sum $ map (\x -> AN.pv2  discountRate  d (CF.getDate x) (CF.tsTotalCash x)) futureTxns -- `debug` ("FutureTxns: "++show futureTxns)
+            
             currentDefaulBal = sum $ map (\x -> CF.mflowDefault x - CF.mflowRecovery x - CF.mflowLoss x) earlierTxns
           in 
-            pvCf + mulBI currentDefaulBal recoveryPct
+            
+            pvCf + mulBR currentDefaulBal recoveryPct
+
+-- ^ price a pool with collected cashflow and future cashflow
+pricingPoolFlow :: Asset a =>  Date -> Pool a -> CashFlowFrame -> PricingMethod -> Amount
+pricingPoolFlow d pool@Pool{ futureCf = mCollectedCf, issuanceStat = mStat } futureCfUncollected pm 
+  = let 
+      currentCumulativeDefaultBal = case mCollectedCf of 
+                                      Nothing -> 0 
+                                      Just collectedCf -> 
+                                        let 
+                                          collectedTxns = CF.getTsCashFlowFrame collectedCf
+                                        in
+                                          if null collectedTxns then 
+                                            0 
+                                          else 
+                                            let 
+                                              lastTxn = last collectedTxns
+                                            in 
+                                              fromMaybe 0 (CF.tsCumDefaultBal lastTxn) - fromMaybe 0 (CF.tsCumRecoveriesBal lastTxn) - fromMaybe 0 (CF.tsCumLossBal lastTxn)
+      currentPerformingBal = case mStat of
+              Nothing -> 0
+              Just stat -> Map.findWithDefault 0 RuntimeCurrentPoolBalance stat
+
+    in 
+      case pm of
+        BalanceFactor currentFactor defaultFactor -> 
+          mulBR currentPerformingBal currentFactor + mulBR currentCumulativeDefaultBal defaultFactor
+
+        PV discountRate defaultFactor ->
+          let 
+            futureTxn = CF.getTsCashFlowFrame futureCfUncollected
+            futureCfCash = CF.tsTotalCash <$> futureTxn
+            futureDates = getDate <$> futureTxn
+
+            valueOfDefault = mulBR currentCumulativeDefaultBal defaultFactor
+            pvOfCf = AN.pv21 discountRate d futureDates futureCfCash
+          in 
+            pvOfCf + valueOfDefault
 
 
 $(deriveJSON defaultOptions ''Pool)

@@ -357,6 +357,7 @@ splitAssetUnion rs (ACM.LS m) = [ ACM.LS a | a <- Ast.splitWith m rs]
 splitAssetUnion rs (ACM.RE m) = [ ACM.RE a | a <- Ast.splitWith m rs]
 splitAssetUnion rs (ACM.FA m) = [ ACM.FA a | a <- Ast.splitWith m rs]
 
+-- ^ return assets bought and pool after bought
 buyRevolvingPool :: Date -> Rate -> RevolvingPool -> ([ACM.AssetUnion],RevolvingPool)
 buyRevolvingPool _ 0 rp = ([],rp)
 buyRevolvingPool _ r rp@(StaticAsset assets) 
@@ -499,17 +500,17 @@ performActionWrap d
                    Just (DueCapAmt amt) -> amt
                    Nothing -> accBal
 
-      availBal = min limitAmt accBal -- `debug` ("Value on r -asset "++ show valuationOnAvailableAssets)
+      availBal = min limitAmt accBal  -- `debug` ("Date"++ show d ++" Value on r -asset "++ show valuationOnAvailableAssets)
       purchaseAmt = case assetForSale of 
                       (StaticAsset _) -> min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
                       ConstantAsset _ -> availBal 
                       AssetCurve _ -> min availBal valuationOnAvailableAssets   
 
-      purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets -- `debug` ("Purchase Amt"++show purchaseAmt)
+      purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets -- `debug` ("Date"++ show d ++ " Purchase Amt"++show purchaseAmt++">> avail balance"++ show availBal )
 
-      (assetBought,poolAfterBought) = buyRevolvingPool d (toRational purchaseRatio) assetForSale  -- `debug` ("purchase ratio"++ show purchaseRatio)
+      (assetBought,poolAfterBought) = buyRevolvingPool d (toRational purchaseRatio) assetForSale  -- `debug` ("date "++ show d ++ "purchase ratio"++ show purchaseRatio)
       
-      pIdToChange = fromMaybe PoolConsol pId -- `debug` ("purchase date"++ show d++ "\n")
+      pIdToChange = fromMaybe PoolConsol pId --`debug` ("purchase date"++ show d++ "\n" ++ show assetBought)
       boughtAssetBal =  sum $ curBal <$> assetBought -- `debug` ("Asset bought 0 \n"++ show assetBought++ "pflow map\n"++ show pFlowMap++" p id to change\n"++ show pIdToChange)
       -- update runtime balance
       newPt = case pt of 
@@ -524,7 +525,7 @@ performActionWrap d
 
       newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap -- `debug` ("Asset bought total bal"++ show boughtAssetBal)
       
-      cfBought = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+      cfBought = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Date: " ++ show d ++ "Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
       
       newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                               let 
@@ -547,11 +548,11 @@ performActionWrap d
 
                                 mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("Buy Date : "++show d ++ "CF bought \n"++ show (over CF.cashflowTxn (slice 0 30) cfBought) )
                               in 
-                                over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf )--`debug` ("Date "++show d++" Merged CF\n"++ show (over CF.cashflowTxn (slice 0 20)  mergedCf)))
+                                over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf ) -- `debug` ("Date "++show d++" Merged CF\n"++ show mergedCf))
                           pIdToChange
                           pFlowMap --  `debug` ("pid To change"++ show pIdToChange++ "P flow map"++ show pFlowMap)
 
-      newRc = rc {runPoolFlow = newPcf -- `debug` (show d ++ "New run pool >> \n"++ show (Map.map (over CF.cashflowTxn (slice 0 20)) newPcf))
+      newRc = rc {runPoolFlow = newPcf -- `debug` (show d ++ "New run pool >> \n"++ show newPcf)
                  ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
 
 
@@ -587,8 +588,11 @@ performActionWrap d
                       (SoloPool p,Just [PoolConsol]) -> Map.fromList [(PoolConsol,p)]
                       (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
                       (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
+     
 
-     liqAmtByPool = Map.map (\p -> P.calcLiquidationAmount lm p d) poolMapToLiq -- `debug` ("pool id to liq"++ show poolMapToLiq)
+
+     liqAmtByPool = Map.mapWithKey (\k p -> P.pricingPoolFlow d p (pcf Map.! k) lm) poolMapToLiq -- `debug` ("pool id to liq"++ show poolMapToLiq)
+     
      liqAmt = sum $ Map.elems liqAmtByPool
 
      -- Update collected cashflow
@@ -1296,9 +1300,10 @@ performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.Li
                       Just (DS ds) -> queryDeal t (patchDateToStats d ds) -- `debug` ("hit with ds"++ show ds)
                       _ -> error "Failed on formula passed" -- `debug` ("limit on last"++ show limit)
 
-      transferAmt = case CE.liqCredit $ _liqProvider Map.! pName of 
-                       Nothing -> _transferAmt -- `debug` ("not loc"++ show newLiqMapUpdated)
-                       Just _availBal -> min _transferAmt _availBal  -- `debug` ("transfer amt"++ show _transferAmt ++ "loc"++ show _availBal)
+      transferAmt = max 0 $
+                      case CE.liqCredit $ _liqProvider Map.! pName of 
+                        Nothing -> _transferAmt -- `debug` ("not loc"++ show newLiqMapUpdated)
+                        Just _availBal -> min _transferAmt _availBal  -- `debug` ("transfer amt"++ show _transferAmt ++ "loc"++ show _availBal)
 
 
 performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqSupport limit pName CE.LiqToFee fn)

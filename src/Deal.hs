@@ -417,7 +417,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                W.DefaultDistribution
                           
               waterfallToExe = Map.findWithDefault [] waterfallKey waterfallM
-              logsBeforeDist = newLogs0++[ WarningMsg ("No waterfall distribution found on date"++show d++"with waterfall key "++show waterfallKey) 
+              logsBeforeDist = newLogs0++[ WarningMsg (" No waterfall distribution found on date "++show d++" with waterfall key "++show waterfallKey) 
                                 | Map.notMember waterfallKey waterfallM ]
            in 
               case calls of
@@ -428,7 +428,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                         newStLogs = if null cleanUpActions then 
                                       [DealStatusChangeTo d dStatus Called]
                                     else 
-                                      [DealStatusChangeTo d dStatus Called,RunningWaterfall d W.CleanUp]
+                                      [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
                         endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d log
                      in  
                         -- TODO missing newLogWaterfall_
@@ -437,7 +437,6 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                      let 
                        (dAfterWaterfall, rc2, newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe 
                        (dRunWithTrigger1, rc3, ads2, newLogs2) = runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  
-                       
                      in 
                        run dRunWithTrigger1 (runPoolFlow rc3) (Just ads2) rates calls rAssump (newLogsWaterfall++newLogs2++logsBeforeDist++[RunningWaterfall d waterfallKey]) 
                  Nothing ->

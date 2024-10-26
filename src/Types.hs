@@ -30,7 +30,6 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,AccountName
   )
   
   where
@@ -376,7 +375,7 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
 data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
                    | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
-                   | PV IRate IRate                   -- ^ discount factor, recovery pct on default
+                   | PV IRate Rate                    -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
                    | PvRate Rate                      -- ^ [CF] Pricing cashflow with a constant rate
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate

@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Analytics (calcDuration,pv,calcWAL,pv2,pv3,fv2)
+module Analytics (calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21)
   where 
 import Types
 import Lib
@@ -42,17 +42,6 @@ calcDuration d ps pricingCurve
     where 
       presentValue = sum [ pv pricingCurve d _d _b | (_d,_b) <- ps ] 
 
--- calcConvexity :: Date -> [(Date,Balance)] -> Ts -> Balance
--- calcConvexity sd ps pricingCurve 
---   = let 
---       pvs = [ pv pricingCurve sd pDate pValue | (pDate,pValue) <- ps ] 
---       -- pv2 = [ pv pricingCurve sd pDate pValue | (pDate,pValue) <- zip (fst <$> ps) pvs ]
---       tWeights = [ yearCountFraction DC_ACT_365F sd pDate | (pDate,_) <- ps ]
---       tWeightsSq = [ tW * tW + tW | tW <- tWeights ]
---       
---     in 
---       1/(pricing)/(1+y2) $ sum $ zipWith (*) pvs tWeightsSq
-
 
 -- ^ calculate present value of input amount in future with given a curve and PV date
 pv :: Ts -> Date -> Date -> Amount -> Amount
@@ -70,6 +59,10 @@ pv2 discount_rate today d amt =
   where
     denominator::Double = (1 + realToFrac discount_rate) ** (distance / 365)
     distance::Double = fromIntegral $ daysBetween today d -- `debug` ("days betwwen"++ show (daysBetween today d)++">>"++ show d ++ ">>today>>"++ show today)
+
+pv21 :: IRate -> Date -> [Date] -> [Amount] -> Balance
+pv21 r d ds vs = sum [ pv2 r d _d amt | (_d,amt) <- zip ds vs ]
+
 
 -- ^ calcualte present value given a series of amount with dates
 pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
