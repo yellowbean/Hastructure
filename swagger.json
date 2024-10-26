@@ -13220,7 +13220,7 @@
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-6,
+                                        "format": "double",
                                         "type": "number"
                                     }
                                 ],
@@ -13264,7 +13264,7 @@
                     {
                         "properties": {
                             "contents": {
-                                "format": "double",
+                                "multipleOf": 1.0e-6,
                                 "type": "number"
                             },
                             "tag": {
