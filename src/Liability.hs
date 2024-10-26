@@ -231,7 +231,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate 
   where
     newBal = bal - amt
     newDue = duePrin - amt 
-    newStmt = S.appendStmt stmt (BondTxn d newBal 0 amt 0 amt dueInt dueIoI Nothing (S.PayPrin [bn] ))
+    newStmt = S.appendStmt stmt (BondTxn d newBal 0 amt r amt dueInt dueIoI Nothing (S.PayPrin [bn] ))
 
 writeOff :: Date -> Amount -> Bond -> Bond
 writeOff d 0 b = b -- `debug` ("Zero on wirte off")
