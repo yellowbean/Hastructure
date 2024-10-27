@@ -10490,6 +10490,36 @@
                         ],
                         "title": "LiqRepayTypes",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "LiqResidual"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "LiqResidual",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "LiqOD"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "LiqOD",
+                        "type": "object"
                     }
                 ]
             },
@@ -18810,7 +18840,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.30.1"
+        "version": "0.30.2"
     },
     "openapi": "3.0.0",
     "paths": {
