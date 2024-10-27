@@ -93,6 +93,8 @@ prorataFactors bals amt =
     s = toRational $ sum bals
     amtToPay = min s (toRational amt)
 
+-- 
+
 paySeqLiabilities :: Amount -> [Balance] -> [(Amount,Balance)]
 paySeqLiabilities startAmt liabilities =
   tail $ reverse $ foldl pay [(startAmt, 0)] liabilities

@@ -738,7 +738,7 @@ getRunResult t = os_bn_i ++ os_bn_b -- `debug` ("Done with get result")
     os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("C"++ show bs)
 
 prepareDeal :: Ast.Asset a => TestDeal a -> TestDeal a
-prepareDeal t@TestDeal {bonds = bndMap} 
+prepareDeal t@TestDeal {bonds = bndMap, liqProvider = mLiqProvider} 
   = let 
       pIdCf = view dealCashflow t
       -- dropTailEmptyTxns   
@@ -746,7 +746,9 @@ prepareDeal t@TestDeal {bonds = bndMap}
                           pIdCf
       t1 = set dealCashflow newPtMap t
     in 
-      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap}  -- `debug` ("Prepare Done")
+      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap
+          -- liqProvider = (Map.map CE.consolStmt) <$> mLiqProvider
+           }  -- `debug` ("Prepare Done")
 
 
 appendCollectedCF :: Ast.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a
@@ -936,9 +938,9 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) 
                 Nothing -> False
             matchRuleFn (AP.FieldNot fRule) fm = not $ matchRuleFn fRule fm
 
-            matchRulesFn fs fm = all (\f -> matchRuleFn f fm) fs
+            matchRulesFn fs fm = all (`matchRuleFn` fm) fs
 
-            (matchedAsts,unMatchedAsts) = partition (\x -> matchRulesFn fieldRules (Ast.getObligorFields x)) astList            
+            (matchedAsts,unMatchedAsts) = partition (matchRulesFn fieldRules . Ast.getObligorFields) astList            
             matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
           in 
             matchAssets (cfs ++ matchedCfs) rules unMatchedAsts

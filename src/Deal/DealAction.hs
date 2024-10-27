@@ -138,7 +138,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.AnnualRateFee feeBase r) fs fd Nothing fa lp
   | calcDay >= fs = calcDueFee t calcDay f {F.feeDueDate = Just fs }
   | otherwise = f 
 
--- ^ annualized % fee base on pool balance/amount
+-- ^ annualized % fee base on pool balance amount
 calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase _r) fs fd (Just _fdDay) fa lpd _)
   = f{ F.feeDue=fd+newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show newDue++"oldDue"++show fd)
       where 
@@ -1344,8 +1344,13 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
       liqDueAmts CE.LiqInt =  [ CE.liqDueInt $ _liqProvider Map.! pName ]
       liqDueAmts CE.LiqPremium = [ CE.liqDuePremium $ _liqProvider Map.! pName]
       liqDueAmts (CE.LiqRepayTypes lrts) = concat $ liqDueAmts <$> lrts
+
+      overDrawnBalance = maybe 0 negate (CE.liqCredit $ _liqProvider Map.! pName)
       
-      dueBreakdown = liqDueAmts rpt
+      dueBreakdown 
+        | overDrawnBalance > 0 = overDrawnBalance:liqDueAmts rpt
+        | otherwise = liqDueAmts rpt
+
       liqTotalDues = sum dueBreakdown
       
       cap = min liqTotalDues $ A.accBalance $ accs Map.! an
@@ -1361,7 +1366,10 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
       rptsToPair = case rpt of 
                      CE.LiqRepayTypes lrts -> lrts
                      x  -> [x]
-      paidOutWithType = zip rptsToPair paidOutsToLiq -- `debug` ("rpts To pair"++ show rptsToPair)
+
+      paidOutWithType
+        | overDrawnBalance > 0 = zip (CE.LiqOD:rptsToPair) paidOutsToLiq 
+        | otherwise = zip rptsToPair paidOutsToLiq -- `debug` ("rpts To pair"++ show rptsToPair)
 
 
       newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs -- `debug` ("repay liq amt"++ show transferAmt)
@@ -1381,7 +1389,7 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
                       _ -> error $ "Not implement the limit"++ show limit++"For Pay Yield to liqProvider"
       
       newAccMap = Map.adjust (A.draw transferAmt d (LiquidationSupport pName)) an accs
-      newLiqMap = Map.adjust (CE.repay transferAmt d CE.LiqInt ) pName _liqProvider 
+      newLiqMap = Map.adjust (CE.repay transferAmt d CE.LiqResidual) pName _liqProvider 
 
 performAction d t@TestDeal{liqProvider = Just _liqProvider} (W.LiqAccrue liqNames)
   = t {liqProvider = Just updatedLiqProvider}
