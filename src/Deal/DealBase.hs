@@ -109,6 +109,8 @@ instance TimeSeries ActionOnDate where
     getDate (IssueBond d _ _ _ _ _ _) = d
     getDate (RefiBondRate d _ _ _) = d
     getDate (RefiBond d _ _) = d
+    getDate (ResetLiqProviderRate d _) = d
+    getDate x = error $ "Failed to match"++ show x
 
 
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering

@@ -185,27 +185,30 @@ accrueLiqProvider ::  Date -> LiqFacility -> LiqFacility
 accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit _ mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd Nothing)
   = accrueLiqProvider d $ liq{liqStmt = Just defaultStmt} 
     where 
+      -- insert begining record
       defaultStmt = Statement [SupportTxn sd mCredit curBal dueInt duePremium 0 Empty]
 
-accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt)
+accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt@(Just (Statement txns)))
   = liq { liqStmt = newStmt
          ,liqDueInt = newDueInt
          ,liqDuePremium = newDueFee
-         ,liqCredit = newCredit }
+         ,liqCredit = newCredit 
+         ,liqDueIntDate = Just d
+         }
     where 
       lastAccDate = fromMaybe sd dueDate
       accureInt = case rate of 
                     Nothing -> 0
                     Just r -> 
                       let 
-                        bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns mStmt
+                        bals = weightAvgBalanceByDates [lastAccDate,d] txns
                       in 
-                        sum $ flip mulBIR r <$> bals -- `debug` ("Gettnig bal of liq"++ show bals)
+                        sum $ flip mulBIR r <$> bals -- `debug` ("Accure Using Rate"++show r++"avg bal"++ show bals ++"ds"++show [lastAccDate,d])
       accureFee = case prate of
                     Nothing -> 0 
                     Just r -> 
                       let 
-                        (_,_unAccTxns) = splitByDate (getTxns mStmt) lastAccDate EqToLeftKeepOne
+                        (_,_unAccTxns) = splitByDate txns lastAccDate EqToLeftKeepOne
                         accBals = getUnusedBal <$> _unAccTxns 
                         _ds = lastAccDate : tail (getDate <$> _unAccTxns)
                         _avgBal = calcWeightBalanceByDates DC_ACT_365F accBals (_ds++[d])
