@@ -128,6 +128,10 @@ queryDealRate t s =
       BondFactor ->
         toRational (queryDeal t CurrentBondBalance) / toRational (queryDeal t OriginalBondBalance)
 
+      BondFactorOf bn ->
+        toRational $ safeDivide' (queryDeal t (CurrentBondBalanceOf [bn])) (queryDeal t (OriginalBondBalanceOf [bn]))
+        -- toRational (queryDeal t CurrentBondBalance) / toRational (queryDeal t OriginalBondBalance)
+
       PoolFactor mPns ->
         toRational (queryDeal t (CurrentPoolBalance mPns))  / toRational (queryDeal t (OriginalPoolBalance mPns))
 

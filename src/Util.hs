@@ -10,7 +10,7 @@ module Util
     ,shiftTsByAmt,calcWeightBalanceByDates
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
-    ,lastOf,findBox
+    ,lastOf,findBox,safeDivide'
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     -- for debug
     ,zyj
@@ -63,6 +63,11 @@ divideBI b i = fromRational $ toRational b / toRational i
 
 divideBB :: Balance -> Balance -> Rational
 divideBB b1 b2 = toRational b1 / toRational b2
+
+safeDivide :: RealFloat a => a -> a -> a
+safeDivide _ 0 = infinity
+safeDivide x y = x / y
+
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
@@ -323,9 +328,10 @@ findBox (Exc,Exc) x ((l,h):xs)
   | otherwise = findBox (Exc,Exc) x xs
 
 
-safeDivide :: RealFloat a => a -> a -> a 
-safeDivide _ 0 = infinity
-safeDivide x y = x / y
+safeDivide' :: Balance -> Balance -> Balance
+safeDivide' _ 0 = fromRational  10e100
+safeDivide' x y = x / y
+
 
 lstToMapByFn :: (a -> String) -> [a] -> M.Map String a 
 lstToMapByFn fn lst =

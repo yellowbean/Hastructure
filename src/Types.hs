@@ -484,6 +484,7 @@ data DealStats = CurrentBondBalance
                | CurrentPoolBorrowerNum (Maybe [PoolId])
                | ProjCollectPeriodNum
                | BondFactor     -- ^ TODO implement a specific bond
+               | BondFactorOf BondName
                | PoolFactor (Maybe [PoolId])
                | BondWaRate [BondName]
                | UseCustomData String
