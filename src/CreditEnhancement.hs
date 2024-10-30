@@ -70,6 +70,7 @@ data LiqFacility = LiqFacility {
     ,liqBalance :: Balance                   -- ^ total balance supported/drawed
     ,liqCredit :: Maybe Balance              -- ^ available balance to support. Nothing -> unlimit 
     ,liqCreditCalc :: Maybe LiqCreditCalc    -- ^ how to calculate credit
+    
     ,liqRateType :: Maybe IR.RateType        -- ^ interest rate type 
     ,liqPremiumRateType :: Maybe IR.RateType -- ^ premium rate type
     
@@ -232,6 +233,10 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mP
                                              newDueFee 
                                              0
                                              (LiquidationSupportInt accureInt accureFee)
+
+
+-- makeLensesFor [("liqStmt","liqStmtLens")] ''LiqFacility
+
 
 
 instance QueryByComment LiqFacility where 

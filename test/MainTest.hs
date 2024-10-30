@@ -18,6 +18,8 @@ import qualified UT.UtilTest as UtilT
 import qualified UT.AnalyticsTest as AnalyticsT
 import qualified UT.InterestRateTest as IRT
 import qualified UT.RateHedgeTest as RHT
+import qualified UT.CeTest as CET
+
 
 import qualified DealTest.DealTest as DealTest
 import qualified DealTest.RevolvingTest as RevolvingTest
@@ -93,6 +95,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AccT.reserveAccTest
                            ,QT.queryTest
                            ,ST.txnTest
+                           -- ,ST.txnCalcTest
                            ,IRT.armResetTests
                            ,IRT.interestRoundingTest
                            ,AnalyticsT.walTest
@@ -103,4 +106,5 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,RevolvingTest.baseTests
                            --,DealMultiTest.baseTests
                            ,RHT.capRateTests
+                           ,CET.liqTest
                            ]

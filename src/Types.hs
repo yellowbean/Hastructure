@@ -460,7 +460,7 @@ data TxnComment = PayInt [BondName]
 data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
          | AccTxn Date Balance Amount TxnComment                                                         -- ^ account transaction record 
          | ExpTxn Date Balance Amount Balance TxnComment                                                 -- ^ expense transaction record
-         | SupportTxn Date (Maybe Balance) Balance DueInt DuePremium Cash TxnComment                   -- ^ liquidity provider transaction record
+         | SupportTxn Date (Maybe Balance) Balance DueInt DuePremium Cash TxnComment                     -- ^ liquidity provider transaction record
          | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                                     -- ^ interest swap transaction record
          | EntryTxn Date Balance Amount TxnComment                                                       -- ^ ledger book entry
          | TrgTxn Date Bool TxnComment
