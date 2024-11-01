@@ -5949,6 +5949,25 @@
                     {
                         "properties": {
                             "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondFactorOf"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondFactorOf",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/PoolId"
                                 },
@@ -18840,7 +18859,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.30.3"
+        "version": "0.30.4"
     },
     "openapi": "3.0.0",
     "paths": {

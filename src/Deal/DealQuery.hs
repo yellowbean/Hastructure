@@ -220,15 +220,15 @@ queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d =
     FutureCurrentPoolBorrowerNum d mPns ->   --TODO may use date as cutoff date 
       let 
         poolCfs = Map.elems $ getLatestCollectFrame t mPns
-        poolBn =  maybe 0 (\x -> fromMaybe 0 (CF.mflowBorrowerNum x))   <$> poolCfs
+        poolBn =  maybe 0 (\x -> fromMaybe 0 (CF.mflowBorrowerNum x)) <$> poolCfs
       in 
         sum poolBn
 
-    CurrentPoolBorrowerNum mPns ->
+    CurrentPoolBorrowerNum mPns -> 
       let 
-        assetM = getAllAssetList t 
+        assetM = concat $ Map.elems $ getAllAsset t mPns
       in 
-        sum $ P.getBorrowerNum <$> assetM -- `debug` ("Qurey loan level asset balance"        
+        sum $ P.getBorrowerNum <$> assetM 
 
     MonthsTillMaturity bn -> 
         case mm of 

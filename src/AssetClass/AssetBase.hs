@@ -315,6 +315,7 @@ instance ToSchema (Ratio Integer) where
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
 
 instance ToSchema PrepayPenaltyType
+instance ToSchema (TsPoint Int)
 instance ToSchema Ts
 instance ToSchema (TsPoint Balance)
 instance ToSchema (TsPoint IRate)
