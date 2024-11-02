@@ -22,13 +22,13 @@ import Types
       BalanceSheetReport(..),
       BookItem(..),
       RangeType(EI),
-      DealStats(CurrentPoolBalance, CurrentPoolDefaultedBalance),
+      DealStats(..),
       CutoffFields(IssuanceBalance),
       Date,sliceBy,
-      Balance, PoolId (PoolConsol) )
+      Balance, PoolId (PoolConsol) ,PoolSource(..))
 import Deal.DealBase
     ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap), getIssuanceStatsConsol, getAllCollectedFrame )
-import Deal.DealQuery ( queryDeal )
+import Deal.DealQuery ( queryDeal ,queryDealInt)
 import Deal.DealAction ( calcDueFee, calcDueInt )
 import Data.Maybe (fromMaybe)
 
@@ -69,17 +69,19 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
         ---accured interest
         accM = [ Item accName accBal | (accName,accBal) <- Map.toList $ Map.map A.accBalance (accounts t) ]
         -- TODO Fix all pool
-        consoleCF = getAllCollectedFrame t (Just [PoolConsol]) Map.! PoolConsol
-        (performingBal,dBal,rBal) = case consoleCF of
-                                      Nothing -> let 
-                                                   _dbal = queryDeal t CurrentPoolDefaultedBalance
-                                                   _pbal = queryDeal t (CurrentPoolBalance Nothing) - _dbal
-                                                   consolStat = getIssuanceStatsConsol t Nothing
-                                                   _issuancePbal = Map.findWithDefault 0 IssuanceBalance consolStat
-                                                 in 
-                                                   (max _pbal _issuancePbal, _dbal, 0)
-                                      Just cf@(CF.CashFlowFrame _ txns) 
-                                        -> (CF.mflowBalance (last txns) ,CF.totalDefault cf ,negate (CF.totalRecovery cf))
+        -- consoleCF = getAllCollectedFrame t (Just [PoolConsol]) Map.! PoolConsol
+        (performingBal, dBal, rBal) = case (queryDealInt t ProjCollectPeriodNum d) of
+                                        0 -> let 
+                                               _dbal = queryDeal t CurrentPoolDefaultedBalance
+                                               _pbal = queryDeal t (CurrentPoolBalance Nothing) - _dbal
+                                               consolStat = getIssuanceStatsConsol t Nothing
+                                               _issuancePbal = Map.findWithDefault 0 IssuanceBalance consolStat
+                                             in 
+                                               (max _pbal _issuancePbal, _dbal, 0)
+                                        _ -> (queryDeal t (FutureCurrentPoolBalance Nothing)
+                                              ,(queryDeal t (PoolCumCollection [NewDefaults] Nothing))
+                                              ,negate (queryDeal t (PoolCumCollection [CollectedRecoveries] Nothing))
+                                             )
         
         poolAst = [ Item "Pool Performing" performingBal
                   , Item "Pool Defaulted" dBal
