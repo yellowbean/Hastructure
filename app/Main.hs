@@ -103,7 +103,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.30.4"
+version1 = Version "0.30.5"
 
 
 
@@ -463,7 +463,6 @@ myServer =  return engineSwagger
       :<|> runDealByRunScenarios
       :<|> runDealByCombo
       :<|> runDate
---      :<|> error "not implemented"
 
 
 writeSwaggerJSON :: IO ()
@@ -477,7 +476,6 @@ instance FromJSON Config
 app :: Application
 -- app = serve (Proxy :: Proxy API) myServer
 app = simpleCors $ serve (Proxy :: Proxy API) myServer
-
 
 
 main :: IO ()

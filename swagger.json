@@ -17042,6 +17042,28 @@
                         ],
                         "title": "PricingCurve",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/TsPoint_Int"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PeriodCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PeriodCurve",
+                        "type": "object"
                     }
                 ]
             },
@@ -17094,6 +17116,21 @@
                     },
                     {
                         "type": "boolean"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
+            "TsPoint_Int": {
+                "items": [
+                    {
+                        "$ref": "#/components/schemas/Day"
+                    },
+                    {
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "type": "integer"
                     }
                 ],
                 "maxItems": 2,
