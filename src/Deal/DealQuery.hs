@@ -273,7 +273,10 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     CurrentBondBalanceOf bns -> sum $ getCurBalance <$> viewDealBondsByNames t bns
     
     CurrentPoolBalance mPns ->
-      foldl (\acc x -> acc + P.getCurrentBal x) 0.0 (getAllAssetList t) --TODO TOBE FIX: mPns is not used
+      let
+        assetM = concat $ Map.elems $ getAllAsset t mPns
+      in 
+        sum $ P.getCurrentBal <$> assetM 
     
     CurrentPoolDefaultedBalance ->
       foldl (\acc x -> acc + P.getCurrentBal x)
@@ -326,9 +329,6 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
           else 
             error $ "Failed to find pool balance" ++ show pids ++ " from deal "++ show (Map.keys pm)
 
-
-
-
     FutureCurrentSchedulePoolBalance mPns ->
       let 
         scheduleFlowM = Map.elems $ view dealScheduledCashflow t
@@ -374,7 +374,6 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     PoolCumCollection ps mPns ->
         let 
           collectedTxns = concat . Map.elems $ Map.map (fromMaybe []) $ getAllCollectedTxns t mPns
-          --xxx = sum (  <$> ps ) <*> collectedFrames
           --mBals = (\cf -> sum (fromMaybe [] cf) <$> ps ) <$> collectedFrames
           futureVals = sum $ (CF.lookupSource <$> collectedTxns) <*> ps
           
