@@ -39,7 +39,7 @@ import Stmt
       getTxns,
       FlowDirection(Outflow, Inflow) )
 
-
+-- ^ add financial report to the logs
 patchFinancialReports :: P.Asset a => TestDeal a -> Date -> [ResultComponent] -> [ResultComponent]
 patchFinancialReports t d [] = []
 patchFinancialReports t d logs 

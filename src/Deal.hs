@@ -4,8 +4,6 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
--- {-# LANGUAGE OverloadedRecordDot, OverloadedRecordUpdate #-}
--- {-# LANGUAGE OverloadedRecordDot #-}
 
 module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,performAction,queryDeal
@@ -341,14 +339,14 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc, actions) d d
 
     -- run effects on deals
     -- aka (\_t _te -> runEffects _t d _te)
-    (newDeal, newRc,newActions) = foldl (`runEffects` d) (t,rc,actions) triggeredEffects
+    (newDeal, newRc, newActions) = foldl (`runEffects` d) (t,rc,actions) triggeredEffects
 
     -- if deal status changed, then insert to log if changes
     newStatus = status newDeal 
     newLogs = [DealStatusChangeTo d oldStatus newStatus |  newStatus /= oldStatus] -- `debug` (">>"++show d++"trigger : new st"++ show newStatus++"old st"++show oldStatus)
 
     -- new status of trigger, update status of trigger to True
-    triggeredNames = Map.keys triggeredTrgs
+    -- triggeredNames = Map.keys triggeredTrgs
 
     newTriggers = Map.union triggeredTrgs trgsMap
   
@@ -429,7 +427,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                       [DealStatusChangeTo d dStatus Called]
                                     else 
                                       [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
-                        endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d log
+                        endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
                      in  
                         -- TODO missing newLogWaterfall_
                         (prepareDeal dealAfterCleanUp, endingLogs ++ logsBeforeDist ++newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
