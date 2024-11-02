@@ -251,21 +251,22 @@ queryTrigger t@TestDeal{ triggers = trgs } wt
       Just _trgs -> maybe [] Map.elems $ Map.lookup wt _trgs
 
 -- ^ execute effects of trigger: making changes to deal
-runEffects :: Ast.Asset a => (TestDeal a, RunContext a, [ActionOnDate]) -> Date -> TriggerEffect -> (TestDeal a, RunContext a, [ActionOnDate])
+runEffects :: Ast.Asset a => (TestDeal a, RunContext a, [ActionOnDate], [ResultComponent]) -> Date -> TriggerEffect -> (TestDeal a, RunContext a, [ActionOnDate], [ResultComponent])
 runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bondMap, pool=pt
-                      ,collects = collRules},rc, actions) d te 
+                      ,collects = collRules}, rc, actions, logs) d te
   = case te of 
-      DealStatusTo _ds -> (t {status = _ds}, rc, actions)
-      DoAccrueFee fns -> (t {fees = foldr (Map.adjust (calcDueFee t d)) feeMap fns}, rc, actions)
+      DealStatusTo _ds -> (t {status = _ds}, rc, actions, logs)
+      DoAccrueFee fns -> (t {fees = foldr (Map.adjust (calcDueFee t d)) feeMap fns}, rc, actions, logs)
       ChangeReserveBalance accName rAmt ->
-          (t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }, rc, actions)
+          (t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }, rc, actions, logs)
       
-      TriggerEffects efs -> foldl (`runEffects` d) (t,rc, actions) efs
+      TriggerEffects efs -> foldl (`runEffects` d) (t, rc, actions, logs) efs
       
       RunActions wActions -> let 
-                              (newT,newRc,newLogs) = foldl (performActionWrap d) (t, rc, []) wActions
+                              (newT, newRc, newLogs) = foldl (performActionWrap d) (t, rc, []) wActions
                             in 
-                              (newT,newRc, actions)
+                              (newT, newRc, actions, logs++newLogs)
+
       CloseDeal (offset0,pDp) (offset1,bDp) (pm,accName,mIssuanceBal) mCollectRules
         -> let 
             closingDate = d
@@ -312,15 +313,16 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
             (t {status = fromMaybe Amortizing nextSt, bonds = scaledBndMap, accounts=accAfterBought, pool = newPt2
                 ,collects = fromMaybe collRules mCollectRules}
             , rc
-            , cutBy Inc Past d actions ++ newActions) --TODO add actions to close deal
-      DoNothing -> (t, rc, actions)
+            , cutBy Inc Past d actions ++ newActions
+            , logs) --TODO add actions to close deal
+      DoNothing -> (t, rc, actions, [])
       _ -> error $ "Failed to match trigger effects: "++show te
 
 -- ^ test triggers in the deal and add a log if deal status changed
-runTriggers :: Ast.Asset a => (TestDeal a, RunContext a, [ActionOnDate]) -> Date -> DealCycle -> (TestDeal a, RunContext a, [ActionOnDate],[ResultComponent])
+runTriggers :: Ast.Asset a => (TestDeal a, RunContext a, [ActionOnDate]) -> Date -> DealCycle -> (TestDeal a, RunContext a, [ActionOnDate], [ResultComponent])
 runTriggers (t@TestDeal{status=oldStatus, triggers = Nothing},rc, actions) d dcycle = (t, rc, actions, [])
 runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc, actions) d dcycle = 
-    (newDeal {triggers = Just (Map.insert dcycle newTriggers trgM)}, newRc, newActions, newLogs) -- `debug` ("New logs from trigger"++ show d ++">>>"++show newLogs)
+    (newDeal {triggers = Just (Map.insert dcycle newTriggers trgM)}, newRc, newActions, newLogs++logsFromTrigger) -- `debug` ("New logs from trigger"++ show d ++">>>"++show newLogs)
   where 
     -- _trgs = Map.findWithDefault [] dcycle trgM
 
@@ -339,7 +341,7 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc, actions) d d
 
     -- run effects on deals
     -- aka (\_t _te -> runEffects _t d _te)
-    (newDeal, newRc, newActions) = foldl (`runEffects` d) (t,rc,actions) triggeredEffects
+    (newDeal, newRc, newActions, logsFromTrigger) = foldl (`runEffects` d) (t,rc,actions,[]) triggeredEffects
 
     -- if deal status changed, then insert to log if changes
     newStatus = status newDeal 
@@ -429,7 +431,6 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                       [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
                         endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
                      in  
-                        -- TODO missing newLogWaterfall_
                         (prepareDeal dealAfterCleanUp, endingLogs ++ logsBeforeDist ++newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
                    else
                      let 
@@ -551,15 +552,16 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                
                runContext = RunContext poolFlowMap rAssump rates
 
-               (newT, rc@(RunContext newPool _ _),adsFromTrigger) = case triggerEffects of 
-                                                      Nothing -> (t,runContext,ads) -- `debug` "Nothing found on effects"
-                                                      Just efs -> runEffects (t,runContext, ads) d efs
+               (newT, rc@(RunContext newPool _ _),adsFromTrigger, newLogsFromTrigger) 
+                 = case triggerEffects of 
+                     Nothing -> (t, runContext, ads, []) -- `debug` "Nothing found on effects"
+                     Just efs -> runEffects (t, runContext, ads, []) d efs
                (oldStatus,newStatus) = (status t,status newT)
                stChangeLogs = [DealStatusChangeTo d oldStatus newStatus |  oldStatus /= newStatus] 
 
                newLog = WarningMsg $ "Trigger Overrided to True "++ show(d,cyc,n)
              in 
-               run newT{triggers = Just triggerFired} newPool (Just ads) rates calls rAssump $ log++[newLog]++stChangeLogs
+               run newT{triggers = Just triggerFired} newPool (Just ads) rates calls rAssump $ log++[newLog]++stChangeLogs++newLogsFromTrigger
          
          MakeWhole d spd walTbl -> 
              let 
