@@ -2,6 +2,21 @@
 
 <!-- towncrier release notes start -->
 
+## 0.30.6
+
+### 2024-11-05
+* NEW: new Call options which specify `dates` to be tested
+
+## 0.30.5
+### 2024-11-02
+* NEW: Expose bond factor formula for single bond
+* FIX: Enable balanceSheet support for multiple pools
+* FIX: Include logs from clean up waterfall
+* FIX: Include logs from trigger/actions
+* ENHANCE: query borrower number by Pool Id
+* ENHANCE: query current pool balance by Pool Id
+
+
 ## 0.30.3
 ### 2024-10-20
 * NEW: Expose combo sensitivity endpoint, 

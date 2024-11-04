@@ -23,7 +23,7 @@ data CallOption = PoolBalance Balance    -- ^ triggered when pool perform balanc
                 | And [CallOption]       -- ^ triggered when all options were satisfied
                 | Or [CallOption]        -- ^ triggered when any option is satisfied
                 | PoolPv Balance         -- ^ Call when PV of pool fall below
-                | Pre Pre                -- ^ triggered when pool perform balance below threshold
-                deriving (Show,Generic,Ord,Eq)
+                | Pre Pre                -- ^ triggered when predicate evaluates to be True
+                deriving (Show,Generic,Ord,Eq,Read)
 
 $(deriveJSON defaultOptions ''CallOption)

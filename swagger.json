@@ -2317,6 +2317,25 @@
                         ],
                         "title": "HitStatedMaturity",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TestCall"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TestCall",
+                        "type": "object"
                     }
                 ]
             },
@@ -4288,6 +4307,86 @@
                             "contents"
                         ],
                         "title": "ByDS",
+                        "type": "object"
+                    }
+                ]
+            },
+            "CallOpt": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CallOption"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "LegacyOpts"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "LegacyOpts",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Pre"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CallPredicate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CallPredicate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Pre"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CallOnDates"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CallOnDates",
                         "type": "object"
                     }
                 ]
@@ -10845,7 +10944,7 @@
                     },
                     "callWhen": {
                         "items": {
-                            "$ref": "#/components/schemas/CallOption"
+                            "$ref": "#/components/schemas/CallOpt"
                         },
                         "type": "array"
                     },
@@ -18896,7 +18995,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.30.4"
+        "version": "0.30.5"
     },
     "openapi": "3.0.0",
     "paths": {

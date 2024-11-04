@@ -239,9 +239,9 @@ testCall t d opt =
        _ -> error ("failed to find call options"++ show opt)
 
 -- ^ if any of the call options are satisfied
-testCalls :: Ast.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
-testCalls t d [] = False  
-testCalls t d opts = any (testCall t d) opts  
+-- testCalls :: Ast.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
+-- testCalls t d [] = False  
+-- testCalls t d opts = any (testCall t d) opts  
 
 
 queryTrigger :: Ast.Asset a => TestDeal a -> DealCycle -> [Trigger]
@@ -353,7 +353,7 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc, actions) d d
     newTriggers = Map.union triggeredTrgs trgsMap
   
  
-run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe [C.CallOption] 
+run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([Pre],[Pre])
         -> Maybe (Map.Map String (RevolvingPool,AP.ApplyAssumptionType))-> [ResultComponent] -> (TestDeal a,[ResultComponent])
 run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = (prepareDeal t,log++[EndRun Nothing "By Status:Ended"])
 run t pCfM (Just []) _ _ _ log  = (prepareDeal t,log++[EndRun Nothing "No Actions"])
@@ -393,6 +393,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                (dRunWithTrigger0, rc1,ads2, newLogs0) = runTriggers (dealAfterUpdateScheduleFlow,runContext,ads) d EndCollection  
                eopActionsLog = [ RunningWaterfall d W.EndOfPoolCollection | Map.member W.EndOfPoolCollection waterfallM ] -- `debug` ("new logs from trigger 1"++ show newLogs0)
                
+               -- waterfall to execute for pool collection day
                waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("new logs from trigger 1"++ show newLogs0)
                
                (dAfterAction,rc2,newLogs) = foldl (performActionWrap d) (dRunWithTrigger0 ,rc1 ,log ) waterfallToExe -- `debug` ("End collection action"++ show waterfallToExe)
@@ -420,31 +421,24 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               logsBeforeDist = newLogs0++[ WarningMsg (" No waterfall distribution found on date "++show d++" with waterfall key "++show waterfallKey) 
                                 | Map.notMember waterfallKey waterfallM ]
            in 
-              case calls of
-                 Just callOpts ->
-                   if testCalls dRunWithTrigger0 d callOpts then 
-                     let 
-                        (dealAfterCleanUp, rc_, newLogWaterfall_ ) = foldl (performActionWrap d) (dRunWithTrigger0, rc1,log) cleanUpActions 
-                        newStLogs = if null cleanUpActions then 
-                                      [DealStatusChangeTo d dStatus Called]
-                                    else 
-                                      [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
-                        endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
-                     in  
-                        (prepareDeal dealAfterCleanUp, endingLogs ++ logsBeforeDist ++newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
-                   else
-                     let 
-                       (dAfterWaterfall, rc2, newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe 
-                       (dRunWithTrigger1, rc3, ads2, newLogs2) = runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  
-                     in 
-                       run dRunWithTrigger1 (runPoolFlow rc3) (Just ads2) rates calls rAssump (newLogsWaterfall++newLogs2++logsBeforeDist++[RunningWaterfall d waterfallKey]) 
-                 Nothing ->
-                   let 
-                     (dAfterWaterfall, rc2, newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe 
-                     (dRunWithTrigger1, rc3,ads2, newLogs2) = runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  
-                   in 
-                     run dRunWithTrigger1 (runPoolFlow rc3) (Just ads2) rates calls rAssump (newLogsWaterfall++newLogs2++logsBeforeDist++[RunningWaterfall d waterfallKey]) 
-                     
+             case (any id) <$> (testPre d dRunWithTrigger0 <$>) . fst <$> calls of
+               Just True -> 
+                 let 
+                    (dealAfterCleanUp, rc_, newLogWaterfall_ ) = foldl (performActionWrap d) (dRunWithTrigger0, rc1,log) cleanUpActions 
+                    newStLogs = if null cleanUpActions then 
+                                  [DealStatusChangeTo d dStatus Called]
+                                else 
+                                  [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
+                    endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
+                 in  
+                    (prepareDeal dealAfterCleanUp, endingLogs ++ logsBeforeDist ++newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
+               _ ->
+                 let 
+                   (dAfterWaterfall, rc2, newLogsWaterfall) = foldl (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe 
+                   (dRunWithTrigger1, rc3, ads2, newLogs2) = runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  
+                 in 
+                   run dRunWithTrigger1 (runPoolFlow rc3) (Just ads2) rates calls rAssump (newLogsWaterfall++newLogs2++logsBeforeDist++[RunningWaterfall d waterfallKey]) 
+
          EarnAccInt d accName ->
            let 
              newAcc = Map.adjust 
@@ -461,11 +455,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
            in 
              run (t {accounts = newAcc}) poolFlowMap (Just ads) rates calls rAssump log
 
-         AccrueFee d feeName ->  -- (t , log)
-           let 
-             newFeeMap = Map.adjust (calcDueFee t d) feeName feeMap -- `debug` ("Accure Fee on Actions")
-           in
-             run (t{fees=newFeeMap}) poolFlowMap (Just ads) rates calls rAssump log
+         AccrueFee d feeName -> run (t{fees=Map.adjust (calcDueFee t d) feeName feeMap}) poolFlowMap (Just ads) rates calls rAssump log
    
          ResetLiqProvider d liqName -> 
            case liqProvider t of 
@@ -591,7 +581,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              in 
                run t {bonds = depositBondFlow, status = Ended } poolFlowMap (Just []) rates calls rAssump $ log++[EndRun (Just d) "MakeWhole call"]
          
-         IssueBond d Nothing bGroupName accName bnd mBal mRate -> run t poolFlowMap (Just ((IssueBond d (Just (Always True)) bGroupName accName bnd mBal mRate):ads)) rates calls rAssump log
+         IssueBond d Nothing bGroupName accName bnd mBal mRate -> 
+            run t poolFlowMap (Just ((IssueBond d (Just (Always True)) bGroupName accName bnd mBal mRate):ads)) rates calls rAssump log
          
          IssueBond d (Just p) bGroupName accName bnd mBal mRate ->
              case testPre d t p of
@@ -655,6 +646,21 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             
          RefiBond d accName bnd -> undefined
 
+         TestCall d -> 
+             case (any id) <$> (testPre d t <$>) . snd <$> calls of
+               Just True -> 
+                 let 
+                    runContext = RunContext poolFlowMap rAssump rates
+                    (dealAfterCleanUp, rc_, newLogWaterfall_ ) = foldl (performActionWrap d) (t, runContext, log) cleanUpActions
+                    newStLogs = if null cleanUpActions then 
+                                  [DealStatusChangeTo d dStatus Called]
+                                else 
+                                  [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
+                    endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
+                 in  
+                    (prepareDeal dealAfterCleanUp, endingLogs ++ newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
+               _ -> run t poolFlowMap (Just ads) rates calls rAssump log
+
          _ -> error $ "Failed to match action on Date"++ show ad
          where
            cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
@@ -696,6 +702,38 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bond_prices)
     where 
       rateToday = getValByDate curve Inc     
 
+
+-- ^ split call option assumption , 
+-- lefts are for waterfall payment days
+-- rights are for date-based calls
+splitCallOpts :: AP.CallOpt -> ([Pre],[Pre])
+splitCallOpts (AP.CallPredicate ps) = (ps,[])
+splitCallOpts (AP.LegacyOpts copts) = 
+    let 
+       cFn (C.PoolBalance bal) = If L (CurrentPoolBalance Nothing) bal
+       cFn (C.BondBalance bal) = If L CurrentBondBalance bal
+       cFn (C.PoolFactor r) = IfRate L (PoolFactor Nothing) (fromRational r)
+       cFn (C.BondFactor r) = IfRate L BondFactor (fromRational r)
+       cFn (C.OnDate d) = IfDate E d
+       cFn (C.AfterDate d) = IfDate G d
+       cFn (C.And _opts) = All [ cFn o | o <- _opts  ]
+       cFn (C.Or _opts) = Any [ cFn o | o <- _opts  ]
+       cFn (C.Pre p) = p
+    in 
+       ([ cFn copt | copt <- copts ],[])
+-- legacyCallOptConvert (AP.CallOptions opts) = concat [ legacyCallOptConvert o | o <- opts ]
+splitCallOpts (AP.CallOnDates dp ps) = ([],ps)
+splitCallOpts x = error $ "Failed to find call option types but got"++ show x
+
+readCallOptions :: [AP.CallOpt] -> ([Pre],[Pre])
+readCallOptions [] = ([],[])
+readCallOptions opts = 
+  let 
+    result = splitCallOpts <$> opts
+  in 
+    (concat (fst <$> result), concat (snd <$> result))
+
+
 runDeal :: Ast.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
         -> (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Maybe (Map.Map String L.PriceResult))
 runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
@@ -715,11 +753,12 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                         Just (AP.AvailableAssetsBy rMap) -> Just rMap
                         Just _ -> error ("Failed to match revolving assumption"++show mRevolving)
       -- run() is a recusive function loop over all actions till deal end conditions are met
+
       (finalDeal, logs) = run (removePoolCf newT) 
                               pcf
                               (Just ads) 
                               mInterest
-                              opts
+                              (readCallOptions <$> opts)
                               mRevolvingCtx
                               []  
       poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) [])) (getAllCollectedFrame finalDeal Nothing)  
@@ -1110,12 +1149,21 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                            
                       _ -> []
 
+    extractTestDates (AP.CallOnDates dp _) = [TestCall x | x <- genSerialDatesTill2 EE startDate dp endDate ]
+    extractTestDates _ = []
+    -- extractTestDates (AP.CallOptions opts) = concat [ extractTestDates opt | opt <- opts ]
+    -- call test dates 
+    callDates = case mNonPerfAssump of
+                  Just AP.NonPerfAssumption{AP.callWhen = Just callOpts}
+                    -> concat [ extractTestDates callOpt | callOpt <- callOpts ]
+                  _ -> []
+
     allActionDates = let 
                        __actionDates = let 
                                         a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
                                                    ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
                                                    ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates
-                                                   ,bondIssuePlan,bondRefiPlan] 
+                                                   ,bondIssuePlan,bondRefiPlan,callDates] 
                                       in
                                         case (dates t,status) of 
                                           (PreClosingDates {}, PreClosing _) -> sortBy sortActionOnDate $ DealClosed closingDate:a 

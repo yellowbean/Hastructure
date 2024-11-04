@@ -82,6 +82,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   | StopRunFlag Date                     -- ^ stop the run with a message
                   | HitStatedMaturity Date               -- ^ hit the stated maturity date
+                  | TestCall Date                        -- ^ test call dates
                   deriving (Show,Generic,Read)
 
 instance Ord ActionOnDate where
@@ -110,6 +111,7 @@ instance TimeSeries ActionOnDate where
     getDate (RefiBondRate d _ _ _) = d
     getDate (RefiBond d _ _) = d
     getDate (ResetLiqProviderRate d _) = d
+    getDate (TestCall d) = d
     getDate x = error $ "Failed to match"++ show x
 
 
@@ -120,6 +122,8 @@ sortActionOnDate a1 a2
                  (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
                  (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
                  (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
+                 (TestCall _ ,_) -> GT  -- build report should be executed last
+                 (_ , TestCall _) -> LT -- build report should be executed last
                  (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
                  (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
                  (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first

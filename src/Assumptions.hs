@@ -16,7 +16,7 @@ module Assumptions (BondPricingInput(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
                     ,getCDR,calcResetDates,IssueBondEvent(..)
                     ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..),InspectType(..)
-                    ,FieldMatchRule(..))
+                    ,FieldMatchRule(..),CallOpt(..))
 where
 
 import Call as C
@@ -91,20 +91,23 @@ data IssueBondEvent = IssueBondEvent (Maybe Pre) BondName AccName Bond (Maybe Ba
 data RefiEvent = RefiRate AccountName BondName InterestInfo
                | RefiBond AccountName Bond
                | RefiEvents [RefiEvent]
-                deriving (Show, Generic, Read)
+               deriving (Show, Generic, Read)
 
 data InspectType = InspectPt DatePattern DealStats
                  | InspectRpt DatePattern [DealStats]
-                deriving (Show, Generic, Read)
+                 deriving (Show, Generic, Read)
 
+data CallOpt = LegacyOpts [C.CallOption]                 -- ^ legacy support
+             | CallPredicate [Pre]                           -- ^ default test call for each pay day, keep backward compatible
+             | CallOnDates DatePattern [Pre]             -- ^ test call at end of day
+             deriving (Show, Generic, Read, Ord, Eq)
 
 data NonPerfAssumption = NonPerfAssumption {
   stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
   ,projectedExpense :: Maybe [(FeeName,Ts)]                  -- ^ optional expense projection
-  ,callWhen :: Maybe [C.CallOption]                          -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
+  ,callWhen :: Maybe [CallOpt]                               -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
   ,revolving :: Maybe RevolvingAssumption                    -- ^ optional revolving assumption with revoving assets
   ,interest :: Maybe [RateAssumption]                        -- ^ optional interest rates assumptions
-  -- ,inspectOn :: Maybe [(DatePattern,DealStats)]              -- ^ optional tuple list to inspect variables during waterfall run
   ,inspectOn :: Maybe [InspectType]                            -- ^ optional tuple list to inspect variables during waterfall run
   ,buildFinancialReport :: Maybe DatePattern                 -- ^ optional dates to build financial reports
   ,pricing :: Maybe BondPricingInput                         -- ^ optional bond pricing input( discount curve etc)
@@ -253,6 +256,7 @@ calcResetDates (r:rs) bs
   | otherwise = calcResetDates rs (bs++[True])
 
 
+$(deriveJSON defaultOptions ''CallOpt)
 $(deriveJSON defaultOptions ''BondPricingInput)
 $(deriveJSON defaultOptions ''IssueBondEvent)
 $(deriveJSON defaultOptions ''RefiEvent)
