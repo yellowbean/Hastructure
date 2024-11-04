@@ -5600,6 +5600,35 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "EndsExclusive"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "EndsExclusive",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "$ref": "#/components/schemas/DatePattern"
                                     },
                                     {
@@ -18995,7 +19024,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.30.5"
+        "version": "0.30.7"
     },
     "openapi": "3.0.0",
     "paths": {

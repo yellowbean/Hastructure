@@ -198,6 +198,7 @@ data DatePattern = MonthEnd
                  | Weekday Int 
                  | AllDatePattern [DatePattern]
                  | StartsExclusive Date DatePattern
+                 | EndsExclusive Date DatePattern
                  | Exclude DatePattern [DatePattern]
                  | OffsetBy DatePattern Int
                  -- | DayOfWeek Int -- T.DayOfWeek
