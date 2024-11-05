@@ -323,6 +323,7 @@ ts2Test =
         getValByDate testThresholdCurve Inc (toDate "20220310")
   ]
 
+-- ^ date pattern test
 dateVectorPatternTest = 
   let 
     a = 1
@@ -400,6 +401,26 @@ dateVectorPatternTest =
         assertEqual "4"
         (toDates ["20230831","20230930"])
         (genSerialDatesTill2 NO_IE (toDate "20230831") MonthEnd (toDate "20231030") )
+    , testCase "starts " $
+        assertEqual " inc "
+        (toDates ["20230930"])
+        (genSerialDatesTill2 NO_IE (toDate "20230831") (StartsAt Inc (toDate "20230901") MonthEnd) (toDate "20231030") )
+    , testCase "starts " $
+        assertEqual " inc "
+        (toDates ["20230831", "20230930"])
+        (genSerialDatesTill2 NO_IE (toDate "20230831") (StartsAt Inc (toDate "20230831") MonthEnd) (toDate "20231030") )
+    , testCase "ends " $
+        assertEqual " inc "
+        (toDates ["20230831"])
+        (genSerialDatesTill2 NO_IE (toDate "20230831") (EndsAt Inc (toDate "20230901") MonthEnd) (toDate "20231030") )
+    , testCase "ends " $
+        assertEqual " inc "
+        (toDates ["20230831"])
+        (genSerialDatesTill2 NO_IE (toDate "20230831") (EndsAt Inc (toDate "20230831") MonthEnd) (toDate "20231030") )
+    , testCase "ends " $
+        assertEqual " exc "
+        ([])
+        (genSerialDatesTill2 NO_IE (toDate "20230831") (EndsAt Exc (toDate "20230831") MonthEnd) (toDate "20231030") )
     ]                          
 
 paddingTest = 

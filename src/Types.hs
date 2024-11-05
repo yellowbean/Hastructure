@@ -197,8 +197,9 @@ data DatePattern = MonthEnd
                  | EveryNMonth Date Int
                  | Weekday Int 
                  | AllDatePattern [DatePattern]
-                 | StartsExclusive Date DatePattern
-                 | EndsExclusive Date DatePattern
+                 | StartsExclusive Date DatePattern -- TODO depricated
+                 | StartsAt CutoffType Date DatePattern
+                 | EndsAt CutoffType Date DatePattern
                  | Exclude DatePattern [DatePattern]
                  | OffsetBy DatePattern Int
                  -- | DayOfWeek Int -- T.DayOfWeek
@@ -266,7 +267,7 @@ data RangeType = II     -- ^ include both start and end date
 
 data CutoffType = Inc 
                 | Exc
-                deriving (Show,Read,Generic,Eq)
+                deriving (Show,Ord,Read,Generic,Eq)
 
 data DateDirection = Future 
                    | Past
@@ -921,6 +922,7 @@ getDealStatType (CumulativePoolDefaultedRateTill _ _) = RtnRate
 getDealStatType (CumulativePoolDefaultedRate _) = RtnRate
 getDealStatType (CumulativeNetLossRatio _) = RtnRate
 getDealStatType BondFactor = RtnRate
+getDealStatType (BondFactorOf _) = RtnRate
 getDealStatType (PoolFactor _) = RtnRate
 getDealStatType (FutureCurrentBondFactor _) = RtnRate
 getDealStatType (FutureCurrentPoolFactor _ _) = RtnRate
@@ -958,6 +960,7 @@ data CustomDataType = CustomConstant Rational
 
 
 $(deriveJSON defaultOptions ''DealStatus)
+$(deriveJSON defaultOptions ''CutoffType)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )

@@ -327,6 +327,7 @@ instance ToSchema Index
 instance ToSchema DayCount
 instance ToSchema Direction
 instance ToSchema AmortPlan
+instance ToSchema CutoffType
 instance ToSchema DatePattern
 instance ToSchema IR.RateType
 instance ToSchema CF.TsRow

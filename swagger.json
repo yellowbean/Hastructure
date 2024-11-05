@@ -4937,6 +4937,13 @@
                     }
                 ]
             },
+            "CutoffType": {
+                "enum": [
+                    "Inc",
+                    "Exc"
+                ],
+                "type": "string"
+            },
             "DateDesp": {
                 "oneOf": [
                     {
@@ -5600,19 +5607,22 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/CutoffType"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
                                         "$ref": "#/components/schemas/DatePattern"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "EndsExclusive"
+                                    "StartsAt"
                                 ],
                                 "type": "string"
                             }
@@ -5621,7 +5631,39 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "EndsExclusive",
+                        "title": "StartsAt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/CutoffType"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "EndsAt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "EndsAt",
                         "type": "object"
                     },
                     {

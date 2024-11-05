@@ -247,7 +247,12 @@ genSerialDatesTill2 rt sd dp ed
              -- YearFirst -> throw $ userError "YearFirst not supported in genSerialDatesTill2"
              AllDatePattern dps -> concat [ genSerialDatesTill sd _dp ed | _dp <- dps ]
              StartsExclusive d _dp ->  filter (> d)  $ genSerialDatesTill2 rt sd _dp ed
-             EndsExclusive d _dp ->  filter (< d)  $ genSerialDatesTill2 rt sd _dp ed
+
+             StartsAt Exc d _dp ->  filter (> d)  $ genSerialDatesTill2 rt sd _dp ed
+             StartsAt Inc d _dp ->  filter (>= d)  $ genSerialDatesTill2 rt sd _dp ed
+             EndsAt Exc d _dp -> filter (< d)  $ genSerialDatesTill2 rt sd _dp ed
+             EndsAt Inc d _dp -> filter (<= d)  $ genSerialDatesTill2 rt sd _dp ed
+             
              Exclude _d _dps ->
                  let 
                    a = S.fromList $ genSerialDatesTill2 rt sd _d ed
