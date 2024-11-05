@@ -212,6 +212,8 @@ getFlow :: TxnComment -> FlowDirection
 getFlow comment =
     case comment of 
       PayInt _ -> Outflow
+      PayGroupInt _ -> Outflow 
+      PayGroupPrin _ -> Outflow
       PayYield _ -> Outflow
       PayPrin _ -> Outflow
       PayFee _ -> Outflow

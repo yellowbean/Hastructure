@@ -520,11 +520,11 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          
          BuildReport sd ed ->
              let 
-               bsReport = Rpt.buildBalanceSheet t ed 
+               bsReport = Rpt.buildBalanceSheet t ed -- `debug` ("bs report"++ show ed)
                cashReport = Rpt.buildCashReport t sd ed 
                newlog = FinancialReport sd ed bsReport cashReport
              in 
-               run t poolFlowMap (Just ads) rates calls rAssump $ log++[newlog] 
+               run t poolFlowMap (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("new log"++ show ed++ show newlog)
 
                  
          FireTrigger d cyc n -> 
@@ -1098,8 +1098,8 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                             -> let 
                                  _ds = genSerialDatesTill2 II startDate dp endDate 
                                in 
-                                 [ BuildReport _sd _ed  | (_sd,_ed) <- zip _ds (tail _ds) ] 
-                          _ -> []
+                                 [ BuildReport _sd _ed  | (_sd,_ed) <- zip _ds (tail _ds) ] -- `debug` ("ds"++ show _ds)
+                          _ -> []  -- `debug` ("emtpy rpt dates")
 
     irSwapRateDates = case rateSwap t of
                         Nothing -> []
@@ -1163,7 +1163,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                         a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
                                                    ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
                                                    ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates
-                                                   ,bondIssuePlan,bondRefiPlan,callDates] 
+                                                   ,bondIssuePlan,bondRefiPlan,callDates] -- `debug` ("reports"++ show financialRptDates)
                                       in
                                         case (dates t,status) of 
                                           (PreClosingDates {}, PreClosing _) -> sortBy sortActionOnDate $ DealClosed closingDate:a 
