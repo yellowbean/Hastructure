@@ -212,14 +212,18 @@ getFlow :: TxnComment -> FlowDirection
 getFlow comment =
     case comment of 
       PayInt _ -> Outflow
-      PayGroupInt _ -> Outflow 
-      PayGroupPrin _ -> Outflow
       PayYield _ -> Outflow
       PayPrin _ -> Outflow
+      PayGroupPrin _ -> Outflow
+      PayGroupInt _ -> Outflow 
+      WriteOff _ _ -> Noneflow
+      FundWith _ _ -> Inflow
+      PayPrinResidual _ -> Outflow
       PayFee _ -> Outflow
       SeqPayFee _ -> Outflow
       PayFeeYield _ -> Outflow
       Transfer _ _ -> Interflow 
+      TransferBy _ _ _ -> Interflow 
       PoolInflow _ _ -> Inflow
       LiquidationProceeds _ -> Inflow
       LiquidationSupport _ -> Inflow
@@ -227,6 +231,7 @@ getFlow comment =
       LiquidationRepay _ -> Outflow
       LiquidationSupportInt _ _ -> Noneflow
       BankInt -> Inflow
+      SupportDraw -> Noneflow
       Empty -> Noneflow 
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
@@ -234,8 +239,8 @@ getFlow comment =
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow
       PurchaseAsset _ _-> Outflow
-      SupportDraw -> Noneflow
       IssuanceProceeds _ -> Inflow
+      TxnDirection _ -> Noneflow
       TxnComments cmts -> 
         let 
           directionList = getFlow <$> cmts 
@@ -246,7 +251,6 @@ getFlow comment =
             Inflow
           else
             Noneflow
-      TransferBy {} -> Interflow
       _ -> error ("Missing in GetFlow >> "++ show comment)
 
 instance Ord Txn where
