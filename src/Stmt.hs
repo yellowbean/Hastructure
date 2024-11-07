@@ -241,7 +241,7 @@ getFlow comment =
       PurchaseAsset _ _-> Outflow
       IssuanceProceeds _ -> Inflow
       TxnDirection _ -> Noneflow
-      TxnComments cmts -> 
+      TxnComments cmts ->  --TODO the direction of combine txns
         let 
           directionList = getFlow <$> cmts 
         in 

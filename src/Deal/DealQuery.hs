@@ -317,9 +317,9 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
 
     FutureCurrentPoolBalance mPns ->
       case (mPns,pt) of 
-        (Nothing,SoloPool p) -> Pl.getIssuanceField p RuntimeCurrentPoolBalance
-        (Nothing,MultiPool pm ) -> queryDeal t (FutureCurrentPoolBalance (Just $ Map.keys pm))
-        (Just pids,MultiPool pm) -> 
+        (Nothing, SoloPool p) -> Pl.getIssuanceField p RuntimeCurrentPoolBalance
+        (Nothing, MultiPool pm ) -> queryDeal t (FutureCurrentPoolBalance (Just $ Map.keys pm))
+        (Just pids, MultiPool pm) -> 
           if S.isSubsetOf  (S.fromList pids) (S.fromList (Map.keys pm)) then 
             let 
               m = Map.filterWithKey (\k _ -> S.member k (S.fromList pids)) pm
