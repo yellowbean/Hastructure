@@ -1019,6 +1019,21 @@ patchScheduleFlow flowM pt =
     MultiPool pM -> MultiPool $ Map.intersectionWith (set P.poolFutureScheduleCf) (Just <$> flowM) pM
     ResecDeal pM -> ResecDeal pM
 
+patchRuntimeBal :: Ast.Asset a => Map.Map PoolId Balance -> PoolType a -> PoolType a
+patchRuntimeBal balMap (SoloPool p) = case Map.lookup PoolConsol balMap of
+                                        Nothing -> error "Failed to find beg bal for pool"
+                                        Just b -> SoloPool $ over P.poolIssuanceStat  (\m -> Map.insert RuntimeCurrentPoolBalance b m) p
+
+patchRuntimeBal balMap (MultiPool pM) 
+  = MultiPool $
+      Map.mapWithKey
+        (\k p -> over P.poolIssuanceStat 
+                      (Map.insert RuntimeCurrentPoolBalance (Map.findWithDefault 0.0 k balMap)) 
+                      p)
+        pM
+
+patchRuntimeBal balMap pt = pt
+
 runPoolType :: Ast.Asset a => PoolType a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption -> Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
 runPoolType (SoloPool p) mAssumps mNonPerfAssump = Map.fromList [(PoolConsol,P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump))]
 runPoolType (MultiPool pm) (Just (AP.ByName assumpMap)) mNonPerfAssump
@@ -1206,12 +1221,10 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                                 in
                                                                   (name uDeal, CF.CashFlowFrame (begBal,sd,Nothing) bondFlowRated, Map.empty))
                                           dm
-    pTxnOfSpv = Map.map (\(CF.CashFlowFrame _ txns, pstats) -> cutBy Inc Future startDate txns) pScheduleCfM  
-    pTxnWithBegRow = Map.map (\case
-                               [] -> [] 
-                               (x:xs) -> buildBegTsRow startDate x:x:xs) pTxnOfSpv  
-    -- pAggCfM = Map.map (\x -> CF.aggTsByDates x (getDates pActionDates)) pTxnWithBegRow
-    pAggCfM = pTxnWithBegRow
+    pTxnOfSpv = Map.map (\(CF.CashFlowFrame _ txns, pstats) -> cutBy Inc Future startDate txns) pScheduleCfM
+    pAggCfM = Map.map (\case
+                         [] -> [] 
+                         (x:xs) -> buildBegTsRow startDate x:x:xs) pTxnOfSpv  
     pUnstressedAfterCutoff = Map.map (CF.CashFlowFrame (0,startDate,Nothing)) pAggCfM
     -- if preclosing deal , issuance balance is using beg balance of projected cashflow
     -- if it is ongoing deal, issuance balance is user input ( deal is not aware of issuance balance as point of time)
@@ -1232,11 +1245,17 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     -- newPoolStat = Map.unionWith (+) (fromMaybe Map.empty (P.issuanceStat thePool)) historyStats
     -- newT = t {fees = newFeeMap, pool = thePool {P.issuanceStat = Just newPoolStat } } `debug` ("init with new pool stats"++ show newPoolStat)
     poolWithSchedule = patchScheduleFlow pUnstressedAfterCutoff thePool -- `debug` ("D")
+    poolWithIssuanceBalance = patchIssuanceBalance status (Map.map (\case 
+                                                                      [] -> 0
+                                                                      txns -> (CF.mflowBegBalance . head) txns) 
+                                                                    poolAggCfM)
+                                                          poolWithSchedule
+    poolWithRunPoolBalance = patchRuntimeBal 
+                               (Map.map (\(CF.CashFlowFrame (b,_,_) _) -> b) pCollectionCfAfterCutoff)
+                               poolWithIssuanceBalance
+
     newT = t {fees = newFeeMap
-             , pool = patchIssuanceBalance status (Map.map (\case 
-                                                              [] -> 0
-                                                              txns -> (CF.mflowBegBalance . head) txns) poolAggCfM)
-                                                  poolWithSchedule
+             , pool = poolWithRunPoolBalance 
              } -- patching with performing balance
 
 -- ^ UI translation : to read pool cash
