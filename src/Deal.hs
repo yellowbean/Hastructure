@@ -441,17 +441,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
 
          EarnAccInt d accName ->
            let 
-             newAcc = Map.adjust 
-                        (\a -> case a of
-                                (A.Account _ _ (Just A.BankAccount {}) _ _ ) -> A.depositInt a d  -- `debug` ("int acc"++show accName)
-                                (A.Account _ _ (Just (A.InvestmentAccount idx _ lastAccureDate _)) _ _ ) -> 
-                                  case AP.getRateAssumption (fromMaybe [] rates) idx of
-                                    Nothing -> a -- `debug` ("error..."++show accName)
-                                    Just (RateCurve _ _ts) -> A.depositIntByCurve a _ts d 
-                                    Just (RateFlat _ r )   -> A.depositIntByCurve a (mkRateTs [(lastAccureDate,r),(d,r)]) d
-                                    _ -> error ("Failed to match index "++show idx++" In rate assumpt" ++ name t) ) -- `debug` ("int acc"++show accName)
-                        accName  
-                        accMap
+             newAcc = Map.adjust (A.depositInt d) accName accMap
            in 
              run (t {accounts = newAcc}) poolFlowMap (Just ads) rates calls rAssump log
 
@@ -518,6 +508,20 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              in 
                run t{bonds = newBndMap} poolFlowMap (Just ads) rates calls rAssump log
          
+         ResetAccRate d accName -> 
+             let 
+               newAccMap = Map.adjust 
+                             (\a@(A.Account _ _ (Just (A.InvestmentAccount idx spd dp dp1 lastDay _)) _ _)
+                               -> let 
+                                    newRate = AP.lookupRate (fromMaybe [] rates) (idx,spd) d 
+                                    newAccInt = Just (A.InvestmentAccount idx spd dp dp1 lastDay newRate)
+                                  in 
+                                    a { A.accInterest = newAccInt}
+                             ) 
+                             accName accMap
+             in 
+               run t{accounts = newAccMap} poolFlowMap (Just ads) rates calls rAssump log
+
          BuildReport sd ed ->
              let 
                bsReport = Rpt.buildBalanceSheet t ed -- `debug` ("bs report"++ show ed)
@@ -1082,8 +1086,13 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t) status
 
     intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) endDate [] 
+
+    intAccRateResetDates = (A.buildRateResetDates endDate) <$> (Map.elems (accounts t))
+
     iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
                                            , _d <- accIntDates ] 
+    iAccRateResetDates = concat [ [ResetAccRate _d accName | _d <- _ds] | rst@(Just (accName, _ds)) <- intAccRateResetDates, isJust rst ]
+    
     --fee accrue dates 
     _feeAccrueDates = F.buildFeeAccrueAction (Map.elems feeMap) endDate [] 
     feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates
@@ -1178,7 +1187,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                         a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
                                                    ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
                                                    ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates
-                                                   ,bondIssuePlan,bondRefiPlan,callDates] -- `debug` ("reports"++ show financialRptDates)
+                                                   ,bondIssuePlan,bondRefiPlan,callDates, iAccRateResetDates ] -- `debug` ("reports"++ show financialRptDates)
                                       in
                                         case (dates t,status) of 
                                           (PreClosingDates {}, PreClosing _) -> sortBy sortActionOnDate $ DealClosed closingDate:a 

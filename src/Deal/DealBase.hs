@@ -74,6 +74,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | AccrueCapRate Date String            -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
                   | ResetSrtRate Date String 
+                  | ResetAccRate Date String 
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
@@ -105,6 +106,7 @@ instance TimeSeries ActionOnDate where
     getDate (ResetIRSwapRate d _ ) = d
     getDate (AccrueCapRate d _ ) = d
     getDate (ResetBondRate d _ ) = d 
+    getDate (ResetAccRate d _ ) = d 
     getDate (MakeWhole d _ _) = d 
     getDate (BuildReport sd ed) = ed
     getDate (IssueBond d _ _ _ _ _ _) = d
@@ -364,6 +366,9 @@ dealPool = lens getter setter
   where 
     getter d = pool d
     setter d newPool = d {pool = newPool}
+
+
+
 
 poolTypePool :: Ast.Asset a => Lens' (PoolType a) (Map.Map PoolId (P.Pool a))
 poolTypePool = lens getter setter

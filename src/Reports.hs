@@ -64,13 +64,6 @@ getItemBalance (Item _ bal) = bal
 getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
 
 
-
---   _dbal = queryDeal t CurrentPoolDefaultedBalance
---   _pbal = queryDeal t (CurrentPoolBalance Nothing) - _dbal
---   consolStat = getIssuanceStatsConsol t Nothing
---   _issuancePbal = Map.findWithDefault 0 IssuanceBalance consolStat
-
-
 getPoolBalanceStats :: P.Asset a => TestDeal a -> Maybe PoolId -> (Balance,Balance,Balance)
 getPoolBalanceStats t Nothing = (queryDeal t (FutureCurrentPoolBalance Nothing)
                                  ,(queryDeal t (PoolCumCollection [NewDefaults] Nothing))
@@ -83,13 +76,15 @@ getPoolBalanceStats t (Just pid) = (queryDeal t (FutureCurrentPoolBalance (Just 
 type PoolBalanceSnapshot = (Balance, Balance, Balance)
 
 buildBalanceSheet :: P.Asset a => TestDeal a -> Date -> BalanceSheetReport
-buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqProvider = liqMap, rateSwap = rsMap } d 
+buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqProvider = liqMap, rateSwap = rsMap ,accounts = accMap} 
+                  d 
     = BalanceSheetReport {asset=ast,liability=liab,equity=eqty,reportDate=d}
     where 
         --- accounts
-        accM = [ Item accName accBal | (accName,accBal) <- Map.toList $ Map.map A.accBalance (accounts t) ]
-        -- TODO accrued interst for account
+        accM = [ ParentItem accName [Item "Balance" accBal,Item "Accrue Int" accDue] | (accName, [accBal,accDue]) <- Map.toList $ Map.map (\acc -> [A.accBalance,(A.accrueInt d)] <*> [acc]) accMap ]
+        -- accsDueMap = [ Item accName accAccrueBal | (accName, accAccrueBal) <- Map.toList $ Map.map (A.accrueInt d) accMap ]
         
+        ---- pools
         mapPoolKey PoolConsol = Nothing 
         mapPoolKey (PoolName x) = Just (PoolName x)
         poolMap = Map.mapKeys mapPoolKey $ view (dealPool . poolTypePool) t
@@ -98,35 +93,38 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
                           poolMap
         
         poolAstMap = Map.mapWithKey 
-                       (\k (a,b,c) -> [ Item ("Pool Performing:"++show k) a
-                                      , Item ("Pool Defaulted:"++show k)  b
-                                      , Item ("Pool Recovery:"++show k)  c])
+                       (\k (a,b,c) -> ParentItem (show (fromMaybe PoolConsol k))
+                                        [ Item "Performing" a
+                                        , Item "Defaulted"  b
+                                        , Item "Recovery"   c ]
+                       )
                        poolAstBalMap
         
-        poolAst = concat $ Map.elems poolAstMap
+        poolAst = ParentItem "Pool" $ Map.elems poolAstMap
 
-        
-        swapToCollect = [ Item ("Swap:"++rsName) rsNet | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
-                                                       , rsNet > 0 ]
-        ast = accM ++ poolAst ++ swapToCollect
+        ---- swaps
+        swapToCollect = ParentItem "Swap" [ Item rsName rsNet | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
+                                            , rsNet > 0 ]
+        ast = [ParentItem "Account" accM] ++ [poolAst] ++ [swapToCollect]
+
+
         -- tranches
-        bndM = [ Item bndName bndBal | (bndName,bndBal) <- Map.toList $ Map.map L.getCurBalance (bonds t) ]
-        bndAccPayable = [ Item ("Accured Int:"++bndName) bndAccBal | (bndName,bndAccBal) <- Map.toList (Map.map (L.totalDueInt . (calcDueInt t d Nothing Nothing)) bndMap)]
+        bndM = [ ParentItem bndName [Item "Balance" bndBal,Item "Due Int" bndDueAmt ] | (bndName,[bndBal,bndDueAmt]) <- Map.toList $ Map.map (\bnd -> [L.getCurBalance, (L.totalDueInt . (calcDueInt t d Nothing Nothing))] <*> [bnd]) bndMap ]
+
         -- expenses
-        feeToPay = [ Item ("Fee Due:"++feeName) feeDueBal | (feeName,feeDueBal) <- Map.toList (Map.map (F.feeDue . (calcDueFee t d)) feeMap)]
+        feeToPay = ParentItem "Fee" [ Item feeName feeDueBal | (feeName,feeDueBal) <- Map.toList (Map.map (F.feeDue . (calcDueFee t d)) feeMap)]
         -- liquidity provider 
         liqProviderAccrued = Map.map (CE.accrueLiqProvider d) (fromMaybe Map.empty liqMap)
-        liqProviderOs = [ Item ("Liquidity Provider:"++liqName) liqBal | (liqName,liqBal) <- Map.toList (Map.map CE.liqBalance liqProviderAccrued)] 
-        liqProviderOI = [ Item ("Liquidity Provider Accured Int:"++liqName) liqBal | (liqName,liqBal) <- Map.toList (Map.map CE.liqDueInt liqProviderAccrued)] 
-        liqProviderOF = [ Item ("Liquidity Provider Accured Fee:"++liqName) liqBal | (liqName,liqBal) <- Map.toList (Map.map CE.liqDuePremium liqProviderAccrued)] 
+        liqProviderOs = [ ParentItem liqName [Item "Balance" liqBal,Item "Accrue Int" liqDueInt, Item "Due Fee" liqDueFee ]  | (liqName,[liqBal,liqDueInt,liqDueFee]) <- Map.toList (Map.map (\liq -> [CE.liqBalance,CE.liqDueInt,CE.liqDuePremium]<*> [liq]) liqProviderAccrued)] 
         -- rate swap
-        swapToPay = [ Item ("Swap:"++rsName) (negate rsNet) | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
+        swapToPay = ParentItem "Swap" [ Item rsName (negate rsNet) | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
                                                    , rsNet < 0 ]
-        liab = bndM ++ bndAccPayable ++ feeToPay ++ liqProviderOs ++ liqProviderOI ++ liqProviderOF ++ swapToPay -- `debug` ("ACC BOND"++show bndAccPayable)
+        liab = [(ParentItem "Bond" bndM)] ++ [feeToPay] ++ [(ParentItem "Liquidity" liqProviderOs)] ++ [swapToPay] -- `debug` ("ACC BOND"++show bndAccPayable)
 
         totalAssetBal = sum $ getItemBalance <$> ast  
         totalDebtBal = sum $ getItemBalance <$> liab
         eqty = [ Item "Net Asset" (totalAssetBal - totalDebtBal) ]
+
 
 buildCashReport :: P.Asset a => TestDeal a -> Date -> Date -> CashflowReport
 buildCashReport t@TestDeal{accounts = accs } sd ed 
