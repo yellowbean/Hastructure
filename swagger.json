@@ -2095,6 +2095,35 @@
                             },
                             "tag": {
                                 "enum": [
+                                    "ResetAccRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ResetAccRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
                                     "AccrueSrt"
                                 ],
                                 "type": "string"
@@ -3774,22 +3803,13 @@
             "BalanceSheetReport": {
                 "properties": {
                     "asset": {
-                        "items": {
-                            "$ref": "#/components/schemas/BookItem"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/BookItem"
                     },
                     "equity": {
-                        "items": {
-                            "$ref": "#/components/schemas/BookItem"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/BookItem"
                     },
                     "liability": {
-                        "items": {
-                            "$ref": "#/components/schemas/BookItem"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/BookItem"
                     },
                     "reportDate": {
                         "$ref": "#/components/schemas/Day"
@@ -4737,20 +4757,13 @@
                         "$ref": "#/components/schemas/Day"
                     },
                     "inflow": {
-                        "items": {
-                            "$ref": "#/components/schemas/BookItem"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/BookItem"
                     },
                     "net": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
+                        "$ref": "#/components/schemas/BookItem"
                     },
                     "outflow": {
-                        "items": {
-                            "$ref": "#/components/schemas/BookItem"
-                        },
-                        "type": "array"
+                        "$ref": "#/components/schemas/BookItem"
                     },
                     "startDate": {
                         "$ref": "#/components/schemas/Day"

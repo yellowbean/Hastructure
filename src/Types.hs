@@ -615,16 +615,16 @@ data BookItem = Item String Balance
 
 
 data BalanceSheetReport = BalanceSheetReport {
-                            asset :: BookItems
-                            ,liability :: BookItems
-                            ,equity :: BookItems
+                            asset :: BookItem
+                            ,liability :: BookItem
+                            ,equity :: BookItem
                             ,reportDate :: Date}         -- ^ snapshot date of the balance sheet
                             deriving (Show,Read,Generic)
  
 data CashflowReport = CashflowReport {
-                        inflow :: BookItems
-                        ,outflow :: BookItems
-                        ,net :: Balance
+                        inflow :: BookItem
+                        ,outflow :: BookItem
+                        ,net ::  BookItem
                         ,startDate :: Date 
                         ,endDate :: Date }
                         deriving (Show,Read,Generic)
