@@ -152,8 +152,8 @@ buildRateResetDates ed Account{accName = n, accInterest = Just (InvestmentAccoun
 buildRateResetDates _ _ = Nothing
 
 
-makeLensesFor [("accBalance","accBalLens") ,("accName","accNameLens") ,("accType","accTypeLens") ,("accStmt","accStmtLens")] ''Account
-
+makeLensesFor [("accBalance","accBalLens") ,("accName","accNameLens") 
+              ,("accType","accTypeLens") ,("accStmt","accStmtLens")] ''Account
 
 
 instance IR.UseRate Account where 

@@ -48,7 +48,11 @@ aggByTxnComment (txn:txns) m
   | M.member c m = aggByTxnComment txns (M.adjust ([txn] ++) c m)
   | otherwise = aggByTxnComment txns (M.insert c [txn] m)
   where 
-    c = getTxnComment txn
+    c = normalized $ getTxnComment txn
+    normalized (FundWith bn _) = FundWith bn 0
+    normalized (PurchaseAsset n _) = PurchaseAsset n 0
+    normalized (TxnComments txns) = TxnComments [ normalized x | x <- txns ]
+    normalized cmt = cmt
 
 scaleTxn :: Rate -> Txn -> Txn
 scaleTxn r (BondTxn d b i p r0 c di dioi f t) = BondTxn d (mulBR b r) (mulBR i r) (mulBR p r) r0 (mulBR c r) (mulBR di r) (mulBR dioi r) f t
