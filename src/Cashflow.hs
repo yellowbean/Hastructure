@@ -992,9 +992,11 @@ lookupSource tr CurBalance = mflowBalance tr
 lookupSource tr CurBegBalance = mflowBegBalance tr
 lookupSource tr x = error ("Failed to lookup source"++ show x)
 
-lookupSourceM :: Maybe TsRow -> PoolSource -> Balance
-lookupSourceM Nothing _ = 0
-lookupSourceM (Just tr) ps = lookupSource tr ps
+lookupSourceM :: Balance -> Maybe TsRow -> PoolSource -> Balance
+lookupSourceM bal Nothing CurBegBalance = bal
+lookupSourceM bal Nothing CurBalance = bal
+lookupSourceM _ Nothing _ = 0
+lookupSourceM _ (Just tr) ps = lookupSource tr ps
 
 
 setPrepaymentPenalty :: Balance -> TsRow -> TsRow

@@ -283,7 +283,7 @@ maximum' = foldr1 (\x y ->if x >= y then x else y)
 minimum' :: Ord a => [a] -> a
 minimum' = foldr1 (\x y ->if x >= y then y else x)
 
-roundingBy :: (Fractional a,RealFrac a) => RoundingBy a -> a -> a
+roundingBy :: (Num a,Fractional a, RealFrac a) => RoundingBy a -> a -> a
 roundingBy (RoundFloor x) n = x * fromIntegral (floor (n/x) :: Integer)
 roundingBy (RoundCeil x) n = x * fromIntegral (ceiling (n/x) :: Integer)
 

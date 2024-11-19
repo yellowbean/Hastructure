@@ -477,19 +477,10 @@ data DealStats = CurrentBondBalance
                | CumulativePoolDefaultedBalance (Maybe [PoolId])  -- ^ Depreciated, use PoolCumCollection
                | CumulativePoolRecoveriesBalance (Maybe [PoolId]) -- ^ Depreciated, use PoolCumCollection
                | CumulativeNetLoss (Maybe [PoolId])
-               | CumulativePoolDefaultedRate (Maybe [PoolId])
-               | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
-               | CumulativeNetLossRatio (Maybe [PoolId])
                | OriginalBondBalance
                | OriginalBondBalanceOf [BondName]
                | OriginalPoolBalance (Maybe [PoolId])
                | DealIssuanceBalance (Maybe [PoolId])
-               | CurrentPoolBorrowerNum (Maybe [PoolId])
-               | ProjCollectPeriodNum
-               | BondFactor
-               | BondFactorOf BondName
-               | PoolFactor (Maybe [PoolId])
-               | BondWaRate [BondName]
                | UseCustomData String
                | PoolCumCollection [PoolSource] (Maybe [PoolId])
                | PoolCumCollectionTill Int [PoolSource] (Maybe [PoolId])
@@ -501,8 +492,6 @@ data DealStats = CurrentBondBalance
                | LedgerTxnAmt [String] (Maybe TxnComment)
                | ReserveAccGap [AccName]
                | ReserveExcess [AccName] 
-               | MonthsTillMaturity BondName
-               | HasPassedMaturity [BondName]
                | ReserveAccGapAt Date [AccName] 
                | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance (Maybe [PoolId])
@@ -511,16 +500,9 @@ data DealStats = CurrentBondBalance
                | PoolScheduleCfPv PricingMethod (Maybe [PoolId])
                | FuturePoolScheduleCfPv Date PricingMethod (Maybe [PoolId])
                | FutureWaCurrentPoolBalance Date Date (Maybe [PoolId])
-               -- | FutureCurrentPoolBegBalance Date
                | FutureCurrentPoolBegBalance (Maybe [PoolId])
                | FutureCurrentBondBalance Date
-               | FutureCurrentBondFactor Date
-               | FutureCurrentPoolFactor Date (Maybe [PoolId])
-               | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
                | CurrentBondBalanceOf [BondName]
-               | IsMostSenior BondName [BondName]
-               | IsPaidOff [BondName]
-               | IsOutstanding [BondName]
                | BondIntPaidAt Date BondName
                | BondsIntPaidAt Date [BondName]
                | BondPrinPaidAt Date BondName
@@ -550,21 +532,40 @@ data DealStats = CurrentBondBalance
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date (Maybe [PoolId])
                | UnderlyingBondBalance (Maybe [BondName])
-               | TriggersStatus DealCycle String
-               | IsDealStatus DealStatus
-               | TestRate DealStats Cmp Micro
-               | TestAny Bool [DealStats]
-               | TestAll Bool [DealStats]
-               | TestNot DealStats
-               | PoolWaRate (Maybe [PoolId])
-               | BondRate BondName
-               -- weighted average balancer over period
                | WeightedAvgCurrentPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgCurrentBondBalance Date Date [BondName]
                | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgOriginalBondBalance Date Date [BondName]
-
-               -- 
+               | CustomData String Date
+               -- integer type
+               | CurrentPoolBorrowerNum (Maybe [PoolId])
+               | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
+               | ProjCollectPeriodNum
+               | MonthsTillMaturity BondName
+               -- boolean type
+               | TestRate DealStats Cmp Micro
+               | TestAny Bool [DealStats]
+               | TestAll Bool [DealStats]
+               | TestNot DealStats
+               | IsDealStatus DealStatus
+               | IsMostSenior BondName [BondName]
+               | IsPaidOff [BondName]
+               | IsOutstanding [BondName]
+               | HasPassedMaturity [BondName]
+               | TriggersStatus DealCycle String
+               -- rate type
+               | PoolWaRate (Maybe [PoolId])
+               | BondRate BondName
+               | CumulativeNetLossRatio (Maybe [PoolId])
+               | FutureCurrentBondFactor Date
+               | FutureCurrentPoolFactor Date (Maybe [PoolId])
+               | BondFactor
+               | BondFactorOf BondName
+               | CumulativePoolDefaultedRate (Maybe [PoolId])
+               | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
+               | PoolFactor (Maybe [PoolId])
+               | BondWaRate [BondName]
+               -- Compond type
                | Factor DealStats Rational
                | Multiply [DealStats]
                | Max [DealStats]
@@ -579,12 +580,11 @@ data DealStats = CurrentBondBalance
                | DivideRatio DealStats DealStats
                | Constant Rational
                | FloorAndCap DealStats DealStats DealStats
-               | CustomData String Date
                | FloorWith DealStats DealStats
                | FloorWithZero DealStats
                | CapWith DealStats DealStats
                | Abs DealStats
-               | Round DealStats (RoundingBy Balance)
+               | Round DealStats (RoundingBy Rational)
                deriving (Show,Eq,Ord,Read,Generic)
 
 preHasTrigger :: Pre -> [(DealCycle,String)]
@@ -647,12 +647,14 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryRecoveries    -- ^ cumulative recoveries
                   | HistoryInterest      -- ^ cumulative interest collected
                   | HistoryPrepayment    -- ^ cumulative prepayment collected
+                  | HistoryPrepaymentPentalty    -- ^ cumulative prepayment collected
                   | HistoryPrincipal     -- ^ cumulative principal collected
                   | HistoryRental        -- ^ cumulative rental collected
                   | HistoryDefaults      -- ^ cumulative default balance
                   | HistoryDelinquency   -- ^ cumulative delinquency balance
                   | HistoryLoss          -- ^ cumulative loss/write-off balance
                   | HistoryCash          -- ^ cumulative cash
+                  | HistoryFeePaid
                   | AccruedInterest      -- ^ accrued interest at closing
                   | RuntimeCurrentPoolBalance   -- ^ current pool balance
                   deriving (Show,Ord,Eq,Read,Generic)
@@ -943,10 +945,13 @@ getDealStatType TestRate {} = RtnBool
 getDealStatType (TestAny _ _) = RtnBool
 getDealStatType (TestAll _ _) = RtnBool
 
-getDealStatType (Avg dss) = getDealStatType (head dss)
+getDealStatType (Avg dss) = RtnRate
+getDealStatType (Divide ds1 ds2) = RtnRate
+getDealStatType (Multiply _) = RtnRate
+getDealStatType (Factor _ _) = RtnRate
+
 getDealStatType (Max dss) = getDealStatType (head dss)
 getDealStatType (Min dss) = getDealStatType (head dss)
-getDealStatType (Divide ds1 ds2) = getDealStatType ds1
 getDealStatType _ = RtnBalance
 
 dealStatType _ = RtnBalance

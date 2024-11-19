@@ -461,10 +461,10 @@ inspectListVars t d dss = [ inspectVars t d ds | ds <- dss]
 inspectVars :: Ast.Asset a => TestDeal a -> Date -> DealStats -> ResultComponent
 inspectVars t d ds =                     
   case getDealStatType ds of 
-    RtnRate -> InspectRate d ds $ queryDealRate t (patchDateToStats d ds)
+    RtnRate -> InspectRate d ds $ fromRational $  queryCompound t d (patchDateToStats d ds)
     RtnBool -> InspectBool d ds $ queryDealBool t (patchDateToStats d ds) d
-    RtnInt  -> InspectInt d ds $ queryDealInt t (patchDateToStats d ds) d
-    _       -> InspectBal d ds $ queryDeal t (patchDateToStats d ds)
+    RtnInt  -> InspectInt d ds $ round . fromRational $ queryCompound t d (patchDateToStats d ds)
+    _       -> InspectBal d ds $ fromRational $ queryCompound t d (patchDateToStats d ds)
 
 showInspection :: ResultComponent -> String
 showInspection (InspectRate d ds r) = show r
