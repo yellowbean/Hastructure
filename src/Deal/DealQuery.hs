@@ -33,6 +33,7 @@ import qualified Analytics as A
 import qualified Pool as Pl
 import Stmt
 import Util
+import Errors
 import DateUtil
 import Control.Lens hiding (element)
 import Control.Lens.TH
@@ -41,7 +42,6 @@ import Debug.Trace
 import Lib
 import Cashflow (CashFlowFrame(CashFlowFrame))
 import qualified Cashflow as P
-import qualified Util as CF
 debug = flip trace
 
 -- | calcuate target balance for a reserve account, 0 for a non-reserve account
@@ -681,6 +681,7 @@ queryCompound t d s =
     Round ds rb -> fromRational $ roundingBy rb (toRational (queryCompound t d ds))
     DivideRatio s1 s2 -> queryCompound t d (Divide s1 s2)
     AvgRatio ss -> queryCompound t d (Avg ss)
+    -- rate query
     BondFactor -> toRational $ queryDealRate t BondFactor
     BondFactorOf bn -> toRational $ queryDealRate t (BondFactorOf bn)
     PoolFactor mPns -> toRational $ queryDealRate t (PoolFactor mPns)
@@ -691,6 +692,7 @@ queryCompound t d s =
     BondRate bn -> toRational $ queryDealRate t (BondRate bn)
     BondWaRate bns -> toRational $ queryDealRate t (BondWaRate bns)
     PoolWaRate mPns -> toRational $ queryDealRate t (PoolWaRate mPns)
+    -- int query
     FutureCurrentPoolBorrowerNum _d mPns -> toRational $ queryDealInt t (FutureCurrentPoolBorrowerNum _d mPns) d
     CurrentPoolBorrowerNum mPns -> toRational $ queryDealInt t (CurrentPoolBorrowerNum mPns) d
     MonthsTillMaturity bn -> toRational $ queryDealInt t (MonthsTillMaturity bn) d

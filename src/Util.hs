@@ -10,7 +10,7 @@ module Util
     ,shiftTsByAmt,calcWeightBalanceByDates
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
-    ,lastOf,findBox,safeDivide'
+    ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     -- for debug
     ,zyj
@@ -30,6 +30,7 @@ import Types
 import DateUtil
 
 import Numeric.Limits (infinity)
+import Numeric.IEEE
 import Text.Printf
 import Control.Exception
 
@@ -65,9 +66,13 @@ divideBB :: Balance -> Balance -> Rational
 divideBB b1 b2 = toRational b1 / toRational b2
 
 safeDivide :: RealFloat a => a -> a -> a
-safeDivide _ 0 = infinity
+safeDivide _ 0 = Numeric.Limits.infinity
 safeDivide x y = x / y
 
+
+safeDiv :: Rational -> Rational -> Maybe Rational 
+safeDiv _ 0 = Nothing 
+safeDiv x y = Just $ x / y
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
