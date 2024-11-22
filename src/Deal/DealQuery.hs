@@ -17,6 +17,7 @@ import Data.Fixed
 import Data.Maybe
 import Data.Text (replace, pack, unpack)
 import Numeric.Limits
+import Control.Monad.Loops
 import GHC.Real
 import qualified Data.Map as Map
 import qualified Data.Set as S
@@ -37,6 +38,7 @@ import Errors
 import DateUtil
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import Control.Applicative
 import Data.Map.Lens
 import Debug.Trace
 import Lib
@@ -45,21 +47,25 @@ import qualified Cashflow as P
 debug = flip trace
 
 -- | calcuate target balance for a reserve account, 0 for a non-reserve account
-calcTargetAmount :: P.Asset a => TestDeal a -> Date -> A.Account -> Balance
-calcTargetAmount t d (A.Account _ _ _ Nothing _ ) = 0
+calcTargetAmount :: P.Asset a => TestDeal a -> Date -> A.Account -> Either String Balance
+calcTargetAmount t d (A.Account _ _ _ Nothing _ ) = Right 0
 calcTargetAmount t d (A.Account _ _ _ (Just r) _ ) =
    eval r 
    where
+     eval :: A.ReserveAmount -> Either String Balance
      eval ra = case ra of
-       A.PctReserve (Sum ds) _rate -> mulBR (queryDeal t (Sum (map (patchDateToStats d) ds))) _rate  -- `debug` ("In multiple query spot"++show(ds))
-       A.PctReserve ds _rate -> mulBR (queryDeal t (patchDateToStats d ds))  _rate
-       A.FixReserve amt -> amt
-       A.Either p ra1 ra2 -> if testPre d t p then 
-                                eval ra1
-                             else 
-                                eval ra2 
-       A.Max ras -> maximum' $ eval <$> ras
-       A.Min ras -> minimum' $ eval <$> ras
+       A.PctReserve (Sum ds) _rate -> Right $ mulBR (queryDeal t (Sum (map (patchDateToStats d) ds))) _rate  -- `debug` ("In multiple query spot"++show(ds))
+       A.PctReserve ds _rate -> Right $ mulBR (queryDeal t (patchDateToStats d ds))  _rate
+       A.FixReserve amt -> Right $ amt
+       A.Either p ra1 ra2 -> do 
+                               q <- testPre d t p
+                               if q then 
+                                 eval ra1
+                               else 
+                                 eval ra2 
+       -- A.Max ras -> eval <$> ras
+       A.Max ras -> maximum' <$> sequenceA (eval <$> ras)
+       A.Min ras -> minimum' <$> sequenceA (eval <$> ras)
 
 patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
@@ -311,16 +317,6 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         Nothing -> error ("No ledgers were modeled , failed to find ledger:"++show ans )
         Just ledgersM -> sum $ LD.ledgBalance . (ledgersM Map.!) <$> ans
     
-    ReserveExcessAt _d ans ->
-      max 
-        0
-        $ (-) (queryDeal t (AccBalance ans)) (sum $ calcTargetAmount t _d <$> ((accMap Map.!) <$> ans))
-
-    ReserveAccGapAt _d ans ->
-      max 
-        0 
-        $ (-) (sum $ calcTargetAmount t _d . (accMap Map.!) <$> ans ) (queryDeal t (AccBalance ans)) 
-
     FutureCurrentPoolBalance mPns ->
       case (mPns,pt) of 
         (Just [PoolConsol], SoloPool p) -> Pl.getIssuanceField p RuntimeCurrentPoolBalance
@@ -653,146 +649,198 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     
     _ -> error ("Failed to query balance of -> "++ show s)
 
-queryCompound :: P.Asset a => TestDeal a -> Date -> DealStats -> Rational 
-queryCompound t d s =
+queryCompound :: P.Asset a => TestDeal a -> Date -> DealStats -> Either String Rational 
+queryCompound t@TestDeal{accounts=accMap} d s =
   case s of
-    Sum _s -> sum $ map (queryCompound t d) _s -- `debug` (">>>SUM"++ show _s ++">>"++ show (map (queryDeal t) _s) )
+    Sum _s -> sum <$> sequenceA [ queryCompound t d __s | __s <- _s]
     Subtract (ds:dss) -> 
-      let 
-        a  = queryCompound t d ds 
-        bs = queryCompound t d (Sum dss) 
-      in 
-        a - bs
-    Avg dss ->  (sum (queryCompound t d <$> dss )) / (toRational (length dss))
+      do
+        a <- queryCompound t d ds 
+        bs <- queryCompound t d (Sum dss) 
+        return $ a - bs
+    Avg dss ->  (/ (toRational (length dss))) <$> (sum <$> sequenceA (queryCompound t d <$> dss )) 
     Max ss -> maximum' [ queryCompound t d s | s <- ss ]
     Min ss -> minimum' [ queryCompound t d s | s <- ss ]
-    Divide ds1 ds2 -> if (queryCompound t d ds2) == 0 then 
-                        (fromRational . toRational) Numeric.Limits.infinity
+    Divide ds1 ds2 -> if (queryCompound t d ds2) == Right 0 then 
+                        Left $ "Zero on ds: "++ show ds2
                       else
-                        queryCompound t d ds1 / queryCompound t d ds2
-    Factor s f -> (queryCompound t d s) * f
+                        liftA2 (/) (queryCompound t d ds1) (queryCompound t d ds2)
+    Factor s f -> (* f) <$> (queryCompound t d s)
     FloorAndCap floor cap s -> max (queryCompound t d floor) $ min (queryCompound t d cap) (queryCompound t d s)
-    Multiply ss -> product (queryCompound t d <$> ss)
-    FloorWith s floor -> max (queryCompound t d s) (queryCompound t d floor)
-    FloorWithZero s -> max (queryCompound t d s) 0
-    Excess (s1:ss) -> max 0 $ queryCompound t d s1 - queryCompound t d (Sum ss) -- `debug` ("Excess"++show (queryCompound t s1)++"ss"++show ( queryCompound t (Sum ss)))
+    Multiply ss -> product <$> sequenceA [ queryCompound t d _s | _s <- ss]
+    FloorWith s floor -> liftA2 max (queryCompound t d s) (queryCompound t d floor)
+    FloorWithZero s -> max 0 <$> (queryCompound t d s)
+    Excess (s1:ss) -> do 
+                        q1 <- queryCompound t d s1 
+                        q2 <- queryCompound t d (Sum ss) -- `debug` ("Excess"++show (queryCompound t s1)++"ss"++show ( queryCompound t (Sum ss)))
+                        return (max 0 (q1 -q2))
     CapWith s cap -> min (queryCompound t d s) (queryCompound t d cap)
-    Abs s -> abs $ queryCompound t d s
-    Round ds rb -> fromRational $ roundingBy rb (toRational (queryCompound t d ds))
+    Abs s -> abs <$> queryCompound t d s
+    Round ds rb -> do 
+                     q <- (queryCompound t d ds)
+                     return $ roundingBy rb q
     DivideRatio s1 s2 -> queryCompound t d (Divide s1 s2)
     AvgRatio ss -> queryCompound t d (Avg ss)
     -- rate query
-    BondFactor -> toRational $ queryDealRate t BondFactor
-    BondFactorOf bn -> toRational $ queryDealRate t (BondFactorOf bn)
-    PoolFactor mPns -> toRational $ queryDealRate t (PoolFactor mPns)
-    FutureCurrentPoolFactor asOfDay mPns -> toRational $ queryDealRate t $ FutureCurrentPoolFactor asOfDay mPns
-    CumulativePoolDefaultedRate mPns -> toRational $ queryDealRate t $ CumulativePoolDefaultedRate mPns
-    CumulativeNetLossRatio mPns -> toRational $ queryDealRate t (CumulativeNetLossRatio mPns)
-    CumulativePoolDefaultedRateTill idx mPns -> toRational $ queryDealRate t (CumulativePoolDefaultedRateTill idx mPns)
-    BondRate bn -> toRational $ queryDealRate t (BondRate bn)
-    BondWaRate bns -> toRational $ queryDealRate t (BondWaRate bns)
-    PoolWaRate mPns -> toRational $ queryDealRate t (PoolWaRate mPns)
+    BondFactor -> Right . toRational $ queryDealRate t BondFactor
+    BondFactorOf bn -> Right . toRational $ queryDealRate t (BondFactorOf bn)
+    PoolFactor mPns -> Right . toRational $ queryDealRate t (PoolFactor mPns)
+    FutureCurrentPoolFactor asOfDay mPns -> Right . toRational $ queryDealRate t $ FutureCurrentPoolFactor asOfDay mPns
+    CumulativePoolDefaultedRate mPns -> Right . toRational $ queryDealRate t $ CumulativePoolDefaultedRate mPns
+    CumulativeNetLossRatio mPns -> Right . toRational $ queryDealRate t (CumulativeNetLossRatio mPns)
+    CumulativePoolDefaultedRateTill idx mPns -> Right . toRational $ queryDealRate t (CumulativePoolDefaultedRateTill idx mPns)
+    BondRate bn -> Right . toRational $ queryDealRate t (BondRate bn)
+    BondWaRate bns -> Right . toRational $ queryDealRate t (BondWaRate bns)
+    PoolWaRate mPns -> Right . toRational $ queryDealRate t (PoolWaRate mPns)
     -- int query
-    FutureCurrentPoolBorrowerNum _d mPns -> toRational $ queryDealInt t (FutureCurrentPoolBorrowerNum _d mPns) d
-    CurrentPoolBorrowerNum mPns -> toRational $ queryDealInt t (CurrentPoolBorrowerNum mPns) d
-    MonthsTillMaturity bn -> toRational $ queryDealInt t (MonthsTillMaturity bn) d
-    ProjCollectPeriodNum -> toRational $ queryDealInt t ProjCollectPeriodNum d
-    balanceQ -> toRational $ queryDeal t balanceQ
+    FutureCurrentPoolBorrowerNum _d mPns -> Right . toRational $ queryDealInt t (FutureCurrentPoolBorrowerNum _d mPns) d
+    CurrentPoolBorrowerNum mPns -> Right . toRational $ queryDealInt t (CurrentPoolBorrowerNum mPns) d
+    MonthsTillMaturity bn -> Right . toRational $ queryDealInt t (MonthsTillMaturity bn) d
+    ProjCollectPeriodNum -> Right . toRational $ queryDealInt t ProjCollectPeriodNum d
+
+    ReserveBalance ans -> 
+        let 
+          accs::[A.Account] = (accMap Map.!) <$> ans
+          targetBals::[Either String Balance] = calcTargetAmount t d <$> accs 
+        in 
+          (toRational . sum) <$> sequenceA targetBals 
+
+    ReserveExcessAt _d ans ->
+        do 
+          q1 <- queryCompound t d (AccBalance ans)
+          q2 <- queryCompound t d (ReserveBalance ans)
+          return $ max 0 (q1 - q2)
+
+    ReserveAccGapAt _d ans ->
+        do 
+          q1 <- queryCompound t d (AccBalance ans)
+          q2 <- queryCompound t d (ReserveBalance ans)
+          return $ max 0 (q2 - q1)
+
+
+    balanceQ -> Right . toRational $ queryDeal t balanceQ
 
 
 
-queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Date -> Bool
+queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Date -> Either String Bool
 queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d = 
   case ds of 
     TriggersStatus dealcycle tName -> 
       case trgs of 
         Just _trgsM -> case Map.lookup dealcycle _trgsM of 
-                         Nothing -> error ("no trigger cycle for this deal" ++ show dealcycle)
+                         Nothing -> Left ("no trigger cycle for this deal" ++ show dealcycle)
                          Just triggerMatCycle -> 
                            case Map.lookup tName triggerMatCycle of 
-                             Nothing -> error ("no trigger for this deal" ++ show tName ++ " in cycle " ++ show triggerMatCycle)
-                             Just trigger -> Trg.trgStatus trigger 
-        Nothing -> error "no trigger for this deal"
+                             Nothing -> Left ("no trigger for this deal" ++ show tName ++ " in cycle " ++ show triggerMatCycle)
+                             Just trigger -> Right $ Trg.trgStatus trigger 
+        Nothing -> Left "no trigger for this deal"
     
     IsMostSenior bn bns ->
       let 
         bn1:bns1 =  (bndMap Map.!) <$> (bn:bns)
       in
         case (isPaidOff bn1,all isPaidOff bns1) of
-          (False,True) -> True
-          _ -> False
+          (False,True) -> Right $ True
+          _ -> Right $ False
 
-    IsPaidOff bns -> all isPaidOff $ (bndMap Map.!) <$> bns
+    IsPaidOff bns -> Right $ all isPaidOff $ (bndMap Map.!) <$> bns
 
-    IsOutstanding bns -> all (not . isPaidOff) $ (bndMap Map.!) <$> bns
+    IsOutstanding bns -> Right $ all (not . isPaidOff) $ (bndMap Map.!) <$> bns
     
     TestRate ds cmp r -> let
                            testRate = queryDealRate t ds
                          in  
                            case cmp of 
-                             G ->  testRate > r
-                             GE -> testRate >= r
-                             L ->  testRate < r
-                             LE -> testRate <= r
-                             E ->  testRate == r
+                             G ->  Right $ testRate > r
+                             GE -> Right $ testRate >= r
+                             L ->  Right $ testRate < r
+                             LE -> Right $ testRate <= r
+                             E ->  Right $ testRate == r
     
     HasPassedMaturity bns -> let 
                                oustandingBnds = filter (not . isPaidOff) $ (bndMap Map.!) <$> bns
                                monthsToMaturity = (\bn -> queryDealInt t (MonthsTillMaturity bn) d) <$> L.bndName <$> oustandingBnds
                              in 
-                               all (<= 0) monthsToMaturity
+                               Right $ all (<= 0) monthsToMaturity
 
-    IsDealStatus st -> status t == st
+    IsDealStatus st -> Right $ status t == st
 
-    TestNot ds -> not (queryDealBool t ds d)
+    TestNot ds -> do 
+                    q <- (queryDealBool t ds d)
+                    return $ not q
 
-    TestAny b dss -> b `elem` [ queryDealBool t ds d | ds <- dss ]
-    TestAll b dss -> all (== b) [ queryDealBool t ds d | ds <- dss ] 
+    -- TestAny b dss -> b `elem` [ queryDealBool t ds d | ds <- dss ]
+    TestAny b dss -> anyM (\ x -> (== b) <$> (queryDealBool t x d) ) dss
+    TestAll b dss -> allM (\ x -> (== b) <$> (queryDealBool t x d) ) dss
 
     _ -> error ("Failed to query bool type formula"++ show ds)
 
 -- ^ test a condition with a deal and a date
-testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Bool
+testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Either String Bool
 testPre d t p =
   case p of
-    Types.All pds -> all (testPre d t) pds 
-    Types.Any pds -> any (testPre d t) pds 
-    IfZero s -> queryCompound t d s == 0.0 -- `debug` ("S->"++show(s)++">>"++show((queryDeal t s)))
+    Types.All pds -> allM (testPre d t) pds 
+    -- Types.Any pds -> return $ any (testPre d t) pds 
+    Types.Any pds -> anyM (testPre d t) pds 
+    IfZero s -> do 
+                  q <- queryCompound t d s 
+                  return $ (round q) == 0
     
-    If cmp s amt -> toCmp cmp (queryCompound t d (ps s)) (toRational amt) -- `debug` (show d++"if cmp "++show (queryDeal t (ps s))++"amt"++show amt)
-    IfRate cmp s amt -> toCmp cmp (queryCompound t d (ps s)) (toRational amt) -- `debug` (show d++"rate"++show (queryDealRate t (ps s))++"amt"++show amt)
-    IfInt cmp s amt -> toCmp cmp (queryCompound t d (ps s)) (toRational amt)
+    If cmp s amt -> do 
+                      q <- (queryCompound t d (ps s))
+                      return $ toCmp cmp q (toRational amt) -- `debug` (show d++"if cmp "++show (queryDeal t (ps s))++"amt"++show amt)
+    IfRate cmp s amt -> do 
+                          q <- (queryCompound t d (ps s))
+                          return $ toCmp cmp q (toRational amt) -- `debug` (show d++"rate"++show (queryDealRate t (ps s))++"amt"++show amt)
+    IfInt cmp s amt -> do 
+                         q <- (queryCompound t d (ps s))
+                         return $ toCmp cmp q (toRational amt)
     
     -- Integer test
-    IfIntIn s iset -> (round (queryCompound t d (ps s)))`elem` iset
+    IfIntIn s iset -> do 
+                        q <- (queryCompound t d (ps s))
+                        return $ (round q) `elem` iset
     IfIntBetween s rt i1 i2 ->
-      let 
-        val = (round (queryCompound t d (ps s))) -- queryDealInt t (ps s) d
-      in 
+      do
+        v <- queryCompound t d (ps s)
         case rt of 
-          II -> val >= i1 && val <= i2
-          IE -> val >= i1 && val < i2
-          EI -> val > i1 && val <= i2
-          EE -> val > i1 && val < i2 
+          II -> return $ (round v) >= i1 && (round v) <= i2
+          IE -> return $ (round v) >= i1 && (round v) < i2
+          EI -> return $ (round v) > i1 && (round v) <= i2
+          EE -> return $ (round v) > i1 && (round v) < i2 
     -- IfIntBetween cmp1 s1 cmp2 s2 amt -> toCmp cmp1 (queryDealInt t (ps s1) d) amt && toCmp cmp2 (queryDealInt t (ps s2) d) amt
-    IfDate cmp _d -> toCmp cmp d _d
-    IfDateBetween II d1 d2 ->  d >= d1 && (d <= d2)
-    IfDateBetween EI d1 d2 ->  d > d1 && (d <= d2)
-    IfDateBetween IE d1 d2 ->  d >= d1 && (d < d2)
-    IfDateBetween EE d1 d2 ->  d > d1 && (d < d2)
-    IfDateIn ds -> d `elem` ds
+    IfDate cmp _d -> return $ toCmp cmp d _d
+    IfDateBetween II d1 d2 -> return $ d >= d1 && (d <= d2)
+    IfDateBetween EI d1 d2 -> return $ d > d1 && (d <= d2)
+    IfDateBetween IE d1 d2 -> return $ d >= d1 && (d < d2)
+    IfDateBetween EE d1 d2 -> return $ d > d1 && (d < d2)
+    IfDateIn ds -> return $ d `elem` ds
 
-    IfCurve cmp s _ts -> toCmp cmp (queryCompound t d (ps s)) (getValByDate _ts Inc d)
-    IfRateCurve cmp s _ts -> toCmp cmp (queryCompound t d (ps s)) (getValByDate _ts Inc d)
+    IfCurve cmp s _ts -> do 
+                           q <- (queryCompound t d (ps s))
+                           return $ toCmp cmp q (getValByDate _ts Inc d)
+    IfRateCurve cmp s _ts -> do v <- (queryCompound t d (ps s))
+                                return $ (toCmp cmp) v (getValByDate _ts Inc d)
     IfBool s True -> queryDealBool t s d
-    IfBool s False -> not (queryDealBool t s d)
-    If2 cmp s1 s2 -> toCmp cmp (queryCompound t d (ps s1)) (queryCompound t d (ps s2))
-    IfRate2 cmp s1 s2 -> toCmp cmp (queryCompound t d (ps s1)) (queryCompound t d (ps s2))
-    IfInt2 cmp s1 s2 -> toCmp cmp (queryCompound t d (ps s1)) (queryCompound t d (ps s2))
-    IfDealStatus st -> status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
+    IfBool s False -> do 
+                        q <- (queryDealBool t s d)
+                        return q
+    If2 cmp s1 s2 -> do 
+                       q1 <- (queryCompound t d (ps s1))
+                       q2 <- (queryCompound t d (ps s2))
+                       return (toCmp cmp q1 q2)  
+    IfRate2 cmp s1 s2 -> do 
+                          q1 <- (queryCompound t d (ps s1))
+                          q2 <- (queryCompound t d (ps s2))
+                          return (toCmp cmp q1 q2)  
+    IfInt2 cmp s1 s2 -> do 
+                          q1 <- (queryCompound t d (ps s1))
+                          q2 <- (queryCompound t d (ps s2))
+                          return (toCmp cmp q1 q2)  
+    IfDealStatus st -> Right $ status t == st   --  `debug` ("current date"++show d++">> stutus"++show (status t )++"=="++show st)
     
-    Always b -> b
-    IfNot _p -> not $ testPre d t _p
+    Always b -> Right b
+    IfNot _p -> not <$> testPre d t _p
     where 
       toCmp x = case x of 
                   G -> (>)
@@ -834,5 +882,5 @@ preToStr t d p =
   where 
     ps = patchDateToStats d
 
-testPre2 :: P.Asset a => Date -> TestDeal a -> Pre -> (String, Bool)
+testPre2 :: P.Asset a => Date -> TestDeal a -> Pre -> (String, Either String Bool)
 testPre2 d t p = (replaceToInf (preToStr t d p), testPre d t p)

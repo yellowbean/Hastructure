@@ -5920,84 +5920,6 @@
                     },
                     {
                         "properties": {
-                            "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/PoolId"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "CumulativePoolDefaultedRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "CumulativePoolDefaultedRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "minimum": -9223372036854775808,
-                                        "type": "integer"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/PoolId"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "CumulativePoolDefaultedRateTill"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "CumulativePoolDefaultedRateTill",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/PoolId"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "CumulativeNetLossRatio"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "CumulativeNetLossRatio",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
                             "tag": {
                                 "enum": [
                                     "OriginalBondBalance"
@@ -6075,121 +5997,6 @@
                             "contents"
                         ],
                         "title": "DealIssuanceBalance",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/PoolId"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "CurrentPoolBorrowerNum"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "CurrentPoolBorrowerNum",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "tag": {
-                                "enum": [
-                                    "ProjCollectPeriodNum"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag"
-                        ],
-                        "title": "ProjCollectPeriodNum",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "tag": {
-                                "enum": [
-                                    "BondFactor"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag"
-                        ],
-                        "title": "BondFactor",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "type": "string"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "BondFactorOf"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "BondFactorOf",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/PoolId"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "PoolFactor"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "PoolFactor",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "BondWaRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "BondWaRate",
                         "type": "object"
                     },
                     {
@@ -6499,47 +6306,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "type": "string"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "MonthsTillMaturity"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "MonthsTillMaturity",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "HasPassedMaturity"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "HasPassedMaturity",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/Day"
@@ -6813,89 +6579,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FutureCurrentBondFactor"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "FutureCurrentBondFactor",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Day"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/PoolId"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FutureCurrentPoolFactor"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "FutureCurrentPoolFactor",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Day"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/PoolId"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FutureCurrentPoolBorrowerNum"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "FutureCurrentPoolBorrowerNum",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "items": {
                                     "type": "string"
                                 },
@@ -6913,82 +6596,6 @@
                             "contents"
                         ],
                         "title": "CurrentBondBalanceOf",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "IsMostSenior"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "IsMostSenior",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "IsPaidOff"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "IsPaidOff",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "IsOutstanding"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "IsOutstanding",
                         "type": "object"
                     },
                     {
@@ -7775,211 +7382,6 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/DealCycle"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "TriggersStatus"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "TriggersStatus",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/DealStatus"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "IsDealStatus"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "IsDealStatus",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Cmp"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "minItems": 3,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "TestRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "TestRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "type": "boolean"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/DealStats"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "TestAny"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "TestAny",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "type": "boolean"
-                                    },
-                                    {
-                                        "items": {
-                                            "$ref": "#/components/schemas/DealStats"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "TestAll"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "TestAll",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/DealStats"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "TestNot"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "TestNot",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/PoolId"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "PoolWaRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "PoolWaRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "type": "string"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "BondRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "BondRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
@@ -8113,6 +7515,633 @@
                             "contents"
                         ],
                         "title": "WeightedAvgOriginalBondBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CustomData"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CustomData",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CurrentPoolBorrowerNum"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentPoolBorrowerNum",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FutureCurrentPoolBorrowerNum"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FutureCurrentPoolBorrowerNum",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ProjCollectPeriodNum"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ProjCollectPeriodNum",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MonthsTillMaturity"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "MonthsTillMaturity",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TestRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TestRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/DealStats"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TestAny"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TestAny",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/DealStats"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TestAll"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TestAll",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStats"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TestNot"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TestNot",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStatus"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IsDealStatus"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IsDealStatus",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IsMostSenior"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IsMostSenior",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IsPaidOff"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IsPaidOff",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IsOutstanding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IsOutstanding",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "HasPassedMaturity"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "HasPassedMaturity",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealCycle"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TriggersStatus"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TriggersStatus",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PoolWaRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PoolWaRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CumulativeNetLossRatio"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CumulativeNetLossRatio",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FutureCurrentBondFactor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FutureCurrentBondFactor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FutureCurrentPoolFactor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FutureCurrentPoolFactor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "BondFactor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "BondFactor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondFactorOf"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondFactorOf",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CumulativePoolDefaultedRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CumulativePoolDefaultedRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CumulativePoolDefaultedRateTill"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CumulativePoolDefaultedRateTill",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PoolFactor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PoolFactor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondWaRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondWaRate",
                         "type": "object"
                     },
                     {
@@ -8458,35 +8487,6 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Day"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "CustomData"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "CustomData",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
@@ -8586,7 +8586,7 @@
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/RoundingBy_(Fixed_*_E2)"
+                                        "$ref": "#/components/schemas/RoundingBy_(Ratio_Integer)"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -15169,50 +15169,6 @@
                     }
                 ]
             },
-            "RoundingBy_(Fixed_*_E2)": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "RoundCeil"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "RoundCeil",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "RoundFloor"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "RoundFloor",
-                        "type": "object"
-                    }
-                ]
-            },
             "RoundingBy_(Fixed_*_E6)": {
                 "oneOf": [
                     {
@@ -15239,6 +15195,50 @@
                         "properties": {
                             "contents": {
                                 "multipleOf": 1.0e-6,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RoundFloor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RoundFloor",
+                        "type": "object"
+                    }
+                ]
+            },
+            "RoundingBy_(Ratio_Integer)": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RoundCeil"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RoundCeil",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
                                 "type": "number"
                             },
                             "tag": {
@@ -19079,7 +19079,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.31.1"
+        "version": "0.31.2"
     },
     "openapi": "3.0.0",
     "paths": {

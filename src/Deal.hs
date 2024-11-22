@@ -62,6 +62,7 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
+import Control.Monad
 
 import Debug.Trace
 import Cashflow (buildBegTsRow)
@@ -224,17 +225,17 @@ accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = inde
                   newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
 
 -- ^ test if a clean up call should be fired
-testCall :: Ast.Asset a => TestDeal a -> Date -> C.CallOption -> Bool 
+testCall :: Ast.Asset a => TestDeal a -> Date -> C.CallOption -> Either String Bool 
 testCall t d opt = 
     case opt of 
-       C.PoolBalance x -> queryDeal t (FutureCurrentPoolBalance Nothing) < x
-       C.BondBalance x -> queryDeal t CurrentBondBalance < x
-       C.PoolFactor x ->  queryDealRate t (FutureCurrentPoolFactor d Nothing) < fromRational x -- `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
-       C.BondFactor x ->  queryDealRate t BondFactor < fromRational x
-       C.OnDate x -> x == d 
-       C.AfterDate x -> d > x
-       C.And xs -> all (testCall t d) xs
-       C.Or xs -> any (testCall t d) xs
+       C.PoolBalance x -> Right $ queryDeal t (FutureCurrentPoolBalance Nothing) < x
+       C.BondBalance x -> Right $ queryDeal t CurrentBondBalance < x
+       C.PoolFactor x ->  Right $ queryDealRate t (FutureCurrentPoolFactor d Nothing) < fromRational x -- `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
+       C.BondFactor x ->  Right $ queryDealRate t BondFactor < fromRational x
+       C.OnDate x -> Right $ x == d 
+       C.AfterDate x -> Right $ d > x
+       C.And xs -> (all id) <$> sequenceA $ [testCall t d x | x <- xs]
+       C.Or xs -> (any id) <$> sequenceA $ [testCall t d x | x <- xs]
        C.Pre pre -> testPre d t pre
        _ -> error ("failed to find call options"++ show opt)
 
@@ -354,11 +355,11 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc, actions) d d
   
  
 run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([Pre],[Pre])
-        -> Maybe (Map.Map String (RevolvingPool,AP.ApplyAssumptionType))-> [ResultComponent] -> (TestDeal a,[ResultComponent])
-run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = (prepareDeal t,log++[EndRun Nothing "By Status:Ended"])
-run t pCfM (Just []) _ _ _ log  = (prepareDeal t,log++[EndRun Nothing "No Actions"])
-run t pCfM (Just [HitStatedMaturity d]) _ _ _ log  = (prepareDeal t,log++[EndRun (Just d) "Stop: Stated Maturity"])
-run t pCfM (Just (StopRunFlag d:_)) _ _ _ log  = (prepareDeal t,log++[EndRun (Just d) "Stop Run Flag"])
+        -> Maybe (Map.Map String (RevolvingPool,AP.ApplyAssumptionType))-> [ResultComponent] -> Either String (TestDeal a,[ResultComponent])
+run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = Right (prepareDeal t,log++[EndRun Nothing "By Status:Ended"])
+run t pCfM (Just []) _ _ _ log  = Right (prepareDeal t,log++[EndRun Nothing "No Actions"])
+run t pCfM (Just [HitStatedMaturity d]) _ _ _ log  = Right (prepareDeal t,log++[EndRun (Just d) "Stop: Stated Maturity"])
+run t pCfM (Just (StopRunFlag d:_)) _ _ _ log  = Right (prepareDeal t,log++[EndRun (Just d) "Stop Run Flag"])
 run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus,waterfall=waterfallM,name=dealName,pool=pt} 
     poolFlowMap (Just (ad:ads)) rates calls rAssump log
   | all (== 0) futureCashToCollect && (queryDeal t AllAccBalance == 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
@@ -367,7 +368,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         runContext = RunContext poolFlowMap rAssump rates
         (finalDeal,_,newLogs) = foldl (performActionWrap (getDate ad)) (t,runContext,log) cleanUpActions 
        in 
-        (prepareDeal finalDeal,newLogs++[EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"]) -- `debug` ("End of pool collection with logs with length "++ show (length log))
+        Right (prepareDeal finalDeal,newLogs++[EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"]) -- `debug` ("End of pool collection with logs with length "++ show (length log))
 
   | otherwise
      = case ad of 
@@ -589,39 +590,41 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             run t poolFlowMap (Just ((IssueBond d (Just (Always True)) bGroupName accName bnd mBal mRate):ads)) rates calls rAssump log
          
          IssueBond d (Just p) bGroupName accName bnd mBal mRate ->
-             case testPre d t p of
-               False -> run t poolFlowMap (Just ads) rates calls rAssump (log ++ [WarningMsg ("Failed to issue to bond group"++ bGroupName++ ":" ++show p)])
-               True ->
-                        let 
-                          newBndName = L.bndName bnd
-                          newBalance = case mBal of
-                                        Just _q -> queryDeal t (patchDateToStats d _q)  
-                                        Nothing -> L.originBalance (L.bndOriginInfo bnd)
-                          newRate = case mRate of 
-                                        Just _q -> toRational $ queryDealRate t (patchDateToStats d _q)
-                                        Nothing -> L.originRate (L.bndOriginInfo bnd)
-                          newBonds = case Map.lookup bGroupName bndMap of
-                                        Nothing -> bndMap
-                                        Just L.Bond {} -> bndMap
-                                        Just (L.BondGroup bndGrpMap) -> let
-                                                                          bndOInfo = (L.bndOriginInfo bnd) {L.originDate = d, L.originRate = newRate, L.originBalance = newBalance }
-                                                                          bndToInsert = bnd {L.bndOriginInfo = bndOInfo,
-                                                                                             L.bndDueIntDate = Just d,
-                                                                                             L.bndLastIntPay = Just d, 
-                                                                                             L.bndLastPrinPay = Just d,
-                                                                                             L.bndRate = fromRational newRate,
-                                                                                             L.bndBalance = newBalance}
-                                                                        in 
-                                                                          Map.insert bGroupName 
-                                                                                     (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap))
-                                                                                     bndMap
+             do 
+               flag <- testPre d t p
+               case flag of
+                 False -> run t poolFlowMap (Just ads) rates calls rAssump (log ++ [WarningMsg ("Failed to issue to bond group"++ bGroupName++ ":" ++show p)])
+                 True ->
+                          let 
+                            newBndName = L.bndName bnd
+                            newBalance = case mBal of
+                                          Just _q -> queryDeal t (patchDateToStats d _q)  
+                                          Nothing -> L.originBalance (L.bndOriginInfo bnd)
+                            newRate = case mRate of 
+                                          Just _q -> toRational $ queryDealRate t (patchDateToStats d _q)
+                                          Nothing -> L.originRate (L.bndOriginInfo bnd)
+                            newBonds = case Map.lookup bGroupName bndMap of
+                                          Nothing -> bndMap
+                                          Just L.Bond {} -> bndMap
+                                          Just (L.BondGroup bndGrpMap) -> let
+                                                                            bndOInfo = (L.bndOriginInfo bnd) {L.originDate = d, L.originRate = newRate, L.originBalance = newBalance }
+                                                                            bndToInsert = bnd {L.bndOriginInfo = bndOInfo,
+                                                                                               L.bndDueIntDate = Just d,
+                                                                                               L.bndLastIntPay = Just d, 
+                                                                                               L.bndLastPrinPay = Just d,
+                                                                                               L.bndRate = fromRational newRate,
+                                                                                               L.bndBalance = newBalance}
+                                                                          in 
+                                                                            Map.insert bGroupName 
+                                                                                       (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap))
+                                                                                       bndMap
 
-                          issuanceProceeds = newBalance
-                          newAcc = Map.adjust (A.deposit issuanceProceeds d (IssuanceProceeds newBndName))
-                                              accName
-                                              accMap
-                        in 
-                          run t{bonds = newBonds, accounts = newAcc} poolFlowMap (Just ads) rates calls rAssump log
+                            issuanceProceeds = newBalance
+                            newAcc = Map.adjust (A.deposit issuanceProceeds d (IssuanceProceeds newBndName))
+                                                accName
+                                                accMap
+                          in 
+                            run t{bonds = newBonds, accounts = newAcc} poolFlowMap (Just ads) rates calls rAssump log
          RefiBondRate d accName bName iInfo ->
             let
               -- settle accrued interest 
@@ -650,8 +653,11 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             
          RefiBond d accName bnd -> undefined
 
-         TestCall d -> 
-             case (any id) <$> (testPre d t <$>) . snd <$> calls of
+         TestCall d ->
+           do 
+             let timeBasedTests::[Pre] = snd (fromMaybe ([],[]) calls)
+             flags <- sequenceA $ [ (testPre d t pre) | pre <- timeBasedTests ]
+             case (any id) <$> flags of
                Just True -> 
                  let 
                     runContext = RunContext poolFlowMap rAssump rates
@@ -729,6 +735,8 @@ splitCallOpts (AP.LegacyOpts copts) =
 splitCallOpts (AP.CallOnDates dp ps) = ([],ps)
 splitCallOpts x = error $ "Failed to find call option types but got"++ show x
 
+
+-- <Legacy Test>, <Test on dates>
 readCallOptions :: [AP.CallOpt] -> ([Pre],[Pre])
 readCallOptions [] = ([],[])
 readCallOptions opts = 

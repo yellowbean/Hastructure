@@ -490,6 +490,7 @@ data DealStats = CurrentBondBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
                | LedgerTxnAmt [String] (Maybe TxnComment)
+               | ReserveBalance [AccName] 
                | ReserveAccGap [AccName]
                | ReserveExcess [AccName] 
                | ReserveAccGapAt Date [AccName] 

@@ -30,7 +30,6 @@ import Types
 import DateUtil
 
 import Numeric.Limits (infinity)
-import Numeric.IEEE
 import Text.Printf
 import Control.Exception
 
