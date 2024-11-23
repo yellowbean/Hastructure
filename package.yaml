@@ -36,6 +36,8 @@ dependencies:
 - regex-pcre-builtin
 - vector
 - wai
+- monad-loops
+- ieee754
 - servant
 - servant-server
 - servant-openapi3
@@ -78,6 +80,7 @@ executables:
     - mtl
     - servant
     - lucid
+    - monad-loops
     - string-conversions
     - attoparsec
     - exceptions

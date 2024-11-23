@@ -78,7 +78,9 @@ library
     , containers
     , generic-lens
     , hashable
+    , ieee754
     , lens
+    , monad-loops
     , numeric-limits
     , openapi3
     , regex-base
@@ -118,8 +120,10 @@ executable Hastructure-exe
     , generic-lens
     , hashable
     , http-types
+    , ieee754
     , lens
     , lucid
+    , monad-loops
     , mtl
     , numeric-limits
     , openapi3
@@ -182,7 +186,9 @@ test-suite Hastructure-test
     , containers
     , generic-lens
     , hashable
+    , ieee754
     , lens
+    , monad-loops
     , numeric-limits
     , openapi3
     , regex-base
