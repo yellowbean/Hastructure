@@ -173,7 +173,7 @@ patchBalance (StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal rt st)
 
 instance Asset Lease where 
     calcCashflow l@(RegularLease {}) d _ =
-        CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
+        Right $ CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
       where 
         (RegularLease (LeaseInfo sd ot dp dr ob) bal rt st,pmts) = patchBalance l
         cf_dates = lastN (succ rt) $ projectCfDates dp sd ot
@@ -181,7 +181,7 @@ instance Asset Lease where
         bals = tail $ scanl (-) bal pmts -- `debug` ("PMTS for regular"++show pmts)
 
     calcCashflow l@(StepUpLease {}) d _ =
-        CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
+        Right $ CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
       where 
         (StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal rt st,pmts) = patchBalance l -- `debug` ("1")
         p_dates = projectCfDates dp sd ot -- `debug` ("2")
@@ -211,9 +211,11 @@ instance Asset Lease where
       = fst . patchBalance $ RegularLease (LeaseInfo sd ot dp dr ob) bal ot st
 
     projCashflow l asOfDay ((AP.LeaseAssump gapAssump rentAssump ed exStress),_,_) mRates
-      = (CF.CashFlowFrame (begBal,asOfDay,Nothing) allTxns, Map.empty)  
+      = Right $ (CF.CashFlowFrame (begBal,asOfDay,Nothing) allTxns, Map.empty)  
       where 
-        currentCf = calcCashflow l asOfDay mRates
+        currentCf = case calcCashflow l asOfDay mRates of
+                      Right x -> x 
+                      Left _ -> CF.CashFlowFrame (0,epocDate,Nothing) []
         -- (rc,rcCurve,mgTbl,gapDays,ed) = extractAssump (A.LeaseAssump gapAssump rentAssump) -- (0.0,mkTs [],([(0.0,0)],0),0,epocDate)-- `debug` ("7")
         pdates = getPaymentDates l 0  -- `debug` ("8")-- `debug` ("RCURVE"++show rcCurve)
         
@@ -230,8 +232,10 @@ instance Asset Lease where
                       (last pdates) 
                       ed 
                       []
-        newCfs = [ calcCashflow l asOfDay mRates | l <- newLeases ]  -- `debug` ("new leases"++ show newLeases )
-        allTxns = view CF.cashflowTxn currentCf ++ (concat $ (view CF.cashflowTxn) <$> newCfs)
+        newCfs = sequenceA [ calcCashflow l asOfDay mRates | l <- newLeases ]  -- `debug` ("new leases"++ show newLeases )
+        allTxns = case newCfs of 
+                    Right newCfs_ -> view CF.cashflowTxn currentCf ++ (concat $ (view CF.cashflowTxn) <$> newCfs_)
+                    Left _ -> []
         begBal = CF.buildBegBal allTxns
         
 
@@ -252,9 +256,10 @@ instance Asset Lease where
             _sd = case l of 
                 RegularLease (LeaseInfo sd ot dp dr _) bal _ _ -> sd 
                 StepUpLease (LeaseInfo sd ot dp dr _) _ bal _ _  -> sd 
-            CF.CashFlowFrame _ txns = calcCashflow l _sd Nothing
-        in  
-            CF.mflowBegBalance $ head txns
+      in  
+        case calcCashflow l _sd Nothing of
+            Right (CF.CashFlowFrame _ txns) -> CF.mflowBegBalance $ head txns
+            Left _ -> 0
 
     splitWith (RegularLease (LeaseInfo sd ot dp dr ob) bal rt st ) rs
       = [ RegularLease (LeaseInfo sd ot dp dr ob) (mulBR bal ratio) rt st | ratio <- rs ] 

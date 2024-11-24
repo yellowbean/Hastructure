@@ -899,46 +899,59 @@ populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollec
 
 
 -- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
-runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [(CF.CashFlowFrame, Map.Map CutoffFields Balance )]
+runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] 
+        -> Either String [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]
 -- schedule cashflow just ignores the interest rate assumption
-runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ = [(cf, Map.empty)]
+runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ 
+  = Right $ [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
-runPool (P.Pool [] (Just (CF.CashFlowFrame _ txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates = [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
+runPool (P.Pool [] (Just (CF.CashFlowFrame _ txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates 
+  = sequenceA [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
 -- project contractual cashflow if nothing found in pool perf assumption
 -- use interest rate assumption
-runPool (P.Pool as _ _ asof _ _) Nothing mRates = map (\x -> (Ast.calcCashflow x asof mRates,Map.empty)) as 
+runPool (P.Pool as _ _ asof _ _) Nothing mRates 
+  -- = Right $ map (\x -> (Ast.calcCashflow x asof mRates,Map.empty)) as 
+  = let 
+      cfs::(Either String [CF.CashFlowFrame]) = sequenceA $ map (\x -> Ast.calcCashflow x asof mRates) as 
+    in 
+      do 
+        cf <- cfs 
+        return [ (x, Map.empty) | x <- cf ]
 
 -- asset cashflow with credit stress
 ---- By pool level
-runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates = map (\x -> Ast.projCashflow x asof assumps mRates) as  
+runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates 
+  = sequenceA $ map (\x -> Ast.projCashflow x asof assumps mRates) as  
 ---- By index
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
     numAssets = length as
     _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
   in
-    zipWith (\x a -> Ast.projCashflow x asof a mRates) as _assumps 
+    sequenceA $ zipWith (\x a -> Ast.projCashflow x asof a mRates) as _assumps 
 ---- By Obligor
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
   let
-            -- result cf,rules,assets
-    matchAssets []   _ [] = [(CF.CashFlowFrame (0,epocDate,Nothing) [], Map.empty)] 
-    matchAssets cfs [] [] = cfs 
-    matchAssets cfs [] astList = cfs ++ ((\x -> (Ast.calcCashflow x asof mRates,Map.empty)) <$> astList)
+    -- result cf,rules,assets
+    -- matchAssets:: Ast.Asset c => [Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> [AP.ObligorStrategy] 
+    --               -> [c] -> Either String [(CF.CashFlowFrame, Map.Map CutoffFields Balance)] 
+    matchAssets []   _ [] = Right $ [(CF.CashFlowFrame (0,epocDate,Nothing) [], Map.empty)] 
+    matchAssets cfs [] [] = sequenceA cfs 
+    matchAssets cfs [] astList = sequenceA $ cfs ++ ((\x -> (\y -> (y, Map.empty)) <$> (Ast.calcCashflow x asof mRates)) <$> astList)
     matchAssets cfs (rule:rules) astList = 
       case rule of 
         AP.ObligorById ids assetPerf 
           -> let 
-              idSet = S.fromList ids
-              (matchedAsts,unMatchedAsts) = partition 
-                                              (\x -> case Ast.getObligorId x of 
-                                                        Just oid -> S.member oid idSet
-                                                        Nothing -> False) 
-                                              astList
-              matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
-              in 
-                matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
+               idSet = S.fromList ids
+               (matchedAsts,unMatchedAsts) = partition 
+                                               (\x -> case Ast.getObligorId x of 
+                                                         Just oid -> S.member oid idSet
+                                                         Nothing -> False) 
+                                               astList
+               matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
+             in 
+               matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
         AP.ObligorByTag tags tagRule assetPerf ->
           let 
             obrTags = S.fromList tags
@@ -1039,47 +1052,78 @@ patchRuntimeBal balMap pt = pt
 runPoolType :: Ast.Asset a => PoolType a -> Maybe AP.ApplyAssumptionType 
             -> Maybe AP.NonPerfAssumption -> Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
 runPoolType (SoloPool p) mAssumps mNonPerfAssump 
-  = Right $ Map.fromList [(PoolConsol,P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump))]
+  = sequenceA $ 
+       Map.fromList [(PoolConsol
+                     ,(P.aggPool (P.issuanceStat p)) <$> (runPool p mAssumps (AP.interest =<< mNonPerfAssump)))]
+
 runPoolType (MultiPool pm) (Just (AP.ByName assumpMap)) mNonPerfAssump
-  = Right $ Map.mapWithKey 
-                         (\k p -> P.aggPool (P.issuanceStat p) $ 
-                                  runPool p (AP.PoolLevel <$> Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump))
+  = sequenceA $ Map.mapWithKey 
+                         (\k p -> (P.aggPool (P.issuanceStat p)) <$> 
+                                  (runPool p (AP.PoolLevel <$> Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump)))
                          pm
 
 runPoolType (MultiPool pm) (Just (AP.ByPoolId assumpMap)) mNonPerfAssump
-  = Right $ Map.mapWithKey 
-                    (\k p -> P.aggPool (P.issuanceStat p) $ 
-                               runPool p (Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump))
+  = sequenceA $ Map.mapWithKey 
+                    (\k p -> (P.aggPool (P.issuanceStat p)) <$> 
+                             (runPool p (Map.lookup k assumpMap) (AP.interest =<< mNonPerfAssump)))
                     pm
 
 runPoolType (MultiPool pm) mAssumps mNonPerfAssump
-  = Right $ Map.map (\p -> P.aggPool (P.issuanceStat p) $ runPool p mAssumps (AP.interest =<< mNonPerfAssump)) pm
+  = sequenceA $ 
+      Map.map (\p -> (P.aggPool (P.issuanceStat p)) <$> (runPool p mAssumps (AP.interest =<< mNonPerfAssump)))
+              pm
 
 runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
-  = Map.foldrWithKey (\(DealBondFlow dn bn sd pct) (dname, cflow, stat) m ->
-                           
-                          Map.insert (DealBondFlow dname bn sd pct) (cflow, stat) m)
-                          Map.empty $
-    Map.mapWithKey (\(DealBondFlow dn bn sd pct) (uDeal, mAssump) -> 
-                          let
-                            (poolAssump,dealAssump) = case mAssump of 
-                                                        Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
-                                                        Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
-                          in
-                            do 
-                              (dealRunned, _, _, _) <- runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
-                              let bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
-                              let bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i) <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
-                              return (name uDeal, CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Map.empty)) $
-    Map.mapWithKey (\_ (UnderlyingDeal uDeal _ _ _) -> 
-                        let 
-                          dName = name uDeal -- `debug` ("Getting name of underlying deal:"++ (name uDeal))
-                          mAssump = case mAssumps of 
-                                      Just (AP.ByDealName assumpMap) -> Map.lookup dName assumpMap
-                                      _ -> Nothing
-                        in 
-                          (uDeal, mAssump))
-                      dm
+  -- = Map.foldrWithKey (\(DealBondFlow dn bn sd pct) (dname, cflow, stat) m ->
+  --                          
+  --                         Map.insert (DealBondFlow dname bn sd pct) (cflow, stat) m)
+  --                         Map.empty $
+  --   Map.mapWithKey (\(DealBondFlow dn bn sd pct) (uDeal, mAssump) -> 
+  --                         let
+  --                           (poolAssump,dealAssump) = case mAssump of 
+  --                                                       Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+  --                                                       Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
+  --                         in
+  --                           do 
+  --                             (dealRunned, _, _, _) <- runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
+  --                             let bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
+  --                             let bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i) <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
+  --                             return (name uDeal, CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Map.empty)) $
+  --   Map.mapWithKey (\_ (UnderlyingDeal uDeal _ _ _) -> 
+  --                       let 
+  --                         dName = name uDeal -- `debug` ("Getting name of underlying deal:"++ (name uDeal))
+  --                         mAssump = case mAssumps of 
+  --                                     Just (AP.ByDealName assumpMap) -> Map.lookup dName assumpMap
+  --                                     _ -> Nothing
+  --                       in 
+  --                         (uDeal, mAssump))
+  --                     dm
+  = 
+    let 
+      assumpMap =  Map.mapWithKey (\_ (UnderlyingDeal uDeal _ _ _) -> 
+                              let 
+                                 dName = name uDeal -- `debug` ("Getting name of underlying deal:"++ (name uDeal))
+                                 mAssump = case mAssumps of 
+                                             Just (AP.ByDealName assumpMap) -> Map.lookup dName assumpMap
+                                             _ -> Nothing
+                               in 
+                                 (uDeal, mAssump))
+                             dm
+      ranMap =   Map.mapWithKey (\(DealBondFlow dn bn sd pct) (uDeal, mAssump) -> 
+                                  let
+                                    (poolAssump,dealAssump) = case mAssump of 
+                                                                Nothing -> (Nothing, AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+                                                                Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
+                                  in
+                                    do 
+                                      (dealRunned, _, _, _) <- runDeal uDeal DealPoolFlowPricing poolAssump dealAssump
+                                      let bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map Stmt.getTxns $ getBondStmtByName dealRunned (Just [bn]) -- `debug` ("Bondflow from underlying runned"++ show (getBondStmtByName dealRunned (Just [bn])))
+                                      let bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i) <$> Stmt.scaleByFactor pct bondFlow -- `debug` ("Bondflow from underlying"++ show bondFlow)
+                                      return (CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Map.empty))
+                                 assumpMap
+    in
+      sequenceA ranMap
+    
 
 getInits :: Ast.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption 
          -> Either String (TestDeal a,[ActionOnDate], Map.Map PoolId CF.CashFlowFrame, Map.Map PoolId CF.CashFlowFrame)

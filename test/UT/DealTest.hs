@@ -204,7 +204,9 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_) = run td2 poolflowM (Just ads) Nothing Nothing Nothing []
+      (fdeal,_) = case run td2 poolflowM (Just ads) Nothing Nothing Nothing [] of 
+                    Left _ -> error ""
+                    Right x -> x
     in 
       testCase "deal becomes revolving" $
       assertEqual "revoving" 

@@ -6269,7 +6269,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "ReserveAccGap"
+                                    "ReserveBalance"
                                 ],
                                 "type": "string"
                             }
@@ -6278,7 +6278,29 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "ReserveAccGap",
+                        "title": "ReserveBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ReserveGap"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ReserveGap",
                         "type": "object"
                     },
                     {
@@ -6323,7 +6345,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "ReserveAccGapAt"
+                                    "ReserveGapAt"
                                 ],
                                 "type": "string"
                             }
@@ -6332,7 +6354,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "ReserveAccGapAt",
+                        "title": "ReserveGapAt",
                         "type": "object"
                     },
                     {
@@ -8911,6 +8933,159 @@
                     "Down"
                 ],
                 "type": "string"
+            },
+            "Either_[Char]_((CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))),(Maybe_[PriceResult]))": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "Left": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "Left"
+                        ],
+                        "title": "Left",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "Right": {
+                                "items": [
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/CashFlowFrame"
+                                            },
+                                            {
+                                                "additionalProperties": {
+                                                    "multipleOf": 1.0e-2,
+                                                    "type": "number"
+                                                },
+                                                "type": "object"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PriceResult"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "Right"
+                        ],
+                        "title": "Right",
+                        "type": "object"
+                    }
+                ]
+            },
+            "Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "Left": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "Left"
+                        ],
+                        "title": "Left",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "Right": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealType"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                        },
+                                        "type": "object"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ResultComponent"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/PriceResult"
+                                        },
+                                        "type": "object"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "Right"
+                        ],
+                        "title": "Right",
+                        "type": "object"
+                    }
+                ]
+            },
+            "Either_[Char]_(Map_PoolId_(CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))))": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "Left": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "Left"
+                        ],
+                        "title": "Left",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "Right": {
+                                "additionalProperties": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/CashFlowFrame"
+                                        },
+                                        {
+                                            "additionalProperties": {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            },
+                                            "type": "object"
+                                        }
+                                    ],
+                                    "maxItems": 2,
+                                    "minItems": 2,
+                                    "type": "array"
+                                },
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "Right"
+                        ],
+                        "title": "Right",
+                        "type": "object"
+                    }
+                ]
             },
             "Either_[Char]_Double": {
                 "oneOf": [
@@ -19099,34 +19274,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "items": [
-                                        {
-                                            "items": [
-                                                {
-                                                    "$ref": "#/components/schemas/CashFlowFrame"
-                                                },
-                                                {
-                                                    "additionalProperties": {
-                                                        "multipleOf": 1.0e-2,
-                                                        "type": "number"
-                                                    },
-                                                    "type": "object"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "minItems": 2,
-                                            "type": "array"
-                                        },
-                                        {
-                                            "items": {
-                                                "$ref": "#/components/schemas/PriceResult"
-                                            },
-                                            "type": "array"
-                                        }
-                                    ],
-                                    "maxItems": 2,
-                                    "minItems": 2,
-                                    "type": "array"
+                                    "$ref": "#/components/schemas/Either_[Char]_((CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))),(Maybe_[PriceResult]))"
                                 }
                             }
                         },
@@ -19155,32 +19303,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "items": [
-                                            {
-                                                "$ref": "#/components/schemas/DealType"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "$ref": "#/components/schemas/CashFlowFrame"
-                                                },
-                                                "type": "object"
-                                            },
-                                            {
-                                                "items": {
-                                                    "$ref": "#/components/schemas/ResultComponent"
-                                                },
-                                                "type": "array"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "$ref": "#/components/schemas/PriceResult"
-                                                },
-                                                "type": "object"
-                                            }
-                                        ],
-                                        "maxItems": 4,
-                                        "minItems": 4,
-                                        "type": "array"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
                                     },
                                     "type": "object"
                                 }
@@ -19241,32 +19364,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "items": [
-                                        {
-                                            "$ref": "#/components/schemas/DealType"
-                                        },
-                                        {
-                                            "additionalProperties": {
-                                                "$ref": "#/components/schemas/CashFlowFrame"
-                                            },
-                                            "type": "object"
-                                        },
-                                        {
-                                            "items": {
-                                                "$ref": "#/components/schemas/ResultComponent"
-                                            },
-                                            "type": "array"
-                                        },
-                                        {
-                                            "additionalProperties": {
-                                                "$ref": "#/components/schemas/PriceResult"
-                                            },
-                                            "type": "object"
-                                        }
-                                    ],
-                                    "maxItems": 4,
-                                    "minItems": 4,
-                                    "type": "array"
+                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
                                 }
                             }
                         },
@@ -19295,32 +19393,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "items": [
-                                            {
-                                                "$ref": "#/components/schemas/DealType"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "$ref": "#/components/schemas/CashFlowFrame"
-                                                },
-                                                "type": "object"
-                                            },
-                                            {
-                                                "items": {
-                                                    "$ref": "#/components/schemas/ResultComponent"
-                                                },
-                                                "type": "array"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "$ref": "#/components/schemas/PriceResult"
-                                                },
-                                                "type": "object"
-                                            }
-                                        ],
-                                        "maxItems": 4,
-                                        "minItems": 4,
-                                        "type": "array"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
                                     },
                                     "type": "object"
                                 }
@@ -19351,32 +19424,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "items": [
-                                            {
-                                                "$ref": "#/components/schemas/DealType"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "$ref": "#/components/schemas/CashFlowFrame"
-                                                },
-                                                "type": "object"
-                                            },
-                                            {
-                                                "items": {
-                                                    "$ref": "#/components/schemas/ResultComponent"
-                                                },
-                                                "type": "array"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "$ref": "#/components/schemas/PriceResult"
-                                                },
-                                                "type": "object"
-                                            }
-                                        ],
-                                        "maxItems": 4,
-                                        "minItems": 4,
-                                        "type": "array"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
                                     },
                                     "type": "object"
                                 }
@@ -19407,32 +19455,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "items": [
-                                            {
-                                                "$ref": "#/components/schemas/DealType"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "$ref": "#/components/schemas/CashFlowFrame"
-                                                },
-                                                "type": "object"
-                                            },
-                                            {
-                                                "items": {
-                                                    "$ref": "#/components/schemas/ResultComponent"
-                                                },
-                                                "type": "array"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "$ref": "#/components/schemas/PriceResult"
-                                                },
-                                                "type": "object"
-                                            }
-                                        ],
-                                        "maxItems": 4,
-                                        "minItems": 4,
-                                        "type": "array"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
                                     },
                                     "type": "object"
                                 }
@@ -19462,24 +19485,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "additionalProperties": {
-                                        "items": [
-                                            {
-                                                "$ref": "#/components/schemas/CashFlowFrame"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "multipleOf": 1.0e-2,
-                                                    "type": "number"
-                                                },
-                                                "type": "object"
-                                            }
-                                        ],
-                                        "maxItems": 2,
-                                        "minItems": 2,
-                                        "type": "array"
-                                    },
-                                    "type": "object"
+                                    "$ref": "#/components/schemas/Either_[Char]_(Map_PoolId_(CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))))"
                                 }
                             }
                         },
@@ -19508,24 +19514,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "additionalProperties": {
-                                            "items": [
-                                                {
-                                                    "$ref": "#/components/schemas/CashFlowFrame"
-                                                },
-                                                {
-                                                    "additionalProperties": {
-                                                        "multipleOf": 1.0e-2,
-                                                        "type": "number"
-                                                    },
-                                                    "type": "object"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "minItems": 2,
-                                            "type": "array"
-                                        },
-                                        "type": "object"
+                                        "$ref": "#/components/schemas/Either_[Char]_(Map_PoolId_(CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))))"
                                     },
                                     "type": "object"
                                 }

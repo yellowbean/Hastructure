@@ -17,6 +17,7 @@ import System.Environment
 
 import Control.Monad.Catch       (MonadCatch, MonadThrow (..))
 import Control.Monad.IO.Class    (liftIO)
+import Control.Monad (mapM)
 import Control.Exception (Exception,throwIO,throw)
 import Control.Monad.Except
 import Control.Monad.Reader
@@ -86,14 +87,25 @@ import qualified Revolving as RV
 import qualified Lib
 import qualified Util as U
 import qualified DateUtil as DU
-
 -- import Servant.Checked.Exceptions (NoThrow, Throws)
 -- import Servant.Checked.Exceptions.Internal.Servant.API (ErrStatus(toErrStatus))
 
+import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
+import Control.Lens
 import Debug.Trace
 import qualified Types as W
 import Cashflow (patchCumulative)
+
+
 debug = flip Debug.Trace.trace
+
+
+-- instance ToJSON (Ratio Integer) where
+--     toJSON r = case fromRationalRepetend Nothing r of
+--         Left (sci, _)         -> toJSON $ formatScientific Fixed (Just 8) sci
+--         -- Right (sci, rep) -> object ["repetend" .= rep, "fraction" .= sci]
+--         Right (sci, rep) -> toJSON $ formatScientific Fixed (Just 8) sci
+
 
 data Version = Version 
   { _version :: String 
@@ -256,41 +268,41 @@ instance ToSchema ResultComponent
 instance ToSchema L.PriceResult
 instance ToSchema DealType
 
-type RunResp = (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
+type RunResp = Either String (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
-wrapRun (MDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump 
-                                     in 
-                                       (MDeal _d,_pflow,_rs,_p) -- `debug` ("Run Done with deal->"++ show _d)
-wrapRun (RDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
-                                     in 
-                                       (RDeal _d,_pflow,_rs,_p)
-wrapRun (IDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
-                                     in 
-                                       (IDeal _d,_pflow,_rs,_p)
-wrapRun (LDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
-                                     in 
-                                       (LDeal _d,_pflow,_rs,_p)
-wrapRun (FDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
-                                     in 
-                                       (FDeal _d,_pflow,_rs,_p)
-wrapRun (UDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump 
-                                     in 
-                                       (UDeal _d,_pflow,_rs,_p)                                       
-wrapRun (VDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
-                                     in 
-                                       (VDeal _d,_pflow,_rs,_p)                                       
-wrapRun (PDeal d) mAssump mNonPerfAssump = let 
-                                       (_d,_pflow,_rs,_p) = D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
-                                     in 
-                                       (PDeal _d,_pflow,_rs,_p)
+wrapRun (MDeal d) mAssump mNonPerfAssump 
+  = do
+      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump 
+      return (MDeal _d,_pflow,_rs,_p) -- `debug` ("Run Done with deal->"++ show _d)
+wrapRun (RDeal d) mAssump mNonPerfAssump 
+  = do 
+      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      return (RDeal _d,_pflow,_rs,_p)
+wrapRun (IDeal d) mAssump mNonPerfAssump 
+  = do
+      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      return (IDeal _d,_pflow,_rs,_p)
+wrapRun (LDeal d) mAssump mNonPerfAssump 
+  = do
+      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      return (LDeal _d,_pflow,_rs,_p)
+wrapRun (FDeal d) mAssump mNonPerfAssump 
+  = do
+      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      return (FDeal _d,_pflow,_rs,_p)
+wrapRun (UDeal d) mAssump mNonPerfAssump 
+  = do
+      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump 
+      return (UDeal _d,_pflow,_rs,_p)                                       
+wrapRun (VDeal d) mAssump mNonPerfAssump 
+  = do
+      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      return (VDeal _d,_pflow,_rs,_p)                                       
+wrapRun (PDeal d) mAssump mNonPerfAssump 
+  = do
+      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      return (PDeal _d,_pflow,_rs,_p)
 
 wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
@@ -306,13 +318,17 @@ data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
                   deriving(Show, Generic)
 
 
-type RunPoolTypeRtn = Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+type RunPoolTypeRtn_ = Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+type RunPoolTypeRtn = Either String RunPoolTypeRtn_
 
-patchCumulativeToPoolRun :: RunPoolTypeRtn -> RunPoolTypeRtn
-patchCumulativeToPoolRun = Map.map 
-                            (\(CF.CashFlowFrame _ txns,stats) -> (CF.CashFlowFrame (0,Lib.toDate "19000101",Nothing) (CF.patchCumulative (0,0,0,0,0,0) [] txns),stats))
+patchCumulativeToPoolRun :: RunPoolTypeRtn_ -> RunPoolTypeRtn_
+patchCumulativeToPoolRun
+  = Map.map
+         (\(CF.CashFlowFrame _ txns,stats) -> 
+            (CF.CashFlowFrame (0,Lib.toDate "19000101",Nothing) (CF.patchCumulative (0,0,0,0,0,0) [] txns),stats)
+         )
 
-wrapRunPoolType :: PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] ->  RunPoolTypeRtn
+wrapRunPoolType :: PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> RunPoolTypeRtn
 wrapRunPoolType (MPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (LPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (IPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
@@ -329,21 +345,28 @@ data RunAssetReq = RunAssetReq Date [AB.AssetUnion] (Maybe AP.ApplyAssumptionTyp
 
 instance ToSchema RunAssetReq
 
-wrapRunAsset :: RunAssetReq -> ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
+type RunAssetResp = Either String ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
+
+
+wrapRunAsset :: RunAssetReq -> RunAssetResp
 wrapRunAsset (RunAssetReq d assets Nothing mRates Nothing) 
-  = (P.aggPool Nothing ((\a -> (MA.calcAssetUnion a d mRates, Map.empty)) <$> assets), Nothing) 
+  = do 
+      cfs <- sequenceA $ (\a -> MA.calcAssetUnion a d mRates) <$> assets
+      return (P.aggPool Nothing [(cf,Map.empty) | cf <- cfs], Nothing) 
 wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates Nothing) 
-  = (P.aggPool Nothing ((\a -> MA.projAssetUnion a d assumps mRates) <$> assets), Nothing) 
+  = do 
+      cfs <- sequenceA $ (\a -> MA.projAssetUnion a d assumps mRates) <$> assets
+      return (P.aggPool Nothing [(cf,Map.empty) | (cf,_) <- cfs] , Nothing) 
 
 wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates (Just pm)) 
-  = let 
-      assetCf = P.aggPool Nothing $ (\a -> D.projAssetUnion a d assumps mRates ) <$> assets 
-      pricingResult = (\a -> D.priceAssetUnion a d pm assumps mRates) <$> assets
-    in
-      (assetCf , Just pricingResult)
+  = 
+    do 
+      cfs <- sequenceA $ (\a -> MA.projAssetUnion a d assumps mRates) <$> assets
+      pricingResult <- sequenceA $ (\a -> D.priceAssetUnion a d pm assumps mRates) <$> assets
+      let assetCf = P.aggPool Nothing cfs
+      return (assetCf , Just pricingResult)
 
 --TODO implement on running via ByIndex
-
 type ScenarioName = String
 
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
@@ -377,10 +400,10 @@ $(concat <$> traverse (deriveJSON defaultOptions) [''RunDealReq, ''RunPoolReq,''
 -- Swagger API
 type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 
-type PoolRunResp = Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+type PoolRunResp = Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
 
 type EngineAPI = "version" :> Get '[JSON] Version
-            :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] ((CF.CashFlowFrame, Map.Map CutoffFields Balance),Maybe [PriceResult])
+            :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] RunAssetResp
             :<|> "runPool" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] PoolRunResp
             :<|> "runPoolByScenarios" :> ReqBody '[JSON] RunPoolReq :> Post '[JSON] (Map.Map ScenarioName PoolRunResp)
             :<|> "runDeal" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] RunResp
@@ -405,20 +428,24 @@ engineSwagger = toOpenApi engineAPI
                     & info.license ?~ "BSD 3"
 
 
-
 -- showVersion :: Handler (Envelope '[] Version)
 showVersion :: Handler Version
 showVersion = return version1
 
-runAsset :: RunAssetReq -> Handler ((CF.CashFlowFrame, Map.Map CutoffFields Balance),Maybe [PriceResult])
-runAsset req = return $ wrapRunAsset req
+runAsset :: RunAssetReq -> Handler RunAssetResp
+runAsset req = return $ 
+                 wrapRunAsset req
 
 runPool :: RunPoolReq -> Handler PoolRunResp
-runPool (SingleRunPoolReq pt passumption mRates) = return $ patchCumulativeToPoolRun $ wrapRunPoolType pt passumption mRates
+runPool (SingleRunPoolReq pt passumption mRates) 
+  = return $
+      patchCumulativeToPoolRun <$> (wrapRunPoolType pt passumption mRates)
 
 runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
-runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) = return $ Map.map (\assump -> patchCumulativeToPoolRun (wrapRunPoolType pt (Just assump) mRates)) 
-                                                                                  mAssumps
+runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) 
+  = return $ Map.map (\assump -> 
+                       patchCumulativeToPoolRun <$> (wrapRunPoolType pt (Just assump) mRates)) 
+                     mAssumps
 
 runDeal :: RunDealReq -> Handler RunResp
 runDeal (SingleRunReq dt assump nonPerfAssump) =  return $ wrapRun dt assump nonPerfAssump

@@ -58,14 +58,7 @@ calcAmortBals fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, or
 instance Ast.Asset FixedAsset where 
 
   calcCashflow fa@(FixedAsset {}) asOfDay _ = 
-    let 
-      (scheduleFlow, _) = projCashflow 
-                            fa 
-                            asOfDay 
-                            (A.FixedAssetAssump (mkTs []) (mkTs []), A.DummyDelinqAssump, A.DummyDefaultAssump)
-                            Nothing
-    in
-      scheduleFlow
+     fst <$> projCashflow fa asOfDay (A.FixedAssetAssump (mkTs []) (mkTs []), A.DummyDelinqAssump, A.DummyDefaultAssump) Nothing
 
   getCurrentBal  fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
                                                  ,residualBalance=rb ,capacity=cap} rt) 
@@ -105,5 +98,5 @@ instance Ast.Asset FixedAsset where
         futureTxns = cutBy Inc Future asOfDay txns
         begBal = CF.buildBegBal futureTxns
       in 
-        (CF.CashFlowFrame (begBal,asOfDay,Nothing) $ futureTxns, Map.empty)
+        Right $ (CF.CashFlowFrame (begBal,asOfDay,Nothing) $ futureTxns, Map.empty)
   

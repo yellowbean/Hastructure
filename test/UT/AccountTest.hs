@@ -10,6 +10,7 @@ import Util
 import DateUtil
 import Types
 import Deal
+import Deal.DealQuery (queryCompound)
 import Deal.DealBase
 import qualified Cashflow as CF
 
@@ -85,20 +86,20 @@ reserveAccTest =
      [
       testCase "Test on Pct Reserve" $
         assertEqual "shall be " 
-          0.7
+          (Right 0.7)
           (calcTargetAmount ttd (toDate "20220826") acc1)
      ,testCase "Test on fix Reserve" $
         assertEqual "shall be " 
-          210
+          (Right 210)
           (calcTargetAmount ttd (toDate "20220801") acc2)
      ,testCase "test on reserve account gap" $
         assertEqual "pct reserve gap "
-        0
-        (queryDeal ttd (ReserveAccGapAt (toDate "20220826") ["A1"]))
+        (Right 0)
+        (queryCompound ttd (toDate "20220826") (ReserveGapAt (toDate "20220826") ["A1"]))
      ,testCase "test on reserve account gap" $
         assertEqual "fix reserve gap "
-        60
-        (queryDeal ttd (ReserveAccGapAt (toDate "20220801") ["A2"]))
+        (Right 60)
+        (queryCompound ttd (toDate "20220801") (ReserveGapAt (toDate "20220801") ["A2"]))
      ]
 
 

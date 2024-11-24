@@ -86,6 +86,7 @@ library
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
+    , scientific
     , servant
     , servant-openapi3
     , servant-server
@@ -194,6 +195,7 @@ test-suite Hastructure-test
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
+    , scientific
     , servant
     , servant-openapi3
     , servant-server

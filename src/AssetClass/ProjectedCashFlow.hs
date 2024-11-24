@@ -176,22 +176,22 @@ instance Ast.Asset ProjectedCashflow where
 
     getCurrentRate f = 0.0
 
-    calcCashflow f@(ProjectedFlowFixed cf _) d _ = cf
+    calcCashflow f@(ProjectedFlowFixed cf _) d _ = Right $ cf
 
     calcCashflow f@(ProjectedFlowMixFloater cf _ fxPortion floatPortion) d mRate
       = let 
           (fixedCashFlow, floatedCashFlow) = seperateCashflows f Nothing mRate   -- `debug` ("running fixed cashflow"++show fixedCashFlow)
         in
-          foldl CF.combine fixedCashFlow floatedCashFlow
+          Right $ foldl CF.combine fixedCashFlow floatedCashFlow
 -- projFixCfwithAssumption :: (CF.CashFlowFrame, DatePattern) -> A.AssetPerfAssumption -> Date -> CF.CashFlowFrame
     projCashflow f@(ProjectedFlowFixed cf dp) asOfDay (pAssump,_,_) mRates 
-      = (projFixCfwithAssumption (cf, dp) (Just pAssump) asOfDay,Map.empty)
+      = Right $ (projFixCfwithAssumption (cf, dp) (Just pAssump) asOfDay,Map.empty)
 
     projCashflow f asOfDay (pAssump, _, _) mRates
       = let 
           (fixedCashFlow, floatedCashFlow) = seperateCashflows f (Just pAssump) mRates
         in
-          (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
+          Right $ (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
           --(fixedCashFlow, Map.empty)
 
     getBorrowerNum f = 0

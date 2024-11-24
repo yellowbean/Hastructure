@@ -63,7 +63,6 @@ calcTargetAmount t d (A.Account _ _ _ (Just r) _ ) =
                                  eval ra1
                                else 
                                  eval ra2 
-       -- A.Max ras -> eval <$> ras
        A.Max ras -> maximum' <$> sequenceA (eval <$> ras)
        A.Min ras -> minimum' <$> sequenceA (eval <$> ras)
 
@@ -77,7 +76,7 @@ patchDateToStats d t
          LastFeePaid fns -> FeesPaidAt d fns
          LastBondPrinPaid bns -> BondsPrinPaidAt d bns
          BondBalanceGap bn -> BondBalanceGapAt d bn
-         ReserveAccGap ans -> ReserveAccGapAt d ans
+         ReserveGap ans -> ReserveGapAt d ans
          ReserveExcess ans -> ReserveExcessAt d ans
          Sum _ds -> Sum $ map (patchDateToStats d) _ds
          Substract _ds -> Substract $ map (patchDateToStats d) _ds
@@ -310,6 +309,12 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     AllAccBalance -> sum $ map A.accBalance $ Map.elems accMap 
     
     AccBalance ans -> sum $ A.accBalance . (accMap Map.!) <$> ans
+
+    -- ReserveBalance ans -> 
+    --
+    -- ReserveAccGapAt d ans -> 
+    --
+    -- ReserveExcessAt d ans -> 
     
     -- ^ negatave -> credit balance , postive -> debit balance
     LedgerBalance ans ->
@@ -427,9 +432,9 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
                           Just _v -> sum $ CF.lookupSource _v <$> ps
                           Nothing -> sum $ CF.lookupSourceM (curPoolBalM Map.! k) Nothing <$> ps
                      )
-                     pStat
+                     pStat -- `debug` ("query pool current bal" ++ show curPoolBalM )
       in 
-        sum $ Map.elems poolStat
+        sum $ Map.elems poolStat -- `debug` ("query pool current stats"++ show poolStat)
 
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
@@ -711,7 +716,7 @@ queryCompound t@TestDeal{accounts=accMap} d s =
           q2 <- queryCompound t d (ReserveBalance ans)
           return $ max 0 (q1 - q2)
 
-    ReserveAccGapAt _d ans ->
+    ReserveGapAt _d ans ->
         do 
           q1 <- queryCompound t d (AccBalance ans)
           q2 <- queryCompound t d (ReserveBalance ans)
@@ -875,8 +880,8 @@ preToStr t d p =
     (IfDealStatus st) -> show (status t) ++" == "++ show st
     (Always b) -> show b
     (IfNot _p) -> "Not "++ preToStr t d _p
-    (Types.All pds) -> "All:"++ intercalate "|" (map (preToStr t d) pds)
-    (Types.Any pds) -> "Any:"++ intercalate "|" (map (preToStr t d) pds)
+    (Types.All pds) -> "All:["++ intercalate "|" (map (preToStr t d) pds)++"]"
+    (Types.Any pds) -> "Any:["++ intercalate "|" (map (preToStr t d) pds)++"]"
     _ -> "Failed to read condition"++ show p
 
   where 

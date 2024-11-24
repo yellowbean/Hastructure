@@ -59,6 +59,7 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
+import Control.Applicative
 
 import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
@@ -83,12 +84,13 @@ testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=con
                                     , trgStmt = Stmt.appendStmt tStmt (TrgTxn d newSt (Stmt.Tag memo))}
 
 
-pricingAssets :: PricingMethod -> [(ACM.AssetUnion,AP.AssetPerf)] -> Maybe [RateAssumption] -> Date -> [PriceResult]
+pricingAssets :: PricingMethod -> [(ACM.AssetUnion,AP.AssetPerf)] -> Maybe [RateAssumption] -> Date 
+              -> Either String [PriceResult]
 pricingAssets pm assetsAndAssump ras d 
  = let 
     pricingResults = (\(ast,perf) -> priceAssetUnion ast d pm perf ras) <$> assetsAndAssump
    in
-    pricingResults
+    sequenceA pricingResults
 
 
 -- actual payout amount to bond with due mounts
@@ -336,7 +338,8 @@ calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bondBal _ _ _ _ _ _ _ _)
   = b {L.bndDuePrin = bondBal }
 
 
-priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerf -> Maybe [RateAssumption] -> PriceResult
+priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerf -> Maybe [RateAssumption] 
+                -> Either String PriceResult
 priceAssetUnion (ACM.MO m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
 priceAssetUnion (ACM.LO m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
 priceAssetUnion (ACM.IL m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
@@ -345,9 +348,10 @@ priceAssetUnion (ACM.RE m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
 priceAssetUnion (ACM.PF m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
 priceAssetUnion (ACM.FA m) d pm aps mras = Ast.priceAsset m d pm aps mras Inc
 
-priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] -> [PriceResult]
+priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAssumptionType -> Maybe [RateAssumption] 
+                    -> Either String [PriceResult]
 priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates 
-  = [ priceAssetUnion asset d pm assetPerf mRates | asset <- assetList ]
+  = sequenceA [ priceAssetUnion asset d pm assetPerf mRates | asset <- assetList ]
 
 
 -- | this would used in `static` revolving ,which assumes the revolving pool will decrease
@@ -515,8 +519,9 @@ calcAvailAfterLimit t d acc mSupport dueAmt mLimit
       case mLimit of
         Nothing -> availFund
         Just (DueCapAmt amt) -> min amt <$> availFund
-        Just (DS ds) -> min (queryDeal t (patchDateToStats d ds)) <$> availFund
+        Just (DS ds) -> liftA2 min (fromRational <$> (queryCompound t d (patchDateToStats d ds))) availFund
         Just (DuePct pct) -> min (mulBR dueAmt pct) <$> availFund 
+        _ -> Left ("Failed to find <limit> type"++ show mLimit)
 
 
 updateSupport :: Ast.Asset a => Date -> Maybe W.ExtraSupport -> Balance -> TestDeal a -> TestDeal a
@@ -536,15 +541,14 @@ performActionWrap d
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
                   (W.BuyAssetFrom ml pricingMethod accName mRevolvingPoolName  pId) 
-   = Right (t { accounts = newAccMap , pool = newPt}, newRc, logs )
-    where 
+   = 
+    let 
       revolvingPoolName = fromMaybe "Consol" mRevolvingPoolName
       (assetForSale::RevolvingPool, perfAssumps::AP.ApplyAssumptionType) =  rMap Map.! revolvingPoolName  -- `debug` ("Getting pool"++ revolvingPoolName) 
 
       _assets = lookupAssetAvailable assetForSale d
       assets = updateOriginDate2 d <$> _assets  -- `debug` ("Asset on revolv"++ show _assets)
                 
-      valuationOnAvailableAssets = sum $ getPriceValue <$> priceAssetUnionList assets d pricingMethod perfAssumps mRates 
       accBal = A.accBalance $ accsMap Map.! accName 
       limitAmt = case ml of 
                    Just (DS ds) -> queryDeal t (patchDateToStats d ds)
@@ -552,60 +556,59 @@ performActionWrap d
                    Nothing -> accBal
 
       availBal = min limitAmt accBal  -- `debug` ("Date"++ show d ++" Value on r -asset "++ show valuationOnAvailableAssets)
-      purchaseAmt = case assetForSale of 
-                      (StaticAsset _) -> min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
-                      ConstantAsset _ -> availBal 
-                      AssetCurve _ -> min availBal valuationOnAvailableAssets   
-
-      purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets -- `debug` ("Date"++ show d ++ " Purchase Amt"++show purchaseAmt++">> avail balance"++ show availBal )
-
-      (assetBought,poolAfterBought) = buyRevolvingPool d (toRational purchaseRatio) assetForSale  -- `debug` ("date "++ show d ++ "purchase ratio"++ show purchaseRatio)
-      
       pIdToChange = fromMaybe PoolConsol pId --`debug` ("purchase date"++ show d++ "\n" ++ show assetBought)
-      boughtAssetBal =  sum $ curBal <$> assetBought -- `debug` ("Asset bought 0 \n"++ show assetBought++ "pflow map\n"++ show pFlowMap++" p id to change\n"++ show pIdToChange)
-      -- update runtime balance
-      newPt = case pt of 
-                SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.adjust (+ boughtAssetBal) RuntimeCurrentPoolBalance) p
-                MultiPool pm -> MultiPool $ Map.adjust
-                                              (over P.poolIssuanceStat (Map.adjust (+ boughtAssetBal) RuntimeCurrentPoolBalance))  
-                                              pIdToChange
-                                              pm
-                ResecDeal _ -> error "Not implement on buy resec deal"
-
-
-
-      newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap -- `debug` ("Asset bought total bal"++ show boughtAssetBal)
       
-      cfBought = fst $ projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Date: " ++ show d ++ "Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
-      
-      newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
-                              let 
-                                dsInterval = getDate <$> trs  --  `debug` ("Date"++ show d ++ "origin cf \n"++ show cfOrigin)
-                                boughtCfDates = getDate <$> view CF.cashflowTxn cfBought -- `debug` ("Date"++ show d++ "Cf bought 0\n"++ show cfBought)
+    in
+      do
+        valOnAvailableAssets <- priceAssetUnionList assets d pricingMethod perfAssumps mRates 
+        let valuationOnAvailableAssets = sum $ getPriceValue <$> valOnAvailableAssets
+        let purchaseAmt = case assetForSale of 
+                            (StaticAsset _) -> min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
+                            ConstantAsset _ -> availBal 
+                            AssetCurve _ -> min availBal valuationOnAvailableAssets   
+        let purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets -- `debug` ("Date"++ show d ++ " Purchase Amt"++show purchaseAmt++">> avail balance"++ show availBal )
+        let (assetBought,poolAfterBought) = buyRevolvingPool d (toRational purchaseRatio) assetForSale  -- `debug` ("date "++ show d ++ "purchase ratio"++ show purchaseRatio)
+        let boughtAssetBal =  sum $ curBal <$> assetBought -- `debug` ("Asset bought 0 \n"++ show assetBought++ "pflow map\n"++ show pFlowMap++" p id to change\n"++ show pIdToChange)
+        -- update runtime balance
+        let newPt = case pt of 
+                      SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.adjust (+ boughtAssetBal) RuntimeCurrentPoolBalance) p
+                      MultiPool pm -> MultiPool $ Map.adjust
+                                                    (over P.poolIssuanceStat (Map.adjust (+ boughtAssetBal) RuntimeCurrentPoolBalance))  
+                                                    pIdToChange
+                                                    pm
+                      ResecDeal _ -> error "Not implement on buy resec deal"
 
-                                newAggDates = case (dsInterval,boughtCfDates) of 
-                                                ([],[]) -> []
-                                                (_,[]) -> [] -- `debug` ("hit with non cash date from bought"++ show dsInterval) 
-                                                ([],_) -> boughtCfDates
-                                                (oDs,bDs) -> 
-                                                  let 
-                                                    lastOdate = last oDs
-                                                    lastBdate = last bDs
-                                                  in 
-                                                    if lastOdate > lastBdate then 
-                                                      []
-                                                    else 
-                                                      sliceDates (SliceAfter lastOdate) bDs
+        let newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap -- `debug` ("Asset bought total bal"++ show boughtAssetBal)
+        cfFrameBought <- projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Date: " ++ show d ++ "Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+        let cfBought = fst cfFrameBought 
+        let newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
+                                let 
+                                  dsInterval = getDate <$> trs  --  `debug` ("Date"++ show d ++ "origin cf \n"++ show cfOrigin)
+                                  boughtCfDates = getDate <$> view CF.cashflowTxn cfBought -- `debug` ("Date"++ show d++ "Cf bought 0\n"++ show cfBought)
 
-                                mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("Buy Date : "++show d ++ "CF bought \n"++ show (over CF.cashflowTxn (slice 0 30) cfBought) )
-                              in 
-                                over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf ) -- `debug` ("Date "++show d++" Merged CF\n"++ show mergedCf))
-                          pIdToChange
-                          pFlowMap --  `debug` ("pid To change"++ show pIdToChange++ "P flow map"++ show pFlowMap)
+                                  newAggDates = case (dsInterval,boughtCfDates) of 
+                                                  ([],[]) -> []
+                                                  (_,[]) -> [] -- `debug` ("hit with non cash date from bought"++ show dsInterval) 
+                                                  ([],_) -> boughtCfDates
+                                                  (oDs,bDs) -> 
+                                                    let 
+                                                      lastOdate = last oDs
+                                                      lastBdate = last bDs
+                                                    in 
+                                                      if lastOdate > lastBdate then 
+                                                        []
+                                                      else 
+                                                        sliceDates (SliceAfter lastOdate) bDs
 
-      newRc = rc {runPoolFlow = newPcf -- `debug` (show d ++ "New run pool >> \n"++ show newPcf)
-                 ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
+                                  mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("Buy Date : "++show d ++ "CF bought \n"++ show (over CF.cashflowTxn (slice 0 30) cfBought) )
+                                in 
+                                  over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf ) -- `debug` ("Date "++show d++" Merged CF\n"++ show mergedCf))
+                            pIdToChange
+                            pFlowMap --  `debug` ("pid To change"++ show pIdToChange++ "P flow map"++ show pFlowMap)
 
+        let newRc = rc {runPoolFlow = newPcf -- `debug` (show d ++ "New run pool >> \n"++ show newPcf)
+                        ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
+        return (t { accounts = newAccMap , pool = newPt}, newRc, logs )
 
 performActionWrap d 
                   (t
@@ -1229,7 +1232,7 @@ performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.Li
 
       _transferAmt = case limit of 
                       Nothing -> 0 -- `debug` ("limit on nothing"++ show limit)
-                      Just (DS (ReserveAccGap [an])) -> queryDeal t (ReserveAccGapAt d [an]) -- `debug` ("Query Gap"++ show (queryDeal t (ReserveAccGapAt d [an])))
+                      Just (DS (ReserveGap [an])) -> queryDeal t (ReserveGapAt d [an]) -- `debug` ("Query Gap"++ show (queryDeal t (ReserveAccGapAt d [an])))
                       Just (DS ds) -> queryDeal t (patchDateToStats d ds) -- `debug` ("hit with ds"++ show ds)
                       _ -> error "Failed on formula passed" -- `debug` ("limit on last"++ show limit)
 

@@ -30,6 +30,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
+  ,MyRatio
   )
   
   where
@@ -47,7 +48,11 @@ import GHC.Generics
 import Language.Haskell.TH
 
 import Text.Read (readMaybe)
+import Data.Aeson (ToJSON, toJSON, Value(String))
+import Data.Ratio (Ratio, numerator, denominator)
+import Data.Text (pack)
 
+import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
 
 import Data.Aeson hiding (json)
 import Data.Aeson.TH
@@ -491,9 +496,9 @@ data DealStats = CurrentBondBalance
                | LedgerBalance [String]
                | LedgerTxnAmt [String] (Maybe TxnComment)
                | ReserveBalance [AccName] 
-               | ReserveAccGap [AccName]
+               | ReserveGap [AccName]
                | ReserveExcess [AccName] 
-               | ReserveAccGapAt Date [AccName] 
+               | ReserveGapAt Date [AccName] 
                | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance (Maybe [PoolId])
                | FutureCurrentSchedulePoolBalance (Maybe [PoolId])
@@ -1020,6 +1025,18 @@ instance FromJSONKey CutoffFields where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
 
+
+newtype MyRatio = MyRatio (Ratio Integer)
+
+instance ToJSON MyRatio where
+  toJSON (MyRatio r) = case fromRationalRepetend Nothing r of
+      Left (sci, _)         -> toJSON $ formatScientific Fixed (Just 8) sci
+      Right (sci, rep) -> toJSON $ formatScientific Fixed (Just 8) sci
+
+instance Show MyRatio where
+  show (MyRatio r) = case fromRationalRepetend Nothing r of
+      Left (sci, _)         -> show $ formatScientific Fixed (Just 8) sci
+      Right (sci, rep) -> show $ formatScientific Fixed (Just 8) sci
 
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }

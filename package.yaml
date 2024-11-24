@@ -46,6 +46,7 @@ dependencies:
 - split
 - tabular
 - numeric-limits
+- scientific
 
 library:
   source-dirs: 
