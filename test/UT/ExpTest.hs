@@ -26,16 +26,13 @@ expTests =  testGroup "Expense Tests"
      _calcDate = (L.toDate "20220310")
      _calcDate2 = (L.toDate "20220115")
      _calcDate3 = (L.toDate "20220415")
+     feesCalc = sequenceA [(DA.calcDueFee DT.td2 _calcDate f1) ,(DA.calcDueFee DT.td2 _calcDate2 f1) ,(DA.calcDueFee DT.td2 _calcDate3 f2) ,(DA.calcDueFee DT.td2 _calcDate3 f1)]
     in
       testCase "calc on diff same period for recur fee" $
       assertEqual
         "test date"
-        [100.0, 0.0, 110.0, 150.0]
-        (map feeDue 
-             [(DA.calcDueFee DT.td2 _calcDate f1)
-              ,(DA.calcDueFee DT.td2 _calcDate2 f1)
-              ,(DA.calcDueFee DT.td2 _calcDate3 f2)
-              ,(DA.calcDueFee DT.td2 _calcDate3 f1)])
+        (Right [100.0, 0.0, 110.0, 150.0])
+        ((feeDue <$>) <$> feesCalc)
     ,
     let
      tsPoints = [(L.TsPoint (L.toDate "20220101") 10.0)
@@ -51,14 +48,13 @@ expTests =  testGroup "Expense Tests"
 
      f1WithDue = Fee "FeeName1" (FeeFlow (L.BalanceCurve tsPoints)) (L.toDate "20210101") 3 Nothing 0 Nothing Nothing
      _f1WithDue = f1WithDue {feeType= FeeFlow (L.BalanceCurve [(L.TsPoint (L.toDate "20220601") 20.0)]), feeDue = 28, feeDueDate = Just _calcDate}
+     feesCalc = sequenceA [DA.calcDueFee DT.td2 _calcDate f1
+                          ,DA.calcDueFee DT.td2 _calcDate2 f1
+                          ,DA.calcDueFee DT.td2 _calcDate3 f1
+                          ,DA.calcDueFee DT.td2 _calcDate f1WithDue ]
     in
       testCase "test on Custom Fee Type" $
-      assertEqual "calc Due Fee" [f1_ , f2_ , f3_ , _f1WithDue]
-                                 [DA.calcDueFee DT.td2 _calcDate f1
-                                 ,DA.calcDueFee DT.td2 _calcDate2 f1
-                                 ,DA.calcDueFee DT.td2 _calcDate3 f1
-                                 ,DA.calcDueFee DT.td2 _calcDate f1WithDue
-                                 ]
+      assertEqual "calc Due Fee" (Right [f1_ , f2_ , f3_ , _f1WithDue]) feesCalc
 
   ]
 

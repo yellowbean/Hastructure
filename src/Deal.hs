@@ -255,12 +255,17 @@ queryTrigger t@TestDeal{ triggers = trgs } wt
       Just _trgs -> maybe [] Map.elems $ Map.lookup wt _trgs
 
 -- ^ execute effects of trigger: making changes to deal
-runEffects :: Ast.Asset a => (TestDeal a, RunContext a, [ActionOnDate], [ResultComponent]) -> Date -> TriggerEffect -> Either String (TestDeal a, RunContext a, [ActionOnDate], [ResultComponent])
+-- TODO seems position of arugments can be changed : f :: a -> b -> m a  => f:: b -> a -> m a
+runEffects :: Ast.Asset a => (TestDeal a, RunContext a, [ActionOnDate], [ResultComponent]) -> Date -> TriggerEffect 
+           -> Either String (TestDeal a, RunContext a, [ActionOnDate], [ResultComponent])
 runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bondMap, pool=pt
                       ,collects = collRules}, rc, actions, logs) d te
   = case te of 
       DealStatusTo _ds -> Right (t {status = _ds}, rc, actions, logs)
-      DoAccrueFee fns -> Right (t {fees = foldr (Map.adjust (calcDueFee t d)) feeMap fns}, rc, actions, logs)
+      DoAccrueFee fns -> do
+                           newFeeList <- sequenceA $ calcDueFee t d  <$> (feeMap Map.!) <$> fns
+                           let newFeeMap = Map.fromList (zip fns newFeeList) <> feeMap
+                           return (t {fees = newFeeMap}, rc, actions, logs)
       ChangeReserveBalance accName rAmt ->
           Right (t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }, rc, actions, logs)
       
@@ -416,7 +421,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                    else 
                                      [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
                    (dealAfterCleanUp, rc_, newLogWaterfall_ ) <- foldM (performActionWrap d) (dRunWithTrigger0, rc1,log) cleanUpActions 
-                   let endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
+                   endingLogs <- Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
                    return (prepareDeal dealAfterCleanUp, endingLogs ++ logsBeforeDist ++newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
                else
                  do
@@ -430,7 +435,14 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
            in 
              run (t {accounts = newAcc}) poolFlowMap (Just ads) rates calls rAssump log
 
-         AccrueFee d feeName -> run (t{fees=Map.adjust (calcDueFee t d) feeName feeMap}) poolFlowMap (Just ads) rates calls rAssump log
+         AccrueFee d feeName -> 
+           let 
+             fToAcc = feeMap Map.! feeName
+           in 
+             do 
+               newF <- calcDueFee t d fToAcc
+               let newFeeMap = (Map.fromList [(feeName,newF)]) <> feeMap
+               run (t{fees=newFeeMap}) poolFlowMap (Just ads) rates calls rAssump log
    
          ResetLiqProvider d liqName -> 
            case liqProvider t of 
@@ -509,11 +521,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
 
          BuildReport sd ed ->
            let 
-             bsReport = Rpt.buildBalanceSheet t ed -- `debug` ("bs report"++ show ed)
              cashReport = Rpt.buildCashReport t sd ed 
-             newlog = FinancialReport sd ed bsReport cashReport
            in 
-             run t poolFlowMap (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("new log"++ show ed++ show newlog)
+             do 
+               bsReport <- Rpt.buildBalanceSheet t ed -- `debug` ("bs report"++ show ed)
+               let newlog = FinancialReport sd ed bsReport cashReport
+               run t poolFlowMap (Just ads) rates calls rAssump $ log++[newlog] -- `debug` ("new log"++ show ed++ show newlog)
 
          FireTrigger d cyc n -> 
            let 
@@ -653,7 +666,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                    in  
                       do 
                         (dealAfterCleanUp, rc_, newLogWaterfall_ ) <- foldM (performActionWrap d) (t, runContext, log) cleanUpActions
-                        let endingLogs = Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
+                        endingLogs <- Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
                         return (prepareDeal dealAfterCleanUp, endingLogs ++ newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
                  _ -> run t poolFlowMap (Just ads) rates calls rAssump log
 

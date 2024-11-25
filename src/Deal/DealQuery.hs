@@ -54,8 +54,9 @@ calcTargetAmount t d (A.Account _ _ _ (Just r) _ ) =
    where
      eval :: A.ReserveAmount -> Either String Balance
      eval ra = case ra of
-       A.PctReserve (Sum ds) _rate -> Right $ mulBR (queryDeal t (Sum (map (patchDateToStats d) ds))) _rate  -- `debug` ("In multiple query spot"++show(ds))
-       A.PctReserve ds _rate -> Right $ mulBR (queryDeal t (patchDateToStats d ds))  _rate
+       A.PctReserve ds _rate -> do 
+                                  v <- (queryCompound t d (patchDateToStats d ds))
+                                  return (fromRational (v * _rate))
        A.FixReserve amt -> Right $ amt
        A.Either p ra1 ra2 -> do 
                                q <- testPre d t p
@@ -621,43 +622,13 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
                 CustomCurve cv -> getValOnByDate cv d
                 CustomDS ds -> queryDeal t (patchDateToStats d ds )
 
-
-    Sum _s -> sum $ map (queryDeal t) _s -- `debug` (">>>SUM"++ show _s ++">>"++ show (map (queryDeal t) _s) )
-    Subtract (ds:dss) -> 
-        let 
-          a  = queryDeal t ds 
-          bs = queryDeal t (Sum dss) 
-        in 
-          a - bs
-          
-    Substract s -> queryDeal t (Subtract s)
-    Avg dss ->  divideBI (sum ( queryDeal t <$> dss ))  (length dss)
-    Constant n -> fromRational n
-    Max ss -> maximum' [ queryDeal t s | s <- ss ]
-    Min ss -> minimum' [ queryDeal t s | s <- ss ]
-    Divide ds1 ds2 -> if (queryDeal t ds2) == 0 then 
-                        (fromRational . toRational) Numeric.Limits.infinity
-                      else
-                        queryDeal t ds1 / queryDeal t ds2
-
-    Factor s f -> mulBR (queryDeal t s) f
-    FloorAndCap floor cap s -> max (queryDeal t floor) $ min (queryDeal t cap) (queryDeal t s)
-    Multiply ss -> product (queryDeal t <$> ss)
-    FloorWith s floor -> max (queryDeal t s) (queryDeal t floor)
-    FloorWithZero s -> max (queryDeal t s) 0
-    Excess (s1:ss) -> max 0 $ queryDeal t s1 - queryDeal t (Sum ss) -- `debug` ("Excess"++show (queryDeal t s1)++"ss"++show ( queryDeal t (Sum ss)))
-    CapWith s cap -> min (queryDeal t s) (queryDeal t cap)
-    Abs s -> abs $ queryDeal t s
-    Round ds rb -> fromRational $ roundingBy rb (toRational (queryDeal t ds))
-    DivideRatio s1 s2 -> fromRational . toRational $ queryDealRate t (DivideRatio s1 s2)
-    AvgRatio ss -> fromRational . toRational $ queryDealRate t (AvgRatio ss)
-    
     _ -> error ("Failed to query balance of -> "++ show s)
 
 queryCompound :: P.Asset a => TestDeal a -> Date -> DealStats -> Either String Rational 
 queryCompound t@TestDeal{accounts=accMap} d s =
   case s of
     Sum _s -> sum <$> sequenceA [ queryCompound t d __s | __s <- _s]
+    Substract dss -> queryCompound t d (Subtract dss)
     Subtract (ds:dss) -> 
       do
         a <- queryCompound t d ds 
@@ -667,7 +638,7 @@ queryCompound t@TestDeal{accounts=accMap} d s =
     Max ss -> maximum' [ queryCompound t d s | s <- ss ]
     Min ss -> minimum' [ queryCompound t d s | s <- ss ]
     Divide ds1 ds2 -> if (queryCompound t d ds2) == Right 0 then 
-                        Left $ "Zero on ds: "++ show ds2
+                        Left $ "Can not divide zero on ds: "++ show ds2
                       else
                         liftA2 (/) (queryCompound t d ds1) (queryCompound t d ds2)
     Factor s f -> (* f) <$> (queryCompound t d s)
@@ -686,6 +657,7 @@ queryCompound t@TestDeal{accounts=accMap} d s =
                      return $ roundingBy rb q
     DivideRatio s1 s2 -> queryCompound t d (Divide s1 s2)
     AvgRatio ss -> queryCompound t d (Avg ss)
+    Constant v -> Right v
     -- rate query
     BondFactor -> Right . toRational $ queryDealRate t BondFactor
     BondFactorOf bn -> Right . toRational $ queryDealRate t (BondFactorOf bn)
@@ -874,7 +846,7 @@ preToStr t d p =
     (IfCurve cmp ds ts) -> show (queryCompound t d (ps ds)) ++" "++ show cmp ++" " ++show (fromRational (getValByDate ts Inc d))
     (IfDate cmp _d) -> show d ++" "++ show cmp ++" " ++show _d
     (IfBool ds b) -> show (queryCompound t d ds) ++" == "++ show b
-    (If2 cmp ds1 ds2) -> show (queryCompound t d (ps ds1)) ++" "++ show cmp ++" " ++show (queryDeal t (ps ds2))
+    (If2 cmp ds1 ds2) -> show (queryCompound t d (ps ds1)) ++" "++ show cmp ++" " ++show (queryCompound t d (ps ds2))
     (IfRate2 cmp ds1 ds2) -> show (queryCompound t d (ps ds1)) ++" "++ show cmp ++" " ++show (queryDealRate t (ps ds2))
     (IfInt2 cmp ds1 ds2) -> show (queryCompound t d (ps ds1)) ++" "++ show cmp ++" " ++show (queryDealInt t (ps ds2) d)
     (IfDealStatus st) -> show (status t) ++" == "++ show st
