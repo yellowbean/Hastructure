@@ -149,10 +149,10 @@ calcDueFee t@TestDeal{pool = pool} calcDay f@(F.Fee fn (F.AnnualRateFee feeBase 
       patchedDs = patchDatesToStats t accrueStart calcDay feeBase
     in 
       do
-        r <- queryCompound t calcDay _r -- `debug` ("Base "++ show calcDay ++">>"++ show baseBal++"From ds"++show patchedDs++"Fee Name"++fn)
+        r <- queryCompound t calcDay _r 
         baseBal <- queryCompound t calcDay patchedDs
-        let newDue = baseBal * r -- `debug` ("Fee Name"++fn ++"Date"++ show [accrueStart, calcDay] ++ "base bal"++ show baseBal++"new rate"++show r)
-        return f { F.feeDue=fd+ fromRational newDue, F.feeDueDate = Just calcDay }  -- `debug` ("Fee DUE new Due "++show newDue++"oldDue"++show fd)
+        let newDue = baseBal * r 
+        return f { F.feeDue=fd+ fromRational newDue, F.feeDueDate = Just calcDay }
 
 calcDueFee t calcDay f@(F.Fee fn (F.PctFee ds _r ) fs fd fdDay fa lpd _)
   = let 
@@ -243,28 +243,31 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
                     _ -> curCredit
 
 
-calcDueInt :: Ast.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe DealStats -> L.Bond -> L.Bond
-calcDueInt t calc_date mBal mRate b@(L.BondGroup bMap) = L.BondGroup $ Map.map (calcDueInt t calc_date mBal mRate) bMap 
+calcDueInt :: Ast.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe DealStats -> L.Bond -> Either String L.Bond
+calcDueInt t calc_date mBal mRate b@(L.BondGroup bMap) 
+  = do 
+      m  <- mapM (calcDueInt t calc_date mBal mRate) bMap 
+      return $ L.BondGroup m 
 -- Not accrued
 calcDueInt t calc_date mBal mRate b@(L.Bond _ _ oi io _ bal r dp _ di Nothing _ lastPrinPay _ ) 
- | calc_date <= closingDate = b
- | bal+di == 0 = b
+ | calc_date <= closingDate = Right b
+ | bal+di == 0 = Right b
  | otherwise = calcDueInt t calc_date mBal mRate (b {L.bndDueIntDate = Just closingDate })  -- `debug` ("hit")
    where 
      closingDate = getClosingDate (dates t)
 -- Z bond
 calcDueInt t calc_date _ _ b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate _ _ _ _ lstIntPay _ _) 
-  = b {L.bndDueInt = 0 }
+  = Right $ b {L.bndDueInt = 0 }
 -- accured by yield
 calcDueInt t calc_date _ _ b@(L.Bond bn L.Equity bo (L.InterestByYield y) _ bond_bal _ _ int_due _ _ lstIntPay _ mStmt)
-  = b {L.bndDueInt = newDue }  -- `debug` ("Yield Due Int >>"++ show bn++">> new due"++ show newDue++">> old due"++ show int_due )
+  = Right $ b {L.bndDueInt = newDue }  -- `debug` ("Yield Due Int >>"++ show bn++">> new due"++ show newDue++">> old due"++ show int_due )
   where
     newDue = L.backoutDueIntByYield calc_date b
 
 -- accrued with interest over interest
 calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntInfo) _ bond_bal bond_rate _ intDue ioiIntDue (Just int_due_date) lstIntPay _ _ )
-  = newBondWithIntInfo { L.bndInterestInfo = L.WithIoI intInfo ioiIntInfo}
-    where 
+  = 
+    let
       ioiRate = case ioiIntInfo of 
                   L.OverCurrRateBy factor -> bond_rate * fromRational (1+factor)
                   L.OverFixSpread spd -> bond_rate + spd
@@ -273,23 +276,27 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntIn
       ioiInt = newIoiInt + ioiIntDue -- add ioi int due with new accrued ioi int
       
       newBond = b { L.bndDueIntOverInt = ioiInt, L.bndInterestInfo = intInfo }
-      newBondWithIntInfo = calcDueInt t calc_date mBal mRate newBond
-
+    in 
+      do 
+        newBondWithIntInfo <- calcDueInt t calc_date mBal mRate newBond
+        return newBondWithIntInfo { L.bndInterestInfo = L.WithIoI intInfo ioiIntInfo}
 -- accure interest by rate
 calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ intDue _ (Just int_due_date) lstIntPay _ _ ) 
-  | bond_bal == 0 = b
-  | calc_date == int_due_date = b
-  | otherwise = b {L.bndDueInt = newDueInt+intDue, L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
-              where
-                dc = case bi of 
-                       L.Floater _ _ _ _ _dc _ _ -> _dc 
-                       L.Fix _ _dc -> _dc 
-                       _ -> DC_ACT_365F
-                overrideBal = maybe bond_bal (queryDeal t ) mBal
-                overrideRate = maybe bond_rate (queryDealRate t) mRate
-                newDueInt = IR.calcInt overrideBal int_due_date calc_date overrideRate dc -- `debug` ("Using Rate"++show calc_date ++">>Bal"++ show overrideBal)
-
-
+  | bond_bal == 0 =  Right $ b
+  | calc_date == int_due_date =  Right $ b
+  | otherwise = 
+      let 
+        dc = case bi of 
+               L.Floater _ _ _ _ _dc _ _ -> _dc 
+               L.Fix _ _dc -> _dc 
+               _ -> DC_ACT_365F
+      in 
+        do
+          overrideRate <- maybe (Right bond_rate) ((fromRational <$>) . (queryCompound t calc_date)) mRate
+          overrideBal <- maybe (Right bond_bal) ((fromRational <$>) . (queryCompound t calc_date)) mBal
+          let newDueInt = IR.calcInt overrideBal int_due_date calc_date overrideRate dc -- `debug` ("Using Rate"++show calc_date ++">>Bal"++ show overrideBal)
+          return b {L.bndDueInt = newDueInt+intDue, L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
+       
 calcDuePrin :: Ast.Asset a => TestDeal a -> T.Day -> L.Bond -> L.Bond
 calcDuePrin t calc_date b@(L.BondGroup bMap) = L.BondGroup $ Map.map (calcDuePrin t calc_date) bMap
 
@@ -943,7 +950,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap}
      totalDue = sum $ snd <$> Map.elems bndsDueAmtsMap -- `debug` (">date"++show d++" due amt"++show bndsDueAmtsMap)
      actualPaidOut = calcAvailAfterLimit t d (accMap Map.! an) mSupport totalDue mLimit
 
-     -- update bond paid
    in
      do
        paidOutAmt <- actualPaidOut
@@ -971,10 +977,10 @@ performAction d t@TestDeal{bonds=bndMap} (W.AccrueAndPayIntGroup mLimit an bndNa
 
 
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueIntGroup bndNames)
-  = Right $ t {bonds = bondGrpAccrued <> bndMap}
-    where 
-        bondGrp = Map.filterWithKey (\k _ -> S.member k (S.fromList bndNames)) bndMap
-        bondGrpAccrued = Map.map (calcDueInt t d Nothing Nothing) bondGrp
+  = do 
+      let bondGrp = Map.filterWithKey (\k _ -> S.member k (S.fromList bndNames)) bndMap
+      bondGrpAccrued <- mapM (calcDueInt t d Nothing Nothing) bondGrp
+      return t {bonds = bondGrpAccrued <> bndMap}
 
 
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit an bndGrpName by mSupport)
@@ -983,12 +989,12 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit a
      L.BondGroup bndsMap = bndMap Map.! bndGrpName
      bndsToPay = Map.filter (not . L.isPaidOff) bndsMap
      bndsToPayNames = L.bndName <$> Map.elems bndsToPay
-     bndsWithDueMap = Map.map (calcDueInt t d Nothing Nothing) bndsToPay
-     bndsDueAmtsMap = Map.map (\x -> (x, L.totalDueInt x)) bndsWithDueMap
-     totalDue = sum $ snd <$> Map.elems bndsDueAmtsMap -- `debug` (">date"++show d++" due amt"++show bndsDueAmtsMap)
-     actualPaidOut = calcAvailAfterLimit t d (accMap Map.! an) mSupport totalDue mLimit
    in
      do
+       bndsWithDueMap <- mapM (calcDueInt t d Nothing Nothing) bndsToPay
+       let bndsDueAmtsMap = Map.map (\x -> (x, L.totalDueInt x)) bndsWithDueMap
+       let totalDue = sum $ snd <$> Map.elems bndsDueAmtsMap -- `debug` (">date"++show d++" due amt"++show bndsDueAmtsMap)
+       let actualPaidOut = calcAvailAfterLimit t d (accMap Map.! an) mSupport totalDue mLimit
        paidOutAmt <- actualPaidOut
 
        let payOutPlan = allocAmtToBonds by paidOutAmt (Map.elems bndsDueAmtsMap) -- `debug` (">date"++ show payAmount)
@@ -1016,8 +1022,9 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinWithDue an bn
       bndsToPayNames = L.bndName <$> bndsToPay
       bndsDueAmts = L.bndDuePrin <$> bndsToPay
       actualPaidOut = min availBal $ sum bndsDueAmts
-      bndsAmountToBePaid = zip bndsToPay $ prorataFactors bndsDueAmts actualPaidOut
-      bndsPaid = map (\(l,amt) -> L.payPrin d amt l) bndsAmountToBePaid
+
+      (bndsPaid, remainAmt) = payProRata d actualPaidOut L.bndDuePrin (L.payPrin d) bndsToPay
+      
       bndMapUpdated = (Map.fromList $ zip bndsToPayNames bndsPaid) <> bndMap
       accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
@@ -1025,17 +1032,18 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrinWithDue an bn
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin mLimit an bnds mSupport)
   = let 
      availAccBal = A.accBalance (accMap Map.! an)
-     bndsList = (Map.!) bndMap <$> bnds
-     bndsToPay = filter (not . L.isPaidOff) bndsList
-     bndsToPayNames = L.bndName <$> bndsToPay
+     bndsToPay = getActiveBonds t bnds
+     
      bndsWithDue = calcDuePrin t d <$> bndsToPay
      bndsDueAmts = L.bndDuePrin <$> bndsWithDue
+     
+     bndsToPayNames = L.bndName <$> bndsWithDue
      totalDue = sum bndsDueAmts
      actualPaidOut = calcAvailAfterLimit t d (accMap Map.! an) mSupport totalDue mLimit
    in
      do
        paidOutAmt <- actualPaidOut
-       let (bondsPaid, remainAmt) = payProRata d paidOutAmt L.bndDuePrin (L.payPrin d) bndsToPay
+       let (bondsPaid, remainAmt) = payProRata d paidOutAmt L.bndDuePrin (L.payPrin d) bndsWithDue
        let accPaidOut = (min availAccBal paidOutAmt)
      
        let dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (PayPrin bndsToPayNames)) an accMap
@@ -1050,7 +1058,7 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
   where
     acc = accMap Map.! an
 
-    bndsToPay = filter (not . L.isPaidOff) $ map (bndMap Map.!) bnds
+    bndsToPay = getActiveBonds t bnds
     bndsToPayNames = L.bndName <$> bndsToPay
     availBal = A.accBalance acc
     bndsDueAmts = map L.getCurBalance bndsToPay
@@ -1062,37 +1070,44 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
     bndMapUpdated =  (Map.fromList $ zip bndsToPayNames bndsPaid) <> bndMap
     accMapAfterPay = Map.adjust (A.draw actualPaidOut d (PayPrin bnds)) an accMap
 
-performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an bond) = 
+performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an bnd) = 
   do
     fundAmt_ <- case mlimit of 
                  Just (DS ds) -> queryCompound t d (patchDateToStats d ds)
                  Just (DueCapAmt amt) -> Right $ toRational amt
-                 _ -> Left $ "Not valid limit for funding with bond"++ show bond
+                 _ -> Left $ "Not valid limit for funding with bond"++ show bnd
     let fundAmt = fromRational fundAmt_
-    let accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bond fundAmt)) an accMap
-    let bndMapUpdated = Map.adjust ((L.fundWith d fundAmt) . (calcDueInt t d Nothing Nothing)) bond bndMap
-    return $ t {accounts = accMapAfterFund, bonds= bndMapUpdated } 
+    let accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bnd fundAmt)) an accMap
+    newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
+    let bndFunded = L.fundWith d fundAmt newBnd
+    return $ t {accounts = accMapAfterFund, bonds= Map.fromList [(bnd,bndFunded)] <> bndMap } 
 -- ^ clear a sequence of legders
 performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM } (W.WriteOff (Just (ClearLedgerBySeq dr lns)) bnd)
-  = Right $ t {bonds = bndMapUpdated, ledgers = Just newLedgerM}
-  where 
-    writeAmt = sum $ (LD.queryGap dr) <$> (ledgerM Map.!) <$> lns
-    writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
-    bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
-
-    ledgerList = filter (\l -> LD.queryGap dr l > 0)  $ (ledgerM Map.!) <$> lns
-    (newLedgers,_) = LD.clearLedgersBySeq dr d writeAmtCapped [] ledgerList
-    newLedgerMap = lstToMapByFn LD.ledgName newLedgers
-    newLedgerM = newLedgerMap <> ledgerM
+  = let 
+      writeAmt = sum $ (LD.queryGap dr) <$> (ledgerM Map.!) <$> lns
+      writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
+      newLedgerMap = lstToMapByFn LD.ledgName newLedgers
+      ledgerList = filter (\l -> LD.queryGap dr l > 0)  $ (ledgerM Map.!) <$> lns
+      (newLedgers,_) = LD.clearLedgersBySeq dr d writeAmtCapped [] ledgerList
+      newLedgerM = newLedgerMap <> ledgerM
+    in
+      do 
+        newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
+        let bndWritedOff = L.writeOff d writeAmtCapped newBnd
+        
+        return $ t {bonds = Map.fromList [(bnd,bndWritedOff)] <> bndMap, ledgers = Just newLedgerM}
 
 
 performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM } (W.WriteOff (Just (ClearLedger dr ln)) bnd)
-  = Right $ t {bonds = bndMapUpdated, ledgers = Just newLedgerM}
-  where 
-    writeAmt = LD.queryGap dr (ledgerM Map.! ln)
-    writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
-    bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
-    newLedgerM = Map.adjust (LD.entryLog writeAmtCapped d (TxnDirection dr)) ln ledgerM
+  = let  
+      writeAmt = LD.queryGap dr (ledgerM Map.! ln)
+      writeAmtCapped = min writeAmt $ L.bndBalance $ bndMap Map.! bnd
+      newLedgerM = Map.adjust (LD.entryLog writeAmtCapped d (TxnDirection dr)) ln ledgerM
+    in 
+      do 
+        newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
+        let bndWritedOff = L.writeOff d writeAmtCapped newBnd
+        return t {bonds = Map.fromList [(bnd,bndWritedOff)] <> bndMap, ledgers = Just newLedgerM}
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
   = 
@@ -1104,36 +1119,39 @@ performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
                   x -> Left $ "not supported type to determine the amount to write off"++ show x
 
     let writeAmtCapped = min (fromRational writeAmt) $ L.bndBalance $ bndMap Map.! bnd
-    let bndMapUpdated = Map.adjust ((L.writeOff d writeAmtCapped) . (calcDueInt t d Nothing Nothing)) bnd bndMap
-    return $ t {bonds = bndMapUpdated}
+    newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
+    let bndWritedOff = L.writeOff d writeAmtCapped newBnd
+    return $ t {bonds = Map.fromList [(bnd,bndWritedOff)] <> bndMap}
 
 performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM} (W.WriteOffBySeq (Just (ClearLedger dr ln)) bnds)
-  = Right $ t {bonds = bndMapUpdated <> bndMap, ledgers = Just newLedgerM}
-  where 
-    writeAmt = LD.queryGap dr (ledgerM Map.! ln)
-    bndsToWriteOff = map (calcDueInt t d Nothing Nothing . (bndMap Map.!)) bnds
-    totalBondBal = sum $ L.bndBalance <$> bndsToWriteOff
-    writeAmtCapped = min writeAmt totalBondBal
+  = let  
+      writeAmt = LD.queryGap dr (ledgerM Map.! ln)
+    in 
+      do
+        bndsToWriteOff <- mapM (calcDueInt t d Nothing Nothing . (bndMap Map.!)) bnds
+        let totalBondBal = sum $ L.bndBalance <$> bndsToWriteOff
+        let writeAmtCapped = min writeAmt totalBondBal
 
-    (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bndsToWriteOff 
-    bndMapUpdated = lstToMapByFn L.bndName bndWrited
-    newLedgerM = Map.adjust (LD.entryLog writeAmtCapped d (TxnDirection dr)) ln ledgerM
+        let (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bndsToWriteOff 
+        let bndMapUpdated = lstToMapByFn L.bndName bndWrited
+        let newLedgerM = Map.adjust (LD.entryLog writeAmtCapped d (TxnDirection dr)) ln ledgerM
+        return t {bonds = bndMapUpdated <> bndMap, ledgers = Just newLedgerM}
 
 
 performAction d t@TestDeal{bonds=bndMap } (W.WriteOffBySeq mlimit bnds)
-  = Right $ t {bonds = bndMapUpdated <> bndMap }
-  where 
-    bondsToWriteOff = map (calcDueInt t d Nothing Nothing . (bndMap Map.!)) bnds
-    totalBondBal = sum $ L.bndBalance <$> bondsToWriteOff
-    writeAmt = case mlimit of
-                  Just (DS ds) -> queryDeal t (patchDateToStats d ds)
-                  Just (DueCapAmt amt) -> amt
-                  Nothing -> totalBondBal
-                  x -> error $ "not supported type to determine the amount to write off"++ show x
+  = do 
+      bondsToWriteOff <- mapM (calcDueInt t d Nothing Nothing . (bndMap Map.!)) bnds
+      let totalBondBal = sum $ L.bndBalance <$> bondsToWriteOff
+      let writeAmt = case mlimit of
+                       Just (DS ds) -> queryDeal t (patchDateToStats d ds)
+                       Just (DueCapAmt amt) -> amt
+                       Nothing -> totalBondBal
+                       x -> error $ "not supported type to determine the amount to write off"++ show x
 
-    writeAmtCapped = min writeAmt totalBondBal
-    (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bondsToWriteOff 
-    bndMapUpdated = lstToMapByFn L.bndName bndWrited
+      let writeAmtCapped = min writeAmt totalBondBal
+      let (bndWrited, _) = paySequentially d writeAmtCapped L.bndBalance (L.writeOff d) [] bondsToWriteOff 
+      let bndMapUpdated = lstToMapByFn L.bndName bndWrited
+      return t {bonds = bndMapUpdated <> bndMap }
 
 performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns) 
   = do
@@ -1141,10 +1159,9 @@ performAction d t@TestDeal{fees=feeMap} (W.CalcFee fns)
       return t {fees = newFeeMap <> feeMap }
 
 performAction d t@TestDeal{bonds=bndMap} (W.CalcBondInt bns mBalDs mRateDs) 
-  = Right $ t {bonds = newBondMap <> bndMap}
-  where 
-    newBondMap = Map.map (calcDueInt t d mBalDs mRateDs) $ getBondsByName t (Just bns)
-
+  = do 
+      newBondMap <- mapM (calcDueInt t d mBalDs mRateDs) $ getBondsByName t (Just bns)
+      return t {bonds = newBondMap <> bndMap}
 
 -- ^ set due prin mannually
 performAction d t@TestDeal{bonds=bndMap} (W.CalcBondPrin2 mLimit bnds) 

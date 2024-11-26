@@ -81,30 +81,31 @@ import qualified Hedge as HE
 debug = flip trace
 
 -- ^ update bond interest rate from rate assumption
-setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> L.Bond
+setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> Either String L.Bond
 setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateSpread _ spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
-  = b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+  = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
     where 
       (Just dc) = getDayCountFromInfo ii
       accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
 
 setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateLadderSpread _ spd _)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
-  = b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+  = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
     where 
       (Just dc) = getDayCountFromInfo ii
       accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
 
 setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _ _ _) 
-  = let 
-      rate = queryDealRate t (patchDateToStats d ds)
-    in 
-      b {L.bndRate = fromRational (toRational rate * toRational factor) }
+  = do
+      rate <- queryCompound t d (patchDateToStats d ds)
+      return b {L.bndRate = fromRational (toRational rate * toRational factor) }
 
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _ _ _) 
-  = b { L.bndRate = applyFloatRate ii d ras }
+  = Right $ b { L.bndRate = applyFloatRate ii d ras }
 
 setBondNewRate t d ras bg@(L.BondGroup bMap)
-  = L.BondGroup $ Map.map (setBondNewRate t d ras) bMap
+  = do 
+      m <- mapM (setBondNewRate t d ras) bMap
+      return $ L.BondGroup m 
 
 
 updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> HE.SRT
@@ -231,8 +232,8 @@ testCall t d opt =
     case opt of 
        C.PoolBalance x -> Right $ queryDeal t (FutureCurrentPoolBalance Nothing) < x
        C.BondBalance x -> Right $ queryDeal t CurrentBondBalance < x
-       C.PoolFactor x ->  Right $ queryDealRate t (FutureCurrentPoolFactor d Nothing) < fromRational x -- `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
-       C.BondFactor x ->  Right $ queryDealRate t BondFactor < fromRational x
+       C.PoolFactor x ->  (< x) <$> (queryCompound t d (FutureCurrentPoolFactor d Nothing))  -- `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
+       C.BondFactor x ->  (< x) <$> (queryCompound t d BondFactor)
        C.OnDate x -> Right $ x == d 
        C.AfterDate x -> Right $ d > x
        C.And xs -> allM (testCall t d) xs
@@ -501,9 +502,11 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
          ResetBondRate d bn -> 
            let 
              rateList = fromMaybe [] rates
-             newBndMap = Map.adjust (setBondNewRate t d rateList) bn bndMap -- `debug` ("Reset bond"++show bn)
+             bnd = bndMap Map.! bn
            in 
-             run t{bonds = newBndMap} poolFlowMap (Just ads) rates calls rAssump log
+             do 
+               newBnd <- setBondNewRate t d rateList bnd
+               run t{bonds = Map.fromList [(bn,newBnd)] <> bndMap} poolFlowMap (Just ads) rates calls rAssump log
          
          ResetAccRate d accName -> 
            let 
@@ -590,62 +593,59 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                flag <- testPre d t p
                case flag of
                  False -> run t poolFlowMap (Just ads) rates calls rAssump (log ++ [WarningMsg ("Failed to issue to bond group"++ bGroupName++ ":" ++show p)])
-                 True ->
-                          let 
-                            newBndName = L.bndName bnd
-                            newBalance = case mBal of
+                 True -> let 
+                           newBndName = L.bndName bnd
+                           newBalance = case mBal of
                                           Just _q -> queryDeal t (patchDateToStats d _q)  
                                           Nothing -> L.originBalance (L.bndOriginInfo bnd)
-                            newRate = case mRate of 
-                                          Just _q -> toRational $ queryDealRate t (patchDateToStats d _q)
-                                          Nothing -> L.originRate (L.bndOriginInfo bnd)
-                            newBonds = case Map.lookup bGroupName bndMap of
-                                          Nothing -> bndMap
-                                          Just L.Bond {} -> bndMap
-                                          Just (L.BondGroup bndGrpMap) -> let
-                                                                            bndOInfo = (L.bndOriginInfo bnd) {L.originDate = d, L.originRate = newRate, L.originBalance = newBalance }
-                                                                            bndToInsert = bnd {L.bndOriginInfo = bndOInfo,
-                                                                                               L.bndDueIntDate = Just d,
-                                                                                               L.bndLastIntPay = Just d, 
-                                                                                               L.bndLastPrinPay = Just d,
-                                                                                               L.bndRate = fromRational newRate,
-                                                                                               L.bndBalance = newBalance}
-                                                                          in 
-                                                                            Map.insert bGroupName 
-                                                                                       (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap))
-                                                                                       bndMap
+                         in
+                            do
+                              newRate <- case mRate of 
+                                          Just _q -> queryCompound t d (patchDateToStats d _q)
+                                          Nothing -> Right $ L.originRate (L.bndOriginInfo bnd)
+                              let newBonds = case Map.lookup bGroupName bndMap of
+                                               Nothing -> bndMap
+                                               Just L.Bond {} -> bndMap
+                                               Just (L.BondGroup bndGrpMap) -> let
+                                                                                 bndOInfo = (L.bndOriginInfo bnd) {L.originDate = d, L.originRate = newRate, L.originBalance = newBalance }
+                                                                                 bndToInsert = bnd {L.bndOriginInfo = bndOInfo,
+                                                                                                    L.bndDueIntDate = Just d,
+                                                                                                    L.bndLastIntPay = Just d, 
+                                                                                                    L.bndLastPrinPay = Just d,
+                                                                                                    L.bndRate = fromRational newRate,
+                                                                                                    L.bndBalance = newBalance}
+                                                                               in 
+                                                                                 Map.insert bGroupName 
+                                                                                            (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap))
+                                                                                            bndMap
 
-                            issuanceProceeds = newBalance
-                            newAcc = Map.adjust (A.deposit issuanceProceeds d (IssuanceProceeds newBndName))
-                                                accName
-                                                accMap
-                          in 
-                            run t{bonds = newBonds, accounts = newAcc} poolFlowMap (Just ads) rates calls rAssump log
+                              let issuanceProceeds = newBalance
+                              let newAcc = Map.adjust (A.deposit issuanceProceeds d (IssuanceProceeds newBndName))
+                                                      accName
+                                                      accMap
+                              run t{bonds = newBonds, accounts = newAcc} poolFlowMap (Just ads) rates calls rAssump log
          RefiBondRate d accName bName iInfo ->
             let
               -- settle accrued interest 
-              nBnd = calcDueInt t d Nothing Nothing $ bndMap Map.! bName
-              dueIntToPay = L.totalDueInt nBnd
-
-              ((shortfall,drawAmt),newAcc) = A.tryDraw dueIntToPay d (PayInt [bName]) (accMap Map.! accName)
-
-              newBnd = set L.bndIntLens iInfo $ L.payInt d drawAmt nBnd
-
-              newAccMap = Map.insert accName newAcc accMap
-              -- reset interest info
-              newRate = L.getBeginRate iInfo
-              newBndMap = Map.insert bName (newBnd {L.bndRate = newRate, L.bndDueIntDate = Just d 
-                                                    ,L.bndLastIntPay = Just d}) bndMap
               -- TODO rebuild bond rate reset actions
               lstDate = getDate (last ads)
-              resetDates = L.buildRateResetDates newBnd d lstDate 
-              bResetActions = [ ResetBondRate d bName | d <- resetDates ]
-              isResetActionEvent (ResetBondRate _ bName) = False 
-              isResetActionEvent _ = True
-              filteredAds = filter isResetActionEvent ads
-              newAds = sortBy sortActionOnDate $ filteredAds ++ bResetActions
-            in 
-              run t{bonds = newBndMap, accounts = newAccMap} poolFlowMap (Just newAds) rates calls rAssump log
+           in 
+              do 
+                nBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bName
+                let isResetActionEvent (ResetBondRate _ bName) = False 
+                let isResetActionEvent _ = True
+                let filteredAds = filter isResetActionEvent ads
+                let newRate = L.getBeginRate iInfo
+                let dueIntToPay = L.totalDueInt nBnd
+                let ((shortfall,drawAmt),newAcc) = A.tryDraw dueIntToPay d (PayInt [bName]) (accMap Map.! accName)
+                let newBnd = set L.bndIntLens iInfo $ L.payInt d drawAmt nBnd
+                let resetDates = L.buildRateResetDates newBnd d lstDate 
+                let bResetActions = [ ResetBondRate d bName | d <- resetDates ]
+                let newAccMap = Map.insert accName newAcc accMap
+                let newBndMap = Map.insert bName (newBnd {L.bndRate = newRate, L.bndDueIntDate = Just d 
+                                                         ,L.bndLastIntPay = Just d}) bndMap
+                let newAds = sortBy sortActionOnDate $ filteredAds ++ bResetActions
+                run t{bonds = newBndMap, accounts = newAccMap} poolFlowMap (Just newAds) rates calls rAssump log
             
          RefiBond d accName bnd -> undefined
 
@@ -671,10 +671,11 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                  _ -> run t poolFlowMap (Just ads) rates calls rAssump log
 
          _ -> Left $ "Failed to match action on Date"++ show ad
-         where
-           cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
-           remainCollectionNum = Map.elems $ Map.map CF.sizeCashFlowFrame poolFlowMap
-           futureCashToCollect = Map.elems $ Map.map (\pcf -> sum (CF.tsTotalCash <$> view CF.cashflowTxn pcf)) poolFlowMap
+
+       where
+         cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
+         remainCollectionNum = Map.elems $ Map.map CF.sizeCashFlowFrame poolFlowMap
+         futureCashToCollect = Map.elems $ Map.map (\pcf -> sum (CF.tsTotalCash <$> view CF.cashflowTxn pcf)) poolFlowMap
 
 
 run t empty Nothing Nothing Nothing Nothing log
@@ -1343,7 +1344,6 @@ depositInflow _ a _ _ = error $ "Failed to match collection rule"++ show a
 -- ^ deposit cash to account by pool map CF
 depositPoolFlow :: [W.CollectionRule] -> Date -> Map.Map PoolId CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolFlow rules d pFlowMap amap
-  -- = foldr (\pflowM acc -> depositPoolInflow rules d pflowM acc) amap $ pFlowMap `debug` ("Deposit p fd"++ show (Map.elems pFlowMap))
   = foldr (\rule acc -> depositInflow d rule pFlowMap acc) amap rules
 
 $(deriveJSON defaultOptions ''ExpectReturn)

@@ -207,8 +207,6 @@ buildDefaultRates ds mDa =
         r = getTsVals $ multiplyTs Inc (zipTs (tail ds) rs) ts 
       in 
         r -- `debug` ("Default Stress"++ show [ (fromRational x)::Float | x <- r] )
-
-
     _ -> error ("failed to find prepayment type"++ show mDa)    
   where
     size = length ds
@@ -283,7 +281,8 @@ calcRecoveriesFromDefault bal recoveryRate recoveryTiming
       recoveryAmt = mulBR bal recoveryRate
 
 
-priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> CutoffType -> Either String PriceResult
+priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> CutoffType 
+           -> Either String PriceResult
 priceAsset m d (PVCurve curve) assumps mRates cType
   = let 
       cr = getCurrentRate m

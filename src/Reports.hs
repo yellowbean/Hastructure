@@ -28,7 +28,7 @@ import Types
       Balance, PoolId (..) ,PoolSource(..))
 import Deal.DealBase
     ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap), getIssuanceStatsConsol, getAllCollectedFrame ,poolTypePool, dealPool)
-import Deal.DealQuery ( queryDeal ,queryDealInt)
+import Deal.DealQuery ( queryDeal)
 import Deal.DealAction ( calcDueFee, calcDueInt )
 import Data.Maybe (fromMaybe)
 
@@ -63,7 +63,6 @@ patchFinancialReports t d logs
 getItemBalance :: BookItem -> Balance
 getItemBalance (Item _ bal) = bal
 getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
-
 
 getPoolBalanceStats :: P.Asset a => TestDeal a -> Maybe PoolId -> (Balance,Balance,Balance)
 getPoolBalanceStats t Nothing = (queryDeal t (FutureCurrentPoolBalance Nothing)
@@ -106,8 +105,6 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
 
 
         -- tranches
-        bndM = [ ParentItem bndName [Item "Balance" bndBal,Item "Due Int" bndDueAmt ] 
-                                      | (bndName,[bndBal,bndDueAmt]) <- Map.toList $ Map.map (\bnd -> [L.getCurBalance, (L.totalDueInt . (calcDueInt t d Nothing Nothing))] <*> [bnd]) bndMap ]
 
         -- expenses
         -- liquidity provider 
@@ -122,7 +119,11 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
           feeWithDueAmount <- (F.feeDue <$>) <$>  mapM ((calcDueFee t d)) feeMap
           let feeToPay = ParentItem "Fee" [ ParentItem feeName [Item "Due" feeDueBal] 
                                            | (feeName,feeDueBal) <- Map.toList feeWithDueAmount ]
-          let liab = ParentItem "Liability" [ ParentItem "Bond" bndM , feeToPay, ParentItem "Liquidity" liqProviderOs, swapToPay] -- `debug` ("ACC BOND"++show bndAccPayable)
+          bndWithDueAmount <- mapM (calcDueInt t d Nothing Nothing) bndMap
+          let bndToShow = Map.map (\bnd -> (L.getCurBalance bnd, L.totalDueInt bnd)) bndWithDueAmount 
+          let bndM = [ ParentItem bndName [Item "Balance" bndBal,Item "Due Int" bndDueAmt ] 
+                                        | (bndName,(bndBal,bndDueAmt)) <- Map.toList bndToShow]
+          let liab = ParentItem "Liability" [ ParentItem "Bond" bndM , feeToPay, ParentItem "Liquidity" liqProviderOs, swapToPay]
           let totalDebtBal = getItemBalance liab
           let totalAssetBal = getItemBalance ast  
           let eqty = Item "Net Asset" (totalAssetBal - totalDebtBal)
@@ -150,4 +151,3 @@ buildCashReport t@TestDeal{accounts = accs} sd ed
         outflowItems = ParentItem "Outflow" [ Item k v | (k,v) <- Map.toList outflowM ]
         
         cashChange = Item "Net Cash" $ sum (Map.elems inflowM) + sum (Map.elems outflowM)
-

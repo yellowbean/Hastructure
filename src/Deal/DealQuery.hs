@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Deal.DealQuery (queryDealBool,queryDeal,queryDealInt,queryDealRate
+module Deal.DealQuery (queryDealBool,queryDeal
                        ,patchDateToStats,patchDatesToStats,testPre, calcTargetAmount, testPre2
                       ,queryCompound) 
   where
@@ -129,131 +129,7 @@ patchDatesToStats t d1 d2 ds
       x -> x
 
 
-queryDealRate :: P.Asset a => TestDeal a -> DealStats -> Micro
-queryDealRate t s =
-  fromRational $ 
-    case s of
-      BondFactor ->
-        toRational (queryDeal t CurrentBondBalance) / toRational (queryDeal t OriginalBondBalance)
-
-      BondFactorOf bn ->
-        toRational $ safeDivide' (queryDeal t (CurrentBondBalanceOf [bn])) (queryDeal t (OriginalBondBalanceOf [bn]))
-
-      PoolFactor mPns ->
-        toRational (queryDeal t (CurrentPoolBalance mPns))  / toRational (queryDeal t (OriginalPoolBalance mPns))
-
-      FutureCurrentPoolFactor asOfDay mPns ->
-        toRational (queryDeal t (FutureCurrentPoolBalance mPns)) / toRational (queryDeal t (OriginalPoolBalance mPns))
       
-      CumulativePoolDefaultedRate mPns ->
-        let 
-          originPoolBal = toRational $ queryDeal t (OriginalPoolBalance mPns) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
-          cumuPoolDefBal = toRational $ queryDeal t (PoolCumCollection [NewDefaults] mPns) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
-        in 
-          cumuPoolDefBal / originPoolBal  -- `debug` ("cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
-      
-      CumulativeNetLossRatio mPns ->
-        toRational $ queryDeal t (CumulativeNetLoss mPns) / queryDeal t (OriginalPoolBalance mPns)
-
-      CumulativePoolDefaultedRateTill idx mPns -> 
-        let 
-          originPoolBal = toRational (queryDeal t (OriginalPoolBalance mPns)) -- `debug` ("A")-- `debug` (">>Pool Bal"++show (queryDeal t OriginalPoolBalance))
-          cumuPoolDefBal = toRational (queryDeal t (PoolCumCollectionTill idx [NewDefaults] mPns)) -- `debug` ("B") -- `debug` (">>CUMU"++show (queryDeal t CumulativePoolDefaultedBalance))
-        in 
-          cumuPoolDefBal / originPoolBal -- `debug` (show idx ++" cumulative p def rate"++show cumuPoolDefBal++">>"++show originPoolBal)
-        
-
-      BondRate bn -> case Map.lookup bn (bonds t) of 
-                      Just b@(L.Bond {}) -> toRational $ L.bndRate b 
-                      Just b@(L.BondGroup bSubMap) -> 
-                        let 
-                          bnds = Map.elems bSubMap
-                          rates = toRational <$> L.bndRate <$> bnds
-                          bals = L.getCurBalance <$> bnds
-                        in 
-                          weightedBy bals rates
-                      Nothing -> 
-                        case viewDealBondsByNames t [bn] of 
-                          [b] -> toRational $ L.bndRate b
-                          _ -> error ("Failed to find bond by name"++bn)
-      
-      BondWaRate bns -> 
-        let 
-          rs = toRational <$> (\bn -> queryDealRate t (BondRate bn)) <$> bns
-          ws = (\bn -> queryDeal t (CurrentBondBalanceOf [bn])) <$> bns
-        in 
-          -- toRational $ safeDivide $ sum (zipWith (*) ws rs) $ sum ws
-          weightedBy ws rs
-
-      PoolWaRate mPns -> 
-        let 
-          latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t mPns
-          rates = toRational <$> maybe 0.0 CF.mflowRate  <$> latestCfs
-          bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
-        in 
-          weightedBy bals rates
-
-      Constant r -> r
-      -- DivideRatio ds1 ds2 ->  toRational (queryDeal t ds1) / toRational (queryDeal t ds2)
-      DivideRatio ds1 ds2 -> if (queryDeal t ds2) == 0 then 
-                              toRational Numeric.Limits.infinity
-                            else
-                              (toRational (queryDeal t ds1)) / (toRational (queryDeal t ds2)) -- `debug` ("\n Ratio divide"++show (queryDeal t ds1)++"ds2"++show (queryDeal t ds2)++"ds1"++show ds1++"ds2"++show ds2)
-      AvgRatio ss -> toRational (queryDealRate t (Sum ss)) / toRational (length ss)
-      Max ss -> toRational $ maximum' [ queryDealRate t s | s <- ss ]
-      Min ss -> toRational $ minimum' [ queryDealRate t s | s <- ss ]
-      Subtract (s1:ss) -> toRational $ (queryDealRate t s1) - queryDealRate t (Sum ss)
-      Substract (s1:ss) -> toRational $ (queryDealRate t s1) - queryDealRate t (Sum ss)
-      Sum ss -> toRational $ sum $ (queryDealRate t) <$> ss  
-      Avg ss -> toRational (queryDealRate t (Sum ss)) / (toRational (length ss))
-
-      FloorAndCap floor cap s ->  
-        let 
-          [_f,_c,_s] = toRational <$> (queryDealRate t) <$> [floor,cap,s]
-        in 
-          max _f (min _c _s)
-      Factor s r -> toRational $ (queryDealRate t s) * fromRational r
-      Multiply ss -> toRational $ product (queryDealRate t <$> ss)
-      FloorWith s floor -> toRational $ max (queryDealRate t s) (queryDealRate t floor)
-      FloorWithZero s -> toRational $ max (queryDealRate t s) 0
-      Excess (s1:ss) -> toRational $ max 0 $ queryDealRate t s1 - queryDealRate t (Sum ss) -- `debug` ("Excess"++show (queryDeal t s1)++"ss"++show ( queryDeal t (Sum ss)))
-      CapWith s cap -> toRational $ min (queryDealRate t s) (queryDealRate t cap)
-      Abs s -> toRational . abs $ queryDealRate t s
-      
-
-queryDealInt :: P.Asset a => TestDeal a -> DealStats -> Date -> Int 
-queryDealInt t@TestDeal{ pool = p ,bonds = bndMap } s d = 
-  case s of 
-    FutureCurrentPoolBorrowerNum d mPns ->   --TODO may use date as cutoff date 
-      let 
-        poolCfs = Map.elems $ getLatestCollectFrame t mPns
-        poolBn =  maybe 0 (\x -> fromMaybe 0 (CF.mflowBorrowerNum x)) <$> poolCfs
-      in 
-        sum poolBn
-
-    CurrentPoolBorrowerNum mPns -> 
-      let 
-        assetM = concat $ Map.elems $ getAllAsset t mPns
-      in 
-        sum $ P.getBorrowerNum <$> assetM 
-
-    MonthsTillMaturity bn -> 
-        case mm of 
-          Nothing -> error "Should not happend"
-          Just md -> fromInteger $ T.cdMonths $ T.diffGregorianDurationClip md d
-        where
-            (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn  
-
-    ProjCollectPeriodNum -> maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
-
-    FloorAndCap floor cap s -> max (queryDealInt t floor d) $ min (queryDealInt t cap d ) (queryDealInt t s d)
-    FloorWith s floor -> max (queryDealInt t s d) (queryDealInt t floor d)
-    FloorWithZero s -> max (queryDealInt t s d) 0
-    CapWith s cap -> min (queryDealInt t s d) (queryDealInt t cap d)
-    Max ss -> maximum' $ [ queryDealInt t s d | s <- ss ]
-    Min ss -> minimum' $ [ queryDealInt t s d | s <- ss ]
-
-
 -- ^ map from Pool Source to Pool CutoffFields in Pool Map
 poolSourceToIssuanceField :: PoolSource -> CutoffFields
 poolSourceToIssuanceField CollectedInterest = HistoryInterest
@@ -456,7 +332,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         cfForPv = (factor *) <$> txnsCfs -- `debug` (">>> factor"++ show factor)
         pvs = case pm of
                 PvRate r -> uncurry (A.pv2 r asOfDay) <$> zip txnsDs cfForPv
-                PvByRef ds -> uncurry (A.pv2 (queryDealRate t ds) asOfDay) <$> zip txnsDs cfForPv
+                -- PvByRef ds -> uncurry (A.pv2 (queryCompound t asOfDay ds) asOfDay) <$> zip txnsDs cfForPv
                 _ -> error $ "Failed to use pricing method on pool" ++ show pm ++"on pool id"++ show mPns
       in 
         sum pvs -- `debug` ("pvs"++ show pvs)
@@ -625,7 +501,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     _ -> error ("Failed to query balance of -> "++ show s)
 
 queryCompound :: P.Asset a => TestDeal a -> Date -> DealStats -> Either String Rational 
-queryCompound t@TestDeal{accounts=accMap} d s =
+queryCompound t@TestDeal{accounts=accMap, bonds=bndMap} d s =
   case s of
     Sum _s -> sum <$> sequenceA [ queryCompound t d __s | __s <- _s]
     Substract dss -> queryCompound t d (Subtract dss)
@@ -659,21 +535,67 @@ queryCompound t@TestDeal{accounts=accMap} d s =
     AvgRatio ss -> queryCompound t d (Avg ss)
     Constant v -> Right v
     -- rate query
-    BondFactor -> Right . toRational $ queryDealRate t BondFactor
-    BondFactorOf bn -> Right . toRational $ queryDealRate t (BondFactorOf bn)
-    PoolFactor mPns -> Right . toRational $ queryDealRate t (PoolFactor mPns)
-    FutureCurrentPoolFactor asOfDay mPns -> Right . toRational $ queryDealRate t $ FutureCurrentPoolFactor asOfDay mPns
-    CumulativePoolDefaultedRate mPns -> Right . toRational $ queryDealRate t $ CumulativePoolDefaultedRate mPns
-    CumulativeNetLossRatio mPns -> Right . toRational $ queryDealRate t (CumulativeNetLossRatio mPns)
-    CumulativePoolDefaultedRateTill idx mPns -> Right . toRational $ queryDealRate t (CumulativePoolDefaultedRateTill idx mPns)
-    BondRate bn -> Right . toRational $ queryDealRate t (BondRate bn)
-    BondWaRate bns -> Right . toRational $ queryDealRate t (BondWaRate bns)
-    PoolWaRate mPns -> Right . toRational $ queryDealRate t (PoolWaRate mPns)
+    BondFactor -> queryCompound t d (Divide CurrentBondBalance  OriginalBondBalance) 
+    BondFactorOf bn -> 
+      queryCompound t d (Divide (CurrentBondBalanceOf [bn]) (OriginalBondBalanceOf [bn])) 
+    PoolFactor mPns -> 
+      queryCompound t d (Divide (CurrentPoolBalance mPns) (OriginalPoolBalance mPns))
+    FutureCurrentPoolFactor asOfDay mPns -> 
+      queryCompound t d (Divide (FutureCurrentPoolBalance mPns) (OriginalPoolBalance mPns))
+    CumulativePoolDefaultedRate mPns -> 
+      queryCompound t d (Divide (PoolCumCollection [NewDefaults] mPns) (OriginalPoolBalance mPns))
+    CumulativeNetLossRatio mPns -> 
+      queryCompound t d (Divide (CumulativeNetLoss mPns) (OriginalPoolBalance mPns))
+    CumulativePoolDefaultedRateTill idx mPns ->
+      queryCompound t d (Divide (PoolCumCollectionTill idx [NewDefaults] mPns) (OriginalPoolBalance mPns))
+    BondRate bn -> 
+      case Map.lookup bn (bonds t) of 
+        Just b@(L.Bond {}) -> Right . toRational $ L.bndRate b 
+        Just b@(L.BondGroup bSubMap) -> 
+          let 
+            bnds = Map.elems bSubMap
+            rates = toRational <$> L.bndRate <$> bnds
+            bals = L.getCurBalance <$> bnds
+          in 
+            Right $ weightedBy bals rates
+        Nothing -> 
+          case viewDealBondsByNames t [bn] of 
+            [b] -> Right $ toRational $ L.bndRate b
+
+    BondWaRate bns ->
+      do 
+        rs <- sequenceA $ (\bn -> queryCompound t d (BondRate bn)) <$> bns
+        ws <- sequenceA $ (\bn -> queryCompound t d (CurrentBondBalanceOf [bn])) <$> bns
+        return $ weightedBy (fromRational <$> ws) rs
+    PoolWaRate mPns -> 
+      let 
+        latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t mPns
+        rates = toRational <$> maybe 0.0 CF.mflowRate  <$> latestCfs
+        bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
+      in 
+        Right $ weightedBy bals rates
+
     -- int query
-    FutureCurrentPoolBorrowerNum _d mPns -> Right . toRational $ queryDealInt t (FutureCurrentPoolBorrowerNum _d mPns) d
-    CurrentPoolBorrowerNum mPns -> Right . toRational $ queryDealInt t (CurrentPoolBorrowerNum mPns) d
-    MonthsTillMaturity bn -> Right . toRational $ queryDealInt t (MonthsTillMaturity bn) d
-    ProjCollectPeriodNum -> Right . toRational $ queryDealInt t ProjCollectPeriodNum d
+    FutureCurrentPoolBorrowerNum _d mPns ->
+      let 
+        poolCfs = Map.elems $ getLatestCollectFrame t mPns
+        poolBn =  maybe 0 (\x -> fromMaybe 0 (CF.mflowBorrowerNum x)) <$> poolCfs
+      in 
+        Right . toRational $ sum poolBn
+    CurrentPoolBorrowerNum mPns ->
+      let 
+        assetM = concat $ Map.elems $ getAllAsset t mPns
+      in 
+        Right . toRational $ sum $ P.getBorrowerNum <$> assetM 
+    MonthsTillMaturity bn -> 
+      let 
+        (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn
+      in 
+        case mm of 
+          Nothing -> Left $ "There is maturity date for bond " ++ bn
+          Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
+
+    ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
 
     ReserveBalance ans -> 
         let 
@@ -724,21 +646,23 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
 
     IsOutstanding bns -> Right $ all (not . isPaidOff) $ (bndMap Map.!) <$> bns
     
-    TestRate ds cmp r -> let
-                           testRate = queryDealRate t ds
-                         in  
-                           case cmp of 
-                             G ->  Right $ testRate > r
-                             GE -> Right $ testRate >= r
-                             L ->  Right $ testRate < r
-                             LE -> Right $ testRate <= r
-                             E ->  Right $ testRate == r
+    TestRate ds cmp _r -> do
+                            testRate <- queryCompound t d ds
+                            let r = toRational r
+                            return $ case cmp of 
+                                       G ->  testRate > r
+                                       GE -> testRate >= r
+                                       L ->  testRate < r
+                                       LE -> testRate <= r
+                                       E ->  testRate == r
     
     HasPassedMaturity bns -> let 
                                oustandingBnds = filter (not . isPaidOff) $ (bndMap Map.!) <$> bns
-                               monthsToMaturity = (\bn -> queryDealInt t (MonthsTillMaturity bn) d) <$> L.bndName <$> oustandingBnds
+                               monthsToMaturity = sequenceA $ (\bn -> queryCompound t d (MonthsTillMaturity bn)) <$> L.bndName <$> oustandingBnds
                              in 
-                               Right $ all (<= 0) monthsToMaturity
+                               do 
+                                 ms <- monthsToMaturity
+                                 return $ all (<= 0) ms
 
     IsDealStatus st -> Right $ status t == st
 
@@ -839,16 +763,16 @@ replaceToInf x = unpack $ Data.Text.replace nInf "-inf" $ Data.Text.replace inf 
 preToStr :: P.Asset a => TestDeal a -> Date -> Pre -> String
 preToStr t d p =
   case p of 
-    (IfZero ds) ->  "0 == " ++ show (queryCompound t d (ps ds))
-    (If cmp ds bal) -> show (queryCompound t d (ps ds)) ++" "++ show cmp ++" " ++show bal -- `debug` (">>> left"++ show (queryDeal t (ps ds)))
-    (IfRate cmp ds r) -> show (queryCompound t d (ps ds)) ++" "++ show cmp ++" " ++show r
-    (IfInt cmp ds r) -> show (queryCompound t d (ps ds)) ++" "++ show cmp ++" " ++show r
-    (IfCurve cmp ds ts) -> show (queryCompound t d (ps ds)) ++" "++ show cmp ++" " ++show (fromRational (getValByDate ts Inc d))
+    (IfZero ds) ->  "0 == " ++ show (fromRational <$> (queryCompound t d (ps ds)))
+    (If cmp ds bal) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show bal -- `debug` (">>> left"++ show (queryDeal t (ps ds)))
+    (IfRate cmp ds r) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show r
+    (IfInt cmp ds r) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show r
+    (IfCurve cmp ds ts) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show (fromRational (getValByDate ts Inc d))
     (IfDate cmp _d) -> show d ++" "++ show cmp ++" " ++show _d
-    (IfBool ds b) -> show (queryCompound t d ds) ++" == "++ show b
-    (If2 cmp ds1 ds2) -> show (queryCompound t d (ps ds1)) ++" "++ show cmp ++" " ++show (queryCompound t d (ps ds2))
-    (IfRate2 cmp ds1 ds2) -> show (queryCompound t d (ps ds1)) ++" "++ show cmp ++" " ++show (queryDealRate t (ps ds2))
-    (IfInt2 cmp ds1 ds2) -> show (queryCompound t d (ps ds1)) ++" "++ show cmp ++" " ++show (queryDealInt t (ps ds2) d)
+    (IfBool ds b) -> show (fromRational <$> (queryCompound t d ds)) ++" == "++ show b
+    (If2 cmp ds1 ds2) -> show (fromRational <$> (queryCompound t d (ps ds1))) ++" "++ show cmp ++" " ++show (fromRational <$> (queryCompound t d (ps ds2)))
+    (IfRate2 cmp ds1 ds2) -> show (fromRational <$> (queryCompound t d (ps ds1))) ++" "++ show cmp ++" " ++show (fromRational <$> (queryCompound t d (ps ds2)))
+    (IfInt2 cmp ds1 ds2) -> show (fromRational <$> (queryCompound t d (ps ds1))) ++" "++ show cmp ++" " ++show (fromRational <$> (queryCompound t d (ps ds2)))
     (IfDealStatus st) -> show (status t) ++" == "++ show st
     (Always b) -> show b
     (IfNot _p) -> "Not "++ preToStr t d _p

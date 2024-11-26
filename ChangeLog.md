@@ -2,10 +2,13 @@
 
 <!-- towncrier release notes start -->
 
-## 0.30.6
+
+## 0.31.0
 
 ### 2024-11-05
-* NEW: new Call options which specify `dates` to be tested
+* NEW: new Call options assumption ,which specifies `dates` to be tested
+* NEW: 
+* ENHANCE: transform financial report to a Tree from a Table
 
 ## 0.30.5
 ### 2024-11-02
