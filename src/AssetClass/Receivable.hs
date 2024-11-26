@@ -75,7 +75,7 @@ instance Asset Receivable where
   getPaymentDates r@(Invoice (ReceivableInfo sd ob oa dd ft _) st) _ = [dd]
 
   calcCashflow r@(Invoice (ReceivableInfo sd ob oa dd ft _) st) asOfDay _ 
-    = CF.CashFlowFrame (ob,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns
+    = Right $ CF.CashFlowFrame (ob,asOfDay,Nothing) $ cutBy Inc Future asOfDay txns
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
@@ -114,7 +114,7 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump _ amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
+    = Right $ (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
       initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
@@ -127,7 +127,7 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump (Just A.DefaultAtEnd) amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
+    = Right $ (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate
@@ -143,7 +143,7 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump amd amr ams, _ , _)
                mRates
-    = (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
+    = Right $ (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
     where
       payDate = dd
       feeDue = calcDueFactorFee r payDate

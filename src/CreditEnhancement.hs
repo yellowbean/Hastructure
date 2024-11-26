@@ -6,7 +6,8 @@
 module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
   ,LiquidityProviderName,draw,repay,accrueLiqProvider
-  ,LiqRepayType(..),LiqDrawType(..)
+  ,LiqDrawType(..),LiqRepayType(..),LiqCreditCalc(..)
+  ,consolStmt
   )
   where
 
@@ -26,22 +27,50 @@ import DateUtil
 import Stmt
 import qualified InterestRate as IR
 
+import qualified Stmt as S
+
 import Debug.Trace
+import Lib (paySeqLiabilities)
 debug = flip trace
 
 type LiquidityProviderName = String
 
-data LiqSupportType = ReplenishSupport DatePattern Balance    -- ^ credit will be refresh by an interval
-                    | FixSupport Balance                      -- ^ fixed credit amount
+-- ^ describle credit support 
+data LiqSupportType = ReplenishSupport DatePattern Balance    -- ^ Credit will be refresh by an interval
+                    | FixSupport Balance                      -- ^ Fixed credit amount
                     | ByPct DealStats Rate                    -- ^ By a pct of formula
                     | UnLimit                                 -- ^ Unlimit credit support, like insurance company
                     deriving(Show,Generic,Eq,Ord)
 
+
+data LiqDrawType = LiqToAcc        -- ^ draw credit and deposit cash to account
+                 | LiqToBondInt    -- ^ draw credit and pay to bond interest if any shortfall
+                 | LiqToBondPrin   -- ^ draw credit and pay to bond principal if any shortfall
+                 | LiqToFee        -- ^ draw credit and pay to a fee if there is a shortfall
+                 deriving (Show,Generic,Ord,Eq)
+
+
+data LiqRepayType = LiqBal         -- ^ repay oustanding balance of liquidation provider
+                  | LiqPremium     -- ^ repay oustanding premium fee of lp
+                  | LiqInt         -- ^ repay oustanding interest of lp
+                  | LiqRepayTypes [LiqRepayType]  -- ^ repay by sequence
+                  | LiqResidual    
+                  | LiqOD
+                  deriving (Show,Generic,Ord,Eq)
+
+data LiqCreditCalc = IncludeDueInt 
+                   | IncludeDuePremium 
+                   | IncludeBoth
+                   deriving (Show,Generic,Ord,Eq)
+
+
 data LiqFacility = LiqFacility {
     liqName :: String 
     ,liqType :: LiqSupportType 
-    ,liqBalance :: Balance                   -- ^ total support balance supported
+    ,liqBalance :: Balance                   -- ^ total balance supported/drawed
     ,liqCredit :: Maybe Balance              -- ^ available balance to support. Nothing -> unlimit 
+    ,liqCreditCalc :: Maybe LiqCreditCalc    -- ^ how to calculate credit
+    
     ,liqRateType :: Maybe IR.RateType        -- ^ interest rate type 
     ,liqPremiumRateType :: Maybe IR.RateType -- ^ premium rate type
     
@@ -58,17 +87,30 @@ data LiqFacility = LiqFacility {
     ,liqStmt :: Maybe Statement              -- ^ transaction history
 } deriving (Show,Generic,Eq,Ord)
 
+consolStmt :: LiqFacility -> LiqFacility
+consolStmt liq@LiqFacility{liqStmt = Nothing} = liq
+consolStmt liq@LiqFacility{liqStmt = Just (S.Statement [])} = liq
+consolStmt liq@LiqFacility{liqStmt = Just (S.Statement (txn:txns))}
+  = 
+    let 
+      combinedBondTxns = foldl S.consolTxn [txn] txns    
+      droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns 
+    in 
+      liq {liqStmt = Just (S.Statement (reverse droppedTxns))}
+
+
 -- | update the reset events of liquidity provider
 buildLiqResetAction :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, Dates)]
 buildLiqResetAction [] ed r = r
 buildLiqResetAction (liqProvider:liqProviders) ed r = 
   case liqProvider of 
-    (LiqFacility lqName (ReplenishSupport dp bal) _ _ _ _ _ _ _ _ _ ss _ stmt) -- update the support credit of liquidity provider
+    (LiqFacility lqName (ReplenishSupport dp bal) _ _ _ _ _ _ _ _ _ _ ss _ _) -- update the support credit of liquidity provider
       -> buildLiqResetAction
            liqProviders
            ed
            [(lqName, projDatesByPattern dp ss ed)]++r
     _ -> buildLiqResetAction liqProviders ed r
+
 
 -- | update the rate reset events of liquidity provider
 buildLiqRateResetAction  :: [LiqFacility] -> Date -> [(String, Dates)] -> [(String, Dates)]
@@ -82,36 +124,33 @@ buildLiqRateResetAction (liq:liqProviders) ed r =
         [(ln,IR.getRateResetDates sd ed rt ++ IR.getRateResetDates sd ed prt)]++r
     _ -> buildLiqRateResetAction liqProviders ed r
 
+
+-- | draw cash from liquidity provider
 draw :: Amount -> Date -> LiqFacility -> LiqFacility
 draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqStmt = mStmt
                             ,liqCredit = mCredit
                             ,liqDueInt = dueInt 
                             ,liqDuePremium = duePremium} 
-  = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = newStmt}
+  | isJust mCredit && (fromMaybe 0 mCredit) <= 0 = 
+    liq { liqStmt = appendStmt 
+                    mStmt $
+                    SupportTxn d mCredit liqBal dueInt duePremium 0 LiquidationDraw
+                    }
+  | otherwise = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = newStmt}
     where 
-        newCredit = (\x -> x - amt) <$> mCredit
-        newBal = liqBal + amt
+        newCredit = (\x -> x - amt) <$> mCredit -- `debug` ("date "++ show d ++" insert orgin credit : "++show mCredit)
+        newBal = liqBal + amt -- `debug` (show d ++"New bal"++ show liqBal ++ " "++ show amt++ "new credit: "++ show newCredit)
         newStmt = appendStmt 
                     mStmt $
-                    SupportTxn d newCredit amt newBal dueInt duePremium LiquidationDraw
+                    SupportTxn d newCredit  newBal dueInt duePremium (negate amt) LiquidationDraw
 
-data LiqDrawType = LiqToAcc        -- ^ draw credit and deposit cash to account
-                 | LiqToBondInt    -- ^ draw credit and pay to bond interest if any shortfall
-                 | LiqToBondPrin   -- ^ draw credit and pay to bond principal if any shortfall
-                 | LiqToFee        -- ^ draw credit and pay to a fee if there is a shortfall
-                 deriving (Show,Generic,Ord,Eq)
-
-data LiqRepayType = LiqBal         -- ^ repay oustanding balance of liquidation provider
-                  | LiqPremium     -- ^ repay oustanding premium fee of lp
-                  | LiqInt         -- ^ repay oustanding interest of lp
-                  | LiqRepayTypes [LiqRepayType] --TODO not implemented
-                  deriving (Show,Generic,Ord,Eq)
 
 repay :: Amount -> Date -> LiqRepayType -> LiqFacility -> LiqFacility
 repay amt d pt liq@LiqFacility{liqBalance = liqBal
                               ,liqStmt = mStmt 
                               ,liqCredit = mCredit
+                              ,liqCreditCalc = mCreditType
                               ,liqDueInt = liqDueInt
                               ,liqDuePremium = liqDuePremium
                               ,liqType = lt} 
@@ -121,60 +160,83 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
          ,liqDuePremium = newDuePremium
          ,liqStmt = newStmt}
     where 
-      (newBal,newCredit,newIntDue,newDuePremium) = 
+      (newBal, newIntDue, newDuePremium) = 
         case pt of 
-          LiqBal -> ( liqBal - amt, (amt +) <$> mCredit,liqDueInt, liqDuePremium )
-          LiqPremium -> ( liqBal, mCredit , liqDueInt,   liqDuePremium  - amt)
-          LiqInt -> (liqBal, mCredit , liqDueInt - amt , liqDuePremium )
+          LiqBal -> ( liqBal - amt, liqDueInt, liqDuePremium )
+          LiqPremium -> ( liqBal , liqDueInt,   liqDuePremium  - amt )
+          LiqInt -> ( liqBal , max 0 (liqDueInt - amt), liqDuePremium )
+          _ -> ( liqBal, liqDueInt, liqDuePremium )
+
+      newCredit = case (mCreditType,pt) of
+                    (_ , LiqOD) -> (+ amt) <$> mCredit
+                    (Nothing, _) -> mCredit
+                    (Just IncludeDueInt, LiqInt) -> (+ amt) <$> mCredit
+                    (Just IncludeDuePremium, LiqPremium) -> (+ amt) <$> mCredit
+                    (Just IncludeBoth, LiqInt) -> (+ amt) <$> mCredit
+                    (Just IncludeBoth, LiqPremium) -> (+ amt) <$> mCredit
+                    _ -> mCredit
 
       newStmt = appendStmt mStmt $ 
-                           SupportTxn d newCredit amt newBal newIntDue newDuePremium LiquidationRepay
+                           SupportTxn d newCredit newBal newIntDue newDuePremium amt $ 
+                           LiquidationRepay (show pt) -- `debug` ("date "++ show d ++" insert rpt type"++show pt)
 
 
--- | accure fee and interest of a liquidity provider
+-- | accure fee and interest of a liquidity provider and update credit available
 accrueLiqProvider ::  Date -> LiqFacility -> LiqFacility
-accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd Nothing)
+accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit _ mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd Nothing)
   = accrueLiqProvider d $ liq{liqStmt = Just defaultStmt} 
     where 
-      defaultStmt = Statement [SupportTxn sd mCredit 0 curBal dueInt duePremium Empty]
+      -- insert begining record
+      defaultStmt = Statement [SupportTxn sd mCredit curBal dueInt duePremium 0 Empty]
 
-accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt)
-  = liq { liqCredit = newCredit
-         ,liqStmt = newStmt
+accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt@(Just (Statement txns)))
+  = liq { liqStmt = newStmt
          ,liqDueInt = newDueInt
-         ,liqDuePremium = newDueFee }
+         ,liqDuePremium = newDueFee
+         ,liqCredit = newCredit 
+         ,liqDueIntDate = Just d
+         }
     where 
       lastAccDate = fromMaybe sd dueDate
       accureInt = case rate of 
                     Nothing -> 0
                     Just r -> 
                       let 
-                        bals = weightAvgBalanceByDates [lastAccDate,d] $ getTxns mStmt
+                        bals = weightAvgBalanceByDates [lastAccDate,d] txns
                       in 
-                        sum $ flip mulBIR r <$> bals -- `debug` ("Gettnig bal of liq"++ show bals)
+                        sum $ flip mulBIR r <$> bals -- `debug` ("Accure Using Rate"++show r++"avg bal"++ show bals ++"ds"++show [lastAccDate,d])
       accureFee = case prate of
                     Nothing -> 0 
                     Just r -> 
                       let 
-                        (_,_unAccTxns) = splitByDate (getTxns mStmt) lastAccDate EqToLeftKeepOne
+                        (_,_unAccTxns) = splitByDate txns lastAccDate EqToLeftKeepOne
                         accBals = getUnusedBal <$> _unAccTxns 
                         _ds = lastAccDate : tail (getDate <$> _unAccTxns)
                         _avgBal = calcWeightBalanceByDates DC_ACT_365F accBals (_ds++[d])
                       in 
                         mulBIR _avgBal r
                         
-      getUnusedBal (SupportTxn _ b _ _ _ _ _ ) = fromMaybe 0 b 
+      getUnusedBal (SupportTxn _ b _ _ _ _ _) = fromMaybe 0 b 
       
       newDueFee = accureFee + duePremium
       newDueInt = accureInt + dueInt
-      newCredit = (\x-> x - accureInt - accureFee) <$> mCredit 
+      newCredit = case mCreditType of 
+                    Nothing -> mCredit
+                    Just IncludeDueInt -> (\x -> x - accureInt) <$> mCredit
+                    Just IncludeDuePremium -> (\x -> x - accureFee) <$> mCredit
+                    Just IncludeBoth -> (\x -> x - accureInt - accureFee) <$> mCredit
+
       newStmt = appendStmt mStmt $ SupportTxn d 
                                              newCredit
-                                             (accureInt + accureFee) 
                                              curBal
                                              newDueInt 
                                              newDueFee 
+                                             0
                                              (LiquidationSupportInt accureInt accureFee)
+
+
+-- makeLensesFor [("liqStmt","liqStmtLens")] ''LiqFacility
+
 
 
 instance QueryByComment LiqFacility where 
@@ -188,6 +250,13 @@ instance Liable LiqFacility where
     | bal==0 && dueInt==0 && duePremium==0 = True
     | otherwise = False
 
+  getCurBalance LiqFacility{liqBalance = bal} = bal
+
+  getDueInt LiqFacility{liqDueInt = dueInt} = dueInt
+
+  getOutstandingAmount LiqFacility{liqBalance = bal,liqDueInt = dueInt,liqDuePremium = duePremium} = bal + dueInt + duePremium
+
+  getOriginBalance LiqFacility{liqBalance = bal} = 0 
 
 instance IR.UseRate LiqFacility where 
   getIndexes liq@LiqFacility{liqRateType = mRt,liqPremiumRateType = mPrt} 
@@ -198,9 +267,17 @@ instance IR.UseRate LiqFacility where
         (Just (IR.Floater _ idx1 _ _ _ _ _ _), Just (IR.Floater _ idx2 _ _ _ _ _ _)) -> Just [idx1,idx2]
         _ -> Nothing
 
+  isAdjustbleRate liq@LiqFacility{liqRateType = mRt,liqPremiumRateType = mPrt} 
+    = case (mRt,mPrt) of 
+        (Just (IR.Floater {}), _ ) -> True
+        (_, Just (IR.Floater {})) -> True
+        _ -> False
+
+  getIndex liq = head <$> IR.getIndexes liq
 
 
 $(deriveJSON defaultOptions ''LiqRepayType)
 $(deriveJSON defaultOptions ''LiqDrawType)
 $(deriveJSON defaultOptions ''LiqSupportType)
+$(deriveJSON defaultOptions ''LiqCreditCalc)
 $(deriveJSON defaultOptions ''LiqFacility)

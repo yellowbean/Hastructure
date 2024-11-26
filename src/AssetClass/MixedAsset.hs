@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module AssetClass.MixedAsset
   (projAssetUnion,projAssetUnionList,projectCashflow, calcAssetUnion,curBal)
@@ -196,7 +197,7 @@ calcAlignDate (ACM.RE ast) = P.calcAlignDate ast
 calcAlignDate (ACM.PF ast) = P.calcAlignDate ast 
 -- calcAlignDate (ACM.RE ast) = P.calcAlignDate ast 
 
-calcAssetUnion :: ACM.AssetUnion -> Date -> Maybe [RateAssumption] -> CF.CashFlowFrame
+calcAssetUnion :: ACM.AssetUnion -> Date -> Maybe [RateAssumption] -> Either String CF.CashFlowFrame
 calcAssetUnion (ACM.MO ast) d mRates = P.calcCashflow ast d mRates
 calcAssetUnion (ACM.LO ast) d mRates = P.calcCashflow ast d mRates
 calcAssetUnion (ACM.IL ast) d mRates = P.calcCashflow ast d mRates
@@ -204,9 +205,10 @@ calcAssetUnion (ACM.LS ast) d mRates = P.calcCashflow ast d mRates
 calcAssetUnion (ACM.FA ast) d mRates = P.calcCashflow ast d mRates
 calcAssetUnion (ACM.RE ast) d mRates = P.calcCashflow ast d mRates
 calcAssetUnion (ACM.PF ast) d mRates = P.calcCashflow ast d mRates
-calcAssetUnion x _ _ = error ("Failed to match  proj AssetUnion"++ show x)
+calcAssetUnion x _ _ = Left ("Failed to match  proj AssetUnion"++ show x)
 
-projAssetUnion :: ACM.AssetUnion -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+projAssetUnion :: ACM.AssetUnion -> Date -> A.AssetPerf -> Maybe [RateAssumption] 
+               -> Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)
 projAssetUnion (ACM.MO ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.LO ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.IL ast) d assumps mRates = P.projCashflow ast d assumps mRates
@@ -214,22 +216,27 @@ projAssetUnion (ACM.LS ast) d assumps mRates = P.projCashflow ast d assumps mRat
 projAssetUnion (ACM.FA ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.RE ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.PF ast) d assumps mRates = P.projCashflow ast d assumps mRates
-projAssetUnion x _ _ _ = error ("Failed to match  proj AssetUnion"++ show x)
+projAssetUnion x _ _ _ = Left ("Failed to match  proj AssetUnion"++ show x)
 
-projAssetUnionList :: [ACM.AssetUnion] -> Date -> A.ApplyAssumptionType -> Maybe [RateAssumption] -> (CF.CashFlowFrame, Map.Map CutoffFields Balance)
-projAssetUnionList [] d (A.PoolLevel assetPerf) mRate = (CF.CashFlowFrame (0,d,Nothing) [], Map.empty)
+projAssetUnionList :: [ACM.AssetUnion] -> Date -> A.ApplyAssumptionType -> Maybe [RateAssumption] 
+                   -> Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+projAssetUnionList [] d (A.PoolLevel assetPerf) mRate = Right $ (CF.CashFlowFrame (0,d,Nothing) [], Map.empty)
 projAssetUnionList assets d (A.PoolLevel assetPerf) mRate =
   let 
-    results = [ projAssetUnion asset d assetPerf mRate | asset <- assets ]
-    cfs = fst <$> results
-    bals = snd <$> results
+    prjList = [ projAssetUnion asset d assetPerf mRate | asset <- assets ]
+    results::(Either String [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]) = sequenceA prjList
   in 
-    (foldl1 CF.mergePoolCf cfs, Map.unionsWith (+) bals)
+    do
+      r <- results
+      let cfs = fst <$> r
+      let bals = snd <$> r
+      return (foldl1 CF.mergePoolCf2 cfs, Map.unionsWith (+) bals)
 
-projAssetUnionList assets d _ mRate = error " not implemented on asset level assumption for revolving pool"
+projAssetUnionList assets d _ mRate = Left " not implemented on asset level assumption for revolving pool"
 
 
-projectCashflow :: MixedAsset -> Date -> Map.Map String A.ApplyAssumptionType -> Maybe [RateAssumption] -> Map.Map String (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+projectCashflow :: MixedAsset -> Date -> Map.Map String A.ApplyAssumptionType -> Maybe [RateAssumption] 
+                -> Either String (Map.Map String (CF.CashFlowFrame, Map.Map CutoffFields Balance))
 projectCashflow (MixedPool assetMap) asOfDate mAssump mRate 
   = let 
       mWithCf = Map.mapWithKey
@@ -242,4 +249,4 @@ projectCashflow (MixedPool assetMap) asOfDate mAssump mRate
                                    mRate)
                   assetMap
     in 
-      mWithCf
+      sequenceA mWithCf

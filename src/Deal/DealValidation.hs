@@ -216,14 +216,14 @@ validateAction ((W.LiqYield _ accName liqName):as) rs accKeys bndKeys bgNames fe
     = validateAction as (rs ++ [ErrorMsg (accName++" not in "++show accKeys++" Or "++liqName ++" not in "++ show liqProviderKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
-validateAction ((W.LiqAccrue liqName):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
-  | Set.notMember liqName liqProviderKeys 
-    = validateAction as (rs ++ [ErrorMsg (liqName ++" not in "++ show liqProviderKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+validateAction ((W.LiqAccrue liqNames):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList liqNames) liqProviderKeys)
+    = validateAction as (rs ++ [ErrorMsg (show liqNames ++" not in "++ show liqProviderKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
-validateAction ((W.LiqAccrue liqName):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
-  | Set.notMember liqName liqProviderKeys 
-    = validateAction as (rs ++ [ErrorMsg (liqName ++" not in "++ show liqProviderKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+validateAction ((W.LiqAccrue liqNames):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
+  | not (Set.isSubsetOf (Set.fromList liqNames) liqProviderKeys) 
+    = validateAction as (rs ++ [ErrorMsg (show liqNames ++" not in "++ show liqProviderKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
 validateAction ((W.SwapAccrue rsName):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys

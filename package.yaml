@@ -36,6 +36,8 @@ dependencies:
 - regex-pcre-builtin
 - vector
 - wai
+- monad-loops
+- ieee754
 - servant
 - servant-server
 - servant-openapi3
@@ -44,6 +46,7 @@ dependencies:
 - split
 - tabular
 - numeric-limits
+- scientific
 
 library:
   source-dirs: 
@@ -78,6 +81,7 @@ executables:
     - mtl
     - servant
     - lucid
+    - monad-loops
     - string-conversions
     - attoparsec
     - exceptions

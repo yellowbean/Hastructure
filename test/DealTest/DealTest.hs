@@ -115,7 +115,9 @@ baseCase = D.TestDeal {
 
 baseTests = 
   let 
-   (dealAfterRun,poolCf,_,_) = DR.runDeal baseCase DealPoolFlowPricing Nothing (AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing)
+   (dealAfterRun,poolCf,_,_) = case DR.runDeal baseCase DealPoolFlowPricing Nothing (AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing) of
+                                 Left _ -> undefined
+                                 Right x -> x
   in 
    testGroup "Base Deal Test" 
    [ testCase "Dates pattern" $

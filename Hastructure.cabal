@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -78,12 +78,15 @@ library
     , containers
     , generic-lens
     , hashable
+    , ieee754
     , lens
+    , monad-loops
     , numeric-limits
     , openapi3
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
+    , scientific
     , servant
     , servant-openapi3
     , servant-server
@@ -118,8 +121,10 @@ executable Hastructure-exe
     , generic-lens
     , hashable
     , http-types
+    , ieee754
     , lens
     , lucid
+    , monad-loops
     , mtl
     , numeric-limits
     , openapi3
@@ -159,6 +164,7 @@ test-suite Hastructure-test
       UT.AssetTest
       UT.BondTest
       UT.CashflowTest
+      UT.CeTest
       UT.DealTest
       UT.DealTest2
       UT.ExpTest
@@ -181,12 +187,15 @@ test-suite Hastructure-test
     , containers
     , generic-lens
     , hashable
+    , ieee754
     , lens
+    , monad-loops
     , numeric-limits
     , openapi3
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
+    , scientific
     , servant
     , servant-openapi3
     , servant-server

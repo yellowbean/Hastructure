@@ -30,7 +30,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,AccountName
+  ,MyRatio
   )
   
   where
@@ -48,7 +48,11 @@ import GHC.Generics
 import Language.Haskell.TH
 
 import Text.Read (readMaybe)
+import Data.Aeson (ToJSON, toJSON, Value(String))
+import Data.Ratio (Ratio, numerator, denominator)
+import Data.Text (pack)
 
+import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
 
 import Data.Aeson hiding (json)
 import Data.Aeson.TH
@@ -198,7 +202,9 @@ data DatePattern = MonthEnd
                  | EveryNMonth Date Int
                  | Weekday Int 
                  | AllDatePattern [DatePattern]
-                 | StartsExclusive Date DatePattern
+                 | StartsExclusive Date DatePattern -- TODO depricated
+                 | StartsAt CutoffType Date DatePattern
+                 | EndsAt CutoffType Date DatePattern
                  | Exclude DatePattern [DatePattern]
                  | OffsetBy DatePattern Int
                  -- | DayOfWeek Int -- T.DayOfWeek
@@ -262,11 +268,11 @@ data RangeType = II     -- ^ include both start and end date
                | EI     -- ^ exclude start date but include end date
                | EE     -- ^ exclude either start date and end date 
                | NO_IE  -- ^ no handling on start date and end date
-               deriving (Show,Eq,Read,Generic)
+               deriving (Show,Eq,Read,Generic,Ord)
 
 data CutoffType = Inc 
                 | Exc
-                deriving (Show,Read,Generic,Eq)
+                deriving (Show,Ord,Read,Generic,Eq)
 
 data DateDirection = Future 
                    | Past
@@ -337,6 +343,7 @@ data Ts = FloatCurve [TsPoint Rational]
         | IRateCurve [TsPoint IRate]
         | FactorCurveClosed [TsPoint Rational] Date
         | PricingCurve [TsPoint Rational] 
+        | PeriodCurve [TsPoint Int]
         deriving (Show,Eq,Ord,Read,Generic)
 
 
@@ -376,9 +383,9 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
 data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
                    | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
-                   | PV IRate IRate                   -- ^ discount factor, recovery pct on default
+                   | PV IRate Rate                    -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
-                   | PvRate Rate                      -- ^ [CF] Pricing cashflow with a constant rate
+                   | PvRate IRate                      -- ^ [CF] Pricing cashflow with a constant rate
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
                    deriving (Show, Eq ,Generic, Read,Ord)
@@ -387,11 +394,19 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
 data Pre = IfZero DealStats
          | If Cmp DealStats Balance
          | IfRate Cmp DealStats Micro
-         | IfInt Cmp DealStats Int
          | IfCurve Cmp DealStats Ts
          | IfRateCurve Cmp DealStats Ts
          | IfIntCurve Cmp DealStats Ts
+         
+         -- Integer
+         | IfInt Cmp DealStats Int
+         | IfIntBetween DealStats RangeType Int Int
+         | IfIntIn DealStats [Int]
+         -- Dates
          | IfDate Cmp Date
+         | IfDateBetween RangeType Date Date
+         | IfDateIn Dates
+         
          | IfBool DealStats Bool
          -- compare deal 
          | If2 Cmp DealStats DealStats
@@ -433,7 +448,7 @@ data TxnComment = PayInt [BondName]
                 | LiquidationProceeds [PoolId]
                 | LiquidationSupport String
                 | LiquidationDraw
-                | LiquidationRepay
+                | LiquidationRepay String
                 | LiquidationSupportInt Balance Balance
                 | BankInt
                 | SupportDraw
@@ -453,7 +468,7 @@ data TxnComment = PayInt [BondName]
 data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
          | AccTxn Date Balance Amount TxnComment                                                         -- ^ account transaction record 
          | ExpTxn Date Balance Amount Balance TxnComment                                                 -- ^ expense transaction record
-         | SupportTxn Date (Maybe Balance) Amount Balance DueInt DuePremium TxnComment                   -- ^ liquidity provider transaction record
+         | SupportTxn Date (Maybe Balance) Balance DueInt DuePremium Cash TxnComment                     -- ^ liquidity provider transaction record
          | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                                     -- ^ interest swap transaction record
          | EntryTxn Date Balance Amount TxnComment                                                       -- ^ ledger book entry
          | TrgTxn Date Bool TxnComment
@@ -467,18 +482,10 @@ data DealStats = CurrentBondBalance
                | CumulativePoolDefaultedBalance (Maybe [PoolId])  -- ^ Depreciated, use PoolCumCollection
                | CumulativePoolRecoveriesBalance (Maybe [PoolId]) -- ^ Depreciated, use PoolCumCollection
                | CumulativeNetLoss (Maybe [PoolId])
-               | CumulativePoolDefaultedRate (Maybe [PoolId])
-               | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
-               | CumulativeNetLossRatio (Maybe [PoolId])
                | OriginalBondBalance
                | OriginalBondBalanceOf [BondName]
                | OriginalPoolBalance (Maybe [PoolId])
                | DealIssuanceBalance (Maybe [PoolId])
-               | CurrentPoolBorrowerNum (Maybe [PoolId])
-               | ProjCollectPeriodNum
-               | BondFactor     -- ^ TODO implement a specific bond
-               | PoolFactor (Maybe [PoolId])
-               | BondWaRate [BondName]
                | UseCustomData String
                | PoolCumCollection [PoolSource] (Maybe [PoolId])
                | PoolCumCollectionTill Int [PoolSource] (Maybe [PoolId])
@@ -488,11 +495,10 @@ data DealStats = CurrentBondBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
                | LedgerTxnAmt [String] (Maybe TxnComment)
-               | ReserveAccGap [AccName]
+               | ReserveBalance [AccName] 
+               | ReserveGap [AccName]
                | ReserveExcess [AccName] 
-               | MonthsTillMaturity BondName
-               | HasPassedMaturity [BondName]
-               | ReserveAccGapAt Date [AccName] 
+               | ReserveGapAt Date [AccName] 
                | ReserveExcessAt Date [AccName] 
                | FutureCurrentPoolBalance (Maybe [PoolId])
                | FutureCurrentSchedulePoolBalance (Maybe [PoolId])
@@ -500,16 +506,9 @@ data DealStats = CurrentBondBalance
                | PoolScheduleCfPv PricingMethod (Maybe [PoolId])
                | FuturePoolScheduleCfPv Date PricingMethod (Maybe [PoolId])
                | FutureWaCurrentPoolBalance Date Date (Maybe [PoolId])
-               -- | FutureCurrentPoolBegBalance Date
                | FutureCurrentPoolBegBalance (Maybe [PoolId])
                | FutureCurrentBondBalance Date
-               | FutureCurrentBondFactor Date
-               | FutureCurrentPoolFactor Date (Maybe [PoolId])
-               | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
                | CurrentBondBalanceOf [BondName]
-               | IsMostSenior BondName [BondName]
-               | IsPaidOff [BondName]
-               | IsOutstanding [BondName]
                | BondIntPaidAt Date BondName
                | BondsIntPaidAt Date [BondName]
                | BondPrinPaidAt Date BondName
@@ -539,21 +538,40 @@ data DealStats = CurrentBondBalance
                | BondBalanceHistory Date Date
                | PoolCollectionHistory PoolSource Date Date (Maybe [PoolId])
                | UnderlyingBondBalance (Maybe [BondName])
-               | TriggersStatus DealCycle String
-               | IsDealStatus DealStatus
-               | TestRate DealStats Cmp Micro
-               | TestAny Bool [DealStats]
-               | TestAll Bool [DealStats]
-               | TestNot DealStats
-               | PoolWaRate (Maybe [PoolId])
-               | BondRate BondName
-               -- weighted average balancer over period
                | WeightedAvgCurrentPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgCurrentBondBalance Date Date [BondName]
                | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgOriginalBondBalance Date Date [BondName]
-
-               -- 
+               | CustomData String Date
+               -- integer type
+               | CurrentPoolBorrowerNum (Maybe [PoolId])
+               | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
+               | ProjCollectPeriodNum
+               | MonthsTillMaturity BondName
+               -- boolean type
+               | TestRate DealStats Cmp Micro
+               | TestAny Bool [DealStats]
+               | TestAll Bool [DealStats]
+               | TestNot DealStats
+               | IsDealStatus DealStatus
+               | IsMostSenior BondName [BondName]
+               | IsPaidOff [BondName]
+               | IsOutstanding [BondName]
+               | HasPassedMaturity [BondName]
+               | TriggersStatus DealCycle String
+               -- rate type
+               | PoolWaRate (Maybe [PoolId])
+               | BondRate BondName
+               | CumulativeNetLossRatio (Maybe [PoolId])
+               | FutureCurrentBondFactor Date
+               | FutureCurrentPoolFactor Date (Maybe [PoolId])
+               | BondFactor
+               | BondFactorOf BondName
+               | CumulativePoolDefaultedRate (Maybe [PoolId])
+               | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
+               | PoolFactor (Maybe [PoolId])
+               | BondWaRate [BondName]
+               -- Compond type
                | Factor DealStats Rational
                | Multiply [DealStats]
                | Max [DealStats]
@@ -568,12 +586,11 @@ data DealStats = CurrentBondBalance
                | DivideRatio DealStats DealStats
                | Constant Rational
                | FloorAndCap DealStats DealStats DealStats
-               | CustomData String Date
                | FloorWith DealStats DealStats
                | FloorWithZero DealStats
                | CapWith DealStats DealStats
                | Abs DealStats
-               | Round DealStats (RoundingBy Balance)
+               | Round DealStats (RoundingBy Rational)
                deriving (Show,Eq,Ord,Read,Generic)
 
 preHasTrigger :: Pre -> [(DealCycle,String)]
@@ -604,16 +621,16 @@ data BookItem = Item String Balance
 
 
 data BalanceSheetReport = BalanceSheetReport {
-                            asset :: BookItems
-                            ,liability :: BookItems
-                            ,equity :: BookItems
+                            asset :: BookItem
+                            ,liability :: BookItem
+                            ,equity :: BookItem
                             ,reportDate :: Date}         -- ^ snapshot date of the balance sheet
                             deriving (Show,Read,Generic)
  
 data CashflowReport = CashflowReport {
-                        inflow :: BookItems
-                        ,outflow :: BookItems
-                        ,net :: Balance
+                        inflow :: BookItem
+                        ,outflow :: BookItem
+                        ,net ::  BookItem
                         ,startDate :: Date 
                         ,endDate :: Date }
                         deriving (Show,Read,Generic)
@@ -636,12 +653,14 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryRecoveries    -- ^ cumulative recoveries
                   | HistoryInterest      -- ^ cumulative interest collected
                   | HistoryPrepayment    -- ^ cumulative prepayment collected
+                  | HistoryPrepaymentPentalty    -- ^ cumulative prepayment collected
                   | HistoryPrincipal     -- ^ cumulative principal collected
                   | HistoryRental        -- ^ cumulative rental collected
                   | HistoryDefaults      -- ^ cumulative default balance
                   | HistoryDelinquency   -- ^ cumulative delinquency balance
                   | HistoryLoss          -- ^ cumulative loss/write-off balance
                   | HistoryCash          -- ^ cumulative cash
+                  | HistoryFeePaid
                   | AccruedInterest      -- ^ accrued interest at closing
                   | RuntimeCurrentPoolBalance   -- ^ current pool balance
                   deriving (Show,Ord,Eq,Read,Generic)
@@ -814,7 +833,7 @@ instance ToJSON TxnComment where
   toJSON (LiquidationSupport source) = String $ T.pack $ "<Support:"++source++">"
   toJSON (LiquidationSupportInt b1 b2) =  String $ T.pack $ "<SupportExp:(Int:"++ show b1 ++ ",Fee:" ++ show b2 ++")>"
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
-  toJSON LiquidationRepay = String $ T.pack $ "<Repay:>"
+  toJSON (LiquidationRepay s) = String $ T.pack $ "<Repay:"++ s ++">"
   toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
   toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
   toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
@@ -876,7 +895,7 @@ parseTxn t = case tagName of
                               return $ LiquidationSupportInt (read (T.unpack (head sv))::Balance) (read (T.unpack (sv!!1))::Balance)
   "SupportDraw" -> return SupportDraw
   "Draw" -> return LiquidationDraw
-  "Repay" -> return LiquidationRepay
+  "Repay" -> return $ LiquidationRepay contents
   "Accure" -> return SwapAccrue
   "SettleIn" -> return SwapInSettle
   "SettleOut" -> return SwapOutSettle
@@ -911,6 +930,7 @@ getDealStatType (CumulativePoolDefaultedRateTill _ _) = RtnRate
 getDealStatType (CumulativePoolDefaultedRate _) = RtnRate
 getDealStatType (CumulativeNetLossRatio _) = RtnRate
 getDealStatType BondFactor = RtnRate
+getDealStatType (BondFactorOf _) = RtnRate
 getDealStatType (PoolFactor _) = RtnRate
 getDealStatType (FutureCurrentBondFactor _) = RtnRate
 getDealStatType (FutureCurrentPoolFactor _ _) = RtnRate
@@ -931,10 +951,13 @@ getDealStatType TestRate {} = RtnBool
 getDealStatType (TestAny _ _) = RtnBool
 getDealStatType (TestAll _ _) = RtnBool
 
-getDealStatType (Avg dss) = getDealStatType (head dss)
+getDealStatType (Avg dss) = RtnRate
+getDealStatType (Divide ds1 ds2) = RtnRate
+getDealStatType (Multiply _) = RtnRate
+getDealStatType (Factor _ _) = RtnRate
+
 getDealStatType (Max dss) = getDealStatType (head dss)
 getDealStatType (Min dss) = getDealStatType (head dss)
-getDealStatType (Divide ds1 ds2) = getDealStatType ds1
 getDealStatType _ = RtnBalance
 
 dealStatType _ = RtnBalance
@@ -948,6 +971,7 @@ data CustomDataType = CustomConstant Rational
 
 
 $(deriveJSON defaultOptions ''DealStatus)
+$(deriveJSON defaultOptions ''CutoffType)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )
@@ -959,6 +983,9 @@ instance ToJSONKey DateType where
 instance FromJSONKey DateType where
   fromJSONKey = genericFromJSONKey defaultJSONKeyOptions
 
+
+
+$(deriveJSON defaultOptions ''RangeType)
 $(deriveJSON defaultOptions ''Pre)
 
 
@@ -998,6 +1025,18 @@ instance FromJSONKey CutoffFields where
     Just k -> pure k
     Nothing -> fail ("Invalid key: " ++ show t)
 
+
+newtype MyRatio = MyRatio (Ratio Integer)
+
+instance ToJSON MyRatio where
+  toJSON (MyRatio r) = case fromRationalRepetend Nothing r of
+      Left (sci, _)         -> toJSON $ formatScientific Fixed (Just 8) sci
+      Right (sci, rep) -> toJSON $ formatScientific Fixed (Just 8) sci
+
+instance Show MyRatio where
+  show (MyRatio r) = case fromRationalRepetend Nothing r of
+      Left (sci, _)         -> show $ formatScientific Fixed (Just 8) sci
+      Right (sci, rep) -> show $ formatScientific Fixed (Just 8) sci
 
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }

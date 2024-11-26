@@ -29,6 +29,7 @@ import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
 import Types (PoolId(PoolConsol))
+import qualified CreditEnhancement as CE
 
 dummySt = (0,toDate "19000101",Nothing)
 
@@ -150,6 +151,7 @@ td2 = D.TestDeal {
                                 Nothing
                                 Nothing
                                 Nothing
+                                Nothing
                                 Nothing 
                                 0
                                 0
@@ -202,7 +204,9 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_) = run td2 poolflowM (Just ads) Nothing Nothing Nothing []
+      (fdeal,_) = case run td2 poolflowM (Just ads) Nothing Nothing Nothing [] of 
+                    Left _ -> error ""
+                    Right x -> x
     in 
       testCase "deal becomes revolving" $
       assertEqual "revoving" 
@@ -237,6 +241,7 @@ liqProviderTest =
 
                        90
                        (Just 100)
+                       (Just CE.IncludeDueInt)
 
                        Nothing -- rate type
                        Nothing -- premium rate type

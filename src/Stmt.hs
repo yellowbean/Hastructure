@@ -48,13 +48,17 @@ aggByTxnComment (txn:txns) m
   | M.member c m = aggByTxnComment txns (M.adjust ([txn] ++) c m)
   | otherwise = aggByTxnComment txns (M.insert c [txn] m)
   where 
-    c = getTxnComment txn
+    c = normalized $ getTxnComment txn
+    normalized (FundWith bn _) = FundWith bn 0
+    normalized (PurchaseAsset n _) = PurchaseAsset n 0
+    normalized (TxnComments txns) = TxnComments [ normalized x | x <- txns ]
+    normalized cmt = cmt
 
 scaleTxn :: Rate -> Txn -> Txn
 scaleTxn r (BondTxn d b i p r0 c di dioi f t) = BondTxn d (mulBR b r) (mulBR i r) (mulBR p r) r0 (mulBR c r) (mulBR di r) (mulBR dioi r) f t
 scaleTxn r (AccTxn d b a t) = AccTxn d (mulBR b r) (mulBR a r) t
 scaleTxn r (ExpTxn d b a b0 t) = ExpTxn d (mulBR b r) (mulBR a r) (mulBR b0 r) t
-scaleTxn r (SupportTxn d b a b0 i p t) = SupportTxn d (flip mulBR r <$> b) (mulBR a r) (mulBR b0 r) (mulBR i r) (mulBR p r) t
+scaleTxn r (SupportTxn d b b0 i p c t) = SupportTxn d (flip mulBR r <$> b) (mulBR b0 r) (mulBR i r) (mulBR p r) (mulBR c r) t
 scaleTxn r (IrsTxn d b a i0 i1 b0 t) = IrsTxn d (mulBR b r) (mulBR a r) i0 i1 (mulBR b0 r) t
 scaleTxn r (EntryTxn d b a t) = EntryTxn d (mulBR b r)  (mulBR a r) t
 
@@ -78,13 +82,16 @@ getTxnBalance :: Txn -> Balance
 getTxnBalance (BondTxn _ t _ _ _ _ _ _ _ _) = t
 getTxnBalance (AccTxn _ t _ _ ) = t
 getTxnBalance (ExpTxn _ t _ _ _ ) = t
-getTxnBalance (SupportTxn _ _ _ t _ _ _ ) = t -- credit offered
+getTxnBalance (SupportTxn _ _ t _ _ _ _ ) = t -- drawed balance
 getTxnBalance (EntryTxn _ t _ _) = t
+
+
+-- | SupportTxn Date (Maybe Balance) Balance DueInt DuePremium Cash TxnComment    
 
 getTxnBegBalance :: Txn -> Balance
 getTxnBegBalance (BondTxn _ t _ p _ _ _ _ _ _) = t + p
 getTxnBegBalance (AccTxn _ b a _ ) = b - a
-getTxnBegBalance (SupportTxn _ _ a b _ _ _) = b - a
+getTxnBegBalance (SupportTxn _ _ a b _ _ _) = b + a
 getTxnBegBalance (EntryTxn _ a b _) = a + b 
 
 getTxnPrincipal :: Txn -> Balance
@@ -94,7 +101,7 @@ getTxnAmt :: Txn -> Balance
 getTxnAmt (BondTxn _ _ _ _ _ t _ _ _ _) = t
 getTxnAmt (AccTxn _ _ t _ ) = t
 getTxnAmt (ExpTxn _ _ t _ _ ) = t
-getTxnAmt (SupportTxn _ _ t _ _ _ _) = t
+getTxnAmt (SupportTxn _ _ _ _ _ t _) = t
 getTxnAmt (IrsTxn _ _ t _ _ _ _ ) = t
 getTxnAmt (EntryTxn _ _ t _) = t
 getTxnAmt TrgTxn {} = 0.0
@@ -190,10 +197,14 @@ getTxns :: Maybe Statement -> [Txn]
 getTxns Nothing = []
 getTxns (Just (Statement txn)) = txn
 
+-- BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 g1 h1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 g2 h2 m2)
-    = BondTxn d1 (min b1 b2) (i1 + i2) (p1 + p2) (max r1 r2) (c1+c2) (min f1 f2) (min g1 g2) (liftA2 min h1 h2) (TxnComments [m1,m2]) 
+    = BondTxn d1 b2 (i1 + i2) (p1 + p2) r2 (c1+c2) f2 g2 h2 (TxnComments [m1,m2]) 
+combineTxn (SupportTxn d1 b1 b0 i1 p1 c1 m1) (SupportTxn d2 b2 b02 i2 p2 c2 m2)
+    = SupportTxn d1 b2  b02 (i1 + i2) (p1 + p2) (c1 + c2) (TxnComments [m1,m2])
+
 
 data FlowDirection = Inflow 
                    | Outflow
@@ -207,17 +218,24 @@ getFlow comment =
       PayInt _ -> Outflow
       PayYield _ -> Outflow
       PayPrin _ -> Outflow
+      PayGroupPrin _ -> Outflow
+      PayGroupInt _ -> Outflow 
+      WriteOff _ _ -> Noneflow
+      FundWith _ _ -> Inflow
+      PayPrinResidual _ -> Outflow
       PayFee _ -> Outflow
       SeqPayFee _ -> Outflow
       PayFeeYield _ -> Outflow
       Transfer _ _ -> Interflow 
+      TransferBy _ _ _ -> Interflow 
       PoolInflow _ _ -> Inflow
       LiquidationProceeds _ -> Inflow
       LiquidationSupport _ -> Inflow
       LiquidationDraw -> Noneflow
-      LiquidationRepay -> Outflow
+      LiquidationRepay _ -> Outflow
       LiquidationSupportInt _ _ -> Noneflow
       BankInt -> Inflow
+      SupportDraw -> Noneflow
       Empty -> Noneflow 
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
@@ -225,9 +243,9 @@ getFlow comment =
       SwapInSettle -> Inflow
       SwapOutSettle -> Outflow
       PurchaseAsset _ _-> Outflow
-      SupportDraw -> Noneflow
       IssuanceProceeds _ -> Inflow
-      TxnComments cmts -> 
+      TxnDirection _ -> Noneflow
+      TxnComments cmts ->  --TODO the direction of combine txns
         let 
           directionList = getFlow <$> cmts 
         in 
@@ -237,7 +255,6 @@ getFlow comment =
             Inflow
           else
             Noneflow
-      TransferBy {} -> Interflow
       _ -> error ("Missing in GetFlow >> "++ show comment)
 
 instance Ord Txn where

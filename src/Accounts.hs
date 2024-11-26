@@ -3,9 +3,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit
-                ,transfer,depositInt,depositIntByCurve
+                ,transfer,depositInt
                 ,InterestInfo(..),buildEarnIntAction,updateReserveBalance
-                ,accBalLens,tryDraw)
+                ,accBalLens,tryDraw,buildRateResetDates,accrueInt)
     where
 import qualified Data.Time as T
 import Stmt (Statement(..),appendStmt,getTxnBegBalance,getDate
@@ -27,9 +27,15 @@ import qualified InterestRate as IR
 import Debug.Trace
 debug = flip trace
 
-data InterestInfo = BankAccount IRate Date DatePattern                -- ^ fix reinvest return rate
-                  | InvestmentAccount Types.Index Spread Date DatePattern   -- ^ float reinvest return rate (index,spread, dp)
+data InterestInfo = BankAccount IRate DatePattern Date                
+                    -- ^ fix reinvest return rate
+                  | InvestmentAccount Types.Index Spread DatePattern DatePattern Date IRate 
+                    -- ^ float type: index, spread, sweep dates, rate reset , last accrue day, last reset rate
                   deriving (Show, Generic,Eq,Ord)
+
+
+makePrisms ''InterestInfo
+
 
 data ReserveAmount = PctReserve DealStats Rate               -- ^ target amount with reference to % of formula
                    | FixReserve Balance                      -- ^ target amount with fixed balance amount    
@@ -52,60 +58,44 @@ buildEarnIntAction [] ed r = r
 buildEarnIntAction (acc:accs) ed r = 
   case accInterest acc of 
     Nothing -> buildEarnIntAction accs ed r
-    Just (BankAccount _ lastAccDate dp) 
+    Just (BankAccount _ dp lastAccDate ) 
       -> buildEarnIntAction accs ed [(accName acc, genSerialDatesTill2 NO_IE lastAccDate dp ed)]++r    
-    Just (InvestmentAccount _ _ lastAccDate dp) 
+    Just (InvestmentAccount _ _ dp _ lastAccDate _) 
       -> buildEarnIntAction accs ed [(accName acc, genSerialDatesTill2 NO_IE lastAccDate dp ed)]++r    
 
+accrueInt :: Date -> Account -> Balance
+accrueInt _ (Account _ _ Nothing _ _) = 0 
+-- ^ bank account type interest 
+accrueInt endDate a@(Account bal _ (Just interestType) _ stmt)  
+  = case stmt of 
+       Nothing -> mulBR (mulBI bal rateToUse) (yearCountFraction defaultDc lastDay endDate) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
+       Just (Statement txns) ->
+         let 
+           accrueTxns = sliceBy IE lastDay endDate txns
+           bals = map getTxnBegBalance accrueTxns ++ [bal]
+           ds = [lastDay] ++ getDates accrueTxns ++ [endDate]
+           avgBal = calcWeightBalanceByDates defaultDc bals ds
+         in
+           mulBI avgBal rateToUse  
+    where 
+      defaultDc = DC_30E_360
+      (lastDay,rateToUse) = case interestType of 
+                              (BankAccount r dp lastCollectDate) -> (lastCollectDate, r)
+                              (InvestmentAccount idx spd dp _ lastCollectDate lastRate) -> (lastCollectDate, lastRate)
+
 -- | sweep interest/investement income into account
-depositInt :: Account -> Date -> Account
-depositInt a@(Account _ _ Nothing _ _) _ = a 
-depositInt a@(Account bal _ (Just (BankAccount r lastCollectDate dp)) _ stmt) ed 
-          = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (BankAccount r ed dp)}
+depositInt :: Date -> Account -> Account
+depositInt _ a@(Account _ _ Nothing _ _) = a 
+depositInt ed a@(Account bal _ (Just intType) _ stmt)
+          = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (newIntInfoType intType)}
           where 
-            defaultDc = DC_30E_360
-            accruedInt = case stmt of 
-                            Nothing -> mulBR (mulBI bal r) (yearCountFraction defaultDc lastCollectDate ed) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
-                            Just (Statement txns) ->
-                              let 
-                                accrueTxns = sliceBy IE lastCollectDate ed txns
-                                bals = map getTxnBegBalance accrueTxns ++ [bal]
-                                ds = [lastCollectDate] ++ getDates accrueTxns ++ [ed]
-                                avgBal = calcWeightBalanceByDates defaultDc bals ds
-                              in
-                                mulBI avgBal r  
+            -- accruedInt = accrueInt a (mkTs [(lastCollectDate, toRational r),(ed, toRational r)])  ed
+            accruedInt = accrueInt ed a
+            newIntInfoType (BankAccount x y _d) = BankAccount x y ed
+            newIntInfoType (InvestmentAccount x y z z1 _d z2) = (InvestmentAccount x y z z1 ed z2)
             newBal = accruedInt + bal  -- `debug` ("INT ACC->"++ show accrued_int)
             newTxn = AccTxn ed newBal accruedInt BankInt
             newStmt = appendStmt stmt newTxn
-
--- | sweep interest/investement income into account by a yield curve
-depositIntByCurve :: Account -> Ts -> Date -> Account
-depositIntByCurve a@(Account bal _ (Just (InvestmentAccount idx spd lastCollectDate dp)) _ stmt)
-                  rc
-                  ed 
-          = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (InvestmentAccount idx spd ed dp)}
-          where 
-            accruedInt = let 
-                           curveDs = [lastCollectDate] ++ subDates EE lastCollectDate ed (getTsDates rc) ++ [ed]
-                           curveVs = (\x -> toRational (getValByDate rc Exc x) + toRational spd) <$> init curveDs
-                         in
-                           case stmt of 
-                             Nothing -> 
-                               let  
-                                 dsFactor = getIntervalFactors curveDs
-                                 weightInt = sum $ zipWith (*) curveVs dsFactor --  `debug` ("ds"++show curve_ds++"vs"++show curve_vs++"factors"++show ds_factor)
-                               in 
-                                 mulBR bal weightInt
-                             Just (Statement txns) ->
-                               let 
-                                 bals = weightAvgBalanceByDates curveDs txns
-                               in
-                                 sum $ zipWith mulBR bals curveVs -- `debug` ("cds"++show curve_ds++"vs"++ show curve_vs++"bs"++show bals)
-
-            newBal = accruedInt + bal 
-            newTxn = AccTxn ed newBal accruedInt BankInt
-            newStmt = appendStmt stmt newTxn
-
 
 -- | move cash from account A to account B
 transfer :: Account -> Amount -> Date -> Account -> (Account, Account)
@@ -154,15 +144,23 @@ queryTrasnferBalance Account{accStmt = Nothing } Account{accName = an} = 0
 queryTrasnferBalance a@Account{accName = fromAccName, accStmt = Just (Statement txns)} Account{accName = toAccName}
   = sum $ getTxnAmt <$> queryStmt a (Transfer fromAccName toAccName) 
 
-makeLensesFor [("accBalance","accBalLens") ,("accName","accNameLens") ,("accType","accTypeLens") ,("accStmt","accStmtLens")] ''Account
 
+-- InvestmentAccount Types.Index Spread DatePattern DatePattern Date IRate 
+buildRateResetDates :: Date -> Account -> Maybe (String,Dates)
+buildRateResetDates ed Account{accName = n, accInterest = Just (InvestmentAccount _ _ _ dp sd _) }
+  = Just (n, genSerialDatesTill2 NO_IE sd dp ed)
+buildRateResetDates _ _ = Nothing
+
+
+makeLensesFor [("accBalance","accBalLens") ,("accName","accNameLens") 
+              ,("accType","accTypeLens") ,("accStmt","accStmtLens")] ''Account
 
 
 instance IR.UseRate Account where 
-  isAdjustbleRate (Account _ an (Just (InvestmentAccount _ _ lastAccDate dp)) _ _) = True
+  isAdjustbleRate (Account _ an (Just (InvestmentAccount _ _ _ _ _ _)) _ _) = True
   isAdjustbleRate _ = False
 
-  getIndex (Account _ an (Just (InvestmentAccount idx _ _ _)) _ _) = Just idx
+  getIndex (Account _ an (Just (InvestmentAccount idx _ _ _ _ _)) _ _) = Just idx
   getIndex _ = Nothing 
   
 

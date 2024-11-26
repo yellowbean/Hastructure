@@ -10,7 +10,7 @@ module Util
     ,shiftTsByAmt,calcWeightBalanceByDates
     ,maximum',minimum',roundingBy,roundingByM
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
-    ,lastOf,findBox
+    ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     -- for debug
     ,zyj
@@ -63,6 +63,15 @@ divideBI b i = fromRational $ toRational b / toRational i
 
 divideBB :: Balance -> Balance -> Rational
 divideBB b1 b2 = toRational b1 / toRational b2
+
+safeDivide :: RealFloat a => a -> a -> a
+safeDivide _ 0 = Numeric.Limits.infinity
+safeDivide x y = x / y
+
+
+safeDiv :: Rational -> Rational -> Maybe Rational 
+safeDiv _ 0 = Nothing 
+safeDiv x y = Just $ x / y
 
 zipLeftover :: [a] -> [a] -> [a]
 zipLeftover []     []     = []
@@ -278,7 +287,7 @@ maximum' = foldr1 (\x y ->if x >= y then x else y)
 minimum' :: Ord a => [a] -> a
 minimum' = foldr1 (\x y ->if x >= y then y else x)
 
-roundingBy :: (Fractional a,RealFrac a) => RoundingBy a -> a -> a
+roundingBy :: (Num a,Fractional a, RealFrac a) => RoundingBy a -> a -> a
 roundingBy (RoundFloor x) n = x * fromIntegral (floor (n/x) :: Integer)
 roundingBy (RoundCeil x) n = x * fromIntegral (ceiling (n/x) :: Integer)
 
@@ -323,9 +332,10 @@ findBox (Exc,Exc) x ((l,h):xs)
   | otherwise = findBox (Exc,Exc) x xs
 
 
-safeDivide :: RealFloat a => a -> a -> a 
-safeDivide _ 0 = infinity
-safeDivide x y = x / y
+safeDivide' :: (Eq a, Fractional a, Real a) => a -> a -> Rational
+safeDivide' _ 0 = 10000000000000000000000000000000000000000000000000000
+safeDivide' x y = toRational x / toRational y
+
 
 lstToMapByFn :: (a -> String) -> [a] -> M.Map String a 
 lstToMapByFn fn lst =

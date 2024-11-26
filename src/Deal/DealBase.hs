@@ -69,11 +69,12 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | RunWaterfall Date String             -- ^ execute waterfall
                   | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
                   | FireTrigger Date DealCycle String    -- ^ fire a trigger
-                  | InspectDS Date DealStats             -- ^ inspect formula
+                  | InspectDS Date [DealStats]           -- ^ inspect formulas
                   | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
                   | AccrueCapRate Date String            -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
                   | ResetSrtRate Date String 
+                  | ResetAccRate Date String 
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
@@ -82,6 +83,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   | StopRunFlag Date                     -- ^ stop the run with a message
                   | HitStatedMaturity Date               -- ^ hit the stated maturity date
+                  | TestCall Date                        -- ^ test call dates
                   deriving (Show,Generic,Read)
 
 instance Ord ActionOnDate where
@@ -104,11 +106,15 @@ instance TimeSeries ActionOnDate where
     getDate (ResetIRSwapRate d _ ) = d
     getDate (AccrueCapRate d _ ) = d
     getDate (ResetBondRate d _ ) = d 
+    getDate (ResetAccRate d _ ) = d 
     getDate (MakeWhole d _ _) = d 
     getDate (BuildReport sd ed) = ed
     getDate (IssueBond d _ _ _ _ _ _) = d
     getDate (RefiBondRate d _ _ _) = d
     getDate (RefiBond d _ _) = d
+    getDate (ResetLiqProviderRate d _) = d
+    getDate (TestCall d) = d
+    getDate x = error $ "Failed to match"++ show x
 
 
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
@@ -118,6 +124,8 @@ sortActionOnDate a1 a2
                  (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
                  (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
                  (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
+                 (TestCall _ ,_) -> GT  -- build report should be executed last
+                 (_ , TestCall _) -> LT -- build report should be executed last
                  (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
                  (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
                  (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
@@ -358,6 +366,9 @@ dealPool = lens getter setter
   where 
     getter d = pool d
     setter d newPool = d {pool = newPool}
+
+
+
 
 poolTypePool :: Ast.Asset a => Lens' (PoolType a) (Map.Map PoolId (P.Pool a))
 poolTypePool = lens getter setter

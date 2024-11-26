@@ -99,7 +99,7 @@ data Action =
             | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType AccountName  -- ^ draw credit and deposit to account/fee/bond interest/principal
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName   -- ^ repay liquidity facility
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName                   -- ^ repay compensation to liquidity facility
-            | LiqAccrue CE.LiquidityProviderName                                            -- ^ accure premium/due interest of liquidity facility
+            | LiqAccrue [CE.LiquidityProviderName]                                            -- ^ accure premium/due interest of liquidity facility
             -- Swap
             | SwapAccrue CeName                 -- ^ calculate the net amount of swap
             | SwapReceive AccountName CeName    -- ^ receive amount from net amount of swap and deposit to account

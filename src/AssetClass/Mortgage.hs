@@ -235,49 +235,18 @@ projCashflowByDefaultAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDefaultB
        [initRow]
        (zip5 cfDates (zip expectedDefaultBals unAppliedDefaultBals) ppyRates rateVector remainTerms)
 
--- | implementation on projection via delinq balance amount
--- projCashflowByDelinqAmt :: (Balance, Date, AmortPlan, Period,IRate,Maybe BorrowerNum) -> (Dates, ([Balance],[Balance]), [Rate], [IRate], [Int]) -> [CF.TsRow]
--- projCashflowByDelinqAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDelinqBals,unAppliedDelinqBals), ppyRates, rateVector, remainTerms) = 
---   let 
---     initRow = CF.MortgageFlow lastPayDate cb 0.0 0.0 0.0 0.0 0.0 0.0 cr mbn Nothing Nothing
---   in 
---     foldl
---        (\acc (pDate, (defaultBal,futureDefualtBal), ppyRate, rate, rt)
---          -> let 
---              begBal = CF.mflowBalance (last acc)  
---              mBorrower = CF.mflowBorrowerNum (last acc)   
---              newDefault = if begBal <= (defaultBal+futureDefualtBal) then
---                              begBal  
---                            else
---                              defaultBal   
---              newPrepay = mulBR (max 0 (begBal - newDefault)) ppyRate  -- `debug` ("mb from last"++ show mBorrower) 
---              newInt = mulBI (max 0 (begBal - newDefault - newPrepay)) (periodRateFromAnnualRate p rate)
---              intBal = max 0 $ begBal - newDefault - newPrepay
---              newPrin = case pt of 
---                          Level -> let 
---                                      pmt = calcPmt intBal (periodRateFromAnnualRate p rate) rt -- `debug` ("PMT with rt"++ show rt)
---                                   in 
---                                     pmt - newInt
---                          Even -> intBal / fromIntegral rt
---                          _ -> error ("Unsupport Prin type for mortgage"++ show pt)
---              endBal = intBal - newPrin
---              newMbn = decreaseBorrowerNum begBal endBal mBorrower 
---            in 
---              acc ++ [CF.MortgageFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0
---                        rate newMbn Nothing Nothing]                    
---          )
---        [initRow]
---        (zip5 cfDates (zip expectedDelinqBals unAppliedDelinqBals) ppyRates rateVector remainTerms)
-
+-- TODO to fix here , hard code on Left
 calcScheduleBalaceToday :: Mortgage -> Maybe [RateAssumption] -> Date -> Balance 
 calcScheduleBalaceToday m mRates asOfDay
   = let 
       sd = getOriginDate m
-      CF.CashFlowFrame _ scheduleTxn = calcCashflow (resetToOrig m) sd mRates
     in 
-      case getByDate asOfDay scheduleTxn of
-        Just f -> CF.mflowBalance f
-        Nothing -> error "Failed to find schedule balance"
+      case calcCashflow (resetToOrig m) sd mRates of
+        Right (CF.CashFlowFrame _ scheduleTxn) ->
+          case getByDate asOfDay scheduleTxn of
+            Just f -> CF.mflowBalance f
+            Nothing -> error "Failed to find schedule balance"
+        Left _ -> 0
 
 
 -- | implementation on projection via default balance amount
@@ -336,10 +305,12 @@ buildARMrates or@(IR.Floater _ idx sprd initRate dp _ _ mRoundBy )
 
 instance Ast.Asset Mortgage where
   calcCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd ptype _ _)  _bal _rate _term _mbn _) d mRates
-    = fst (projCashflow m d (MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) mRates)
+    = fst <$> (projCashflow m d (MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) mRates)
 
-  calcCashflow s@(ScheduleMortgageFlow beg_date flows _)  d _ = CF.CashFlowFrame ( (CF.mflowBalance . head) flows, beg_date, Nothing ) flows
-  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates = error "to be implement on adjust rate mortgage"
+  calcCashflow s@(ScheduleMortgageFlow beg_date flows _)  d _ 
+    = Right $ CF.CashFlowFrame ( (CF.mflowBalance . head) flows, beg_date, Nothing ) flows
+
+  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates = Left $ "to be implement on adjust rate mortgage"
   
   getCurrentBal (Mortgage _ _bal _ _ _ _) = _bal
   getCurrentBal (AdjustRateMortgage _ _ _bal _ _ _ _) = _bal
@@ -411,7 +382,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams ,_ ,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
+      Right $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
       where
         recoveryLag = maybe 0 getRecoveryLag amr
         lastPayDate:cfDates = lastN (succ (recoveryLag + rt)) $ sd:getPaymentDates m recoveryLag
@@ -430,7 +401,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams,_,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
+      Right $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
       where
         ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
         passInitPeriod = (ot - rt) >= initPeriod 
@@ -451,7 +422,7 @@ instance Ast.Asset Mortgage where
   -- project schedule cashflow with total default amount
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
               assumps@(pAssump@(A.MortgageAssump (Just (A.DefaultByAmt (dBal,vs))) amp amr ams ),dAssump,fAssump) _
-    = (applyHaircut ams (CF.CashFlowFrame (begBalAfterCut,asOfDay,Nothing) futureTxns) ,historyM)  -- `debug` ("Future txn"++ show futureTxns)
+    = Right $ (applyHaircut ams (CF.CashFlowFrame (begBalAfterCut,asOfDay,Nothing) futureTxns) ,historyM)  -- `debug` ("Future txn"++ show futureTxns)
       where
         begBal =  CF.mflowBegBalance $ head flows
         begDate = getDate $ head flows 
@@ -479,7 +450,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams ,_ ,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
+      Right $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
     where
       recoveryLag = maybe 0 getRecoveryLag amr
       lastPayDate:cfDates = lastN (rt + 1) $ sd:getPaymentDates m 0
@@ -512,7 +483,7 @@ instance Ast.Asset Mortgage where
                     ,_
                     ,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay, Nothing) futureTxns) ,historyM)
+      Right $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay, Nothing) futureTxns) ,historyM)
     where
       lastPayDate:cfDates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:getPaymentDates m (recoveryLag+defaultLag)
       cfDatesLength = length cfDates + recoveryLag + defaultLag
@@ -539,24 +510,24 @@ instance Ast.Asset Mortgage where
       futureTxns = cutBy Inc Future asOfDay $ beforeRecoveryTxn ++ txns
       begBal = CF.buildBegBal futureTxns
     in 
-      (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns ,Map.empty)
+      Right $ (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns ,Map.empty)
 
   -- project defaulted adjMortgage with a defaulted Date   
   projCashflow m@(AdjustRateMortgage mo arm cb cr rt mbn (Defaulted (Just defaultedDate)) ) asOfDay assumps mRates
     = projCashflow (Mortgage mo cb cr rt mbn  (Defaulted (Just defaultedDate))) asOfDay assumps mRates
   -- project defaulted adjMortgage without a defaulted Date   
   projCashflow m@(AdjustRateMortgage _ _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
-    = (CF.CashFlowFrame (cb,asOfDay,Nothing) [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing Nothing] ,Map.empty)
+    = Right $ (CF.CashFlowFrame (cb,asOfDay,Nothing) [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing Nothing] ,Map.empty)
   -- project defaulted Mortgage    
   projCashflow m@(Mortgage _ cb cr rt mbn (Defaulted Nothing) ) asOfDay assumps _
-    = (CF.CashFlowFrame (cb,asOfDay,Nothing) [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing Nothing] ,Map.empty)
+    = Right $ (CF.CashFlowFrame (cb,asOfDay,Nothing) [ CF.MortgageFlow asOfDay 0 0 0 0 0 0 0 cr mbn Nothing Nothing] ,Map.empty)
 
   -- project current AdjMortgage
   projCashflow m@(AdjustRateMortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn _) arm cb cr rt mbn Current) 
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams,_,_) 
                mRates =
-    (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
+    Right $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
     where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
@@ -581,7 +552,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams,_,_) 
                mRates =
-      (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
+      Right $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
     where
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
@@ -602,7 +573,7 @@ instance Ast.Asset Mortgage where
   -- schedule mortgage flow without delinq
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
                assumps@(pAssump@(A.MortgageAssump _ _ _ ams ),dAssump,fAssump) _
-    = (applyHaircut ams (CF.CashFlowFrame (begBalAfterCutoff,asOfDay,Nothing) futureTxns) ,historyM)
+    = Right $ (applyHaircut ams (CF.CashFlowFrame (begBalAfterCutoff,asOfDay,Nothing) futureTxns) ,historyM)
       where
         begBal =  CF.mflowBegBalance $ head flows 
         (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate (begDate:cfDates) pAssump 
@@ -622,7 +593,7 @@ instance Ast.Asset Mortgage where
   -- schedule mortgage flow WITH delinq
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay assumps@(pAssump@(A.MortgageDeqAssump _ _ _ ams),dAssump,fAssump) mRates
     = 
-      (applyHaircut ams (CF.CashFlowFrame (begBalAfterCutoff, asOfDay,Nothing) futureTxns) ,historyM)
+      Right $ (applyHaircut ams (CF.CashFlowFrame (begBalAfterCutoff, asOfDay,Nothing) futureTxns) ,historyM)
       where
         begBal =  CF.mflowBegBalance $ head flows -- `debug` ("beg date"++show beg_date)
         (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (begDate:getDates flows) pAssump
@@ -639,7 +610,7 @@ instance Ast.Asset Mortgage where
         (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
         begBalAfterCutoff = CF.buildBegBal futureTxns
   
-  projCashflow a b c d = error $ "Failed to match when proj mortgage>>" ++ show a ++ show b ++ show c ++ show d
+  projCashflow a b c d = Left $ "Failed to match when proj mortgage with assumption >>" ++ show a ++ show b ++ show c ++ show d
 
   getBorrowerNum m@(Mortgage _ cb cr rt mbn _ ) = fromMaybe 1 mbn
   getBorrowerNum m@(AdjustRateMortgage _ _ cb cr rt mbn _ ) = fromMaybe 1 mbn

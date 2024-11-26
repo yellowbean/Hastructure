@@ -65,6 +65,17 @@ txnTest =
       , let 
           testTxns = [AccTxn (toDate "20221115") 100 20 Empty
                       ,AccTxn (toDate "20221125") 90 (negate 10) Empty
+                      ,AccTxn (toDate "20221125") 80 (negate 10) Empty
+                      ,AccTxn (toDate "20221215") 80 (negate 10) Empty]
+        in 
+          testCase "Get Txn As Of" $
+            assertEqual "Get Txn Asof on duplicate date" 
+            (Just (AccTxn (toDate "20221125") 80 (negate 10) Empty))
+            (getTxnAsOf testTxns (toDate "20221201"))
+
+      , let 
+          testTxns = [AccTxn (toDate "20221115") 100 20 Empty
+                      ,AccTxn (toDate "20221125") 90 (negate 10) Empty
                       ,AccTxn (toDate "20221215") 80 (negate 10) Empty]
         in 
           testCase "Test View balance as of " $
@@ -103,5 +114,32 @@ txnTest =
             8.86 $
             weightAvgBalance'  (toDate "20220101") (toDate "20220201")
               [(BondTxn (toDate "20220115") 100 20 10 0.02 30 0 0 Nothing Empty) ]
+      ,testCase " view balance test" $ 
+            assertEqual "View balance test(bond) 1 "
+            110 $
+            viewBalanceAsOf (toDate "20221114") 
+                            [BondTxn (toDate "20221115") 100 20 10 0.02 30 0 0 Nothing Empty]
+      ,testCase " view balance test" $ 
+            assertEqual "View balance test(bond) 2"
+            100 $
+            viewBalanceAsOf (toDate "20221116") 
+                            [BondTxn (toDate "20221115") 100 20 10 0.02 30 0 0 Nothing Empty]
+      ,testCase " view balance test" $ 
+            assertEqual "View balance test(supportTxn)"
+            20 $
+            viewBalanceAsOf (toDate "20221201") 
+                            [SupportTxn (toDate "20221115") (Just 100) 20 0 0 0 Empty
+                            ,SupportTxn (toDate "20221215") (Just 20) 30 0 0 0 Empty
+                            ]
+      ,testCase " view balance test" $ 
+            assertEqual "View balance test( same day txns)"
+            30 $
+            viewBalanceAsOf (toDate "20221201") 
+                            [SupportTxn (toDate "20220915") (Just 100) 20 0 0 0 Empty
+                            ,SupportTxn (toDate "20221015") (Just 90) 10 0 0 0 Empty
+                            ,SupportTxn (toDate "20221015") (Just 80) 30 0 0 0 Empty
+                            ,SupportTxn (toDate "20221215") (Just 70) 30 0 0 0 Empty
+                            ]
+
     ]
 

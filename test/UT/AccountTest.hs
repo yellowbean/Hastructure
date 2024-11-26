@@ -10,6 +10,7 @@ import Util
 import DateUtil
 import Types
 import Deal
+import Deal.DealQuery (queryCompound)
 import Deal.DealBase
 import qualified Cashflow as CF
 
@@ -22,8 +23,8 @@ dummySt = (0,Lib.toDate "19000101",Nothing)
 
 intTests =
   let 
-    acc1 = Account 200 "A1" (Just (BankAccount 0.03 (toDate "20221001") QuarterEnd)) Nothing Nothing
-    acc2 = Account 150 "A1" (Just (BankAccount 0.03 (toDate "20220301") MonthEnd)) Nothing 
+    acc1 = Account 200 "A1" (Just (BankAccount 0.03 QuarterEnd (toDate "20221001"))) Nothing Nothing
+    acc2 = Account 150 "A1" (Just (BankAccount 0.03 MonthEnd (toDate "20220301"))) Nothing 
           (Just (Statement [ AccTxn (toDate "20220715") 120 10 Empty
                           ,AccTxn (toDate "20220915") 150 30 Empty ]))
   in 
@@ -40,18 +41,18 @@ intTests =
       ,testCase "Validate Interest Calculation 1" $
         assertEqual "MonthEnd with No txn"
         200.5
-        (accBalance (depositInt acc1 (toDate "20221101")))
+        (accBalance (depositInt (toDate "20221101") acc1 ))
       ,testCase "Validate Interest Calculation 2" $
         assertEqual "MonthEnd with txns"
         152.40
-        (accBalance (depositInt acc2 (toDate "20221101")))
+        (accBalance (depositInt (toDate "20221101") acc2 ))
      ]
 
 investTests =
   let 
     rc = mkTs [(toDate "20211201",0.03),(toDate "20221201",0.03)]
-    acc1 = Account 2000 "A1" (Just (InvestmentAccount SOFR1Y 0.015 (toDate "20221001") QuarterEnd)) Nothing Nothing
-    acc2 = Account 150 "A1" (Just (InvestmentAccount SOFR1Y 0.01 (toDate "20220301") MonthEnd)) Nothing 
+    acc1 = Account 2000 "A1" (Just (InvestmentAccount SOFR1Y 0.015 QuarterEnd QuarterEnd (toDate "20221001") 0.04)) Nothing Nothing
+    acc2 = Account 150 "A1" (Just (InvestmentAccount SOFR1Y 0.01 QuarterEnd QuarterEnd (toDate "20220301") 0.03)) Nothing 
           (Just (Statement [ AccTxn (toDate "20220715") 120 10 Empty
                             ,AccTxn (toDate "20220915") 150 30 Empty ]))
   in 
@@ -59,12 +60,12 @@ investTests =
      [
       testCase "Validate Interest Calculation 1" $
         assertEqual "MonthEnd with No txn"
-        2007.64
-        (accBalance (depositIntByCurve acc1 rc (toDate "20221101")))
+        2006.66
+        (accBalance (depositInt (toDate "20221101") acc1))
       ,testCase "Validate Interest Calculation 2" $
         assertEqual "MonthEnd with txns"
-        153.22
-        (accBalance (depositIntByCurve acc2 rc (toDate "20221101")))
+        152.40
+        (accBalance (depositInt (toDate "20221101") acc2 ))
      ]
 
 
@@ -85,20 +86,20 @@ reserveAccTest =
      [
       testCase "Test on Pct Reserve" $
         assertEqual "shall be " 
-          0.7
+          (Right 0.7)
           (calcTargetAmount ttd (toDate "20220826") acc1)
      ,testCase "Test on fix Reserve" $
         assertEqual "shall be " 
-          210
+          (Right 210)
           (calcTargetAmount ttd (toDate "20220801") acc2)
      ,testCase "test on reserve account gap" $
         assertEqual "pct reserve gap "
-        0
-        (queryDeal ttd (ReserveAccGapAt (toDate "20220826") ["A1"]))
+        (Right 0)
+        (queryCompound ttd (toDate "20220826") (ReserveGapAt (toDate "20220826") ["A1"]))
      ,testCase "test on reserve account gap" $
         assertEqual "fix reserve gap "
-        60
-        (queryDeal ttd (ReserveAccGapAt (toDate "20220801") ["A2"]))
+        (Right 60)
+        (queryCompound ttd (toDate "20220801") (ReserveGapAt (toDate "20220801") ["A2"]))
      ]
 
 
