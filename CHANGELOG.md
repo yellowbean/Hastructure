@@ -3,6 +3,11 @@
 <!-- towncrier release notes start -->
 
 
+## 0.40.1
+### 2024-11-05
+* NEW: break changes on API ,now the engine is able to throw out error message instead of just hanging.
+
+
 ## 0.31.0
 
 ### 2024-11-05
