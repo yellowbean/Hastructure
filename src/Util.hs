@@ -348,7 +348,7 @@ paySequentially :: Date -> Amount -> (a->Balance) -> (Amount->a->a) -> [a] -> [a
 paySequentially d amt getDueAmt payFn paidList []
   = (reverse paidList, amt)
 paySequentially d 0 getDueAmt payFn paidList tobePaidList
-  = (reverse (paidList++tobePaidList), 0)
+  = (reverse paidList++tobePaidList, 0)
 paySequentially d amt getDueAmt payFn paidList (l:tobePaidList)
   = let 
       dueAmt = getDueAmt l

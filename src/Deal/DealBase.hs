@@ -488,7 +488,12 @@ getAllCollectedFrame t mPid =
       Just pids -> Map.filterWithKey (\k _ -> k `elem` pids) mCf -- `debug` ("Just when collecting cfs"++show mCf)
 
 getLatestCollectFrame :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.TsRow)
-getLatestCollectFrame t mPns = Map.map (last . view CF.cashflowTxn <$>) (getAllCollectedFrame t mPns)
+getLatestCollectFrame t mPns = Map.map (\case
+                                          Nothing -> Nothing
+                                          (Just (CF.CashFlowFrame (_,_,_) [])) -> Nothing
+                                          (Just (CF.CashFlowFrame (_,_,_) txns)) -> Just $ last txns
+                                          )
+                                        (getAllCollectedFrame t mPns)
 
 getAllCollectedTxns :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe [CF.TsRow])
 getAllCollectedTxns t mPns = Map.map (view CF.cashflowTxn <$>) (getAllCollectedFrame t mPns)

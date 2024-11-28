@@ -1368,4 +1368,6 @@ performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tNames)
                     (testTrigger t d)
                     triggerList
 
+performAction d t (W.Placeholder mComment) = Right t 
+
 performAction d t action =  error $ "failed to match action>>"++show action++">>Deal"++show (name t)
