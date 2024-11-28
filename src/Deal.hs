@@ -82,7 +82,42 @@ debug = flip trace
 
 -- ^ update bond interest rate from rate assumption
 setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> Either String L.Bond
-setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateSpread _ spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+setBondNewRate t d ras b@(L.Bond _ _ L.OriginalInfo{ L.originDate = od} ii _ bal currentRate _ dueInt _ Nothing _ _ _)
+  = setBondNewRate t d ras b {L.bndDueIntDate = Just od}
+
+
+-- ^ Floater rate+step up(once)
+setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) (Just (L.PassDateSpread resetDay spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+  | resetDay == d = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt
+                              , L.bndDueIntDate = Just d
+                              , L.bndInterestInfo = L.Floater br idx (_spd+spd) rset dc mf mc}
+  | otherwise = Right $ b { L.bndRate = applyFloatRate ii d ras 
+                      , L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+    where 
+      (Just dc) = getDayCountFromInfo ii
+      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
+
+-- ^ Floater rate+step up(ladder) TODO ,it's not ladder
+setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) (Just (L.PassDateSpread resetDay spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+  | resetDay == d = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt
+                              , L.bndDueIntDate = Just d
+                              , L.bndInterestInfo = L.Floater br idx (_spd+spd) rset dc mf mc}
+  | otherwise = Right $ b { L.bndRate = applyFloatRate ii d ras 
+                      , L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+    where 
+      (Just dc) = getDayCountFromInfo ii
+      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
+
+-- ^ Fix rate+step up(once)
+setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Fix {}) (Just (L.PassDateSpread resetDay spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+  | resetDay == d = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+  | otherwise = Right b
+    where 
+      (Just dc) = getDayCountFromInfo ii
+      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
+
+-- ^ Fix rate+step up(ladder)
+setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Fix {}) (Just (L.PassDateLadderSpread _ spd _)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
   = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
     where 
       (Just dc) = getDayCountFromInfo ii
