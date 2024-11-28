@@ -77,6 +77,7 @@ import InterestRate (calcInt)
 import Liability (getDayCountFromInfo)
 import Hedge (RateCap(..),RateSwapBase(..),RateSwap(rsRefBalance))
 import qualified Hedge as HE
+import Types (DayCount(DC_ACT_365F))
 
 debug = flip trace
 
@@ -123,19 +124,21 @@ setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Fix {}) (Just (L.PassDateLadderSpre
       (Just dc) = getDayCountFromInfo ii
       accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
 
-setBondNewRate t d ras b@(L.Bond _ _ _ ii (Just (L.PassDateLadderSpread _ spd _)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
-  = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+-- ^ Ref rate
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
+  = do
+      rate <- queryCompound t d (patchDateToStats d ds)
+      let accrueInt = calcInt (bal + dueInt) dueIntDate d (fromRational rate) DC_ACT_365F
+      return b {L.bndRate = fromRational (rate * toRational factor) 
+                ,L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
+      
+-- ^ floater bond
+setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
+  = Right $ b { L.bndRate = applyFloatRate ii d ras 
+              , L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
     where 
       (Just dc) = getDayCountFromInfo ii
       accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
-
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ _ _ _ _ _ _ _ _ _) 
-  = do
-      rate <- queryCompound t d (patchDateToStats d ds)
-      return b {L.bndRate = fromRational (toRational rate * toRational factor) }
-
-setBondNewRate t d ras b@(L.Bond _ _ _ ii _ _ _ _ _ _ _ _ _ _) 
-  = Right $ b { L.bndRate = applyFloatRate ii d ras }
 
 setBondNewRate t d ras bg@(L.BondGroup bMap)
   = do 

@@ -1671,6 +1671,25 @@
                         ],
                         "title": "WatchVal",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Placeholder"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Placeholder",
+                        "type": "object"
                     }
                 ]
             },
@@ -19254,7 +19273,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.31.2"
+        "version": "0.40.1"
     },
     "openapi": "3.0.0",
     "paths": {
