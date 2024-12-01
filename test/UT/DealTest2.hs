@@ -93,7 +93,8 @@ td = D.TestDeal {
                                ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = D.SoloPool $ 
+  ,D.pool = D.MultiPool $ 
+              Map.fromList [(PoolConsol,
                       P.Pool {P.assets=[AB.Mortgage
                                          AB.MortgageOriginalInfo{
                                            AB.originBalance=4000
@@ -126,6 +127,7 @@ td = D.TestDeal {
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Nothing}
+                )]
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee Nothing "General" ["Service-Fee"] Nothing)
                                  ,(W.PayInt Nothing "General" ["A"] Nothing)

@@ -73,6 +73,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,DT.triggerTests
                            ,DT.dateTests
                            ,DT.liqProviderTest
+                           ,DT.poolFlowTest
                            ,DT2.queryTests
                            ,UtilT.daycountTests1
                            ,UtilT.daycountTests2

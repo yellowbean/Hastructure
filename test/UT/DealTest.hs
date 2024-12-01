@@ -1,4 +1,4 @@
-module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest)
+module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest,poolFlowTest)
 
 where
 
@@ -25,11 +25,12 @@ import qualified Triggers as Trg
 import Lib
 import Types
 
+import Data.Maybe
+import Data.Either
+
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
-import Types (PoolId(PoolConsol))
-import qualified CreditEnhancement as CE
 
 dummySt = (0,toDate "19000101",Nothing)
 
@@ -99,7 +100,9 @@ td2 = D.TestDeal {
                                ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = D.SoloPool $ 
+  ,D.pool = D.MultiPool $
+               Map.fromList $ 
+                   [( PoolConsol,
                       P.Pool {P.assets=[AB.Mortgage
                                          AB.MortgageOriginalInfo{
                                            AB.originBalance=4000
@@ -132,6 +135,7 @@ td2 = D.TestDeal {
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]}
+                )]
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee Nothing "General" ["Service-Fee"] Nothing)
                                  ,(W.PayInt Nothing "General" ["A"] Nothing)
@@ -170,6 +174,108 @@ td2 = D.TestDeal {
  ,D.overrides = Nothing
  ,D.ledgers = Nothing
 }
+
+baseDeal = D.TestDeal {
+  D.name = "base deal"
+  ,D.status = Amortizing
+  ,D.rateSwap = Nothing
+  ,D.currencySwap = Nothing
+  ,D.dates = PatternInterval $ 
+               (Map.fromList [
+                (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
+                ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
+               ])
+  ,D.accounts = Map.fromList [("General", A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing})]
+  ,D.fees = Map.empty 
+  ,D.bonds = (Map.fromList [("A"
+                             ,L.Bond{
+                              L.bndName="A"
+                             ,L.bndType=L.Sequential
+                             ,L.bndOriginInfo= L.OriginalInfo{
+                                                L.originBalance=3000
+                                                ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                ,L.originRate= 0.08
+                                                ,L.maturityDate = Nothing}
+                             ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
+                             ,L.bndBalance=3000
+                             ,L.bndRate=0.08
+                             ,L.bndDuePrin=0.0
+                             ,L.bndDueInt=0.0
+                             ,L.bndDueIntOverInt=0.0
+                             ,L.bndDueIntDate=Nothing
+                             ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                             ,L.bndStmt=Nothing})
+                             ,("B"
+                               ,L.Bond{
+                                L.bndName="B"
+                               ,L.bndType=L.Equity
+                               ,L.bndOriginInfo= L.OriginalInfo{
+                                                  L.originBalance=3000
+                                                  ,L.originDate= (T.fromGregorian 2022 1 1)
+                                                  ,L.originRate= 0.08
+                                                  ,L.maturityDate = Nothing}
+                               ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
+                               ,L.bndBalance=500
+                               ,L.bndRate=0.08
+                               ,L.bndDuePrin=0.0
+                               ,L.bndDueInt=0.0
+                               ,L.bndDueIntDate=Nothing
+                               ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+                               ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
+                               ,L.bndStmt=Nothing})
+                         ]
+           )
+  ,D.pool = D.MultiPool $
+               Map.fromList $ 
+                   [( PoolConsol,
+                      P.Pool {P.assets=[AB.Mortgage
+                                         AB.MortgageOriginalInfo{
+                                           AB.originBalance=4000
+                                           ,AB.originRate=Fix DC_ACT_365F 0.085
+                                           ,AB.originTerm=60
+                                           ,AB.period=Monthly
+                                           ,AB.startDate=(T.fromGregorian 2022 1 1)
+                                           ,AB.prinType= AB.Level
+                                           ,AB.prepaymentPenalty = Nothing}
+                                         4000
+                                         0.085
+                                         60
+                                         Nothing
+                                         AB.Current]
+                 ,P.futureCf=Nothing
+                 ,P.asOfDate = T.fromGregorian 2022 1 1
+                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]})]
+   ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
+                                  (W.PayFee Nothing "General" ["Service-Fee"] Nothing)
+                                 ,(W.PayInt Nothing "General" ["A"] Nothing)
+                                 ,(W.PayPrin Nothing "General" ["A"] Nothing)
+   ])]
+ ,D.collects = [W.Collect Nothing W.CollectedCash "General"]
+ ,D.custom = Nothing
+ ,D.call = Nothing
+ ,D.liqProvider = Nothing 
+ ,D.triggers = Nothing 
+ ,D.overrides = Nothing
+ ,D.ledgers = Nothing
+ ,D.rateCap = Nothing
+}
+
+poolFlowTest = testGroup "pool cashflow test" 
+  [
+   let 
+      (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal DealPoolFlowPricing Nothing (AP.NonPerfAssumption {})) of
+                                              (Left _) -> undefined
+                                              (Right (a,b,c,d)) -> (a,b,c,d)
+   in 
+      testCase "pool begin flow" $
+      assertEqual "pool size should be 60" 
+      1 1
+        -- (Just (Map.fromList [(PoolConsol ,60)]))
+        -- ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf )
+  ]
+
 
 queryTests =  testGroup "deal stat query Tests"
   [
@@ -238,21 +344,17 @@ liqProviderTest =
   let 
     liq1 = CE.LiqFacility "" 
                        (CE.FixSupport 100)
-
                        90
                        (Just 100)
                        (Just CE.IncludeDueInt)
-
                        Nothing -- rate type
                        Nothing -- premium rate type
                        
                        Nothing -- rate
                        Nothing -- premium reate
-
                        (Just (toDate "20220201"))
                        0
                        0
-                       
                        (toDate "20220301")
                        Nothing
                        (Just (S.Statement 
