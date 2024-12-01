@@ -210,8 +210,7 @@ uDealFutureTxn = lens getter setter
              Just (CF.CashFlowFrame (begBal,begDate,mInt) txns) -> ud {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) newTxn) }
 
 
-data PoolType a = SoloPool (P.Pool a)
-                | MultiPool (Map.Map PoolId (P.Pool a))
+data PoolType a = MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map PoolId (UnderlyingDeal a))
                 deriving (Generic, Eq, Ord, Show)
 
@@ -368,29 +367,26 @@ dealPool = lens getter setter
     setter d newPool = d {pool = newPool}
 
 
-
-
 poolTypePool :: Ast.Asset a => Lens' (PoolType a) (Map.Map PoolId (P.Pool a))
 poolTypePool = lens getter setter
   where
-    getter = \case
-      SoloPool p -> Map.singleton PoolConsol p
-      MultiPool pm -> pm
-    setter (SoloPool p) newPm = SoloPool (newPm Map.! PoolConsol)
+    getter = \case MultiPool pm -> pm
     setter (MultiPool pm) newPm = MultiPool newPm
+
+poolTypeUnderDeal :: Ast.Asset a => Lens' (PoolType a) (Map.Map PoolId (UnderlyingDeal a))
+poolTypeUnderDeal = lens getter setter
+  where 
+    getter = \case ResecDeal dm -> dm
+    setter (ResecDeal dm) newDm = ResecDeal newDm
 
 dealScheduledCashflow :: Ast.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.CashFlowFrame))
 dealScheduledCashflow = lens getter setter
   where
     getter d = case pool d of
-                SoloPool p -> Map.fromList [(PoolConsol,P.futureScheduleCf p)]
                 MultiPool pm -> Map.map P.futureScheduleCf pm
                 ResecDeal uds -> Map.map futureScheduleCf uds
                 x -> error $ "Failed to match :" ++ show x
     setter d newCfMap = case pool d of
-                          SoloPool p -> case Map.lookup PoolConsol newCfMap of
-                                          Just cf -> set dealPool (SoloPool (p {P.futureScheduleCf = cf})) d
-                                          Nothing -> error $ "can't set multi pool cf to a solo pool"
                           MultiPool pm -> let 
                                             newPm = Map.mapWithKey (\k p -> set P.poolFutureScheduleCf (newCfMap Map.! k) p) pm
                                           in
@@ -406,13 +402,9 @@ dealCashflow :: Ast.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.Cash
 dealCashflow = lens getter setter
   where 
     getter d = case pool d of
-                SoloPool p -> Map.fromList [(PoolConsol,P.futureCf p)]
                 MultiPool pm -> Map.map P.futureCf pm
                 ResecDeal uds -> Map.map futureCf uds
     setter d newCfMap = case pool d of 
-                          SoloPool p -> case Map.lookup PoolConsol newCfMap of
-                                          Just cf -> set dealPool (SoloPool (p {P.futureCf = cf})) d
-                                          Nothing -> error $ "can't set multi pool cf to a solo pool"
                           MultiPool pm -> let 
                                             newPm = Map.mapWithKey (\k p -> set P.poolFutureCf (newCfMap Map.! k) p) pm
                                           in 
@@ -427,7 +419,6 @@ dealCashflow = lens getter setter
 getPoolIds :: Ast.Asset a => TestDeal a -> [PoolId]
 getPoolIds t@TestDeal{pool = pt} 
   = case pt of
-      SoloPool _ -> [PoolConsol] 
       MultiPool pm -> Map.keys pm
       ResecDeal pm -> Map.keys pm
       _ -> error "failed to match pool type in pool ids"
@@ -447,7 +438,6 @@ getIssuanceStats t@TestDeal{pool = pt} mPoolId
                             Just pns -> Map.filterWithKey (\k _ -> k `elem` pns ) uDeals
         in
           Map.map (fromMaybe Map.empty . issuanceStat) selecteduDeals 
-      SoloPool p -> Map.fromList [(PoolConsol, fromMaybe Map.empty (P.issuanceStat p))]
       MultiPool pm -> let 
                         selectedPools = case mPoolId of 
                                           Nothing -> pm
@@ -466,7 +456,6 @@ getAllAsset :: TestDeal a -> Maybe [PoolId] -> Map.Map PoolId [a]
 getAllAsset t@TestDeal{pool = pt} mPns = 
   let 
     assetMap = case pt of 
-                 SoloPool p -> Map.fromList [(PoolConsol, P.assets p)]
                  MultiPool pm -> Map.map P.assets pm
                  ResecDeal _ -> Map.empty
                  -- ResecDeal pm -> Map.mapWithKey (\(UnderlyingBond (bn,hpct,sd), d) -> getAllAsset d Nothing) pm

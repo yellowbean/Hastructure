@@ -1671,6 +1671,25 @@
                         ],
                         "title": "WatchVal",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Placeholder"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Placeholder",
+                        "type": "object"
                     }
                 ]
             },
@@ -11799,25 +11818,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Pool_AssetUnion"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/Pool_AssetUnion"
                                 },
@@ -11863,25 +11863,6 @@
             },
             "PoolType_FixedAsset": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Pool_FixedAsset"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -11933,25 +11914,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Pool_Installment"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/Pool_Installment"
                                 },
@@ -11997,25 +11959,6 @@
             },
             "PoolType_Lease": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Pool_Lease"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -12067,25 +12010,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Pool_Loan"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/Pool_Loan"
                                 },
@@ -12131,25 +12055,6 @@
             },
             "PoolType_Mortgage": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Pool_Mortgage"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -12201,25 +12106,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Pool_ProjectedCashflow"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/Pool_ProjectedCashflow"
                                 },
@@ -12265,25 +12151,6 @@
             },
             "PoolType_Receivable": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Pool_Receivable"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -19254,7 +19121,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.31.2"
+        "version": "0.40.1"
     },
     "openapi": "3.0.0",
     "paths": {

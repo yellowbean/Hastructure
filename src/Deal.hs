@@ -10,7 +10,7 @@ module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,populateDealDates,accrueRC
             ,calcTargetAmount,updateLiqProvider
             ,projAssetUnion,priceAssetUnion
-            ,removePoolCf,setFutureCF,runPoolType,PoolType
+            ,removePoolCf,runPoolType,PoolType
             ,ActionOnDate(..),DateDesp(..),OverrideType(..)
             ) where
 
@@ -241,7 +241,7 @@ testCall t d opt =
        -- C.And xs -> (all id) <$> sequenceA $ [testCall t d x | x <- xs]
        -- C.Or xs -> (any id) <$> sequenceA $ [testCall t d x | x <- xs]
        C.Pre pre -> testPre d t pre
-       _ -> error ("failed to find call options"++ show opt)
+       _ -> Left ("failed to find call options"++ show opt)
 
 -- ^ if any of the call options are satisfied
 -- testCalls :: Ast.Asset a => TestDeal a -> Date -> [C.CallOption] -> Bool
@@ -297,7 +297,6 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
             -- sell assets
             ----- valuation on pools
             assetVal = case pt of 
-                        SoloPool p -> P.calcLiquidationAmount pm p closingDate 
                         MultiPool pMap -> sum $ Map.map (\p -> P.calcLiquidationAmount pm p closingDate) pMap
             assetBal = queryDeal t (FutureCurrentPoolBalance Nothing)
             accAfterBought = Map.adjust (A.draw assetVal d (PurchaseAsset "ALL" assetBal)) accName accMap
@@ -308,7 +307,6 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
             newPt = patchIssuanceBalance st dealPoolFlowMap pt 
             ---- reset pool stats
             newPt2 = case newPt of 
-                      SoloPool _pt -> SoloPool $ over (P.poolFutureCf2 . CF.cashflowTxn) (CF.patchCumulative (0,0,0,0,0,0) []) _pt
                       MultiPool pm -> MultiPool $ Map.map (over (P.poolFutureCf2 . CF.cashflowTxn) (CF.patchCumulative (0,0,0,0,0,0) [])) pm
                       x -> x
             -- build actions dates
@@ -811,18 +809,6 @@ appendCollectedCF :: Ast.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.Cash
 appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
   = let 
       newPt = case pt of
-                SoloPool p -> 
-                  let
-                    txnCollected::[CF.TsRow] = view CF.cashflowTxn (poolInflowMap Map.! PoolConsol)
-                    balInCollected = case length txnCollected of
-                                       0 -> 0 
-                                       _ ->  CF.mflowBalance $ last txnCollected
-                    currentStats = case view P.poolFutureTxn p of
-                                      [] -> P.poolBegStats p
-                                      txns -> fromMaybe (0,0,0,0,0,0) $ view CF.txnCumulativeStats (last txns)
-                    txnToAppend = CF.patchCumulative currentStats [] txnCollected -- `debug` ("Start iwht current stats="++ show currentStats)
-                  in 
-                    SoloPool $ over P.poolIssuanceStat (Map.insert RuntimeCurrentPoolBalance balInCollected) $ over P.poolFutureTxn (++ txnToAppend) p
                 MultiPool poolM -> 
                   MultiPool $
                     Map.foldrWithKey
@@ -856,7 +842,6 @@ removePoolCf :: Ast.Asset a => TestDeal a -> TestDeal a
 removePoolCf t@TestDeal{pool=pt} =
   let 
     newPt = case pt of 
-              SoloPool p -> SoloPool $ set P.poolFutureCf Nothing p
               MultiPool pM -> MultiPool $ Map.map (set P.poolFutureCf Nothing) pM 
               ResecDeal uds -> ResecDeal uds
               _ -> error "not implement"
@@ -864,13 +849,13 @@ removePoolCf t@TestDeal{pool=pt} =
     t {pool=newPt}
 
 -- ^ TODO: need to set cashflow to different pool other than SoloPool
-setFutureCF :: Ast.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
-setFutureCF t@TestDeal{pool = (SoloPool p )} cf 
-  = let 
-      newPool =  p {P.futureCf = Just cf}
-      newPoolType = SoloPool newPool 
-    in 
-      t {pool = newPoolType }
+-- setFutureCF :: Ast.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
+-- setFutureCF t@TestDeal{pool = (SoloPool p )} cf 
+--   = let 
+--       newPool =  p {P.futureCf = Just cf}
+--       newPoolType = SoloPool newPool 
+--     in 
+--       t {pool = newPoolType }
 
 populateDealDates :: DateDesp -> DealStatus -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
 populateDealDates (WarehousingDates begDate rampingPoolDp rampingBondDp statedDate)
@@ -1033,7 +1018,6 @@ patchIssuanceBalance :: Ast.Asset a => DealStatus -> Map.Map PoolId Balance -> P
 patchIssuanceBalance (Warehousing _) balM pt = patchIssuanceBalance (PreClosing Amortizing) balM pt
 patchIssuanceBalance (PreClosing _ ) balM pt =
   case pt of 
-    SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 PoolConsol balM)) p -- `debug` ("Insert with issuance balance"++ show (Map.findWithDefault 0.0 PoolConsol balM))
     MultiPool pM -> MultiPool $ Map.mapWithKey (\k v -> over P.poolIssuanceStat (Map.insert IssuanceBalance (Map.findWithDefault 0.0 k balM)) v) pM
     ResecDeal pM -> ResecDeal pM  --TODO patch balance for resec deal
     
@@ -1042,17 +1026,10 @@ patchIssuanceBalance _ bal p = p -- `debug` ("NO patching ?")
 patchScheduleFlow :: Ast.Asset a => Map.Map PoolId CF.CashFlowFrame -> PoolType a -> PoolType a
 patchScheduleFlow flowM pt = 
   case pt of
-    SoloPool p -> case Map.lookup PoolConsol flowM of
-                    Nothing -> error $ "Failed to find schedule flow of pool id of Pool Console in "++ show (Map.keys flowM)
-                    Just scheduleCf -> SoloPool $ set P.poolFutureScheduleCf (Just scheduleCf) p
     MultiPool pM -> MultiPool $ Map.intersectionWith (set P.poolFutureScheduleCf) (Just <$> flowM) pM
     ResecDeal pM -> ResecDeal pM
 
 patchRuntimeBal :: Ast.Asset a => Map.Map PoolId Balance -> PoolType a -> PoolType a
-patchRuntimeBal balMap (SoloPool p) = case Map.lookup PoolConsol balMap of
-                                        Nothing -> error "Failed to find beg bal for pool"
-                                        Just b -> SoloPool $ over P.poolIssuanceStat  (\m -> Map.insert RuntimeCurrentPoolBalance b m) p
-
 patchRuntimeBal balMap (MultiPool pM) 
   = MultiPool $
       Map.mapWithKey
@@ -1065,10 +1042,6 @@ patchRuntimeBal balMap pt = pt
 
 runPoolType :: Ast.Asset a => PoolType a -> Maybe AP.ApplyAssumptionType 
             -> Maybe AP.NonPerfAssumption -> Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
-runPoolType (SoloPool p) mAssumps mNonPerfAssump 
-  = sequenceA $ 
-       Map.fromList [(PoolConsol
-                     ,(P.aggPool (P.issuanceStat p)) <$> (runPool p mAssumps (AP.interest =<< mNonPerfAssump)))]
 
 runPoolType (MultiPool pm) (Just (AP.ByName assumpMap)) mNonPerfAssump
   = sequenceA $ Map.mapWithKey 

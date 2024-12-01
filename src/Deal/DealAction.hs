@@ -575,7 +575,6 @@ performActionWrap d
         let boughtAssetBal =  sum $ curBal <$> assetBought -- `debug` ("Asset bought 0 \n"++ show assetBought++ "pflow map\n"++ show pFlowMap++" p id to change\n"++ show pIdToChange)
         -- update runtime balance
         let newPt = case pt of 
-                      SoloPool p -> SoloPool $ over P.poolIssuanceStat (Map.adjust (+ boughtAssetBal) RuntimeCurrentPoolBalance) p
                       MultiPool pm -> MultiPool $ Map.adjust
                                                     (over P.poolIssuanceStat (Map.adjust (+ boughtAssetBal) RuntimeCurrentPoolBalance))  
                                                     pIdToChange
@@ -637,14 +636,11 @@ performActionWrap d
 
      poolMapToLiq = case (pt, mPid) of 
                       (MultiPool pm, Nothing) -> pm
-                      (SoloPool p, Nothing) -> Map.fromList [(PoolConsol,p)]
                       (MultiPool pm,Just pids) -> let
                                                    selectedPids = S.fromList pids
                                                    selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
                                                   in 
                                                    selectedPoolMap
-                      (SoloPool p,Just [PoolConsol]) -> Map.fromList [(PoolConsol,p)]
-                      (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
                       (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
      
 
@@ -656,14 +652,11 @@ performActionWrap d
      -- Update collected cashflow
      newPt = case (pt, mPid) of 
                (MultiPool pm, Nothing) -> MultiPool $ Map.map liqFunction pm
-               (SoloPool p, Nothing) -> SoloPool $ liqFunction p
-               (MultiPool pm,Just pids) -> let
+               (MultiPool pm, Just pids) -> let
                                             selectedPids = S.fromList pids
                                             selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
                                            in 
                                             MultiPool $ Map.union (Map.map liqFunction selectedPoolMap) pm
-               (SoloPool p,Just [PoolConsol]) -> SoloPool $ liqFunction p
-               (SoloPool p,Just _ ) -> error $ "Not able to sell "++ show mPid ++ " in solo pool"
                (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
 
      liqComment = LiquidationProceeds (fromMaybe [] mPid)
