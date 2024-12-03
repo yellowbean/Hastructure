@@ -239,6 +239,8 @@ instance Asset Lease where
         begBal = CF.buildBegBal allTxns
         
 
+    projCashflow a b c d = Left $ "Failed to match when proj mortgage with assumption >>" ++ show a ++ show b ++ show c ++ show d
+    
     getCurrentBal l = case l of 
                         StepUpLease _ _ bal _ _ -> bal
                         RegularLease _ bal _ _-> bal

@@ -32,7 +32,13 @@ import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
 
+import Debug.Trace
+debug = flip Debug.Trace.trace
+
 dummySt = (0,toDate "19000101",Nothing)
+
+
+emptyRunAssump = AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing 
 
 
 td2 = D.TestDeal {
@@ -200,6 +206,7 @@ baseDeal = D.TestDeal {
                              ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
                              ,L.bndBalance=3000
                              ,L.bndRate=0.08
+                             ,L.bndStepUp=Nothing
                              ,L.bndDuePrin=0.0
                              ,L.bndDueInt=0.0
                              ,L.bndDueIntOverInt=0.0
@@ -219,8 +226,10 @@ baseDeal = D.TestDeal {
                                ,L.bndInterestInfo= L.Fix 0.08 DC_ACT_365F
                                ,L.bndBalance=500
                                ,L.bndRate=0.08
+                               ,L.bndStepUp=Nothing
                                ,L.bndDuePrin=0.0
                                ,L.bndDueInt=0.0
+                               ,L.bndDueIntOverInt=0.0
                                ,L.bndDueIntDate=Nothing
                                ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                                ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
@@ -248,9 +257,9 @@ baseDeal = D.TestDeal {
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]})]
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
-                                  (W.PayFee Nothing "General" ["Service-Fee"] Nothing)
-                                 ,(W.PayInt Nothing "General" ["A"] Nothing)
+                                 (W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
+                                 ,(W.PayPrin Nothing "General" ["B"] Nothing)
    ])]
  ,D.collects = [W.Collect Nothing W.CollectedCash "General"]
  ,D.custom = Nothing
@@ -265,15 +274,14 @@ baseDeal = D.TestDeal {
 poolFlowTest = testGroup "pool cashflow test" 
   [
    let 
-      (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal DealPoolFlowPricing Nothing (AP.NonPerfAssumption {})) of
-                                              (Left _) -> undefined
-                                              (Right (a,b,c,d)) -> (a,b,c,d)
+      (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal DealPoolFlowPricing Nothing emptyRunAssump) of
+                                              (Left er) -> undefined 
+                                              (Right (a,b,c,d)) -> (a,b,c,d) 
    in 
       testCase "pool begin flow" $
-      assertEqual "pool size should be 60" 
-      1 1
-        -- (Just (Map.fromList [(PoolConsol ,60)]))
-        -- ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf )
+      assertEqual "pool size should be 60+1" 
+      (Just (Map.fromList [(PoolConsol ,61)]))
+      ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf ) -- `debug` ("pool "++ show (viewBond))
   ]
 
 

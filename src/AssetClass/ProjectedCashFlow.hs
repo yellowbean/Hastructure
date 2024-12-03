@@ -194,6 +194,8 @@ instance Ast.Asset ProjectedCashflow where
           Right $ (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
           --(fixedCashFlow, Map.empty)
 
+    projCashflow a b c d = Left $ "Failed to match when proj projected flow with assumption >>" ++ show a ++ show b ++ show c ++ show d
+    
     getBorrowerNum f = 0
 
     splitWith f rs = [f]

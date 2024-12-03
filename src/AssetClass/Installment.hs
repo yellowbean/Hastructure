@@ -175,6 +175,8 @@ instance Asset Installment where
   projCashflow inst@(Installment _ cb rt (Defaulted Nothing)) asOfDay assumps _
     = Right $ (CF.CashFlowFrame (cb, asOfDay, Nothing) $ [CF.LoanFlow asOfDay cb 0 0 0 0 0 0 (getOriginRate inst) Nothing],Map.empty)
         
+  projCashflow a b c d = Left $ "Failed to match when proj mortgage with assumption >>" ++ show a ++ show b ++ show c ++ show d
+  
   splitWith (Installment (LoanOriginalInfo ob or ot p sd _type _obligor) cb rt st) rs
     = [ Installment (LoanOriginalInfo (mulBR ob ratio) or ot p sd _type _obligor) (mulBR cb ratio) rt st | ratio <- rs ]
 

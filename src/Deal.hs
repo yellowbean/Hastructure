@@ -790,25 +790,26 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
                                                            ,AP.pricing   = mPricing
                                                            ,AP.revolving = mRevolving
                                                            ,AP.interest  = mInterest} 
-  | not runFlag = Right $ (t, Nothing, Just valLogs, Nothing) --TODO should be left as warning errors to be sent back to user
+  -- | not runFlag = Right $ (t, Nothing, Just valLogs, Nothing) --TODO should be left as warning errors to be sent back to user
+  | not runFlag = Left $ intercalate ";" $ show <$> valLogs 
   | otherwise 
     = do 
-      (newT, ads, pcf, unStressPcf) <- getInits t perfAssumps (Just nonPerfAssumps)  
-      (finalDeal, logs) <- run (removePoolCf newT) 
-                               pcf
-                               (Just ads) 
-                               mInterest
-                               (readCallOptions <$> opts)
-                               mRevolvingCtx
-                               []  
-      let poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) [])) (getAllCollectedFrame finalDeal Nothing)  
-      let poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed  
-      -- bond pricing if any                            
-      let bndPricing = case mPricing of
-                         Nothing -> Nothing     
-                         Just _bpi -> Just (priceBonds finalDeal _bpi)  
+        (newT, ads, pcf, unStressPcf) <- getInits t perfAssumps (Just nonPerfAssumps)  
+        (finalDeal, logs) <- run (removePoolCf newT) 
+                                 pcf
+                                 (Just ads) 
+                                 mInterest
+                                 (readCallOptions <$> opts)
+                                 mRevolvingCtx
+                                 []  
+        let poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) [])) (getAllCollectedFrame finalDeal Nothing)  
+        let poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed  
+        -- bond pricing if any                            
+        let bndPricing = case mPricing of
+                           Nothing -> Nothing     
+                           Just _bpi -> Just (priceBonds finalDeal _bpi)  
 
-      return (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
+        return (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
       -- getinits() will get (new deal snapshot, actions, pool cashflows, unstressed pool cashflow)

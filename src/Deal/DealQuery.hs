@@ -128,7 +128,6 @@ patchDatesToStats t d1 d2 ds
       AvgRatio ss -> AvgRatio $ [ patchDatesToStats t d1 d2 ds | ds <- ss ]
       x -> x
 
-
       
 -- ^ map from Pool Source to Pool CutoffFields in Pool Map
 poolSourceToIssuanceField :: PoolSource -> CutoffFields
@@ -552,7 +551,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap} d s =
         Just b@(L.BondGroup bSubMap) -> 
           let 
             bnds = Map.elems bSubMap
-            rates = toRational <$> L.bndRate <$> bnds
+            rates = toRational . L.bndRate <$> bnds
             bals = L.getCurBalance <$> bnds
           in 
             Right $ weightedBy bals rates
@@ -568,7 +567,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap} d s =
     PoolWaRate mPns -> 
       let 
         latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t mPns
-        rates = toRational <$> maybe 0.0 CF.mflowRate  <$> latestCfs
+        rates = toRational . maybe 0.0 CF.mflowRate  <$> latestCfs
         bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
       in 
         Right $ weightedBy bals rates
@@ -577,7 +576,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap} d s =
     FutureCurrentPoolBorrowerNum _d mPns ->
       let 
         poolCfs = Map.elems $ getLatestCollectFrame t mPns
-        poolBn =  maybe 0 (\x -> fromMaybe 0 (CF.mflowBorrowerNum x)) <$> poolCfs
+        poolBn =  maybe 0 (fromMaybe 0 . CF.mflowBorrowerNum) <$> poolCfs
       in 
         Right . toRational $ sum poolBn
     CurrentPoolBorrowerNum mPns ->
@@ -596,24 +595,23 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap} d s =
     ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
 
     ReserveBalance ans -> 
-        let 
-          accs::[A.Account] = (accMap Map.!) <$> ans
-          targetBals::[Either String Balance] = calcTargetAmount t d <$> accs 
-        in 
-          (toRational . sum) <$> sequenceA targetBals 
+      let 
+        accs::[A.Account] = (accMap Map.!) <$> ans
+        targetBals::[Either String Balance] = calcTargetAmount t d <$> accs 
+      in 
+        toRational . sum <$> sequenceA targetBals 
 
     ReserveExcessAt _d ans ->
-        do 
-          q1 <- queryCompound t d (AccBalance ans)
-          q2 <- queryCompound t d (ReserveBalance ans)
-          return $ max 0 (q1 - q2)
+      do 
+        q1 <- queryCompound t d (AccBalance ans)
+        q2 <- queryCompound t d (ReserveBalance ans)
+        return $ max 0 (q1 - q2)
 
     ReserveGapAt _d ans ->
-        do 
-          q1 <- queryCompound t d (AccBalance ans)
-          q2 <- queryCompound t d (ReserveBalance ans)
-          return $ max 0 (q2 - q1)
-
+      do 
+        q1 <- queryCompound t d (AccBalance ans)
+        q2 <- queryCompound t d (ReserveBalance ans)
+        return $ max 0 (q2 - q1)
 
     balanceQ -> Right . toRational $ queryDeal t balanceQ
 
