@@ -13,7 +13,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,emptyTsRow,mflowAmortAmount
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
-                ,getDate,getTxnLatestAsOf
+                ,getDate,getTxnLatestAsOf,totalPrincipal
                 ,mflowWeightAverageBalance
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
@@ -824,6 +824,9 @@ totalDefault (CashFlowFrame _ rs) = sum $ mflowDefault <$> rs
 
 totalRecovery :: CashFlowFrame -> Balance
 totalRecovery (CashFlowFrame _ rs) = sum $ mflowRecovery <$> rs
+
+totalPrincipal :: CashFlowFrame -> Balance
+totalPrincipal (CashFlowFrame _ rs) = sum $ mflowPrincipal <$> rs
 
 -- ^ merge two cashflow frame but no patching beg balance
 mergePoolCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame

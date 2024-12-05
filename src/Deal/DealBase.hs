@@ -214,6 +214,10 @@ data PoolType a = MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map PoolId (UnderlyingDeal a))
                 deriving (Generic, Eq, Ord, Show)
 
+
+
+
+
 data TestDeal a = TestDeal { name :: DealName
                              ,status :: DealStatus
                              ,dates :: DateDesp

@@ -92,11 +92,11 @@ import qualified DateUtil as DU
 
 import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
 import Control.Lens
-import Debug.Trace
 import qualified Types as W
 import Cashflow (patchCumulative)
 
 
+import Debug.Trace
 debug = flip Debug.Trace.trace
 
 

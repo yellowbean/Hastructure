@@ -7,7 +7,7 @@ import Test.Tasty.HUnit
 import Deal
 
 import qualified Accounts as A
-import qualified Stmt as S
+import qualified Stmt as Stmt
 import qualified Pool as P
 import qualified Asset as Ast
 import qualified AssetClass.Mortgage as ACM
@@ -25,6 +25,8 @@ import qualified Triggers as Trg
 import Lib
 import Types
 
+import Control.Lens hiding (Index,Empty)
+import Control.Lens.TH
 import Data.Maybe
 import Data.Either
 
@@ -167,8 +169,8 @@ td2 = D.TestDeal {
                                 0
                                 (toDate "20220201")
                                 Nothing
-                                (Just (S.Statement [SupportTxn (toDate "20220215") (Just 110) 10 40 0 0 S.Empty 
-                                                    ,SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 S.Empty])))]
+                                (Just (Stmt.Statement [SupportTxn (toDate "20220215") (Just 110) 10 40 0 0 Empty 
+                                                    ,SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 Empty])))]
  ,D.triggers = Just $
                 Map.fromList $
                   [(BeginDistributionWF,
@@ -271,18 +273,30 @@ baseDeal = D.TestDeal {
  ,D.rateCap = Nothing
 }
 
-poolFlowTest = testGroup "pool cashflow test" 
-  [
+poolFlowTest = 
    let 
-      (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal DealPoolFlowPricing Nothing emptyRunAssump) of
+     (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal DealPoolFlowPricing Nothing emptyRunAssump) of
                                               (Left er) -> undefined 
                                               (Right (a,b,c,d)) -> (a,b,c,d) 
+     bndMap = D.viewBondsInMap deal
    in 
+   testGroup "pool cashflow test" 
+    [
       testCase "pool begin flow" $
       assertEqual "pool size should be 60+1" 
       (Just (Map.fromList [(PoolConsol ,61)]))
       ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf ) -- `debug` ("pool "++ show (viewBond))
-  ]
+      
+      ,testCase "total principal bal" $
+      assertEqual "pool bal should equal to total collect"
+      (Just (Map.fromList [(PoolConsol ,4000)]))
+      ((\m -> Map.map CF.totalPrincipal m) <$> mPoolCf ) -- `debug` ("pool "++ show (viewBond))
+      
+      ,testCase "last bond A payment date" $
+       assertEqual "pool bal should equal to total collect"
+       (Just (BondTxn (toDate "20240225") 0.00 0.00 30.56 0.080000 30.56 0.00 0.00 (Just 0.0) (TxnComments [PayInt ["A"],PayPrin ["A"]])))
+       $ (\s -> last (view Stmt.statementTxns s)) <$> (L.bndStmt $ (bndMap Map.! "A"))
+    ]
 
 
 queryTests =  testGroup "deal stat query Tests"
@@ -365,9 +379,9 @@ liqProviderTest =
                        0
                        (toDate "20220301")
                        Nothing
-                       (Just (S.Statement 
-                               [SupportTxn (toDate "20220215") (Just 110) 40 40 0 0 S.Empty
-                               ,SupportTxn (toDate "20220315") (Just 100) 50 90 0 0 S.Empty
+                       (Just (Stmt.Statement 
+                               [SupportTxn (toDate "20220215") (Just 110) 40 40 0 0 Empty
+                               ,SupportTxn (toDate "20220315") (Just 100) 50 90 0 0 Empty
                                ]))
   in 
     testGroup "Liq provider test" 

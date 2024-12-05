@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Ledger (Ledger(..),entryLog,LedgerName,queryGap,entryDebit,entryCredit,clearLedgersBySeq
-              ,queryDirection)
+              ,queryDirection,entryLogByDr)
     where
 import qualified Data.Time as T
 import Stmt 
@@ -26,9 +26,9 @@ debug = flip trace
 type LedgerName = String
 
 data Ledger = Ledger {
-    ledgName :: String              -- ^ ledger account name
-    ,ledgBalance :: Balance         -- ^ current balance of ledger
-    ,ledgStmt :: Maybe Statement    -- ^ ledger transaction history
+    ledgName :: String                              -- ^ ledger account name
+    ,ledgBalance :: Balance                         -- ^ current balance of ledger
+    ,ledgStmt :: Maybe Statement                    -- ^ ledger transaction history
 } deriving (Show, Generic,Ord, Eq)
 
 -- | Book an entry with date,amount and transaction to a ledger
@@ -44,8 +44,10 @@ entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal}
                   txn = EntryTxn d newBal amt cmt
                 in 
                   ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }
-                                   where 
 
+entryLogByDr :: BookDirection -> Amount -> Date -> TxnComment -> Ledger -> Ledger
+entryLogByDr Credit amt = entryLog (negate amt) 
+entryLogByDr Debit amt = entryLog amt 
 
 isTxnDirection :: BookDirection -> TxnComment -> Bool 
 isTxnDirection Credit (TxnDirection Credit) = True
@@ -70,7 +72,7 @@ queryDirection (Ledger _ bal _)
   |  bal >= 0 = (Debit, bal)
   |  bal < 0 = (Credit, negate bal)
 
--- ^ return ledger's bookable amount with direction input
+-- ^ return ledger's bookable amount (for netting off to zero ) with direction input
 queryGap :: BookDirection -> Ledger -> Balance
 queryGap dr Ledger{ledgBalance = bal}  
   = case (bal > 0, dr) of 
