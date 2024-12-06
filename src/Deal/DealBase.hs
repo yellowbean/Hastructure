@@ -199,7 +199,7 @@ uDealFutureCf = lens getter setter
 uDealFutureTxn :: Ast.Asset a => Lens' (UnderlyingDeal a) [CF.TsRow]
 uDealFutureTxn = lens getter setter
   where 
-    getter ud = fromMaybe [] $ CF.getTsCashFlowFrame <$> futureCf ud
+    getter ud = fromMaybe [] $ (view CF.cashflowTxn) <$> futureCf ud
     setter ud newTxn = 
         let 
            mOriginalCfFrame = futureCf ud 

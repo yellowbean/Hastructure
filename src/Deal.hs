@@ -409,19 +409,16 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                -- outstandingFlow = Map.map (CF.insertBegTsRow d . snd) cutOffPoolFlowMap
                outstandingFlow = Map.map snd cutOffPoolFlowMap
                -- deposit cashflow to SPV from external pool cf               
-               accs = depositPoolFlow (collects t) d collectedFlow accMap -- `debug` ("d"++ show d++">>>"++ show collectedFlow++"\n")
-               
-               dAfterDeposit = (appendCollectedCF d t collectedFlow) {accounts=accs}   -- `debug` ("Collected flow"++ show collectedFlow)
-               
-               -- newScheduleFlowMap = Map.map (over CF.cashflowTxn (cutBy Exc Future d)) (fromMaybe Map.empty (getScheduledCashflow t Nothing))
-               dealAfterUpdateScheduleFlow = over dealScheduledCashflow 
-                                                  (Map.map (\mflow -> over CF.cashflowTxn (cutBy Exc Future d) <$> mflow))
-                                                  dAfterDeposit
-
-               runContext = RunContext outstandingFlow rAssump rates
-               
+              
              in 
                do 
+                 let accs = depositPoolFlow (collects t) d collectedFlow accMap -- `debug` ("d"++ show d++">>>"++ show collectedFlow++"\n")
+                 let dAfterDeposit = (appendCollectedCF d t collectedFlow) {accounts=accs}   -- `debug` ("Collected flow"++ show collectedFlow)
+                 -- newScheduleFlowMap = Map.map (over CF.cashflowTxn (cutBy Exc Future d)) (fromMaybe Map.empty (getScheduledCashflow t Nothing))
+                 let dealAfterUpdateScheduleFlow = over dealScheduledCashflow 
+                                                     (Map.map (\mflow -> over CF.cashflowTxn (cutBy Exc Future d) <$> mflow))
+                                                     dAfterDeposit
+                 let runContext = RunContext outstandingFlow rAssump rates
                  (dRunWithTrigger0, rc1,ads2, newLogs0) <- runTriggers (dealAfterUpdateScheduleFlow,runContext,ads) d EndCollection  
                  let eopActionsLog = [ RunningWaterfall d W.EndOfPoolCollection | Map.member W.EndOfPoolCollection waterfallM ] -- `debug` ("new logs from trigger 1"++ show newLogs0)
                  let waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("new logs from trigger 1"++ show newLogs0)
@@ -1329,9 +1326,10 @@ extractTxnsFromFlowFrameMap mPids pflowMap =
     Nothing -> extractTxns pflowMap
     Just pids -> extractTxns $ Map.filterWithKey (\k _ -> k `elem` pids) pflowMap
   where 
-    extractTxns m = concat $ CF.getTsCashFlowFrame <$> Map.elems m
+    extractTxns m = concat $ (view CF.cashflowTxn) <$> Map.elems m
+    -- extractTxns m = concatMap $ (view CF.cashflowTxn) $ Map.elems m
 
-
+-- ^ deposit cash to account by collection rule
 depositInflow :: Date -> W.CollectionRule -> Map.Map PoolId CF.CashFlowFrame -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
 depositInflow d (W.Collect mPids s an) pFlowMap amap 
   = Map.adjust (A.deposit amt d (PoolInflow mPids s)) an amap -- `debug` ("Date"++show d++"Deposit"++show amt++"Rule"++show s ++">>AN"++ show an)
@@ -1353,7 +1351,7 @@ depositInflow d (W.CollectByPct mPids s splitRules) pFlowMap amap    --TODO need
 
 depositInflow _ a _ _ = error $ "Failed to match collection rule"++ show a
 
--- ^ deposit cash to account by pool map CF
+-- ^ deposit cash to account by pool map CF and rules
 depositPoolFlow :: [W.CollectionRule] -> Date -> Map.Map PoolId CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
 depositPoolFlow rules d pFlowMap amap
   = foldr (\rule acc -> depositInflow d rule pFlowMap acc) amap rules

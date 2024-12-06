@@ -495,6 +495,7 @@ data DealStats = CurrentBondBalance
                | AllAccBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
+               | LedgerBalanceBy BookDirection [String]
                | LedgerTxnAmt [String] (Maybe TxnComment)
                | ReserveBalance [AccName] 
                | ReserveGap [AccName]
@@ -846,6 +847,7 @@ instance ToJSON TxnComment where
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
   toJSON (PayGroupInt bns) = String $ T.pack $ "<PayGroupInt:"++ listToStrWithComma bns ++ ">"
   toJSON (PayGroupPrin bns) = String $ T.pack $ "<PayGroupPrin:"++ listToStrWithComma bns ++ ">"
+  toJSON (BookLedgerBy dr lName) = String $ T.pack $ "<BookLedger:"++ lName ++ ">"
   toJSON x = error $ "Not support for toJSON for "++show x
 
 instance FromJSON TxnComment where
@@ -974,7 +976,7 @@ data CustomDataType = CustomConstant Rational
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
+$(concat <$> traverse (deriveJSON defaultOptions) [''BookDirection, ''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )
 
 
@@ -1053,7 +1055,6 @@ instance FromJSONKey Threshold where
 
 
 $(deriveJSON defaultOptions ''RateAssumption)
-$(deriveJSON defaultOptions ''BookDirection)
 $(deriveJSON defaultOptions ''Direction)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''Limit] )

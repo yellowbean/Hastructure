@@ -3,11 +3,11 @@
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf,sumTsCF,tsSetDate,tsSetLoss,tsSetRecovery
-                ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
+                ,sizeCashFlowFrame,aggTsByDates
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss,mflowDate
-                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
+                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
                 ,lookupSource,lookupSourceM,combineTss
                 ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
@@ -221,14 +221,12 @@ instance Show CashFlowFrame where
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 
-getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
-getTsCashFlowFrame (CashFlowFrame _ ts) = ts
-
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
 
-getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date)
-getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
+-- getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date) --TODO what if it is empty ? 
+-- getDateRangeCashFlowFrame (CashFlowFrame _ [tr]) = (getDate tr, getDate tr)
+-- getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
 
 getBegBalCashFlowFrame :: CashFlowFrame -> Balance
 getBegBalCashFlowFrame (CashFlowFrame _ []) = 0
@@ -1188,6 +1186,8 @@ txnCumulativeStats = lens getter setter
     setter (ReceivableFlow d bal p i ppy def recovery loss _) mStat
       = ReceivableFlow d bal p i ppy def recovery loss mStat
     setter x _ = x
+
+
 
 
 $(deriveJSON defaultOptions ''TsRow)

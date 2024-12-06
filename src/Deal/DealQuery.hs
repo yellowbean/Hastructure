@@ -198,6 +198,16 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
         Nothing -> error ("No ledgers were modeled , failed to find ledger:"++show ans )
         Just ledgersM -> sum $ LD.ledgBalance . (ledgersM Map.!) <$> ans
     
+    LedgerBalanceBy dr ans ->
+      case ledgerM of 
+        Nothing -> error ("No ledgers were modeled , failed to find ledger:"++show ans )
+        Just ledgersM -> 
+            let 
+              bs Credit = filter (<0) $ LD.ledgBalance . (ledgersM Map.!) <$> ans
+              bs Debit = filter (>0) $ LD.ledgBalance . (ledgersM Map.!) <$> ans
+            in 
+              sum (bs dr) -- `debug` ("dr"++show dr++">> bs dr"++ show (bs dr))
+
     FutureCurrentPoolBalance mPns ->
       case (mPns,pt) of 
         (Nothing, MultiPool pm ) -> queryDeal t (FutureCurrentPoolBalance (Just $ Map.keys pm))
@@ -313,7 +323,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
         pScheduleFlow = view dealScheduledCashflow t
-        pCfTxns = Map.map (maybe [] CF.getTsCashFlowFrame) $
+        pCfTxns = Map.map (maybe [] (view CF.cashflowTxn)) $
                     case mPns of 
                       Nothing -> pScheduleFlow
                       Just pIds -> Map.filterWithKey (\k _ -> S.member k (S.fromList pIds)) pScheduleFlow

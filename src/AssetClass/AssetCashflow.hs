@@ -84,7 +84,7 @@ applyHaircut (Just A.ExtraStress{A.poolHairCut = Just haircuts}) (CF.CashFlowFra
 patchPrepayPenaltyFlow :: (Int,Maybe PrepayPenaltyType) -> CF.CashFlowFrame -> CF.CashFlowFrame
 patchPrepayPenaltyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame st trs) 
   = let 
-      (startDate,endDate) = CF.getDateRangeCashFlowFrame mflow
+      --(startDate,endDate) = CF.getDateRangeCashFlowFrame mflow
       prepaymentFlow = CF.mflowPrepayment <$> trs
       flowSize = CF.sizeCashFlowFrame mflow
     in 

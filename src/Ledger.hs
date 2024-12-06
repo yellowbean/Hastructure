@@ -45,9 +45,23 @@ entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal}
                 in 
                   ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }
 
-entryLogByDr :: BookDirection -> Amount -> Date -> TxnComment -> Ledger -> Ledger
-entryLogByDr Credit amt = entryLog (negate amt) 
-entryLogByDr Debit amt = entryLog amt 
+-- TODO-- need to ensure there is no direction in input
+entryLogByDr :: BookDirection -> Amount -> Date -> Maybe TxnComment -> Ledger -> Ledger
+entryLogByDr dr amt d Nothing = entryLog amt d (TxnDirection dr)
+entryLogByDr dr amt d (Just cmt) 
+  | not (hasTxnDirection cmt) = entryLog amt d (TxnComments [TxnDirection dr,cmt])
+  | isTxnDirection dr cmt = entryLog amt d  cmt
+  | otherwise = error $ "Suppose direction"++ show dr++"but got from comment"++ show cmt
+
+entryLogByDr Credit amt d (Just (TxnComments cms)) = entryLog amt d (TxnComments ((TxnDirection Credit):cms))
+entryLogByDr Debit amt d (Just (TxnComments cms)) = entryLog amt d (TxnComments ((TxnDirection Debit):cms))
+
+
+hasTxnDirection :: TxnComment -> Bool
+hasTxnDirection (TxnDirection _) = True
+hasTxnDirection (TxnComments txns) = any (hasTxnDirection) txns
+hasTxnDirection _ = False
+
 
 isTxnDirection :: BookDirection -> TxnComment -> Bool 
 isTxnDirection Credit (TxnDirection Credit) = True
