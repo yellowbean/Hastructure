@@ -30,6 +30,8 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: yellowbean/hastructure
+          tags: |
+            type=match,pattern=(a\d+.\d+.\d+)
           
       - name: 'Cleanup build folder'
         run: |
