@@ -31,7 +31,9 @@ jobs:
         with:
           images: yellowbean/hastructure
           tags: |
-            type=match,pattern=(a\d+.\d+.\d+)
+            type=semver,pattern={{raw}}
+          flavor: |
+            latest=false 
           
       - name: 'Cleanup build folder'
         run: |
