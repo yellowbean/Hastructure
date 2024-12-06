@@ -206,7 +206,7 @@ queryDeal t@TestDeal{accounts=accMap, bonds=bndMap, fees=feeMap, ledgers=ledgerM
               bs Credit = filter (<0) $ LD.ledgBalance . (ledgersM Map.!) <$> ans
               bs Debit = filter (>0) $ LD.ledgBalance . (ledgersM Map.!) <$> ans
             in 
-              sum (bs dr) -- `debug` ("dr"++show dr++">> bs dr"++ show (bs dr))
+              abs $ sum (bs dr) -- `debug` ("dr"++show dr++">> bs dr"++ show (bs dr))
 
     FutureCurrentPoolBalance mPns ->
       case (mPns,pt) of 
