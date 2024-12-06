@@ -3,17 +3,23 @@
 <!-- towncrier release notes start -->
 
 
+## 0.40.6
+### 2024-12-06 
+* NEW: new formula `ledgerBalanceBy`, which return either `Credit` or `Debit` balance of a ledger
+* FIX: step-up coupon bond which has a floater index will increase forever
+* ENHANCE: refactor on `PDL` book type.
+* ENHANCE: 
+
+
 ## 0.40.1
 ### 2024-11-05
 * NEW: break changes on API ,now the engine is able to throw out error message instead of just hanging.
 
 
 ## 0.31.0
-
 ### 2024-11-05
 * NEW: new Call options assumption ,which specifies `dates` to be tested
-* NEW: 
-* ENHANCE: transform financial report to a Tree from a Table
+* ENHANCE: transform financial report to a `Tree` from a `Table`
 
 ## 0.30.5
 ### 2024-11-02
