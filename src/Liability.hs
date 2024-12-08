@@ -12,7 +12,7 @@ module Liability
   ,weightAverageBalance,calcZspread,payYield,scaleBond,totalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
-  ,getCurBalance,setBondOrigDate
+  ,getCurBalance,setBondOrigDate,isFloaterBond
   ,bndOriginInfoLens,bndIntLens,getBeginRate,_Bond,_BondGroup)
   where
 
@@ -64,6 +64,10 @@ isAdjustble InterestByYield {} = False
 isAdjustble (CapRate r _ ) = isAdjustble r
 isAdjustble (FloorRate r _ ) = isAdjustble r
 isAdjustble (WithIoI r _) = isAdjustble r
+
+isFloaterBond :: InterestInfo -> Bool
+isFloaterBond Floater {} = True
+isFloaterBond _ = False
 
 isStepUp :: Bond -> Bool
 isStepUp Bond{bndStepUp = Nothing} = False

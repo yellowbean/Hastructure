@@ -28,14 +28,14 @@ capRateTests =
     [
       testCase "Accure out of scope" $
         assertEqual "before"
-          rc
+          (Right rc)
           (accrueRC td2 (Lib.toDate "20231201") indexAssump rc)
       ,testCase "Accure out of scope" $
         assertEqual "after" 
-          rc
+          (Right rc)
           (accrueRC td2 (Lib.toDate "20280101") indexAssump rc)
       ,testCase "Accrue on flat curve" $
         assertEqual "netCash" 
-          5.0
-          (rcNetCash rc1)
+          (Right 5.0)
+          (rcNetCash <$> rc1)
     ]

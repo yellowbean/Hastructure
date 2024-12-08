@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 
 module Reports (patchFinancialReports,getItemBalance,buildBalanceSheet,buildCashReport
@@ -16,6 +17,7 @@ import qualified CreditEnhancement as CE
 import qualified Hedge as HE
 import qualified Expense as F
 import qualified Liability as L
+import Control.Applicative (liftA3)
 import Types
     ( ResultComponent(FinancialReport),
       CashflowReport(..),
@@ -28,7 +30,7 @@ import Types
       Balance, PoolId (..) ,PoolSource(..))
 import Deal.DealBase
     ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap), getIssuanceStatsConsol, getAllCollectedFrame ,poolTypePool, dealPool)
-import Deal.DealQuery ( queryDeal)
+import Deal.DealQuery ( queryCompound )
 import Deal.DealAction ( calcDueFee, calcDueInt )
 import Data.Maybe (fromMaybe)
 
@@ -64,14 +66,32 @@ getItemBalance :: BookItem -> Balance
 getItemBalance (Item _ bal) = bal
 getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
 
-getPoolBalanceStats :: P.Asset a => TestDeal a -> Maybe PoolId -> (Balance,Balance,Balance)
-getPoolBalanceStats t Nothing = (queryDeal t (FutureCurrentPoolBalance Nothing)
-                                 ,(queryDeal t (PoolCumCollection [NewDefaults] Nothing))
-                                 ,negate (queryDeal t (PoolCumCollection [CollectedRecoveries] Nothing)))
+getPoolBalanceStats :: P.Asset a => TestDeal a -> Date -> Maybe [PoolId] -> Either String [Balance]
+getPoolBalanceStats t d mPid 
+  = let 
+      poolStats = [queryCompound t d (FutureCurrentPoolBalance mPid)
+                  ,(queryCompound t d (PoolCumCollection [NewDefaults] mPid))
+                  ,negate <$> (queryCompound t d (PoolCumCollection [CollectedRecoveries] mPid))]
+    in 
+      do 
+        poolStats2::[Rational] <- sequenceA poolStats
+        return $ fromRational <$> poolStats2
 
-getPoolBalanceStats t (Just pid) = (queryDeal t (FutureCurrentPoolBalance (Just [pid]))
-                                   ,(queryDeal t (PoolCumCollection [NewDefaults] (Just [pid])))
-                                   ,negate (queryDeal t (PoolCumCollection [CollectedRecoveries] (Just [pid]))))
+-- getPoolBalanceStats t d Nothing 
+--   = sequenceA
+--      (queryCompound t d (FutureCurrentPoolBalance Nothing)
+--      ,(queryCompound t d (PoolCumCollection [NewDefaults] Nothing))
+--      ,negate (queryCompound t (PoolCumCollection [CollectedRecoveries] Nothing)))
+--
+-- getPoolBalanceStats t d (Just pid) = 
+--     sequenceA 
+--       (queryCompound t d (FutureCurrentPoolBalance (Just [pid]))
+--        ,(queryCompound t d (PoolCumCollection [NewDefaults] (Just [pid])))
+--        ,negate (queryCompound t d (PoolCumCollection [CollectedRecoveries] (Just [pid]))))
+
+
+
+
 
 type PoolBalanceSnapshot = (Balance, Balance, Balance)
 
@@ -85,29 +105,16 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
         
         ---- pools
         mapPoolKey PoolConsol = Nothing 
-        mapPoolKey (PoolName x) = Just (PoolName x)
-        poolMap = Map.mapKeys mapPoolKey $ view (dealPool . poolTypePool) t
-        poolAstBalMap = Map.mapWithKey 
-                          (\k _ -> getPoolBalanceStats t k)
-                          poolMap
+        mapPoolKey (PoolName x) = Just [PoolName x]
+        poolAstBalMap_ = Map.mapWithKey 
+                           (\k _ -> getPoolBalanceStats t d (mapPoolKey k)) $
+                           view (dealPool . poolTypePool) t
         
-        poolAstMap = Map.mapWithKey 
-                       (\k (a,b,c) -> ParentItem (show (fromMaybe PoolConsol k))
-                                        [ Item "Performing" a
-                                        , Item "Defaulted"  b
-                                        , Item "Recovery"   c ])
-                       poolAstBalMap
-        poolAst = ParentItem "Pool" $ Map.elems poolAstMap
         ---- swaps
         swapToCollect = ParentItem "Swap" [ ParentItem rsName [ Item "To Receive" rsNet ] | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
                                             , rsNet > 0 ]
-        ast = ParentItem "Asset" [ParentItem "Account" accM , poolAst , swapToCollect]
-
-
-        -- tranches
-
-        -- expenses
-        -- liquidity provider 
+        
+       -- liquidity provider 
         liqProviderAccrued = Map.map (CE.accrueLiqProvider d) (fromMaybe Map.empty liqMap)
         liqProviderOs = [ ParentItem liqName [Item "Balance" liqBal,Item "Accrue Int" liqDueInt, Item "Due Fee" liqDueFee ]  | (liqName,[liqBal,liqDueInt,liqDueFee]) <- Map.toList (Map.map (\liq -> [CE.liqBalance,CE.liqDueInt,CE.liqDuePremium]<*> [liq]) liqProviderAccrued)] 
         -- rate swap
@@ -116,6 +123,16 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
 
       in
         do
+          poolAstBalMap <- sequenceA poolAstBalMap_
+          let poolAstMap = Map.mapWithKey 
+                             (\k vs -> ParentItem (show k)
+                                              [ Item "Performing" (vs!!0) 
+                                              , Item "Defaulted"  (vs!!1) 
+                                              , Item "Recovery"   (vs!!2) ])
+                             poolAstBalMap
+          let poolAst = ParentItem "Pool" $ Map.elems poolAstMap
+        
+          let ast = ParentItem "Asset" [ParentItem "Account" accM , poolAst , swapToCollect]
           feeWithDueAmount <- (F.feeDue <$>) <$>  mapM ((calcDueFee t d)) feeMap
           let feeToPay = ParentItem "Fee" [ ParentItem feeName [Item "Due" feeDueBal] 
                                            | (feeName,feeDueBal) <- Map.toList feeWithDueAmount ]

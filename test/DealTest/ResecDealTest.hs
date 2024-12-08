@@ -68,7 +68,7 @@ baseCase = D.TestDeal {
                              ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = D.SoloPool (P.Pool {P.assets=[AB.Mortgage
+  ,D.pool = D.MultiPool (Map.fromList [(PoolConsol, (P.Pool {P.assets=[AB.Mortgage
                                          AB.MortgageOriginalInfo{
                                            AB.originBalance=4000
                                            ,AB.originRate=Fix DC_ACT_365F 0.085
@@ -85,7 +85,7 @@ baseCase = D.TestDeal {
                                ,P.futureCf=Just (CF.CashFlowFrame dummySt [])
                                ,P.asOfDate = T.fromGregorian 2022 1 1
                                ,P.issuanceStat = Nothing
-                               ,P.extendPeriods = Nothing})
+                               ,P.extendPeriods = Nothing}))])
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
