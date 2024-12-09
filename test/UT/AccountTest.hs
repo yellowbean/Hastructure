@@ -14,6 +14,11 @@ import Deal.DealQuery (queryCompound)
 import Deal.DealBase
 import qualified Cashflow as CF
 
+import qualified Pool as P
+import Control.Lens hiding (element,Empty)
+import Control.Lens.TH
+import Data.Map.Lens
+
 import qualified Data.Time as T
 import qualified Data.Map as Map
 import UT.DealTest (td2)
@@ -80,7 +85,7 @@ reserveAccTest =
                ,CF.MortgageFlow (toDate "20220801") 110 20 10 0 0 0 0 0 Nothing Nothing Nothing
                ,CF.MortgageFlow (toDate "20220901") 90 20 10 0 0 0 0 0 Nothing Nothing Nothing
                ,CF.MortgageFlow (toDate "20221001") 70 20 10 0 0 0 0 0 Nothing Nothing Nothing]
-    ttd = (setFutureCF td2 testCFs) {accounts = accMap}
+    ttd = set (dealPool . poolTypePool . (ix PoolConsol) . P.poolFutureCf) (Just testCFs) td2 {accounts = accMap}
   in 
     testGroup "Test On Reserve Acc"
      [
@@ -94,12 +99,12 @@ reserveAccTest =
           (calcTargetAmount ttd (toDate "20220801") acc2)
      ,testCase "test on reserve account gap" $
         assertEqual "pct reserve gap "
-        (Right 0)
-        (queryCompound ttd (toDate "20220826") (ReserveGapAt (toDate "20220826") ["A1"]))
+          (Right 0)
+          (queryCompound ttd (toDate "20220826") (ReserveGapAt (toDate "20220826") ["A1"]))
      ,testCase "test on reserve account gap" $
         assertEqual "fix reserve gap "
-        (Right 60)
-        (queryCompound ttd (toDate "20220801") (ReserveGapAt (toDate "20220801") ["A2"]))
+          (Right 60)
+          (queryCompound ttd (toDate "20220801") (ReserveGapAt (toDate "20220801") ["A2"]))
      ]
 
 

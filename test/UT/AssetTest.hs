@@ -24,7 +24,8 @@ import InterestRate
 
 import Debug.Trace
 import qualified Assumptions as A
-import qualified Assumptions as A
+import Control.Lens hiding (element)
+import Control.Lens.TH
 debug = flip trace
 
 dummySt = (0,L.toDate "19000101",Nothing)
@@ -79,7 +80,7 @@ asOfDate = L.toDate "20210605"
 (tmcf_00,_) = case Ast.projCashflow tm asOfDate (A.MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing of
                 Left _ -> undefined
                 Right x -> x
-trs = CF.getTsCashFlowFrame tmcf_00
+trs = tmcf_00^.CF.cashflowTxn  
 (tmcf_default,_) = case Ast.projCashflow tm asOfDate (A.MortgageAssump (Just (A.DefaultConstant 0.015)) Nothing Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing of
                      Left _ -> undefined
                      Right x -> x
@@ -111,7 +112,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
         tm1cf_00 = case Ast.calcCashflow tm1 asOfDate Nothing of
                          Left _ -> undefined
                          Right x -> x
-        trs = CF.getTsCashFlowFrame tm1cf_00
+        trs = tm1cf_00 ^. CF.cashflowTxn  
      in
         assertEqual "first row" 12.63  (CF.mflowPrincipal (head trs)) -- `debug` ("result"++show(tmcf_00))
      ,
@@ -121,7 +122,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
         (tm2cf_00, _) = case Ast.projCashflow tm2 asDay (A.MortgageAssump Nothing Nothing Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing of
                          Left _ -> undefined
                          Right x -> x
-        trs = CF.getTsCashFlowFrame tm2cf_00
+        trs = tm2cf_00 ^. CF.cashflowTxn  
      in
         assertEqual "Empty for principal"
                     (0.0, asDay, 1)
@@ -134,7 +135,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
         tm1cf_00 = case Ast.calcCashflow tm4 asOfDate Nothing of-- `debug` (">>>")
                          Left _ -> undefined
                          Right x -> x
-        trs = CF.getTsCashFlowFrame tm1cf_00
+        trs = tm1cf_00 ^. CF.cashflowTxn  
      in
         assertEqual "first & last row row" 
                     [94.29,0.62,0.66, 0.79] 
@@ -148,7 +149,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
         tm1cf_00 = case Ast.calcCashflow tm5 asOfDate Nothing of
                          Left _ -> undefined
                          Right x -> x
-        trs = CF.getTsCashFlowFrame tm1cf_00
+        trs = tm1cf_00 ^. CF.cashflowTxn 
      in
         assertEqual "first & last row row" 
                     [84.19,0.56,0.64, 0.66] 
@@ -162,7 +163,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
                          (A.MortgageAssump Nothing (Just (A.PrepaymentCPR 0.1)) Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing of 
                          Left _ -> undefined
                          Right x -> x
-        trs = CF.getTsCashFlowFrame tm1cf_00
+        trs = tm1cf_00 ^. CF.cashflowTxn 
      in
         assertEqual "first & last row row" 
                     [68.77, 0.45, 1.06, 0.65, 0.79] 
@@ -177,7 +178,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
                          (A.MortgageAssump Nothing (Just (A.PrepaymentCPR 0.1)) Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing of
                          Left _ -> undefined
                          Right x -> x
-        trs = CF.getTsCashFlowFrame tm1cf_00
+        trs = tm1cf_00 ^. CF.cashflowTxn
      in
         assertEqual "first & last row row" 
                     ([82, 0.73, 0.54, 1.06, 0.75, 0.79], 25) 
@@ -194,7 +195,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
                          (A.MortgageAssump (Just (A.DefaultAtEndByRate 0.05 0.1)) Nothing Nothing Nothing ,A.DummyDelinqAssump,A.DummyDefaultAssump) Nothing of
                          Left _ -> undefined
                          Right x -> x
-        trs = CF.getTsCashFlowFrame tm1cf_00
+        trs = tm1cf_00 ^. CF.cashflowTxn 
      in
         assertEqual "first & last row row" 
                     ([74.34, 17.43, 0.49, 0.52, 0.76, 0.79], 25) 
@@ -320,7 +321,7 @@ leaseTests =
         testCase "1 year Regular Lease sum of rentals" $
             assertEqual "total rental"
                 214
-                (sum $ map CF.tsTotalCash (CF.getTsCashFlowFrame cf1)) -- `debug` ("regular test"++show cf1)
+                (sum $ map CF.tsTotalCash (cf1 ^. CF.cashflowTxn)) -- `debug` ("regular test"++show cf1)
         ,testCase "1 year Regular Lease first pay date" $
             assertEqual "first date of regular lease"
                 (L.toDate "20230630")
@@ -328,39 +329,39 @@ leaseTests =
         ,testCase "1 year Stepup lease first pay" $
             assertEqual "first pay"
                 (CF.LeaseFlow (L.toDate "20230630") 377.76 29)
-                (head (CF.getTsCashFlowFrame cf2))
+                (head (cf2 ^. CF.cashflowTxn))
         ,testCase "1 year Stepup lease" $
             assertEqual "total rental"
                 406.76
-                (sum $ map CF.tsTotalCash (CF.getTsCashFlowFrame cf2))
+                (sum $ map CF.tsTotalCash (cf2 ^. CF.cashflowTxn))
         ,testCase "1 year Stepup lease" $
             assertEqual "first rental step up at Month 2"
                 (CF.LeaseFlow (L.toDate "20230731") 346.14 31.62)
-                ((CF.getTsCashFlowFrame cf2)!!1)
+                ((cf2 ^. CF.cashflowTxn)!!1)
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 0"
                 (CF.LeaseFlow (L.toDate "20230430") 97.83 29.0)
-                (head (CF.getTsCashFlowFrame cf3_0)) 
+                (head (cf3_0 ^. CF.cashflowTxn )) 
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 1"
                 (CF.LeaseFlow (L.toDate "20230630") 34.41 31.8)
-                (head (CF.getTsCashFlowFrame cf3)) -- `debug` ("CF3->"++show cf3)
+                (head (cf3 ^. CF.cashflowTxn)) -- `debug` ("CF3->"++show cf3)
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 2"
                 (CF.LeaseFlow (L.toDate "20230731") 0 34.41)
-                ((CF.getTsCashFlowFrame cf3)!!1)
+                ((cf3 ^. CF.cashflowTxn)!!1)
         ,testCase "Lease with Assumptions" $ 
             assertEqual "Month Gap=45 days"
             (CF.LeaseFlow (L.toDate "20250131") 0 31)
-            (last (CF.getTsCashFlowFrame cf4) ) -- `debug` ("CF4"++show cf4)
+            (last (cf4 ^. CF.cashflowTxn) ) -- `debug` ("CF4"++show cf4)
         ,testCase "Lease with Assumptions" $ 
             assertEqual "Month Gap by Table : New Lease at period 0"
             (CF.LeaseFlow (L.toDate "20240131") 335 8)
-            ((CF.getTsCashFlowFrame cf5)!!7)
+            ((cf5 ^. CF.cashflowTxn)!!7)
         ,testCase "Lease with Assumptions" $ 
             assertEqual "Month Gap by Table : New Lease at period 1"
             (CF.LeaseFlow (L.toDate "20240229") 306 29)
-            ((CF.getTsCashFlowFrame cf5)!!8)
+            ((cf5 ^. CF.cashflowTxn)!!8)
       ]
 
 installmentTest = 

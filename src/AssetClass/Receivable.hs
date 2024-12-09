@@ -163,3 +163,5 @@ instance Asset Receivable where
       
       txns = [initTxn, CF.ReceivableFlow payDate 0 0 principal feePaid defaultAmt 0 realizedLoss Nothing]
       (futureTxns,historyM) = CF.cutoffTrs asOfDay $ txns++(buildRecoveryCfs payDate defaultAmt amr) -- `debug` ("recovery flow"++ show (buildRecoveryCfs payDate defaultAmt amr))
+    
+  projCashflow a b c d = Left $ "Failed to match when proj receivable with assumption >>" ++ show a ++ show b ++ show c ++ show d

@@ -3,7 +3,7 @@ module UT.LibTest(curveTests
                  ,datesTests
                  ,prorataTests
                  ,tsOperationTests
-                 ,pvTests)
+                 ,pvTests,seqFunTest)
 where
 
 import Test.Tasty
@@ -140,4 +140,24 @@ pvTests =
         assertEqual "12M"
         1
         1
+    ]
+
+seqFunTest = 
+    let 
+      a =1 
+    in 
+    testGroup "seq fun test"
+    [
+     testCase "clear:even" $
+      assertEqual "Good for first"
+      [100,20,0]
+      (paySeqLiabilitiesAmt 120 [100,20,0])
+    ,testCase "shortfall" $
+      assertEqual "Good for first" 
+      [100,20,0]
+      (paySeqLiabilitiesAmt 120 [100,20,10])
+    ,testCase "over " $
+      assertEqual "Good for first"
+      [100,10,0]
+      (paySeqLiabilitiesAmt 120 [100,10,0])
     ]
