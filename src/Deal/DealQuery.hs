@@ -145,6 +145,8 @@ poolSourceToIssuanceField NewDelinquencies = HistoryDelinquency
 poolSourceToIssuanceField a = error ("Failed to match pool source when mapping to issuance field"++show a)
 
 
+
+-- TODO ,fix all Map.! lookup funciton to return failure
 queryCompound :: P.Asset a => TestDeal a -> Date -> DealStats -> Either String Rational 
 queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=feeMap, pool=pt}
               d s =
@@ -163,11 +165,11 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                         Left $ "Can not divide zero on ds: "++ show ds2
                       else
                         liftA2 (/) (queryCompound t d ds1) (queryCompound t d ds2)
-    Factor s f -> (* f) <$> (queryCompound t d s)
+    Factor s f -> (* f) <$> queryCompound t d s
     FloorAndCap floor cap s -> max (queryCompound t d floor) $ min (queryCompound t d cap) (queryCompound t d s)
     Multiply ss -> product <$> sequenceA [ queryCompound t d _s | _s <- ss]
     FloorWith s floor -> liftA2 max (queryCompound t d s) (queryCompound t d floor)
-    FloorWithZero s -> max 0 <$> (queryCompound t d s)
+    FloorWithZero s -> max 0 <$> queryCompound t d s
     Excess (s1:ss) -> do 
                         q1 <- queryCompound t d s1 
                         q2 <- queryCompound t d (Sum ss) -- `debug` ("Excess"++show (queryCompound t s1)++"ss"++show ( queryCompound t (Sum ss)))
@@ -175,7 +177,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     CapWith s cap -> min (queryCompound t d s) (queryCompound t d cap)
     Abs s -> abs <$> queryCompound t d s
     Round ds rb -> do 
-                     q <- (queryCompound t d ds)
+                     q <- queryCompound t d ds
                      return $ roundingBy rb q
     DivideRatio s1 s2 -> queryCompound t d (Divide s1 s2)
     AvgRatio ss -> queryCompound t d (Avg ss)
@@ -234,22 +236,23 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         assetM = concat $ Map.elems $ getAllAsset t mPns
       in 
         Right . toRational $ sum $ P.getBorrowerNum <$> assetM 
+
     MonthsTillMaturity bn -> 
-      let 
-        (L.Bond _ _ (L.OriginalInfo _ _ _ mm) _ _ _ _ _ _ _ _ _ _ _) = bndMap Map.! bn
-      in 
-        case mm of 
+      do 
+        (L.OriginalInfo _ _ _ mm) <- lookupAndApply L.bndOriginInfo "Get Months till maturity" bn bndMap 
+        case mm of
           Nothing -> Left $ "There is maturity date for bond " ++ bn
           Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
+          
 
     ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
 
     ReserveBalance ans -> 
-      let 
-        accs::[A.Account] = (accMap Map.!) <$> ans
-        targetBals::[Either String Balance] = calcTargetAmount t d <$> accs 
-      in 
-        toRational . sum <$> sequenceA targetBals 
+      do 
+        accBal <- lookupAndApplies (calcTargetAmount t d) "Cal Reserve Balance" ans accMap
+        vs <- sequenceA accBal
+        return $ toRational (sum vs)
+
 
     ReserveExcessAt _d ans ->
       do 
@@ -301,23 +304,30 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
  
     AllAccBalance -> Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
     
-    AccBalance ans -> Right . toRational $ sum $ A.accBalance . (accMap Map.!) <$> ans
+    AccBalance ans -> 
+      do 
+        accBals <- lookupAndApplies A.accBalance "AccBalance" ans accMap
+        return $ (toRational . sum) accBals
 
     -- ^ negatave -> credit balance , postive -> debit balance
     LedgerBalance ans ->
       case ledgersM of 
         Nothing -> Left ("No ledgers were modeled , failed to find ledger:"++show ans )
-        Just ledgersM -> Right . toRational $ sum $ LD.ledgBalance . (ledgersM Map.!) <$> ans
+        Just ledgersM -> 
+          do 
+            lgBals <- lookupAndApplies LD.ledgBalance "Ledger Balance" ans ledgersM
+            return $ (toRational . sum) lgBals
     
     LedgerBalanceBy dr ans ->
       case ledgersM of 
         Nothing -> Left ("No ledgers were modeled , failed to find ledger:"++show ans )
-        Just ledgersM -> 
-            let 
-              bs Credit = filter (<0) $ LD.ledgBalance . (ledgersM Map.!) <$> ans
-              bs Debit = filter (>0) $ LD.ledgBalance . (ledgersM Map.!) <$> ans
-            in 
-              Right . toRational $ abs $ sum (bs dr) -- `debug` ("dr"++show dr++">> bs dr"++ show (bs dr))
+        Just ledgersM ->
+          do 
+            lgdsM <- selectInMap "Look up ledgers" ans ledgersM
+            let ldgL = Map.elems lgdsM
+            let bs Credit = filter (\x -> LD.ledgBalance x < 0) ldgL
+            let bs Debit = filter (\x -> LD.ledgBalance x >= 0) ldgL
+            return $ toRational $ abs $ sum $ LD.ledgBalance <$> bs dr -- `debug` ("dr"++show dr++">> bs dr"++ show (bs dr))
 
     FutureCurrentPoolBalance mPns ->
       case (mPns,pt) of 
@@ -536,12 +546,13 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
               Nothing -> Right . toRational $ sum [ LD.ledgBalance lg | lg <- lgs ]
 
     BondBalanceGapAt d bName -> 
-        let 
-           bn@L.Bond{L.bndType = L.PAC _target} = bndMap Map.! bName
-           bal = L.bndBalance bn
-           targetBal = getValOnByDate _target d
-        in 
-           Right . toRational $ max 0 $ bal - targetBal 
+      toRational <$>
+        lookupAndApply 
+          (\b@L.Bond{L.bndBalance = bal ,L.bndType = L.PAC _target} 
+            -> max 0 ( bal - getValOnByDate _target d))
+          ("Failed to find bond "++ bName)
+          bName
+          bndMap
 
     FeesPaidAt d fns ->
       let
@@ -563,7 +574,9 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
 
     CurrentDueFee fns -> 
-      Right . toRational $ sum $ F.feeDue <$> (feeMap Map.!) <$> fns
+      do 
+        vs <- lookupAndApplies F.feeDue "Get Current Due Fee" fns feeMap
+        return $ toRational (sum vs)
 
     LiqCredit lqNames -> 
       case liqProvider t of
@@ -624,10 +637,11 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         case custom t of 
           Nothing -> Left $ "No Custom data to query" ++ show s
           Just mCustom ->
-              case mCustom Map.! s of 
-                CustomConstant v -> Right . toRational $ v 
-                CustomCurve cv -> Right . toRational $ getValOnByDate cv d
-                CustomDS ds -> queryCompound t d (patchDateToStats d ds )
+              case Map.lookup s mCustom of 
+                Just (CustomConstant v) -> Right . toRational $ v 
+                Just (CustomCurve cv) -> Right . toRational $ getValOnByDate cv d
+                Just (CustomDS ds) -> queryCompound t d (patchDateToStats d ds )
+                _ -> Left $ "Unsupported custom data found for key " ++ show s
 
     _ -> Left ("Failed to query formula of -> "++ show s)
     
@@ -648,16 +662,24 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
         Nothing -> Left "no trigger for this deal"
     
     IsMostSenior bn bns ->
-      let 
-        bn1:bns1 =  (bndMap Map.!) <$> (bn:bns)
-      in
-        case (isPaidOff bn1,all isPaidOff bns1) of
-          (False,True) -> Right $ True
-          _ -> Right $ False
+      do 
+        bn1 <- lookupAndApply isPaidOff "Is Most Senior" bn bndMap
+        bns1 <- lookupAndApplies isPaidOff "Is Most Senior" bns bndMap
+        return $
+          case (bn1, and bns1) of
+            (False,True) -> True
+            _ -> False
 
-    IsPaidOff bns -> Right $ all isPaidOff $ (bndMap Map.!) <$> bns
 
-    IsOutstanding bns -> Right $ all (not . isPaidOff) $ (bndMap Map.!) <$> bns
+    IsPaidOff bns -> 
+      do 
+        vs <- lookupAndApplies isPaidOff "Is Paid Off" bns bndMap
+        return $ and vs
+
+    IsOutstanding bns -> 
+      do 
+        vs <- lookupAndApplies (not . isPaidOff) "Is Outstanding" bns bndMap
+        return $ and vs 
     
     TestRate ds cmp _r -> do
                             testRate <- queryCompound t d ds
@@ -669,13 +691,11 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
                                        LE -> testRate <= r
                                        E ->  testRate == r
     
-    HasPassedMaturity bns -> let 
-                               oustandingBnds = filter (not . isPaidOff) $ (bndMap Map.!) <$> bns
-                               monthsToMaturity = sequenceA $ (\bn -> queryCompound t d (MonthsTillMaturity bn)) <$> L.bndName <$> oustandingBnds
-                             in 
-                               do 
-                                 ms <- monthsToMaturity
-                                 return $ all (<= 0) ms
+    HasPassedMaturity bns -> do 
+                               bMap <- selectInMap "Bond Pass Maturity" bns bndMap
+                               let oustandingBnds = Map.filter (not . isPaidOff) bMap
+                               ms <- sequenceA $ (\bn -> queryCompound t d (MonthsTillMaturity bn)) <$> L.bndName <$> oustandingBnds
+                               return $ all (<= 0) ms
 
     IsDealStatus st -> Right $ status t == st
 

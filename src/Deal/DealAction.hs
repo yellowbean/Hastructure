@@ -760,11 +760,11 @@ performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL dr ds ledgers
     do
       amtToBook <- queryCompound t d ds
       ledgCaps <- ledgerCaps
-      let amtBookedToLedgers = paySeqLiabilitiesAmt (fromRational amtToBook) (fromRational <$> ledgCaps)
+      let amtBookedToLedgers = paySeqLiabilitiesAmt (fromRational amtToBook) (fromRational <$> ledgCaps) --`debug` ("amt to book"++ show amtToBook)
       let newLedgerM = foldr 
                          (\(ln,amt) acc -> Map.adjust (LD.entryLogByDr dr amt d Nothing) ln acc)
                          ledgerM
-                         (zip ledgerNames amtBookedToLedgers)
+                         (zip ledgerNames amtBookedToLedgers) --`debug` ("amts to book"++ show amtBookedToLedgers)
       return $ t {ledgers = Just newLedgerM}
 
 -- ^ pay fee sequentially
@@ -832,7 +832,8 @@ performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap}
         return $ updateSupport d mSupport supportPaidOut dealAfterAcc
 
 
-performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap} (W.PayIntBySeq mLimit an bnds mSupport)
+performAction d t@TestDeal{bonds=bndMap, accounts=accMap, liqProvider=liqMap} 
+              (W.PayIntBySeq mLimit an bnds mSupport)
    = let 
       availAccBal = A.accBalance (accMap Map.! an)
       bndsList = (Map.!) bndMap <$> bnds

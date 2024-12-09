@@ -12,7 +12,8 @@ module Util
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
-    ,payInMap,adjustM
+    ,payInMap,adjustM,lookupAndApply,lookupAndUpdate,lookupAndApplies
+    ,lookupInMap,selectInMap
     -- for debug
     ,zyj
     )
@@ -395,6 +396,36 @@ mapWithinMap fn ks m = foldr (Map.adjust fn) m ks
 adjustM :: (Ord k, Applicative m) => (a -> m a) -> k -> Map.Map k a -> m (Map.Map k a)
 adjustM f = Map.alterF (traverse f)
 
+
+lookupAndApply :: Ord k => (a -> b) -> String -> k -> Map.Map k a -> Either String b
+lookupAndApply f errMsg key m =
+  case Map.lookup key m of
+    Nothing -> Left errMsg
+    Just a  -> Right $ f a
+
+lookupAndApplies :: Ord k => (a -> b) -> String -> [k] -> Map.Map k a -> Either String [b]
+lookupAndApplies f errMsg keys m 
+  = sequenceA $ (\x -> lookupAndApply f errMsg x m) <$> keys
+
+lookupAndUpdate :: (Show k, Ord k) => (a -> a) -> String -> [k] -> Map.Map k a -> Either String (Map.Map k a) 
+lookupAndUpdate f errMsg keys m 
+  | S.isSubsetOf inputKs mapKs = Right $ mapWithinMap f keys m
+  | otherwise = Left $ errMsg++":Missing keys, valid range "++ show mapKs ++ "But got:" ++ show inputKs
+  where 
+      inputKs = S.fromList keys
+      mapKs = Map.keysSet m
+
+lookupInMap :: (Show k, Ord k) => String -> [k] -> Map.Map k a -> Either String (Map.Map k a)
+lookupInMap = lookupAndUpdate id  
+
+
+selectInMap :: (Show k, Ord k) => String -> [k] -> Map.Map k a -> Either String (Map.Map k a)
+selectInMap errMsg keys m 
+  | S.isSubsetOf inputKs mapKs = Right $ (Map.filterWithKey (\k _ -> S.member k inputKs) m)
+  | otherwise = Left $ errMsg++":Missing keys, valid range "++ show mapKs ++ "But got:" ++ show inputKs
+  where 
+      inputKs = S.fromList keys
+      mapKs = Map.keysSet m
 
 ----- DEBUG/PRINT
 -- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 
