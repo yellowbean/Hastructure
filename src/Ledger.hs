@@ -2,7 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Ledger (Ledger(..),entryLog,LedgerName,queryGap,entryDebit,entryCredit,clearLedgersBySeq
+module Ledger (Ledger(..),entryLog,LedgerName,queryGap,clearLedgersBySeq
               ,queryDirection,entryLogByDr)
     where
 import qualified Data.Time as T
@@ -71,16 +71,6 @@ isTxnDirection Debit (TxnComments txns) = any (isTxnDirection Debit) txns
 isTxnDirection _ _ = False
 
 -- ^ credit is negative amount
-entryCredit :: Amount -> Date -> TxnComment -> Ledger -> Ledger 
-entryCredit amt d txn lg@Ledger{ledgName = ln}
-  | isTxnDirection Credit txn = entryLog (negate amt) d txn lg
-  | otherwise = undefined $ "Failed to write credit txn to ledger "++ ln ++ " with txn"++ show txn
-
-entryDebit :: Amount -> Date -> TxnComment -> Ledger -> Ledger 
-entryDebit amt d txn lg@Ledger{ledgName = ln}
-  | isTxnDirection Debit txn = entryLog amt d txn lg
-  | otherwise = undefined $ "Failed to write debit txn to ledger "++ ln ++ " with txn"++ show txn
-
 queryDirection :: Ledger -> (BookDirection ,Balance) 
 queryDirection (Ledger _ bal _)
   |  bal >= 0 = (Debit, bal)

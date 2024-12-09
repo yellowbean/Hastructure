@@ -30,7 +30,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio
+  ,MyRatio,HowToPay(..)
   )
   
   where
@@ -615,6 +615,11 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
            | Multiple Limit Float   -- ^ factor of a limit
            deriving (Show,Ord,Eq,Read, Generic)
 
+data HowToPay = ByProRata
+              | BySequential
+              deriving (Show,Ord,Eq,Read, Generic)
+
+
 type BookItems = [BookItem]
 
 data BookItem = Item String Balance 
@@ -1007,6 +1012,7 @@ $(deriveJSON defaultOptions ''ResultComponent)
 
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''CutoffFields)
+$(deriveJSON defaultOptions ''HowToPay)
 
 
 

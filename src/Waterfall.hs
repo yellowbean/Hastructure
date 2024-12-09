@@ -101,7 +101,7 @@ data Action =
             | LiquidatePool PricingMethod AccountName  (Maybe [PoolId])                             -- ^ sell all assets and deposit proceeds to account
             -- TODO include a limit for LIquidatePool
             -- Liquidation support
-            | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType AccountName  -- ^ draw credit and deposit to account/fee/bond interest/principal
+            | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType [String]  -- ^ draw credit and deposit to account/fee/bond interest/principal
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName   -- ^ repay liquidity facility
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName                   -- ^ repay compensation to liquidity facility
             | LiqAccrue [CE.LiquidityProviderName]                                            -- ^ accure premium/due interest of liquidity facility

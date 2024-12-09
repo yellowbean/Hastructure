@@ -12,6 +12,7 @@ module Util
     ,floorWith,slice,toPeriodRateByInterval, dropLastN, zipBalTs
     ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
+    ,payInMap,adjustM
     -- for debug
     ,zyj
     )
@@ -372,8 +373,28 @@ payProRata d amt getDueAmt payFn tobePaidList
     in 
       (paidList, remainAmt)
 
+payInMap :: Date -> Amount -> (a->Balance) -> (Amount->a->a)-> [String] 
+         -> HowToPay -> Map.Map String a -> Map.Map String a
+payInMap d amt getDueFn payFn objNames how inputMap 
+  = let 
+      objsToPay = (inputMap Map.!) <$> objNames  
+      dueAmts = getDueFn <$> objsToPay
+      totalDueAmt = sum dueAmts
+      actualPaidOut = min totalDueAmt amt
+      allocatedPayAmt = case how of 
+                          ByProRata -> prorataFactors dueAmts actualPaidOut
+                          BySequential -> paySeqLiabilitiesAmt amt dueAmts
+      paidObjs = [ payFn amt l | (amt,l) <- zip allocatedPayAmt objsToPay ]
+    in 
+      (Map.fromList $ zip objNames paidObjs) <> inputMap
+
 mapWithinMap :: Ord k => (a -> a) -> [k] -> Map.Map k a -> Map.Map k a  
 mapWithinMap fn ks m = foldr (Map.adjust fn) m ks
+
+
+adjustM :: (Ord k, Applicative m) => (a -> m a) -> k -> Map.Map k a -> m (Map.Map k a)
+adjustM f = Map.alterF (traverse f)
+
 
 ----- DEBUG/PRINT
 -- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 
