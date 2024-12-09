@@ -5,6 +5,7 @@ where
 import Test.Tasty
 import Test.Tasty.HUnit
 import Deal
+import Deal.DealQuery (queryCompound)
 
 import qualified Accounts as A
 import qualified Stmt as Stmt
@@ -302,10 +303,10 @@ poolFlowTest =
 queryTests =  testGroup "deal stat query Tests"
   [
     let
-     currentDefBal = queryDeal td2 CurrentPoolDefaultedBalance
+     currentDefBal = queryCompound td2 epocDate CurrentPoolDefaultedBalance
     in
      testCase "query current assets in defaulted status" $
-     assertEqual "should be 200" 200 currentDefBal
+     assertEqual "should be 200" (Right 200) currentDefBal
   ]
 
 triggerTests = testGroup "Trigger Tests"
