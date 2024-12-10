@@ -1409,7 +1409,10 @@
                                         "$ref": "#/components/schemas/LiqDrawType"
                                     },
                                     {
-                                        "type": "string"
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
                                 "maxItems": 4,
@@ -1824,6 +1827,25 @@
                             "contents"
                         ],
                         "title": "Placeholder",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStatus"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ChangeStatus"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ChangeStatus",
                         "type": "object"
                     }
                 ]
@@ -19240,7 +19262,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.40.8"
+        "version": "0.40.5"
     },
     "openapi": "3.0.0",
     "paths": {

@@ -120,8 +120,9 @@ data Action =
             -- Trigger
             | RunTrigger DealCycle [String]        -- ^ update the trigger status during the waterfall execution
             -- Debug
-            | WatchVal (Maybe String) [DealStats]     -- ^ inspect vals during the waterfall execution
+            | WatchVal (Maybe String) [DealStats]  -- ^ inspect vals during the waterfall execution
             | Placeholder (Maybe String)
+            | ChangeStatus (Maybe Pre) DealStatus  -- change deal status
             deriving (Show,Generic,Eq,Ord)
 
 type DistributionSeq = [Action]

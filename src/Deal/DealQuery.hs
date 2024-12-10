@@ -69,41 +69,41 @@ calcTargetAmount t d (A.Account _ _ _ (Just r) _ ) =
 
 patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
-   = case t of
-         CurrentPoolBalance mPns -> FutureCurrentPoolBalance mPns
-         CurrentPoolBegBalance mPns -> FutureCurrentPoolBegBalance mPns
-         PoolFactor mPns -> FutureCurrentPoolFactor d mPns
-         LastBondIntPaid bns -> BondsIntPaidAt d bns
-         LastFeePaid fns -> FeesPaidAt d fns
-         LastBondPrinPaid bns -> BondsPrinPaidAt d bns
-         BondBalanceGap bn -> BondBalanceGapAt d bn
-         ReserveGap ans -> ReserveGapAt d ans
-         ReserveExcess ans -> ReserveExcessAt d ans
-         Sum _ds -> Sum $ map (patchDateToStats d) _ds
-         Substract _ds -> Substract $ map (patchDateToStats d) _ds
-         Subtract _ds -> Subtract $ map (patchDateToStats d) _ds
-         Min dss -> Min $ [ patchDateToStats d ds | ds <- dss ] 
-         Max dss -> Max $ [ patchDateToStats d ds | ds <- dss ]
-         Factor _ds r -> Factor (patchDateToStats d _ds) r
-         FloorWithZero ds -> FloorWithZero (patchDateToStats d ds) 
-         UseCustomData n -> CustomData n d
-         CurrentPoolBorrowerNum mPns -> FutureCurrentPoolBorrowerNum d mPns
-         FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
-         BondTxnAmt ns mCmt -> BondTxnAmtBy d ns mCmt
-         AccTxnAmt ns mCmt -> AccTxnAmtBy d ns mCmt -- `debug` ("Hitttt")
-         PoolScheduleCfPv pm pns -> FuturePoolScheduleCfPv d pm pns
-         Excess dss -> Excess $ [ patchDateToStats d ds | ds <- dss ]
-         Abs ds -> Abs $ patchDateToStats d ds
-         Avg dss -> Avg $ [ patchDateToStats d ds | ds <- dss ]
-         Divide ds1 ds2 -> Divide (patchDateToStats d ds1) (patchDateToStats d ds2)
-         FloorAndCap f c s -> FloorAndCap (patchDateToStats d f) (patchDateToStats d c) (patchDateToStats d s)
-         Multiply dss -> Multiply $ [ patchDateToStats d ds | ds <- dss ]
-         FloorWith ds f -> FloorWith (patchDateToStats d ds) (patchDateToStats d f)
-         CapWith ds c -> CapWith (patchDateToStats d ds) (patchDateToStats d c)
-         Round ds rb -> Round (patchDateToStats d ds) rb
-         DivideRatio ds1 ds2 -> DivideRatio (patchDateToStats d ds1) (patchDateToStats d ds2)
-         AvgRatio ss -> AvgRatio $ [ patchDateToStats d ds | ds <- ss ]
-         _ -> t -- `debug` ("Failed to patch date to stats"++show t)
+  = case t of
+      CurrentPoolBalance mPns -> FutureCurrentPoolBalance mPns
+      CurrentPoolBegBalance mPns -> FutureCurrentPoolBegBalance mPns
+      PoolFactor mPns -> FutureCurrentPoolFactor d mPns
+      LastBondIntPaid bns -> BondsIntPaidAt d bns
+      LastFeePaid fns -> FeesPaidAt d fns
+      LastBondPrinPaid bns -> BondsPrinPaidAt d bns
+      BondBalanceGap bn -> BondBalanceGapAt d bn
+      ReserveGap ans -> ReserveGapAt d ans
+      ReserveExcess ans -> ReserveExcessAt d ans
+      Sum _ds -> Sum $ map (patchDateToStats d) _ds
+      Substract _ds -> Substract $ map (patchDateToStats d) _ds
+      Subtract _ds -> Subtract $ map (patchDateToStats d) _ds
+      Min dss -> Min $ [ patchDateToStats d ds | ds <- dss ] 
+      Max dss -> Max $ [ patchDateToStats d ds | ds <- dss ]
+      Factor _ds r -> Factor (patchDateToStats d _ds) r
+      FloorWithZero ds -> FloorWithZero (patchDateToStats d ds) 
+      UseCustomData n -> CustomData n d
+      CurrentPoolBorrowerNum mPns -> FutureCurrentPoolBorrowerNum d mPns
+      FeeTxnAmt ns mCmt -> FeeTxnAmtBy d ns mCmt
+      BondTxnAmt ns mCmt -> BondTxnAmtBy d ns mCmt
+      AccTxnAmt ns mCmt -> AccTxnAmtBy d ns mCmt -- `debug` ("Hitttt")
+      PoolScheduleCfPv pm pns -> FuturePoolScheduleCfPv d pm pns
+      Excess dss -> Excess $ [ patchDateToStats d ds | ds <- dss ]
+      Abs ds -> Abs $ patchDateToStats d ds
+      Avg dss -> Avg $ [ patchDateToStats d ds | ds <- dss ]
+      Divide ds1 ds2 -> Divide (patchDateToStats d ds1) (patchDateToStats d ds2)
+      FloorAndCap f c s -> FloorAndCap (patchDateToStats d f) (patchDateToStats d c) (patchDateToStats d s)
+      Multiply dss -> Multiply $ [ patchDateToStats d ds | ds <- dss ]
+      FloorWith ds f -> FloorWith (patchDateToStats d ds) (patchDateToStats d f)
+      CapWith ds c -> CapWith (patchDateToStats d ds) (patchDateToStats d c)
+      Round ds rb -> Round (patchDateToStats d ds) rb
+      DivideRatio ds1 ds2 -> DivideRatio (patchDateToStats d ds1) (patchDateToStats d ds2)
+      AvgRatio ss -> AvgRatio $ [ patchDateToStats d ds | ds <- ss ]
+      _ -> t -- `debug` ("Failed to patch date to stats"++show t)
 
 patchDatesToStats :: P.Asset a => TestDeal a -> Date -> Date -> DealStats -> DealStats
 patchDatesToStats t d1 d2 ds 
@@ -397,16 +397,16 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         Right . toRational $ futureVals + historyVals
     
     PoolCumCollectionTill idx ps mPns -> 
-        let 
-          txnMap = Map.map (dropLastN (negate idx) . fromMaybe []) $ getAllCollectedTxns t mPns 
-          txnList = concat $ Map.elems txnMap
-          lookupList = CF.lookupSource <$> txnList
-          futureVals = sum $ lookupList <*> ps
-          sumMap = getIssuanceStatsConsol t mPns
-          historyVals = sum $ Map.findWithDefault 0 . poolSourceToIssuanceField <$> ps <*> [sumMap]
-        in 
-          Right . toRational $ futureVals + historyVals
- 
+      let 
+        txnMap = Map.map (dropLastN (negate idx) . fromMaybe []) $ getAllCollectedTxns t mPns 
+        txnList = concat $ Map.elems txnMap
+        lookupList = CF.lookupSource <$> txnList
+        futureVals = sum $ lookupList <*> ps
+        sumMap = getIssuanceStatsConsol t mPns
+        historyVals = sum $ Map.findWithDefault 0 . poolSourceToIssuanceField <$> ps <*> [sumMap]
+      in 
+        Right . toRational $ futureVals + historyVals
+
     PoolCurCollection ps mPns ->
       let 
         pCf = getLatestCollectFrame t mPns -- `debug` ("mPns"++ show mPns)
@@ -416,30 +416,30 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     PoolCollectionStats idx ps mPns -> 
       let 
-        pCollectedTxns = getAllCollectedTxns t mPns
+        pCollectedTxns = getAllCollectedTxns t mPns 
         pStat = Map.map
                   (\_x -> 
-                   let
-                     lookupIndx = length x + idx - 1
-                     x = fromMaybe [] _x
-                   in
-                     if (( lookupIndx >= length x ) ||  (lookupIndx <0)) then 
-                       Nothing
-                     else
-                       Just (x!!lookupIndx))
-                  pCollectedTxns
+                    let
+                      lookupIndx = length x + idx - 1
+                      x = fromMaybe [] _x
+                    in
+                      if (( lookupIndx >= length x ) ||  (lookupIndx <0)) then 
+                        Nothing
+                      else
+                        Just (x!!lookupIndx))
+                  pCollectedTxns `debug` ("date"++show d++"Pool collection: "++ show pCollectedTxns)
       in
         do
           curPoolBalM <- sequenceA $
                            Map.mapWithKey
                              (\k v -> queryCompound t d (FutureCurrentPoolBalance (Just [k]))) 
-                             pStat
+                             pStat `debug` ("date"++show d++"Pool stats collection: "++ show pStat)
           let poolStat = Map.mapWithKey
                            (\k v -> 
                               case v of
                                 Just _v -> sum $ CF.lookupSource _v <$> ps
                                 Nothing -> sum $ CF.lookupSourceM (fromRational (curPoolBalM Map.! k)) Nothing <$> ps)
-                           pStat -- `debug` ("query pool current bal" ++ show curPoolBalM )
+                           pStat  `debug` ("date"++show d++"query pool current pool stat 2" ++ show pStat )
           return $ sum $ Map.elems $ toRational <$> poolStat -- `debug` ("query pool current stats"++ show poolStat)
 
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
@@ -457,13 +457,13 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         do 
           scheduleBal <- queryCompound t d (FutureCurrentSchedulePoolBegBalance mPns)
           curBal <- queryCompound t d (FutureCurrentPoolBalance mPns) 
-          let factor = case scheduleBal of 
+          let factor = case scheduleBal of
                          0.00 -> 0  
                          _ -> curBal / scheduleBal -- `debug` ("cur Bal"++show curBal ++">> sheduleBal"++ show scheduleBal)
           let cfForPv = (`mulBR` factor) <$> txnsCfs -- `debug` (">>> factor"++ show factor)
           let pvs = case pm of
                       PvRate r -> uncurry (A.pv2 r asOfDay) <$> zip txnsDs cfForPv
-                      -- TODO _ -> Left $ "Failed to use pricing method on pool" ++ show pm ++"on pool id"++ show mPns
+                      -- _ -> Left $ "Date:"++ show asOfDay ++ "Failed to use pricing method on pool" ++ show pm ++"on pool id"++ show mPns
           return $ toRational $ sum pvs
 
     BondsIntPaidAt d bns ->
@@ -658,7 +658,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
                            case Map.lookup tName triggerMatCycle of 
                              Nothing -> Left ("Date:"++show d++"no trigger for this deal" ++ show tName ++ " in cycle " ++ show triggerMatCycle)
                              Just trigger -> Right $ Trg.trgStatus trigger 
-        Nothing -> Left "Date:"++show d++"no trigger for this deal"
+        Nothing -> Left $ "Date:"++show d++"no trigger for this deal"
     
     IsMostSenior bn bns ->
       do 
@@ -697,13 +697,10 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
 
     IsDealStatus st -> Right $ status t == st
 
-    TestNot ds -> do 
-                    q <- (queryDealBool t ds d)
-                    return $ not q
-
+    TestNot ds -> do not <$> (queryDealBool t ds d)
     -- TestAny b dss -> b `elem` [ queryDealBool t ds d | ds <- dss ]
-    TestAny b dss -> anyM (\ x -> (== b) <$> (queryDealBool t x d) ) dss
-    TestAll b dss -> allM (\ x -> (== b) <$> (queryDealBool t x d) ) dss
+    TestAny b dss -> anyM (\ x -> (== b) <$> queryDealBool t x d ) dss
+    TestAll b dss -> allM (\ x -> (== b) <$> queryDealBool t x d ) dss
 
     _ -> Left ("Date:"++show d++"Failed to query bool type formula"++ show ds)
 

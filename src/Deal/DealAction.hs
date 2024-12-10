@@ -557,7 +557,7 @@ performActionWrap d
                                 ,revolvingAssump=Just rMap
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
-                  (W.BuyAssetFrom ml pricingMethod accName mRevolvingPoolName  pId) 
+                  (W.BuyAssetFrom ml pricingMethod accName mRevolvingPoolName pId) 
    = 
     let 
       revolvingPoolName = fromMaybe "Consol" mRevolvingPoolName
@@ -568,7 +568,6 @@ performActionWrap d
                 
       accBal = A.accBalance $ accsMap Map.! accName 
       pIdToChange = fromMaybe PoolConsol pId --`debug` ("purchase date"++ show d++ "\n" ++ show assetBought)
-      
     in
       do
         limitAmt <- case ml of 
@@ -582,9 +581,9 @@ performActionWrap d
                             (StaticAsset _) -> min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
                             ConstantAsset _ -> availBal 
                             AssetCurve _ -> min availBal valuationOnAvailableAssets   
-        let purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets -- `debug` ("Date"++ show d ++ " Purchase Amt"++show purchaseAmt++">> avail balance"++ show availBal )
-        let (assetBought,poolAfterBought) = buyRevolvingPool d (toRational purchaseRatio) assetForSale  -- `debug` ("date "++ show d ++ "purchase ratio"++ show purchaseRatio)
-        let boughtAssetBal =  sum $ curBal <$> assetBought -- `debug` ("Asset bought 0 \n"++ show assetBought++ "pflow map\n"++ show pFlowMap++" p id to change\n"++ show pIdToChange)
+        let purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets `debug` ("In Buy >>> Date"++ show d ++ " Purchase Amt"++show purchaseAmt++">> avail value on availAsset"++ show  valuationOnAvailableAssets )
+        let (assetBought,poolAfterBought) = buyRevolvingPool d (toRational purchaseRatio) assetForSale  `debug` ("In Buy >>> date "++ show d ++ "purchase ratio"++ show purchaseRatio)
+        let boughtAssetBal =  sum $ curBal <$> assetBought  `debug` ("In Buy >>> Asset bought 0 \n"++ show assetBought++ "pflow map\n"++ show pFlowMap++" p id to change\n"++ show pIdToChange)
         -- update runtime balance
         let newPt = case pt of 
                       MultiPool pm -> MultiPool $ Map.adjust
@@ -595,11 +594,11 @@ performActionWrap d
 
         let newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap -- `debug` ("Asset bought total bal"++ show boughtAssetBal)
         cfFrameBought <- projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Date: " ++ show d ++ "Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
-        let cfBought = fst cfFrameBought 
+        let cfBought = fst cfFrameBought `debug` ("In Buy>>>"++ show d ++"Cf bought"++ show (fst cfFrameBought))
         let newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                                 let 
                                   dsInterval = getDate <$> trs  --  `debug` ("Date"++ show d ++ "origin cf \n"++ show cfOrigin)
-                                  boughtCfDates = getDate <$> view CF.cashflowTxn cfBought -- `debug` ("Date"++ show d++ "Cf bought 0\n"++ show cfBought)
+                                  boughtCfDates = getDate <$> view CF.cashflowTxn cfBought  `debug` ("In Buy>>>"++"Date"++ show d++ "Cf bought 0\n"++ show cfBought)
 
                                   newAggDates = case (dsInterval,boughtCfDates) of 
                                                   ([],[]) -> []
@@ -617,13 +616,13 @@ performActionWrap d
 
                                   mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("Buy Date : "++show d ++ "CF bought \n"++ show (over CF.cashflowTxn (slice 0 30) cfBought) )
                                 in 
-                                  over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf ) -- `debug` ("Date "++show d++" Merged CF\n"++ show mergedCf))
+                                  over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf  `debug` ("In Buy>>>"++"Date "++show d++" Merged CF\n"++ show mergedCf))
                             pIdToChange
                             pFlowMap --  `debug` ("pid To change"++ show pIdToChange++ "P flow map"++ show pFlowMap)
 
-        let newRc = rc {runPoolFlow = newPcf -- `debug` (show d ++ "New run pool >> \n"++ show newPcf)
+        let newRc = rc {runPoolFlow = newPcf  `debug` ("In Buy>>>"++show d ++ "New run pool >> \n"++ show newPcf)
                         ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
-        return (t { accounts = newAccMap , pool = newPt}, newRc, logs )
+        return (t { accounts = newAccMap , pool = newPt}, newRc, logs)
 
 performActionWrap d 
                   (t
@@ -675,6 +674,7 @@ performActionWrap d
      accMapAfterLiq = Map.adjust (A.deposit liqAmt d liqComment) an accMap
      -- REMOVE future cf
      newPfInRc = foldr (Map.adjust (set CF.cashflowTxn [])) pcf  (Map.keys poolMapToLiq)
+     -- Update current balance to zero 
    in 
      Right (t {accounts = accMapAfterLiq , pool = newPt} , rc {runPoolFlow = newPfInRc}, logs )
 
@@ -690,7 +690,7 @@ performActionWrap d (t, rc, logs) (W.ActionWithPre p actions)
         foldM (performActionWrap d) (t,rc,logs) actions
       else
         return (t, rc, logs)
-    
+
 
 performActionWrap d (t, rc, logs) (W.ActionWithPre2 p actionsTrue actionsFalse) 
   = do 
@@ -700,7 +700,20 @@ performActionWrap d (t, rc, logs) (W.ActionWithPre2 p actionsTrue actionsFalse)
       else
         foldM (performActionWrap d) (t,rc,logs) actionsFalse
 
+
+performActionWrap d (t, rc, logs) (W.ChangeStatus mPre newSt) 
+  = case mPre of
+      Nothing -> return (t {status=newSt} , rc, logs)
+      Just p -> 
+        do 
+          flag <- testPre d t p
+          if flag then
+            return (t {status=newSt} , rc, logs)
+          else 
+            return (t, rc, logs)
+
 -- ^ go down to performAction
+
 performActionWrap d (t, rc, logs) a 
   = do 
       dealAfterExe <- performAction d t a 
@@ -1356,6 +1369,7 @@ performAction d t@TestDeal{ triggers = Just trgM } (W.RunTrigger loc tNames)
                     (testTrigger t d)
                     triggerList
 
+
 performAction d t (W.Placeholder mComment) = Right t 
 
-performAction d t action =  error $ "failed to match action>>"++show action++">>Deal"++show (name t)
+performAction d t action =  Left $ "failed to match action>>"++show action++">>Deal"++show (name t)
