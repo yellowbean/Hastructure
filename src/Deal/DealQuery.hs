@@ -146,7 +146,6 @@ poolSourceToIssuanceField a = error ("Failed to match pool source when mapping t
 
 
 
--- TODO ,fix all Map.! lookup funciton to return failure
 queryCompound :: P.Asset a => TestDeal a -> Date -> DealStats -> Either String Rational 
 queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=feeMap, pool=pt}
               d s =
@@ -162,7 +161,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     Max ss -> maximum' [ queryCompound t d s | s <- ss ]
     Min ss -> minimum' [ queryCompound t d s | s <- ss ]
     Divide ds1 ds2 -> if (queryCompound t d ds2) == Right 0 then 
-                        Left $ "Can not divide zero on ds: "++ show ds2
+                        Left $ "Date:"++show d++"Can not divide zero on ds: "++ show ds2
                       else
                         liftA2 (/) (queryCompound t d ds1) (queryCompound t d ds2)
     Factor s f -> (* f) <$> queryCompound t d s
@@ -241,7 +240,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       do 
         (L.OriginalInfo _ _ _ mm) <- lookupAndApply L.bndOriginInfo "Get Months till maturity" bn bndMap 
         case mm of
-          Nothing -> Left $ "There is maturity date for bond " ++ bn
+          Nothing -> Left $ "Date:"++show d++"There is maturity date for bond " ++ bn
           Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
           
 
@@ -249,7 +248,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     ReserveBalance ans -> 
       do 
-        accBal <- lookupAndApplies (calcTargetAmount t d) "Cal Reserve Balance" ans accMap
+        accBal <- lookupAndApplies (calcTargetAmount t d) ("Date:"++show d++"Cal Reserve Balance") ans accMap
         vs <- sequenceA accBal
         return $ toRational (sum vs)
 
@@ -298,9 +297,9 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       in 
         case Map.lookup IssuanceBalance statsConsol of 
           Just v -> Right . toRational $ v
-          Nothing -> Left "No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
+          Nothing -> Left $ "Date:"++show d++"No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
     
-    UnderlyingBondBalance mBndNames -> Left "Not implemented for underlying bond balance"
+    UnderlyingBondBalance mBndNames -> Left $ "Date:"++show d++"Not implemented for underlying bond balance"
  
     AllAccBalance -> Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
     
@@ -312,7 +311,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     -- ^ negatave -> credit balance , postive -> debit balance
     LedgerBalance ans ->
       case ledgersM of 
-        Nothing -> Left ("No ledgers were modeled , failed to find ledger:"++show ans )
+        Nothing -> Left ("Date:"++show d++"No ledgers were modeled , failed to find ledger:"++show ans )
         Just ledgersM -> 
           do 
             lgBals <- lookupAndApplies LD.ledgBalance "Ledger Balance" ans ledgersM
@@ -320,7 +319,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     
     LedgerBalanceBy dr ans ->
       case ledgersM of 
-        Nothing -> Left ("No ledgers were modeled , failed to find ledger:"++show ans )
+        Nothing -> Left ("Date:"++show d++"No ledgers were modeled , failed to find ledger:"++show ans )
         Just ledgersM ->
           do 
             lgdsM <- selectInMap "Look up ledgers" ans ledgersM
@@ -339,8 +338,8 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             in 
               Right . toRational $ sum $ Map.elems $ Map.map (`Pl.getIssuanceField` RuntimeCurrentPoolBalance) m 
           else 
-            Left $ "Failed to find pool balance" ++ show pids ++ " from deal "++ show (Map.keys pm)
-        _ -> Left $ "Failed to find pool" ++ show (mPns) ++","++ show pt
+            Left $ "Date:"++show d++"Failed to find pool balance" ++ show pids ++ " from deal "++ show (Map.keys pm)
+        _ -> Left $ "Date:"++show d++"Failed to find pool" ++ show (mPns) ++","++ show pt
 
     FutureCurrentSchedulePoolBalance mPns ->
       let 
@@ -536,7 +535,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     LedgerTxnAmt lns mCmt ->
       case ledgersM of 
-        Nothing -> Left $ ("No ledgers were modeled , failed to find ledger:"++show lns )
+        Nothing -> Left $ ("Date:"++show d++"No ledgers were modeled , failed to find ledger:"++show lns )
         Just ledgerm ->
           let 
             lgs = (ledgerm Map.!) <$> lns
@@ -580,28 +579,28 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     LiqCredit lqNames -> 
       case liqProvider t of
-        Nothing -> Left $ "No Liquidation Provider modeled when looking for " ++ show s
+        Nothing -> Left $ "Date:"++show d++"No Liquidation Provider modeled when looking for " ++ show s
         Just liqProviderM -> Right . toRational $
                                sum $ [ fromMaybe 0 (CE.liqCredit liq) | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
 
     LiqBalance lqNames -> 
       case liqProvider t of
-        Nothing -> Left $ "No Liquidation Provider modeled when looking for " ++ show s
+        Nothing -> Left $ "Date:"++show d++"No Liquidation Provider modeled when looking for " ++ show s
         Just liqProviderM -> Right . toRational $
                                sum $ [ CE.liqBalance liq | (k,liq) <- Map.assocs liqProviderM
                                      , S.member k (S.fromList lqNames) ]
 
     RateCapNet rcName -> case rateCap t of
-                           Nothing -> Left $ "No Rate Cap modeled when looking for " ++ show s
+                           Nothing -> Left $ "Date:"++show d++"No Rate Cap modeled when looking for " ++ show s
                            Just rm -> case Map.lookup rcName rm of
-                                        Nothing -> Left $ "No Rate Cap modeled when looking for " ++ show s
+                                        Nothing -> Left $ "Date:"++show d++"No Rate Cap modeled when looking for " ++ show s
                                         Just rc -> Right . toRational $ H.rcNetCash rc
     
     RateSwapNet rsName -> case rateCap t of
-                           Nothing -> Left $ "No Rate Swap modeled when looking for " ++ show s
+                           Nothing -> Left $ "Date:"++show d++"No Rate Swap modeled when looking for " ++ show s
                            Just rm -> case Map.lookup rsName rm of
-                                        Nothing -> Left $ "No Rate Swap modeled when looking for " ++ show s
+                                        Nothing -> Left $ "Date:"++show d++"No Rate Swap modeled when looking for " ++ show s
                                         Just rc -> Right . toRational $ H.rcNetCash rc
 
     WeightedAvgCurrentBondBalance d1 d2 bns ->
@@ -635,15 +634,15 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     CustomData s d ->
         case custom t of 
-          Nothing -> Left $ "No Custom data to query" ++ show s
+          Nothing -> Left $ "Date:"++show d++"No Custom data to query" ++ show s
           Just mCustom ->
               case Map.lookup s mCustom of 
                 Just (CustomConstant v) -> Right . toRational $ v 
                 Just (CustomCurve cv) -> Right . toRational $ getValOnByDate cv d
                 Just (CustomDS ds) -> queryCompound t d (patchDateToStats d ds )
-                _ -> Left $ "Unsupported custom data found for key " ++ show s
+                _ -> Left $ "Date:"++show d++"Unsupported custom data found for key " ++ show s
 
-    _ -> Left ("Failed to query formula of -> "++ show s)
+    _ -> Left ("Date:"++show d++"Failed to query formula of -> "++ show s)
     
 
 
@@ -654,12 +653,12 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
     TriggersStatus dealcycle tName -> 
       case trgs of 
         Just _trgsM -> case Map.lookup dealcycle _trgsM of 
-                         Nothing -> Left ("no trigger cycle for this deal" ++ show dealcycle)
+                         Nothing -> Left ("Date:"++show d++"no trigger cycle for this deal" ++ show dealcycle)
                          Just triggerMatCycle -> 
                            case Map.lookup tName triggerMatCycle of 
-                             Nothing -> Left ("no trigger for this deal" ++ show tName ++ " in cycle " ++ show triggerMatCycle)
+                             Nothing -> Left ("Date:"++show d++"no trigger for this deal" ++ show tName ++ " in cycle " ++ show triggerMatCycle)
                              Just trigger -> Right $ Trg.trgStatus trigger 
-        Nothing -> Left "no trigger for this deal"
+        Nothing -> Left "Date:"++show d++"no trigger for this deal"
     
     IsMostSenior bn bns ->
       do 
@@ -669,7 +668,6 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
           case (bn1, and bns1) of
             (False,True) -> True
             _ -> False
-
 
     IsPaidOff bns -> 
       do 
@@ -707,7 +705,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
     TestAny b dss -> anyM (\ x -> (== b) <$> (queryDealBool t x d) ) dss
     TestAll b dss -> allM (\ x -> (== b) <$> (queryDealBool t x d) ) dss
 
-    _ -> error ("Failed to query bool type formula"++ show ds)
+    _ -> Left ("Date:"++show d++"Failed to query bool type formula"++ show ds)
 
 -- ^ test a condition with a deal and a date
 testPre :: P.Asset a => Date -> TestDeal a -> Pre -> Either String Bool

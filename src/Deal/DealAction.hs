@@ -522,7 +522,7 @@ applyLimit t d availBal dueBal (Just limit) =
                    return (min (fromRational v) availBal)
         DuePct pct -> Right $ min availBal $ mulBR dueBal pct 
 
-        x -> Left $ " Unsupported limit found:"++ show x
+        x -> Left $ "Date:"++show d ++" Unsupported limit found:"++ show x
 
 calcAvailAfterLimit :: Ast.Asset a => TestDeal a -> Date -> A.Account -> Maybe W.ExtraSupport 
                     -> Balance -> (Maybe Limit) -> Either String Balance
@@ -632,7 +632,7 @@ performActionWrap d
                                 ,revolvingInterestRateAssump=mRates}
                   ,logs)
                   (W.BuyAsset ml pricingMethod accName _)
-  = Left $ "Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
+  = Left $ "Date:"++ show d ++"Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
 
 -- TODO need to set a limit to sell
 performActionWrap d 
@@ -1078,7 +1078,7 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an 
     fundAmt_ <- case mlimit of 
                  Just (DS ds) -> queryCompound t d (patchDateToStats d ds)
                  Just (DueCapAmt amt) -> Right $ toRational amt
-                 _ -> Left $ "Not valid limit for funding with bond"++ show bnd
+                 _ -> Left $ "Date:"++show d ++"Not valid limit for funding with bond"++ show bnd
     let fundAmt = fromRational fundAmt_
     let accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bnd fundAmt)) an accMap
     newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
@@ -1105,7 +1105,7 @@ performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
                     Just (DS ds) -> queryCompound t d (patchDateToStats d ds)
                     Just (DueCapAmt amt) -> Right $ toRational amt
                     Nothing -> Right $ toRational . L.bndBalance $ bndMap Map.! bnd
-                    x -> Left $ "not supported type to determine the amount to write off"++ show x
+                    x -> Left $ "Date:"++show d ++"not supported type to determine the amount to write off"++ show x
 
       let writeAmtCapped = min (fromRational writeAmt) $ L.bndBalance $ bndMap Map.! bnd
       newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
@@ -1189,16 +1189,16 @@ performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.Li
         in 
           do 
             transferAmt <- case (CE.liqCredit liq, mLimit) of 
-                             (Nothing, Nothing) -> Left $ "Can't deposit unlimit cash to an account in LiqSupport(Account):"++ show pName ++ ":"++ show an
+                             (Nothing, Nothing) -> Left $ "Date:"++show d ++"Can't deposit unlimit cash to an account in LiqSupport(Account):"++ show pName ++ ":"++ show an
                              (Just av, Nothing) -> Right . toRational $ av
                              (Nothing, Just (DS ds)) -> queryCompound t d (patchDateToStats d ds) -- `debug` ("hit with ds"++ show ds)
                              (Just av, Just (DS ds)) -> (min (toRational av)) <$> queryCompound t d (patchDateToStats d ds) 
-                             (_ , Just _x) -> Left $ "Not support limit in LiqSupport(Account)"++ show _x 
+                             (_ , Just _x) -> Left $ "Date:"++show d ++"Not support limit in LiqSupport(Account)"++ show _x 
             let dAmt = fromRational transferAmt
             return t { accounts = Map.adjust (A.deposit dAmt d (LiquidationSupport pName)) an accs
                      , liqProvider = Just $ Map.adjust (CE.draw dAmt d) pName _liqProvider
                      }
-  | otherwise = Left "There should only one account for LiqToAcc of LiqSupport"
+  | otherwise = Left $ "Date:"++show d ++"There should only one account for LiqToAcc of LiqSupport"
 
 
 -- TODO : add pay fee by sequence
@@ -1284,7 +1284,7 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
         transferAmt <- case limit of 
                         Nothing -> Right (toRational cap)
                         Just (DS ds) -> (min (toRational cap)) <$> (queryCompound t d (patchDateToStats d ds)) 
-                        _ -> Left $ "Not implement the limit"++ show limit++"For Pay Yield to liqProvider"
+                        _ -> Left $ "Date:"++show d ++"Not implement the limit"++ show limit++"For Pay Yield to liqProvider"
       
         let newAccMap = Map.adjust (A.draw (fromRational transferAmt) d (LiquidationSupport pName)) an accs
         let newLiqMap = Map.adjust (CE.repay (fromRational transferAmt) d CE.LiqResidual) pName _liqProvider 
