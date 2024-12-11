@@ -586,9 +586,9 @@ performActionWrap d
                             (StaticAsset _) -> min availBal valuationOnAvailableAssets -- `debug` ("Valuation on rpool"++show valuationOnAvailableAssets)
                             ConstantAsset _ -> availBal 
                             AssetCurve _ -> min availBal valuationOnAvailableAssets   
-        let purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets `debug` ("In Buy >>> Date"++ show d ++ " Purchase Amt"++show purchaseAmt++">> avail value on availAsset"++ show  valuationOnAvailableAssets )
-        let (assetBought,poolAfterBought) = buyRevolvingPool d (toRational purchaseRatio) assetForSale  `debug` ("In Buy >>> date "++ show d ++ "purchase ratio"++ show purchaseRatio)
-        let boughtAssetBal =  sum $ curBal <$> assetBought  `debug` ("In Buy >>> Asset bought 0 \n"++ show assetBought++ "pflow map\n"++ show pFlowMap++" p id to change\n"++ show pIdToChange)
+        let purchaseRatio = divideBB purchaseAmt valuationOnAvailableAssets -- `debug` ("In Buy >>> Date"++ show d ++ " Purchase Amt"++show purchaseAmt++">> avail value on availAsset"++ show  valuationOnAvailableAssets )
+        let (assetBought,poolAfterBought) = buyRevolvingPool d (toRational purchaseRatio) assetForSale  -- `debug` ("In Buy >>> date "++ show d ++ "purchase ratio"++ show purchaseRatio)
+        let boughtAssetBal =  sum $ curBal <$> assetBought  -- `debug` ("In Buy >>> Asset bought 0 \n"++ show assetBought++ "pflow map\n"++ show pFlowMap++" p id to change\n"++ show pIdToChange)
         -- update runtime balance
         let newPt = case pt of 
                       MultiPool pm -> MultiPool $ Map.adjust
@@ -599,11 +599,11 @@ performActionWrap d
 
         let newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap -- `debug` ("Asset bought total bal"++ show boughtAssetBal)
         cfFrameBought <- projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Date: " ++ show d ++ "Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
-        let cfBought = fst cfFrameBought `debug` ("In Buy>>>"++ show d ++"Cf bought"++ show (fst cfFrameBought))
+        let cfBought = fst cfFrameBought -- `debug` ("In Buy>>>"++ show d ++"Cf bought"++ show (fst cfFrameBought))
         let newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
                                 let 
                                   dsInterval = getDate <$> trs  --  `debug` ("Date"++ show d ++ "origin cf \n"++ show cfOrigin)
-                                  boughtCfDates = getDate <$> view CF.cashflowTxn cfBought  `debug` ("In Buy>>>"++"Date"++ show d++ "Cf bought 0\n"++ show cfBought)
+                                  boughtCfDates = getDate <$> view CF.cashflowTxn cfBought -- `debug` ("In Buy>>>"++"Date"++ show d++ "Cf bought 0\n"++ show cfBought)
 
                                   newAggDates = case (dsInterval,boughtCfDates) of 
                                                   ([],[]) -> []
@@ -621,11 +621,11 @@ performActionWrap d
 
                                   mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("Buy Date : "++show d ++ "CF bought \n"++ show (over CF.cashflowTxn (slice 0 30) cfBought) )
                                 in 
-                                  over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf  `debug` ("In Buy>>>"++"Date "++show d++" Merged CF\n"++ show mergedCf))
+                                  over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf )-- `debug` ("In Buy>>>"++"Date "++show d++" Merged CF\n"++ show mergedCf))
                             pIdToChange
                             pFlowMap --  `debug` ("pid To change"++ show pIdToChange++ "P flow map"++ show pFlowMap)
 
-        let newRc = rc {runPoolFlow = newPcf  `debug` ("In Buy>>>"++show d ++ "New run pool >> \n"++ show newPcf)
+        let newRc = rc {runPoolFlow = newPcf  -- `debug` ("In Buy>>>"++show d ++ "New run pool >> \n"++ show newPcf)
                         ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
         return (t { accounts = newAccMap , pool = newPt}, newRc, logs)
 
