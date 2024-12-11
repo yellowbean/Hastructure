@@ -250,6 +250,7 @@ baseDeal = D.TestDeal {
                                            ,AB.period=Monthly
                                            ,AB.startDate=(T.fromGregorian 2022 1 1)
                                            ,AB.prinType= AB.Level
+                                           ,AB.obligor = Nothing
                                            ,AB.prepaymentPenalty = Nothing}
                                          4000
                                          0.085
@@ -257,6 +258,7 @@ baseDeal = D.TestDeal {
                                          Nothing
                                          AB.Current]
                  ,P.futureCf=Nothing
+                 ,P.extendPeriods = Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]})]
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
