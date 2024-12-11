@@ -1832,7 +1832,17 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/DealStatus"
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Pre"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStatus"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
                             },
                             "tag": {
                                 "enum": [
@@ -14794,10 +14804,13 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/DealStatus"
+                                    },
+                                    {
+                                        "type": "string"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {

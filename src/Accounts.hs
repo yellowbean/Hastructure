@@ -98,11 +98,10 @@ depositInt ed a@(Account bal _ (Just intType) _ stmt)
             newStmt = appendStmt stmt newTxn
 
 -- | move cash from account A to account B
-transfer :: Account -> Amount -> Date -> Account -> (Account, Account)
-transfer sourceAcc@(Account sBal san _ _ sStmt)
-         amount
+transfer :: (Account,Account) -> Date -> Amount -> (Account, Account)
+transfer (sourceAcc@(Account sBal san _ _ sStmt), targetAcc@(Account tBal tan _ _ tStmt))
          d
-         targetAcc@(Account tBal tan _ _ tStmt)
+         amount
   = (sourceAcc {accBalance = newSBal, accStmt = sourceNewStmt}
     ,targetAcc {accBalance = newTBal, accStmt = targetNewStmt})
   where
@@ -121,7 +120,9 @@ deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
 
 -- | draw cash from account with a comment
 draw :: Amount -> Date -> TxnComment -> Account -> Account
-draw amount = deposit (- amount) 
+draw amount d txn acc@Account{ accBalance = bal ,accName = an} 
+  | bal >= amount = deposit (- amount) d txn acc  
+  | otherwise = error  $ "Date:"++ show d ++" Failed to draw "++ show amount ++" from account" ++ an
 
 -- | draw cash from account with a comment,return shortfall and acccount 
 tryDraw :: Amount -> Date -> TxnComment -> Account -> ((Amount,Amount),Account)

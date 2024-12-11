@@ -12,6 +12,7 @@ module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,projAssetUnion,priceAssetUnion
             ,removePoolCf,runPoolType,PoolType
             ,ActionOnDate(..),DateDesp(..),OverrideType(..)
+            ,changeDealStatus
             ) where
 
 import qualified Accounts as A
@@ -369,13 +370,18 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc, actions) d d
     let triggeredEffects = [ trgEffects _trg | _trg <- Map.elems triggeredTrgs, (trgStatus _trg) ] 
     (newDeal, newRc, newActions, logsFromTrigger) <- foldM (`runEffects` d) (t,rc,actions,[]) triggeredEffects
     let newStatus = status newDeal 
-    let newLogs = [DealStatusChangeTo d oldStatus newStatus |  newStatus /= oldStatus] -- `debug` (">>"++show d++"trigger : new st"++ show newStatus++"old st"++show oldStatus)
+    let newLogs = [DealStatusChangeTo d oldStatus newStatus "By trigger"|  newStatus /= oldStatus] -- `debug` (">>"++show d++"trigger : new st"++ show newStatus++"old st"++show oldStatus)
     let newTriggers = Map.union triggeredTrgs trgsMap
     return (newDeal {triggers = Just (Map.insert dcycle newTriggers trgM)}
            , newRc
            , newActions
            , newLogs++logsFromTrigger) -- `debug` ("New logs from trigger"++ show d ++">>>"++show newLogs)
 
+
+changeDealStatus:: Ast.Asset a => (Date,String)-> DealStatus -> TestDeal a -> (Maybe ResultComponent, TestDeal a)
+-- ^ no status change for deal already ended 
+changeDealStatus _ _ t@TestDeal{status=Ended} = (Nothing, t) 
+changeDealStatus (d,why) newSt t@TestDeal{status=oldSt} = (Just (DealStatusChangeTo d oldSt newSt why), t {status=newSt})
 
 run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([Pre],[Pre])
         -> Maybe (Map.Map String (RevolvingPool,AP.ApplyAssumptionType))-> [ResultComponent] -> Either String (TestDeal a,[ResultComponent])
@@ -438,9 +444,9 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               if flag then
                 do
                   let newStLogs = if null cleanUpActions then 
-                                    [DealStatusChangeTo d dStatus Called]
+                                    [DealStatusChangeTo d dStatus Called "Call by triggers before waterfall distribution"]
                                   else 
-                                    [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
+                                    [DealStatusChangeTo d dStatus Called "Call by triggers before waterfall distribution", RunningWaterfall d W.CleanUp]
                   (dealAfterCleanUp, rc_, newLogWaterfall_ ) <- foldM (performActionWrap d) (dRunWithTrigger0, rc1,log) cleanUpActions 
                   endingLogs <- Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
                   return (prepareDeal dealAfterCleanUp, endingLogs ++ logsBeforeDist ++newStLogs++[EndRun (Just d) "Clean Up"]) -- `debug` ("Called ! "++ show d)
@@ -494,7 +500,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                          (PreClosing st) -> Right st
                          _ -> Left $ "DealClosed action is not in PreClosing status but got"++ show dStatus
               (newDeal, newRc, newLog) <- foldM (performActionWrap d) (t, rc, log) w  -- `debug` ("ClosingDay Action:"++show w)
-              run newDeal{status=newSt} (runPoolFlow newRc) (Just ads) rates calls rAssump (newLog++[DealStatusChangeTo d (PreClosing newSt) newSt]++logForClosed) -- `debug` ("new st at closing"++ show newSt)
+              run newDeal{status=newSt} (runPoolFlow newRc) (Just ads) rates calls rAssump (newLog++[DealStatusChangeTo d (PreClosing newSt) newSt "By Deal Close"]++logForClosed) -- `debug` ("new st at closing"++ show newSt)
 
         ChangeDealStatusTo d s -> run (t{status=s}) poolFlowMap (Just ads) rates calls rAssump log
 
@@ -574,12 +580,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             runContext = RunContext poolFlowMap rAssump rates
           in 
             do 
-              (newT, rc@(RunContext newPool _ _),adsFromTrigger, newLogsFromTrigger) 
+              (newT, rc@(RunContext newPool _ _), adsFromTrigger, newLogsFromTrigger) 
                 <- case triggerEffects of 
                     Nothing -> Right (t, runContext, ads, []) -- `debug` "Nothing found on effects"
                     Just efs -> runEffects (t, runContext, ads, []) d efs
               let (oldStatus,newStatus) = (status t,status newT)
-              let stChangeLogs = [DealStatusChangeTo d oldStatus newStatus |  oldStatus /= newStatus] 
+              let stChangeLogs = [DealStatusChangeTo d oldStatus newStatus "by Manual fireTrigger" |  oldStatus /= newStatus] 
               let newLog = WarningMsg $ "Trigger Overrided to True "++ show(d,cyc,n)
               run newT {triggers = Just triggerFired} newPool (Just ads) rates calls rAssump $ log++[newLog]++stChangeLogs++newLogsFromTrigger
         
@@ -690,9 +696,9 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                   let 
                      runContext = RunContext poolFlowMap rAssump rates
                      newStLogs = if null cleanUpActions then 
-                                   [DealStatusChangeTo d dStatus Called]
+                                   [DealStatusChangeTo d dStatus Called "by Date-Based Call"]
                                  else 
-                                   [DealStatusChangeTo d dStatus Called, RunningWaterfall d W.CleanUp]
+                                   [DealStatusChangeTo d dStatus Called "by Date-Based Call", RunningWaterfall d W.CleanUp]
                   in  
                      do 
                        (dealAfterCleanUp, rc_, newLogWaterfall_ ) <- foldM (performActionWrap d) (t, runContext, log) cleanUpActions

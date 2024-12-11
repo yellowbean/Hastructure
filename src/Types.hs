@@ -799,15 +799,15 @@ data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the
                 deriving (Show,Ord,Eq,Generic,Read)
 
 
-data ResultComponent = CallAt Date                                    -- ^ the date when deal called
-                     | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed
-                     | BondOutstanding String Balance Balance         -- ^ when deal ends,calculate oustanding principal balance 
-                     | BondOutstandingInt String Balance Balance      -- ^ when deal ends,calculate oustanding interest due 
-                     | InspectBal Date DealStats Balance              -- ^ A bal value from inspection
-                     | InspectInt Date DealStats Int                  -- ^ A int value from inspection
-                     | InspectRate Date DealStats Micro               -- ^ A rate value from inspection
-                     | InspectBool Date DealStats Bool                -- ^ A bool value from inspection
-                     | RunningWaterfall Date ActionWhen               -- ^ running waterfall at a date 
+data ResultComponent = CallAt Date                                          -- ^ the date when deal called
+                     | DealStatusChangeTo Date DealStatus DealStatus String -- ^ record when & why status changed
+                     | BondOutstanding String Balance Balance               -- ^ when deal ends,calculate oustanding principal balance 
+                     | BondOutstandingInt String Balance Balance            -- ^ when deal ends,calculate oustanding interest due 
+                     | InspectBal Date DealStats Balance                    -- ^ A bal value from inspection
+                     | InspectInt Date DealStats Int                        -- ^ A int value from inspection
+                     | InspectRate Date DealStats Micro                     -- ^ A rate value from inspection
+                     | InspectBool Date DealStats Bool                      -- ^ A bool value from inspection
+                     | RunningWaterfall Date ActionWhen                     -- ^ running waterfall at a date 
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
                      | InspectWaterfall Date (Maybe String) [DealStats] [String]
                      | ErrorMsg String

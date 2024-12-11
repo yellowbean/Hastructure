@@ -532,13 +532,18 @@ calcAvailAfterLimit t d acc mSupport dueAmt mLimit
                     Nothing -> Right $ A.accBalance acc
                     Just support -> ((A.accBalance acc) +) <$> evalExtraSupportBalance d t support
     in
-      (min dueAmt) <$> 
-      case mLimit of
-        Nothing -> availFund
-        Just (DueCapAmt amt) -> min amt <$> availFund
-        Just (DS ds) -> liftA2 min (fromRational <$> (queryCompound t d (patchDateToStats d ds))) availFund
-        Just (DuePct pct) -> min (mulBR dueAmt pct) <$> availFund 
-        _ -> Left ("Failed to find <limit> type"++ show mLimit)
+      do
+        r <- (min dueAmt) <$> 
+               case mLimit of
+                 Nothing -> availFund
+                 Just (DueCapAmt amt) -> min amt <$> availFund
+                 Just (DS ds) -> liftA2 min (fromRational <$> (queryCompound t d (patchDateToStats d ds))) availFund
+                 Just (DuePct pct) -> min (mulBR dueAmt pct) <$> availFund 
+                 _ -> Left ("Failed to find <limit> type"++ show mLimit)
+        if r < 0 then
+          (Left ("Negative value when calculates Limit:"++ show mLimit))
+        else 
+          return r
 
 
 updateSupport :: Ast.Asset a => Date -> Maybe W.ExtraSupport -> Balance -> TestDeal a -> TestDeal a
@@ -746,8 +751,6 @@ performAction d t@TestDeal{accounts=accMap} (W.Transfer mLimit an1 an2 mComment)
         let accMapAfterDraw = Map.adjust (A.draw transferAmt d (Transfer an1 an2)) an1 accMap -- `debug` (">>PDL >>Ledger bal"++show d ++ show targetAmt)
         let accMapAfterDeposit = Map.adjust (A.deposit transferAmt d (Transfer an1 an2)) an2 accMapAfterDraw
         return t {accounts = accMapAfterDeposit}  
-
--- foldM :: (Foldable t, Monad m) => (b -> a -> m b) -> b -> t a -> m b
 
 performAction d t@TestDeal{accounts=accMap} (W.TransferMultiple sourceAccList targetAcc mComment)
   = foldM (\acc (mLimit, sourceAccName) -> 
