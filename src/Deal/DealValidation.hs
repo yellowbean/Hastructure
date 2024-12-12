@@ -207,12 +207,12 @@ validateAction ((W.LiqSupport _ liqName CE.LiqToAcc [accName]):as) rs accKeys bn
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
 validateAction ((W.LiqSupport _ liqName CE.LiqToFee feeNames):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
-  | Set.isSubsetOf (Set.fromList feeNames) feeKeys || Set.notMember liqName liqProviderKeys 
+  | not (Set.isSubsetOf (Set.fromList feeNames) feeKeys) || Set.notMember liqName liqProviderKeys 
     = validateAction as (rs ++ [ErrorMsg (show feeNames++" not in "++show feeKeys++" Or "++liqName ++" not in "++ show liqProviderKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
 validateAction ((W.LiqSupport _ liqName CE.LiqToBondInt bndNames):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
-  | Set.isSubsetOf (Set.fromList bndNames) bndKeys || Set.notMember liqName liqProviderKeys 
+  | not (Set.isSubsetOf (Set.fromList bndNames) bndKeys) || Set.notMember liqName liqProviderKeys 
     = validateAction as (rs ++ [ErrorMsg (show bndNames++" not in "++show bndKeys++" Or "++liqName ++" not in "++ show liqProviderKeys)]) accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
   | otherwise = validateAction as rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys
 
