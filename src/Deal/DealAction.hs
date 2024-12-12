@@ -680,8 +680,8 @@ performActionWrap d
      -- REMOVE future cf
      newPfInRc = foldr (Map.adjust (set CF.cashflowTxn [])) pcf  (Map.keys poolMapToLiq)
      -- Update current balance to zero 
-   in 
-     Right (t {accounts = accMapAfterLiq , pool = newPt} , rc {runPoolFlow = newPfInRc}, logs )
+   in
+     Right (t {accounts = accMapAfterLiq , pool = newPt} , rc {runPoolFlow = newPfInRc}, logs)
 
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
@@ -718,12 +718,10 @@ performActionWrap d (t, rc, logs) (W.ChangeStatus mPre newSt)
             return (t, rc, logs)
 
 -- ^ go down to performAction
-
 performActionWrap d (t, rc, logs) a 
   = do 
       dealAfterExe <- performAction d t a 
       return (dealAfterExe, rc, logs)
-
 
 performAction :: Ast.Asset a => Date -> TestDeal a -> W.Action -> Either String (TestDeal a)
 performAction d t@TestDeal{accounts=accMap, ledgers = Just ledgerM} 

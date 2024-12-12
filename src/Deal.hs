@@ -398,7 +398,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         return (prepareDeal finalDeal,newLogs++[EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"]) -- `debug` ("End of pool collection with logs with length "++ show (length log))
 
   | otherwise
-    = case ad `debug` ("Action"++show ad++">>\n")of 
+    = case ad of 
         PoolCollection d _ ->
           if any (> 0) remainCollectionNum then
             let 
@@ -860,7 +860,7 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                                              0 -> 0 
                                              _ ->  CF.mflowBalance $ last txnCollected
                           txnToAppend = CF.patchCumulative currentStats [] txnCollected
-                          accUpdated =  Map.adjust (over P.poolFutureTxn (++ txnToAppend)) k acc `debug` ("date"++show d ++ "appending txn"++ show txnToAppend)
+                          accUpdated =  Map.adjust (over P.poolFutureTxn (++ txnToAppend)) k acc 
                         in 
                           Map.adjust 
                             (over P.poolIssuanceStat (Map.insert RuntimeCurrentPoolBalance balInCollected))
@@ -885,16 +885,8 @@ removePoolCf t@TestDeal{pool=pt} =
               ResecDeal uds -> ResecDeal uds
               _ -> error "not implement"
   in
-    t {pool=newPt}
+    t {pool = newPt}
 
--- ^ TODO: need to set cashflow to different pool other than SoloPool
--- setFutureCF :: Ast.Asset a => TestDeal a -> CF.CashFlowFrame -> TestDeal a
--- setFutureCF t@TestDeal{pool = (SoloPool p )} cf 
---   = let 
---       newPool =  p {P.futureCf = Just cf}
---       newPoolType = SoloPool newPool 
---     in 
---       t {pool = newPoolType }
 
 populateDealDates :: DateDesp -> DealStatus -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
 populateDealDates (WarehousingDates begDate rampingPoolDp rampingBondDp statedDate)
@@ -950,12 +942,9 @@ runPool (P.Pool [] (Just (CF.CashFlowFrame _ txn)) _ asof _ (Just dp)) (Just (AP
 -- use interest rate assumption
 runPool (P.Pool as _ _ asof _ _) Nothing mRates 
   -- = Right $ map (\x -> (Ast.calcCashflow x asof mRates,Map.empty)) as 
-  = let 
-      cfs::(Either String [CF.CashFlowFrame]) = sequenceA $ map (\x -> Ast.calcCashflow x asof mRates) as 
-    in 
-      do 
-        cf <- cfs 
-        return [ (x, Map.empty) | x <- cf ]
+  = do 
+      cf <- sequenceA $ map (\x -> Ast.calcCashflow x asof mRates) as 
+      return [ (x, Map.empty) | x <- cf ]
 
 -- asset cashflow with credit stress
 ---- By pool level

@@ -3,12 +3,17 @@
 <!-- towncrier release notes start -->
 
 
+## 0.40.9
+### 2024-12-11
+* ENHANCE:  Ensure <limit> always return positive ,otherwise engine will throw error
+* NEW: add new action  `changeStatus` in waterfall, with optional `Pre` as condition to trigger the status change
+
+
 ## 0.40.6
 ### 2024-12-06 
 * NEW: new formula `ledgerBalanceBy`, which return either `Credit` or `Debit` balance of a ledger
 * FIX: step-up coupon bond which has a floater index will increase forever
 * ENHANCE: refactor on `PDL` book type.
-* ENHANCE: 
 
 
 ## 0.40.1

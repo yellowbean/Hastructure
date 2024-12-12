@@ -427,19 +427,19 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                         Nothing
                       else
                         Just (x!!lookupIndx))
-                  pCollectedTxns `debug` ("date"++show d++"Pool collection: "++ show pCollectedTxns)
+                  pCollectedTxns -- `debug` ("date"++show d++"Pool collection: "++ show pCollectedTxns)
       in
         do
           curPoolBalM <- sequenceA $
                            Map.mapWithKey
                              (\k v -> queryCompound t d (FutureCurrentPoolBalance (Just [k]))) 
-                             pStat `debug` ("date"++show d++"Pool stats collection: "++ show pStat)
+                             pStat -- `debug` ("date"++show d++"Pool stats collection: "++ show pStat)
           let poolStat = Map.mapWithKey
                            (\k v -> 
                               case v of
                                 Just _v -> sum $ CF.lookupSource _v <$> ps
                                 Nothing -> sum $ CF.lookupSourceM (fromRational (curPoolBalM Map.! k)) Nothing <$> ps)
-                           pStat  `debug` ("date"++show d++"query pool current pool stat 2" ++ show pStat )
+                           pStat  -- `debug` ("date"++show d++"query pool current pool stat 2" ++ show pStat )
           return $ sum $ Map.elems $ toRational <$> poolStat -- `debug` ("query pool current stats"++ show poolStat)
 
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
