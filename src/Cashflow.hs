@@ -3,17 +3,17 @@
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf,sumTsCF,tsSetDate,tsSetLoss,tsSetRecovery
-                ,sizeCashFlowFrame,aggTsByDates, getTsCashFlowFrame
+                ,sizeCashFlowFrame,aggTsByDates
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss,mflowDate
-                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame,getDateRangeCashFlowFrame
+                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
                 ,lookupSource,lookupSourceM,combineTss
                 ,mflowBalance,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty
                 ,emptyTsRow,mflowAmortAmount
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
-                ,getDate,getTxnLatestAsOf
+                ,getDate,getTxnLatestAsOf,totalPrincipal
                 ,mflowWeightAverageBalance
                 ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
@@ -221,14 +221,12 @@ instance Show CashFlowFrame where
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 
-getTsCashFlowFrame :: CashFlowFrame -> [TsRow]
-getTsCashFlowFrame (CashFlowFrame _ ts) = ts
-
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
 
-getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date)
-getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
+-- getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date) --TODO what if it is empty ? 
+-- getDateRangeCashFlowFrame (CashFlowFrame _ [tr]) = (getDate tr, getDate tr)
+-- getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
 
 getBegBalCashFlowFrame :: CashFlowFrame -> Balance
 getBegBalCashFlowFrame (CashFlowFrame _ []) = 0
@@ -825,6 +823,9 @@ totalDefault (CashFlowFrame _ rs) = sum $ mflowDefault <$> rs
 totalRecovery :: CashFlowFrame -> Balance
 totalRecovery (CashFlowFrame _ rs) = sum $ mflowRecovery <$> rs
 
+totalPrincipal :: CashFlowFrame -> Balance
+totalPrincipal (CashFlowFrame _ rs) = sum $ mflowPrincipal <$> rs
+
 -- ^ merge two cashflow frame but no patching beg balance
 mergePoolCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergePoolCf cf (CashFlowFrame _ []) = cf
@@ -1185,6 +1186,8 @@ txnCumulativeStats = lens getter setter
     setter (ReceivableFlow d bal p i ppy def recovery loss _) mStat
       = ReceivableFlow d bal p i ppy def recovery loss mStat
     setter x _ = x
+
+
 
 
 $(deriveJSON defaultOptions ''TsRow)

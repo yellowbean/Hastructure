@@ -131,6 +131,54 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TxnComment"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "TransferAndBook"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "TransferAndBook",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "items": {
                                             "items": [
                                                 {
@@ -1096,6 +1144,48 @@
                                         "$ref": "#/components/schemas/Limit"
                                     },
                                     {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WriteOffAndBook"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WriteOffAndBook",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
                                         "items": {
                                             "type": "string"
                                         },
@@ -1118,6 +1208,51 @@
                             "contents"
                         ],
                         "title": "WriteOffBySeq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WriteOffBySeqAndBook"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WriteOffBySeqAndBook",
                         "type": "object"
                     },
                     {
@@ -1274,7 +1409,10 @@
                                         "$ref": "#/components/schemas/LiqDrawType"
                                     },
                                     {
-                                        "type": "string"
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
                                     }
                                 ],
                                 "maxItems": 4,
@@ -1670,6 +1808,54 @@
                             "contents"
                         ],
                         "title": "WatchVal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Placeholder"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Placeholder",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Pre"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStatus"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ChangeStatus"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ChangeStatus",
                         "type": "object"
                     }
                 ]
@@ -4241,6 +4427,9 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/BookDirection"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
@@ -4260,8 +4449,8 @@
                                         "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
@@ -6225,6 +6414,38 @@
                             "contents"
                         ],
                         "title": "LedgerBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/BookDirection"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "LedgerBalanceBy"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "LedgerBalanceBy",
                         "type": "object"
                     },
                     {
@@ -10559,86 +10780,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/BookDirection"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "ClearLedger"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "ClearLedger",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/BookDirection"
-                                    },
-                                    {
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "ClearLedgerBySeq"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "ClearLedgerBySeq",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "type": "string"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "BookLedger"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "BookLedger",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "format": "double",
                                 "type": "number"
                             },
@@ -11799,25 +11940,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Pool_AssetUnion"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/Pool_AssetUnion"
                                 },
@@ -11863,25 +11985,6 @@
             },
             "PoolType_FixedAsset": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Pool_FixedAsset"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -11933,25 +12036,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Pool_Installment"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/Pool_Installment"
                                 },
@@ -11997,25 +12081,6 @@
             },
             "PoolType_Lease": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Pool_Lease"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -12067,25 +12132,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Pool_Loan"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/Pool_Loan"
                                 },
@@ -12131,25 +12177,6 @@
             },
             "PoolType_Mortgage": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Pool_Mortgage"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -12201,25 +12228,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/Pool_ProjectedCashflow"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/Pool_ProjectedCashflow"
                                 },
@@ -12265,25 +12273,6 @@
             },
             "PoolType_Receivable": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "$ref": "#/components/schemas/Pool_Receivable"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SoloPool"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SoloPool",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -14815,10 +14804,13 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/DealStatus"
+                                    },
+                                    {
+                                        "type": "string"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -18690,6 +18682,35 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/BookDirection"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BookLedgerBy"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BookLedgerBy",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "items": {
                                             "$ref": "#/components/schemas/PoolId"
                                         },
@@ -19254,7 +19275,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.31.2"
+        "version": "0.40.10"
     },
     "openapi": "3.0.0",
     "paths": {

@@ -30,7 +30,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio
+  ,MyRatio,HowToPay(..)
   )
   
   where
@@ -444,6 +444,7 @@ data TxnComment = PayInt [BondName]
                 | PayFeeYield FeeName
                 | Transfer AccName AccName 
                 | TransferBy AccName AccName Limit
+                | BookLedgerBy BookDirection String
                 | PoolInflow (Maybe [PoolId]) PoolSource
                 | LiquidationProceeds [PoolId]
                 | LiquidationSupport String
@@ -494,6 +495,7 @@ data DealStats = CurrentBondBalance
                | AllAccBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
+               | LedgerBalanceBy BookDirection [String]
                | LedgerTxnAmt [String] (Maybe TxnComment)
                | ReserveBalance [AccName] 
                | ReserveGap [AccName]
@@ -604,14 +606,19 @@ data Limit = DuePct Rate            -- ^ up to % of total amount due
            | DueCapAmt Balance      -- ^ up to $ amount 
            | KeepBalAmt DealStats   -- ^ pay till a certain amount remains in an account
            | DS DealStats           -- ^ transfer with limit described by a `DealStats`
-           | ClearLedger BookDirection String     -- ^ when transfer, clear the ledger by transfer amount
-           | ClearLedgerBySeq BookDirection [String]  -- ^ clear a direction to a sequence of ledgers
-           | BookLedger String      -- ^ when transfer, book the ledger by the transfer amount
+           -- | ClearLedger BookDirection String     -- ^ when transfer, clear the ledger by transfer amount
+           -- | ClearLedgerBySeq BookDirection [String]  -- ^ clear a direction to a sequence of ledgers
+           -- | BookLedger String      -- ^ when transfer, book the ledger by the transfer amount
            | RemainBalPct Rate      -- ^ pay till remain balance equals to a percentage of `stats`
            | TillTarget             -- ^ transfer amount which make target account up reach reserve balanace
            | TillSource             -- ^ transfer amount out till source account down back to reserve balance
            | Multiple Limit Float   -- ^ factor of a limit
            deriving (Show,Ord,Eq,Read, Generic)
+
+data HowToPay = ByProRata
+              | BySequential
+              deriving (Show,Ord,Eq,Read, Generic)
+
 
 type BookItems = [BookItem]
 
@@ -792,15 +799,15 @@ data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the
                 deriving (Show,Ord,Eq,Generic,Read)
 
 
-data ResultComponent = CallAt Date                                    -- ^ the date when deal called
-                     | DealStatusChangeTo Date DealStatus DealStatus  -- ^ record when status changed
-                     | BondOutstanding String Balance Balance         -- ^ when deal ends,calculate oustanding principal balance 
-                     | BondOutstandingInt String Balance Balance      -- ^ when deal ends,calculate oustanding interest due 
-                     | InspectBal Date DealStats Balance              -- ^ A bal value from inspection
-                     | InspectInt Date DealStats Int                  -- ^ A int value from inspection
-                     | InspectRate Date DealStats Micro               -- ^ A rate value from inspection
-                     | InspectBool Date DealStats Bool                -- ^ A bool value from inspection
-                     | RunningWaterfall Date ActionWhen               -- ^ running waterfall at a date 
+data ResultComponent = CallAt Date                                          -- ^ the date when deal called
+                     | DealStatusChangeTo Date DealStatus DealStatus String -- ^ record when & why status changed
+                     | BondOutstanding String Balance Balance               -- ^ when deal ends,calculate oustanding principal balance 
+                     | BondOutstandingInt String Balance Balance            -- ^ when deal ends,calculate oustanding interest due 
+                     | InspectBal Date DealStats Balance                    -- ^ A bal value from inspection
+                     | InspectInt Date DealStats Int                        -- ^ A int value from inspection
+                     | InspectRate Date DealStats Micro                     -- ^ A rate value from inspection
+                     | InspectBool Date DealStats Bool                      -- ^ A bool value from inspection
+                     | RunningWaterfall Date ActionWhen                     -- ^ running waterfall at a date 
                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
                      | InspectWaterfall Date (Maybe String) [DealStats] [String]
                      | ErrorMsg String
@@ -845,6 +852,7 @@ instance ToJSON TxnComment where
   toJSON (TxnComments tcms) = Array $ V.fromList $ map toJSON tcms
   toJSON (PayGroupInt bns) = String $ T.pack $ "<PayGroupInt:"++ listToStrWithComma bns ++ ">"
   toJSON (PayGroupPrin bns) = String $ T.pack $ "<PayGroupPrin:"++ listToStrWithComma bns ++ ">"
+  toJSON (BookLedgerBy dr lName) = String $ T.pack $ "<BookLedger:"++ lName ++ ">"
   toJSON x = error $ "Not support for toJSON for "++show x
 
 instance FromJSON TxnComment where
@@ -973,7 +981,7 @@ data CustomDataType = CustomConstant Rational
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
+$(concat <$> traverse (deriveJSON defaultOptions) [''BookDirection, ''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )
 
 
@@ -1004,6 +1012,7 @@ $(deriveJSON defaultOptions ''ResultComponent)
 
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''CutoffFields)
+$(deriveJSON defaultOptions ''HowToPay)
 
 
 
@@ -1052,7 +1061,6 @@ instance FromJSONKey Threshold where
 
 
 $(deriveJSON defaultOptions ''RateAssumption)
-$(deriveJSON defaultOptions ''BookDirection)
 $(deriveJSON defaultOptions ''Direction)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''Limit] )

@@ -6,6 +6,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Deal
 
+import Deal.DealQuery (queryCompound)
 import qualified Accounts as A
 import qualified Stmt as S
 import qualified Pool as P
@@ -93,7 +94,8 @@ td = D.TestDeal {
                                ,L.bndStmt=Nothing})
                          ]
            )
-  ,D.pool = D.SoloPool $ 
+  ,D.pool = D.MultiPool $ 
+              Map.fromList [(PoolConsol,
                       P.Pool {P.assets=[AB.Mortgage
                                          AB.MortgageOriginalInfo{
                                            AB.originBalance=4000
@@ -126,6 +128,7 @@ td = D.TestDeal {
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Nothing}
+                )]
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee Nothing "General" ["Service-Fee"] Nothing)
                                  ,(W.PayInt Nothing "General" ["A"] Nothing)
@@ -213,23 +216,23 @@ tdBondGroup = td { D.bonds = bondGroups,
 queryTests =  testGroup "Deal Group Test"
   [
     let
-     currBndGrpBal = queryDeal tdBondGroup (CurrentBondBalanceOf ["A"])
+     currBndGrpBal = queryCompound tdBondGroup epocDate (CurrentBondBalanceOf ["A"])
     in
      testCase "group bond balance" $
-     assertEqual "should be 2500" 2500 currBndGrpBal
+     assertEqual "should be 2500" (Right 2500) currBndGrpBal
     ,let 
         bndsFound = D.viewDealAllBonds tdBondGroup
      in 
         testCase "view viewDealAllBonds " $
         assertEqual "should be 3" 3 (length bndsFound)
     ,let 
-        totalBndBal = queryDeal tdBondGroup CurrentBondBalance 
+        totalBndBal = queryCompound tdBondGroup epocDate CurrentBondBalance 
     in 
         testCase "total bond balance" $
-        assertEqual "should be 3000" 3000 totalBndBal
+        assertEqual "should be 3000" (Right 3000) totalBndBal
     ,let
-        originBndbal = queryDeal tdBondGroup (OriginalBondBalanceOf ["A"])
+        originBndbal = queryCompound tdBondGroup epocDate (OriginalBondBalanceOf ["A"])
     in
         testCase "original bond balance" $
-        assertEqual "should be 5000" 5000 originBndbal
+        assertEqual "should be 5000" (Right 5000) originBndbal
   ]

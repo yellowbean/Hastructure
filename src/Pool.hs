@@ -185,7 +185,7 @@ pricingPoolFlow d pool@Pool{ futureCf = mCollectedCf, issuanceStat = mStat } fut
                                       Nothing -> 0 
                                       Just collectedCf -> 
                                         let 
-                                          collectedTxns = CF.getTsCashFlowFrame collectedCf
+                                          collectedTxns = view CF.cashflowTxn collectedCf
                                         in
                                           if null collectedTxns then 
                                             0 
@@ -205,7 +205,7 @@ pricingPoolFlow d pool@Pool{ futureCf = mCollectedCf, issuanceStat = mStat } fut
 
         PvRate discountRate ->
           let 
-            futureTxn = CF.getTsCashFlowFrame futureCfUncollected -- `debug` ("PV with cf"++ show d ++ ">>"++show futureCfUncollected)
+            futureTxn = view CF.cashflowTxn futureCfUncollected -- `debug` ("PV with cf"++ show d ++ ">>"++show futureCfUncollected)
             futureCfCash = CF.tsTotalCash <$> futureTxn
             futureDates = getDate <$> futureTxn
           in 

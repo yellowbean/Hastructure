@@ -92,11 +92,11 @@ import qualified DateUtil as DU
 
 import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
 import Control.Lens
-import Debug.Trace
 import qualified Types as W
 import Cashflow (patchCumulative)
 
 
+import Debug.Trace
 debug = flip Debug.Trace.trace
 
 
@@ -115,7 +115,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.40.1"
+version1 = Version "0.40.11"
 
 
 
@@ -304,7 +304,7 @@ wrapRun (PDeal d) mAssump mNonPerfAssump
       (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
       return (PDeal _d,_pflow,_rs,_p)
 
-wrapRun x _ _ = error $ "RunDeal Failed ,due to unsupport deal type "++ show x
+wrapRun x _ _ = Left $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
 
 data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
@@ -337,7 +337,7 @@ wrapRunPoolType (FPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.No
 wrapRunPoolType (VPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (PPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
 wrapRunPoolType (UPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType x _ _ = error $ "RunPool Failed ,due to unsupport pool type "++ show x
+wrapRunPoolType x _ _ = Left $ "RunPool Failed ,due to unsupport pool type "++ show x
 
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption]) (Maybe PricingMethod)

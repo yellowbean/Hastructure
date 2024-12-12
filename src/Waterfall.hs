@@ -32,7 +32,7 @@ import Ledger (Ledger,LedgerName)
 
 
 
-data BookType = PDL DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
+data BookType = PDL BookDirection DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
               | ByAccountDraw LedgerName               -- Book amount equal to account draw amount
               | ByDS          LedgerName BookDirection DealStats     -- Book amount equal to a formula/deal stats
               deriving (Show,Generic,Eq,Ord)
@@ -51,10 +51,13 @@ data PayOrderBy = ByName
                 -- | InverseSeq PayOrderBy
                 deriving (Show,Generic,Eq,Ord)
 
+type BookLedger = (BookDirection, LedgerName) 
+type BookLedgers = (BookDirection, [LedgerName]) 
 
 data Action =
             -- Accounts 
             Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
+            | TransferAndBook (Maybe Limit) AccountName AccountName BookLedger (Maybe TxnComment)
             | TransferMultiple [(Maybe Limit, AccountName)] AccountName (Maybe TxnComment)
             -- Fee
             | CalcFee [FeeName]                                                            -- ^ calculate fee due amount in the fee names
@@ -88,7 +91,9 @@ data Action =
             | AccrueAndPayIntGroup (Maybe Limit) AccountName BondName PayOrderBy (Maybe ExtraSupport) 
             -- Bond - Balance
             | WriteOff (Maybe Limit) BondName
+            | WriteOffAndBook (Maybe Limit) BondName BookLedger
             | WriteOffBySeq (Maybe Limit) [BondName]
+            | WriteOffBySeqAndBook (Maybe Limit) [BondName] BookLedger
             | FundWith (Maybe Limit) AccountName BondName             -- ^ extra more funds from bond and deposit cash to account
             -- Pool/Asset change
             | BuyAsset (Maybe Limit) PricingMethod AccountName (Maybe PoolId)                       -- ^ buy asset from revolving assumptions using funds from account
@@ -96,7 +101,7 @@ data Action =
             | LiquidatePool PricingMethod AccountName  (Maybe [PoolId])                             -- ^ sell all assets and deposit proceeds to account
             -- TODO include a limit for LIquidatePool
             -- Liquidation support
-            | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType AccountName  -- ^ draw credit and deposit to account/fee/bond interest/principal
+            | LiqSupport (Maybe Limit) CE.LiquidityProviderName CE.LiqDrawType [String]  -- ^ draw credit and deposit to account/fee/bond interest/principal
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName   -- ^ repay liquidity facility
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName                   -- ^ repay compensation to liquidity facility
             | LiqAccrue [CE.LiquidityProviderName]                                            -- ^ accure premium/due interest of liquidity facility
@@ -115,8 +120,9 @@ data Action =
             -- Trigger
             | RunTrigger DealCycle [String]        -- ^ update the trigger status during the waterfall execution
             -- Debug
-            | WatchVal (Maybe String) [DealStats]     -- ^ inspect vals during the waterfall execution
+            | WatchVal (Maybe String) [DealStats]  -- ^ inspect vals during the waterfall execution
             | Placeholder (Maybe String)
+            | ChangeStatus (Maybe Pre) DealStatus  -- change deal status
             deriving (Show,Generic,Eq,Ord)
 
 type DistributionSeq = [Action]

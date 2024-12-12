@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.36.0.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:        0.26.5
+version:	 0.40.11
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance;Securitisation;Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
@@ -18,7 +18,7 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
-    ChangeLog.md
+    CHANGELOG.md
 
 source-repository head
   type: git
