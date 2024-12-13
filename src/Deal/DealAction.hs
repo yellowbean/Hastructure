@@ -444,16 +444,18 @@ evalExtraSupportBalance d t (W.MultiSupport supports)
 
 
 -- ^ draw support from a deal , return updated deal,and remaining oustanding amount
-drawExtraSupport :: Date -> Amount -> W.ExtraSupport -> TestDeal a -> (TestDeal a,Amount)
-drawExtraSupport d amt (W.SupportAccount an (Just (W.ByAccountDraw ln))) t@TestDeal{accounts=accMap, ledgers= Just ledgerMap}
+drawExtraSupport :: Date -> Amount -> W.ExtraSupport -> TestDeal a -> (TestDeal a, Amount)
+-- ^ draw account support and book ledger
+drawExtraSupport d amt (W.SupportAccount an (Just (ln, dr))) t@TestDeal{accounts=accMap, ledgers= Just ledgerMap}
   = let 
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
       oustandingAmt = amt - drawAmt
     in 
       (t {accounts = Map.adjust (A.draw drawAmt d Types.SupportDraw) an accMap
-         ,ledgers = Just $ Map.adjust (LD.entryLog drawAmt d (TxnDirection Debit)) ln ledgerMap}
+         ,ledgers = Just $ Map.adjust (LD.entryLog drawAmt d (TxnDirection dr)) ln ledgerMap}
       , oustandingAmt)
 
+-- ^ draw account support
 drawExtraSupport d amt (W.SupportAccount an Nothing) t@TestDeal{accounts=accMap} 
   = let 
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
@@ -462,6 +464,7 @@ drawExtraSupport d amt (W.SupportAccount an Nothing) t@TestDeal{accounts=accMap}
       (t {accounts = Map.adjust (A.draw drawAmt d Types.SupportDraw) an accMap }
       , oustandingAmt) 
 
+-- ^ draw support from liquidity facility
 drawExtraSupport d amt (W.SupportLiqFacility liqName) t@TestDeal{liqProvider= Just liqMap}
   = let
       theLiqProvider = liqMap Map.! liqName
@@ -473,10 +476,11 @@ drawExtraSupport d amt (W.SupportLiqFacility liqName) t@TestDeal{liqProvider= Ju
       (t {liqProvider = Just (Map.adjust (CE.draw drawAmt d) liqName liqMap)}
       , oustandingAmt)
 
+-- ^ draw multiple supports by sequence
 drawExtraSupport d amt (W.MultiSupport supports) t
   = foldr 
       (\support (deal,remainAmt) -> drawExtraSupport d remainAmt support deal) 
-      (t,amt) 
+      (t, amt) 
       supports
 
 inspectListVars :: Ast.Asset a => TestDeal a -> Date -> [DealStats] -> Either String [ResultComponent]
