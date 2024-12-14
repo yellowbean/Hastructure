@@ -37,7 +37,7 @@ data BookType = PDL BookDirection DealStats [(LedgerName,DealStats)] -- Reverse 
               | ByDS          LedgerName BookDirection DealStats     -- Book amount equal to a formula/deal stats
               deriving (Show,Generic,Eq,Ord)
 
-data ExtraSupport = SupportAccount AccountName (Maybe (LedgerName, BookDirection))  -- ^ if there is deficit, draw another account to pay the shortfall
+data ExtraSupport = SupportAccount AccountName (Maybe BookLedger)  -- ^ if there is deficit, draw another account to pay the shortfall
                   | SupportLiqFacility LiquidityProviderName                        -- ^ if there is deficit, draw facility's available credit to pay the shortfall
                   | MultiSupport [ExtraSupport]                                     -- ^ if there is deficit, draw multiple supports (by sequence in the list) to pay the shortfall
                   | WithCondition Pre ExtraSupport                                  -- ^ support only available if Pre is true

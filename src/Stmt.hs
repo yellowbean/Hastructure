@@ -201,7 +201,12 @@ getTxns (Just (Statement txn)) = txn
 
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 g1 h1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 g2 h2 m2)
-    = BondTxn d1 b2 (i1 + i2) (p1 + p2) r2 (c1+c2) f2 g2 h2 (TxnComments [m1,m2]) 
+    = let 
+        rateToSet (FundWith _ _) _ = r2 
+        rateToSet _ (FundWith _ _) = r1 
+        rateToSet _ _ = r2 
+      in 
+        BondTxn d1 b2 (i1 + i2) (p1 + p2) (rateToSet m1 m2) (c1+c2) f2 g2 h2 (TxnComments [m1,m2]) 
 combineTxn (SupportTxn d1 b1 b0 i1 p1 c1 m1) (SupportTxn d2 b2 b02 i2 p2 c2 m2)
     = SupportTxn d1 b2  b02 (i1 + i2) (p1 + p2) (c1 + c2) (TxnComments [m1,m2])
 

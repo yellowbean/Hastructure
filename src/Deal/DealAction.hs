@@ -71,7 +71,7 @@ import Data.OpenApi (HasPatch(patch))
 
 debug = flip trace
 
--- ^ 
+-- ^ Test triggers
 testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Either String Trigger
 testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=cond,trgStmt = tStmt} 
   | not curable && st = Right trigger
@@ -95,41 +95,22 @@ pricingAssets pm assetsAndAssump ras d
 
 -- actual payout amount to bond with due mounts
 allocAmtToBonds :: W.PayOrderBy -> Amount -> [(L.Bond,Amount)] -> [(L.Bond,Amount)]
+allocAmtToBonds W.ByProRataCurBal amt bndsWithDue 
+  = zip (fst <$> bndsWithDue) $ prorataFactors (snd <$> bndsWithDue) amt 
 allocAmtToBonds theOrder amt bndsWithDue =
-  case theOrder of 
-    W.ByName -> 
-      let 
-        orderdBonds = sortBy (\(b1,_) (b2,_) -> compare (L.bndName b1) (L.bndName b2)) bndsWithDue
-        orderedAmt = snd <$> orderdBonds
-        r = paySeqLiabilitiesAmt amt orderedAmt
-      in 
-        zip (fst <$> orderdBonds) r
-    W.ByProRataCurBal -> 
-      let 
-        r = prorataFactors (snd <$> bndsWithDue) amt -- `debug` ("bd amt"++ show amt)
-      in 
-        zip (fst <$> bndsWithDue) r -- `debug` ("r >>"++ show r)
-    W.ByCurrentRate ->
-      let 
-        orderdBonds = sortBy (\(b1,_) (b2,_) -> flip compare (L.bndRate b1) (L.bndRate b2)) bndsWithDue
-        orderedAmt = snd <$> orderdBonds
-        r = paySeqLiabilitiesAmt amt orderedAmt
-      in 
-        zip (fst <$> orderdBonds) r
-    W.ByMaturity ->
-      let 
-        orderdBonds = sortBy (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.maturityDate bo1) (L.maturityDate bo2)) bndsWithDue
-        orderedAmt = snd <$> orderdBonds
-        r = paySeqLiabilitiesAmt amt orderedAmt
-      in 
-        zip (fst <$> orderdBonds) r
-    W.ByStartDate -> 
-      let 
-        orderdBonds = sortBy (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.originDate bo1) (L.originDate bo2)) bndsWithDue
-        orderedAmt = snd <$> orderdBonds
-        r = paySeqLiabilitiesAmt amt orderedAmt
-      in 
-        zip (fst <$> orderdBonds) r
+  let 
+    sortFn = case theOrder of 
+                      W.ByName -> (\(b1,_) (b2,_) -> compare (L.bndName b1) (L.bndName b2)) 
+                      W.ByCurrentRate -> (\(b1,_) (b2,_) -> compare (L.bndRate b2) (L.bndRate b1)) 
+                      W.ByMaturity -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.maturityDate bo1) (L.maturityDate bo2))
+                      W.ByStartDate -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.originDate bo1) (L.originDate bo2))
+    orderedBonds = sortBy sortFn bndsWithDue
+    orderedAmt = snd <$> orderedBonds
+  in 
+    zip 
+      (fst <$> orderedBonds)
+      $ paySeqLiabilitiesAmt amt orderedAmt
+    
 
 
 calcDueFee :: Ast.Asset a => TestDeal a -> Date -> F.Fee -> Either String F.Fee
@@ -446,7 +427,7 @@ evalExtraSupportBalance d t (W.MultiSupport supports)
 -- ^ draw support from a deal , return updated deal,and remaining oustanding amount
 drawExtraSupport :: Date -> Amount -> W.ExtraSupport -> TestDeal a -> (TestDeal a, Amount)
 -- ^ draw account support and book ledger
-drawExtraSupport d amt (W.SupportAccount an (Just (ln, dr))) t@TestDeal{accounts=accMap, ledgers= Just ledgerMap}
+drawExtraSupport d amt (W.SupportAccount an (Just (dr, ln))) t@TestDeal{accounts=accMap, ledgers= Just ledgerMap}
   = let 
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
       oustandingAmt = amt - drawAmt
@@ -582,6 +563,7 @@ performActionWrap d
         limitAmt <- case ml of 
                       Just (DS ds) -> queryCompound t d (patchDateToStats d ds)
                       Just (DueCapAmt amt) -> Right (toRational amt)
+                      Just (DuePct pct) -> Right $ toRational (mulBR accBal pct)
                       Nothing -> Right (toRational accBal)
         let availBal = min (fromRational limitAmt) accBal  -- `debug` ("Date"++ show d ++" Value on r -asset "++ show valuationOnAvailableAssets)
         valOnAvailableAssets <- priceAssetUnionList assets d pricingMethod perfAssumps mRates 
@@ -992,19 +974,20 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap}
        return $ updateSupport d mSupport supportPaidOut dealAfterAcc
 
 
+-- ^ accure interest and payout interest to a bond group with sequence input "by"
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueAndPayIntGroup mLimit an bndName by mSupport)
   = do 
       dAfterAcc <- performAction d t (W.AccrueIntGroup [bndName])-- `debug` ("Acc due int grp"++ show (getDueInt (bndMap Map.! bndName)))
       performAction d dAfterAcc (W.PayIntGroup mLimit an bndName by mSupport)
 
-
+-- ^ accrue interest for a group of bonds
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueIntGroup bndNames)
   = do 
       let bondGrp = Map.filterWithKey (\k _ -> S.member k (S.fromList bndNames)) bndMap
       bondGrpAccrued <- mapM (calcDueInt t d Nothing Nothing) bondGrp
       return t {bonds = bondGrpAccrued <> bndMap}
 
-
+-- ^ pay interest for a group of bonds with sequence input "by"
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit an bndGrpName by mSupport)
   = let 
      availAccBal = A.accBalance (accMap Map.! an)
@@ -1055,7 +1038,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin mLimit an bn
   = let 
      availAccBal = A.accBalance (accMap Map.! an)
      bndsToPay = getActiveBonds t bnds
-     
   in
      do
        bndsWithDue <- sequenceA $ calcDuePrin t d <$> bndsToPay

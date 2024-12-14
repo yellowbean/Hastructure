@@ -124,8 +124,8 @@ sortActionOnDate a1 a2
                  (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
                  (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
                  (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
-                 (TestCall _ ,_) -> GT  -- build report should be executed last
-                 (_ , TestCall _) -> LT -- build report should be executed last
+                 (TestCall _ ,_) -> GT  -- test call should be executed last
+                 (_ , TestCall _) -> LT -- test call should be executed last
                  (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
                  (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
                  (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
