@@ -767,7 +767,7 @@ performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL dr ds ledgers
                          (zip ledgerNames amtBookedToLedgers) --`debug` ("amts to book"++ show amtBookedToLedgers)
       return $ t {ledgers = Just newLedgerM}
 
--- ^ pay fee sequentially
+-- ^ pay fee sequentially, but not accrued
 performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFeeBySeq mLimit an fns mSupport) =
   let 
     availAccBal = A.accBalance (accMap Map.! an)
@@ -931,10 +931,10 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap}
      do
        bndsWithDue <- sequenceA $ calcDuePrin t d <$> bndsToPay
        let bndsDueAmts = L.bndDuePrin <$> bndsWithDue
-       let totalDue = sum bndsDueAmts
+       let totalDue = sum bndsDueAmts -- `debug` ("Date"++show d++" due amt"++show bndsDueAmts)
        let actualPaidOut = calcAvailAfterLimit t d (accMap Map.! an) mSupport totalDue mLimit
-       paidOutAmt <- actualPaidOut
-       let (bondsPaid, remainAmt) = paySequentially d paidOutAmt L.bndDuePrin (L.payPrin d) [] bndsToPay
+       paidOutAmt <- actualPaidOut -- `debug` ("Date"++show d++" paid out amt"++show actualPaidOut)
+       let (bondsPaid, remainAmt) = paySequentially d paidOutAmt L.bndDuePrin (L.payPrin d) [] bndsWithDue
        let accPaidOut = min availAccBal paidOutAmt
      
        let dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (PayPrin bndsToPayNames)) an accMap
