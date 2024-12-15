@@ -2407,6 +2407,45 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/Pre"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FundBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FundBond",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
                                         "type": "string"
                                     },
                                     {
@@ -7038,6 +7077,42 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/TsPoint_(Fixed_*_E2)"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondReturn"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondReturn",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
@@ -9375,7 +9450,17 @@
                                         "type": "string"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/BookType"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
                                     }
                                 ],
                                 "maxItems": 2,
@@ -10398,17 +10483,38 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Pre"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
                             "tag": {
                                 "enum": [
-                                    "DummyIssueBondEvent"
+                                    "FundingBondEvent"
                                 ],
                                 "type": "string"
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
-                        "title": "DummyIssueBondEvent",
+                        "title": "FundingBondEvent",
                         "type": "object"
                     }
                 ]
@@ -19275,7 +19381,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.40.10"
+        "version": "0.40.11"
     },
     "openapi": "3.0.0",
     "paths": {
