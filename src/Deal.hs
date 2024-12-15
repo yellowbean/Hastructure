@@ -621,6 +621,32 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                         bondPricingResult
                 run t {bonds = depositBondFlow, status = Ended } poolFlowMap (Just []) rates calls rAssump $ log++[EndRun (Just d) "MakeWhole call"]
         
+        FundBond d Nothing bName accName fundAmt ->
+          let 
+            newAcc = Map.adjust (A.deposit fundAmt d (FundWith bName fundAmt)) accName accMap
+          in 
+            do
+              newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bName
+              let bndFunded = L.fundWith d fundAmt newBnd
+              run t{accounts = newAcc, bonds = Map.insert bName bndFunded bndMap}
+                  poolFlowMap (Just ads) rates calls rAssump log
+
+        FundBond d (Just p) bName accName fundAmt ->
+          let 
+            newAcc = Map.adjust (A.deposit fundAmt d (FundWith bName fundAmt)) accName accMap
+          in 
+            do
+              flag <- testPre d t p
+              case flag of
+                False -> run t poolFlowMap (Just ads) rates calls rAssump (log ++ [WarningMsg ("Failed to fund bond"++ bName++ ":" ++show p)])
+                True -> 
+                  do
+                    newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bName
+                    let bndFunded = L.fundWith d fundAmt newBnd
+                    run t{accounts = newAcc, bonds = Map.insert bName bndFunded bndMap}
+                        poolFlowMap (Just ads) rates calls rAssump log
+          
+
         IssueBond d Nothing bGroupName accName bnd mBal mRate -> 
            run t poolFlowMap (Just ((IssueBond d (Just (Always True)) bGroupName accName bnd mBal mRate):ads)) rates calls rAssump log
         
@@ -1224,6 +1250,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
     bondIssuePlan = case mNonPerfAssump of 
                       Just AP.NonPerfAssumption{AP.issueBondSchedule = Just bndPlan} 
                         -> [ IssueBond _d mPre bGroupName accName b mBal mRate | TsPoint _d (AP.IssueBondEvent mPre bGroupName accName b mBal mRate) <- bndPlan]
+                            ++ [FundBond _d mPre bName accName amount | TsPoint _d (AP.FundingBondEvent mPre bName accName amount) <- bndPlan]
                       _ -> []
 
     -- refinance bonds in the future 

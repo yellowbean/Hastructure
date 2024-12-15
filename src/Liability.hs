@@ -231,7 +231,7 @@ payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
 payPrin d _ bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
 payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newStmt} -- `debug` ("after pay prin:"++ show d ++">"++ show bn++"due"++show newDue++"bal"++ show newBal )
+  = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newStmt} -- `debug` ("after pay prin:"++ show d ++">"++ show bn++"pay with"++show amt ++"due"++show newDue++"bal"++ show newBal )
   where
     newBal = bal - amt
     newDue = duePrin - amt 

@@ -78,6 +78,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
+                  | FundBond Date (Maybe Pre) String AccName Amount
                   | RefiBondRate Date AccountName BondName L.InterestInfo
                   | RefiBond Date AccountName L.Bond
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
@@ -114,6 +115,7 @@ instance TimeSeries ActionOnDate where
     getDate (RefiBond d _ _) = d
     getDate (ResetLiqProviderRate d _) = d
     getDate (TestCall d) = d
+    getDate (FundBond d _ _ _ _) = d
     getDate x = error $ "Failed to match"++ show x
 
 

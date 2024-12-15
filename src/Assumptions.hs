@@ -85,7 +85,7 @@ type RateFormula = DealStats
 type BalanceFormula = DealStats
 
 data IssueBondEvent = IssueBondEvent (Maybe Pre) BondName AccName Bond (Maybe BalanceFormula) (Maybe RateFormula)
-                    | DummyIssueBondEvent
+                    | FundingBondEvent (Maybe Pre) BondName AccName Balance 
                     deriving (Show, Generic, Read)
 
 data RefiEvent = RefiRate AccountName BondName InterestInfo
