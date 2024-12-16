@@ -4227,33 +4227,17 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-2,
+                                        "format": "double",
                                         "type": "number"
-                                    },
-                                    {
-                                        "items": {
-                                            "multipleOf": 1.0e-6,
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "additionalProperties": {
-                                            "$ref": "#/components/schemas/Ts"
-                                        },
-                                        "type": "object"
                                     }
                                 ],
-                                "maxItems": 5,
-                                "minItems": 5,
+                                "maxItems": 2,
+                                "minItems": 2,
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "OASInput"
+                                    "DiscountRate"
                                 ],
                                 "type": "string"
                             }
@@ -4262,7 +4246,56 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "OASInput",
+                        "title": "DiscountRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "additionalProperties": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/Ts"
+                                        },
+                                        {
+                                            "multipleOf": 1.0e-2,
+                                            "type": "number"
+                                        },
+                                        {
+                                            "items": [
+                                                {
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Day"
+                                                    },
+                                                    "type": "array"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/PricingMethod"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array"
+                                        }
+                                    ],
+                                    "maxItems": 3,
+                                    "minItems": 3,
+                                    "type": "array"
+                                },
+                                "type": "object"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IRRInput"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IRRInput",
                         "type": "object"
                     }
                 ]
@@ -13786,6 +13819,25 @@
                     {
                         "properties": {
                             "contents": {
+                                "$ref": "#/components/schemas/Ts"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PvWal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PvWal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "$ref": "#/components/schemas/DealStats"
                             },
                             "tag": {
@@ -19381,7 +19433,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.40.11"
+        "version": "0.40.12"
     },
     "openapi": "3.0.0",
     "paths": {

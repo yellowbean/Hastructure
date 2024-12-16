@@ -131,8 +131,7 @@ instance Asset Installment where
                asOfDay 
                pAssump@(A.InstallmentAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRates
-      = Right $ (applyHaircut ams (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns), historyM)
-        where 
+      = let
           recoveryLag = maybe 0 getRecoveryLag recoveryAssump
           lastPayDate:cfDates = lastN (rt + recoveryLag +1) $ sd:getPaymentDates inst recoveryLag
           
@@ -145,13 +144,14 @@ instance Asset Installment where
           scheduleBalances = scanl (-) ob (replicate ot opmt)
           currentScheduleBal = scheduleBalances !! (ot - rt) -- `debug` ("RT->"++show rt)
           currentFactor = divideBB cb currentScheduleBal
-          
-          ppyRates = Ast.buildPrepayRates (lastPayDate:cfDates) prepayAssump
-          defRates = Ast.buildDefaultRates (lastPayDate:cfDates) defaultAssump
-          (txns,_) = projectInstallmentFlow (cb,lastPayDate,(opmt,ofee),orate,currentFactor,pt,ot) (cfDates,defRates,ppyRates,remainTerms) 
-          (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
-          begBal = CF.buildBegBal futureTxns
-
+        in  
+          do 
+            ppyRates <- Ast.buildPrepayRates (lastPayDate:cfDates) prepayAssump
+            defRates <- Ast.buildDefaultRates (lastPayDate:cfDates) defaultAssump
+            let (txns,_) = projectInstallmentFlow (cb,lastPayDate,(opmt,ofee),orate,currentFactor,pt,ot) (cfDates,defRates,ppyRates,remainTerms) 
+            let (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
+            let begBal = CF.buildBegBal futureTxns
+            return $ (applyHaircut ams (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns), historyM)
 
   -- ^ project with defaulted at a date
   projCashflow inst@(Installment (LoanOriginalInfo ob or ot p sd ptype _) cb rt (Defaulted (Just defaultedDate))) 

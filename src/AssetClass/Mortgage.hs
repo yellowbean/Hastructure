@@ -552,8 +552,7 @@ instance Ast.Asset Mortgage where
                asOfDay 
                mars@(A.MortgageAssump amd amp amr ams,_,_) 
                mRates =
-      Right $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
-    where
+    let
       ARM initPeriod initCap periodicCap lifeCap lifeFloor = arm
       passInitPeriod = (ot - rt) >= initPeriod 
       firstResetDate = monthsAfter sd (toInteger (succ initPeriod))
@@ -561,54 +560,61 @@ instance Ast.Asset Mortgage where
       cfDatesLength = length cfDates 
       rateCurve = buildARMrates or (arm, sd, firstResetDate, last cfDates, getOriginRate m) mRates
       rateVector = fromRational <$> getValByDates rateCurve Inc cfDates -- `debug` ("RateCurve"++ show rate_curve)                                  
-
-      (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams)
+    in
+      do
+        let (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (lastPayDate:cfDates) (A.MortgageAssump amd amp amr ams)
       
-      txns = projectDelinqMortgageFlow ([],[]) cb mbn lastPayDate cfDates delinqRates ppyRates rateVector 
-                                       (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType,ot) 
-                                       (replicate cfDatesLength 0.0,replicate cfDatesLength 0.0,replicate cfDatesLength 0.0)
-      (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
-      begBal = CF.buildBegBal futureTxns
+        let txns = projectDelinqMortgageFlow ([],[]) cb mbn lastPayDate cfDates delinqRates ppyRates rateVector 
+                                         (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType,ot) 
+                                         (replicate cfDatesLength 0.0,replicate cfDatesLength 0.0,replicate cfDatesLength 0.0)
+        let (futureTxns,historyM)= CF.cutoffTrs asOfDay txns 
+        let begBal = CF.buildBegBal futureTxns
+        return $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns) ,historyM)
   
   -- schedule mortgage flow without delinq
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay 
-               assumps@(pAssump@(A.MortgageAssump _ _ _ ams ),dAssump,fAssump) _
-    = Right $ (applyHaircut ams (CF.CashFlowFrame (begBalAfterCutoff,asOfDay,Nothing) futureTxns) ,historyM)
-      where
+               assumps@(pAssump@(A.MortgageAssump _ _ mRa ams ),dAssump,fAssump) _
+    = let
         begBal =  CF.mflowBegBalance $ head flows 
-        (ppyRates,defRates,recoveryRate,recoveryLag) = buildAssumptionPpyDefRecRate (begDate:cfDates) pAssump 
-        curveDatesLength =  recoveryLag + length flows
-        extraPeriods = recoveryLag
         endDate = CF.getDate (last flows)
-        extraDates = genSerialDates dp Exc endDate extraPeriods
+        (recoveryRate,recoveryLag) = case mRa of 
+                                Nothing -> (0,0)
+                                Just (A.Recovery (r,lag)) -> (r,lag)
+        curveDatesLength =  recoveryLag + length flows
+        extraDates = genSerialDates dp Exc endDate recoveryLag
         cfDates = (CF.getDate <$> flows) ++ extraDates
-        txns = projectScheduleFlow [] 1.0 begBal flows defRates ppyRates
-                                   (replicate curveDatesLength 0.0)
-                                   (replicate curveDatesLength 0.0)
-                                   (recoveryLag,recoveryRate) 
-        (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
-        begBalAfterCutoff = CF.buildBegBal futureTxns
-
+      in
+        do
+          (ppyRates,defRates,recoveryRate,recoveryLag) <- buildAssumptionPpyDefRecRate (begDate:cfDates) pAssump 
+          let txns = projectScheduleFlow [] 1.0 begBal flows defRates ppyRates
+                                     (replicate curveDatesLength 0.0)
+                                     (replicate curveDatesLength 0.0)
+                                     (recoveryLag,recoveryRate) 
+          let (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
+          let begBalAfterCutoff = CF.buildBegBal futureTxns
+          return $ (applyHaircut ams (CF.CashFlowFrame (begBalAfterCutoff,asOfDay,Nothing) futureTxns) ,historyM)
   
   -- schedule mortgage flow WITH delinq
   projCashflow (ScheduleMortgageFlow begDate flows dp) asOfDay assumps@(pAssump@(A.MortgageDeqAssump _ _ _ ams),dAssump,fAssump) mRates
     = 
-      Right $ (applyHaircut ams (CF.CashFlowFrame (begBalAfterCutoff, asOfDay,Nothing) futureTxns) ,historyM)
-      where
+      let
         begBal =  CF.mflowBegBalance $ head flows -- `debug` ("beg date"++show beg_date)
-        (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) = Ast.buildAssumptionPpyDelinqDefRecRate (begDate:getDates flows) pAssump
-        curveDatesLength = defaultLag + recoveryLag + length flows -- `debug` ("Length of rates"++show (length delinqRates)++">>"++show (length ppyRates))
-        extraPeriods = defaultLag + recoveryLag -- `debug` ("lags "++show defaultLag++">>"++show recoveryLag)
-        endDate = CF.getDate (last flows) 
-        extraDates = genSerialDates dp Exc endDate extraPeriods
-        extraFlows = [ CF.emptyTsRow d r | (d,r) <- zip extraDates (replicate extraPeriods (last flows)) ] 
-        flowWithExtraDates = flows ++ extraFlows
-        cfDates = getDates flowWithExtraDates -- `debug` ("CF dates"++ show flowWithExtraDates)
-        txns = projectScheduleDelinqFlow ([],[]) 1.0 begBal flowWithExtraDates delinqRates ppyRates
-                 (replicate curveDatesLength 0.0) (replicate curveDatesLength 0.0)
-                 (replicate curveDatesLength 0.0) (defaultPct,defaultLag,recoveryRate,recoveryLag)  -- `debug` ("Delinq rates"++ show delinqRates++">>ppy rates"++ show ppyRates)
-        (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
-        begBalAfterCutoff = CF.buildBegBal futureTxns
+      in
+        do
+          (ppyRates, delinqRates,(defaultPct,defaultLag),recoveryRate,recoveryLag) <- Ast.buildAssumptionPpyDelinqDefRecRate (begDate:getDates flows) pAssump
+          let curveDatesLength = defaultLag + recoveryLag + length flows -- `debug` ("Length of rates"++show (length delinqRates)++">>"++show (length ppyRates))
+          let extraPeriods = defaultLag + recoveryLag -- `debug` ("lags "++show defaultLag++">>"++show recoveryLag)
+          let endDate = CF.getDate (last flows) 
+          let extraDates = genSerialDates dp Exc endDate extraPeriods
+          let extraFlows = [ CF.emptyTsRow d r | (d,r) <- zip extraDates (replicate extraPeriods (last flows)) ] 
+          let flowWithExtraDates = flows ++ extraFlows
+          let cfDates = getDates flowWithExtraDates -- `debug` ("CF dates"++ show flowWithExtraDates)
+          let txns = projectScheduleDelinqFlow ([],[]) 1.0 begBal flowWithExtraDates delinqRates ppyRates
+                   (replicate curveDatesLength 0.0) (replicate curveDatesLength 0.0)
+                   (replicate curveDatesLength 0.0) (defaultPct,defaultLag,recoveryRate,recoveryLag)  -- `debug` ("Delinq rates"++ show delinqRates++">>ppy rates"++ show ppyRates)
+          let (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
+          let begBalAfterCutoff = CF.buildBegBal futureTxns
+          return $ (applyHaircut ams (CF.CashFlowFrame (begBalAfterCutoff, asOfDay,Nothing) futureTxns) ,historyM)
   
   projCashflow a b c d = Left $ "Failed to match when proj mortgage with assumption >>" ++ show a ++ show b ++ show c ++ show d
 
