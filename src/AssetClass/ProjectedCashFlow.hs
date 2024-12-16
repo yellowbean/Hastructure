@@ -94,34 +94,33 @@ projFixCfwithAssumption (cf@(CF.CashFlowFrame (begBal, begDate, accInt) flows), 
         
         cb = (CF.mflowBegBalance . head) futureTxns
 
-projIndexCashflows :: ([Date],[Balance],[Principal],Index,Spread) -> DatePattern -> Maybe A.AssetPerfAssumption -> Maybe [RateAssumption] -> CF.CashFlowFrame
+projIndexCashflows :: ([Date],[Balance],[Principal],Index,Spread) -> DatePattern -> Maybe A.AssetPerfAssumption -> Maybe [RateAssumption] -> Either String CF.CashFlowFrame
 projIndexCashflows (ds,bals,principals,index,spd) dp mPassump (Just ras) = 
-  let
-    mIndexToApply = A.getRateAssumption ras index
-    indexRates = A.lookupRate0 ras index <$> ds 
+  do
+    -- mIndexToApply = A.getRateAssumption ras index
+    indexRates <- sequenceA $ A.lookupRate0 ras index <$> ds 
 
-    rates = (spd +) <$> indexRates 
-    interestFlow = zipWith (flip mulBIR) rates bals
-    flowSize = length bals
-    scheduleCf = CF.CashFlowFrame (head bals, head ds, Nothing) $ 
-                                    zipWith12 MortgageFlow 
-                                              ds
-                                              bals
-                                              principals
-                                              interestFlow
-                                              (replicate flowSize 0 )
-                                              (replicate flowSize 0 )
-                                              (replicate flowSize 0 )
-                                              (replicate flowSize 0 )
-                                              rates
-                                              (replicate flowSize Nothing)
-                                              (replicate flowSize Nothing)
-                                              (replicate flowSize Nothing) 
-  in
-    projFixCfwithAssumption (scheduleCf, dp) mPassump (head ds) 
+    let rates = (spd +) <$> indexRates 
+    let interestFlow = zipWith (flip mulBIR) rates bals
+    let flowSize = length bals
+    let scheduleCf = CF.CashFlowFrame (head bals, head ds, Nothing) $ 
+                                        zipWith12 MortgageFlow 
+                                                  ds
+                                                  bals
+                                                  principals
+                                                  interestFlow
+                                                  (replicate flowSize 0 )
+                                                  (replicate flowSize 0 )
+                                                  (replicate flowSize 0 )
+                                                  (replicate flowSize 0 )
+                                                  rates
+                                                  (replicate flowSize Nothing)
+                                                  (replicate flowSize Nothing)
+                                                  (replicate flowSize Nothing) 
+    return $ projFixCfwithAssumption (scheduleCf, dp) mPassump (head ds) 
     
 -- ^ project cashflow with fix rate portion and floater rate portion
-seperateCashflows :: ProjectedCashflow -> Maybe A.AssetPerfAssumption -> Maybe [RateAssumption] -> (CF.CashFlowFrame, [CF.CashFlowFrame])
+seperateCashflows :: ProjectedCashflow -> Maybe A.AssetPerfAssumption -> Maybe [RateAssumption] -> Either String (CF.CashFlowFrame, [CF.CashFlowFrame])
 seperateCashflows (ProjectedFlowMixFloater pflow@(CF.CashFlowFrame (begBal, begDate, accuredInt) flows) dp (fixPct,fixRate) floaterList)
                   mPassump
                   mRates
@@ -151,14 +150,15 @@ seperateCashflows (ProjectedFlowMixFloater pflow@(CF.CashFlowFrame (begBal, begD
 
         floatBalsBreakDown = (\r -> flip mulBR r <$> totalFloatBalFlow ) <$> rs
         floatPrincipalFlowBreakDown = (\r -> flip mulBR r <$> floatPrincipalFlow)  <$> rs -- `debug` ("float bal breakdown"++ show floatBalsBreakDown)
-        floatedCashFlow = (\x -> projIndexCashflows x dp mPassump mRates) <$> zip5 
-                                                                              (replicate floaterSize ds) 
-                                                                              floatBalsBreakDown 
-                                                                              floatPrincipalFlowBreakDown 
-                                                                              indexes
-                                                                              spds
       in
-        (fixedCashFlow, floatedCashFlow) -- `debug` ("float cf"++ show floatedCashFlow)
+        do 
+          floatedCashFlow <- sequenceA $ (\x -> projIndexCashflows x dp mPassump mRates) <$> zip5 
+                                                                                              (replicate floaterSize ds) 
+                                                                                              floatBalsBreakDown 
+                                                                                              floatPrincipalFlowBreakDown 
+                                                                                              indexes
+                                                                                              spds
+          return (fixedCashFlow, floatedCashFlow) -- `debug` ("float cf"++ show floatedCashFlow)
 
 
 
@@ -179,19 +179,17 @@ instance Ast.Asset ProjectedCashflow where
     calcCashflow f@(ProjectedFlowFixed cf _) d _ = Right $ cf
 
     calcCashflow f@(ProjectedFlowMixFloater cf _ fxPortion floatPortion) d mRate
-      = let 
-          (fixedCashFlow, floatedCashFlow) = seperateCashflows f Nothing mRate   -- `debug` ("running fixed cashflow"++show fixedCashFlow)
-        in
-          Right $ foldl CF.combine fixedCashFlow floatedCashFlow
+      = do
+          (fixedCashFlow, floatedCashFlow) <- seperateCashflows f Nothing mRate   -- `debug` ("running fixed cashflow"++show fixedCashFlow)
+          return $ foldl CF.combine fixedCashFlow floatedCashFlow
 -- projFixCfwithAssumption :: (CF.CashFlowFrame, DatePattern) -> A.AssetPerfAssumption -> Date -> CF.CashFlowFrame
     projCashflow f@(ProjectedFlowFixed cf dp) asOfDay (pAssump,_,_) mRates 
       = Right $ (projFixCfwithAssumption (cf, dp) (Just pAssump) asOfDay,Map.empty)
 
     projCashflow f asOfDay (pAssump, _, _) mRates
-      = let 
-          (fixedCashFlow, floatedCashFlow) = seperateCashflows f (Just pAssump) mRates
-        in
-          Right $ (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
+      = do
+          (fixedCashFlow, floatedCashFlow) <- seperateCashflows f (Just pAssump) mRates
+          return $ (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
           --(fixedCashFlow, Map.empty)
 
     projCashflow a b c d = Left $ "Failed to match when proj projected flow with assumption >>" ++ show a ++ show b ++ show c ++ show d

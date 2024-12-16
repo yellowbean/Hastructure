@@ -45,11 +45,11 @@ debug = flip trace
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
 type StratPerfByIdx = ([Int],AssetPerf)
 
-lookupAssumptionByIdx :: [StratPerfByIdx] -> Int -> AssetPerf
+lookupAssumptionByIdx :: [StratPerfByIdx] -> Int -> Either String AssetPerf
 lookupAssumptionByIdx sbi i
   = case find (\(indxs,_) -> Set.member i  (Set.fromList indxs) ) sbi of
-        Just (_, aps ) ->  aps
-        Nothing -> error ("Can't find idx"++ show i ++"in starfication list"++ show sbi)
+        Just (_, aps ) ->  Right aps
+        Nothing -> Left ("Lookup assumption by ID: Can't find idx"++ show i ++"in starfication list"++ show sbi)
 
 type ObligorTagStr = String
 
@@ -108,7 +108,7 @@ data NonPerfAssumption = NonPerfAssumption {
   ,callWhen :: Maybe [CallOpt]                               -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
   ,revolving :: Maybe RevolvingAssumption                    -- ^ optional revolving assumption with revoving assets
   ,interest :: Maybe [RateAssumption]                        -- ^ optional interest rates assumptions
-  ,inspectOn :: Maybe [InspectType]                            -- ^ optional tuple list to inspect variables during waterfall run
+  ,inspectOn :: Maybe [InspectType]                          -- ^ optional tuple list to inspect variables during waterfall run
   ,buildFinancialReport :: Maybe DatePattern                 -- ^ optional dates to build financial reports
   ,pricing :: Maybe BondPricingInput                         -- ^ optional bond pricing input( discount curve etc)
   ,fireTrigger :: Maybe [(Date,DealCycle,String)]            -- ^ optional fire a trigger
@@ -185,9 +185,16 @@ data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
                          | AvailableAssetsBy (Map.Map String (RevolvingPool, ApplyAssumptionType))
                          deriving (Show,Generic)
 
-data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
+type HistoryCash = Ts
+type CurrentHolding = Balance
+type PricingDate = Date
+
+
+data BondPricingInput = DiscountCurve PricingDate Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
-                      | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
+                      -- | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
+                      | DiscountRate PricingDate Rate
+                      | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
                       deriving (Show,Generic)
 
 getCDR :: Maybe AssetDefaultAssumption -> Maybe Rate
@@ -198,6 +205,8 @@ getIndexFromRateAssumption :: RateAssumption -> Index
 getIndexFromRateAssumption (RateCurve idx _) = idx
 getIndexFromRateAssumption (RateFlat idx _) = idx
 
+
+-- ^ lookup rate from rate assumption with index and spread
 lookupRate :: [RateAssumption] -> Floater -> Date -> IRate 
 lookupRate rAssumps (index,spd) d
   = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
@@ -205,12 +214,13 @@ lookupRate rAssumps (index,spd) d
       Just (RateFlat _ r) -> r + spd
       Nothing -> error $ "Failed to find Index " ++ show index
 
-lookupRate0 :: [RateAssumption] -> Index -> Date -> IRate 
+-- ^ lookup rate from rate assumption with index
+lookupRate0 :: [RateAssumption] -> Index -> Date -> Either String IRate 
 lookupRate0 rAssumps index d
   = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
-      Just (RateCurve _ ts) -> fromRational (getValByDate ts Inc d)
-      Just (RateFlat _ r) -> r
-      Nothing -> error $ "Failed to find Index " ++ show index
+      Just (RateCurve _ ts) -> Right $ fromRational (getValByDate ts Inc d)
+      Just (RateFlat _ r) -> Right r
+      Nothing -> Left $ "Failed to find Index " ++ show index ++ " from Rate Assumption" ++ show rAssumps
 
 
 getRateAssumption :: [RateAssumption] -> Index -> Maybe RateAssumption

@@ -386,6 +386,7 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | PV IRate Rate                    -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
                    | PvRate IRate                      -- ^ [CF] Pricing cashflow with a constant rate
+                   | PvWal Ts
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
                    deriving (Show, Eq ,Generic, Read,Ord)
@@ -678,6 +679,7 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
+--                 | IRRbyDate Valuation
                  deriving (Show, Eq, Generic)
 
 

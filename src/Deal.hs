@@ -65,6 +65,7 @@ import Data.Aeson.Types
 import GHC.Generics
 import Control.Monad
 import Control.Monad.Loops (allM,anyM)
+import Control.Applicative (liftA2)
 
 import Debug.Trace
 import Cashflow (buildBegTsRow)
@@ -146,9 +147,11 @@ setBondNewRate t d ras bg@(L.BondGroup bMap)
       return $ L.BondGroup m 
 
 
-updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> HE.SRT
+updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> Either String HE.SRT
 updateSrtRate t d ras srt@HE.SRT{HE.srtPremiumType = rt} 
-    = srt { HE.srtPremiumRate = applyFloatRate2 rt d ras }
+    = do 
+        r <- applyFloatRate2 rt d ras 
+        return srt { HE.srtPremiumRate = r }
 
 
 accrueSrt :: Ast.Asset a => TestDeal a -> Date -> HE.SRT -> Either String HE.SRT
@@ -166,7 +169,7 @@ accrueSrt t d srt@HE.SRT{ HE.srtDuePremium = duePrem, HE.srtRefBalance = bal, HE
 
 updateLiqProviderRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPremiumRateType = mPrt
-                                               , CE.liqRate = mr, CE.liqPremiumRate = mPr }
+                                                , CE.liqRate = mr, CE.liqPremiumRate = mPr }
   = let 
       newMr =  evalFloaterRate d ras <$> mRt
       newMpr = evalFloaterRate d ras <$> mPrt
@@ -210,17 +213,18 @@ applyFloatRate (L.CapRate ii _rate) d ras = min _rate (applyFloatRate ii d ras)
 applyFloatRate (L.FloorRate ii _rate) d ras = max _rate (applyFloatRate ii d ras)
 applyFloatRate (L.Fix r _ ) d ras = r
 
-applyFloatRate2 :: IR.RateType -> Date -> [RateAssumption] -> IRate
-applyFloatRate2 (IR.Fix _ r) _ _ = r
+applyFloatRate2 :: IR.RateType -> Date -> [RateAssumption] -> Either String IRate
+applyFloatRate2 (IR.Fix _ r) _ _ = Right r
 applyFloatRate2 (IR.Floater _ idx spd _r _ mFloor mCap mRounding) d ras
   = let 
-      rateAtDate = AP.lookupRate0 ras idx d 
       flooring (Just f) v = max f v 
       flooring Nothing v = v 
       capping (Just f) v = min f v 
       capping Nothing  v = v 
     in 
-      flooring mFloor $ capping mCap $ rateAtDate + spd
+      do 
+        rateAtDate <- AP.lookupRate0 ras idx d 
+        return $ flooring mFloor $ capping mCap $ rateAtDate + spd
 
 updateRateSwapRate :: [RateAssumption] -> Date -> HE.RateSwap -> HE.RateSwap
 updateRateSwapRate rAssumps d rs@HE.RateSwap{ HE.rsType = rt } 
@@ -249,23 +253,21 @@ accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = inde
                        ,rcLastStlDate = mlsd
                        ,rcStmt = mstmt} 
   | d > ed || d < sd = Right rc 
-  | otherwise = let 
-                  r = lookupRate0 rs index d
-                in
-                  do
-                    balance <- case notional of
-                                 Fixed bal -> Right . toRational $ bal
-                                 Base ds -> queryCompound t d (patchDateToStats d ds)
-                                 Schedule ts -> Right $ getValByDate ts Inc d
+  | otherwise = do
+                  r <- lookupRate0 rs index d
+                  balance <- case notional of
+                               Fixed bal -> Right . toRational $ bal
+                               Base ds -> queryCompound t d (patchDateToStats d ds)
+                               Schedule ts -> Right $ getValByDate ts Inc d
 
-                    let accRate = max 0 $ r - fromRational (getValByDate strike Inc d) -- `debug` ("Rate from curve"++show (getValByDate strike Inc d))
-                    let addAmt = case mlsd of 
-                                   Nothing -> calcInt (fromRational balance) sd d accRate DC_ACT_365F
-                                   Just lstD -> calcInt (fromRational balance) lstD d accRate DC_ACT_365F
+                  let accRate = max 0 $ r - fromRational (getValByDate strike Inc d) -- `debug` ("Rate from curve"++show (getValByDate strike Inc d))
+                  let addAmt = case mlsd of 
+                                 Nothing -> calcInt (fromRational balance) sd d accRate DC_ACT_365F
+                                 Just lstD -> calcInt (fromRational balance) lstD d accRate DC_ACT_365F
 
-                    let newAmt = amt + addAmt  -- `debug` ("Accrue AMT"++ show addAmt)
-                    let newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
-                    return $ rc { rcLastStlDate = Just d ,rcNetCash = newAmt, rcStmt = newStmt }
+                  let newAmt = amt + addAmt  -- `debug` ("Accrue AMT"++ show addAmt)
+                  let newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
+                  return $ rc { rcLastStlDate = Just d ,rcNetCash = newAmt, rcStmt = newStmt }
 
 -- ^ test if a clean up call should be fired
 testCall :: Ast.Asset a => TestDeal a -> Date -> C.CallOption -> Either String Bool 
@@ -752,8 +754,7 @@ run t empty _ _ _ _ log = Right (prepareDeal t,log) -- `debug` ("End with pool C
 
 
 -- reserved for future used
-data ExpectReturn = DealStatus
-                  | DealPoolFlow
+data ExpectReturn = DealPoolFlow
                   | DealPoolFlowPricing   -- ^ default option, return pricing and bond/pool/account/fee etc cashflow
                   | DealTxns
                   | ExecutionSummary
@@ -761,7 +762,7 @@ data ExpectReturn = DealStatus
 
 priceBonds :: TestDeal a -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (viewBondsInMap t)
-priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bond_prices) 
+priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bondPrices) 
   = Map.mapWithKey 
       (\bn (pd,price)-> L.ZSpread $
                            L.calcZspread 
@@ -772,9 +773,31 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bond_prices)
                               ,toRational (rateToday pd - toRational (L.bndRate (bndMap Map.!bn))))
                              (bndMap Map.! bn)
                              curve)
-      bond_prices
+      bondPrices
     where 
       rateToday = getValByDate curve Inc     
+
+-- priceBonds t@TestDeal {bonds = bndMap} (AP.IRRInput inputList)
+--   = let 
+--       bondHistoryFlow = []
+--       futureCashFlow = []
+--     in 
+
+-- priceBondIrr :: BondName -> (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)) -> Map.Map BondName L.Bond -> L.PriceResult
+-- priceBondIrr bName (historyCashflow,position,mSell) m =
+--   let 
+--     b = m Map.! bName
+--     bBegBal = L.bndBalance b
+--     bPct = position / bBegBal
+--     bProjFlow = (\s -> (getDate s, mulBR (getTxnAmt s) bPct)) <$> getTxns $ L.bndStmt b
+--     bCashFlow = bProjFlow ++ historyCashflow
+--     bLastCf Nothing = []
+--     bLastCf (Just (ds,ByRate r)) = []
+--     bLastCf (Just (ds,ByCurve ts)) = []
+--     bLastCf (Just (ds,ByBalanceFactor r)) = []
+--     bLastCf (Just (ds,ByDm idx spd)) = []
+--   in 
+--      
 
 
 -- ^ split call option assumption , 
@@ -980,9 +1003,10 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRate
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
     numAssets = length as
-    _assumps = map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
   in
-    sequenceA $ zipWith (\x a -> Ast.projCashflow x asof a mRates) as _assumps 
+    do 
+      _assumps <- sequenceA $ map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
+      sequenceA $ zipWith (\x a -> Ast.projCashflow x asof a mRates) as _assumps 
 ---- By Obligor
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
   let
