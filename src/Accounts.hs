@@ -20,7 +20,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 
-import Control.Lens 
+import Control.Lens hiding (Index)
 
 import qualified InterestRate as IR
 

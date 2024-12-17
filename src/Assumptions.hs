@@ -16,7 +16,10 @@ module Assumptions (BondPricingInput(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
                     ,getCDR,calcResetDates,IssueBondEvent(..)
                     ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..),InspectType(..)
-                    ,FieldMatchRule(..),CallOpt(..))
+                    ,FieldMatchRule(..),CallOpt(..)
+                    ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
+                    ,_ReceivableAssump,_FixedAssetAssump  
+                    )
 where
 
 import Call as C
@@ -40,6 +43,8 @@ import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
 import InterestRate
+import Control.Lens hiding (Index) 
+
 debug = flip trace
 
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
@@ -65,7 +70,6 @@ data FieldMatchRule = FieldIn String [String]
                     | FieldInRange String RangeType Double Double
                     | FieldNot FieldMatchRule
                     deriving (Show, Generic, Read)
-
 
 data ObligorStrategy = ObligorById [String] AssetPerf
                      | ObligorByTag [ObligorTagStr] TagMatchRule AssetPerf
@@ -124,7 +128,7 @@ data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption            
 data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using constant default rate
                             | DefaultCDR Rate                   -- ^ using annualized default rate
                             | DefaultVec [Rate]                 -- ^ using default rate vector
-                            | DefaultVecPadding [Rate]          -- ^ using default rate vector
+                            | DefaultVecPadding [Rate]          -- ^ using default rate vector, but padding with last rate till end
                             | DefaultByAmt (Balance,[Rate])
                             | DefaultAtEnd                      -- ^ default 100% at end
                             | DefaultAtEndByRate Rate Rate      -- ^ life time default rate and default rate at end
@@ -181,6 +185,7 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          | FixedAssetAssump  Ts Ts   -- util rate, price
                          deriving (Show,Generic,Read)
 
+
 data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
                          | AvailableAssetsBy (Map.Map String (RevolvingPool, ApplyAssumptionType))
                          deriving (Show,Generic)
@@ -194,7 +199,7 @@ data BondPricingInput = DiscountCurve PricingDate Ts                            
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
                       -- | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
                       | DiscountRate PricingDate Rate
-                      | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
+                      -- | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
                       deriving (Show,Generic)
 
 getCDR :: Maybe AssetDefaultAssumption -> Maybe Rate
@@ -277,3 +282,5 @@ $(concat <$> traverse (deriveJSON defaultOptions) [''FieldMatchRule,''TagMatchRu
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption,''InspectType])
+
+makePrisms ''AssetPerfAssumption 

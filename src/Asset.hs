@@ -11,7 +11,7 @@ module Asset ( Asset(..)
        ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
-       ,getObligorTags,getObligorId
+       ,getObligorTags,getObligorId,getRecoveryLagAndRate,getDefaultDelinqAssump 
 ) where
 
 import qualified Data.Time as T
@@ -209,6 +209,9 @@ buildDefaultRates ds mDa =
   where
     size = length ds
 
+getRecoveryLagAndRate :: Maybe A.RecoveryAssumption -> (Rate,Int)
+getRecoveryLagAndRate Nothing = (0,0)
+getRecoveryLagAndRate (Just (A.Recovery (r,lag))) = (r,lag)
 
 -- | build pool assumption rate (prepayment, defaults, recovery rate , recovery lag)
 buildAssumptionPpyDefRecRate :: [Date] -> A.AssetPerfAssumption -> Either String ([Rate],[Rate],Rate,Int)
@@ -217,23 +220,31 @@ buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
   = let  
       size = length ds
       zeros = replicate size 0.0
-      (recoveryRate,recoveryLag) = case mRa of 
-                                     Nothing -> (0,0)
-                                     Just (A.Recovery (r,lag)) -> (r,lag)
+      (recoveryRate,recoveryLag) = getRecoveryLagAndRate mRa
     in 
       do 
         prepayRates <- buildPrepayRates ds mPa
         defaultRates <- buildDefaultRates ds mDa
         let (prepayRates2,defaultRates2) = applyExtraStress mESa ds prepayRates defaultRates
         return (prepayRates2,defaultRates2,recoveryRate,recoveryLag)
+
+
+getDefaultDelinqAssump :: Maybe A.AssetDelinquencyAssumption -> [Date] -> ([Rate],Int,Rate)
+getDefaultDelinqAssump Nothing ds = (replicate (length ds) 0.0, 0, 0.0)  
+getDefaultDelinqAssump (Just (A.DelinqCDR r (lag,pct))) ds = (map (Util.toPeriodRateByInterval r) (getIntervalDays ds)
+                                                    ,lag 
+                                                    ,pct)
+
+getDefaultLagAndRate :: Maybe A.RecoveryAssumption -> (Rate,Int)
+getDefaultLagAndRate Nothing = (0,0)
+getDefaultLagAndRate (Just (A.Recovery (r,lag))) = (r,lag)
+
 -- | build prepayment rates/ delinq rates and (%,lag) convert to default, recovery rate, recovery lag
 buildAssumptionPpyDelinqDefRecRate :: [Date] -> A.AssetPerfAssumption -> Either String ([Rate],[Rate],(Rate,Lag),Rate,Int)
 buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa (Just _)) = Left "Delinq assumption doesn't support extra stress"
 buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa Nothing)
   = let 
-      (recoveryRate,recoveryLag) = case mRa of 
-                                     Nothing -> (0,0)
-                                     Just (A.Recovery (r,lag)) -> (r,lag)
+      (recoveryRate,recoveryLag) = getRecoveryLagAndRate mRa
       zeros = replicate (length ds) 0.0
       (delinqRates,defaultLag,defaultPct) = case mDeqDefault of
                                               Nothing -> (zeros,0,0.0)
