@@ -274,7 +274,10 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     OriginalBondBalanceOf bnds -> Right . toRational $ sum $ getOriginBalance <$> viewDealBondsByNames t bnds
 
     CurrentBondBalanceOf bns -> Right . toRational $ sum $ getCurBalance <$> viewDealBondsByNames t bns
-    
+
+    BondTotalFunding bnds -> 
+      Right . toRational $ sum $ L.totalFundedBalance <$> viewDealBondsByNames t bnds
+
     CurrentPoolBalance mPns ->
       let
         assetM = concat $ Map.elems $ getAllAsset t mPns

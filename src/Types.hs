@@ -486,6 +486,7 @@ data DealStats = CurrentBondBalance
                | CumulativeNetLoss (Maybe [PoolId])
                | OriginalBondBalance
                | OriginalBondBalanceOf [BondName]
+               | BondTotalFunding [BondName]
                | OriginalPoolBalance (Maybe [PoolId])
                | DealIssuanceBalance (Maybe [PoolId])
                | UseCustomData String

@@ -13,7 +13,8 @@ module Liability
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
   ,getCurBalance,setBondOrigDate,isFloaterBond
-  ,bndOriginInfoLens,bndIntLens,getBeginRate,_Bond,_BondGroup)
+  ,bndOriginInfoLens,bndIntLens,getBeginRate,_Bond,_BondGroup
+  ,totalFundedBalance)
   where
 
 import Language.Haskell.TH
@@ -329,7 +330,6 @@ calcWalBond d b@Bond{bndStmt = Just (S.Statement _txns)}
         toRational wal -- `debug` ("WAL-->"++show (bndName b)++">>"++show wal)
 
 
-
 _calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
 _calcIRR amt initIrr today (BalanceCurve cashflows)
    = if ((abs(diff) < 0.005) || (abs(nextIrr-initIrr)<0.0001)) then
@@ -423,6 +423,18 @@ totalDueInt :: Bond -> Balance
 totalDueInt Bond{bndDueInt = a,bndDueIntOverInt = b } = a + b 
 totalDueInt (BondGroup bMap) = sum $ totalDueInt <$> Map.elems bMap
 
+totalFundedBalance :: Bond -> Balance
+totalFundedBalance (BondGroup bMap) = sum $ totalFundedBalance <$> Map.elems bMap
+totalFundedBalance Bond{ bndStmt = Nothing } = 0 
+totalFundedBalance Bond{ bndStmt = Just (S.Statement txns) } 
+  = let 
+      isFundingTxn (FundWith _ _) = True
+      isFundingTxn _ = False
+      fundingTxns = S.filterTxn isFundingTxn txns
+    in 
+      sum $ (\(BondTxn d b i p r0 c di dioi f t) -> abs p) <$> fundingTxns
+
+
 buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
 buildRateResetDates (BondGroup bMap) sd ed  =  concat $ (\x -> buildRateResetDates x sd ed) <$> Map.elems bMap
 buildRateResetDates b@Bond{bndInterestInfo = ii,bndStepUp = mSt } sd ed 
@@ -479,7 +491,7 @@ instance Liable Bond where
   isPaidOff b@Bond{bndName = bn,bndBalance=bal,bndDuePrin=dp, bndDueInt=di, bndDueIntOverInt=dioi}
     | bal==0 && di==0 && dioi==0 = True 
     | otherwise = False  -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
- 
+
   isPaidOff (BondGroup bMap) = all (==True) $ isPaidOff <$> Map.elems bMap
 
   getCurBalance b@Bond{bndBalance=bal} = bal
@@ -500,12 +512,14 @@ instance IR.UseRate Bond where
   getIndexes Bond{bndInterestInfo = iinfo}  = getIndexFromInfo iinfo
   getIndexes (BondGroup bMap)  = if null combined then Nothing else Just combined
                                   where combined = concat . catMaybes  $ (\b -> getIndexFromInfo (bndInterestInfo b)) <$> Map.elems bMap
-     
+
+
+
+
 makeLensesFor [("bndType","bndTypeLens"),("bndOriginInfo","bndOriginInfoLens"),("bndInterestInfo","bndIntLens"),("bndStmt","bndStmtLens")] ''Bond
 makeLensesFor [("bndOriginDate","bndOriginDateLens"),("bndOriginBalance","bndOriginBalanceLens"),("bndOriginRate","bndOriginRateLens")] ''OriginalInfo
 
 makePrisms ''Bond
-
 
 $(deriveJSON defaultOptions ''InterestOverInterestType)
 $(deriveJSON defaultOptions ''InterestInfo)

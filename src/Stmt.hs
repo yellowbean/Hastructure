@@ -11,7 +11,7 @@ module Stmt
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
-   ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf
+   ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf,filterTxn
   )
   where
 
@@ -263,6 +263,10 @@ getFlow comment =
             Noneflow
       _ -> error ("Missing in GetFlow >> "++ show comment)
 
+
+filterTxn :: (TxnComment -> Bool) -> [Txn] -> [Txn]
+filterTxn f txns = filter (\t -> f (getTxnComment t) ) txns
+
 instance Ord Txn where
   compare :: Txn -> Txn -> Ordering
   compare (BondTxn d1 _ _ _ _ _ _ _ _ _) (BondTxn d2 _ _ _ _ _ _ _ _ _) = compare d1 d2
@@ -287,6 +291,7 @@ class QueryByComment a where
     queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
     queryTxnAmtAsOf :: a -> Date -> TxnComment -> Balance 
     queryTxnAmtAsOf a d tc =  sum $ getTxnAmt <$> queryStmtAsOf a d tc
+    
 -- queryTxn :: [Txn] -> TxnComment -> [Txn]
 -- queryTxn txns comment = [ txn | txn <- txns, getTxnComment txn == comment]
 -- 
