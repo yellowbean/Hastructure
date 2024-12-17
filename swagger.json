@@ -4248,55 +4248,6 @@
                         ],
                         "title": "DiscountRate",
                         "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "additionalProperties": {
-                                    "items": [
-                                        {
-                                            "$ref": "#/components/schemas/Ts"
-                                        },
-                                        {
-                                            "multipleOf": 1.0e-2,
-                                            "type": "number"
-                                        },
-                                        {
-                                            "items": [
-                                                {
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/Day"
-                                                    },
-                                                    "type": "array"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/PricingMethod"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "minItems": 2,
-                                            "type": "array"
-                                        }
-                                    ],
-                                    "maxItems": 3,
-                                    "minItems": 3,
-                                    "type": "array"
-                                },
-                                "type": "object"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "IRRInput"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "IRRInput",
-                        "type": "object"
                     }
                 ]
             },
@@ -6214,6 +6165,28 @@
                             "contents"
                         ],
                         "title": "OriginalBondBalanceOf",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondTotalFunding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondTotalFunding",
                         "type": "object"
                     },
                     {
