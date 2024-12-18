@@ -38,12 +38,12 @@ entryLog amt d cmt ledg@Ledger{ledgStmt = mStmt, ledgBalance = bal}
                                    newBal = bal - amt
                                    txn = EntryTxn d newBal amt cmt
                                  in 
-                                   ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }
+                                   ledg { ledgStmt = appendStmt txn mStmt,ledgBalance = newBal }
   | otherwise = let 
                   newBal = bal + amt
                   txn = EntryTxn d newBal amt cmt
                 in 
-                  ledg { ledgStmt = appendStmt mStmt txn ,ledgBalance = newBal }
+                  ledg { ledgStmt = appendStmt txn mStmt ,ledgBalance = newBal }
 
 -- TODO-- need to ensure there is no direction in input
 entryLogByDr :: BookDirection -> Amount -> Date -> Maybe TxnComment -> Ledger -> Ledger

@@ -7,7 +7,7 @@ module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
   ,LiquidityProviderName,draw,repay,accrueLiqProvider
   ,LiqDrawType(..),LiqRepayType(..),LiqCreditCalc(..)
-  ,consolStmt
+  ,consolStmt,CreditDefaultSwap(..)
   )
   where
 
@@ -133,17 +133,12 @@ draw  amt d liq@LiqFacility{ liqBalance = liqBal
                             ,liqDueInt = dueInt 
                             ,liqDuePremium = duePremium} 
   | isJust mCredit && (fromMaybe 0 mCredit) <= 0 = 
-    liq { liqStmt = appendStmt 
-                    mStmt $
-                    SupportTxn d mCredit liqBal dueInt duePremium 0 LiquidationDraw
-                    }
+    liq { liqStmt = appendStmt (SupportTxn d mCredit liqBal dueInt duePremium 0 LiquidationDraw) mStmt }
   | otherwise = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = newStmt}
     where 
         newCredit = (\x -> x - amt) <$> mCredit -- `debug` ("date "++ show d ++" insert orgin credit : "++show mCredit)
         newBal = liqBal + amt -- `debug` (show d ++"New bal"++ show liqBal ++ " "++ show amt++ "new credit: "++ show newCredit)
-        newStmt = appendStmt 
-                    mStmt $
-                    SupportTxn d newCredit  newBal dueInt duePremium (negate amt) LiquidationDraw
+        newStmt = appendStmt (SupportTxn d newCredit  newBal dueInt duePremium (negate amt) LiquidationDraw) mStmt
 
 
 repay :: Amount -> Date -> LiqRepayType -> LiqFacility -> LiqFacility
@@ -176,10 +171,7 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
                     (Just IncludeBoth, LiqPremium) -> (+ amt) <$> mCredit
                     _ -> mCredit
 
-      newStmt = appendStmt mStmt $ 
-                           SupportTxn d newCredit newBal newIntDue newDuePremium amt $ 
-                           LiquidationRepay (show pt) -- `debug` ("date "++ show d ++" insert rpt type"++show pt)
-
+      newStmt = appendStmt (SupportTxn d newCredit newBal newIntDue newDuePremium amt  (LiquidationRepay (show pt))) mStmt  
 
 -- | accure fee and interest of a liquidity provider and update credit available
 accrueLiqProvider ::  Date -> LiqFacility -> LiqFacility
@@ -226,14 +218,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mP
                     Just IncludeDuePremium -> (\x -> x - accureFee) <$> mCredit
                     Just IncludeBoth -> (\x -> x - accureInt - accureFee) <$> mCredit
 
-      newStmt = appendStmt mStmt $ SupportTxn d 
-                                             newCredit
-                                             curBal
-                                             newDueInt 
-                                             newDueFee 
-                                             0
-                                             (LiquidationSupportInt accureInt accureFee)
-
+      newStmt = appendStmt (SupportTxn d newCredit curBal newDueInt newDueFee 0 (LiquidationSupportInt accureInt accureFee)) mStmt 
 
 
 instance QueryByComment LiqFacility where 
@@ -271,6 +256,38 @@ instance IR.UseRate LiqFacility where
         _ -> False
 
   getIndex liq = head <$> IR.getIndexes liq
+
+
+data CDSType = CdsLifeCap Balance
+             | CdsLiftAttach Balance
+             deriving (Show, Generic, Eq, Ord)
+
+data CreditDefaultSwap = CDS {
+    cdsName :: String
+    ,cdsType :: CDSType
+
+    ,cdsInsure ::  DealStats     -- ^ the coverage 
+    ,cdsCollectAmt :: Balance    -- ^ the amount to collect from CDS
+    ,cdsCollectDate :: Maybe Date  -- ^last collect calculate date
+
+    ,cdsPremiumRefBalance :: DealStats  -- ^ how notional balance is calculated
+    ,cdsPremiumNotional :: Balance      -- ^ the balance to calculate premium
+
+    ,cdsRateType :: Maybe IR.RateType   -- ^ interest rate type 
+    ,cdsPremiumRate :: IRate            -- ^ the rate to calculate premium
+
+    ,cdsDuePremium :: Balance           -- ^ the due premium to payout from SPV
+    ,cdsDuePremiumDate :: Maybe Date    -- ^ last due premium calculate date
+
+    ,cdsLastCalcDate :: Maybe Date     -- ^ last calculate date on net cash 
+    ,cdsNetCash :: Balance            -- ^ the net cash to settle ,negative means SPV pay to CDS, positive means CDS pay to SPV
+
+    ,cdsStart :: Date
+    ,cdsEnds :: Maybe Date
+    ,cdsStmt :: Maybe Statement
+}  deriving (Show, Generic, Eq, Ord)
+
+
 
 
 $(deriveJSON defaultOptions ''LiqRepayType)

@@ -81,7 +81,7 @@ testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=con
                   do 
                     newSt <- newStM
                     return trigger { trgStatus = newSt
-                                    , trgStmt = Stmt.appendStmt tStmt (TrgTxn d newSt (Stmt.Tag memo))}
+                                    , trgStmt = Stmt.appendStmt (TrgTxn d newSt (Stmt.Tag memo)) tStmt }
 
 
 pricingAssets :: PricingMethod -> [(ACM.AssetUnion,AP.AssetPerf)] -> Maybe [RateAssumption] -> Date 

@@ -72,7 +72,7 @@ accrueIRS d rs@RateSwap{rsRefBalance = face
                       , rsReceivingRate = receiveRate     
                       , rsNetCash = netCash               
                       , rsStmt = stmt}                    
-  =  rs {rsNetCash = newNet , rsLastStlDate = Just d, rsStmt = newStmt }
+  =  rs {rsNetCash = newNet , rsLastStlDate = Just d, rsStmt = appendStmt newTxn stmt}
       where 
           accureStartDate =  case rsLastStlDate rs of 
                                Nothing ->  rsStartDate rs 
@@ -82,15 +82,12 @@ accrueIRS d rs@RateSwap{rsRefBalance = face
           newNetAmount = mulBIR (face * yearFactor) rateDiff  -- `debug` ("Diff rate"++ show rateDiff)
           newNet = netCash + newNetAmount
           newTxn = IrsTxn d face newNetAmount payRate receiveRate newNet SwapAccrue
-          newStmt = appendStmt stmt newTxn
 
 -- | set rate swap to state of receive all cash from counterparty
 receiveIRS :: Date -> RateSwap -> RateSwap 
 receiveIRS d rs@RateSwap{rsNetCash = receiveAmt, rsStmt = stmt} 
-  | receiveAmt > 0 = rs { rsNetCash = 0 ,rsStmt = newStmt}
+  | receiveAmt > 0 = rs { rsNetCash = 0 ,rsStmt = appendStmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle) stmt}
   | otherwise = rs
-     where 
-       newStmt = appendStmt stmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle)
 
 -- | set rate swap to state of payout all possible cash to counterparty
 payoutIRS :: Date -> Amount -> RateSwap -> RateSwap 
@@ -100,7 +97,7 @@ payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt}
      where 
        actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
        outstanding = payoutAmt + actualAmt
-       newStmt = appendStmt stmt $ IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle
+       newStmt = appendStmt (IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle) stmt 
 
 instance QueryByComment RateSwap where 
     queryStmt RateSwap{rsStmt = Nothing} tc = []
@@ -132,7 +129,7 @@ receiveRC d rc@RateCap{rcNetCash = receiveAmt, rcStmt = stmt}
   | receiveAmt > 0 = rc { rcNetCash = 0 ,rcStmt = newStmt}
   | otherwise = rc
      where 
-       newStmt = appendStmt stmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle)
+       newStmt = appendStmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle) stmt 
 
 instance IR.UseRate RateCap where 
   getIndexes rc@RateCap{rcIndex = idx} = Just [idx]
@@ -218,25 +215,6 @@ buildSrtResetAction (srt:srts) ed r =
         [(ln,IR.getRateResetDates sd ed (Just rt))]++r
     _ -> buildSrtResetAction srts ed r
 
-data CreditDefaultSwap = CDS {
-    cdsName :: String
-
-    ,cdsInsure ::  DealStats
-    ,cdsCollectAmt :: Balance
-    ,cdsCollectDate :: Maybe Date
-
-    ,cdsPremiumRefBalance :: DealStats
-    ,cdsPremiumRate :: IRate
-    ,cdsDuePremium :: Balance
-    ,cdsDuePremiumDate :: Maybe Date
-
-    ,cdsLastCalcDate :: Maybe Date
-    ,cdsNetCash :: Balance
-
-    ,cdsStart :: Date
-    ,cdsEnds :: Maybe Date
-    ,cdsStmt :: Maybe Statement
-}  deriving (Show, Generic, Eq, Ord)
 
 
 

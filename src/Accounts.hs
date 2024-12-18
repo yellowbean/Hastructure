@@ -84,7 +84,7 @@ accrueInt endDate a@(Account bal _ (Just interestType) _ stmt)
 depositInt :: Date -> Account -> Account
 depositInt _ a@(Account _ _ Nothing _ _) = a 
 depositInt ed a@(Account bal _ (Just intType) _ stmt)
-          = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (newIntInfoType intType)}
+          = a {accBalance = newBal ,accStmt= appendStmt newTxn stmt ,accInterest = Just (newIntInfoType intType)}
           where 
             -- accruedInt = accrueInt a (mkTs [(lastCollectDate, toRational r),(ed, toRational r)])  ed
             accruedInt = accrueInt ed a
@@ -92,7 +92,6 @@ depositInt ed a@(Account bal _ (Just intType) _ stmt)
             newIntInfoType (InvestmentAccount x y z z1 _d z2) = (InvestmentAccount x y z z1 ed z2)
             newBal = accruedInt + bal  -- `debug` ("INT ACC->"++ show accrued_int)
             newTxn = AccTxn ed newBal accruedInt BankInt
-            newStmt = appendStmt stmt newTxn
 
 -- | move cash from account A to account B
 transfer :: (Account,Account) -> Date -> Amount -> (Account, Account)
@@ -104,16 +103,16 @@ transfer (sourceAcc@(Account sBal san _ _ sStmt), targetAcc@(Account tBal tan _ 
   where
     newSBal = sBal - amount
     newTBal = tBal + amount
-    sourceNewStmt = appendStmt sStmt (AccTxn d newSBal (- amount) (Transfer san tan))
-    targetNewStmt = appendStmt tStmt (AccTxn d newTBal amount (Transfer san tan) )
+    sourceNewStmt = appendStmt (AccTxn d newSBal (- amount) (Transfer san tan)) sStmt 
+    targetNewStmt = appendStmt (AccTxn d newTBal amount (Transfer san tan)) tStmt 
 
 -- | deposit cash to account with a comment
 deposit :: Amount -> Date -> TxnComment -> Account -> Account
 deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
     acc {accBalance = newBal, accStmt = newStmt}
   where
-    newBal = bal + amount -- `debug` ("Date:"++show d++ "deposit"++show amount++"from"++show bal)
-    newStmt = appendStmt maybeStmt (AccTxn d newBal amount source)
+    newBal = bal + amount
+    newStmt = appendStmt (AccTxn d newBal amount source) maybeStmt 
 
 -- | draw cash from account with a comment
 draw :: Amount -> Date -> TxnComment -> Account -> Account

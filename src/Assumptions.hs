@@ -58,10 +58,10 @@ lookupAssumptionByIdx sbi i
 
 type ObligorTagStr = String
 
-data TagMatchRule = TagEq      -- ^ match exactly
+data TagMatchRule = TagEq                  -- ^ match exactly
                   | TagSubset
                   | TagSuperset
-                  | TagAny     -- ^ match any tag hit
+                  | TagAny                 -- ^ match any tag hit
                   | TagNot  TagMatchRule   -- ^ Negative match
                   deriving (Show, Generic, Read)
 
@@ -77,8 +77,8 @@ data ObligorStrategy = ObligorById [String] AssetPerf
                      | ObligorByDefault AssetPerf
                      deriving (Show, Generic, Read)
 
-data ApplyAssumptionType = PoolLevel AssetPerf -- ^ assumption apply to all assets in the pool
-                         | ByIndex [StratPerfByIdx] -- ^ assumption which only apply to a set of assets in the pool
+data ApplyAssumptionType = PoolLevel AssetPerf               -- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratPerfByIdx]          -- ^ assumption which only apply to a set of assets in the pool
                          | ByName (Map.Map PoolId AssetPerf) -- ^ assumption for a named pool
                          | ByObligor [ObligorStrategy]
                          | ByPoolId (Map.Map PoolId ApplyAssumptionType) -- ^ assumption for a pool
@@ -194,12 +194,11 @@ type HistoryCash = Ts
 type CurrentHolding = Balance
 type PricingDate = Date
 
-
 data BondPricingInput = DiscountCurve PricingDate Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
                       -- | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
                       | DiscountRate PricingDate Rate
-                      -- | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
+                      | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
                       deriving (Show,Generic)
 
 

@@ -77,18 +77,6 @@ getPoolBalanceStats t d mPid
         poolStats2::[Rational] <- sequenceA poolStats
         return $ fromRational <$> poolStats2
 
--- getPoolBalanceStats t d Nothing 
---   = sequenceA
---      (queryCompound t d (FutureCurrentPoolBalance Nothing)
---      ,(queryCompound t d (PoolCumCollection [NewDefaults] Nothing))
---      ,negate (queryCompound t (PoolCumCollection [CollectedRecoveries] Nothing)))
---
--- getPoolBalanceStats t d (Just pid) = 
---     sequenceA 
---       (queryCompound t d (FutureCurrentPoolBalance (Just [pid]))
---        ,(queryCompound t d (PoolCumCollection [NewDefaults] (Just [pid])))
---        ,negate (queryCompound t d (PoolCumCollection [CollectedRecoveries] (Just [pid]))))
-
 
 
 
@@ -146,6 +134,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
           let eqty = Item "Net Asset" (totalAssetBal - totalDebtBal)
           return $ BalanceSheetReport {asset=ast,liability=liab,equity=eqty,reportDate=d}
 
+-- TODO  performance improve here, need to filter txn first
 buildCashReport :: P.Asset a => TestDeal a -> Date -> Date -> CashflowReport
 buildCashReport t@TestDeal{accounts = accs} sd ed 
   = CashflowReport { inflow = inflowItems
@@ -154,7 +143,6 @@ buildCashReport t@TestDeal{accounts = accs} sd ed
                    , startDate = sd
                    , endDate = ed }
       where 
-        -- TODO  performance improve here, need to filter txn first
         _txns = concat $ Map.elems $ Map.map getTxns $ Map.map A.accStmt accs
         txns = sliceBy EI sd ed _txns
    

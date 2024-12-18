@@ -199,7 +199,7 @@ payInt d amt bnd@(Bond bn Equity oi iinfo _ bal r duePrin dueInt dueIoI dueIntDa
     rs = Lib.paySeqLiabilitiesAmt amt [dueIoI,dueInt]
     newDueIoI = dueIoI - head rs
     newDue = dueInt - rs !! 1
-    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayYield bn))
+    newStmt = S.appendStmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayYield bn)) stmt 
 
 -- pay interest
 payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
@@ -208,7 +208,7 @@ payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate l
     rs = Lib.paySeqLiabilitiesAmt amt [dueIoI, dueInt] -- `debug` ("date"++ show d++"due "++show dueIoI++">>"++show dueInt)
     newDueIoI = dueIoI - head rs
     newDue = dueInt - rs !! 1 -- `debug` ("Avail fund"++ show amt ++" int paid out plan"++ show rs)
-    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayInt [bn])) -- `debug` ("date after"++ show d++"due "++show newDueIoI++">>"++show newDue)
+    newStmt = S.appendStmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayInt [bn])) stmt  -- `debug` ("date after"++ show d++"due "++show newDueIoI++">>"++show newDue)
 
 payIntBySeq :: Date -> Amount -> [Bond] -> [Bond] -> ([Bond],Amount)
 payIntBySeq d amt bondsPaid [] = (bondsPaid, amt)
@@ -226,7 +226,7 @@ payYield :: Date -> Amount -> Bond -> Bond
 payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndStmt= newStmt}
   where
-    newStmt = S.appendStmt stmt (BondTxn d bal amt 0 r amt dueInt dueIoI Nothing (S.PayYield bn))
+    newStmt = S.appendStmt (BondTxn d bal amt 0 r amt dueInt dueIoI Nothing (S.PayYield bn)) stmt 
 
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -236,7 +236,7 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate 
   where
     newBal = bal - amt
     newDue = duePrin - amt 
-    newStmt = S.appendStmt stmt (BondTxn d newBal 0 amt r amt dueInt dueIoI Nothing (S.PayPrin [bn] ))
+    newStmt = S.appendStmt (BondTxn d newBal 0 amt r amt dueInt dueIoI Nothing (S.PayPrin [bn] )) stmt 
 
 writeOff :: Date -> Amount -> Bond -> Bond
 writeOff d 0 b = b -- `debug` ("Zero on wirte off")
@@ -244,7 +244,7 @@ writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate
   = bnd {bndBalance = newBal , bndStmt=newStmt}
   where
     newBal = bal - amt
-    newStmt = S.appendStmt stmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt ))
+    newStmt = S.appendStmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt )) stmt 
 
 fundWith :: Date -> Amount -> Bond -> Bond
 fundWith d 0 b = b
@@ -254,7 +254,7 @@ fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate
           } 
   where
     newBal = bal + amt 
-    newStmt = S.appendStmt stmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt ))
+    newStmt = S.appendStmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt )) stmt 
 
 
 

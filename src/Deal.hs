@@ -266,7 +266,7 @@ accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = inde
                                  Just lstD -> calcInt (fromRational balance) lstD d accRate DC_ACT_365F
 
                   let newAmt = amt + addAmt  -- `debug` ("Accrue AMT"++ show addAmt)
-                  let newStmt = appendStmt mstmt $ IrsTxn d newAmt addAmt 0 0 0 SwapAccrue
+                  let newStmt = appendStmt (IrsTxn d newAmt addAmt 0 0 0 SwapAccrue) mstmt 
                   return $ rc { rcLastStlDate = Just d ,rcNetCash = newAmt, rcStmt = newStmt }
 
 -- ^ test if a clean up call should be fired
@@ -551,9 +551,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                           (\a@(A.Account _ _ (Just (A.InvestmentAccount idx spd dp dp1 lastDay _)) _ _)
                             -> let 
                                  newRate = AP.lookupRate (fromMaybe [] rates) (idx,spd) d 
-                                 newAccInt = Just (A.InvestmentAccount idx spd dp dp1 lastDay newRate)
                                in 
-                                 a { A.accInterest = newAccInt}) 
+                                 a { A.accInterest = Just (A.InvestmentAccount idx spd dp dp1 lastDay newRate)}) 
                           accName accMap
           in 
             run t{accounts = newAccMap} poolFlowMap (Just ads) rates calls rAssump log
@@ -744,11 +743,9 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
 
 
 run t empty Nothing Nothing Nothing Nothing log
-  = 
-    do
+  = do
       (t, ads, pcf, unStressPcf) <- getInits t Nothing Nothing 
       run t pcf (Just ads) Nothing Nothing Nothing log  -- `debug` ("Init Done >>Last Action#"++show (length ads)++"F/L"++show (head ads)++show (last ads))
-    
 
 run t empty _ _ _ _ log = Right (prepareDeal t,log) -- `debug` ("End with pool CF is []")
 
@@ -846,19 +843,15 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
     = do 
         (newT, ads, pcf, unStressPcf) <- getInits t perfAssumps (Just nonPerfAssumps)  
         (finalDeal, logs) <- run (removePoolCf newT) 
-                                 pcf
-                                 (Just ads) 
-                                 mInterest
-                                 (readCallOptions <$> opts)
-                                 mRevolvingCtx
-                                 []  
+                                  pcf
+                                  (Just ads) 
+                                  mInterest
+                                  (readCallOptions <$> opts)
+                                  mRevolvingCtx
+                                  []  
         let poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) [])) (getAllCollectedFrame finalDeal Nothing)  
         let poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed  
-        -- bond pricing if any                            
-        let bndPricing = case mPricing of
-                           Nothing -> Nothing     
-                           Just _bpi -> Just (priceBonds finalDeal _bpi)  
-
+        let bndPricing = (priceBonds finalDeal) <$> mPricing
         return (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
@@ -872,6 +865,7 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
       -- run() is a recusive function loop over all actions till deal end conditions are met
       
 -- | get bond principal and interest shortfalls from a deal
+-- TODO , what if bonds has funded during life time ? whatś the correct bond beg balance to be used ? 
 getRunResult :: Ast.Asset a => TestDeal a -> [ResultComponent]
 getRunResult t = os_bn_i ++ os_bn_b -- `debug` ("Done with get result")
   where 
@@ -982,8 +976,7 @@ populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollec
 runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] 
         -> Either String [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]
 -- schedule cashflow just ignores the interest rate assumption
-runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ 
-  = Right $ [(cf, Map.empty)]
+runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ = Right $ [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
 runPool (P.Pool [] (Just (CF.CashFlowFrame _ txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates 
   = sequenceA [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
@@ -1089,7 +1082,7 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) 
 
 
 -- safe net to catch other cases
-runPool _a _b _c = error $ "Failed to match" ++ show _a ++ show _b ++ show _c
+runPool _a _b _c = Left $ "Failed to match" ++ show _a ++ show _b ++ show _c
 
 
 -- ^ patch issuance balance for PreClosing Deal

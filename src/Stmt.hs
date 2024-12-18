@@ -169,9 +169,9 @@ weightAvgBalance' sd ed (_txn:_txns)
 data Statement = Statement [Txn]
               deriving (Show, Generic, Eq, Ord, Read)
 
-appendStmt :: Maybe Statement -> Txn -> Maybe Statement
-appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])
-appendStmt Nothing txn = Just $ Statement [txn]
+appendStmt :: Txn -> Maybe Statement -> Maybe Statement
+appendStmt txn (Just stmt@(Statement txns)) = Just $ Statement (txns++[txn])
+appendStmt txn Nothing = Just $ Statement [txn]
 
 
 statementTxns :: Lens' Statement [Txn]
