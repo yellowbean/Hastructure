@@ -238,7 +238,9 @@ data TestDeal a = TestDeal { name :: DealName
                              ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
                              ,overrides :: Maybe [OverrideType]
                              ,ledgers :: Maybe (Map.Map String LD.Ledger)
-                           } deriving (Show,Generic,Eq,Ord)
+                           } deriving 
+                           
+                (Show,Generic,Eq,Ord)
 
 instance SPV (TestDeal a) where
   getBondsByName t bns
@@ -282,16 +284,6 @@ instance SPV (TestDeal a) where
   isResec t = case pool t of
                  ResecDeal _ -> True
                  _ -> False
-
-_expandBonds :: Map.Map BondName L.Bond -> [L.Bond]
-_expandBonds bMap = 
-  let 
-    bs = Map.elems bMap
-    view a@(L.Bond {}) = [a]
-    view a@(L.BondGroup bMap) = Map.elems bMap
-  in 
-    concat $ view <$> bs
-
 
 -- ^ list all bonds and bond groups in list
 viewDealAllBonds :: TestDeal a -> [L.Bond]

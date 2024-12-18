@@ -385,12 +385,12 @@ instance Ast.Asset Mortgage where
       let
         recoveryLag = maybe 0 getRecoveryLag amr
         lastPayDate:cfDates = lastN (succ (recoveryLag + rt)) $ sd:getPaymentDates m recoveryLag
-        rateVector = A.projRates cr or mRates cfDates 
         expectedDefaultBals = paddingDefault 0 (mulBR dBal <$> vs) (length cfDates)
         unAppliedDefaultBals = tail $ scanl (-) dBal expectedDefaultBals
         remainTerms = paddingDefault 0 (reverse [0..(length cfDates - recoveryLag)]) (length cfDates)
       in
         do 
+          rateVector <- A.projRates cr or mRates cfDates 
           ppyRates <- Ast.buildPrepayRates (lastPayDate:cfDates) amp
           let txns = projCashflowByDefaultAmt (cb,lastPayDate,prinPayType,p,cr,mbn) 
                                               (cfDates,(expectedDefaultBals,unAppliedDefaultBals),ppyRates,rateVector,remainTerms)
@@ -459,12 +459,12 @@ instance Ast.Asset Mortgage where
       recoveryLag = maybe 0 getRecoveryLag amr
       lastPayDate:cfDates = lastN (rt + 1) $ sd:getPaymentDates m 0
       cfDatesLength = length cfDates 
-      rateVector = A.projRates cr or mRates cfDates 
       remainTerms = reverse [0..rt]
       dc = getDayCount or -- `debug` ("day count"++ show dc)
       recoveryDates = lastN recoveryLag $ sd:getPaymentDates m recoveryLag
     in  
       do
+        rateVector <- A.projRates cr or mRates cfDates 
         defRates <- Ast.buildDefaultRates (lastPayDate:cfDates) amd
         ppyRates <- Ast.buildPrepayRates (lastPayDate:cfDates) amp
         let (txns,_) = projectMortgageFlow 
@@ -490,16 +490,16 @@ instance Ast.Asset Mortgage where
       lastPayDate:cfDates = lastN (recoveryLag + defaultLag + rt + 1) $ sd:getPaymentDates m (recoveryLag+defaultLag)
       (_,defaultLag,defaultPct) = Ast.getDefaultDelinqAssump amd cfDates
       cfDatesLength = length cfDates + recoveryLag + defaultLag
-      rateVector = A.projRates cr or mRates cfDates
     in
       do 
-      (ppyRates,delinqRates,(_,_),_,_) <- Ast.buildAssumptionPpyDelinqDefRecRate (lastPayDate:cfDates) (A.MortgageDeqAssump amd amp amr ams)
-      let txns = projectDelinqMortgageFlow ([],[]) cb mbn lastPayDate cfDates delinqRates ppyRates rateVector 
-                                       (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType,ot) 
-                                       (replicate cfDatesLength 0.0,replicate cfDatesLength 0.0,replicate cfDatesLength 0.0)
-      let (futureTxns,historyM)= CF.cutoffTrs asOfDay txns
-      let begBal = CF.buildBegBal futureTxns
-      return $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay, Nothing) futureTxns) ,historyM)
+        rateVector <- A.projRates cr or mRates cfDates
+        (ppyRates,delinqRates,(_,_),_,_) <- Ast.buildAssumptionPpyDelinqDefRecRate (lastPayDate:cfDates) (A.MortgageDeqAssump amd amp amr ams)
+        let txns = projectDelinqMortgageFlow ([],[]) cb mbn lastPayDate cfDates delinqRates ppyRates rateVector 
+                                         (defaultPct,defaultLag,recoveryRate,recoveryLag,p,prinPayType,ot) 
+                                         (replicate cfDatesLength 0.0,replicate cfDatesLength 0.0,replicate cfDatesLength 0.0)
+        let (futureTxns,historyM)= CF.cutoffTrs asOfDay txns
+        let begBal = CF.buildBegBal futureTxns
+        return $ (applyHaircut ams $ patchPrepayPenaltyFlow (ot,mpn) (CF.CashFlowFrame (begBal,asOfDay, Nothing) futureTxns) ,historyM)
 
   -- project defaulted Mortgage    
   projCashflow m@(Mortgage (MortgageOriginalInfo ob or ot p sd prinPayType mpn _) cb cr rt mbn (Defaulted (Just defaultedDate)) ) 

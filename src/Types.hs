@@ -127,10 +127,6 @@ type AccruedInterest = Centi
 type IRR = Rational
 
 
-
-data YieldResult = Yiel
-
-
 data Index = LPR5Y
             | LPR1Y
             | LIBOR1M
@@ -1013,7 +1009,6 @@ instance FromJSONKey ActionWhen where
     Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
 
 $(deriveJSON defaultOptions ''ResultComponent)
-
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''HowToPay)

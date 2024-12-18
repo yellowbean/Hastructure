@@ -218,6 +218,25 @@ buildSrtResetAction (srt:srts) ed r =
         [(ln,IR.getRateResetDates sd ed (Just rt))]++r
     _ -> buildSrtResetAction srts ed r
 
+data CreditDefaultSwap = CDS {
+    cdsName :: String
+
+    ,cdsInsure ::  DealStats
+    ,cdsCollectAmt :: Balance
+    ,cdsCollectDate :: Maybe Date
+
+    ,cdsPremiumRefBalance :: DealStats
+    ,cdsPremiumRate :: IRate
+    ,cdsDuePremium :: Balance
+    ,cdsDuePremiumDate :: Maybe Date
+
+    ,cdsLastCalcDate :: Maybe Date
+    ,cdsNetCash :: Balance
+
+    ,cdsStart :: Date
+    ,cdsEnds :: Maybe Date
+    ,cdsStmt :: Maybe Statement
+}  deriving (Show, Generic, Eq, Ord)
 
 
 

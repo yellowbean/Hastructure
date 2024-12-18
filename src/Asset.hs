@@ -6,9 +6,8 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE FlexibleContexts #-}
 
-module Asset ( Asset(..)
-       ,calcPiFlow
-       ,buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
+module Asset ( Asset(..),
+       buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
        ,calcRecoveriesFromDefault
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
        ,getObligorTags,getObligorId,getRecoveryLagAndRate,getDefaultDelinqAssump 
@@ -257,39 +256,12 @@ buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa N
         prepayRates <- buildPrepayRates ds mPa
         return (prepayRates,delinqRates,(defaultPct,defaultLag),recoveryRate, recoveryLag)
 
--- calculate Level P&I type mortgage cashflow
-_calcPiFlow :: Amount -> Balance -> [Balance] -> [Amount] -> [Amount] -> [IRate] -> [Bool] -> ([Balance],CF.Principals,CF.Interests)
-_calcPiFlow pmt last_bal bals ps is [] _ = (bals,ps,is)
-_calcPiFlow pmt last_bal bals ps is (r:rs) (flag:flags)
-  | last_bal < 0.01  =  (bals,ps,is)
-  | otherwise
-    = _calcPiFlow pmt new_bal (bals++[new_bal]) (ps++[new_prin]) (is++[new_int]) rs flags
-      where
-        new_int = mulBI last_bal r
-        new_prin = pmt - new_int
-        new_bal = last_bal - new_prin
-        new_pmt = if flag then 
-                    calcPmt new_bal (head rs) (length rs)
-                  else
-                    pmt
-                
--- Dates -> include begining balance
--- Rates -> length Dates - 1
-calcPiFlow :: DayCount -> Balance -> Amount -> [Date] -> [IRate] -> ([Balance],CF.Principals,CF.Interests)
-calcPiFlow dc bal pmt dates rs =
-  _calcPiFlow pmt bal [] [] [] period_r resetFlags
-    where
-      size = length dates
-      resetFlags = A.calcResetDates rs []
-      period_r = [ IR.calcIntRate (dates!!d) (dates!!(d+1)) (rs!!d) dc | d <- [0..size-2]]
-
 
 calcRecoveriesFromDefault :: Balance -> Rate -> [Rate] -> [Amount]
 calcRecoveriesFromDefault bal recoveryRate recoveryTiming
   = mulBR recoveryAmt <$> recoveryTiming
     where
       recoveryAmt = mulBR bal recoveryRate
-
 
 priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [RateAssumption] -> CutoffType 
            -> Either String PriceResult

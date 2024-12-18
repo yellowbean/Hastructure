@@ -235,9 +235,6 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mP
                                              (LiquidationSupportInt accureInt accureFee)
 
 
--- makeLensesFor [("liqStmt","liqStmtLens")] ''LiqFacility
-
-
 
 instance QueryByComment LiqFacility where 
     queryStmt liq@LiqFacility{liqStmt = Nothing} tc = []

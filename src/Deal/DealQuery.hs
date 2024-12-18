@@ -242,7 +242,6 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         case mm of
           Nothing -> Left $ "Date:"++show d++"There is maturity date for bond " ++ bn
           Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
-          
 
     ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
 
@@ -304,7 +303,8 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     
     UnderlyingBondBalance mBndNames -> Left $ "Date:"++show d++"Not implemented for underlying bond balance"
  
-    AllAccBalance -> Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
+    AllAccBalance -> 
+      Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
     
     AccBalance ans -> 
       do 

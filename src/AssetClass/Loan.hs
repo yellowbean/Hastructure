@@ -130,9 +130,9 @@ instance Asset Loan where
     = let
         recoveryLag = maybe 0 getRecoveryLag recoveryAssump
         lastPayDate:cfDates = lastN (rt + recoveryLag + 1) $ sd:getPaymentDates pl recoveryLag
-        rateVector = A.projRates cr or mRate cfDates
       in
         do
+          rateVector <- A.projRates cr or mRate cfDates
           ppyRates <- A.buildPrepayRates (lastPayDate:cfDates) prepayAssump 
           defRates <- A.buildDefaultRates (lastPayDate:cfDates) defaultAssump
           let dc = getDayCount or          

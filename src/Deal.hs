@@ -306,7 +306,8 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
                            let newFeeMap = Map.fromList (zip fns newFeeList) <> feeMap
                            return (t {fees = newFeeMap}, rc, actions, logs)
       ChangeReserveBalance accName rAmt ->
-          Right (t {accounts = Map.adjust (A.updateReserveBalance rAmt) accName accMap }, rc, actions, logs)
+          Right (t {accounts = Map.adjust (set A.accTypeLens (Just rAmt)) accName accMap }
+                    , rc, actions, logs)
       
       TriggerEffects efs -> foldM (`runEffects` d) (t, rc, actions, logs) efs
       
@@ -693,13 +694,13 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              -- settle accrued interest 
              -- TODO rebuild bond rate reset actions
              lstDate = getDate (last ads)
+             isResetActionEvent (ResetBondRate _ bName) = False 
+             isResetActionEvent _ = True
+             filteredAds = filter isResetActionEvent ads
+             newRate = L.getBeginRate iInfo
           in 
              do 
                nBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bName
-               let isResetActionEvent (ResetBondRate _ bName) = False 
-               let isResetActionEvent _ = True
-               let filteredAds = filter isResetActionEvent ads
-               let newRate = L.getBeginRate iInfo
                let dueIntToPay = L.totalDueInt nBnd
                let ((shortfall,drawAmt),newAcc) = A.tryDraw dueIntToPay d (PayInt [bName]) (accMap Map.! accName)
                let newBnd = set L.bndIntLens iInfo $ L.payInt d drawAmt nBnd
@@ -1400,5 +1401,3 @@ depositPoolFlow rules d pFlowMap amap
   = foldr (\rule acc -> depositInflow d rule pFlowMap acc) amap rules
 
 $(deriveJSON defaultOptions ''ExpectReturn)
-
-

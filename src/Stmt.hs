@@ -7,7 +7,7 @@
 module Stmt
   (Statement(..)
    ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
-   ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
+   ,appendStmt,combineTxn,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
@@ -85,7 +85,6 @@ getTxnBalance (ExpTxn _ t _ _ _ ) = t
 getTxnBalance (SupportTxn _ _ t _ _ _ _ ) = t -- drawed balance
 getTxnBalance (EntryTxn _ t _ _) = t
 
-
 -- | SupportTxn Date (Maybe Balance) Balance DueInt DuePremium Cash TxnComment    
 
 getTxnBegBalance :: Txn -> Balance
@@ -126,11 +125,6 @@ isEmptyTxn (SupportTxn _ Nothing 0 0 0 0 Empty) = True
 isEmptyTxn (IrsTxn _ 0 0 0 0 0 Empty) = True
 isEmptyTxn (EntryTxn _ 0 0 Empty) = True
 isEmptyTxn _ = False
-
-
-sliceStmt :: Date -> Date -> Statement -> Statement
-sliceStmt sd ed (Statement txns) 
-  = Statement $ sliceBy II sd ed txns
 
 viewBalanceAsOf :: Date -> [Txn] -> Balance
 viewBalanceAsOf d [] = 0.0 

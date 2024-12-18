@@ -14,7 +14,7 @@ module Assumptions (BondPricingInput(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,getCDR,calcResetDates,IssueBondEvent(..)
+                    ,calcResetDates,IssueBondEvent(..)
                     ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..),InspectType(..)
                     ,FieldMatchRule(..),CallOpt(..)
                     ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
@@ -202,14 +202,10 @@ data BondPricingInput = DiscountCurve PricingDate Ts                            
                       -- | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
                       deriving (Show,Generic)
 
-getCDR :: Maybe AssetDefaultAssumption -> Maybe Rate
-getCDR (Just (DefaultCDR r)) = Just r
-getCDR _ = Nothing
 
 getIndexFromRateAssumption :: RateAssumption -> Index 
 getIndexFromRateAssumption (RateCurve idx _) = idx
 getIndexFromRateAssumption (RateFlat idx _) = idx
-
 
 -- ^ lookup rate from rate assumption with index and spread
 lookupRate :: [RateAssumption] -> Floater -> Date -> IRate 
@@ -237,29 +233,31 @@ getRateAssumption assumps idx
          assumps
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
-projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> [IRate]
-projRates sr (Fix _ r) _ ds = replicate (length ds) sr 
+projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> Either String [IRate]
+projRates sr (Fix _ r) _ ds = Right $ replicate (length ds) sr 
+projRates sr (Floater _ idx spd r dp rfloor rcap mr) Nothing ds = Left $ "Looking up rate error: No rate assumption found for index "++ show idx
 projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
   = case getRateAssumption assumps idx of
-      Nothing -> error ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
+      Nothing -> Left ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
       Just _rateAssumption -> 
-        let 
-          resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
-          ratesFromCurve = case _rateAssumption of
-                             (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
-                             (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
-                             _ -> error ("Invalid rate type "++ show _rateAssumption)
-          ratesUsedByDates =  getValByDates
-                                (mkRateTs $ zip ((head ds):resetDates) (sr:ratesFromCurve))
-                                Inc
-                                ds 
-        in 
-          case (rfloor,rcap) of 
-            (Nothing, Nothing) -> fromRational <$> ratesUsedByDates  
-            (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
-            (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
-            (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
-projRates _ rt rassump ds = error ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
+        Right $
+          let 
+            resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
+            ratesFromCurve = case _rateAssumption of
+                               (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
+                               (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
+                               _ -> error ("Invalid rate type "++ show _rateAssumption)
+            ratesUsedByDates =  getValByDates
+                                  (mkRateTs $ zip ((head ds):resetDates) (sr:ratesFromCurve))
+                                  Inc
+                                  ds 
+          in 
+            case (rfloor,rcap) of 
+              (Nothing, Nothing) -> fromRational <$> ratesUsedByDates  
+              (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
+              (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
+              (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
+projRates _ rt rassump ds = Left ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
 
 
 -- ^ Given a list of rates, calcualte whether rates was reset

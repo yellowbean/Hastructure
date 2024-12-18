@@ -39,7 +39,7 @@ data FeeType = AnnualRateFee DealStats FormulaRate                       -- ^ an
              | RecurFee DatePattern Balance                              -- ^ fee occur every date pattern
              | NumFee DatePattern DealStats Amount                       -- ^ fee based on an integer number
              | AmtByTbl DatePattern DealStats (Table Balance Balance)    -- ^ lookup query value in a table
-             | TargetBalanceFee DealStats DealStats                      -- ^ fee occur if (ds1 > ds2)
+             | TargetBalanceFee DealStats DealStats                      -- ^ fee due amount = max( 0, (ds1 - ds2))
              | FeeFlow Ts                                                -- ^ a time series based fee 
              | ByCollectPeriod Amount                                    -- ^ fix amount per collection period
              deriving (Show,Eq, Generic,Ord)
