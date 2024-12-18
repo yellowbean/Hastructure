@@ -224,10 +224,6 @@ sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
 
--- getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date) --TODO what if it is empty ? 
--- getDateRangeCashFlowFrame (CashFlowFrame _ [tr]) = (getDate tr, getDate tr)
--- getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
-
 getBegBalCashFlowFrame :: CashFlowFrame -> Balance
 getBegBalCashFlowFrame (CashFlowFrame _ []) = 0
 getBegBalCashFlowFrame (CashFlowFrame _ (cf:cfs)) = mflowBegBalance cf

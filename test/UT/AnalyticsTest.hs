@@ -80,5 +80,4 @@ assetPricingTest =
                     (LoanAssump Nothing Nothing Nothing Nothing,DummyDelinqAssump,DummyDefaultAssump)
                     Nothing 
                     Exc)
- 
   ]

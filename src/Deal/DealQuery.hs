@@ -329,7 +329,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             let ldgL = Map.elems lgdsM
             let bs Credit = filter (\x -> LD.ledgBalance x < 0) ldgL
             let bs Debit = filter (\x -> LD.ledgBalance x >= 0) ldgL
-            return $ toRational $ abs $ sum $ LD.ledgBalance <$> bs dr -- `debug` ("dr"++show dr++">> bs dr"++ show (bs dr))
+            return $ toRational $ abs $ sum $ LD.ledgBalance <$> bs dr
 
     FutureCurrentPoolBalance mPns ->
       case (mPns,pt) of 

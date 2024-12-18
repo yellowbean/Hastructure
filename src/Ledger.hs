@@ -56,12 +56,10 @@ entryLogByDr dr amt d (Just cmt)
 entryLogByDr Credit amt d (Just (TxnComments cms)) = entryLog amt d (TxnComments ((TxnDirection Credit):cms))
 entryLogByDr Debit amt d (Just (TxnComments cms)) = entryLog amt d (TxnComments ((TxnDirection Debit):cms))
 
-
 hasTxnDirection :: TxnComment -> Bool
 hasTxnDirection (TxnDirection _) = True
 hasTxnDirection (TxnComments txns) = any (hasTxnDirection) txns
 hasTxnDirection _ = False
-
 
 isTxnDirection :: BookDirection -> TxnComment -> Bool 
 isTxnDirection Credit (TxnDirection Credit) = True

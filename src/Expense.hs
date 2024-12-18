@@ -65,8 +65,8 @@ payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
      ,feeArrears = arrearRemain
      ,feeStmt = newStmt}
    where
-    [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd] -- `debug` ("AMT"++show amt++">> fa"++show fa++"fd"++show fd)
-    paid = fa + fd - arrearRemain - dueRemain -- `debug` ("arrear remain "++show arrearRemain++"due remain "++ show dueRemain++"r0 r1"++show r0++show r1)
+    [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd]
+    paid = fa + fd - arrearRemain - dueRemain 
     newStmt = appendStmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn)) fstmt
 
 -- | pay amount of fee regardless the due amount

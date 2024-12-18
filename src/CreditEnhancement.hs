@@ -136,8 +136,8 @@ draw  amt d liq@LiqFacility{ liqBalance = liqBal
     liq { liqStmt = appendStmt (SupportTxn d mCredit liqBal dueInt duePremium 0 LiquidationDraw) mStmt }
   | otherwise = liq { liqBalance = newBal,liqCredit = newCredit,liqStmt = newStmt}
     where 
-        newCredit = (\x -> x - amt) <$> mCredit -- `debug` ("date "++ show d ++" insert orgin credit : "++show mCredit)
-        newBal = liqBal + amt -- `debug` (show d ++"New bal"++ show liqBal ++ " "++ show amt++ "new credit: "++ show newCredit)
+        newCredit = (\x -> x - amt) <$> mCredit 
+        newBal = liqBal + amt 
         newStmt = appendStmt (SupportTxn d newCredit  newBal dueInt duePremium (negate amt) LiquidationDraw) mStmt
 
 
@@ -149,11 +149,8 @@ repay amt d pt liq@LiqFacility{liqBalance = liqBal
                               ,liqDueInt = liqDueInt
                               ,liqDuePremium = liqDuePremium
                               ,liqType = lt} 
-  = liq {liqBalance = newBal
-         ,liqCredit = newCredit
-         ,liqDueInt = newIntDue
-         ,liqDuePremium = newDuePremium
-         ,liqStmt = newStmt}
+  = liq {liqBalance = newBal ,liqCredit = newCredit ,liqDueInt = newIntDue
+         ,liqDuePremium = newDuePremium ,liqStmt = newStmt}
     where 
       (newBal, newIntDue, newDuePremium) = 
         case pt of 

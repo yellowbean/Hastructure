@@ -126,10 +126,8 @@ data RateCap = RateCap {
 
 receiveRC :: Date -> RateCap -> RateCap
 receiveRC d rc@RateCap{rcNetCash = receiveAmt, rcStmt = stmt} 
-  | receiveAmt > 0 = rc { rcNetCash = 0 ,rcStmt = newStmt}
+  | receiveAmt > 0 = rc { rcNetCash = 0 ,rcStmt = appendStmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle) stmt}
   | otherwise = rc
-     where 
-       newStmt = appendStmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle) stmt 
 
 instance IR.UseRate RateCap where 
   getIndexes rc@RateCap{rcIndex = idx} = Just [idx]

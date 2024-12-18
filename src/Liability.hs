@@ -14,7 +14,7 @@ module Liability
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
   ,getCurBalance,setBondOrigDate,isFloaterBond
   ,bndOriginInfoLens,bndIntLens,getBeginRate,_Bond,_BondGroup
-  ,totalFundedBalance)
+  ,totalFundedBalance,getIndexFromInfo)
   where
 
 import Language.Haskell.TH
@@ -50,9 +50,7 @@ import Control.Lens hiding (Index)
 import Control.Lens.TH
 import Language.Haskell.TH.Lens (_BytesPrimL)
 import Stmt (getTxnAmt)
-import Data.Char (GeneralCategory(NotAssigned))
 import qualified Stmt as L
--- import Deal.DealBase (UnderlyingDeal(futureCf))
 
 debug = flip trace
 
