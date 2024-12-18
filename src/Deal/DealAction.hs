@@ -71,7 +71,7 @@ import Data.OpenApi (HasPatch(patch))
 
 debug = flip trace
 
--- ^ 
+-- ^ Test triggers
 testTrigger :: Ast.Asset a => TestDeal a -> Date -> Trigger -> Either String Trigger
 testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=cond,trgStmt = tStmt} 
   | not curable && st = Right trigger
@@ -81,7 +81,7 @@ testTrigger t d trigger@Trigger{trgStatus=st,trgCurable=curable,trgCondition=con
                   do 
                     newSt <- newStM
                     return trigger { trgStatus = newSt
-                                    , trgStmt = Stmt.appendStmt tStmt (TrgTxn d newSt (Stmt.Tag memo))}
+                                    , trgStmt = Stmt.appendStmt (TrgTxn d newSt (Stmt.Tag memo)) tStmt }
 
 
 pricingAssets :: PricingMethod -> [(ACM.AssetUnion,AP.AssetPerf)] -> Maybe [RateAssumption] -> Date 
@@ -95,41 +95,21 @@ pricingAssets pm assetsAndAssump ras d
 
 -- actual payout amount to bond with due mounts
 allocAmtToBonds :: W.PayOrderBy -> Amount -> [(L.Bond,Amount)] -> [(L.Bond,Amount)]
+allocAmtToBonds W.ByProRataCurBal amt bndsWithDue 
+  = zip (fst <$> bndsWithDue) $ prorataFactors (snd <$> bndsWithDue) amt 
 allocAmtToBonds theOrder amt bndsWithDue =
-  case theOrder of 
-    W.ByName -> 
-      let 
-        orderdBonds = sortBy (\(b1,_) (b2,_) -> compare (L.bndName b1) (L.bndName b2)) bndsWithDue
-        orderedAmt = snd <$> orderdBonds
-        r = paySeqLiabilitiesAmt amt orderedAmt
-      in 
-        zip (fst <$> orderdBonds) r
-    W.ByProRataCurBal -> 
-      let 
-        r = prorataFactors (snd <$> bndsWithDue) amt -- `debug` ("bd amt"++ show amt)
-      in 
-        zip (fst <$> bndsWithDue) r -- `debug` ("r >>"++ show r)
-    W.ByCurrentRate ->
-      let 
-        orderdBonds = sortBy (\(b1,_) (b2,_) -> flip compare (L.bndRate b1) (L.bndRate b2)) bndsWithDue
-        orderedAmt = snd <$> orderdBonds
-        r = paySeqLiabilitiesAmt amt orderedAmt
-      in 
-        zip (fst <$> orderdBonds) r
-    W.ByMaturity ->
-      let 
-        orderdBonds = sortBy (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.maturityDate bo1) (L.maturityDate bo2)) bndsWithDue
-        orderedAmt = snd <$> orderdBonds
-        r = paySeqLiabilitiesAmt amt orderedAmt
-      in 
-        zip (fst <$> orderdBonds) r
-    W.ByStartDate -> 
-      let 
-        orderdBonds = sortBy (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.originDate bo1) (L.originDate bo2)) bndsWithDue
-        orderedAmt = snd <$> orderdBonds
-        r = paySeqLiabilitiesAmt amt orderedAmt
-      in 
-        zip (fst <$> orderdBonds) r
+  let 
+    sortFn = case theOrder of 
+                      W.ByName -> (\(b1,_) (b2,_) -> compare (L.bndName b1) (L.bndName b2)) 
+                      W.ByCurrentRate -> (\(b1,_) (b2,_) -> compare (L.bndRate b2) (L.bndRate b1)) 
+                      W.ByMaturity -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.maturityDate bo1) (L.maturityDate bo2))
+                      W.ByStartDate -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.originDate bo1) (L.originDate bo2))
+    orderedBonds = sortBy sortFn bndsWithDue
+    orderedAmt = snd <$> orderedBonds
+  in 
+    zip 
+      (fst <$> orderedBonds)
+      $ paySeqLiabilitiesAmt amt orderedAmt
 
 
 calcDueFee :: Ast.Asset a => TestDeal a -> Date -> F.Fee -> Either String F.Fee
@@ -165,9 +145,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.PctFee ds _r ) fs fd fdDay fa lpd _)
 
 calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd _ fa mflpd _)
   = Right $
-      f{ F.feeDue = newFeeDue
-      ,F.feeDueDate = Just calcDay
-      ,F.feeType = F.FeeFlow futureDue} 
+      f{ F.feeDue = newFeeDue ,F.feeDueDate = Just calcDay ,F.feeType = F.FeeFlow futureDue} 
     where
       (currentNewDue,futureDue) = splitTsByDate ts calcDay 
       cumulativeDue = sumValTs currentNewDue
@@ -176,7 +154,7 @@ calcDueFee t calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd _ fa mflpd _)
 calcDueFee t calcDay f@(F.Fee fn (F.RecurFee p amt)  fs fd mLastAccDate fa _ _)
   | periodGaps == 0 = Right f 
   | otherwise = Right f { F.feeDue = amt * fromIntegral periodGaps + fd
-                        , F.feeDueDate = Just (T.addDays 1 calcDay) } -- `debug` ("periods"++show periodGaps)
+                        , F.feeDueDate = Just (T.addDays 1 calcDay) }
   where
     accDates = case mLastAccDate of 
                       Nothing -> genSerialDatesTill2 NO_IE (T.addDays 1 fs) p calcDay 
@@ -228,8 +206,8 @@ disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate }
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Nothing }  = liq
 
 
- -- refresh available balance
- ---- for Replenish Support and ByPct
+-- refresh available balance
+---- for Replenish Support and ByPct
 updateLiqProvider :: Ast.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = curCredit}
   = disableLiqProvider t d $ liq { CE.liqCredit = newCredit } 
@@ -250,11 +228,11 @@ calcDueInt t calc_date mBal mRate b@(L.BondGroup bMap)
       return $ L.BondGroup m 
 -- Not accrued
 calcDueInt t calc_date mBal mRate b@(L.Bond _ _ oi io _ bal r dp _ di Nothing _ lastPrinPay _ ) 
- | calc_date <= closingDate = Right b
- | bal+di == 0 = Right b
- | otherwise = calcDueInt t calc_date mBal mRate (b {L.bndDueIntDate = Just closingDate })  -- `debug` ("hit")
-   where 
-     closingDate = getClosingDate (dates t)
+  | calc_date <= closingDate = Right b
+  | bal+di == 0 = Right b
+  | otherwise = calcDueInt t calc_date mBal mRate (b {L.bndDueIntDate = Just closingDate })  -- `debug` ("hit")
+    where 
+      closingDate = getClosingDate (dates t)
 -- Z bond
 calcDueInt t calc_date _ _ b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate _ _ _ _ lstIntPay _ _) 
   = Right $ b {L.bndDueInt = 0 }
@@ -286,17 +264,14 @@ calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ i
   | calc_date == int_due_date =  Right $ b
   | otherwise = 
       let 
-        dc = case bi of 
-               L.Floater _ _ _ _ _dc _ _ -> _dc 
-               L.Fix _ _dc -> _dc 
-               _ -> DC_ACT_365F
+        dc = fromMaybe DC_ACT_365F $ L.getDayCountFromInfo bi
       in 
         do
           overrideRate <- maybe (Right bond_rate) ((fromRational <$>) . (queryCompound t calc_date)) mRate
           overrideBal <- maybe (Right bond_bal) ((fromRational <$>) . (queryCompound t calc_date)) mBal
           let newDueInt = IR.calcInt overrideBal int_due_date calc_date overrideRate dc -- `debug` ("Using Rate"++show calc_date ++">>Bal"++ show overrideBal)
           return b {L.bndDueInt = newDueInt+intDue, L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
-       
+
 calcDuePrin :: Ast.Asset a => TestDeal a -> Date -> L.Bond -> Either String L.Bond
 calcDuePrin t d b@(L.BondGroup bMap) 
   = do 
@@ -311,10 +286,10 @@ calcDuePrin t d b@(L.Bond bn (L.Lockout cd) bo bi _ bondBal _ _ _ _ _ _ _ _)
   | otherwise = Right $ b {L.bndDuePrin = bondBal }
 
 calcDuePrin t d b@(L.Bond bn (L.PAC schedule) _ _ _ bondBal _ _ _ _ _ _ _ _)
-  = Right $ b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+  = Right $ b {L.bndDuePrin = duePrin} 
   where
     scheduleDue = getValOnByDate schedule d
-    duePrin = max (bondBal - scheduleDue) 0 -- `debug` ("In PAC ,target balance"++show(schedule)++show(calc_date)++show(scheduleDue))
+    duePrin = max (bondBal - scheduleDue) 0
 
 calcDuePrin t d b@(L.Bond bn (L.PacAnchor schedule bns) _ _ _ bondBal _ _ _ _ _ _ _ _)
   = let 
@@ -363,7 +338,6 @@ priceAssetUnionList :: [ACM.AssetUnion] -> Date -> PricingMethod  -> AP.ApplyAss
                     -> Either String [PriceResult]
 priceAssetUnionList assetList d pm (AP.PoolLevel assetPerf) mRates 
   = sequenceA [ priceAssetUnion asset d pm assetPerf mRates | asset <- assetList ]
-
 
 -- | this would used in `static` revolving ,which assumes the revolving pool will decrease
 splitAssetUnion :: [Rate] -> ACM.AssetUnion -> [ACM.AssetUnion]
@@ -444,16 +418,18 @@ evalExtraSupportBalance d t (W.MultiSupport supports)
 
 
 -- ^ draw support from a deal , return updated deal,and remaining oustanding amount
-drawExtraSupport :: Date -> Amount -> W.ExtraSupport -> TestDeal a -> (TestDeal a,Amount)
-drawExtraSupport d amt (W.SupportAccount an (Just (W.ByAccountDraw ln))) t@TestDeal{accounts=accMap, ledgers= Just ledgerMap}
+drawExtraSupport :: Date -> Amount -> W.ExtraSupport -> TestDeal a -> (TestDeal a, Amount)
+-- ^ draw account support and book ledger
+drawExtraSupport d amt (W.SupportAccount an (Just (dr, ln))) t@TestDeal{accounts=accMap, ledgers= Just ledgerMap}
   = let 
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
       oustandingAmt = amt - drawAmt
     in 
       (t {accounts = Map.adjust (A.draw drawAmt d Types.SupportDraw) an accMap
-         ,ledgers = Just $ Map.adjust (LD.entryLog drawAmt d (TxnDirection Debit)) ln ledgerMap}
+         ,ledgers = Just $ Map.adjust (LD.entryLog drawAmt d (TxnDirection dr)) ln ledgerMap}
       , oustandingAmt)
 
+-- ^ draw account support
 drawExtraSupport d amt (W.SupportAccount an Nothing) t@TestDeal{accounts=accMap} 
   = let 
       drawAmt = min (A.accBalance (accMap Map.! an)) amt
@@ -462,6 +438,7 @@ drawExtraSupport d amt (W.SupportAccount an Nothing) t@TestDeal{accounts=accMap}
       (t {accounts = Map.adjust (A.draw drawAmt d Types.SupportDraw) an accMap }
       , oustandingAmt) 
 
+-- ^ draw support from liquidity facility
 drawExtraSupport d amt (W.SupportLiqFacility liqName) t@TestDeal{liqProvider= Just liqMap}
   = let
       theLiqProvider = liqMap Map.! liqName
@@ -473,10 +450,11 @@ drawExtraSupport d amt (W.SupportLiqFacility liqName) t@TestDeal{liqProvider= Ju
       (t {liqProvider = Just (Map.adjust (CE.draw drawAmt d) liqName liqMap)}
       , oustandingAmt)
 
+-- ^ draw multiple supports by sequence
 drawExtraSupport d amt (W.MultiSupport supports) t
   = foldr 
       (\support (deal,remainAmt) -> drawExtraSupport d remainAmt support deal) 
-      (t,amt) 
+      (t, amt) 
       supports
 
 inspectListVars :: Ast.Asset a => TestDeal a -> Date -> [DealStats] -> Either String [ResultComponent]
@@ -554,7 +532,7 @@ performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultCo
                   -> W.Action -> Either String (TestDeal a, RunContext a, [ResultComponent])
 
 performActionWrap d (t, rc, logs) (W.BuyAsset ml pricingMethod accName pId) 
-   = performActionWrap d (t, rc, logs) (W.BuyAssetFrom ml pricingMethod accName (Just "Consol") pId)
+  = performActionWrap d (t, rc, logs) (W.BuyAssetFrom ml pricingMethod accName (Just "Consol") pId)
 
 performActionWrap d 
                   (t@TestDeal{ accounts = accsMap , pool = pt}
@@ -563,7 +541,7 @@ performActionWrap d
                                 ,revolvingInterestRateAssump = mRates}
                   ,logs)
                   (W.BuyAssetFrom ml pricingMethod accName mRevolvingPoolName pId) 
-   = 
+  = 
     let 
       revolvingPoolName = fromMaybe "Consol" mRevolvingPoolName
       (assetForSale::RevolvingPool, perfAssumps::AP.ApplyAssumptionType) =  rMap Map.! revolvingPoolName  -- `debug` ("Getting pool"++ revolvingPoolName) 
@@ -578,6 +556,7 @@ performActionWrap d
         limitAmt <- case ml of 
                       Just (DS ds) -> queryCompound t d (patchDateToStats d ds)
                       Just (DueCapAmt amt) -> Right (toRational amt)
+                      Just (DuePct pct) -> Right $ toRational (mulBR accBal pct)
                       Nothing -> Right (toRational accBal)
         let availBal = min (fromRational limitAmt) accBal  -- `debug` ("Date"++ show d ++" Value on r -asset "++ show valuationOnAvailableAssets)
         valOnAvailableAssets <- priceAssetUnionList assets d pricingMethod perfAssumps mRates 
@@ -653,26 +632,25 @@ performActionWrap d
      poolMapToLiq = case (pt, mPid) of 
                       (MultiPool pm, Nothing) -> pm
                       (MultiPool pm,Just pids) -> let
-                                                   selectedPids = S.fromList pids
-                                                   selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
+                                                    selectedPids = S.fromList pids
                                                   in 
-                                                   selectedPoolMap
+                                                    Map.filterWithKey (\k v -> S.member k selectedPids) pm
+
                       (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
-     
+
 
 
      liqAmtByPool = Map.mapWithKey (\k p -> P.pricingPoolFlow d p (pcf Map.! k) lm) poolMapToLiq -- `debug` ("pool id to liq"++ show poolMapToLiq)
-     
      liqAmt = sum $ Map.elems liqAmtByPool
 
      -- Update collected cashflow
      newPt = case (pt, mPid) of 
                (MultiPool pm, Nothing) -> MultiPool $ Map.map liqFunction pm
                (MultiPool pm, Just pids) -> let
-                                            selectedPids = S.fromList pids
-                                            selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
-                                           in 
-                                            MultiPool $ Map.union (Map.map liqFunction selectedPoolMap) pm
+                                              selectedPids = S.fromList pids
+                                              selectedPoolMap = Map.filterWithKey (\k v -> S.member k selectedPids) pm
+                                            in 
+                                              MultiPool $ Map.union (Map.map liqFunction selectedPoolMap) pm
                (ResecDeal _,_) -> error "Not implement on liquidate resec deal"
 
      liqComment = LiquidationProceeds (fromMaybe [] mPid)
@@ -686,7 +664,7 @@ performActionWrap d
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
   = (inspectListVars t d dss) >>= (\vs -> Right (t, rc, logs ++ [InspectWaterfall d ms dss (showInspection <$> vs)])) 
-      -- vals <- sequenceA $ showInspection (inspectListVars t d dss)
+
 
 performActionWrap d (t, rc, logs) (W.ActionWithPre p actions) 
   = do 
@@ -781,7 +759,7 @@ performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.PDL dr ds ledgers
                          (zip ledgerNames amtBookedToLedgers) --`debug` ("amts to book"++ show amtBookedToLedgers)
       return $ t {ledgers = Just newLedgerM}
 
--- ^ pay fee sequentially
+-- ^ pay fee sequentially, but not accrued
 performAction d t@TestDeal{fees=feeMap, accounts=accMap} (W.PayFeeBySeq mLimit an fns mSupport) =
   let 
     availAccBal = A.accBalance (accMap Map.! an)
@@ -945,10 +923,10 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap}
      do
        bndsWithDue <- sequenceA $ calcDuePrin t d <$> bndsToPay
        let bndsDueAmts = L.bndDuePrin <$> bndsWithDue
-       let totalDue = sum bndsDueAmts
+       let totalDue = sum bndsDueAmts -- `debug` ("Date"++show d++" due amt"++show bndsDueAmts)
        let actualPaidOut = calcAvailAfterLimit t d (accMap Map.! an) mSupport totalDue mLimit
-       paidOutAmt <- actualPaidOut
-       let (bondsPaid, remainAmt) = paySequentially d paidOutAmt L.bndDuePrin (L.payPrin d) [] bndsToPay
+       paidOutAmt <- actualPaidOut -- `debug` ("Date"++show d++" paid out amt"++show actualPaidOut)
+       let (bondsPaid, remainAmt) = paySequentially d paidOutAmt L.bndDuePrin (L.payPrin d) [] bndsWithDue
        let accPaidOut = min availAccBal paidOutAmt
      
        let dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (PayPrin bndsToPayNames)) an accMap
@@ -988,19 +966,20 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap}
        return $ updateSupport d mSupport supportPaidOut dealAfterAcc
 
 
+-- ^ accure interest and payout interest to a bond group with sequence input "by"
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueAndPayIntGroup mLimit an bndName by mSupport)
   = do 
       dAfterAcc <- performAction d t (W.AccrueIntGroup [bndName])-- `debug` ("Acc due int grp"++ show (getDueInt (bndMap Map.! bndName)))
       performAction d dAfterAcc (W.PayIntGroup mLimit an bndName by mSupport)
 
-
+-- ^ accrue interest for a group of bonds
 performAction d t@TestDeal{bonds=bndMap} (W.AccrueIntGroup bndNames)
   = do 
       let bondGrp = Map.filterWithKey (\k _ -> S.member k (S.fromList bndNames)) bndMap
       bondGrpAccrued <- mapM (calcDueInt t d Nothing Nothing) bondGrp
       return t {bonds = bondGrpAccrued <> bndMap}
 
-
+-- ^ pay interest for a group of bonds with sequence input "by"
 performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit an bndGrpName by mSupport)
   = let 
      availAccBal = A.accBalance (accMap Map.! an)
@@ -1051,7 +1030,6 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayPrin mLimit an bn
   = let 
      availAccBal = A.accBalance (accMap Map.! an)
      bndsToPay = getActiveBonds t bnds
-     
   in
      do
        bndsWithDue <- sequenceA $ calcDuePrin t d <$> bndsToPay
@@ -1192,7 +1170,7 @@ performAction d t@TestDeal{bonds=bndMap, accounts = accMap} (W.CalcBondPrin mLim
                           bndMap 
                           bndsAmountToBePaid -- `debug` ("Calc Bond Prin"++ show bndsAmountToBePaid)
         return $ t {bonds = newBndMap}
-     
+
       
 -- ^ draw cash and deposit to account
 performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.LiqSupport mLimit pName CE.LiqToAcc ans)
@@ -1210,8 +1188,7 @@ performAction d t@TestDeal{accounts=accs, liqProvider = Just _liqProvider} (W.Li
                              (_ , Just _x) -> Left $ "Date:"++show d ++"Not support limit in LiqSupport(Account)"++ show _x 
             let dAmt = fromRational transferAmt
             return t { accounts = Map.adjust (A.deposit dAmt d (LiquidationSupport pName)) an accs
-                     , liqProvider = Just $ Map.adjust (CE.draw dAmt d) pName _liqProvider
-                     }
+                     , liqProvider = Just $ Map.adjust (CE.draw dAmt d) pName _liqProvider }
   | otherwise = Left $ "Date:"++show d ++"There should only one account for LiqToAcc of LiqSupport"
 
 

@@ -78,6 +78,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
+                  | FundBond Date (Maybe Pre) String AccName Amount
                   | RefiBondRate Date AccountName BondName L.InterestInfo
                   | RefiBond Date AccountName L.Bond
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
@@ -114,6 +115,7 @@ instance TimeSeries ActionOnDate where
     getDate (RefiBond d _ _) = d
     getDate (ResetLiqProviderRate d _) = d
     getDate (TestCall d) = d
+    getDate (FundBond d _ _ _ _) = d
     getDate x = error $ "Failed to match"++ show x
 
 
@@ -124,8 +126,8 @@ sortActionOnDate a1 a2
                  (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
                  (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
                  (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
-                 (TestCall _ ,_) -> GT  -- build report should be executed last
-                 (_ , TestCall _) -> LT -- build report should be executed last
+                 (TestCall _ ,_) -> GT  -- test call should be executed last
+                 (_ , TestCall _) -> LT -- test call should be executed last
                  (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
                  (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
                  (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
@@ -236,7 +238,9 @@ data TestDeal a = TestDeal { name :: DealName
                              ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
                              ,overrides :: Maybe [OverrideType]
                              ,ledgers :: Maybe (Map.Map String LD.Ledger)
-                           } deriving (Show,Generic,Eq,Ord)
+                           } deriving 
+                           
+                (Show,Generic,Eq,Ord)
 
 instance SPV (TestDeal a) where
   getBondsByName t bns
@@ -280,16 +284,6 @@ instance SPV (TestDeal a) where
   isResec t = case pool t of
                  ResecDeal _ -> True
                  _ -> False
-
-_expandBonds :: Map.Map BondName L.Bond -> [L.Bond]
-_expandBonds bMap = 
-  let 
-    bs = Map.elems bMap
-    view a@(L.Bond {}) = [a]
-    view a@(L.BondGroup bMap) = Map.elems bMap
-  in 
-    concat $ view <$> bs
-
 
 -- ^ list all bonds and bond groups in list
 viewDealAllBonds :: TestDeal a -> [L.Bond]

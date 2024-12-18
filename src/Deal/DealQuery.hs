@@ -242,7 +242,6 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         case mm of
           Nothing -> Left $ "Date:"++show d++"There is maturity date for bond " ++ bn
           Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
-          
 
     ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
 
@@ -274,7 +273,10 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     OriginalBondBalanceOf bnds -> Right . toRational $ sum $ getOriginBalance <$> viewDealBondsByNames t bnds
 
     CurrentBondBalanceOf bns -> Right . toRational $ sum $ getCurBalance <$> viewDealBondsByNames t bns
-    
+
+    BondTotalFunding bnds -> 
+      Right . toRational $ sum $ L.totalFundedBalance <$> viewDealBondsByNames t bnds
+
     CurrentPoolBalance mPns ->
       let
         assetM = concat $ Map.elems $ getAllAsset t mPns
@@ -301,7 +303,8 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     
     UnderlyingBondBalance mBndNames -> Left $ "Date:"++show d++"Not implemented for underlying bond balance"
  
-    AllAccBalance -> Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
+    AllAccBalance -> 
+      Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
     
     AccBalance ans -> 
       do 
@@ -326,7 +329,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             let ldgL = Map.elems lgdsM
             let bs Credit = filter (\x -> LD.ledgBalance x < 0) ldgL
             let bs Debit = filter (\x -> LD.ledgBalance x >= 0) ldgL
-            return $ toRational $ abs $ sum $ LD.ledgBalance <$> bs dr -- `debug` ("dr"++show dr++">> bs dr"++ show (bs dr))
+            return $ toRational $ abs $ sum $ LD.ledgBalance <$> bs dr
 
     FutureCurrentPoolBalance mPns ->
       case (mPns,pt) of 

@@ -1,11 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit
-                ,transfer,depositInt
-                ,InterestInfo(..),buildEarnIntAction,updateReserveBalance
-                ,accBalLens,tryDraw,buildRateResetDates,accrueInt)
+                ,transfer,depositInt ,InterestInfo(..),buildEarnIntAction
+                ,accBalLens,tryDraw,buildRateResetDates,accrueInt,accTypeLens)
     where
 import qualified Data.Time as T
 import Stmt (Statement(..),appendStmt,getTxnBegBalance,getDate
@@ -19,8 +19,9 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
+import Control.Lens.Tuple
 
-import Control.Lens 
+import Control.Lens hiding (Index)
 
 import qualified InterestRate as IR
 
@@ -32,10 +33,6 @@ data InterestInfo = BankAccount IRate DatePattern Date
                   | InvestmentAccount Types.Index Spread DatePattern DatePattern Date IRate 
                     -- ^ float type: index, spread, sweep dates, rate reset , last accrue day, last reset rate
                   deriving (Show, Generic,Eq,Ord)
-
-
-makePrisms ''InterestInfo
-
 
 data ReserveAmount = PctReserve DealStats Rate               -- ^ target amount with reference to % of formula
                    | FixReserve Balance                      -- ^ target amount with fixed balance amount    
@@ -68,15 +65,15 @@ accrueInt _ (Account _ _ Nothing _ _) = 0
 -- ^ bank account type interest 
 accrueInt endDate a@(Account bal _ (Just interestType) _ stmt)  
   = case stmt of 
-       Nothing -> mulBR (mulBI bal rateToUse) (yearCountFraction defaultDc lastDay endDate) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
-       Just (Statement txns) ->
-         let 
-           accrueTxns = sliceBy IE lastDay endDate txns
-           bals = map getTxnBegBalance accrueTxns ++ [bal]
-           ds = [lastDay] ++ getDates accrueTxns ++ [endDate]
-           avgBal = calcWeightBalanceByDates defaultDc bals ds
-         in
-           mulBI avgBal rateToUse  
+      Nothing -> mulBR (mulBI bal rateToUse) (yearCountFraction defaultDc lastDay endDate) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
+      Just (Statement txns) ->
+        let 
+          accrueTxns = sliceBy IE lastDay endDate txns
+          bals = map getTxnBegBalance accrueTxns ++ [bal]
+          ds = [lastDay] ++ getDates accrueTxns ++ [endDate]
+          avgBal = calcWeightBalanceByDates defaultDc bals ds
+        in
+          mulBI avgBal rateToUse  
     where 
       defaultDc = DC_30E_360
       (lastDay,rateToUse) = case interestType of 
@@ -87,7 +84,7 @@ accrueInt endDate a@(Account bal _ (Just interestType) _ stmt)
 depositInt :: Date -> Account -> Account
 depositInt _ a@(Account _ _ Nothing _ _) = a 
 depositInt ed a@(Account bal _ (Just intType) _ stmt)
-          = a {accBalance = newBal ,accStmt= newStmt ,accInterest = Just (newIntInfoType intType)}
+          = a {accBalance = newBal ,accStmt= appendStmt newTxn stmt ,accInterest = Just (newIntInfoType intType)}
           where 
             -- accruedInt = accrueInt a (mkTs [(lastCollectDate, toRational r),(ed, toRational r)])  ed
             accruedInt = accrueInt ed a
@@ -95,7 +92,6 @@ depositInt ed a@(Account bal _ (Just intType) _ stmt)
             newIntInfoType (InvestmentAccount x y z z1 _d z2) = (InvestmentAccount x y z z1 ed z2)
             newBal = accruedInt + bal  -- `debug` ("INT ACC->"++ show accrued_int)
             newTxn = AccTxn ed newBal accruedInt BankInt
-            newStmt = appendStmt stmt newTxn
 
 -- | move cash from account A to account B
 transfer :: (Account,Account) -> Date -> Amount -> (Account, Account)
@@ -107,16 +103,16 @@ transfer (sourceAcc@(Account sBal san _ _ sStmt), targetAcc@(Account tBal tan _ 
   where
     newSBal = sBal - amount
     newTBal = tBal + amount
-    sourceNewStmt = appendStmt sStmt (AccTxn d newSBal (- amount) (Transfer san tan))
-    targetNewStmt = appendStmt tStmt (AccTxn d newTBal amount (Transfer san tan) )
+    sourceNewStmt = appendStmt (AccTxn d newSBal (- amount) (Transfer san tan)) sStmt 
+    targetNewStmt = appendStmt (AccTxn d newTBal amount (Transfer san tan)) tStmt 
 
 -- | deposit cash to account with a comment
 deposit :: Amount -> Date -> TxnComment -> Account -> Account
 deposit amount d source acc@(Account bal _ _ _ maybeStmt)  =
     acc {accBalance = newBal, accStmt = newStmt}
   where
-    newBal = bal + amount -- `debug` ("Date:"++show d++ "deposit"++show amount++"from"++show bal)
-    newStmt = appendStmt maybeStmt (AccTxn d newBal amount source)
+    newBal = bal + amount
+    newStmt = appendStmt (AccTxn d newBal amount source) maybeStmt 
 
 -- | draw cash from account with a comment
 draw :: Amount -> Date -> TxnComment -> Account -> Account
@@ -131,19 +127,9 @@ tryDraw amt d tc acc@(Account bal _ _ _ maybeStmt)
   | otherwise = ((0, amt), draw amt d tc acc)
 
 
--- | change reserve target info of account
-updateReserveBalance :: ReserveAmount -> Account -> Account 
-updateReserveBalance ra acc = acc {accType = Just ra}
-
 instance QueryByComment Account where 
     queryStmt (Account _ _ _ _ Nothing) tc = []
     queryStmt (Account _ _ _ _ (Just (Statement txns))) tc = filter (\x -> getTxnComment x == tc) txns
-
--- | query total balance transfer from account a to account b
-queryTrasnferBalance :: Account -> Account -> Balance
-queryTrasnferBalance Account{accStmt = Nothing } Account{accName = an} = 0
-queryTrasnferBalance a@Account{accName = fromAccName, accStmt = Just (Statement txns)} Account{accName = toAccName}
-  = sum $ getTxnAmt <$> queryStmt a (Transfer fromAccName toAccName) 
 
 
 -- InvestmentAccount Types.Index Spread DatePattern DatePattern Date IRate 
@@ -154,7 +140,7 @@ buildRateResetDates _ _ = Nothing
 
 
 makeLensesFor [("accBalance","accBalLens") ,("accName","accNameLens") 
-              ,("accType","accTypeLens") ,("accStmt","accStmtLens")] ''Account
+              ,("accType","accTypeLens") ,("accStmt","accStmtLens"),("accInterest","accIntLens")] ''Account
 
 
 instance IR.UseRate Account where 
@@ -165,6 +151,7 @@ instance IR.UseRate Account where
   getIndex _ = Nothing 
   
 
+makePrisms ''InterestInfo
 
 $(deriveJSON defaultOptions ''InterestInfo)
 $(deriveJSON defaultOptions ''ReserveAmount)

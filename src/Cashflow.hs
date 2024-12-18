@@ -224,10 +224,6 @@ sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
 
--- getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date) --TODO what if it is empty ? 
--- getDateRangeCashFlowFrame (CashFlowFrame _ [tr]) = (getDate tr, getDate tr)
--- getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
-
 getBegBalCashFlowFrame :: CashFlowFrame -> Balance
 getBegBalCashFlowFrame (CashFlowFrame _ []) = 0
 getBegBalCashFlowFrame (CashFlowFrame _ (cf:cfs)) = mflowBegBalance cf
@@ -873,8 +869,8 @@ aggTs (r:rs) (tr:trs)
 patchBalance :: (Balance,Maybe CumulativeStat) -> [TsRow] -> [TsRow] -> [TsRow]
 patchBalance (bal,stat) [] [] = []
 patchBalance (bal,mStat) r [] = case mStat of 
-                                 Just stat -> patchCumulative stat [] $ reverse r
-                                 Nothing -> patchCumulative (0,0,0,0,0,0) [] $ reverse r
+                                  Just stat -> patchCumulative stat [] $ reverse r
+                                  Nothing -> patchCumulative (0,0,0,0,0,0) [] $ reverse r
 patchBalance (bal,stat) r (tr:trs) = 
   let 
     amortAmt = mflowAmortAmount tr
@@ -934,6 +930,7 @@ mergePoolCf2 cf1@(CashFlowFrame st1@(bBal1,bDate1,a1) txns1) cf2@(CashFlowFrame 
           (CashFlowFrame _ txnCombined) = mergePoolCf2 cfToCombine cf2
         in 
           over cashflowTxn (++ txnCombined) resultCf1 
+
 
 mergeCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergeCf cf (CashFlowFrame _ []) = cf

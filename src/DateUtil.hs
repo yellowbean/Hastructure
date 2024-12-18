@@ -33,7 +33,7 @@ yearCountFraction dc sd ed
                       (sDaysTillYearEnd % (daysOfYear syear)) + (eDaysAfterYearBeg % (daysOfYear eyear)) + (pred _diffYears) 
                       -- `debug` ("<>"++show sDaysTillYearEnd++"<>"++show(daysOfYear syear) ++"<>"++show (daysOfYear eyear)++"<>"++ show eyear)
 
-      DC_ACT_365F -> _diffDays % 365 -- `debug` ("DIFF Days"++show(_diffDays))
+      DC_ACT_365F -> _diffDays % 365
 
       DC_ACT_360  -> _diffDays % 360
 

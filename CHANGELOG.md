@@ -3,9 +3,18 @@
 <!-- towncrier release notes start -->
 
 
+## 0.40.13
+### 2024-12-17
+* NEW: new formula `totalFunded` for bond with extra funding amount
+* NEW: new deal run assumption `FundBond`, which records a time series funding amount for a single bond.
+* ENHANCE: When booking account from `support` action, now user can book on `Credit` or `Debit` side
+* FIX: `payPrinBySeq` was not working
+
+
+
 ## 0.40.9
 ### 2024-12-11
-* ENHANCE:  Ensure <limit> always return positive ,otherwise engine will throw error
+* ENHANCE:  Ensure `limit` always return positive ,otherwise engine will throw error
 * NEW: add new action  `changeStatus` in waterfall, with optional `Pre` as condition to trigger the status change
 
 

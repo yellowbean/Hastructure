@@ -39,7 +39,7 @@ data FeeType = AnnualRateFee DealStats FormulaRate                       -- ^ an
              | RecurFee DatePattern Balance                              -- ^ fee occur every date pattern
              | NumFee DatePattern DealStats Amount                       -- ^ fee based on an integer number
              | AmtByTbl DatePattern DealStats (Table Balance Balance)    -- ^ lookup query value in a table
-             | TargetBalanceFee DealStats DealStats                      -- ^ fee occur if (ds1 > ds2)
+             | TargetBalanceFee DealStats DealStats                      -- ^ fee due amount = max( 0, (ds1 - ds2))
              | FeeFlow Ts                                                -- ^ a time series based fee 
              | ByCollectPeriod Amount                                    -- ^ fix amount per collection period
              deriving (Show,Eq, Generic,Ord)
@@ -65,9 +65,9 @@ payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
      ,feeArrears = arrearRemain
      ,feeStmt = newStmt}
    where
-    [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd] -- `debug` ("AMT"++show amt++">> fa"++show fa++"fd"++show fd)
-    paid = fa + fd - arrearRemain - dueRemain -- `debug` ("arrear remain "++show arrearRemain++"due remain "++ show dueRemain++"r0 r1"++show r0++show r1)
-    newStmt = appendStmt fstmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn)) -- `debug` ("Actual paid to fee"++show paid)
+    [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd]
+    paid = fa + fd - arrearRemain - dueRemain 
+    newStmt = appendStmt (ExpTxn d dueRemain paid arrearRemain (PayFee fn)) fstmt
 
 -- | pay amount of fee regardless the due amount
 payResidualFee :: Date -> Amount -> Fee -> Fee
@@ -78,7 +78,7 @@ payResidualFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
      ,feeStmt = newStmt}
    where
     [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd] 
-    newStmt = appendStmt fstmt (ExpTxn d dueRemain amt arrearRemain (PayFee fn)) 
+    newStmt = appendStmt (ExpTxn d dueRemain amt arrearRemain (PayFee fn)) fstmt  
 
 -- | build accure dates for a fee
 buildFeeAccrueAction :: [Fee] -> Date -> [(String,Dates)] -> [(String,Dates)]

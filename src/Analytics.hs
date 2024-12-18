@@ -48,9 +48,9 @@ pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc today d amt = 
   realToFrac $ (realToFrac amt) * (1 / factor) --  `debug` ("DF:"++show factor++" PV AMT"++show amt)
   where
-   distance::Double = fromIntegral $ daysBetween today d
-   discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
-   factor::Double = (1 + realToFrac discount_rate) ** (distance / 365) --  `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
+    distance::Double = fromIntegral $ daysBetween today d
+    discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
+    factor::Double = (1 + realToFrac discount_rate) ** (distance / 365) --  `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
 
 -- ^ calculate present value in the future using constant rate
 pv2 :: IRate -> Date -> Date -> Amount -> Amount

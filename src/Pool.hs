@@ -94,7 +94,6 @@ getIssuanceField :: Pool a -> CutoffFields -> Balance
 getIssuanceField p@Pool{issuanceStat = Just m} s
   = case Map.lookup s m of
       Just r -> r
-      -- Nothing -> error ("Failed to lookup "++show s++" in stats "++show m)
       Nothing -> 0.0
 getIssuanceField Pool{issuanceStat = Nothing} _ 
   = error "There is no pool stats"

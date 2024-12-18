@@ -375,7 +375,7 @@ payProRata d amt getDueAmt payFn tobePaidList
       (paidList, remainAmt)
 
 payInMap :: Date -> Amount -> (a->Balance) -> (Amount->a->a)-> [String] 
-         -> HowToPay -> Map.Map String a -> Map.Map String a
+          -> HowToPay -> Map.Map String a -> Map.Map String a
 payInMap d amt getDueFn payFn objNames how inputMap 
   = let 
       objsToPay = (inputMap Map.!) <$> objNames  
@@ -397,12 +397,14 @@ adjustM :: (Ord k, Applicative m) => (a -> m a) -> k -> Map.Map k a -> m (Map.Ma
 adjustM f = Map.alterF (traverse f)
 
 
+-- ^ lookup and apply a function to a single value in a map ,return a value
 lookupAndApply :: Ord k => (a -> b) -> String -> k -> Map.Map k a -> Either String b
 lookupAndApply f errMsg key m =
   case Map.lookup key m of
     Nothing -> Left errMsg
     Just a  -> Right $ f a
 
+-- ^ lookup and apply a function to values in a map ,return a list
 lookupAndApplies :: Ord k => (a -> b) -> String -> [k] -> Map.Map k a -> Either String [b]
 lookupAndApplies f errMsg keys m 
   = sequenceA $ (\x -> lookupAndApply f errMsg x m) <$> keys
@@ -417,7 +419,6 @@ lookupAndUpdate f errMsg keys m
 
 lookupInMap :: (Show k, Ord k) => String -> [k] -> Map.Map k a -> Either String (Map.Map k a)
 lookupInMap = lookupAndUpdate id  
-
 
 selectInMap :: (Show k, Ord k) => String -> [k] -> Map.Map k a -> Either String (Map.Map k a)
 selectInMap errMsg keys m 
