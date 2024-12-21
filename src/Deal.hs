@@ -179,6 +179,22 @@ updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPre
 
 updateLiqProviderRate t d ras liq = liq 
 
+-- CDS
+
+-- ^ accure CDS 
+-- accrueCDS :: Ast.Asset a => TestDeal a -> Date -> CE.CreditDefaultSwap -> Either String CE.CreditDefaultSwap
+-- accrueCDS t d cds@CDS{} = Right cds
+
+-- accrueCDS 
+
+
+
+-- ^ settle CDS 
+-- settleCDS :: Ast.Asset a => TestDeal a -> Date -> CE.CDS -> Either String (CE.CDS
+
+
+
+
 evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
 evalFloaterRate _ _ (IR.Fix _ r) = r 
 evalFloaterRate d ras (IR.Floater _ idx spd _r _ mFloor mCap mRounding)
@@ -226,15 +242,28 @@ applyFloatRate2 (IR.Floater _ idx spd _r _ mFloor mCap mRounding) d ras
         rateAtDate <- AP.lookupRate0 ras idx d 
         return $ flooring mFloor $ capping mCap $ rateAtDate + spd
 
-updateRateSwapRate :: [RateAssumption] -> Date -> HE.RateSwap -> HE.RateSwap
-updateRateSwapRate rAssumps d rs@HE.RateSwap{ HE.rsType = rt } 
-  = rs {HE.rsPayingRate = pRate, HE.rsReceivingRate = rRate }
-  where 
-      (pRate,rRate) = case rt of 
-                     HE.FloatingToFloating flter1 flter2 -> (getRate flter1,getRate flter2)
-                     HE.FloatingToFixed flter r -> (getRate flter, r)
-                     HE.FixedToFloating r flter -> (r , getRate flter)
+updateRateSwapRate :: Maybe [RateAssumption] -> Date -> HE.RateSwap -> Either String HE.RateSwap
+updateRateSwapRate Nothing _ _ = Left "Failed to update rate swap: No rate input assumption"
+updateRateSwapRate (Just rAssumps) d rs@HE.RateSwap{ HE.rsType = rt } 
+  = let 
       getRate x = AP.lookupRate rAssumps x d
+    in
+      do  
+        (pRate,rRate) <- case rt of 
+                              HE.FloatingToFloating flter1 flter2 ->
+                                do 
+                                  r1 <- getRate flter1
+                                  r2 <- getRate flter2
+                                  return (r1, r2)
+                              HE.FloatingToFixed flter r -> 
+                                do 
+                                  _r <- getRate flter
+                                  return (_r, r)
+                              HE.FixedToFloating r flter -> 
+                                do 
+                                  _r <- getRate flter
+                                  return (r, _r)
+        return rs {HE.rsPayingRate = pRate, HE.rsReceivingRate = rRate }
 
 updateRateSwapBal :: Ast.Asset a => TestDeal a -> Date -> HE.RateSwap -> Either String HE.RateSwap
 updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
@@ -268,6 +297,9 @@ accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = inde
                   let newAmt = amt + addAmt  -- `debug` ("Accrue AMT"++ show addAmt)
                   let newStmt = appendStmt (IrsTxn d newAmt addAmt 0 0 0 SwapAccrue) mstmt 
                   return $ rc { rcLastStlDate = Just d ,rcNetCash = newAmt, rcStmt = newStmt }
+
+
+
 
 -- ^ test if a clean up call should be fired
 testCall :: Ast.Asset a => TestDeal a -> Date -> C.CallOption -> Either String Bool 
@@ -507,18 +539,42 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
 
         ChangeDealStatusTo d s -> run (t{status=s}) poolFlowMap (Just ads) rates calls rAssump log
 
-        ResetIRSwapRate d sn -> 
+        CalcIRSwap d sn -> 
           case rateSwap t of 
-            Nothing -> Left $ " No rate swap found for "++ sn
+            Nothing -> Left $ " No rate swaps modeled when looking for "++ sn
             Just rSwap ->
-              let
-                _rates = fromMaybe [] rates
-                newRateSwap_rate = Map.adjust (updateRateSwapRate _rates d) sn rSwap
-              in 
-                do
-                  newRateSwap_bal <- adjustM (updateRateSwapBal t d) sn newRateSwap_rate 
-                  let newRateSwap_acc = Map.adjust (HE.accrueIRS d) sn $ newRateSwap_bal
-                  run (t{rateSwap = Just newRateSwap_acc}) poolFlowMap (Just ads) rates calls rAssump log
+              do
+                newRateSwap_rate <- adjustM (updateRateSwapRate rates d) sn rSwap
+                newRateSwap_bal <- adjustM (updateRateSwapBal t d) sn newRateSwap_rate 
+                let newRateSwap_acc = Map.adjust (HE.accrueIRS d) sn $ newRateSwap_bal
+                run (t{rateSwap = Just newRateSwap_acc}) poolFlowMap (Just ads) rates calls rAssump log
+
+        SettleIRSwap d sn -> 
+          case rateSwap t of 
+            Nothing -> Left $ " No rate swaps modeled when looking for "++ sn
+            Just rSwap ->
+              do
+                acc <- case HE.rsSettleDates (rSwap Map.! sn) of 
+                          Nothing -> Left $ "No settle date found for "++ sn
+                          Just (_, _accName) -> Right $ accMap Map.! _accName
+                let accBal = A.accBalance acc
+                let rs = rSwap Map.! sn
+                let settleAmt = HE.rsNetCash rs
+                let accName = A.accName acc
+                case (settleAmt <0, accBal < abs settleAmt) of 
+                  (True, True) -> Left $ "Insufficient balance to settle "++ sn
+                  (True, False) -> 
+                    let
+                      newAcc = Map.adjust (A.draw (abs settleAmt) d SwapOutSettle) accName  accMap
+                      newRsMap = Just $ Map.adjust (HE.payoutIRS d settleAmt) sn rSwap 
+                    in 
+                      run (t{accounts = newAcc, rateSwap = newRsMap}) poolFlowMap (Just ads) rates calls rAssump log
+                  (False, _) -> 
+                    let 
+                      newAcc = Map.adjust (A.deposit settleAmt d SwapInSettle) accName accMap
+                      newRsMap = Just $ Map.adjust (HE.receiveIRS d) sn rSwap 
+                    in
+                      run (t{accounts = newAcc, rateSwap = newRsMap}) poolFlowMap (Just ads) rates calls rAssump log
 
         AccrueCapRate d cn -> 
           case rateCap t of 
@@ -545,16 +601,15 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               newBnd <- setBondNewRate t d rateList bnd
               run t{bonds = Map.fromList [(bn,newBnd)] <> bndMap} poolFlowMap (Just ads) rates calls rAssump log
         
+        -- TODO When reset rate, need to accrue interest
         ResetAccRate d accName -> 
-          let 
-            newAccMap = Map.adjust 
+          do
+            newAccMap <- adjustM 
                           (\a@(A.Account _ _ (Just (A.InvestmentAccount idx spd dp dp1 lastDay _)) _ _)
-                            -> let 
-                                 newRate = AP.lookupRate (fromMaybe [] rates) (idx,spd) d 
-                               in 
-                                 a { A.accInterest = Just (A.InvestmentAccount idx spd dp dp1 lastDay newRate)}) 
+                            -> do
+                                 newRate <- AP.lookupRate (fromMaybe [] rates) (idx,spd) d 
+                                 return a { A.accInterest = Just (A.InvestmentAccount idx spd dp dp1 lastDay newRate)})
                           accName accMap
-          in 
             run t{accounts = newAccMap} poolFlowMap (Just ads) rates calls rAssump log
 
         BuildReport sd ed ->
@@ -1230,14 +1285,26 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                  [ BuildReport _sd _ed  | (_sd,_ed) <- zip _ds (tail _ds) ] -- `debug` ("ds"++ show _ds)
                           _ -> []  -- `debug` ("emtpy rpt dates")
 
-    irSwapRateDates = case rateSwap t of
+    irUpdateSwapDates = case rateSwap t of
                         Nothing -> []
                         Just rsm -> Map.elems $ Map.mapWithKey 
                                                  (\k x -> let 
-                                                           resetDs = genSerialDatesTill2 EE (HE.rsStartDate x) (HE.rsSettleDates x) endDate
+                                                           resetDs = genSerialDatesTill2 EE (HE.rsStartDate x) (HE.rsUpdateDates x) endDate
                                                           in 
-                                                           flip ResetIRSwapRate k <$> resetDs)
+                                                           flip CalcIRSwap k <$> resetDs)
                                                  rsm
+    irSettleSwapDates = case rateSwap t of
+                        Nothing -> []
+                        Just rsm -> Map.elems $ Map.mapWithKey 
+                                                  (\k x@HE.RateSwap{ HE.rsSettleDates = sDates} ->
+                                                    case sDates of 
+                                                      Nothing -> []
+                                                      Just (sdp,_) ->
+                                                        let 
+                                                          resetDs = genSerialDatesTill2 EE (HE.rsStartDate x) sdp endDate
+                                                        in 
+                                                          flip SettleIRSwap k <$> resetDs)
+                                                  rsm
     rateCapSettleDates = case rateCap t of 
                            Nothing -> []
                            Just rcM -> Map.elems $ Map.mapWithKey 
@@ -1292,7 +1359,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                        __actionDates = let 
                                         a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
                                                    ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
-                                                   ,concat irSwapRateDates,inspectDates, bndRateResets,financialRptDates
+                                                   ,concat irUpdateSwapDates, concat irSettleSwapDates ,inspectDates, bndRateResets,financialRptDates
                                                    ,bondIssuePlan,bondRefiPlan,callDates, iAccRateResetDates ] -- `debug` ("reports"++ show financialRptDates)
                                       in
                                         case (dates t,status) of 

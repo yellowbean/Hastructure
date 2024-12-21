@@ -28,10 +28,9 @@ import DateUtil
 
 import qualified Assumptions as A
 import qualified InterestRate as IR
-import Control.Lens hiding (Index)
+import Control.Lens
 
 import Debug.Trace
-import InterestRate (calcInt)
 debug = flip trace
 
 type SettleDates = DatePattern       -- ^ dates when rates/ex-rates are reseted
@@ -49,20 +48,22 @@ data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating r
                   deriving(Show,Generic,Eq,Ord)
 
 data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
-                         ,rsSettleDates :: SettleDates   -- ^ define settle dates
-                         ,rsNotional :: RateSwapBase     -- ^ define notional balance
-                         ,rsStartDate :: StartDate       -- ^ swap start date
-                         ,rsPayingRate :: IRate          -- ^ collect rate
-                         ,rsReceivingRate :: IRate       -- ^ paying rate
-                         ,rsRefBalance :: Balance        -- ^ notional balance in use
-                         ,rsLastStlDate :: Maybe Date    -- ^ last settle date
-                         ,rsNetCash :: Balance           -- ^ amount to pay/collect
-                         ,rsStmt :: Maybe Statement      -- ^ transaction history
-                         }
-                         deriving(Show,Generic,Eq,Ord)
+                          ,rsSettleDates :: Maybe (SettleDates,String)         -- ^ define settle dates
+                          ,rsUpdateDates :: DatePattern   -- ^ define observe dates
 
--- updateRefBalance :: Balance -> RateSwap -> RateSwap
--- updateRefBalance bal rs = rs { rsRefBalance = bal}
+                          ,rsNotional :: RateSwapBase     -- ^ define notional balance
+                          ,rsRefBalance :: Balance        -- ^ notional balance in use
+                          
+                          ,rsPayingRate :: IRate          -- ^ collect rate
+                          ,rsReceivingRate :: IRate       -- ^ paying rate
+                          
+                          ,rsNetCash :: Balance           -- ^ amount to pay/collect
+                          
+                          ,rsStartDate :: StartDate       -- ^ swap start date
+                          ,rsLastStlDate :: Maybe Date    -- ^ last settle date
+                          ,rsStmt :: Maybe Statement      -- ^ transaction history
+                          }
+                          deriving(Show,Generic,Eq,Ord)
 
 -- | The `accrueIRS` will calculate the `Net` amount 
 -- ( payble with negative, positve with receivable) of Rate Swap      
@@ -72,11 +73,11 @@ accrueIRS d rs@RateSwap{rsRefBalance = face
                       , rsReceivingRate = receiveRate     
                       , rsNetCash = netCash               
                       , rsStmt = stmt}                    
-  =  rs {rsNetCash = newNet , rsLastStlDate = Just d, rsStmt = appendStmt newTxn stmt}
+  = rs {rsNetCash = newNet , rsLastStlDate = Just d, rsStmt = appendStmt newTxn stmt}
       where 
-          accureStartDate =  case rsLastStlDate rs of 
-                               Nothing ->  rsStartDate rs 
-                               Just lsd -> lsd
+          accureStartDate = case rsLastStlDate rs of 
+                              Nothing ->  rsStartDate rs 
+                              Just lsd -> lsd
           rateDiff =  receiveRate - payRate 
           yearFactor = fromRational $ yearCountFraction DC_ACT_365F accureStartDate d
           newNetAmount = mulBIR (face * yearFactor) rateDiff  -- `debug` ("Diff rate"++ show rateDiff)
@@ -94,10 +95,10 @@ payoutIRS :: Date -> Amount -> RateSwap -> RateSwap
 payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt} 
   | payoutAmt < 0  =  rs { rsNetCash = outstanding, rsStmt = newStmt }
   | otherwise = rs
-     where 
-       actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
-       outstanding = payoutAmt + actualAmt
-       newStmt = appendStmt (IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle) stmt 
+      where 
+        actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
+        outstanding = payoutAmt + actualAmt
+        newStmt = appendStmt (IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle) stmt 
 
 instance QueryByComment RateSwap where 
     queryStmt RateSwap{rsStmt = Nothing} tc = []
@@ -110,7 +111,7 @@ instance Liable RateSwap where
     | otherwise = False
 
 data RateCap = RateCap {
-                rcIndex :: Index
+                rcIndex :: Types.Index
                 ,rcStrikeRate :: Ts
                 ,rcNotional :: RateSwapBase
                 ,rcStartDate :: Date

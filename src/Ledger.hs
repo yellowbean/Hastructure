@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Ledger (Ledger(..),entryLog,LedgerName,queryGap,clearLedgersBySeq
-              ,queryDirection,entryLogByDr)
+              ,queryDirection,entryLogByDr,bookToTarget)
     where
 import qualified Data.Time as T
 import Stmt 
@@ -73,6 +73,25 @@ queryDirection :: Ledger -> (BookDirection ,Balance)
 queryDirection (Ledger _ bal _)
   |  bal >= 0 = (Debit, bal)
   |  bal < 0 = (Credit, negate bal)
+
+bookToTarget :: Ledger -> (BookDirection,Amount) -> (BookDirection,Amount)
+bookToTarget Ledger{ledgBalance = bal} (dr, targetBal) 
+  = case (bal > 0, dr) of 
+      (True, Debit) -> 
+        if (targetBal > bal)  then 
+          (Debit,targetBal - bal)
+        else 
+          (Credit,bal - targetBal)
+      (False, Credit) ->
+        if (targetBal > abs bal)  then 
+          (Credit,targetBal - abs bal)
+        else 
+          (Debit, abs bal - targetBal)
+      (True, Credit) -> 
+        (Credit,targetBal + bal)
+      (False, Debit) ->
+        (Debit,targetBal + abs bal)
+
 
 -- ^ return ledger's bookable amount (for netting off to zero ) with direction input
 queryGap :: BookDirection -> Ledger -> Balance

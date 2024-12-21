@@ -735,6 +735,13 @@ performAction d t@TestDeal{accounts=accMap} (W.TransferMultiple sourceAccList ta
           sourceAccList  
 
 -- ^ book ledger 
+performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.Till ledger dr ds)) =
+  do
+    targetAmt <- queryCompound t d ds
+    let (bookDirection, amtToBook) = LD.bookToTarget (ledgerM Map.! ledger) (dr, fromRational targetAmt)
+    let newLedgerM = Map.adjust (LD.entryLogByDr bookDirection amtToBook d Nothing) ledger ledgerM
+    return $ t {ledgers = Just newLedgerM } 
+
 performAction d t@TestDeal{ledgers= Just ledgerM} (W.BookBy (W.ByDS ledger dr ds)) =
   do
     amtToBook <- queryCompound t d ds
@@ -1302,14 +1309,6 @@ performAction d t@TestDeal{rateSwap = Just rtSwap } (W.SwapAccrue sName)
       return $ t { rateSwap = Just newRtSwap } 
 
 
-performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapReceive accName sName)
-  = Right $ t { rateSwap = Just newRtSwap, accounts = newAccMap }
-    where 
-        receiveAmt = max 0 $ HE.rsNetCash $ rtSwap Map.! sName
-        newRtSwap = Map.adjust (HE.receiveIRS d) sName rtSwap -- `debug` ("REceiv AMT"++ show receiveAmt)
-        newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
-
-
 performAction d t@TestDeal{rateCap = Just rcM, accounts = accsMap } (W.CollectRateCap accName sName)
   = Right $ t { rateCap = Just newRcSwap, accounts = newAccMap }
     where 
@@ -1318,14 +1317,30 @@ performAction d t@TestDeal{rateCap = Just rcM, accounts = accsMap } (W.CollectRa
         newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
 
 
+performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapReceive accName sName)
+  = case (Map.member accName accsMap, Map.member sName rtSwap) of 
+      (False, _) -> Left $ "Date:"++show d ++"Account:"++ show accName ++"not found in SwapReceive"
+      (_, False) -> Left $ "Date:"++show d ++"Swap:"++ show sName ++"not found in SwapReceive"
+      _ -> let 
+              receiveAmt = max 0 $ HE.rsNetCash $ rtSwap Map.! sName
+              newRtSwap = Map.adjust (HE.receiveIRS d) sName rtSwap
+              newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
+            in
+              Right $ t { rateSwap = Just newRtSwap, accounts = newAccMap }
+
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapPay accName sName)
-  = Right $ t { rateSwap = Just newRtSwap, accounts = newAccMap }
-    where 
-        payoutAmt = negate $ HE.rsNetCash $ rtSwap Map.! sName
-        availBal = A.accBalance $ accsMap Map.! accName
-        amtToPay = min payoutAmt availBal
-        newRtSwap = Map.adjust (HE.payoutIRS d amtToPay) sName rtSwap
-        newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
+  = case (Map.member accName accsMap, Map.member sName rtSwap) of 
+      (False, _) -> Left $ "Date:"++show d ++"Account:"++ show accName ++"not found in SwapPay"
+      (_, False) -> Left $ "Date:"++show d ++"Swap:"++ show sName ++"not found in SwapPay"
+      _ -> let 
+              payoutAmt = negate $ HE.rsNetCash $ rtSwap Map.! sName
+              availBal = A.accBalance $ accsMap Map.! accName
+              amtToPay = min payoutAmt availBal
+              newRtSwap = Map.adjust (HE.payoutIRS d amtToPay) sName rtSwap
+              newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
+            in
+              Right $ t { rateSwap = Just newRtSwap, accounts = newAccMap }
+
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapSettle accName sName)
   = do

@@ -70,7 +70,8 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
                   | FireTrigger Date DealCycle String    -- ^ fire a trigger
                   | InspectDS Date [DealStats]           -- ^ inspect formulas
-                  | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
+                  | CalcIRSwap Date String               -- ^ calc interest rate swap dates
+                  | SettleIRSwap Date String             -- ^ settle interest rate swap dates
                   | AccrueCapRate Date String            -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
                   | ResetSrtRate Date String 
@@ -104,7 +105,8 @@ instance TimeSeries ActionOnDate where
     getDate (FireTrigger d _ _) = d
     getDate (ChangeDealStatusTo d _ ) = d
     getDate (InspectDS d _ ) = d
-    getDate (ResetIRSwapRate d _ ) = d
+    getDate (CalcIRSwap d _ ) = d
+    getDate (SettleIRSwap d _ ) = d
     getDate (AccrueCapRate d _ ) = d
     getDate (ResetBondRate d _ ) = d 
     getDate (ResetAccRate d _ ) = d 
@@ -122,23 +124,26 @@ instance TimeSeries ActionOnDate where
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
 sortActionOnDate a1 a2 
   | d1 == d2 = case (a1,a2) of
-                 (PoolCollection {}, DealClosed {}) -> LT -- pool collection should be executed before deal closed
-                 (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
-                 (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
-                 (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
-                 (TestCall _ ,_) -> GT  -- test call should be executed last
-                 (_ , TestCall _) -> LT -- test call should be executed last
-                 (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
-                 (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
-                 (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
-                 (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
-                 (EarnAccInt {} ,_) -> LT  -- earn should be first
-                 (_ , EarnAccInt {}) -> GT -- earn should be first
-                 (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
-                 (_ , ResetLiqProvider {}) -> GT -- reset liq be first
-                 (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
-                 (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
-                 (_,_) -> EQ 
+                  (PoolCollection {}, DealClosed {}) -> LT -- pool collection should be executed before deal closed
+                  (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
+                  (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
+                  (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
+                  (TestCall _ ,_) -> GT  -- test call should be executed last
+                  (_ , TestCall _) -> LT -- test call should be executed last
+                  (CalcIRSwap _ _ ,SettleIRSwap _ _) -> LT  -- reset interest swap should be first
+                  (SettleIRSwap _ _ ,CalcIRSwap _ _) -> GT  -- reset interest swap should be first
+                  (_ , CalcIRSwap _ _) -> GT -- reset interest swap should be first
+                  (CalcIRSwap _ _ ,_) -> LT  -- reset interest swap should be first
+                  (_ , CalcIRSwap _ _) -> GT -- reset interest swap should be first
+                  (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
+                  (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
+                  (EarnAccInt {} ,_) -> LT  -- earn should be first
+                  (_ , EarnAccInt {}) -> GT -- earn should be first
+                  (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
+                  (_ , ResetLiqProvider {}) -> GT -- reset liq be first
+                  (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
+                  (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
+                  (_,_) -> EQ 
   | otherwise = compare d1 d2
   where 
     d1 = getDate a1 

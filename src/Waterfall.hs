@@ -33,8 +33,8 @@ import Ledger (Ledger,LedgerName)
 
 
 data BookType = PDL BookDirection DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
-              | ByAccountDraw LedgerName               -- Book amount equal to account draw amount
-              | ByDS          LedgerName BookDirection DealStats     -- Book amount equal to a formula/deal stats
+              | ByDS         LedgerName BookDirection DealStats     -- Book amount equal to a formula/deal stats
+              | Till         LedgerName BookDirection DealStats     -- Book amount till deal stats
               deriving (Show,Generic,Eq,Ord)
 
 data ExtraSupport = SupportAccount AccountName (Maybe BookLedger)  -- ^ if there is deficit, draw another account to pay the shortfall
@@ -105,8 +105,8 @@ data Action =
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName   -- ^ repay liquidity facility
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName                   -- ^ repay compensation to liquidity facility
             | LiqAccrue [CE.LiquidityProviderName]                                            -- ^ accure premium/due interest of liquidity facility
-            -- Swap
-            | SwapAccrue CeName                 -- ^ calculate the net amount of swap
+            -- Rate Swap
+            | SwapAccrue CeName                 -- ^ calculate the net amount of swap manually
             | SwapReceive AccountName CeName    -- ^ receive amount from net amount of swap and deposit to account
             | SwapPay AccountName CeName        -- ^ pay out net amount from account 
             | SwapSettle AccountName CeName     -- ^ pay & receive net amount of swap with account

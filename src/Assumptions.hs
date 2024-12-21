@@ -207,12 +207,12 @@ getIndexFromRateAssumption (RateCurve idx _) = idx
 getIndexFromRateAssumption (RateFlat idx _) = idx
 
 -- ^ lookup rate from rate assumption with index and spread
-lookupRate :: [RateAssumption] -> Floater -> Date -> IRate 
+lookupRate :: [RateAssumption] -> Floater -> Date -> Either String IRate 
 lookupRate rAssumps (index,spd) d
   = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
-      Just (RateCurve _ ts) -> spd + fromRational (getValByDate ts Inc d)
-      Just (RateFlat _ r) -> r + spd
-      Nothing -> error $ "Failed to find Index " ++ show index
+      Just (RateCurve _ ts) -> Right $ spd + fromRational (getValByDate ts Inc d)
+      Just (RateFlat _ r) -> Right $ r + spd
+      Nothing -> Left $ "Failed to find Index " ++ show index ++ "in list "++ show rAssumps
 
 -- ^ lookup rate from rate assumption with index
 lookupRate0 :: [RateAssumption] -> Index -> Date -> Either String IRate 
@@ -243,9 +243,9 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
           let 
             resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
             ratesFromCurve = case _rateAssumption of
-                               (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
-                               (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
-                               _ -> error ("Invalid rate type "++ show _rateAssumption)
+                                (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
+                                (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
+                                _ -> error ("Invalid rate type "++ show _rateAssumption)
             ratesUsedByDates =  getValByDates
                                   (mkRateTs $ zip ((head ds):resetDates) (sr:ratesFromCurve))
                                   Inc

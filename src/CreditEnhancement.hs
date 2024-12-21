@@ -7,7 +7,7 @@ module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
   ,LiquidityProviderName,draw,repay,accrueLiqProvider
   ,LiqDrawType(..),LiqRepayType(..),LiqCreditCalc(..)
-  ,consolStmt,CreditDefaultSwap(..)
+  ,consolStmt,CreditDefaultSwap(..),CDSType(..)
   )
   where
 
@@ -255,29 +255,31 @@ instance IR.UseRate LiqFacility where
   getIndex liq = head <$> IR.getIndexes liq
 
 
-data CDSType = CdsLifeCap Balance
-             | CdsLiftAttach Balance
-             deriving (Show, Generic, Eq, Ord)
+data CDSType = CoverageAttachDetach Balance Balance
+              | CoverageAttach Balance
+              | CoverageDetach Balance
+              | AllCoverage
+              deriving (Show, Generic, Eq, Ord)
 
 data CreditDefaultSwap = CDS {
     cdsName :: String
     ,cdsType :: CDSType
 
     ,cdsInsure ::  DealStats     -- ^ the coverage 
-    ,cdsCollectAmt :: Balance    -- ^ the amount to collect from CDS
-    ,cdsCollectDate :: Maybe Date  -- ^last collect calculate date
+    ,cdsCollectDue :: Balance    -- ^ the amount to collect from CDS
 
     ,cdsPremiumRefBalance :: DealStats  -- ^ how notional balance is calculated
     ,cdsPremiumNotional :: Balance      -- ^ the balance to calculate premium
 
-    ,cdsRateType :: Maybe IR.RateType   -- ^ interest rate type 
     ,cdsPremiumRate :: IRate            -- ^ the rate to calculate premium
-
-    ,cdsDuePremium :: Balance           -- ^ the due premium to payout from SPV
-    ,cdsDuePremiumDate :: Maybe Date    -- ^ last due premium calculate date
+    ,cdsRateType :: Maybe IR.RateType   -- ^ interest rate type 
+    
+    ,cdsPremiumDue :: Balance           -- ^ the due premium to payout from SPV
 
     ,cdsLastCalcDate :: Maybe Date     -- ^ last calculate date on net cash 
-    ,cdsNetCash :: Balance            -- ^ the net cash to settle ,negative means SPV pay to CDS, positive means CDS pay to SPV
+
+    ,cdsSettleDate :: Maybe Date       -- ^ last setttle date on net cash 
+    ,cdsNetCash :: Balance             -- ^ the net cash to settle ,negative means SPV pay to CDS, positive means CDS pay to SPV
 
     ,cdsStart :: Date
     ,cdsEnds :: Maybe Date
