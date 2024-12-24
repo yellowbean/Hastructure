@@ -1332,14 +1332,17 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapP
   = case (Map.member accName accsMap, Map.member sName rtSwap) of 
       (False, _) -> Left $ "Date:"++show d ++"Account:"++ show accName ++"not found in SwapPay"
       (_, False) -> Left $ "Date:"++show d ++"Swap:"++ show sName ++"not found in SwapPay"
-      _ -> let 
-              payoutAmt = negate $ HE.rsNetCash $ rtSwap Map.! sName
-              availBal = A.accBalance $ accsMap Map.! accName
-              amtToPay = min payoutAmt availBal
-              newRtSwap = Map.adjust (HE.payoutIRS d amtToPay) sName rtSwap
-              newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
-            in
-              Right $ t { rateSwap = Just newRtSwap, accounts = newAccMap }
+      _ -> if (HE.rsNetCash (rtSwap Map.! sName)) < 0 then
+             let 
+                payoutAmt = negate $ HE.rsNetCash $ rtSwap Map.! sName
+                availBal = A.accBalance $ accsMap Map.! accName
+                amtToPay = min payoutAmt availBal
+                newRtSwap = Map.adjust (HE.payoutIRS d amtToPay) sName rtSwap
+                newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
+              in
+                Right $ t { rateSwap = Just newRtSwap, accounts = newAccMap }
+            else
+              Right t
 
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapSettle accName sName)

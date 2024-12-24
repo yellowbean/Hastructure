@@ -218,9 +218,3 @@ buildSrtResetAction (srt:srts) ed r =
 
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''RateSwap, ''RateCap, ''RateSwapType, ''RateSwapBase, ''CurrencySwap])
-
--- $(deriveJSON defaultOptions ''RateSwap)
--- $(deriveJSON defaultOptions ''RateCap)
--- $(deriveJSON defaultOptions ''RateSwapType)
--- $(deriveJSON defaultOptions ''RateSwapBase)
--- $(deriveJSON defaultOptions ''CurrencySwap)

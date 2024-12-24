@@ -176,8 +176,8 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     CapWith s cap -> min (queryCompound t d s) (queryCompound t d cap)
     Abs s -> abs <$> queryCompound t d s
     Round ds rb -> do 
-                     q <- queryCompound t d ds
-                     return $ roundingBy rb q
+                      q <- queryCompound t d ds
+                      return $ roundingBy rb q
     DivideRatio s1 s2 -> queryCompound t d (Divide s1 s2)
     AvgRatio ss -> queryCompound t d (Avg ss)
     Constant v -> Right v
@@ -302,7 +302,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           Nothing -> Left $ "Date:"++show d++"No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
     
     UnderlyingBondBalance mBndNames -> Left $ "Date:"++show d++"Not implemented for underlying bond balance"
- 
+
     AllAccBalance -> 
       Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
     

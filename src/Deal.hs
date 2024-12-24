@@ -134,17 +134,21 @@ setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ bal currentR
                 ,L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
       
 -- ^ floater bond
-setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
+setBondNewRate t d ras b@(L.Bond _ _ (L.OriginalInfo _ sd _ _) ii _ bal currentRate _ dueInt _ mlastDueIntDate _ _ _) 
   = Right $ b { L.bndRate = applyFloatRate ii d ras 
               , L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
     where 
       (Just dc) = getDayCountFromInfo ii
-      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
+      accrueInt = case mlastDueIntDate of
+                    Nothing -> calcInt (bal + dueInt) sd d currentRate dc
+                    (Just dueIntDate) -> calcInt (bal + dueInt) dueIntDate d currentRate dc
 
 setBondNewRate t d ras bg@(L.BondGroup bMap)
   = do 
       m <- mapM (setBondNewRate t d ras) bMap
       return $ L.BondGroup m 
+
+setBondNewRate t d ras b = Left $ "set bond new rate: "++ show d ++"Failed to set bond rate: "++show b
 
 
 updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> Either String HE.SRT
@@ -562,7 +566,14 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 let settleAmt = HE.rsNetCash rs
                 let accName = A.accName acc
                 case (settleAmt <0, accBal < abs settleAmt) of 
-                  (True, True) -> Left $ "Insufficient balance to settle "++ sn
+                  (True, True) ->
+                    let
+                      newAcc = Map.adjust (A.draw accBal d SwapOutSettle) accName accMap
+                      newRsMap = Just $ Map.adjust (HE.payoutIRS d accBal) sn rSwap 
+                    in 
+                      run (t{accounts = newAcc, rateSwap = newRsMap}) poolFlowMap (Just ads) rates calls rAssump
+                      $ log ++ [WarningMsg $ "Settle Rate Swap Error: "++ show d ++" Insufficient balance to settle "++ sn]
+                    -- Left $ "Settle Rate Swap Error: "++ show d ++" Insufficient balance to settle "++ sn
                   (True, False) -> 
                     let
                       newAcc = Map.adjust (A.draw (abs settleAmt) d SwapOutSettle) accName  accMap
