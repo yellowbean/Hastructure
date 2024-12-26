@@ -568,7 +568,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 case (settleAmt <0, accBal < abs settleAmt) of 
                   (True, True) ->
                     let
-                      newAcc = Map.adjust (A.draw accBal d SwapOutSettle) accName accMap
+                      newAcc = Map.adjust (A.draw accBal d (SwapOutSettle sn)) accName accMap
                       newRsMap = Just $ Map.adjust (HE.payoutIRS d accBal) sn rSwap 
                     in 
                       run (t{accounts = newAcc, rateSwap = newRsMap}) poolFlowMap (Just ads) rates calls rAssump
@@ -576,13 +576,13 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                     -- Left $ "Settle Rate Swap Error: "++ show d ++" Insufficient balance to settle "++ sn
                   (True, False) -> 
                     let
-                      newAcc = Map.adjust (A.draw (abs settleAmt) d SwapOutSettle) accName  accMap
+                      newAcc = Map.adjust (A.draw (abs settleAmt) d (SwapOutSettle sn)) accName  accMap
                       newRsMap = Just $ Map.adjust (HE.payoutIRS d settleAmt) sn rSwap 
                     in 
                       run (t{accounts = newAcc, rateSwap = newRsMap}) poolFlowMap (Just ads) rates calls rAssump log
                   (False, _) -> 
                     let 
-                      newAcc = Map.adjust (A.deposit settleAmt d SwapInSettle) accName accMap
+                      newAcc = Map.adjust (A.deposit settleAmt d (SwapInSettle sn)) accName accMap
                       newRsMap = Just $ Map.adjust (HE.receiveIRS d) sn rSwap 
                     in
                       run (t{accounts = newAcc, rateSwap = newRsMap}) poolFlowMap (Just ads) rates calls rAssump log

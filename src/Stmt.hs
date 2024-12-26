@@ -12,6 +12,8 @@ module Stmt
    ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
    ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf,filterTxn
+   ,HasStmt(..)
+   ,getAllTxns
   )
   where
 
@@ -239,8 +241,8 @@ getFlow comment =
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
       SwapAccrue  -> Noneflow
-      SwapInSettle -> Inflow
-      SwapOutSettle -> Outflow
+      SwapInSettle _ -> Inflow
+      SwapOutSettle _ -> Outflow
       PurchaseAsset _ _-> Outflow
       IssuanceProceeds _ -> Inflow
       TxnDirection _ -> Noneflow
@@ -285,12 +287,9 @@ class QueryByComment a where
     queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
     queryTxnAmtAsOf :: a -> Date -> TxnComment -> Balance 
     queryTxnAmtAsOf a d tc =  sum $ getTxnAmt <$> queryStmtAsOf a d tc
-    
--- queryTxn :: [Txn] -> TxnComment -> [Txn]
--- queryTxn txns comment = [ txn | txn <- txns, getTxnComment txn == comment]
--- 
--- queryTxnAmt :: [Txn] -> TxnComment -> Balance
--- queryTxnAmt txns comment 
---   = sum $ geTxnAmt <$> queryTxn txns comment
+
+
+class HasStmt a where 
+  getAllTxns :: a -> [Txn]
 
 $(deriveJSON defaultOptions ''Statement)

@@ -216,61 +216,58 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
       newCredit = case liqType of 
                     --  CE.ReplenishSupport _ b -> max b <$> curCredit
                     CE.ByPct ds _r ->  case (* _r) <$> (queryCompound t d (patchDateToStats d ds)) of
-                                         Left y -> Nothing -- TODO tobe fix error
-                                         Right x -> (min (fromRational x)) <$> curCredit
+                                          Left y -> Nothing -- TODO tobe fix error
+                                          Right x -> (min (fromRational x)) <$> curCredit
                     _ -> curCredit
 
 
 calcDueInt :: Ast.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe DealStats -> L.Bond -> Either String L.Bond
-calcDueInt t calc_date mBal mRate b@(L.BondGroup bMap) 
+calcDueInt t d mBal mRate b@(L.BondGroup bMap) 
   = do 
-      m  <- mapM (calcDueInt t calc_date mBal mRate) bMap 
+      m  <- mapM (calcDueInt t d mBal mRate) bMap 
       return $ L.BondGroup m 
 -- Not accrued
-calcDueInt t calc_date mBal mRate b@(L.Bond _ _ oi io _ bal r dp _ di Nothing _ lastPrinPay _ ) 
-  | calc_date <= closingDate = Right b
+calcDueInt t d mBal mRate b@(L.Bond _ _ oi io _ bal r dp _ di Nothing _ lastPrinPay _ ) 
+  | d <= closingDate = Right b
   | bal+di == 0 = Right b
-  | otherwise = calcDueInt t calc_date mBal mRate (b {L.bndDueIntDate = Just closingDate })  -- `debug` ("hit")
+  | otherwise = calcDueInt t d mBal mRate (b {L.bndDueIntDate = Just closingDate })  -- `debug` ("hit")
     where 
       closingDate = getClosingDate (dates t)
 -- Z bond
 calcDueInt t calc_date _ _ b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate _ _ _ _ lstIntPay _ _) 
   = Right $ b {L.bndDueInt = 0 }
 -- accured by yield
-calcDueInt t calc_date _ _ b@(L.Bond bn L.Equity bo (L.InterestByYield y) _ bond_bal _ _ int_due _ _ lstIntPay _ mStmt)
+calcDueInt t d _ _ b@(L.Bond bn L.Equity bo (L.InterestByYield y) _ bond_bal _ _ int_due _ _ lstIntPay _ mStmt)
   = Right $ b {L.bndDueInt = newDue }  -- `debug` ("Yield Due Int >>"++ show bn++">> new due"++ show newDue++">> old due"++ show int_due )
   where
-    newDue = L.backoutDueIntByYield calc_date b
+    newDue = L.backoutDueIntByYield d b
 
 -- accrued with interest over interest
-calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntInfo) _ bond_bal bond_rate _ intDue ioiIntDue (Just int_due_date) lstIntPay _ _ )
+calcDueInt t d mBal mRate b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntInfo) _ bond_bal bond_rate _ intDue ioiIntDue (Just int_due_date) lstIntPay _ _ )
   = 
     let
       ioiRate = case ioiIntInfo of 
                   L.OverCurrRateBy factor -> bond_rate * fromRational (1+factor)
                   L.OverFixSpread spd -> bond_rate + spd
                   _ -> error "failed to match ioi rate type"
-      newIoiInt = IR.calcInt intDue int_due_date calc_date ioiRate DC_ACT_365F
+      newIoiInt = IR.calcInt intDue int_due_date d ioiRate DC_ACT_365F
       ioiInt = newIoiInt + ioiIntDue -- add ioi int due with new accrued ioi int
       
       newBond = b { L.bndDueIntOverInt = ioiInt, L.bndInterestInfo = intInfo }
     in 
       do 
-        newBondWithIntInfo <- calcDueInt t calc_date mBal mRate newBond
+        newBondWithIntInfo <- calcDueInt t d mBal mRate newBond
         return newBondWithIntInfo { L.bndInterestInfo = L.WithIoI intInfo ioiIntInfo}
 -- accure interest by rate
-calcDueInt t calc_date mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ intDue _ (Just int_due_date) lstIntPay _ _ ) 
+calcDueInt t d mBal mRate b@(L.Bond bn bt bo bi _ bond_bal bond_rate _ intDue _ (Just int_due_date) lstIntPay _ _ ) 
   | bond_bal == 0 =  Right $ b
-  | calc_date == int_due_date =  Right $ b
+  | d == int_due_date =  Right $ b
   | otherwise = 
-      let 
-        dc = fromMaybe DC_ACT_365F $ L.getDayCountFromInfo bi
-      in 
-        do
-          overrideRate <- maybe (Right bond_rate) ((fromRational <$>) . (queryCompound t calc_date)) mRate
-          overrideBal <- maybe (Right bond_bal) ((fromRational <$>) . (queryCompound t calc_date)) mBal
-          let newDueInt = IR.calcInt overrideBal int_due_date calc_date overrideRate dc -- `debug` ("Using Rate"++show calc_date ++">>Bal"++ show overrideBal)
-          return b {L.bndDueInt = newDueInt+intDue, L.bndDueIntDate = Just calc_date }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
+      do
+        overrideRate <- maybe (Right bond_rate) ((fromRational <$>) . (queryCompound t d)) mRate
+        overrideBal <- maybe (Right bond_bal) ((fromRational <$>) . (queryCompound t d)) mBal
+        let newDueInt = IR.calcInt overrideBal int_due_date d overrideRate $ fromMaybe DC_ACT_365F $ L.getDayCountFromInfo bi
+        return b {L.bndDueInt = newDueInt+intDue, L.bndDueIntDate = Just d }  --  `debug` ("Due INT"++show calc_date ++">>"++show(bn)++">>"++show int_due++">>"++show(new_due_int))
 
 calcDuePrin :: Ast.Asset a => TestDeal a -> Date -> L.Bond -> Either String L.Bond
 calcDuePrin t d b@(L.BondGroup bMap) 
@@ -890,6 +887,30 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayInt mLimit an bnd
        let supportPaidOut = paidOutAmt - accPaidOut
        return $ updateSupport d mSupport supportPaidOut dealAfterAcc
 
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap,ledgers= Just ledgerM} 
+                (W.PayIntAndBook mLimit an bnds mSupport (dr, lName))
+  = let 
+     availAccBal = A.accBalance (accMap Map.! an)
+     bndsList = (Map.!) bndMap <$> bnds
+     dueAmts = L.bndDueInt <$> bndsList
+     totalDue = sum dueAmts
+     actualPaidOut = calcAvailAfterLimit t d (accMap Map.! an) mSupport totalDue mLimit
+   in
+     do
+       paidOutAmt <- actualPaidOut
+       let (bondsPaid, remainAmt) = payProRata d paidOutAmt L.bndDueInt (L.payInt d) bndsList
+       let accPaidOut = (min availAccBal paidOutAmt)
+       let newLedgerM = Map.adjust (LD.entryLogByDr dr paidOutAmt d Nothing) lName ledgerM
+     
+       let dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (PayInt bnds)) an accMap
+                            ,bonds = Map.fromList (zip bnds bondsPaid) <> bndMap
+                            ,ledgers = Just newLedgerM}
+
+       let supportPaidOut = paidOutAmt - accPaidOut
+       return $ updateSupport d mSupport supportPaidOut dealAfterAcc
+
+
+
 performAction d t (W.AccrueAndPayInt mLimit an bnds mSupport) =
   do
     dealWithBondDue <- performAction d t (W.CalcBondInt bnds Nothing Nothing)
@@ -1075,9 +1096,9 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.PayPrinResidual an 
 performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an bnd) = 
   do
     fundAmt_ <- case mlimit of 
-                 Just (DS ds) -> queryCompound t d (patchDateToStats d ds)
-                 Just (DueCapAmt amt) -> Right $ toRational amt
-                 _ -> Left $ "Date:"++show d ++"Not valid limit for funding with bond"++ show bnd
+                  Just (DS ds) -> queryCompound t d (patchDateToStats d ds)
+                  Just (DueCapAmt amt) -> Right $ toRational amt
+                  _ -> Left $ "Date:"++show d ++"Not valid limit for funding with bond"++ show bnd
     let fundAmt = fromRational fundAmt_
     let accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bnd fundAmt)) an accMap
     newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
@@ -1259,8 +1280,8 @@ performAction d t@TestDeal{accounts=accs,liqProvider = Just _liqProvider} (W.Liq
         let paidOutsToLiq = paySeqLiabilitiesAmt transferAmt dueBreakdown
 
         let rptsToPair = case rpt of 
-                           CE.LiqRepayTypes lrts -> lrts
-                           x  -> [x]
+                            CE.LiqRepayTypes lrts -> lrts
+                            x  -> [x]
 
         let paidOutWithType
               | overDrawnBalance > 0 = zip (CE.LiqOD:rptsToPair) paidOutsToLiq 
@@ -1301,7 +1322,7 @@ performAction d t@TestDeal{rateSwap = Just rtSwap } (W.SwapAccrue sName)
                   (HE.Fixed b) -> Right b
                   (HE.Base ds) -> fromRational <$> queryCompound t d (patchDateToStats d ds)
                   (HE.Schedule ts) -> Right . fromRational $ getValByDate ts Inc d
-                 
+
       let newRtSwap = Map.adjust 
                         (HE.accrueIRS d)
                         sName
@@ -1314,7 +1335,7 @@ performAction d t@TestDeal{rateCap = Just rcM, accounts = accsMap } (W.CollectRa
     where 
         receiveAmt = max 0 $ HE.rcNetCash $ rcM Map.! sName
         newRcSwap = Map.adjust (HE.receiveRC d) sName rcM -- `debug` ("REceiv AMT"++ show receiveAmt)
-        newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
+        newAccMap = Map.adjust (A.deposit receiveAmt d (SwapInSettle sName)) accName accsMap
 
 
 performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapReceive accName sName)
@@ -1324,7 +1345,7 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapR
       _ -> let 
               receiveAmt = max 0 $ HE.rsNetCash $ rtSwap Map.! sName
               newRtSwap = Map.adjust (HE.receiveIRS d) sName rtSwap
-              newAccMap = Map.adjust (A.deposit receiveAmt d SwapInSettle) accName accsMap
+              newAccMap = Map.adjust (A.deposit receiveAmt d (SwapInSettle sName)) accName accsMap
             in
               Right $ t { rateSwap = Just newRtSwap, accounts = newAccMap }
 
@@ -1338,7 +1359,7 @@ performAction d t@TestDeal{rateSwap = Just rtSwap, accounts = accsMap } (W.SwapP
                 availBal = A.accBalance $ accsMap Map.! accName
                 amtToPay = min payoutAmt availBal
                 newRtSwap = Map.adjust (HE.payoutIRS d amtToPay) sName rtSwap
-                newAccMap = Map.adjust (A.draw amtToPay d SwapOutSettle) accName accsMap
+                newAccMap = Map.adjust (A.draw amtToPay d (SwapOutSettle sName)) accName accsMap
               in
                 Right $ t { rateSwap = Just newRtSwap, accounts = newAccMap }
             else

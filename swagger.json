@@ -516,6 +516,57 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/ExtraSupport"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "type": "string"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayIntAndBook"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayIntAndBook",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
                                     }
                                 ],
                                 "maxItems": 4,
@@ -2165,7 +2216,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "ResetIRSwapRate"
+                                    "CalcIRSwap"
                                 ],
                                 "type": "string"
                             }
@@ -2174,7 +2225,36 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "ResetIRSwapRate",
+                        "title": "CalcIRSwap",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "SettleIRSwap"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "SettleIRSwap",
                         "type": "object"
                     },
                     {
@@ -4248,6 +4328,55 @@
                         ],
                         "title": "DiscountRate",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "additionalProperties": {
+                                    "items": [
+                                        {
+                                            "$ref": "#/components/schemas/Ts"
+                                        },
+                                        {
+                                            "multipleOf": 1.0e-2,
+                                            "type": "number"
+                                        },
+                                        {
+                                            "items": [
+                                                {
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/Day"
+                                                    },
+                                                    "type": "array"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/PricingMethod"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array"
+                                        }
+                                    ],
+                                    "maxItems": 3,
+                                    "minItems": 3,
+                                    "type": "array"
+                                },
+                                "type": "object"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IRRInput"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IRRInput",
+                        "type": "object"
                     }
                 ]
             },
@@ -4493,25 +4622,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "type": "string"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "ByAccountDraw"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "ByAccountDraw",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "items": [
                                     {
                                         "type": "string"
@@ -4539,6 +4649,38 @@
                             "contents"
                         ],
                         "title": "ByDS",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/BookDirection"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "Till"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "Till",
                         "type": "object"
                     }
                 ]
@@ -14092,7 +14234,17 @@
                         "type": "number"
                     },
                     "rsSettleDates": {
-                        "$ref": "#/components/schemas/DatePattern"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/DatePattern"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "rsStartDate": {
                         "$ref": "#/components/schemas/Day"
@@ -14102,17 +14254,20 @@
                     },
                     "rsType": {
                         "$ref": "#/components/schemas/RateSwapType"
+                    },
+                    "rsUpdateDates": {
+                        "$ref": "#/components/schemas/DatePattern"
                     }
                 },
                 "required": [
                     "rsType",
-                    "rsSettleDates",
+                    "rsUpdateDates",
                     "rsNotional",
-                    "rsStartDate",
+                    "rsRefBalance",
                     "rsPayingRate",
                     "rsReceivingRate",
-                    "rsRefBalance",
-                    "rsNetCash"
+                    "rsNetCash",
+                    "rsStartDate"
                 ],
                 "type": "object"
             },
@@ -19075,6 +19230,9 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
                             "tag": {
                                 "enum": [
                                     "SwapInSettle"
@@ -19083,13 +19241,17 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "SwapInSettle",
                         "type": "object"
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
                             "tag": {
                                 "enum": [
                                     "SwapOutSettle"
@@ -19098,7 +19260,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "SwapOutSettle",
                         "type": "object"

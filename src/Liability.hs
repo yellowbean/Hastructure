@@ -23,12 +23,11 @@ import Data.Aeson.TH
 import Data.Fixed
 
 import qualified Data.Time as T
-import Lib (Period(..),Ts(..) ,TsPoint(..)
-           , toDate, daysBetween, getIntervalFactors, daysBetweenI)
+import Lib (Period(..),Ts(..) ,TsPoint(..) ,daysBetween)
 
 import Util
 import DateUtil
-import Types hiding (BondGroup)
+import Types
 import Analytics
 
 import Data.Ratio 
@@ -36,7 +35,7 @@ import Data.Maybe
 
 import qualified Stmt as S 
 
-import Data.List (findIndex,zip6,find)
+import Data.List (find)
 import qualified Cashflow as CF
 import qualified InterestRate as IR
 import qualified Lib
@@ -48,7 +47,7 @@ import Debug.Trace
 import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
 import Control.Lens.TH
-import Language.Haskell.TH.Lens (_BytesPrimL)
+import Language.Haskell.TH.Lens 
 import Stmt (getTxnAmt)
 import qualified Stmt as L
 
@@ -93,13 +92,13 @@ getDayCountFromInfo (WithIoI info _) = getDayCountFromInfo info
 getDayCountFromInfo _ = Nothing
 
 type RateReset = DatePattern 
-type PlannedAmorSchedule = Ts
 
 data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by pct over current rate
                              | OverFixSpread Spread -- ^ inflat ioi rate by fix spread
                              deriving (Show, Eq, Generic, Ord, Read)
 
 
+-- ^ the way how interest due amount is calculated
 --------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
 data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount                                    -- ^ fixed rate
@@ -130,6 +129,9 @@ data OriginalInfo = OriginalInfo {
   ,maturityDate :: Maybe Date      -- ^ optional maturity date
 } deriving (Show, Eq, Generic, Ord, Read)
 
+
+type PlannedAmorSchedule = Ts
+-- ^ the way of principal due is calculated
 data BondType = Sequential                                 -- ^ Pass through type tranche
               | PAC PlannedAmorSchedule                    -- ^ bond with schedule amortization 
               | PacAnchor PlannedAmorSchedule [BondName]   -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
@@ -158,8 +160,12 @@ data Bond = Bond {
             | BondGroup (Map.Map String Bond)      -- ^ bond group
             deriving (Show, Eq, Generic, Ord, Read)            
 
+
+-- bndTxns :: Lens' Bond (Maybe S.Statement)
+
+-- ^ remove empty transaction from a bond
 consolStmt :: Bond -> Bond
-consolStmt (BondGroup bMap) = BondGroup $ Map.map consolStmt bMap
+consolStmt (BondGroup bMap) = BondGroup $ consolStmt <$> bMap
 consolStmt b@Bond{bndName = bn, bndStmt = Nothing} = b    
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement [])} = b
 consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
@@ -171,11 +177,11 @@ consolStmt b@Bond{bndName = bn, bndStmt = Just (S.Statement (txn:txns))}
 
 setBondOrigDate :: Date -> Bond -> Bond
 setBondOrigDate d b@Bond{bndOriginInfo = oi} = b {bndOriginInfo = oi{originDate = d}}
-setBondOrigDate d (BondGroup bMap) = BondGroup $ Map.map (setBondOrigDate d) bMap
+setBondOrigDate d (BondGroup bMap) = BondGroup $ (setBondOrigDate d) <$> bMap
 
--- | build bond factors
+-- ^ build bond factors
 patchBondFactor :: Bond -> Bond
-patchBondFactor (BondGroup bMap) = BondGroup $ Map.map patchBondFactor bMap
+patchBondFactor (BondGroup bMap) = BondGroup $ patchBondFactor <$> bMap
 patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Nothing} = b
 patchBondFactor b@Bond{bndOriginInfo = bo, bndStmt = Just (S.Statement txns) } 
   | originBalance bo == 0 = b
@@ -208,24 +214,15 @@ payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate l
     newDue = dueInt - rs !! 1 -- `debug` ("Avail fund"++ show amt ++" int paid out plan"++ show rs)
     newStmt = S.appendStmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayInt [bn])) stmt  -- `debug` ("date after"++ show d++"due "++show newDueIoI++">>"++show newDue)
 
-payIntBySeq :: Date -> Amount -> [Bond] -> [Bond] -> ([Bond],Amount)
-payIntBySeq d amt bondsPaid [] = (bondsPaid, amt)
-payIntBySeq d 0 bondsPaid bondsToPaid = (bondsPaid ++ bondsToPaid, 0)
-payIntBySeq d amt bondsPaid (b:bondsToPaid)
-  = let 
-      intD = getDueInt b
-      actPaidOut = min amt intD
-      remains = amt - actPaidOut
-    in 
-      payIntBySeq d remains (payInt d actPaidOut b:bondsPaid) bondsToPaid
 
-
+-- ^ pay interest to single bond regardless any interest due
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndStmt= newStmt}
   where
     newStmt = S.appendStmt (BondTxn d bal amt 0 r amt dueInt dueIoI Nothing (S.PayYield bn)) stmt 
 
+-- ^ pay interest to single bond principal
 payPrin :: Date -> Amount -> Bond -> Bond
 payPrin d 0 bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
 payPrin d _ bnd@(Bond bn bt oi iinfo _ 0 r 0 0 dueIoI dueIntDate lpayInt lpayPrin stmt) = bnd
@@ -237,23 +234,20 @@ payPrin d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate 
     newStmt = S.appendStmt (BondTxn d newBal 0 amt r amt dueInt dueIoI Nothing (S.PayPrin [bn] )) stmt 
 
 writeOff :: Date -> Amount -> Bond -> Bond
-writeOff d 0 b = b -- `debug` ("Zero on wirte off")
+writeOff d 0 b = b
 writeOff d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
   = bnd {bndBalance = newBal , bndStmt=newStmt}
-  where
-    newBal = bal - amt
-    newStmt = S.appendStmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt )) stmt 
+    where
+      newBal = bal - amt
+      newStmt = S.appendStmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt )) stmt 
 
 fundWith :: Date -> Amount -> Bond -> Bond
 fundWith d 0 b = b
 fundWith d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
-  = bnd  {bndBalance = newBal 
-          , bndStmt=newStmt
-          } 
+  = bnd {bndBalance = newBal , bndStmt=newStmt } 
   where
     newBal = bal + amt 
     newStmt = S.appendStmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt )) stmt 
-
 
 
 priceBond :: Date -> Ts -> Bond -> PriceResult
@@ -313,7 +307,7 @@ priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0
 calcWalBond :: Date -> Bond -> Rational
 calcWalBond d b@Bond{bndStmt = Nothing} = 0.0
 calcWalBond d b@Bond{bndStmt = Just (S.Statement _txns)}
- = let 
+  = let 
       txns = cutBy Exc Future d _txns  
       cutoffBalance =  (S.getTxnBegBalance . head ) txns 
       lastBalance = (S.getTxnBalance . last) txns 
@@ -510,7 +504,6 @@ instance IR.UseRate Bond where
   getIndexes Bond{bndInterestInfo = iinfo}  = getIndexFromInfo iinfo
   getIndexes (BondGroup bMap)  = if null combined then Nothing else Just combined
                                   where combined = concat . catMaybes  $ (\b -> getIndexFromInfo (bndInterestInfo b)) <$> Map.elems bMap
-
 
 
 

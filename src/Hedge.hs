@@ -48,6 +48,7 @@ data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating r
                   deriving(Show,Generic,Eq,Ord)
 
 data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type
+                          ,rsDayCount :: DayCount        -- ^ day count convention
                           ,rsSettleDates :: Maybe (SettleDates,String)         -- ^ define settle dates
                           ,rsUpdateDates :: DatePattern   -- ^ define observe dates
 
@@ -71,7 +72,8 @@ accrueIRS :: Date -> RateSwap -> RateSwap
 accrueIRS d rs@RateSwap{rsRefBalance = face               
                       , rsPayingRate = payRate            
                       , rsReceivingRate = receiveRate     
-                      , rsNetCash = netCash               
+                      , rsNetCash = netCash     
+                      , rsDayCount = dc          
                       , rsStmt = stmt}                    
   = rs {rsNetCash = newNet , rsLastStlDate = Just d, rsStmt = appendStmt newTxn stmt}
       where 
@@ -79,7 +81,7 @@ accrueIRS d rs@RateSwap{rsRefBalance = face
                               Nothing ->  rsStartDate rs 
                               Just lsd -> lsd
           rateDiff =  receiveRate - payRate 
-          yearFactor = fromRational $ yearCountFraction DC_ACT_365F accureStartDate d
+          yearFactor = fromRational $ yearCountFraction dc accureStartDate d
           newNetAmount = mulBIR (face * yearFactor) rateDiff  -- `debug` ("Diff rate"++ show rateDiff)
           newNet = netCash + newNetAmount
           newTxn = IrsTxn d face newNetAmount payRate receiveRate newNet SwapAccrue
@@ -87,7 +89,7 @@ accrueIRS d rs@RateSwap{rsRefBalance = face
 -- | set rate swap to state of receive all cash from counterparty
 receiveIRS :: Date -> RateSwap -> RateSwap 
 receiveIRS d rs@RateSwap{rsNetCash = receiveAmt, rsStmt = stmt} 
-  | receiveAmt > 0 = rs { rsNetCash = 0 ,rsStmt = appendStmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle) stmt}
+  | receiveAmt > 0 = rs { rsNetCash = 0 ,rsStmt = appendStmt (IrsTxn d 0 receiveAmt 0 0 0 (SwapInSettle "")) stmt}
   | otherwise = rs
 
 -- | set rate swap to state of payout all possible cash to counterparty
@@ -98,7 +100,7 @@ payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt}
       where 
         actualAmt = min amt (negate payoutAmt)  --TODO need to add a check here
         outstanding = payoutAmt + actualAmt
-        newStmt = appendStmt (IrsTxn d 0 actualAmt 0 0 0 SwapOutSettle) stmt 
+        newStmt = appendStmt (IrsTxn d 0 actualAmt 0 0 0 (SwapOutSettle "")) stmt 
 
 instance QueryByComment RateSwap where 
     queryStmt RateSwap{rsStmt = Nothing} tc = []
@@ -127,7 +129,7 @@ data RateCap = RateCap {
 
 receiveRC :: Date -> RateCap -> RateCap
 receiveRC d rc@RateCap{rcNetCash = receiveAmt, rcStmt = stmt} 
-  | receiveAmt > 0 = rc { rcNetCash = 0 ,rcStmt = appendStmt (IrsTxn d 0 receiveAmt 0 0 0 SwapInSettle) stmt}
+  | receiveAmt > 0 = rc { rcNetCash = 0 ,rcStmt = appendStmt (IrsTxn d 0 receiveAmt 0 0 0 (SwapInSettle "")) stmt}
   | otherwise = rc
 
 instance IR.UseRate RateCap where 

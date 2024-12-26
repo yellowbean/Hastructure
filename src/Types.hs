@@ -454,8 +454,8 @@ data TxnComment = PayInt [BondName]
                 | Tag String
                 | UsingDS DealStats
                 | SwapAccrue
-                | SwapInSettle
-                | SwapOutSettle
+                | SwapInSettle String
+                | SwapOutSettle String
                 | PurchaseAsset String Balance
                 | IssuanceProceeds String
                 | TxnDirection BookDirection
@@ -842,8 +842,8 @@ instance ToJSON TxnComment where
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
   toJSON (LiquidationRepay s) = String $ T.pack $ "<Repay:"++ s ++">"
   toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
-  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
-  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
+  toJSON (SwapInSettle s)= String $ T.pack $ "<SettleIn:"++ s ++">"
+  toJSON (SwapOutSettle s) = String $ T.pack $ "<SettleOut:"++ s ++">"
   toJSON (PurchaseAsset rPoolName bal) = String $ T.pack $ "<PurchaseAsset:"<> rPoolName <>","++show bal++">"
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
@@ -905,8 +905,8 @@ parseTxn t = case tagName of
   "Draw" -> return LiquidationDraw
   "Repay" -> return $ LiquidationRepay contents
   "Accure" -> return SwapAccrue
-  "SettleIn" -> return SwapInSettle
-  "SettleOut" -> return SwapOutSettle
+  "SettleIn" -> return $ SwapInSettle contents
+  "SettleOut" -> return $ SwapOutSettle contents
   "PurchaseAsset" -> let 
                       sv = T.splitOn (T.pack ",") $ T.pack contents
                      in 
