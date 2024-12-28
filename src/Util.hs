@@ -239,7 +239,7 @@ floorWith floor xs = [ max x floor | x <- xs]
 
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
-   
+
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
 

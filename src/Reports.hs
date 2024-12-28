@@ -125,7 +125,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
           let feeToPay = ParentItem "Fee" [ ParentItem feeName [Item "Due" feeDueBal] 
                                            | (feeName,feeDueBal) <- Map.toList feeWithDueAmount ]
           bndWithDueAmount <- mapM (calcDueInt t d Nothing Nothing) bndMap
-          let bndToShow = Map.map (\bnd -> (L.getCurBalance bnd, L.totalDueInt bnd)) bndWithDueAmount 
+          let bndToShow = Map.map (\bnd -> (L.getCurBalance bnd, L.getTotalDueInt bnd)) bndWithDueAmount 
           let bndM = [ ParentItem bndName [Item "Balance" bndBal,Item "Due Int" bndDueAmt ] 
                                         | (bndName,(bndBal,bndDueAmt)) <- Map.toList bndToShow]
           let liab = ParentItem "Liability" [ ParentItem "Bond" bndM , feeToPay, ParentItem "Liquidity" liqProviderOs, swapToPay]

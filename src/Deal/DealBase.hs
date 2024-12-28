@@ -74,6 +74,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | SettleIRSwap Date String             -- ^ settle interest rate swap dates
                   | AccrueCapRate Date String            -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | StepUpBondRate Date String           -- ^ reset bond interest rate per bond's interest rate info
                   | ResetSrtRate Date String 
                   | ResetAccRate Date String 
                   | AccrueSrt Date String 
@@ -108,7 +109,8 @@ instance TimeSeries ActionOnDate where
     getDate (CalcIRSwap d _ ) = d
     getDate (SettleIRSwap d _ ) = d
     getDate (AccrueCapRate d _ ) = d
-    getDate (ResetBondRate d _ ) = d 
+    getDate (ResetBondRate d _) = d 
+    getDate (StepUpBondRate d _) = d 
     getDate (ResetAccRate d _ ) = d 
     getDate (MakeWhole d _ _) = d 
     getDate (BuildReport sd ed) = ed
@@ -135,6 +137,8 @@ sortActionOnDate a1 a2
                   (_ , CalcIRSwap _ _) -> GT -- reset interest swap should be first
                   (CalcIRSwap _ _ ,_) -> LT  -- reset interest swap should be first
                   (_ , CalcIRSwap _ _) -> GT -- reset interest swap should be first
+                  (StepUpBondRate {} ,_) -> LT  -- reset bond rate should be first
+                  (_ , StepUpBondRate {}) -> GT -- reset bond rate should be first
                   (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
                   (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
                   (EarnAccInt {} ,_) -> LT  -- earn should be first

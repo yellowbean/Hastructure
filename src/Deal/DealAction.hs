@@ -60,11 +60,11 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 import Control.Applicative
-
 import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
 import Control.Lens hiding (element)
 import Control.Lens.TH
+import Control.Lens.Extras (is)
 import Control.Monad
 import GHC.Real (infinity)
 import Data.OpenApi (HasPatch(patch))
@@ -220,19 +220,21 @@ updateLiqProvider t d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit = cu
                                           Right x -> (min (fromRational x)) <$> curCredit
                     _ -> curCredit
 
-
+-- ^TODO : to be replace from L.accrueInt
 calcDueInt :: Ast.Asset a => TestDeal a -> Date -> Maybe DealStats -> Maybe DealStats -> L.Bond -> Either String L.Bond
 calcDueInt t d mBal mRate b@(L.BondGroup bMap) 
   = do 
       m  <- mapM (calcDueInt t d mBal mRate) bMap 
       return $ L.BondGroup m 
--- Not accrued
+
+-- never accrued
 calcDueInt t d mBal mRate b@(L.Bond _ _ oi io _ bal r dp _ di Nothing _ lastPrinPay _ ) 
   | d <= closingDate = Right b
   | bal+di == 0 = Right b
   | otherwise = calcDueInt t d mBal mRate (b {L.bndDueIntDate = Just closingDate })  -- `debug` ("hit")
     where 
       closingDate = getClosingDate (dates t)
+
 -- Z bond
 calcDueInt t calc_date _ _ b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate _ _ _ _ lstIntPay _ _) 
   = Right $ b {L.bndDueInt = 0 }
@@ -493,8 +495,8 @@ applyLimit t d availBal dueBal (Just limit) =
       case limit of 
         DueCapAmt amt -> Right $ min amt availBal
         DS ds -> do 
-                   v <- queryCompound t d (patchDateToStats d ds)
-                   return (min (fromRational v) availBal)
+                    v <- queryCompound t d (patchDateToStats d ds)
+                    return (min (fromRational v) availBal)
         DuePct pct -> Right $ min availBal $ mulBR dueBal pct 
 
         x -> Left $ "Date:"++show d ++" Unsupported limit found:"++ show x
@@ -930,6 +932,37 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntResidual mLimi
       return $ t {accounts = Map.adjust (A.draw limitAmt d (PayYield bndName)) an accMap
                  , bonds = Map.adjust (L.payYield d limitAmt) bndName bndMap}
 
+
+-- TODO index out of bound check
+-- TODO check for multi interest bond
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntByRateIndex mLimit an bndNames idx mSupport)
+  = let 
+      availAccBal = A.accBalance (accMap Map.! an)
+      bndsList = filter (is L._MultiIntBond) $ (Map.!) bndMap <$> bndNames
+      bndNames_ = L.bndName <$> bndsList
+    in 
+      do 
+        totalDue <- queryCompound t d (CurrentDueBondIntAt idx bndNames_)
+        actualPaidOut <- calcAvailAfterLimit t d (accMap Map.! an) mSupport (fromRational totalDue) mLimit
+        let (paidBonds, _) = payProRata d actualPaidOut (`L.getDueIntAt` idx) (L.payIntByIndex d idx) bndsList
+        return $ t {accounts = Map.adjust (A.draw actualPaidOut d (PayInt bndNames_)) an accMap
+                   , bonds =  Map.fromList (zip bndNames_ paidBonds) <> bndMap}
+
+
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntByRateIndexBySeq mLimit an bndNames idx mSupport)
+  = let 
+      availAccBal = A.accBalance (accMap Map.! an)
+      bndsList = filter (is L._MultiIntBond) $ (Map.!) bndMap <$> bndNames
+      bndNames_ = L.bndName <$> bndsList
+    in 
+      do 
+        totalDue <- queryCompound t d (CurrentDueBondIntAt idx bndNames_)
+        actualPaidOut <- calcAvailAfterLimit t d (accMap Map.! an) mSupport (fromRational totalDue) mLimit
+        let (paidBonds, _) = paySequentially d actualPaidOut (`L.getDueIntAt` idx) (L.payIntByIndex d idx) [] bndsList
+        return $ t {accounts = Map.adjust (A.draw actualPaidOut d (PayInt bndNames_)) an accMap
+                   , bonds =  Map.fromList (zip bndNames_ paidBonds) <> bndMap}
+
+
 performAction d t@TestDeal{fees=feeMap,accounts=accMap} (W.PayFeeResidual mlimit an feeName) =
   let
     availBal = A.accBalance $ accMap Map.! an
@@ -1017,7 +1050,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntGroup mLimit a
    in
      do
        bndsWithDueMap <- mapM (calcDueInt t d Nothing Nothing) bndsToPay
-       let bndsDueAmtsMap = Map.map (\x -> (x, L.totalDueInt x)) bndsWithDueMap
+       let bndsDueAmtsMap = Map.map (\x -> (x, L.getTotalDueInt x)) bndsWithDueMap
        let totalDue = sum $ snd <$> Map.elems bndsDueAmtsMap -- `debug` (">date"++show d++" due amt"++show bndsDueAmtsMap)
        let actualPaidOut = calcAvailAfterLimit t d (accMap Map.! an) mSupport totalDue mLimit
        paidOutAmt <- actualPaidOut
@@ -1239,7 +1272,8 @@ performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqSu
 
 -- TODO : add pay int by sequence
 -- TODO : may not work for bond group
-performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqSupport mLimit pName CE.LiqToBondInt bns)
+performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} 
+                (W.LiqSupport mLimit pName CE.LiqToBondInt bns)
   = let 
       liq = _liqProvider Map.! pName 
     in 
@@ -1251,7 +1285,7 @@ performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider} (W.LiqS
                             Nothing -> supportAmt
                             (Just v) -> min supportAmt v
 
-        let newBondMap = payInMap d transferAmt L.totalDueInt (L.payInt d) bns ByProRata bndMap
+        let newBondMap = payInMap d transferAmt L.getTotalDueInt (L.payInt d) bns ByProRata bndMap
         let newLiqMap = Map.adjust (CE.draw transferAmt d) pName _liqProvider 
         return $ t { bonds = newBondMap, liqProvider = Just newLiqMap }
 

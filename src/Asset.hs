@@ -96,12 +96,12 @@ class (Show a,IR.UseRate a) => Asset a where
   -- | ! Internal use
   calcAlignDate :: a -> Date -> Date
   calcAlignDate ast d = let 
-                          payDates = getOriginDate ast:getPaymentDates ast 0
+                          payDates = Asset.getOriginDate ast:getPaymentDates ast 0
                           remainTerms = getRemainTerms ast 
                           benchDate = reverse payDates!! remainTerms  
                           offset = daysBetween benchDate d
                         in 
-                          T.addDays offset $ getOriginDate ast
+                          T.addDays offset $ Asset.getOriginDate ast
 
   getObligor :: a -> Maybe Obligor
   getObligor a = 
@@ -268,7 +268,7 @@ priceAsset :: Asset a => a -> Date -> PricingMethod -> A.AssetPerf -> Maybe [Rat
 priceAsset m d (PVCurve curve) assumps mRates cType
   = let 
       cr = getCurrentRate m
-      pDays = getOriginDate m:(getPaymentDates m 0)
+      pDays = Asset.getOriginDate m:(getPaymentDates m 0)
       cb = getCurrentBal m
     in
       case projCashflow m d assumps mRates of
@@ -312,7 +312,7 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates cTyp
 priceAsset m d (PvRate r) assumps mRates cType
   = let 
       cb = getCurrentBal m
-      pDays = getOriginDate m:getPaymentDates m 0
+      pDays = Asset.getOriginDate m:getPaymentDates m 0
       cr = getCurrentRate m
     in 
         case projCashflow m d assumps mRates of

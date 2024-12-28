@@ -30,7 +30,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio,HowToPay(..)
+  ,MyRatio,HowToPay(..),ApplyRange(..)
   )
   
   where
@@ -273,6 +273,12 @@ data CutoffType = Inc
 data DateDirection = Future 
                    | Past
                    deriving (Show,Read,Generic)
+
+data ApplyRange = ByAll
+                | ByIndexes [Int]
+                | ByKeys [String]
+                deriving (Show,Read,Generic)
+
 
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
@@ -526,7 +532,9 @@ data DealStats = CurrentBondBalance
                | AccTxnAmtBy Date [AccName] (Maybe TxnComment)
                | FeesPaidAt Date [FeeName] 
                | CurrentDueBondInt [BondName]
+               | CurrentDueBondIntAt Int [BondName]
                | CurrentDueBondIntOverInt [BondName]
+               | CurrentDueBondIntOverIntAt Int [BondName]
                | CurrentDueBondIntTotal [BondName]
                | CurrentDueFee [FeeName]
                | LastBondIntPaid [BondName]
@@ -698,8 +706,14 @@ class Liable lb where
   -- must implement
   isPaidOff :: lb -> Bool
   getCurBalance :: lb -> Balance
+  getCurRate :: lb -> IRate
   getOriginBalance :: lb -> Balance
+  getOriginDate :: lb -> Date
   getDueInt :: lb -> Balance
+  getDueIntAt :: lb -> Int -> Balance
+  getDueIntOverInt :: lb -> Balance
+  getDueIntOverIntAt :: lb -> Int -> Balance
+  getTotalDueInt :: lb -> Balance
 
   getOutstandingAmount :: lb -> Balance
 

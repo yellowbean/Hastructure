@@ -37,6 +37,7 @@ import Util
 import Errors
 import DateUtil
 import Control.Lens hiding (element)
+import Control.Lens.Extras (is)
 import Control.Lens.TH
 import Control.Applicative
 import Data.Map.Lens
@@ -569,8 +570,22 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     CurrentDueBondInt bns -> 
       Right . toRational $ sum $ L.bndDueInt <$> viewDealBondsByNames t bns  
 
+    CurrentDueBondIntAt idx bns -> 
+      let 
+        bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
+        dueInts = (\x -> x!!idx) <$> (L.bndDueInts <$> bs)
+      in 
+        Right . toRational $ sum $ dueInts
+
     CurrentDueBondIntOverInt bns -> 
       Right . toRational $ sum $ L.bndDueIntOverInt <$> viewDealBondsByNames t bns  
+
+    CurrentDueBondIntOverIntAt idx bns -> 
+      let 
+        bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
+        dueInts = (\x -> x!!idx) <$> (L.bndDueIntOverInts <$> bs)
+      in 
+        Right . toRational $ sum $ dueInts
 
     CurrentDueBondIntTotal bns -> 
       sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
@@ -608,7 +623,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     WeightedAvgCurrentBondBalance d1 d2 bns ->
       Right . toRational $ 
-        Map.foldr (\v a-> a + (L.weightAverageBalance d1 d2 v)) -- `debug` (" Avg Bal for bond"++ show (L.weightAverageBalance d1 d2 v)) )
+        Map.foldr (\v a-> a + (L.weightAverageBalance d1 d2 v)) 
                   0.0 
                   (getBondsByName t (Just bns))
 

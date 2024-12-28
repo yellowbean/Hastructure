@@ -15,7 +15,7 @@ module Lib
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors
     ,zipWith8,zipWith9,zipWith10,zipWith11,zipWith12
     ,weightedBy, mkTs
-    ,mkRateTs
+    ,mkRateTs,paySeqLiabResi
     ) where
 
 import qualified Data.Time as T
@@ -112,6 +112,12 @@ paySeqLiabilitiesAmt startAmt funds
     -- map (\(a,b) -> (a-b)) $ zip funds remainBals
   where 
     remainBals = map snd $ paySeqLiabilities startAmt funds 
+
+paySeqLiabResi :: Amount -> [Balance] -> [Amount]
+paySeqLiabResi startAmt funds
+  = zipWith (-) funds allocatedAmts
+  where 
+    allocatedAmts = paySeqLiabilitiesAmt startAmt funds
 
 afterNPeriod :: T.Day -> Integer -> Period -> T.Day
 afterNPeriod d i p =

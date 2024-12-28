@@ -87,68 +87,58 @@ setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bon
 setBondNewRate t d ras b@(L.Bond _ _ L.OriginalInfo{ L.originDate = od} ii _ bal currentRate _ dueInt _ Nothing _ _ _)
   = setBondNewRate t d ras b {L.bndDueIntDate = Just od}
 
+-- ^ Floater rate
+setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+  = Right $ (L.accrueInt d b){ L.bndRate = applyFloatRate ii d ras }
 
--- ^ Floater rate+step up(once)
-setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) (Just (L.PassDateSpread resetDay spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
-  | resetDay == d = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt
-                              , L.bndDueIntDate = Just d
-                              , L.bndInterestInfo = L.Floater br idx (_spd+spd) rset dc mf mc}
-  | otherwise = Right $ b { L.bndRate = applyFloatRate ii d ras 
-                      , L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
-    where 
-      (Just dc) = getDayCountFromInfo ii
-      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
-
--- ^ Floater rate+step up(ladder) TODO ,it's not ladder
-setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) (Just (L.PassDateSpread resetDay spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
-  | resetDay == d = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt
-                              , L.bndDueIntDate = Just d
-                              , L.bndInterestInfo = L.Floater br idx (_spd+spd) rset dc mf mc}
-  | otherwise = Right $ b { L.bndRate = applyFloatRate ii d ras 
-                      , L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
-    where 
-      (Just dc) = getDayCountFromInfo ii
-      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
-
--- ^ Fix rate+step up(once)
-setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Fix {}) (Just (L.PassDateSpread resetDay spd)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
-  | resetDay == d = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
-  | otherwise = Right b
-    where 
-      (Just dc) = getDayCountFromInfo ii
-      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
-
--- ^ Fix rate+step up(ladder)
-setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Fix {}) (Just (L.PassDateLadderSpread _ spd _)) bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
-  = Right $ b { L.bndRate = currentRate + spd, L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
-    where 
-      (Just dc) = getDayCountFromInfo ii
-      accrueInt = calcInt (bal + dueInt) dueIntDate d currentRate dc
+-- ^ Fix rate, do nothing
+setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Fix {}) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+  = Right b
 
 -- ^ Ref rate
 setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
   = do
+      let b' = L.accrueInt d b
       rate <- queryCompound t d (patchDateToStats d ds)
-      let accrueInt = calcInt (bal + dueInt) dueIntDate d (fromRational rate) DC_ACT_365F
-      return b {L.bndRate = fromRational (rate * toRational factor) 
-                ,L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
-      
--- ^ floater bond
-setBondNewRate t d ras b@(L.Bond _ _ (L.OriginalInfo _ sd _ _) ii _ bal currentRate _ dueInt _ mlastDueIntDate _ _ _) 
-  = Right $ b { L.bndRate = applyFloatRate ii d ras 
-              , L.bndDueInt = dueInt + accrueInt, L.bndDueIntDate = Just d}
-    where 
-      (Just dc) = getDayCountFromInfo ii
-      accrueInt = case mlastDueIntDate of
-                    Nothing -> calcInt (bal + dueInt) sd d currentRate dc
-                    (Just dueIntDate) -> calcInt (bal + dueInt) dueIntDate d currentRate dc
+      return b' {L.bndRate = fromRational (rate * toRational factor) }
 
+-- ^ do nothing for bond with interest by yield
+setBondNewRate t d ras b@(L.Bond _ _ _ (L.InterestByYield {}) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
+  = Right b
+
+-- ^ cap & floor & IoI
+setBondNewRate t d ras b@(L.Bond _ _ _ ii _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
+  = Right $ (L.accrueInt d b) { L.bndRate = applyFloatRate ii d ras}
+
+-- ^ bond group
 setBondNewRate t d ras bg@(L.BondGroup bMap)
   = do 
       m <- mapM (setBondNewRate t d ras) bMap
       return $ L.BondGroup m 
 
-setBondNewRate t d ras b = Left $ "set bond new rate: "++ show d ++"Failed to set bond rate: "++show b
+-- ^ apply all rates for multi-int bond
+setBondNewRate t d ras b@(L.MultiIntBond _ _ _ iis _ bal currentRates _ dueInts dueIoIs (Just mLastIntDates) _ _ _)
+  = let 
+      newRates = applyFloatRate <$> iis <*> pure d <*> pure ras
+      b' = L.accrueInt d b
+    in
+      Right $ b' { L.bndRates = newRates } 
+
+setBondNewRate t d ras b = Left $ "set bond new rate: "++ show d ++"Failed to set bond rate: "++show b++"from rate assumption" ++ show ras
+
+
+setBondStepUpRate :: Ast.Asset a => TestDeal a -> Date -> L.Bond -> Either String L.Bond
+setBondStepUpRate t d b@(L.Bond _ _ _ ii (Just sp) _ _ _ _ _ _ _ _ _)
+  = Right $ (L.accrueInt d b) { L.bndInterestInfo = L.stepUpInterestInfo sp ii}
+
+setBondStepUpRate t d b@(L.MultiIntBond _ _ _ iis (Just sps) _ _ _ _ _ _ _ _ _)
+  = Right $ (L.accrueInt d b) { L.bndInterestInfos = zipWith L.stepUpInterestInfo sps iis}
+
+setBondStepUpRate t d bg@(L.BondGroup bMap)
+  = do 
+      m <- mapM (setBondStepUpRate t d) bMap
+      return $ L.BondGroup m
+
 
 
 updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> Either String HE.SRT
@@ -232,6 +222,7 @@ applyFloatRate (L.Floater _ idx spd p dc mf mc) d ras
 applyFloatRate (L.CapRate ii _rate) d ras = min _rate (applyFloatRate ii d ras)
 applyFloatRate (L.FloorRate ii _rate) d ras = max _rate (applyFloatRate ii d ras)
 applyFloatRate (L.Fix r _ ) d ras = r
+applyFloatRate (L.WithIoI ii _) d ras = applyFloatRate ii d ras
 
 applyFloatRate2 :: IR.RateType -> Date -> [RateAssumption] -> Either String IRate
 applyFloatRate2 (IR.Fix _ r) _ _ = Right r
@@ -371,7 +362,7 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
                                         Nothing -> Right draftBondBals
                                         Just fml -> queryCompound t d fml
               let scaleFactor = toRational $ totalIssuanceBalance / draftBondBals
-              let scaledBndMap = Map.map (L.scaleBond scaleFactor) newBonds
+              let scaledBndMap = undefined -- Map.map (L.scaleBond scaleFactor) newBonds
               let accAfterIssue = Map.adjust (A.deposit (fromRational totalIssuanceBalance) d (IssuanceProceeds "ALL")) accName accMap
 
               let assetVal = case pt of 
@@ -603,13 +594,22 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             newlog <- inspectListVars t d dss 
             run t poolFlowMap (Just ads) rates calls rAssump $ log++newlog -- `debug` ("Add log"++show newlog)
         
-        ResetBondRate d bn -> 
+        ResetBondRate d bn  -> 
           let 
             rateList = fromMaybe [] rates
             bnd = bndMap Map.! bn
           in 
             do 
-              newBnd <- setBondNewRate t d rateList bnd
+              newBnd <- setBondNewRate t d rateList bnd 
+              run t{bonds = Map.fromList [(bn,newBnd)] <> bndMap} poolFlowMap (Just ads) rates calls rAssump log
+        
+        StepUpBondRate d bn -> 
+          let 
+            rateList = fromMaybe [] rates
+            bnd = bndMap Map.! bn
+          in 
+            do 
+              newBnd <- setBondStepUpRate t d bnd
               run t{bonds = Map.fromList [(bn,newBnd)] <> bndMap} poolFlowMap (Just ads) rates calls rAssump log
         
         -- TODO When reset rate, need to accrue interest
@@ -759,18 +759,20 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              -- settle accrued interest 
              -- TODO rebuild bond rate reset actions
              lstDate = getDate (last ads)
-             isResetActionEvent (ResetBondRate _ bName) = False 
+             isResetActionEvent (ResetBondRate _ bName ) = False 
              isResetActionEvent _ = True
              filteredAds = filter isResetActionEvent ads
              newRate = L.getBeginRate iInfo
           in 
              do 
                nBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bName
-               let dueIntToPay = L.totalDueInt nBnd
+               let dueIntToPay = L.getTotalDueInt nBnd
                let ((shortfall,drawAmt),newAcc) = A.tryDraw dueIntToPay d (PayInt [bName]) (accMap Map.! accName)
                let newBnd = set L.bndIntLens iInfo $ L.payInt d drawAmt nBnd
                let resetDates = L.buildRateResetDates newBnd d lstDate 
-               let bResetActions = [ ResetBondRate d bName | d <- resetDates ]
+               -- let bResetActions = [ ResetBondRate d bName 0 | d <- resetDates ]
+               -- TODO tobe fix
+               let bResetActions = []
                let newAccMap = Map.insert accName newAcc accMap
                let newBndMap = Map.insert bName (newBnd {L.bndRate = newRate, L.bndDueIntDate = Just d 
                                                         ,L.bndLastIntPay = Just d}) bndMap
@@ -1330,8 +1332,18 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                 (\b -> L.buildRateResetDates b closingDate endDate) 
                                                 bndMap
                     in 
-                      [ ResetBondRate bdate bn | (bn,bdates) <- bndWithDate, bdate <- bdates ] 
-              
+                      [ ResetBondRate bdate bn | (bn, bdates) <- bndWithDate
+                                                  , bdate <- bdates ] 
+
+    -- bond step ups events
+    bndStepUpDates = let 
+                      bndWithDate = Map.toList $ Map.map 
+                                                (\b -> L.buildStepUpDates b closingDate endDate) 
+                                                bndMap
+                    in
+                      [ StepUpBondRate bdate bn  | (bn, bdates) <- bndWithDate
+                                                    , bdate <- bdates ] 
+
     -- mannual triggers 
     mannualTrigger = case mNonPerfAssump of 
                        Just AP.NonPerfAssumption{AP.fireTrigger = Just evts} -> [ FireTrigger d cycle n | (d,cycle,n) <- evts]
@@ -1371,7 +1383,8 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                         a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
                                                    ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
                                                    ,concat irUpdateSwapDates, concat irSettleSwapDates ,inspectDates, bndRateResets,financialRptDates
-                                                   ,bondIssuePlan,bondRefiPlan,callDates, iAccRateResetDates ] -- `debug` ("reports"++ show financialRptDates)
+                                                   ,bondIssuePlan,bondRefiPlan,callDates, iAccRateResetDates 
+                                                   ,bndStepUpDates] -- `debug` ("reports"++ show financialRptDates)
                                       in
                                         case (dates t,status) of 
                                           (PreClosingDates {}, PreClosing _) -> sortBy sortActionOnDate $ DealClosed closingDate:a 

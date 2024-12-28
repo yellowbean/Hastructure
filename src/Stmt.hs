@@ -13,7 +13,7 @@ module Stmt
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
    ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf,filterTxn
    ,HasStmt(..)
-   ,getAllTxns
+   ,getAllTxns,hasEmptyTxn
   )
   where
 
@@ -291,5 +291,6 @@ class QueryByComment a where
 
 class HasStmt a where 
   getAllTxns :: a -> [Txn]
+  hasEmptyTxn :: a -> Bool
 
 $(deriveJSON defaultOptions ''Statement)

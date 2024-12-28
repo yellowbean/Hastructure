@@ -239,7 +239,7 @@ projCashflowByDefaultAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDefaultB
 calcScheduleBalaceToday :: Mortgage -> Maybe [RateAssumption] -> Date -> Balance 
 calcScheduleBalaceToday m mRates asOfDay
   = let 
-      sd = getOriginDate m
+      sd = Ast.getOriginDate m
     in 
       case calcCashflow (resetToOrig m) sd mRates of
         Right (CF.CashFlowFrame _ scheduleTxn) ->

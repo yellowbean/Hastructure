@@ -297,7 +297,7 @@ poolFlowTest =
       
       ,testCase "last bond A payment date" $
        assertEqual "pool bal should equal to total collect"
-       (Just (BondTxn (toDate "20240225") 0.00 0.00 30.56 0.080000 30.56 0.00 0.00 (Just 0.0) (TxnComments [PayInt ["A"],PayPrin ["A"]])))
+       (Just (BondTxn (toDate "20240225") 0.00 0.00 30.56 0.080000 30.56 0.00 0.00 (Just 0.0) (PayPrin ["A"])))
        $ (\s -> last (view Stmt.statementTxns s)) <$> (L.bndStmt $ (bndMap Map.! "A"))
     ]
 

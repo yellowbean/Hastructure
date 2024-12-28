@@ -75,6 +75,8 @@ data Action =
             | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)    -- ^ combination of CalcInt and PayInt
             | AccrueAndPayIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) -- ^ with sequence
             | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due
+            | PayIntByRateIndex (Maybe Limit) AccountName [BondName] Int (Maybe ExtraSupport)      -- ^ pay interest to bond by index
+            | PayIntByRateIndexBySeq (Maybe Limit) AccountName [BondName] Int (Maybe ExtraSupport)      -- ^ pay interest to bond by index
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
             | CalcBondPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ calculate principal due amount in the bond names
