@@ -213,13 +213,12 @@ floatToFixed x = y where
   y = MkFixed (round (fromInteger (resolution y) * x))
 
 -- | given balances and weight, get sum weighted balance
-weightedBy :: [Centi] -> [Rational] -> Rational
+weightedBy :: [Rational] -> [Rational] -> Rational
 weightedBy ws vs 
   | sum_weights == 0 = 0
-  | otherwise = sum ( zipWith (*) vs  _ws ) / sum_weights
+  | otherwise = sum ( zipWith (*) vs ws ) / sum_weights
   where 
-    _ws = toRational <$> ws
-    sum_weights = sum _ws
+    sum_weights = sum ws
 
 -- | Given a start date and a end date, return number of days between(Integer)
 daysBetween :: Date -> Date -> Integer 

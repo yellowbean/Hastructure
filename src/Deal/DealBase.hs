@@ -137,8 +137,8 @@ sortActionOnDate a1 a2
                   (_ , CalcIRSwap _ _) -> GT -- reset interest swap should be first
                   (CalcIRSwap _ _ ,_) -> LT  -- reset interest swap should be first
                   (_ , CalcIRSwap _ _) -> GT -- reset interest swap should be first
-                  (StepUpBondRate {} ,_) -> LT  -- reset bond rate should be first
-                  (_ , StepUpBondRate {}) -> GT -- reset bond rate should be first
+                  (StepUpBondRate {} ,_) -> LT  -- step up bond rate should be first
+                  (_ , StepUpBondRate {}) -> GT -- step up bond rate should be first
                   (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
                   (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
                   (EarnAccInt {} ,_) -> LT  -- earn should be first
@@ -226,9 +226,6 @@ data PoolType a = MultiPool (Map.Map PoolId (P.Pool a))
                 deriving (Generic, Eq, Ord, Show)
 
 
-
-
-
 data TestDeal a = TestDeal { name :: DealName
                              ,status :: DealStatus
                              ,dates :: DateDesp
@@ -301,6 +298,7 @@ viewDealAllBonds d =
        bs = Map.elems (bonds d)
        view a@(L.Bond {} ) = [a]
        view a@(L.BondGroup bMap) = Map.elems bMap
+       view a@(L.MultiIntBond {}) = [a]
     in 
        concat $ view <$> bs
 

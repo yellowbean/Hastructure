@@ -9,6 +9,7 @@ module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff,getCurBalance
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
+  ,getDueInt
   ,weightAverageBalance,calcZspread,payYield,getTotalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
@@ -16,7 +17,8 @@ module Liability
   ,bndOriginInfoLens,bndIntLens,getBeginRate,_Bond,_BondGroup
   ,totalFundedBalance,getIndexFromInfo,buildStepUpDates
   ,accrueInt,stepUpInterestInfo,payIntByIndex,_MultiIntBond
-  ,getDueIntAt,getDueIntOverIntAt
+  ,getDueIntAt,getDueIntOverIntAt,getDueIntOverInt,getTotalDueIntAt
+  ,getCurRate
   )
   where
 
@@ -26,7 +28,7 @@ import Data.Aeson.TH
 import Data.Fixed
 
 import qualified Data.Time as T
-import Lib (Period(..),Ts(..) ,TsPoint(..) ,daysBetween)
+import Lib (Period(..),Ts(..) ,TsPoint(..) ,daysBetween, weightedBy)
 
 import Util
 import DateUtil
@@ -36,6 +38,8 @@ import Analytics
 import Data.Ratio 
 import Data.Maybe
 import Data.List
+import qualified Data.Set as Set
+
 
 import qualified Stmt as S 
 
@@ -166,6 +170,8 @@ data BondType = Sequential                                 -- ^ Pass through typ
               | Equity                                     -- ^ Equity type tranche
               deriving (Show, Eq, Generic, Ord, Read)
 
+
+-- TODO: for multi int bond, should origin rate be a list of rates?
 data Bond = Bond {
               bndName :: String
               ,bndType :: BondType                 -- ^ bond type ,which describe the how principal due was calculated
@@ -282,9 +288,9 @@ payIntByIndex d _ 0 b = b
 payIntByIndex d idx amt bnd@(MultiIntBond bn bt oi iinfo _ bal rs duePrin dueInts dueIoIs dueIntDate lpayInt lpayPrin stmt) 
   = let
       dueIoI = dueIoIs !! idx 
-      dueInt = dueInts !! idx
-      [newDueIoI,newDue] = Lib.paySeqLiabResi amt [dueIoI, dueInt]
-      newStmt = S.appendStmt (BondTxn d bal amt 0 (sum rs) amt newDue newDueIoI Nothing (S.PayInt [bn])) stmt
+      dueInt = dueInts !! idx -- `debug` ("date"++ show d++"in pay index fun"++ show amt)
+      [newDueIoI,newDue] = Lib.paySeqLiabResi amt [dueIoI, dueInt] -- `debug` ("date"++ show d++" before pay due "++show dueIoI++">>"++show dueInt)
+      newStmt = S.appendStmt (BondTxn d bal amt 0 (sum rs) amt newDue newDueIoI Nothing (S.PayInt [bn])) stmt -- `debug` ("date after"++ show d++"due(ioi) "++show newDueIoI++">> due "++show newDue)
       od = getOriginDate bnd
       ods = replicate (length iinfo) od
     in 
@@ -375,23 +381,30 @@ accrueInt d b@Bond{bndInterestInfo = ii,bndDueIntDate = mDueIntDate, bndDueInt= 
 accrueInt d b@MultiIntBond{bndInterestInfos = iis, bndDueIntDates = mDueIntDates 
                             , bndDueInts = dueInts, bndDueIntOverInts = dueIoIs
                             , bndRates = rs, bndBalance = bal}
-  = let 
-      l = length iis 
-      daycounts = (fromMaybe DC_ACT_365F) . getDayCountFromInfo <$> iis
+  | all (==d) beginDates = b
+  | otherwise 
+      = let 
+        l = length iis -- `debug` ("bond Name>>> "++ show (bndName b))
+        daycounts = (fromMaybe DC_ACT_365F) . getDayCountFromInfo <$> iis
+        beginDates = case mDueIntDates of
+                      Just ds -> ds
+                      Nothing -> getOriginDate b <$ [1..l]
+        periods = zipWith3 yearCountFraction daycounts beginDates (repeat d) -- `debug` ((bndName b) ++"  date"++ show d++"daycounts"++show daycounts++"beginDates "++show beginDates++ show "end dates"++ show d)
+        newDues = zipWith3 (\r p due -> (mulBR (mulBIR bal r) p) + due) rs periods dueInts -- `debug` ((bndName b) ++"  date"++ show d++"rs"++show rs++"periods "++show periods++">>"++show dueInts)
+        newIoiDues = zipWith5 (\r p due dueIoI ii -> 
+                                (mulBR (mulBIR due (getIoI ii r)) p) + dueIoI)
+                              rs
+                              periods 
+                              dueInts
+                              dueIoIs
+                              iis
+      in
+        b {bndDueInts = newDues, bndDueIntOverInts = newIoiDues, bndDueIntDates = Just (replicate l d) }
+    where 
+      l = length iis
       beginDates = case mDueIntDates of
                     Just ds -> ds
-                    Nothing -> getOriginDate b <$ [1..l]
-      periods = zipWith3 yearCountFraction daycounts beginDates (repeat d)
-      newDues = zipWith3 (\r p due -> (mulBR (mulBIR bal r) p) + due) rs periods dueInts
-      newIoiDues = zipWith5 (\r p due dueIoI ii -> 
-                              (mulBR (mulBIR due (getIoI ii r)) p) + dueIoI)
-                            rs
-                            periods 
-                            dueInts
-                            dueIoIs
-                            iis
-    in
-      b {bndDueInts = newDues, bndDueIntOverInts = newIoiDues, bndDueIntDates = Just (replicate l d)}
+                    Nothing -> (getOriginDate b) <$ [1..l]
 
 accrueInt d (BondGroup bMap) = BondGroup $ accrueInt d <$> bMap
 
@@ -635,12 +648,14 @@ buildStepUpDates b@MultiIntBond{bndStepUps = mSt } sd ed
   = case mSt of
       Nothing -> []
       -- TODO: perf: sort and distinct
-      Just sts -> concat $
-                    (\y ->
-                      case y of 
-                        (PassDateLadderSpread fstSd _ dp) -> genSerialDatesTill2 IE fstSd dp ed
-                        (PassDateSpread d _) -> [d]
-                        ) <$> sts
+      Just sts -> Set.toList $
+                    Set.fromList $
+                      concat $
+                        (\y ->
+                          case y of 
+                            (PassDateLadderSpread fstSd _ dp) -> genSerialDatesTill2 IE fstSd dp ed
+                            (PassDateSpread d _) -> [d]
+                            ) <$> sts
 
 -- buildRateResetDates b@MultiIntBond{bndInterestInfo = ii,bndStepUp = mSt } sd ed 
 
@@ -674,9 +689,9 @@ instance S.QueryByComment Bond where
   queryStmt Bond{bndStmt = Nothing} tc = []
   queryStmt MultiIntBond{bndStmt = Nothing} tc = []
   queryStmt Bond{bndStmt = Just (S.Statement txns)} tc
-    = filter (\x -> S.getTxnComment x == tc) txns
+    = Data.List.filter (\x -> S.getTxnComment x == tc) txns
   queryStmt MultiIntBond{bndStmt = Just (S.Statement txns)} tc
-    = filter (\x -> S.getTxnComment x == tc) txns
+    = Data.List.filter (\x -> S.getTxnComment x == tc) txns
 
 instance Liable Bond where 
 
@@ -694,8 +709,11 @@ instance Liable Bond where
 
   getCurRate Bond{bndRate = r} = r
   getCurRate MultiIntBond{bndRates = rs} = sum rs
-  -- TODO: implement getCurRate for BondGroup
-  -- getCurRate (BondGroup bMap) = sum $ getCurRate <$> Map.elems bMap
+  getCurRate (BondGroup bMap) = 
+    fromRational $
+      weightedBy
+        (toRational . getCurBalance <$> Map.elems bMap)
+        (toRational . getCurRate <$> Map.elems bMap)
   
   getOriginBalance b = originBalance $ bndOriginInfo b
   getOriginBalance (BondGroup bMap) = sum $ getOriginBalance <$> Map.elems bMap
@@ -709,26 +727,27 @@ instance Liable Bond where
 
   getDueIntAt MultiIntBond{bndDueInts=dis} idx = dis !! idx
   getDueIntOverIntAt MultiIntBond{bndDueIntOverInts=diois} idx = diois !! idx 
+  getTotalDueIntAt b idx = getDueIntAt b idx + getDueIntOverIntAt b idx
 
   getDueIntOverInt b@Bond{bndDueIntOverInt=dioi} = dioi
   getDueIntOverInt MultiIntBond{bndDueIntOverInts=diois} = sum diois
-  getDueIntOverInt (BondGroup bMap) = sum $ getDueInt <$> Map.elems bMap
+  getDueIntOverInt (BondGroup bMap) = sum $ getDueIntOverInt <$> Map.elems bMap
 
   getTotalDueInt b@Bond{bndDueInt=di,bndDueIntOverInt=dioi} = di + dioi
   getTotalDueInt MultiIntBond{bndDueInts=dis,bndDueIntOverInts=diois} = sum dis + sum diois
-  getTotalDueInt (BondGroup bMap) = sum $ getDueInt <$> Map.elems bMap
+  getTotalDueInt (BondGroup bMap) = sum $ getTotalDueInt <$> Map.elems bMap
 
-  getOutstandingAmount b = getDueInt b + getCurBalance b
+  getOutstandingAmount b = getTotalDueInt b + getCurBalance b
 
 instance IR.UseRate Bond where 
   isAdjustbleRate :: Bond -> Bool
   isAdjustbleRate Bond{bndInterestInfo = iinfo} = isAdjustble iinfo
   -- getIndex Bond{bndInterestInfo = iinfo }
   getIndexes Bond{bndInterestInfo = iinfo}  = getIndexFromInfo iinfo
-  getIndexes (BondGroup bMap)  = if null combined then Nothing else Just combined
+  getIndexes (BondGroup bMap)  = if Data.List.null combined then Nothing else Just combined
                                   where combined = concat . catMaybes  $ (\b -> getIndexFromInfo (bndInterestInfo b)) <$> Map.elems bMap
-
-
+  getIndexes MultiIntBond{bndInterestInfos = iis} 
+    = Just $ concat $ concat <$> getIndexFromInfo <$> iis
 -- txnsLens :: Lens' Bond [Txn]
 -- txnsLens = bndStmtLens . _Just . S.statementTxns
 instance S.HasStmt Bond where 

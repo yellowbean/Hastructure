@@ -750,6 +750,92 @@
                                         "type": "array"
                                     },
                                     {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayIntByRateIndex"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayIntByRateIndex",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ExtraSupport"
+                                    }
+                                ],
+                                "maxItems": 5,
+                                "minItems": 5,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PayIntByRateIndexBySeq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PayIntByRateIndexBySeq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Limit"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/ExtraSupport"
                                     }
                                 ],
@@ -2313,6 +2399,35 @@
                             "contents"
                         ],
                         "title": "ResetBondRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "StepUpBondRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "StepUpBondRate",
                         "type": "object"
                     },
                     {
@@ -4199,6 +4314,98 @@
                             "tag"
                         ],
                         "title": "Bond",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "bndBalance": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "bndDueIntDates": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Day"
+                                },
+                                "type": "array"
+                            },
+                            "bndDueIntOverInts": {
+                                "items": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "bndDueInts": {
+                                "items": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "bndDuePrin": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "bndInterestInfos": {
+                                "items": {
+                                    "$ref": "#/components/schemas/InterestInfo"
+                                },
+                                "type": "array"
+                            },
+                            "bndLastIntPays": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Day"
+                                },
+                                "type": "array"
+                            },
+                            "bndLastPrinPay": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "bndName": {
+                                "type": "string"
+                            },
+                            "bndOriginInfo": {
+                                "$ref": "#/components/schemas/OriginalInfo"
+                            },
+                            "bndRates": {
+                                "items": {
+                                    "multipleOf": 1.0e-6,
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "bndStepUps": {
+                                "items": {
+                                    "$ref": "#/components/schemas/StepUp"
+                                },
+                                "type": "array"
+                            },
+                            "bndStmt": {
+                                "$ref": "#/components/schemas/Statement"
+                            },
+                            "bndType": {
+                                "$ref": "#/components/schemas/BondType"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MultiIntBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "bndName",
+                            "bndType",
+                            "bndOriginInfo",
+                            "bndInterestInfos",
+                            "bndBalance",
+                            "bndRates",
+                            "bndDuePrin",
+                            "bndDueInts",
+                            "bndDueIntOverInts",
+                            "tag"
+                        ],
+                        "title": "MultiIntBond",
                         "type": "object"
                     },
                     {
@@ -7543,6 +7750,40 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CurrentDueBondIntAt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentDueBondIntAt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "type": "string"
                                 },
@@ -7565,6 +7806,40 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CurrentDueBondIntOverIntAt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentDueBondIntOverIntAt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "type": "string"
                                 },
@@ -7582,6 +7857,40 @@
                             "contents"
                         ],
                         "title": "CurrentDueBondIntTotal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CurrentDueBondIntTotalAt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentDueBondIntTotalAt",
                         "type": "object"
                     },
                     {
@@ -14211,6 +14520,9 @@
             },
             "RateSwap": {
                 "properties": {
+                    "rsDayCount": {
+                        "$ref": "#/components/schemas/DayCount"
+                    },
                     "rsLastStlDate": {
                         "$ref": "#/components/schemas/Day"
                     },
@@ -14261,6 +14573,7 @@
                 },
                 "required": [
                     "rsType",
+                    "rsDayCount",
                     "rsUpdateDates",
                     "rsNotional",
                     "rsRefBalance",

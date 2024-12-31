@@ -15,7 +15,7 @@ module Util
     ,payInMap,adjustM,lookupAndApply,lookupAndUpdate,lookupAndApplies
     ,lookupInMap,selectInMap
     -- for debug
-    ,zyj
+    ,debugOnDate
     )
     where
 import qualified Data.Time as T
@@ -392,10 +392,8 @@ payInMap d amt getDueFn payFn objNames how inputMap
 mapWithinMap :: Ord k => (a -> a) -> [k] -> Map.Map k a -> Map.Map k a  
 mapWithinMap fn ks m = foldr (Map.adjust fn) m ks
 
-
 adjustM :: (Ord k, Applicative m) => (a -> m a) -> k -> Map.Map k a -> m (Map.Map k a)
 adjustM f = Map.alterF (traverse f)
-
 
 -- ^ lookup and apply a function to a single value in a map ,return a value
 lookupAndApply :: Ord k => (a -> b) -> String -> k -> Map.Map k a -> Either String b
@@ -429,10 +427,7 @@ selectInMap errMsg keys m
       mapKs = Map.keysSet m
 
 ----- DEBUG/PRINT
--- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 
-zyj :: Show a => Maybe String -> [a] -> String
-zyj ms vs = 
-  let 
-    ss = show <$> vs
-  in 
-    "|" ++ (fromMaybe "" ms) ++ "|" ++ concat (intersperse " >> " ss) ++ "|"
+debugOnDate :: Date -> Date -> Date -> String
+debugOnDate d1 d2 d 
+  | (d <= d2) && (d >= d1)  = "Date:"++show d
+  | otherwise = ""

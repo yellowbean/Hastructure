@@ -536,6 +536,7 @@ data DealStats = CurrentBondBalance
                | CurrentDueBondIntOverInt [BondName]
                | CurrentDueBondIntOverIntAt Int [BondName]
                | CurrentDueBondIntTotal [BondName]
+               | CurrentDueBondIntTotalAt Int [BondName]
                | CurrentDueFee [FeeName]
                | LastBondIntPaid [BondName]
                | LastBondPrinPaid [BondName]
@@ -714,6 +715,7 @@ class Liable lb where
   getDueIntOverInt :: lb -> Balance
   getDueIntOverIntAt :: lb -> Int -> Balance
   getTotalDueInt :: lb -> Balance
+  getTotalDueIntAt :: lb -> Int -> Balance
 
   getOutstandingAmount :: lb -> Balance
 

@@ -117,26 +117,36 @@ setBondNewRate t d ras bg@(L.BondGroup bMap)
       return $ L.BondGroup m 
 
 -- ^ apply all rates for multi-int bond
-setBondNewRate t d ras b@(L.MultiIntBond _ _ _ iis _ bal currentRates _ dueInts dueIoIs (Just mLastIntDates) _ _ _)
+setBondNewRate t d ras b@(L.MultiIntBond bn _ _ iis _ bal currentRates _ dueInts dueIoIs _ _ _ _)
   = let 
       newRates = applyFloatRate <$> iis <*> pure d <*> pure ras
-      b' = L.accrueInt d b
+      b' = L.accrueInt d b -- `debug` ("accrue due to new rate "++ bn)
     in
       Right $ b' { L.bndRates = newRates } 
 
 setBondNewRate t d ras b = Left $ "set bond new rate: "++ show d ++"Failed to set bond rate: "++show b++"from rate assumption" ++ show ras
 
 
-setBondStepUpRate :: Ast.Asset a => TestDeal a -> Date -> L.Bond -> Either String L.Bond
-setBondStepUpRate t d b@(L.Bond _ _ _ ii (Just sp) _ _ _ _ _ _ _ _ _)
-  = Right $ (L.accrueInt d b) { L.bndInterestInfo = L.stepUpInterestInfo sp ii}
+setBondStepUpRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> Either String L.Bond
+setBondStepUpRate t d ras b@(L.Bond _ _ _ ii (Just sp) _ _ _ _ _ _ _ _ _)
+  = Right $ 
+      let 
+        newII = L.stepUpInterestInfo sp ii
+        newRate = applyFloatRate ii d ras
+      in 
+        (L.accrueInt d b) { L.bndInterestInfo = newII, L.bndRate = newRate }
 
-setBondStepUpRate t d b@(L.MultiIntBond _ _ _ iis (Just sps) _ _ _ _ _ _ _ _ _)
-  = Right $ (L.accrueInt d b) { L.bndInterestInfos = zipWith L.stepUpInterestInfo sps iis}
+setBondStepUpRate t d ras b@(L.MultiIntBond bn _ _ iis (Just sps) _ _ _ _ _ _ _ _ _)
+  = Right $ 
+      let 
+        newIIs = zipWith L.stepUpInterestInfo sps iis
+        newRates = (\x -> applyFloatRate x d ras) <$> newIIs
+      in 
+        (L.accrueInt d b) { L.bndInterestInfos = newIIs, L.bndRates = newRates }  -- `debug` (show d ++ ">> accure due to step up rate "++ bn)
 
-setBondStepUpRate t d bg@(L.BondGroup bMap)
+setBondStepUpRate t d ras bg@(L.BondGroup bMap)
   = do 
-      m <- mapM (setBondStepUpRate t d) bMap
+      m <- mapM (setBondStepUpRate t d ras) bMap
       return $ L.BondGroup m
 
 
@@ -413,6 +423,17 @@ changeDealStatus:: Ast.Asset a => (Date,String)-> DealStatus -> TestDeal a -> (M
 changeDealStatus _ _ t@TestDeal{status=Ended} = (Nothing, t) 
 changeDealStatus (d,why) newSt t@TestDeal{status=oldSt} = (Just (DealStatusChangeTo d oldSt newSt why), t {status=newSt})
 
+
+-- runWaterfall :: Ast.Asset a => TestDeal a -> Date -> [ResultComponent] -> Either String (TestDeal a,RunContext a, [ResultComponent])
+-- runWaterfall t d logs = 
+--   let 
+--     runContext = RunContext (fromMaybe Map.empty (getScheduledCashflow t Nothing)) Nothing Nothing
+--     (newDeal, newRc, newLogs) = foldl' (performActionWrap d) (t,runContext,[]) (Map.findWithDefault [] W.DefaultDistribution (waterfall t))
+--   in 
+--     Right (newDeal, newRc, logs++newLogs)
+
+
+
 run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([Pre],[Pre])
         -> Maybe (Map.Map String (RevolvingPool,AP.ApplyAssumptionType))-> [ResultComponent] -> Either String (TestDeal a,[ResultComponent])
 run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = Right (prepareDeal t,log++[EndRun Nothing "By Status:Ended"])
@@ -605,12 +626,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         
         StepUpBondRate d bn -> 
           let 
-            rateList = fromMaybe [] rates
-            bnd = bndMap Map.! bn
+            bnd = bndMap Map.! bn -- `debug` ("StepUpBondRate--------------"++ show bn)
           in 
             do 
-              newBnd <- setBondStepUpRate t d bnd
-              run t{bonds = Map.fromList [(bn,newBnd)] <> bndMap} poolFlowMap (Just ads) rates calls rAssump log
+              -- newBnd <- setBondStepUpRate t d bnd `debug` ("StepUpBondRate"++ show d++ show bn)
+              newBndMap <- adjustM (setBondStepUpRate t d (fromMaybe [] rates)) bn bndMap
+              run t{bonds = newBndMap } poolFlowMap (Just ads) rates calls rAssump log
         
         -- TODO When reset rate, need to accrue interest
         ResetAccRate d accName -> 
@@ -938,8 +959,8 @@ getRunResult :: Ast.Asset a => TestDeal a -> [ResultComponent]
 getRunResult t = os_bn_i ++ os_bn_b -- `debug` ("Done with get result")
   where 
     bs = viewDealAllBonds t  
-    os_bn_b = [ BondOutstanding (L.bndName _b) (L.bndBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("B"++ show bs)
-    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.bndDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("C"++ show bs)
+    os_bn_b = [ BondOutstanding (L.bndName _b) (L.getCurBalance _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("B"++ show bs)
+    os_bn_i = [ BondOutstandingInt (L.bndName _b) (L.getTotalDueInt _b) (getBondBegBal t (L.bndName _b)) | _b <- bs ] -- `debug` ("C"++ show bs)
 
 prepareDeal :: Ast.Asset a => TestDeal a -> TestDeal a
 prepareDeal t@TestDeal {bonds = bndMap, liqProvider = mLiqProvider} 

@@ -199,14 +199,9 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     
     BondRate bn -> 
       case Map.lookup bn (bonds t) of 
-        Just b@(L.Bond {}) -> Right . toRational $ L.bndRate b 
-        Just b@(L.BondGroup bSubMap) -> 
-          let 
-            bnds = Map.elems bSubMap
-            rates = toRational . L.bndRate <$> bnds
-            bals = L.getCurBalance <$> bnds
-          in 
-            Right $ weightedBy bals rates
+        Just b@(L.Bond {}) -> Right . toRational $ L.getCurRate b 
+        Just b@(L.MultiIntBond {}) -> Right . toRational $ L.getCurRate b 
+        Just b@(L.BondGroup bSubMap) -> Right . toRational $ L.getCurRate b  
         Nothing -> 
           case viewDealBondsByNames t [bn] of 
             [b] -> Right $ toRational $ L.bndRate b
@@ -222,7 +217,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         rates = toRational . maybe 0.0 CF.mflowRate  <$> latestCfs
         bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
       in 
-        Right $ weightedBy bals rates
+        Right $ weightedBy (toRational <$> bals) rates
 
     -- int query
     FutureCurrentPoolBorrowerNum _d mPns ->
@@ -562,23 +557,23 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         fSubMap = getFeeByName t (Just fns)
         stmts = map F.feeStmt $ Map.elems fSubMap
         ex s = case s of
-                 Nothing -> 0
-                 Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) txns
+                  Nothing -> 0
+                  Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) txns
       in
         Right . toRational $ sum $ map ex stmts
 
     CurrentDueBondInt bns -> 
-      Right . toRational $ sum $ L.bndDueInt <$> viewDealBondsByNames t bns  
+      Right . toRational $ sum $ L.getDueInt <$> viewDealBondsByNames t bns  
 
     CurrentDueBondIntAt idx bns -> 
       let 
         bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
         dueInts = (\x -> x!!idx) <$> (L.bndDueInts <$> bs)
       in 
-        Right . toRational $ sum $ dueInts
+        Right . toRational $ sum dueInts 
 
     CurrentDueBondIntOverInt bns -> 
-      Right . toRational $ sum $ L.bndDueIntOverInt <$> viewDealBondsByNames t bns  
+      Right . toRational $ sum $ L.getDueIntOverInt <$> viewDealBondsByNames t bns  
 
     CurrentDueBondIntOverIntAt idx bns -> 
       let 
@@ -589,6 +584,9 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     CurrentDueBondIntTotal bns -> 
       sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
+    
+    CurrentDueBondIntTotalAt idx bns -> 
+      sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondIntAt idx bns,CurrentDueBondIntOverIntAt idx bns])
 
     CurrentDueFee fns -> 
       do 
