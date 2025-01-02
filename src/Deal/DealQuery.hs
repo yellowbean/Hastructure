@@ -211,13 +211,22 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         rs <- sequenceA $ (\bn -> queryCompound t d (BondRate bn)) <$> bns
         ws <- sequenceA $ (\bn -> queryCompound t d (CurrentBondBalanceOf [bn])) <$> bns
         return $ weightedBy (fromRational <$> ws) rs
-    PoolWaRate mPns -> 
+
+    PoolWaRate Nothing -> 
       let 
-        latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t mPns
-        rates = toRational . maybe 0.0 CF.mflowRate  <$> latestCfs
+        latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t Nothing
+        rates = toRational . maybe 0.0 CF.mflowRate <$> latestCfs
         bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
       in 
         Right $ weightedBy (toRational <$> bals) rates
+
+    PoolWaRate (Just pName) -> 
+      let 
+        latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t (Just [pName])
+        rates = toRational . maybe 0.0 CF.mflowRate <$> latestCfs
+      in 
+        Right $ sum rates
+
 
     -- int query
     FutureCurrentPoolBorrowerNum _d mPns ->

@@ -570,7 +570,7 @@ data DealStats = CurrentBondBalance
                | HasPassedMaturity [BondName]
                | TriggersStatus DealCycle String
                -- rate type
-               | PoolWaRate (Maybe [PoolId])
+               | PoolWaRate (Maybe PoolId)
                | BondRate BondName
                | CumulativeNetLossRatio (Maybe [PoolId])
                | FutureCurrentBondFactor Date

@@ -45,6 +45,8 @@ data RateSwapBase = Fixed Balance    -- ^ a fixed balance as notional base
 data RateSwapType = FloatingToFloating Floater Floater    -- ^ Paying Floating rate and receiving Floating Rate
                   | FloatingToFixed  Floater IRate        -- ^ Paying Floating Rate and receiving Fixed Rate
                   | FixedToFloating  IRate Floater        -- ^ Paying Fixed Rate and receiving Floating rate
+                  | FormulaToFloating   DealStats Floater    -- ^ Paying Formula Rate and receiving Floating rate
+                  | FloatingToFormula   Floater DealStats    -- ^ Paying Floating Rate and receiving Formula rate
                   deriving(Show,Generic,Eq,Ord)
 
 data RateSwap = RateSwap {rsType :: RateSwapType         -- ^ swap type

@@ -8674,10 +8674,7 @@
                     {
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/PoolId"
-                                },
-                                "type": "array"
+                                "$ref": "#/components/schemas/PoolId"
                             },
                             "tag": {
                                 "enum": [
@@ -14780,6 +14777,86 @@
                         ],
                         "title": "FixedToFloating",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/Index"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-6,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FormulaToFloating"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FormulaToFloating",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/Index"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-6,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FloatingToFormula"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FloatingToFormula",
+                        "type": "object"
                     }
                 ]
             },
@@ -19882,7 +19959,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.40.13"
+        "version": "0.40.14"
     },
     "openapi": "3.0.0",
     "paths": {

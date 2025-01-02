@@ -266,11 +266,12 @@ calcDueInt t d mBal mRate b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntInfo) _ bo
         newBondWithIntInfo <- calcDueInt t d mBal mRate newBond
         return newBondWithIntInfo { L.bndInterestInfo = L.WithIoI intInfo ioiIntInfo}
 
-
-
 -- TODO: to enable override rate & balance
 -- accure interest by rate
 calcDueInt t d mBal mRate b@(L.MultiIntBond {}) 
+  = Right $ L.accrueInt d b
+
+calcDueInt t d _ _ b@(L.Bond {})
   = Right $ L.accrueInt d b
 
 calcDueInt t d mBal mRate b = error $ "Not implemented for calcDueInt for bond type" ++ show b

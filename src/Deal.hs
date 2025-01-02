@@ -247,9 +247,9 @@ applyFloatRate2 (IR.Floater _ idx spd _r _ mFloor mCap mRounding) d ras
         rateAtDate <- AP.lookupRate0 ras idx d 
         return $ flooring mFloor $ capping mCap $ rateAtDate + spd
 
-updateRateSwapRate :: Maybe [RateAssumption] -> Date -> HE.RateSwap -> Either String HE.RateSwap
-updateRateSwapRate Nothing _ _ = Left "Failed to update rate swap: No rate input assumption"
-updateRateSwapRate (Just rAssumps) d rs@HE.RateSwap{ HE.rsType = rt } 
+updateRateSwapRate :: Ast.Asset a => TestDeal a -> Maybe [RateAssumption] -> Date -> HE.RateSwap -> Either String HE.RateSwap
+updateRateSwapRate t Nothing _ _ = Left "Failed to update rate swap: No rate input assumption"
+updateRateSwapRate t (Just rAssumps) d rs@HE.RateSwap{ HE.rsType = rt } 
   = let 
       getRate x = AP.lookupRate rAssumps x d
     in
@@ -268,6 +268,16 @@ updateRateSwapRate (Just rAssumps) d rs@HE.RateSwap{ HE.rsType = rt }
                                 do 
                                   _r <- getRate flter
                                   return (r, _r)
+                              HE.FormulaToFloating ds flter -> 
+                                do 
+                                  _r <- queryCompound t d (patchDateToStats d ds)
+                                  r <- getRate flter
+                                  return (fromRational _r, r)
+                              HE.FloatingToFormula flter ds -> 
+                                do 
+                                  r <- getRate flter
+                                  _r <- queryCompound t d (patchDateToStats d ds)
+                                  return (r, fromRational _r)
         return rs {HE.rsPayingRate = pRate, HE.rsReceivingRate = rRate }
 
 updateRateSwapBal :: Ast.Asset a => TestDeal a -> Date -> HE.RateSwap -> Either String HE.RateSwap
@@ -560,7 +570,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             Nothing -> Left $ " No rate swaps modeled when looking for "++ sn
             Just rSwap ->
               do
-                newRateSwap_rate <- adjustM (updateRateSwapRate rates d) sn rSwap
+                newRateSwap_rate <- adjustM (updateRateSwapRate t rates d) sn rSwap
                 newRateSwap_bal <- adjustM (updateRateSwapBal t d) sn newRateSwap_rate 
                 let newRateSwap_acc = Map.adjust (HE.accrueIRS d) sn $ newRateSwap_bal
                 run (t{rateSwap = Just newRateSwap_acc}) poolFlowMap (Just ads) rates calls rAssump log
