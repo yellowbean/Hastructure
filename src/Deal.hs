@@ -434,14 +434,22 @@ changeDealStatus _ _ t@TestDeal{status=Ended} = (Nothing, t)
 changeDealStatus (d,why) newSt t@TestDeal{status=oldSt} = (Just (DealStatusChangeTo d oldSt newSt why), t {status=newSt})
 
 
--- runWaterfall :: Ast.Asset a => TestDeal a -> Date -> [ResultComponent] -> Either String (TestDeal a,RunContext a, [ResultComponent])
--- runWaterfall t d logs = 
+-- runWaterfall :: Ast.Asset a => (TestDeal a ,Date, Runcontext a ,[ResultComponent]) -> String -> Either String (TestDeal a, RunContext a,[ResultComponent])
+-- runWaterfall (t,d, runContext,logs) waterfallKey = 
 --   let 
---     runContext = RunContext (fromMaybe Map.empty (getScheduledCashflow t Nothing)) Nothing Nothing
+--     -- attach waterfall log 
+-- 
+--     -- accure interest for all bonds
+--     -- accure fees 
+--     -- accure any hedge & liq support
+-- 
+--     -- run waterfall
 --     (newDeal, newRc, newLogs) = foldl' (performActionWrap d) (t,runContext,[]) (Map.findWithDefault [] W.DefaultDistribution (waterfall t))
 --   in 
 --     Right (newDeal, newRc, logs++newLogs)
 
+--   let eopActionsLog = [ RunningWaterfall d W.EndOfPoolCollection | Map.member W.EndOfPoolCollection waterfallM ] -- `debug` ("new logs from trigger 1"++ show newLogs0)
+--   let waterfallToExe = Map.findWithDefault [] W.EndOfPoolCollection (waterfall t)  -- `debug` ("new logs from trigger 1"++ show newLogs0)
 
 
 run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([Pre],[Pre])

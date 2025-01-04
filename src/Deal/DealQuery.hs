@@ -657,6 +657,17 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
           (yearCountFraction DC_ACT_365F d1 d2)
 
+    -- Analytics query 
+    AmountRequiredForTargetIRR irr bondName ->
+        case getBondByName t True bondName of
+          Nothing -> Left $ "Failed to find bond by name"++ bondName
+          Just bnd ->
+            do 
+              let (ds,vs) = L.bondCashflow bnd
+              case A.calcIRequiredAmtForIrrAtDate irr ds vs d of 
+                Nothing -> Left $ "Failed to get the required amount for target IRR: "++ bondName++" Rate:"++ show irr
+                Just amt -> Right $ toRational amt
+
     CustomData s d ->
         case custom t of 
           Nothing -> Left $ "Date:"++show d++"No Custom data to query" ++ show s

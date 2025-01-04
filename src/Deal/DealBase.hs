@@ -428,9 +428,14 @@ getPoolIds t@TestDeal{pool = pt}
       ResecDeal pm -> Map.keys pm
       _ -> error "failed to match pool type in pool ids"
                          
-
-getBondByName :: Ast.Asset a => TestDeal a -> BondName -> Maybe L.Bond
-getBondByName t bName = Map.lookup bName (bonds t)
+-- ^ to handle with bond group, with flag to good deep if it is a bond group
+getBondByName :: Ast.Asset a => TestDeal a -> Bool -> BondName -> Maybe L.Bond
+getBondByName t False bName = Map.lookup bName (bonds t)
+getBondByName t True bName = 
+  let 
+    bnds = viewDealAllBonds t
+  in 
+    find (\b -> L.bndName b == bName) bnds
 
 -- ^ get issuance pool stat from pool map
 getIssuanceStats :: Ast.Asset a => TestDeal a  -> Maybe [PoolId] -> Map.Map PoolId (Map.Map CutoffFields Balance)

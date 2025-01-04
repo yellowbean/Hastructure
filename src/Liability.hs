@@ -19,6 +19,7 @@ module Liability
   ,accrueInt,stepUpInterestInfo,payIntByIndex,_MultiIntBond
   ,getDueIntAt,getDueIntOverIntAt,getDueIntOverInt,getTotalDueIntAt
   ,getCurRate
+  ,bondCashflow
   )
   where
 
@@ -219,8 +220,13 @@ bndTxns = lens getter setter
     setter Bond{bndStmt = _} mStmt = Bond{bndStmt = mStmt}
     setter MultiIntBond{bndStmt = _} mStmt = MultiIntBond{bndStmt = mStmt}
 
+bondCashflow :: Bond -> ([Date], [Amount])
+bondCashflow b = 
+  let t = (S.getAllTxns b)
+  in 
+    (S.getDate <$> t, S.getTxnAmt <$> t)
 
--- ^ remove empty transaction from a bond
+-- ^ remove empty transaction frgetBondByName :: Ast.Assetom a bond
 consolStmt :: Bond -> Bond
 consolStmt (BondGroup bMap) = BondGroup $ consolStmt <$> bMap
 consolStmt b

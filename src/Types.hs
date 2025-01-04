@@ -553,6 +553,8 @@ data DealStats = CurrentBondBalance
                | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgOriginalBondBalance Date Date [BondName]
                | CustomData String Date
+               -- analytical query
+               | AmountRequiredForTargetIRR Double String
                -- integer type
                | CurrentPoolBorrowerNum (Maybe [PoolId])
                | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
@@ -812,6 +814,7 @@ data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the
                 | DefaultDistribution             -- ^ default waterfall executed
                 | RampUp                          -- ^ ramp up
                 | WithinTrigger String            -- ^ waterfall executed within a trigger  
+                | CustomWaterfall String          -- ^ custom waterfall
                 deriving (Show,Ord,Eq,Generic,Read)
 
 
