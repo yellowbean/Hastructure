@@ -193,7 +193,6 @@ getTxns :: Maybe Statement -> [Txn]
 getTxns Nothing = []
 getTxns (Just (Statement txn)) = txn
 
-
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 g1 h1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 g2 h2 m2)
     = let 

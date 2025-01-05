@@ -653,20 +653,31 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     WeightedAvgOriginalPoolBalance d1 d2 mPns ->
       Right . toRational $
-         mulBR
+          mulBR
           (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
           (yearCountFraction DC_ACT_365F d1 d2)
 
     -- Analytics query 
     AmountRequiredForTargetIRR irr bondName ->
-        case getBondByName t True bondName of
-          Nothing -> Left $ "Failed to find bond by name"++ bondName
-          Just bnd ->
-            do 
-              let (ds,vs) = L.bondCashflow bnd
-              case A.calcIRequiredAmtForIrrAtDate irr ds vs d of 
+      case getBondByName t True bondName of
+        Nothing -> Left $ "Failed to find bond by name"++ bondName
+        Just bnd ->
+          let 
+            (ds,vs) = L.bondCashflow bnd
+            valid _vs = case (and ((>0) <$> vs)) of
+                          True -> Left $ "all cashflows are positive"++ show vs
+                          _ -> Right _vs
+            oDate = L.originDate $ L.bndOriginInfo bnd
+          in
+            do
+              validVs <- valid vs
+              case A.calcRequiredAmtForIrrAtDate irr ds vs d of 
                 Nothing -> Left $ "Failed to get the required amount for target IRR: "++ bondName++" Rate:"++ show irr
-                Just amt -> Right $ toRational amt
+                Just amt -> Right $ 
+                              if oDate <= d then
+                                (toRational amt)
+                              else
+                                0.0
 
     CustomData s d ->
         case custom t of 

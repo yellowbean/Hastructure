@@ -2902,6 +2902,25 @@
                         ],
                         "title": "WithinTrigger",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CustomWaterfall"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CustomWaterfall",
+                        "type": "object"
                     }
                 ]
             },
@@ -8319,6 +8338,36 @@
                             "contents"
                         ],
                         "title": "CustomData",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "AmountRequiredForTargetIRR"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "AmountRequiredForTargetIRR",
                         "type": "object"
                     },
                     {
@@ -19959,7 +20008,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.40.14"
+        "version": "0.41.0"
     },
     "openapi": "3.0.0",
     "paths": {

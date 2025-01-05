@@ -3,7 +3,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Analytics (calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21,calcIRequiredAmtForIrrAtDate)
+module Analytics (calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21,calcRequiredAmtForIrrAtDate)
+
   where 
 import Types
 import Lib
@@ -25,8 +26,8 @@ calcWAL :: TimeHorizion -> Balance -> Date -> [(Balance,Date)] -> Balance
 calcWAL th bal d ps = 
   let 
     interval = case th of
-                 ByYear -> 365
-                 ByMonth -> 30
+                  ByYear -> 365
+                  ByMonth -> 30
     weightedAmts = [ mulBR futureAmt ((daysBetween d futureDate) % interval)  | (futureAmt,futureDate) <- ps ]
   in 
     sum weightedAmts / bal
@@ -86,6 +87,7 @@ fv2 discount_rate today futureDay amt
 
 
 calcPvFromIRR :: Double -> [Date] -> [Amount] -> Date -> Double -> Double
+calcPvFromIRR irr [] _ d amt = 0
 calcPvFromIRR irr ds vs d amt = 
   let 
     begDate = head ds
@@ -96,8 +98,9 @@ calcPvFromIRR irr ds vs d amt =
 -- IRR 
 
 -- ^ calculate IRR of a series of cashflow
-calcIRequiredAmtForIrrAtDate :: Double -> [Date] -> [Amount] -> Date -> Maybe Amount
-calcIRequiredAmtForIrrAtDate irr ds vs d = 
+calcRequiredAmtForIrrAtDate :: Double -> [Date] -> [Amount] -> Date -> Maybe Amount
+calcRequiredAmtForIrrAtDate irr [] _ d = Nothing 
+calcRequiredAmtForIrrAtDate irr ds vs d = 
   let 
     def = RiddersParam
         { riddersMaxIter = 200
@@ -107,4 +110,3 @@ calcIRequiredAmtForIrrAtDate irr ds vs d =
     case ridders def (0.0001,100000000000000) (calcPvFromIRR irr ds vs d) of
           Root finalAmt -> Just (fromRational (toRational finalAmt))
           _ -> Nothing
-

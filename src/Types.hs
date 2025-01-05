@@ -554,7 +554,7 @@ data DealStats = CurrentBondBalance
                | WeightedAvgOriginalBondBalance Date Date [BondName]
                | CustomData String Date
                -- analytical query
-               | AmountRequiredForTargetIRR Double String
+               | AmountRequiredForTargetIRR Double BondName 
                -- integer type
                | CurrentPoolBorrowerNum (Maybe [PoolId])
                | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])

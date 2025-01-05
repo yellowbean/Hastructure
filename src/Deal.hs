@@ -283,19 +283,19 @@ updateRateSwapRate t (Just rAssumps) d rs@HE.RateSwap{ HE.rsType = rt }
 updateRateSwapBal :: Ast.Asset a => TestDeal a -> Date -> HE.RateSwap -> Either String HE.RateSwap
 updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
   =  case base of 
-       HE.Fixed _ -> Right rs  
-       HE.Schedule ts -> Right $ rs { HE.rsRefBalance = fromRational (getValByDate ts Inc d) }
-       HE.Base ds -> 
-           do 
-             v <- queryCompound t d (patchDateToStats d ds) 
-             return rs { HE.rsRefBalance = fromRational v} -- `debug` ("query Result"++ show (patchDateToStats d ds) )
+        HE.Fixed _ -> Right rs  
+        HE.Schedule ts -> Right $ rs { HE.rsRefBalance = fromRational (getValByDate ts Inc d) }
+        HE.Base ds -> 
+            do 
+              v <- queryCompound t d (patchDateToStats d ds) 
+              return rs { HE.rsRefBalance = fromRational v} -- `debug` ("query Result"++ show (patchDateToStats d ds) )
 
 -- ^ accure rate cap 
 accrueRC :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> RateCap -> Either String RateCap
 accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = index
-                       ,rcStartDate = sd, rcEndDate = ed, rcNotional = notional
-                       ,rcLastStlDate = mlsd
-                       ,rcStmt = mstmt} 
+                        ,rcStartDate = sd, rcEndDate = ed, rcNotional = notional
+                        ,rcLastStlDate = mlsd
+                        ,rcStmt = mstmt} 
   | d > ed || d < sd = Right rc 
   | otherwise = do
                   r <- lookupRate0 rs index d

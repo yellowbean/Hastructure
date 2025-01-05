@@ -29,7 +29,7 @@ import Data.Aeson.TH
 import Data.Fixed
 
 import qualified Data.Time as T
-import Lib (Period(..),Ts(..) ,TsPoint(..) ,daysBetween, weightedBy)
+import Lib (Period(..),Ts(..) ,TsPoint(..) ,daysBetween, weightedBy,paySeqLiabResi)
 
 import Util
 import DateUtil
@@ -101,8 +101,8 @@ getDayCountFromInfo _ = Nothing
 type RateReset = DatePattern 
 
 data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by pct over current rate
-                             | OverFixSpread Spread -- ^ inflat ioi rate by fix spread
-                             deriving (Show, Eq, Generic, Ord, Read)
+                              | OverFixSpread Spread -- ^ inflat ioi rate by fix spread
+                              deriving (Show, Eq, Generic, Ord, Read)
 
 
 -- ^ the way how interest due amount is calculated
@@ -173,6 +173,8 @@ data BondType = Sequential                                 -- ^ Pass through typ
 
 
 -- TODO: for multi int bond, should origin rate be a list of rates?
+--     : sofar remain orginate rate as a single rate for multi int bond
+
 data Bond = Bond {
               bndName :: String
               ,bndType :: BondType                 -- ^ bond type ,which describe the how principal due was calculated
@@ -311,9 +313,10 @@ payIntByIndex d idx amt bnd@(MultiIntBond bn bt oi iinfo _ bal rs duePrin dueInt
 -- ^ pay interest to single bond regardless any interest due
 payYield :: Date -> Amount -> Bond -> Bond 
 payYield d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
-  = bnd {bndStmt= newStmt}
+  = bnd {bndDueInt = newDue,bndDueIntOverInt=newDueIoI, bndStmt= newStmt}
   where
-    newStmt = S.appendStmt (BondTxn d bal amt 0 r amt dueInt dueIoI Nothing (S.PayYield bn)) stmt 
+    [newDue,newDueIoI] = paySeqLiabResi amt [dueIoI, dueInt]
+    newStmt = S.appendStmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayYield bn)) stmt 
 
 
 -- ^ pay principal to single bond principal with limit of principal due
@@ -348,7 +351,7 @@ writeOff d amt bnd = bnd {bndBalance = newBal , bndStmt=newStmt}
 fundWith :: Date -> Amount -> Bond -> Bond
 fundWith d 0 b = b
 fundWith d amt bnd
-  = bnd {bndBalance = newBal , bndStmt=newStmt } 
+  = bnd {bndBalance = newBal, bndStmt=newStmt } 
   where
     dueIoI = getDueIntOverInt bnd
     dueInt = getDueInt bnd
@@ -512,23 +515,6 @@ priceBond d rc bnd
     od = getOriginDate bnd
 
 
-
-
-_calcIRR :: Balance -> IRR -> Date -> Ts -> IRR
-_calcIRR amt initIrr today (BalanceCurve cashflows)
-   = if ((abs(diff) < 0.005) || (abs(nextIrr-initIrr)<0.0001)) then
-       initIrr
-     else
-       _calcIRR amt nextIrr today (BalanceCurve cashflows)  -- `debug` ("NextIRR -> "++show(nextIrr))
-     where
-       discount (TsPoint _d _a) _r =  (toRational _a) / ((1+_r)^(div (fromIntegral (T.diffDays _d today)) 365))
-       pv = foldr (\_ts acc -> (discount _ts initIrr) + acc) 0 cashflows -- `debug` ("")
-       diff = pv - (toRational amt)  -- `debug` ("pv->"++show(pv))
-       nextIrr = if diff > 0 then
-                   initIrr * 1.01
-                 else
-                   initIrr * 0.99
-
 -- ^ backout interest due for a Yield Maintainace type bond
 -- ^ TODO: need to handle MuitIntBond here
 backoutDueIntByYield :: Date -> Bond -> Balance
@@ -541,7 +527,7 @@ backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYiel
                     Just (S.Statement txns) -> [ ((S.getDate txn),(S.getTxnAmt txn))  | txn <- txns ] -- `debug` (show d ++":TXNS"++ show txns)
                     Nothing -> []
 
-
+  
 weightAverageBalance :: Date -> Date -> Bond -> Balance
 weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
   = mulBR currentBalance (yearCountFraction DC_ACT_365F (max bd sd) ed) 

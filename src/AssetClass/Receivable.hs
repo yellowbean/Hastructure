@@ -32,7 +32,6 @@ import Debug.Trace
 import Assumptions (AssetPerfAssumption(ReceivableAssump))
 import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (extendTxns)
-import Liability (backoutDueIntByYield)
 import qualified Asset as A
 
 debug = flip trace
