@@ -47,6 +47,7 @@ dependencies:
 - tabular
 - numeric-limits
 - scientific
+- math-functions
 
 library:
   source-dirs: 
@@ -86,6 +87,7 @@ executables:
     - attoparsec
     - exceptions
     - tabular
+    - math-functions
     # - servant-errors
     # - servant-exceptions
     - servant-checked-exceptions
