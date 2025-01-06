@@ -362,48 +362,6 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
                               (newT, newRc, newLogs) <- foldM (performActionWrap d) (t, rc, []) wActions
                               return (newT, newRc, actions, logs++newLogs)
 
-      CloseDeal (offset0,pDp) (offset1,bDp) (pm,accName,mIssuanceBal) mCollectRules
-        -> let 
-            closingDate = d
-            (WarehousingDates _ _ _ endDate) = dates t
-            Warehousing nextSt = st
-            -- issue bonds 
-            newBonds = Map.map (L.setBondOrigDate closingDate) bondMap
-            firstPayDate = T.addDays (toInteger offset0) closingDate
-            firstCollectDate = T.addDays (toInteger offset1) closingDate
-            distributionDays = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE firstPayDate bDp endDate]
-            poolCollectionDays = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE firstCollectDate pDp endDate]
-            newActions = (DealClosed closingDate):(sortBy sortActionOnDate (distributionDays++poolCollectionDays))
-            --- TODO for floater rate bond ,need to update rate in the bond 
-          in
-            do
-              draftBondBals <- queryCompound t d CurrentBondBalance
-              totalIssuanceBalance <- case mIssuanceBal of 
-                                        Nothing -> Right draftBondBals
-                                        Just fml -> queryCompound t d fml
-              let scaleFactor = toRational $ totalIssuanceBalance / draftBondBals
-              let scaledBndMap = undefined -- Map.map (L.scaleBond scaleFactor) newBonds
-              let accAfterIssue = Map.adjust (A.deposit (fromRational totalIssuanceBalance) d (IssuanceProceeds "ALL")) accName accMap
-
-              let assetVal = case pt of 
-                          MultiPool pMap -> sum $ Map.map (\p -> P.calcLiquidationAmount pm p closingDate) pMap
-              assetBal <- queryCompound t d (FutureCurrentPoolBalance Nothing)
-              let accAfterBought = Map.adjust (A.draw assetVal d (PurchaseAsset "ALL" (fromRational assetBal))) accName accMap
-
-              -- reset pool flow flow
-              let dealPoolFlowMap = Map.map (maybe 0 ((CF.mflowBalance . head) . (view CF.cashflowTxn)))
-                                        $ view dealCashflow t
-              let newPt = patchIssuanceBalance st dealPoolFlowMap pt 
-              ---- reset pool stats
-              let newPt2 = case newPt of 
-                        MultiPool pm -> MultiPool $ Map.map (over (P.poolFutureCf2 . CF.cashflowTxn) (CF.patchCumulative (0,0,0,0,0,0) [])) pm
-                        x -> x
-              -- build actions dates
-              return (t {status = fromMaybe Amortizing nextSt, bonds = scaledBndMap, accounts=accAfterBought, pool = newPt2
-                        ,collects = fromMaybe collRules mCollectRules}
-                     , rc
-                     , cutBy Inc Past d actions ++ newActions
-                     , logs) --TODO add actions to close deal
       DoNothing -> Right (t, rc, actions, [])
       _ -> Left $ "Date:"++ show d++" Failed to match trigger effects: "++show te
 
@@ -1040,13 +998,6 @@ removePoolCf t@TestDeal{pool=pt} =
 
 
 populateDealDates :: DateDesp -> DealStatus -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
-populateDealDates (WarehousingDates begDate rampingPoolDp rampingBondDp statedDate)
-                  (Warehousing _) 
-  = (begDate,begDate, getDate (head ba),pa,ba,statedDate)
-    where
-      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE begDate rampingPoolDp statedDate ]
-      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE begDate rampingBondDp statedDate ]
-
 populateDealDates (CustomDates cutoff pa closing ba) _ 
   = (cutoff  
     ,closing

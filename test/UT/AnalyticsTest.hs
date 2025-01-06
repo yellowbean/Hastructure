@@ -88,7 +88,7 @@ irrTest =
     testCase "required Amount with 8%" $ 
         assertEqual "12 months"
             (Just 108.01)
-            (calcIRequiredAmtForIrrAtDate 0.08 (L.toDates ["20230101"])
+            (calcRequiredAmtForIrrAtDate 0.08 (L.toDates ["20230101"])
                                                 [-100] 
                                                 (L.toDate "20240101"))
   ]

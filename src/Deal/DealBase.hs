@@ -170,9 +170,7 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
               --  cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
               | PreClosingDates CutoffDate ClosingDate (Maybe RevolvingDate) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
-              --  (start date, ramp action dp) <Pool Coll DP> <Waterfall DP> <EndDate>
               -- <Pool Collection DP> <Waterfall DP> 
-              | WarehousingDates Date PoolCollectionDates DistributionDates StatedDate 
               --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
               deriving (Show,Eq, Generic,Ord)
