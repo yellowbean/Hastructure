@@ -33,7 +33,7 @@ yearCountFraction dc sd ed
                       (sDaysTillYearEnd % (daysOfYear syear)) + (eDaysAfterYearBeg % (daysOfYear eyear)) + (pred _diffYears) 
                       -- `debug` ("<>"++show sDaysTillYearEnd++"<>"++show(daysOfYear syear) ++"<>"++show (daysOfYear eyear)++"<>"++ show eyear)
 
-      DC_ACT_365F -> _diffDays % 365 -- `debug` ("DIFF Days"++show(_diffDays))
+      DC_ACT_365F -> _diffDays % 365
 
       DC_ACT_360  -> _diffDays % 360
 
@@ -186,6 +186,7 @@ genSerialDates dp ct sd num
         CustomDate ds -> ds
         EveryNMonth d n -> 
                 d:[ T.addGregorianDurationClip (T.CalendarDiffDays ((toInteger _n)*(toInteger n)) 0) d | _n <- [1..num] ]
+        SingletonDate d -> [d]
 
       where 
         quarterEnds = [(3,31),(6,30),(9,30),(12,31)]
@@ -219,6 +220,7 @@ genSerialDatesTill sd ptn ed
               CustomDate ds -> 2 + toInteger (length ds)
               EveryNMonth _d _n -> div cdM (toInteger _n)
               Weekday _d -> cdM * 4
+              SingletonDate _d -> if _d <= ed then 1 else 0
               _ -> error $ "failed to match" ++ show ptn
               -- DayOfWeek Int -> -- T.DayOfWeek 
 

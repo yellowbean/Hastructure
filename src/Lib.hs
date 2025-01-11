@@ -15,7 +15,7 @@ module Lib
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors
     ,zipWith8,zipWith9,zipWith10,zipWith11,zipWith12
     ,weightedBy, mkTs
-    ,mkRateTs
+    ,mkRateTs,paySeqLiabResi
     ) where
 
 import qualified Data.Time as T
@@ -113,6 +113,12 @@ paySeqLiabilitiesAmt startAmt funds
   where 
     remainBals = map snd $ paySeqLiabilities startAmt funds 
 
+paySeqLiabResi :: Amount -> [Balance] -> [Amount]
+paySeqLiabResi startAmt funds
+  = zipWith (-) funds allocatedAmts
+  where 
+    allocatedAmts = paySeqLiabilitiesAmt startAmt funds
+
 afterNPeriod :: T.Day -> Integer -> Period -> T.Day
 afterNPeriod d i p =
   T.addGregorianMonthsClip ( months * i)  d
@@ -207,13 +213,12 @@ floatToFixed x = y where
   y = MkFixed (round (fromInteger (resolution y) * x))
 
 -- | given balances and weight, get sum weighted balance
-weightedBy :: [Centi] -> [Rational] -> Rational
+weightedBy :: [Rational] -> [Rational] -> Rational
 weightedBy ws vs 
   | sum_weights == 0 = 0
-  | otherwise = sum ( zipWith (*) vs  _ws ) / sum_weights
+  | otherwise = sum ( zipWith (*) vs ws ) / sum_weights
   where 
-    _ws = toRational <$> ws
-    sum_weights = sum _ws
+    sum_weights = sum ws
 
 -- | Given a start date and a end date, return number of days between(Integer)
 daysBetween :: Date -> Date -> Integer 

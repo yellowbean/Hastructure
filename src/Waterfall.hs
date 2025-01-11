@@ -33,14 +33,14 @@ import Ledger (Ledger,LedgerName)
 
 
 data BookType = PDL BookDirection DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
-              | ByAccountDraw LedgerName               -- Book amount equal to account draw amount
-              | ByDS          LedgerName BookDirection DealStats     -- Book amount equal to a formula/deal stats
+              | ByDS         LedgerName BookDirection DealStats     -- Book amount equal to a formula/deal stats
+              | Till         LedgerName BookDirection DealStats     -- Book amount till deal stats
               deriving (Show,Generic,Eq,Ord)
 
-data ExtraSupport = SupportAccount AccountName (Maybe BookType)  -- ^ if there is deficit, draw another account to pay the shortfall
-                  | SupportLiqFacility LiquidityProviderName     -- ^ if there is deficit, draw facility's available credit to pay the shortfall
-                  | MultiSupport [ExtraSupport]                  -- ^ if there is deficit, draw multiple supports (by sequence in the list) to pay the shortfall
-                  | WithCondition Pre ExtraSupport               -- ^ support only available if Pre is true
+data ExtraSupport = SupportAccount AccountName (Maybe BookLedger)  -- ^ if there is deficit, draw another account to pay the shortfall
+                  | SupportLiqFacility LiquidityProviderName                        -- ^ if there is deficit, draw facility's available credit to pay the shortfall
+                  | MultiSupport [ExtraSupport]                                     -- ^ if there is deficit, draw multiple supports (by sequence in the list) to pay the shortfall
+                  | WithCondition Pre ExtraSupport                                  -- ^ support only available if Pre is true
                   deriving (Show,Generic,Eq,Ord)
 
 data PayOrderBy = ByName 
@@ -69,11 +69,14 @@ data Action =
             | CalcBondInt [BondName] (Maybe DealStats) (Maybe DealStats)                   -- ^ calculate interest due amount in the bond names,with optional balance and rate
             | PayIntOverInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)      -- ^ pay interest over interest only  
             | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay interest with cash from the account with optional limit or extra support
+            | PayIntAndBook (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) BookLedger -- ^ pay interest with cash from the account with optional limit or extra support
             | PayIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ with sequence
             | PayIntOverIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) -- ^ pay interest over interest only with sequence
             | AccrueAndPayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)    -- ^ combination of CalcInt and PayInt
             | AccrueAndPayIntBySeq (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) -- ^ with sequence
             | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due
+            | PayIntByRateIndex (Maybe Limit) AccountName [BondName] Int (Maybe ExtraSupport)      -- ^ pay interest to bond by index
+            | PayIntByRateIndexBySeq (Maybe Limit) AccountName [BondName] Int (Maybe ExtraSupport)      -- ^ pay interest to bond by index
             -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
             | CalcBondPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ calculate principal due amount in the bond names
@@ -105,8 +108,8 @@ data Action =
             | LiqRepay (Maybe Limit) CE.LiqRepayType AccountName CE.LiquidityProviderName   -- ^ repay liquidity facility
             | LiqYield (Maybe Limit) AccountName CE.LiquidityProviderName                   -- ^ repay compensation to liquidity facility
             | LiqAccrue [CE.LiquidityProviderName]                                            -- ^ accure premium/due interest of liquidity facility
-            -- Swap
-            | SwapAccrue CeName                 -- ^ calculate the net amount of swap
+            -- Rate Swap
+            | SwapAccrue CeName                 -- ^ calculate the net amount of swap manually
             | SwapReceive AccountName CeName    -- ^ receive amount from net amount of swap and deposit to account
             | SwapPay AccountName CeName        -- ^ pay out net amount from account 
             | SwapSettle AccountName CeName     -- ^ pay & receive net amount of swap with account

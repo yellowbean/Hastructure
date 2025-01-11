@@ -127,26 +127,27 @@ instance Asset Loan where
                asOfDay 
                (A.LoanAssump defaultAssump prepayAssump recoveryAssump ams,_,_)
                mRate 
-    = Right $ (applyHaircut ams (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns), historyM)
-    where
-      recoveryLag = maybe 0 getRecoveryLag recoveryAssump
-      lastPayDate:cfDates = lastN (rt + recoveryLag + 1) $ sd:getPaymentDates pl recoveryLag
-      rateVector = A.projRates cr or mRate cfDates
-      ppyRates = A.buildPrepayRates (lastPayDate:cfDates) prepayAssump 
-      defRates = A.buildDefaultRates (lastPayDate:cfDates) defaultAssump
-      dc = getDayCount or          
-      remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt] -- `debug` ("rateVector"++show rateVector)
-      initFactor = case prinPayType of 
-                     ScheduleRepayment ts _ -> 
-                      let 
-                        scheduleBals = scanl (-) ob $ fromRational <$> getTsVals ts
-                      in 
-                        divideBB cb (scheduleBals!!(ot - rt))
-                     _ -> 1.0  
-      (txns,_) = projectLoanFlow ((ob,ot,getOriginRate pl), cb,lastPayDate,prinPayType,dc,cr,initFactor) (cfDates,defRates,ppyRates,rateVector,remainTerms)  -- `debug` (" rateVector"++show rateVector)
-      (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
-      begBal = CF.buildBegBal futureTxns
-
+    = let
+        recoveryLag = maybe 0 getRecoveryLag recoveryAssump
+        lastPayDate:cfDates = lastN (rt + recoveryLag + 1) $ sd:getPaymentDates pl recoveryLag
+      in
+        do
+          rateVector <- A.projRates cr or mRate cfDates
+          ppyRates <- A.buildPrepayRates (lastPayDate:cfDates) prepayAssump 
+          defRates <- A.buildDefaultRates (lastPayDate:cfDates) defaultAssump
+          let dc = getDayCount or          
+          let remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt] -- `debug` ("rateVector"++show rateVector)
+          let initFactor = case prinPayType of 
+                         ScheduleRepayment ts _ -> 
+                          let 
+                            scheduleBals = scanl (-) ob $ fromRational <$> getTsVals ts
+                          in 
+                            divideBB cb (scheduleBals!!(ot - rt))
+                         _ -> 1.0  
+          let (txns,_) = projectLoanFlow ((ob,ot,getOriginRate pl), cb,lastPayDate,prinPayType,dc,cr,initFactor) (cfDates,defRates,ppyRates,rateVector,remainTerms)  -- `debug` (" rateVector"++show rateVector)
+          let (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
+          let begBal = CF.buildBegBal futureTxns
+          return $ (applyHaircut ams (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns), historyM)
   -- ^ Project cashflow for defautled loans 
   projCashflow m@(PersonalLoan (LoanOriginalInfo ob or ot p sd prinPayType _) cb cr rt (Defaulted (Just defaultedDate))) 
                asOfDay 

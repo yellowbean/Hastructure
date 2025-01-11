@@ -109,11 +109,11 @@ instance Semigroup TsRow where
   CashFlow d1 a1 <> (CashFlow d2 a2) = CashFlow (max d1 d2) (a1 + a2)
   BondFlow d1 b1 p1 i1 <> (BondFlow d2 b2 p2 i2) = BondFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2)
   MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1 <> MortgageFlow d2 b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 pn2 st2
-    = MortgageFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2])))  (liftA2 (+) mbn1 mbn2)   (liftA2 (+) pn1 pn2)  (sumStats st1 st2)
+    = MortgageFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2])))  (liftA2 (+) mbn1 mbn2)   (liftA2 (+) pn1 pn2)  (sumStats st1 st2)
   MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1 st1 <> MortgageDelinqFlow d2 b2 p2 i2 prep2 delinq2 def2 rec2 los2 rat2 mbn2 pn2 st2
-    = MortgageDelinqFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (delinq1 + delinq2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (liftA2 (+) mbn1 mbn2) (liftA2 (+) pn1 pn2) (sumStats st1 st2)
+    = MortgageDelinqFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (delinq1 + delinq2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (liftA2 (+) mbn1 mbn2) (liftA2 (+) pn1 pn2) (sumStats st1 st2)
   LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1 <> LoanFlow d2 b2 p2 i2 prep2 def2 rec2 los2 rat2 st2
-    = LoanFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
+    = LoanFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
   LeaseFlow d1 b1 r1 <> LeaseFlow d2 b2 r2 
     = LeaseFlow (max d1 d2) (b1 + b2) (r1 + r2)
   FixedFlow d1 b1 ndep1 dep1 c1 a1 <> FixedFlow d2 b2 ndep2 dep2 c2 a2 
@@ -224,10 +224,6 @@ sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
 
--- getDateRangeCashFlowFrame :: CashFlowFrame -> (Date,Date) --TODO what if it is empty ? 
--- getDateRangeCashFlowFrame (CashFlowFrame _ [tr]) = (getDate tr, getDate tr)
--- getDateRangeCashFlowFrame (CashFlowFrame _ trs) = (getDate (head trs), getDate (last trs))
-
 getBegBalCashFlowFrame :: CashFlowFrame -> Balance
 getBegBalCashFlowFrame (CashFlowFrame _ []) = 0
 getBegBalCashFlowFrame (CashFlowFrame _ (cf:cfs)) = mflowBegBalance cf
@@ -267,7 +263,7 @@ addTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) tr@(Mort
       p =  (+) <$> pn1 <*> pn2
       st = sumStats st1 st2
     in 
-      MortgageFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st
+      MortgageFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) bn p st
 addTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1 st1) tr@(MortgageDelinqFlow _ b2 p2 i2 prep2 delinq2 def2 rec2 los2 rat2 mbn2 pn2 st2)
   = let 
       bn = (+) <$> mbn1 <*> mbn2
@@ -275,10 +271,10 @@ addTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1
       delinq = (+) delinq1 delinq2
       st = sumStats st1 st2
     in 
-      MortgageDelinqFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st
+      MortgageDelinqFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) bn p st
 
 addTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) tr@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 st2)
-  = LoanFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
+  = LoanFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
 
 addTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
   = LeaseFlow d1 (b1 - mflowAmortAmount tr) (r1 + r2)
@@ -300,7 +296,7 @@ combineTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1
       delinq = (+) delinq1 delinq2
       st = sumStats st1 st2
     in 
-      MortgageDelinqFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st
+      MortgageDelinqFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) bn p st
 
 combineTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) tr@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 pn2 st2)
   = let 
@@ -308,10 +304,10 @@ combineTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) tr@(
       p =  (+) <$> pn1 <*> pn2
       st = sumStats st1 st2
     in 
-      MortgageFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st
+      MortgageFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) bn p st
 
 combineTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) tr@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 st2)
-  = LoanFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
+  = LoanFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
 
 combineTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
   = LeaseFlow d1 (b1 + b2) (r1 + r2)
@@ -373,7 +369,7 @@ addTsCF m1@(MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) m2@
       p =  (+) <$> pn1 <*> pn2
       st = maxStats st1 st2
     in 
-      MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st 
+      MortgageFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) bn p st 
 addTsCF (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1 st1) (MortgageDelinqFlow d2 b2 p2 i2 prep2 delinq2 def2 rec2 los2 rat2 mbn2 pn2 st2)
   = let 
       bn = min <$> mbn1 <*> mbn2
@@ -381,9 +377,9 @@ addTsCF (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 p
       delinq = (+) delinq1 delinq2
       st = maxStats st1 st2
     in 
-      MortgageDelinqFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) bn p st
+      MortgageDelinqFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) bn p st
 addTsCF (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) (LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 st2)
-  = LoanFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy [b1,b2] (toRational <$> [rat1,rat2]))) (maxStats st1 st2)
+  = LoanFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (maxStats st1 st2)
 addTsCF (LeaseFlow d1 b1 r1) (LeaseFlow d2 b2 r2) = LeaseFlow d1 (min b1 b2) (r1 + r2)
 addTsCF (FixedFlow d1 b1 dep1 cd1 u1 c1) (FixedFlow d2 b2 dep2 cd2 u2 c2) 
   = FixedFlow d1 (min b1 b2) (dep1 + dep2) (cd1 + cd2) u2 (c1 + c2)
@@ -873,8 +869,8 @@ aggTs (r:rs) (tr:trs)
 patchBalance :: (Balance,Maybe CumulativeStat) -> [TsRow] -> [TsRow] -> [TsRow]
 patchBalance (bal,stat) [] [] = []
 patchBalance (bal,mStat) r [] = case mStat of 
-                                 Just stat -> patchCumulative stat [] $ reverse r
-                                 Nothing -> patchCumulative (0,0,0,0,0,0) [] $ reverse r
+                                  Just stat -> patchCumulative stat [] $ reverse r
+                                  Nothing -> patchCumulative (0,0,0,0,0,0) [] $ reverse r
 patchBalance (bal,stat) r (tr:trs) = 
   let 
     amortAmt = mflowAmortAmount tr
@@ -934,6 +930,7 @@ mergePoolCf2 cf1@(CashFlowFrame st1@(bBal1,bDate1,a1) txns1) cf2@(CashFlowFrame 
           (CashFlowFrame _ txnCombined) = mergePoolCf2 cfToCombine cf2
         in 
           over cashflowTxn (++ txnCombined) resultCf1 
+
 
 mergeCf :: CashFlowFrame -> CashFlowFrame -> CashFlowFrame
 mergeCf cf (CashFlowFrame _ []) = cf

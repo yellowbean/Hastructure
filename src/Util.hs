@@ -14,8 +14,9 @@ module Util
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,adjustM,lookupAndApply,lookupAndUpdate,lookupAndApplies
     ,lookupInMap,selectInMap
+    ,lookupTuple6 ,lookupTuple7
     -- for debug
-    ,zyj
+    ,debugOnDate
     )
     where
 import qualified Data.Time as T
@@ -239,7 +240,7 @@ floorWith floor xs = [ max x floor | x <- xs]
 
 daysInterval :: [Date] -> [Integer]
 daysInterval ds = zipWith daysBetween (init ds) (tail ds)
-   
+
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
 
@@ -375,7 +376,7 @@ payProRata d amt getDueAmt payFn tobePaidList
       (paidList, remainAmt)
 
 payInMap :: Date -> Amount -> (a->Balance) -> (Amount->a->a)-> [String] 
-         -> HowToPay -> Map.Map String a -> Map.Map String a
+          -> HowToPay -> Map.Map String a -> Map.Map String a
 payInMap d amt getDueFn payFn objNames how inputMap 
   = let 
       objsToPay = (inputMap Map.!) <$> objNames  
@@ -392,17 +393,17 @@ payInMap d amt getDueFn payFn objNames how inputMap
 mapWithinMap :: Ord k => (a -> a) -> [k] -> Map.Map k a -> Map.Map k a  
 mapWithinMap fn ks m = foldr (Map.adjust fn) m ks
 
-
 adjustM :: (Ord k, Applicative m) => (a -> m a) -> k -> Map.Map k a -> m (Map.Map k a)
 adjustM f = Map.alterF (traverse f)
 
-
+-- ^ lookup and apply a function to a single value in a map ,return a value
 lookupAndApply :: Ord k => (a -> b) -> String -> k -> Map.Map k a -> Either String b
 lookupAndApply f errMsg key m =
   case Map.lookup key m of
     Nothing -> Left errMsg
     Just a  -> Right $ f a
 
+-- ^ lookup and apply a function to values in a map ,return a list
 lookupAndApplies :: Ord k => (a -> b) -> String -> [k] -> Map.Map k a -> Either String [b]
 lookupAndApplies f errMsg keys m 
   = sequenceA $ (\x -> lookupAndApply f errMsg x m) <$> keys
@@ -418,7 +419,6 @@ lookupAndUpdate f errMsg keys m
 lookupInMap :: (Show k, Ord k) => String -> [k] -> Map.Map k a -> Either String (Map.Map k a)
 lookupInMap = lookupAndUpdate id  
 
-
 selectInMap :: (Show k, Ord k) => String -> [k] -> Map.Map k a -> Either String (Map.Map k a)
 selectInMap errMsg keys m 
   | S.isSubsetOf inputKs mapKs = Right $ (Map.filterWithKey (\k _ -> S.member k inputKs) m)
@@ -427,11 +427,18 @@ selectInMap errMsg keys m
       inputKs = S.fromList keys
       mapKs = Map.keysSet m
 
+lookupTuple6 :: (Ord k) => (k, k, k, k, k, k) -> Map.Map k v -> (Maybe v, Maybe v, Maybe v, Maybe v, Maybe v, Maybe v)
+lookupTuple6 (k1, k2, k3, k4, k5, k6) m =
+  ( Map.lookup k1 m , Map.lookup k2 m , Map.lookup k3 m , Map.lookup k4 m , Map.lookup k5 m , Map.lookup k6 m)
+
+lookupTuple7 :: (Ord k) => (k, k, k, k, k, k, k) -> Map.Map k v -> (Maybe v, Maybe v, Maybe v, Maybe v, Maybe v, Maybe v, Maybe v)
+lookupTuple7 (k1, k2, k3, k4, k5, k6, k7) m =
+  ( Map.lookup k1 m , Map.lookup k2 m , Map.lookup k3 m , Map.lookup k4 m , Map.lookup k5 m , Map.lookup k6 m, Map.lookup k7 m)
+
+
+
 ----- DEBUG/PRINT
--- z y j : stands for chinese Zhao Yao Jing ,which is a mirror reveals the devil 
-zyj :: Show a => Maybe String -> [a] -> String
-zyj ms vs = 
-  let 
-    ss = show <$> vs
-  in 
-    "|" ++ (fromMaybe "" ms) ++ "|" ++ concat (intersperse " >> " ss) ++ "|"
+debugOnDate :: Date -> Date -> Date -> String
+debugOnDate d1 d2 d 
+  | (d <= d2) && (d >= d1)  = "Date:"++show d
+  | otherwise = ""

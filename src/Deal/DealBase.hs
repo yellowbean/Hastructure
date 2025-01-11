@@ -66,18 +66,21 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | ResetLiqProvider Date String         -- ^ reset credit for liquidity provider
                   | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
                   | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
-                  | RunWaterfall Date String             -- ^ execute waterfall
+                  | RunWaterfall Date String             -- ^ execute waterfall on distribution date
                   | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
                   | FireTrigger Date DealCycle String    -- ^ fire a trigger
                   | InspectDS Date [DealStats]           -- ^ inspect formulas
-                  | ResetIRSwapRate Date String          -- ^ reset interest rate swap dates
+                  | CalcIRSwap Date String               -- ^ calc interest rate swap dates
+                  | SettleIRSwap Date String             -- ^ settle interest rate swap dates
                   | AccrueCapRate Date String            -- ^ reset interest rate cap dates
                   | ResetBondRate Date String            -- ^ reset bond interest rate per bond's interest rate info
+                  | StepUpBondRate Date String           -- ^ reset bond interest rate per bond's interest rate info
                   | ResetSrtRate Date String 
                   | ResetAccRate Date String 
                   | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
+                  | FundBond Date (Maybe Pre) String AccName Amount
                   | RefiBondRate Date AccountName BondName L.InterestInfo
                   | RefiBond Date AccountName L.Bond
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
@@ -103,9 +106,11 @@ instance TimeSeries ActionOnDate where
     getDate (FireTrigger d _ _) = d
     getDate (ChangeDealStatusTo d _ ) = d
     getDate (InspectDS d _ ) = d
-    getDate (ResetIRSwapRate d _ ) = d
+    getDate (CalcIRSwap d _ ) = d
+    getDate (SettleIRSwap d _ ) = d
     getDate (AccrueCapRate d _ ) = d
-    getDate (ResetBondRate d _ ) = d 
+    getDate (ResetBondRate d _) = d 
+    getDate (StepUpBondRate d _) = d 
     getDate (ResetAccRate d _ ) = d 
     getDate (MakeWhole d _ _) = d 
     getDate (BuildReport sd ed) = ed
@@ -114,29 +119,35 @@ instance TimeSeries ActionOnDate where
     getDate (RefiBond d _ _) = d
     getDate (ResetLiqProviderRate d _) = d
     getDate (TestCall d) = d
+    getDate (FundBond d _ _ _ _) = d
     getDate x = error $ "Failed to match"++ show x
 
 
 sortActionOnDate :: ActionOnDate -> ActionOnDate -> Ordering
 sortActionOnDate a1 a2 
   | d1 == d2 = case (a1,a2) of
-                 (PoolCollection {}, DealClosed {}) -> LT -- pool collection should be executed before deal closed
-                 (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
-                 (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
-                 (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
-                 (TestCall _ ,_) -> GT  -- build report should be executed last
-                 (_ , TestCall _) -> LT -- build report should be executed last
-                 (ResetIRSwapRate _ _ ,_) -> LT  -- reset interest swap should be first
-                 (_ , ResetIRSwapRate _ _) -> GT -- reset interest swap should be first
-                 (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
-                 (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
-                 (EarnAccInt {} ,_) -> LT  -- earn should be first
-                 (_ , EarnAccInt {}) -> GT -- earn should be first
-                 (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
-                 (_ , ResetLiqProvider {}) -> GT -- reset liq be first
-                 (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
-                 (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
-                 (_,_) -> EQ 
+                  (PoolCollection {}, DealClosed {}) -> LT -- pool collection should be executed before deal closed
+                  (DealClosed {}, PoolCollection {}) -> GT -- pool collection should be executed before deal closed
+                  (BuildReport sd1 ed1 ,_) -> GT  -- build report should be executed last
+                  (_ , BuildReport sd1 ed1) -> LT -- build report should be executed last
+                  (TestCall _ ,_) -> GT  -- test call should be executed last
+                  (_ , TestCall _) -> LT -- test call should be executed last
+                  (CalcIRSwap _ _ ,SettleIRSwap _ _) -> LT  -- reset interest swap should be first
+                  (SettleIRSwap _ _ ,CalcIRSwap _ _) -> GT  -- reset interest swap should be first
+                  (_ , CalcIRSwap _ _) -> GT -- reset interest swap should be first
+                  (CalcIRSwap _ _ ,_) -> LT  -- reset interest swap should be first
+                  (_ , CalcIRSwap _ _) -> GT -- reset interest swap should be first
+                  (StepUpBondRate {} ,_) -> LT  -- step up bond rate should be first
+                  (_ , StepUpBondRate {}) -> GT -- step up bond rate should be first
+                  (ResetBondRate {} ,_) -> LT  -- reset bond rate should be first
+                  (_ , ResetBondRate {}) -> GT -- reset bond rate should be first
+                  (EarnAccInt {} ,_) -> LT  -- earn should be first
+                  (_ , EarnAccInt {}) -> GT -- earn should be first
+                  (ResetLiqProvider {} ,_) -> LT  -- reset liq be first
+                  (_ , ResetLiqProvider {}) -> GT -- reset liq be first
+                  (PoolCollection {}, RunWaterfall {}) -> LT -- pool collection should be executed before waterfall
+                  (RunWaterfall {}, PoolCollection {}) -> GT -- pool collection should be executed before waterfall
+                  (_,_) -> EQ 
   | otherwise = compare d1 d2
   where 
     d1 = getDate a1 
@@ -159,11 +170,11 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
               --  cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
               | PreClosingDates CutoffDate ClosingDate (Maybe RevolvingDate) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
-              --  (start date, ramp action dp) <Pool Coll DP> <Waterfall DP> <EndDate>
               -- <Pool Collection DP> <Waterfall DP> 
-              | WarehousingDates Date PoolCollectionDates DistributionDates StatedDate 
               --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
+              -- Dict based 
+              | GenericDates (Map.Map DateType DatePattern)
               deriving (Show,Eq, Generic,Ord)
 
 
@@ -215,34 +226,31 @@ data PoolType a = MultiPool (Map.Map PoolId (P.Pool a))
                 deriving (Generic, Eq, Ord, Show)
 
 
-
-
-
 data TestDeal a = TestDeal { name :: DealName
-                             ,status :: DealStatus
-                             ,dates :: DateDesp
-                             ,accounts :: Map.Map AccountName A.Account
-                             ,fees :: Map.Map FeeName F.Fee
-                             ,bonds :: Map.Map BondName L.Bond
-                             ,pool ::  PoolType a 
-                             ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
-                             ,collects :: [W.CollectionRule]
-                             ,call :: Maybe [C.CallOption]
-                             ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
-                             ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
-                             ,rateCap :: Maybe (Map.Map String HE.RateCap)
-                             ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
-                             ,custom:: Maybe (Map.Map String CustomDataType)
-                             ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
-                             ,overrides :: Maybe [OverrideType]
-                             ,ledgers :: Maybe (Map.Map String LD.Ledger)
-                           } deriving (Show,Generic,Eq,Ord)
+                            ,status :: DealStatus
+                            ,dates :: DateDesp
+                            ,accounts :: Map.Map AccountName A.Account
+                            ,fees :: Map.Map FeeName F.Fee
+                            ,bonds :: Map.Map BondName L.Bond
+                            ,pool ::  PoolType a 
+                            ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
+                            ,collects :: [W.CollectionRule]
+                            ,call :: Maybe [C.CallOption]
+                            ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
+                            ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
+                            ,rateCap :: Maybe (Map.Map String HE.RateCap)
+                            ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
+                            ,custom:: Maybe (Map.Map String CustomDataType)
+                            ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
+                            ,overrides :: Maybe [OverrideType]
+                            ,ledgers :: Maybe (Map.Map String LD.Ledger)
+                            } deriving (Show,Generic,Eq,Ord)
 
 instance SPV (TestDeal a) where
   getBondsByName t bns
     = case bns of
-         Nothing -> bonds t
-         Just _bns -> Map.filterWithKey (\k _ -> S.member k (S.fromList _bns)) (bonds t)
+        Nothing -> bonds t
+        Just _bns -> Map.filterWithKey (\k _ -> S.member k (S.fromList _bns)) (bonds t)
   
   getActiveBonds t bns = 
     let 
@@ -281,16 +289,6 @@ instance SPV (TestDeal a) where
                  ResecDeal _ -> True
                  _ -> False
 
-_expandBonds :: Map.Map BondName L.Bond -> [L.Bond]
-_expandBonds bMap = 
-  let 
-    bs = Map.elems bMap
-    view a@(L.Bond {}) = [a]
-    view a@(L.BondGroup bMap) = Map.elems bMap
-  in 
-    concat $ view <$> bs
-
-
 -- ^ list all bonds and bond groups in list
 viewDealAllBonds :: TestDeal a -> [L.Bond]
 viewDealAllBonds d = 
@@ -298,6 +296,7 @@ viewDealAllBonds d =
        bs = Map.elems (bonds d)
        view a@(L.Bond {} ) = [a]
        view a@(L.BondGroup bMap) = Map.elems bMap
+       view a@(L.MultiIntBond {}) = [a]
     in 
        concat $ view <$> bs
 
@@ -426,10 +425,15 @@ getPoolIds t@TestDeal{pool = pt}
       MultiPool pm -> Map.keys pm
       ResecDeal pm -> Map.keys pm
       _ -> error "failed to match pool type in pool ids"
-                         
 
-getBondByName :: Ast.Asset a => TestDeal a -> BondName -> Maybe L.Bond
-getBondByName t bName = Map.lookup bName (bonds t)
+-- ^ to handle with bond group, with flag to good deep if it is a bond group
+getBondByName :: Ast.Asset a => TestDeal a -> Bool -> BondName -> Maybe L.Bond
+getBondByName t False bName = Map.lookup bName (bonds t)
+getBondByName t True bName = 
+  let 
+    bnds = viewDealAllBonds t
+  in 
+    find (\b -> L.bndName b == bName) bnds
 
 -- ^ get issuance pool stat from pool map
 getIssuanceStats :: Ast.Asset a => TestDeal a  -> Maybe [PoolId] -> Map.Map PoolId (Map.Map CutoffFields Balance)

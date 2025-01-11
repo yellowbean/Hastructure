@@ -1,5 +1,5 @@
 name:                Hastructure
-version:	 0.40.11
+version:	 0.41.0
 github:              "yellowbean/Hastructure"
 license:             BSD3
 author:              "Xiaoyu"
@@ -47,6 +47,7 @@ dependencies:
 - tabular
 - numeric-limits
 - scientific
+- math-functions
 
 library:
   source-dirs: 
@@ -86,6 +87,7 @@ executables:
     - attoparsec
     - exceptions
     - tabular
+    - math-functions
     # - servant-errors
     # - servant-exceptions
     - servant-checked-exceptions

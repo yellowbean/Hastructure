@@ -32,7 +32,6 @@ import Debug.Trace
 import Assumptions (AssetPerfAssumption(ReceivableAssump))
 import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (extendTxns)
-import Liability (backoutDueIntByYield)
 import qualified Asset as A
 
 debug = flip trace
@@ -143,25 +142,26 @@ instance Asset Receivable where
                asOfDay
                massump@(A.ReceivableAssump amd amr ams, _ , _)
                mRates
-    = Right $ (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
-    where
-      payDate = dd
-      feeDue = calcDueFactorFee r payDate
-      initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
-      
-      defaultRates = A.buildDefaultRates (sd:[dd]) amd
-      defaultAmt = mulBR ob (head defaultRates)
-      afterDefaultBal =  ob - defaultAmt
-      afterDefaultFee =  mulBR feeDue (1 - (head defaultRates))
+    = let
+        payDate = dd
+        feeDue = calcDueFactorFee r payDate
+        initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
+      in 
+        do 
+          defaultRates <- A.buildDefaultRates (sd:[dd]) amd
+          let defaultAmt = mulBR ob (head defaultRates)
+          let afterDefaultBal =  ob - defaultAmt
+          let afterDefaultFee =  mulBR feeDue (1 - (head defaultRates))
 
-      feePaid = min afterDefaultBal afterDefaultFee
-      principal = max 0 $ afterDefaultBal - feePaid
+          let feePaid = min afterDefaultBal afterDefaultFee
+          let principal = max 0 $ afterDefaultBal - feePaid
       
-      realizedLoss = case amr of
-                      Nothing -> defaultAmt
-                      Just _ -> 0
+          let realizedLoss = case amr of
+                          Nothing -> defaultAmt
+                          Just _ -> 0
       
-      txns = [initTxn, CF.ReceivableFlow payDate 0 0 principal feePaid defaultAmt 0 realizedLoss Nothing]
-      (futureTxns,historyM) = CF.cutoffTrs asOfDay $ txns++(buildRecoveryCfs payDate defaultAmt amr) -- `debug` ("recovery flow"++ show (buildRecoveryCfs payDate defaultAmt amr))
-    
+          let txns = [initTxn, CF.ReceivableFlow payDate 0 0 principal feePaid defaultAmt 0 realizedLoss Nothing]
+          let (futureTxns,historyM) = CF.cutoffTrs asOfDay $ txns++(buildRecoveryCfs payDate defaultAmt amr) -- `debug` ("recovery flow"++ show (buildRecoveryCfs payDate defaultAmt amr))
+          return $ (CF.CashFlowFrame (ob,asOfDay,Nothing) futureTxns, historyM)
+
   projCashflow a b c d = Left $ "Failed to match when proj receivable with assumption >>" ++ show a ++ show b ++ show c ++ show d

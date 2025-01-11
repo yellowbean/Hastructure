@@ -30,7 +30,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio,HowToPay(..)
+  ,MyRatio,HowToPay(..),ApplyRange(..)
   )
   
   where
@@ -127,10 +127,6 @@ type AccruedInterest = Centi
 type IRR = Rational
 
 
-
-data YieldResult = Yiel
-
-
 data Index = LPR5Y
             | LPR1Y
             | LIBOR1M
@@ -180,10 +176,18 @@ data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurob
               deriving (Show,Eq,Generic,Ord,Read)
 
 
-data DateType = ClosingDate        -- ^ deal closing day
-              | CutoffDate         -- ^ after which, the pool cashflow was aggregated to SPV
-              | FirstPayDate       -- ^ first payment day for bond/waterfall to run with
-              | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
+data DateType = ClosingDate             -- ^ deal closing day
+              | CutoffDate              -- ^ after which, the pool cashflow was aggregated to SPV
+              | FirstPayDate            -- ^ first payment day for bond/waterfall to run with
+              | NextPayDate
+              | NextCollectDate
+              | FirstCollectDate        -- ^ first collection day for pool
+              | LastCollectDate         -- ^ last collection day for pool
+              | LastPayDate            -- ^ last payment day for bond/waterfall 
+              | StatedMaturityDate      -- ^ sated maturity date, all cashflow projection/deal action stops by
+              | DistributionDates       -- ^ distribution date for waterfall
+              | CollectionDates         -- ^ collection date for pool
+              | CustomExeDates String   -- ^ custom execution date
               deriving (Show,Ord,Eq,Generic,Read)
 
 
@@ -198,6 +202,7 @@ data DatePattern = MonthEnd
                  | DayOfMonth Int -- T.DayOfMonth 
                  | SemiAnnual (Int, Int) (Int, Int)
                  | CustomDate [Date]
+                 | SingletonDate Date
                  | DaysInYear [(Int, Int)]
                  | EveryNMonth Date Int
                  | Weekday Int 
@@ -277,6 +282,12 @@ data CutoffType = Inc
 data DateDirection = Future 
                    | Past
                    deriving (Show,Read,Generic)
+
+data ApplyRange = ByAll
+                | ByIndexes [Int]
+                | ByKeys [String]
+                deriving (Show,Read,Generic)
+
 
 class TimeSeries ts where 
     cmp :: ts -> ts -> Ordering
@@ -386,6 +397,7 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | PV IRate Rate                    -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
                    | PvRate IRate                      -- ^ [CF] Pricing cashflow with a constant rate
+                   | PvWal Ts
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
                    deriving (Show, Eq ,Generic, Read,Ord)
@@ -457,8 +469,8 @@ data TxnComment = PayInt [BondName]
                 | Tag String
                 | UsingDS DealStats
                 | SwapAccrue
-                | SwapInSettle
-                | SwapOutSettle
+                | SwapInSettle String
+                | SwapOutSettle String
                 | PurchaseAsset String Balance
                 | IssuanceProceeds String
                 | TxnDirection BookDirection
@@ -485,6 +497,7 @@ data DealStats = CurrentBondBalance
                | CumulativeNetLoss (Maybe [PoolId])
                | OriginalBondBalance
                | OriginalBondBalanceOf [BondName]
+               | BondTotalFunding [BondName]
                | OriginalPoolBalance (Maybe [PoolId])
                | DealIssuanceBalance (Maybe [PoolId])
                | UseCustomData String
@@ -518,6 +531,7 @@ data DealStats = CurrentBondBalance
                | BondBalanceGap BondName
                | BondBalanceGapAt Date BondName
                | BondDuePrin [BondName]
+               | BondReturn BondName Balance [TsPoint Amount]
                | FeePaidAt Date FeeName
                | FeeTxnAmt [FeeName] (Maybe TxnComment)
                | BondTxnAmt [BondName] (Maybe TxnComment)
@@ -527,8 +541,11 @@ data DealStats = CurrentBondBalance
                | AccTxnAmtBy Date [AccName] (Maybe TxnComment)
                | FeesPaidAt Date [FeeName] 
                | CurrentDueBondInt [BondName]
+               | CurrentDueBondIntAt Int [BondName]
                | CurrentDueBondIntOverInt [BondName]
+               | CurrentDueBondIntOverIntAt Int [BondName]
                | CurrentDueBondIntTotal [BondName]
+               | CurrentDueBondIntTotalAt Int [BondName]
                | CurrentDueFee [FeeName]
                | LastBondIntPaid [BondName]
                | LastBondPrinPaid [BondName]
@@ -545,6 +562,8 @@ data DealStats = CurrentBondBalance
                | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgOriginalBondBalance Date Date [BondName]
                | CustomData String Date
+               -- analytical query
+               | AmountRequiredForTargetIRR Double BondName 
                -- integer type
                | CurrentPoolBorrowerNum (Maybe [PoolId])
                | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
@@ -562,7 +581,7 @@ data DealStats = CurrentBondBalance
                | HasPassedMaturity [BondName]
                | TriggersStatus DealCycle String
                -- rate type
-               | PoolWaRate (Maybe [PoolId])
+               | PoolWaRate (Maybe PoolId)
                | BondRate BondName
                | CumulativeNetLossRatio (Maybe [PoolId])
                | FutureCurrentBondFactor Date
@@ -677,6 +696,7 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
+--                 | IRRbyDate Valuation
                  deriving (Show, Eq, Generic)
 
 
@@ -698,8 +718,15 @@ class Liable lb where
   -- must implement
   isPaidOff :: lb -> Bool
   getCurBalance :: lb -> Balance
+  getCurRate :: lb -> IRate
   getOriginBalance :: lb -> Balance
+  getOriginDate :: lb -> Date
   getDueInt :: lb -> Balance
+  getDueIntAt :: lb -> Int -> Balance
+  getDueIntOverInt :: lb -> Balance
+  getDueIntOverIntAt :: lb -> Int -> Balance
+  getTotalDueInt :: lb -> Balance
+  getTotalDueIntAt :: lb -> Int -> Balance
 
   getOutstandingAmount :: lb -> Balance
 
@@ -796,6 +823,7 @@ data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the
                 | DefaultDistribution             -- ^ default waterfall executed
                 | RampUp                          -- ^ ramp up
                 | WithinTrigger String            -- ^ waterfall executed within a trigger  
+                | CustomWaterfall String          -- ^ custom waterfall
                 deriving (Show,Ord,Eq,Generic,Read)
 
 
@@ -842,8 +870,8 @@ instance ToJSON TxnComment where
   toJSON LiquidationDraw = String $ T.pack $ "<Draw:>"
   toJSON (LiquidationRepay s) = String $ T.pack $ "<Repay:"++ s ++">"
   toJSON SwapAccrue = String $ T.pack $ "<Accure:>"
-  toJSON SwapInSettle = String $ T.pack $ "<SettleIn:>"
-  toJSON SwapOutSettle = String $ T.pack $ "<SettleOut:>"
+  toJSON (SwapInSettle s)= String $ T.pack $ "<SettleIn:"++ s ++">"
+  toJSON (SwapOutSettle s) = String $ T.pack $ "<SettleOut:"++ s ++">"
   toJSON (PurchaseAsset rPoolName bal) = String $ T.pack $ "<PurchaseAsset:"<> rPoolName <>","++show bal++">"
   toJSON (TxnDirection dr) = String $ T.pack $ "<TxnDirection:"++show dr++">"
   toJSON SupportDraw = String $ T.pack $ "<SupportDraw:>"
@@ -905,8 +933,8 @@ parseTxn t = case tagName of
   "Draw" -> return LiquidationDraw
   "Repay" -> return $ LiquidationRepay contents
   "Accure" -> return SwapAccrue
-  "SettleIn" -> return SwapInSettle
-  "SettleOut" -> return SwapOutSettle
+  "SettleIn" -> return $ SwapInSettle contents
+  "SettleOut" -> return $ SwapOutSettle contents
   "PurchaseAsset" -> let 
                       sv = T.splitOn (T.pack ",") $ T.pack contents
                      in 
@@ -975,41 +1003,51 @@ data CustomDataType = CustomConstant Rational
                     | CustomDS       DealStats
                     deriving (Show,Ord,Eq,Read,Generic)
 
-
-
+opts :: JSONKeyOptions
+opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)
 
+
+
+-- $(deriveJSON defaultOptions ''DateType)
+
 $(concat <$> traverse (deriveJSON defaultOptions) [''BookDirection, ''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )
 
-
 instance ToJSONKey DateType where
-  toJSONKey = genericToJSONKey defaultJSONKeyOptions
-
+  toJSONKey = genericToJSONKey opts
 instance FromJSONKey DateType where
-  fromJSONKey = genericFromJSONKey defaultJSONKeyOptions
+  fromJSONKey = FromJSONKeyTextParser $ \t -> 
+    case T.splitOn " " t of
+      ["CustomExeDates", rest] -> pure $ CustomExeDates (T.unpack rest)
+      _ -> case readMaybe (T.unpack t) of
+        Just k -> pure k
+        Nothing -> fail ("Invalid key (DateType): " ++ show t++">>"++ show (T.unpack t))
 
 
 
 $(deriveJSON defaultOptions ''RangeType)
 $(deriveJSON defaultOptions ''Pre)
 
-
 $(deriveJSON defaultOptions ''CustomDataType)
+
 $(deriveJSON defaultOptions ''ActionWhen)
 
 instance ToJSONKey ActionWhen where
   toJSONKey = toJSONKeyText (T.pack . show)
 
 instance FromJSONKey ActionWhen where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+  fromJSONKey = FromJSONKeyTextParser $ \t -> 
+    case T.splitOn " " t of
+      ["CustomWaterfall", rest] -> pure $ CustomWaterfall (T.unpack rest)
+      _ -> case readMaybe (T.unpack t) of
+        Just k -> pure k
+        Nothing -> fail ("Invalid key (Action When): " ++ show t++">>"++ show (T.unpack t))
+
 
 $(deriveJSON defaultOptions ''ResultComponent)
-
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''HowToPay)
@@ -1046,10 +1084,6 @@ instance Show MyRatio where
   show (MyRatio r) = case fromRationalRepetend Nothing r of
       Left (sci, _)         -> show $ formatScientific Fixed (Just 8) sci
       Right (sci, rep) -> show $ formatScientific Fixed (Just 8) sci
-
-opts :: JSONKeyOptions
-opts = defaultJSONKeyOptions -- { keyModifier = toLower }
-
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''DayCount)

@@ -14,9 +14,12 @@ module Assumptions (BondPricingInput(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,getCDR,calcResetDates,IssueBondEvent(..)
+                    ,calcResetDates,IssueBondEvent(..)
                     ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..),InspectType(..)
-                    ,FieldMatchRule(..),CallOpt(..))
+                    ,FieldMatchRule(..),CallOpt(..)
+                    ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
+                    ,_ReceivableAssump,_FixedAssetAssump  
+                    )
 where
 
 import Call as C
@@ -40,23 +43,25 @@ import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
 import InterestRate
+import Control.Lens hiding (Index) 
+
 debug = flip trace
 
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
 type StratPerfByIdx = ([Int],AssetPerf)
 
-lookupAssumptionByIdx :: [StratPerfByIdx] -> Int -> AssetPerf
+lookupAssumptionByIdx :: [StratPerfByIdx] -> Int -> Either String AssetPerf
 lookupAssumptionByIdx sbi i
   = case find (\(indxs,_) -> Set.member i  (Set.fromList indxs) ) sbi of
-        Just (_, aps ) ->  aps
-        Nothing -> error ("Can't find idx"++ show i ++"in starfication list"++ show sbi)
+        Just (_, aps ) ->  Right aps
+        Nothing -> Left ("Lookup assumption by ID: Can't find idx"++ show i ++"in starfication list"++ show sbi)
 
 type ObligorTagStr = String
 
-data TagMatchRule = TagEq      -- ^ match exactly
+data TagMatchRule = TagEq                  -- ^ match exactly
                   | TagSubset
                   | TagSuperset
-                  | TagAny     -- ^ match any tag hit
+                  | TagAny                 -- ^ match any tag hit
                   | TagNot  TagMatchRule   -- ^ Negative match
                   deriving (Show, Generic, Read)
 
@@ -66,15 +71,14 @@ data FieldMatchRule = FieldIn String [String]
                     | FieldNot FieldMatchRule
                     deriving (Show, Generic, Read)
 
-
 data ObligorStrategy = ObligorById [String] AssetPerf
                      | ObligorByTag [ObligorTagStr] TagMatchRule AssetPerf
                      | ObligorByField [FieldMatchRule] AssetPerf
                      | ObligorByDefault AssetPerf
                      deriving (Show, Generic, Read)
 
-data ApplyAssumptionType = PoolLevel AssetPerf -- ^ assumption apply to all assets in the pool
-                         | ByIndex [StratPerfByIdx] -- ^ assumption which only apply to a set of assets in the pool
+data ApplyAssumptionType = PoolLevel AssetPerf               -- ^ assumption apply to all assets in the pool
+                         | ByIndex [StratPerfByIdx]          -- ^ assumption which only apply to a set of assets in the pool
                          | ByName (Map.Map PoolId AssetPerf) -- ^ assumption for a named pool
                          | ByObligor [ObligorStrategy]
                          | ByPoolId (Map.Map PoolId ApplyAssumptionType) -- ^ assumption for a pool
@@ -85,7 +89,7 @@ type RateFormula = DealStats
 type BalanceFormula = DealStats
 
 data IssueBondEvent = IssueBondEvent (Maybe Pre) BondName AccName Bond (Maybe BalanceFormula) (Maybe RateFormula)
-                    | DummyIssueBondEvent
+                    | FundingBondEvent (Maybe Pre) BondName AccName Balance 
                     deriving (Show, Generic, Read)
 
 data RefiEvent = RefiRate AccountName BondName InterestInfo
@@ -108,7 +112,7 @@ data NonPerfAssumption = NonPerfAssumption {
   ,callWhen :: Maybe [CallOpt]                               -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
   ,revolving :: Maybe RevolvingAssumption                    -- ^ optional revolving assumption with revoving assets
   ,interest :: Maybe [RateAssumption]                        -- ^ optional interest rates assumptions
-  ,inspectOn :: Maybe [InspectType]                            -- ^ optional tuple list to inspect variables during waterfall run
+  ,inspectOn :: Maybe [InspectType]                          -- ^ optional tuple list to inspect variables during waterfall run
   ,buildFinancialReport :: Maybe DatePattern                 -- ^ optional dates to build financial reports
   ,pricing :: Maybe BondPricingInput                         -- ^ optional bond pricing input( discount curve etc)
   ,fireTrigger :: Maybe [(Date,DealCycle,String)]            -- ^ optional fire a trigger
@@ -124,7 +128,7 @@ data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption            
 data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using constant default rate
                             | DefaultCDR Rate                   -- ^ using annualized default rate
                             | DefaultVec [Rate]                 -- ^ using default rate vector
-                            | DefaultVecPadding [Rate]          -- ^ using default rate vector
+                            | DefaultVecPadding [Rate]          -- ^ using default rate vector, but padding with last rate till end
                             | DefaultByAmt (Balance,[Rate])
                             | DefaultAtEnd                      -- ^ default 100% at end
                             | DefaultAtEndByRate Rate Rate      -- ^ life time default rate and default rate at end
@@ -181,36 +185,42 @@ data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (May
                          | FixedAssetAssump  Ts Ts   -- util rate, price
                          deriving (Show,Generic,Read)
 
+
 data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
                          | AvailableAssetsBy (Map.Map String (RevolvingPool, ApplyAssumptionType))
                          deriving (Show,Generic)
 
-data BondPricingInput = DiscountCurve Date Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
+type HistoryCash = Ts
+type CurrentHolding = Balance
+type PricingDate = Date
+
+data BondPricingInput = DiscountCurve PricingDate Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
-                      | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
+                      -- | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
+                      | DiscountRate PricingDate Rate
+                      | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
                       deriving (Show,Generic)
 
-getCDR :: Maybe AssetDefaultAssumption -> Maybe Rate
-getCDR (Just (DefaultCDR r)) = Just r
-getCDR _ = Nothing
 
 getIndexFromRateAssumption :: RateAssumption -> Index 
 getIndexFromRateAssumption (RateCurve idx _) = idx
 getIndexFromRateAssumption (RateFlat idx _) = idx
 
-lookupRate :: [RateAssumption] -> Floater -> Date -> IRate 
+-- ^ lookup rate from rate assumption with index and spread
+lookupRate :: [RateAssumption] -> Floater -> Date -> Either String IRate 
 lookupRate rAssumps (index,spd) d
   = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
-      Just (RateCurve _ ts) -> spd + fromRational (getValByDate ts Inc d)
-      Just (RateFlat _ r) -> r + spd
-      Nothing -> error $ "Failed to find Index " ++ show index
+      Just (RateCurve _ ts) -> Right $ spd + fromRational (getValByDate ts Inc d)
+      Just (RateFlat _ r) -> Right $ r + spd
+      Nothing -> Left $ "Failed to find Index " ++ show index ++ "in list "++ show rAssumps
 
-lookupRate0 :: [RateAssumption] -> Index -> Date -> IRate 
+-- ^ lookup rate from rate assumption with index
+lookupRate0 :: [RateAssumption] -> Index -> Date -> Either String IRate 
 lookupRate0 rAssumps index d
   = case find (\x -> getIndexFromRateAssumption x == index ) rAssumps of 
-      Just (RateCurve _ ts) -> fromRational (getValByDate ts Inc d)
-      Just (RateFlat _ r) -> r
-      Nothing -> error $ "Failed to find Index " ++ show index
+      Just (RateCurve _ ts) -> Right $ fromRational (getValByDate ts Inc d)
+      Just (RateFlat _ r) -> Right r
+      Nothing -> Left $ "Failed to find Index " ++ show index ++ " from Rate Assumption" ++ show rAssumps
 
 
 getRateAssumption :: [RateAssumption] -> Index -> Maybe RateAssumption
@@ -222,29 +232,31 @@ getRateAssumption assumps idx
          assumps
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
-projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> [IRate]
-projRates sr (Fix _ r) _ ds = replicate (length ds) sr 
+projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> Either String [IRate]
+projRates sr (Fix _ r) _ ds = Right $ replicate (length ds) sr 
+projRates sr (Floater _ idx spd r dp rfloor rcap mr) Nothing ds = Left $ "Looking up rate error: No rate assumption found for index "++ show idx
 projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
   = case getRateAssumption assumps idx of
-      Nothing -> error ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
+      Nothing -> Left ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
       Just _rateAssumption -> 
-        let 
-          resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
-          ratesFromCurve = case _rateAssumption of
-                             (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
-                             (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
-                             _ -> error ("Invalid rate type "++ show _rateAssumption)
-          ratesUsedByDates =  getValByDates
-                                (mkRateTs $ zip ((head ds):resetDates) (sr:ratesFromCurve))
-                                Inc
-                                ds 
-        in 
-          case (rfloor,rcap) of 
-            (Nothing, Nothing) -> fromRational <$> ratesUsedByDates  
-            (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
-            (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
-            (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
-projRates _ rt rassump ds = error ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
+        Right $
+          let 
+            resetDates = genSerialDatesTill2 NO_IE (head ds) dp (last ds)
+            ratesFromCurve = case _rateAssumption of
+                                (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
+                                (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
+                                _ -> error ("Invalid rate type "++ show _rateAssumption)
+            ratesUsedByDates =  getValByDates
+                                  (mkRateTs $ zip ((head ds):resetDates) (sr:ratesFromCurve))
+                                  Inc
+                                  ds 
+          in 
+            case (rfloor,rcap) of 
+              (Nothing, Nothing) -> fromRational <$> ratesUsedByDates  
+              (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
+              (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
+              (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
+projRates _ rt rassump ds = Left ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
 
 
 -- ^ Given a list of rates, calcualte whether rates was reset
@@ -267,3 +279,5 @@ $(concat <$> traverse (deriveJSON defaultOptions) [''FieldMatchRule,''TagMatchRu
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption,''InspectType])
+
+makePrisms ''AssetPerfAssumption 

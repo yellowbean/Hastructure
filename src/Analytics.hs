@@ -3,7 +3,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Analytics (calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21)
+module Analytics (calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21,calcRequiredAmtForIrrAtDate)
+
   where 
 import Types
 import Lib
@@ -15,6 +16,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 import Data.Ratio
+import Numeric.RootFinding
 
 import Debug.Trace
 debug = flip trace
@@ -24,8 +26,8 @@ calcWAL :: TimeHorizion -> Balance -> Date -> [(Balance,Date)] -> Balance
 calcWAL th bal d ps = 
   let 
     interval = case th of
-                 ByYear -> 365
-                 ByMonth -> 30
+                  ByYear -> 365
+                  ByMonth -> 30
     weightedAmts = [ mulBR futureAmt ((daysBetween d futureDate) % interval)  | (futureAmt,futureDate) <- ps ]
   in 
     sum weightedAmts / bal
@@ -48,18 +50,21 @@ pv :: Ts -> Date -> Date -> Amount -> Amount
 pv pc today d amt = 
   realToFrac $ (realToFrac amt) * (1 / factor) --  `debug` ("DF:"++show factor++" PV AMT"++show amt)
   where
-   distance::Double = fromIntegral $ daysBetween today d
-   discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
-   factor::Double = (1 + realToFrac discount_rate) ** (distance / 365) --  `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
+    distance::Double = fromIntegral $ daysBetween today d
+    discount_rate = fromRational $ getValByDate pc Exc d -- `debug` ("Get val by ts"++show pc ++">>d"++ show d)
+    factor::Double = (1 + realToFrac discount_rate) ** (distance / 365) --  `debug` ("discount_rate"++show(discount_rate) ++" dist days=>"++show(distance))
 
 -- ^ calculate present value in the future using constant rate
 pv2 :: IRate -> Date -> Date -> Amount -> Amount
-pv2 discount_rate today d amt =
-  realToFrac $ (realToFrac amt) * (1/denominator)  -- `debug` ("pv: cash"++ show amt++" deno"++ show denominator++">> rate"++show discount_rate)
-  where
-    denominator::Double = (1 + realToFrac discount_rate) ** (distance / 365)
-    distance::Double = fromIntegral $ daysBetween today d -- `debug` ("days betwwen"++ show (daysBetween today d)++">>"++ show d ++ ">>today>>"++ show today)
+pv2 discount_rate today d amt 
+  | today == d = amt
+  | otherwise 
+    = realToFrac $ (realToFrac amt) * (1/denominator)  -- `debug` ("pv: cash"++ show amt++" deno"++ show denominator++">> rate"++show discount_rate)
+      where
+        denominator::Double = (1 + realToFrac discount_rate) ** (distance / 365)
+        distance::Double = fromIntegral $ daysBetween today d -- `debug` ("days betwwen"++ show (daysBetween today d)++">>"++ show d ++ ">>today>>"++ show today)
 
+-- ^ calculate present value to specific date given a series of amount with dates
 pv21 :: IRate -> Date -> [Date] -> [Amount] -> Balance
 pv21 r d ds vs = sum [ pv2 r d _d amt | (_d,amt) <- zip ds vs ]
 
@@ -79,3 +84,29 @@ fv2 discount_rate today futureDay amt
   where
     factor::Double = (1 + realToFrac discount_rate) ** (distance / 365)
     distance::Double = fromIntegral $ daysBetween today futureDay
+
+
+calcPvFromIRR :: Double -> [Date] -> [Amount] -> Date -> Double -> Double
+calcPvFromIRR irr [] _ d amt = 0
+calcPvFromIRR irr ds vs d amt = 
+  let 
+    begDate = head ds
+    pv = pv21 ((fromRational . toRational) irr) begDate (ds++[d]) (vs++[ (fromRational . toRational) amt ])
+  in 
+    (fromRational . toRational) pv
+
+-- IRR 
+
+-- ^ calculate IRR of a series of cashflow
+calcRequiredAmtForIrrAtDate :: Double -> [Date] -> [Amount] -> Date -> Maybe Amount
+calcRequiredAmtForIrrAtDate irr [] _ d = Nothing 
+calcRequiredAmtForIrrAtDate irr ds vs d = 
+  let 
+    def = RiddersParam
+        { riddersMaxIter = 200
+        , riddersTol     = RelTol 0.00000001
+        }
+  in 
+    case ridders def (0.0001,100000000000000) (calcPvFromIRR irr ds vs d) of
+          Root finalAmt -> Just (fromRational (toRational finalAmt))
+          _ -> Nothing

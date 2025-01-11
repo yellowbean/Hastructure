@@ -5,7 +5,7 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:	 0.40.11
+version:        0.41.0
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance;Securitisation;Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
@@ -80,6 +80,7 @@ library
     , hashable
     , ieee754
     , lens
+    , math-functions
     , monad-loops
     , numeric-limits
     , openapi3
@@ -124,6 +125,7 @@ executable Hastructure-exe
     , ieee754
     , lens
     , lucid
+    , math-functions
     , monad-loops
     , mtl
     , numeric-limits
@@ -189,6 +191,7 @@ test-suite Hastructure-test
     , hashable
     , ieee754
     , lens
+    , math-functions
     , monad-loops
     , numeric-limits
     , openapi3

@@ -7,11 +7,13 @@
 module Stmt
   (Statement(..)
    ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
-   ,appendStmt,combineTxn,sliceStmt,getTxnBegBalance,getDate,getDates
+   ,appendStmt,combineTxn,getTxnBegBalance,getDate,getDates
    ,TxnComment(..),QueryByComment(..)
    ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
-   ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf
+   ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf,filterTxn
+   ,HasStmt(..)
+   ,getAllTxns,hasEmptyTxn
   )
   where
 
@@ -85,7 +87,6 @@ getTxnBalance (ExpTxn _ t _ _ _ ) = t
 getTxnBalance (SupportTxn _ _ t _ _ _ _ ) = t -- drawed balance
 getTxnBalance (EntryTxn _ t _ _) = t
 
-
 -- | SupportTxn Date (Maybe Balance) Balance DueInt DuePremium Cash TxnComment    
 
 getTxnBegBalance :: Txn -> Balance
@@ -126,11 +127,6 @@ isEmptyTxn (SupportTxn _ Nothing 0 0 0 0 Empty) = True
 isEmptyTxn (IrsTxn _ 0 0 0 0 0 Empty) = True
 isEmptyTxn (EntryTxn _ 0 0 Empty) = True
 isEmptyTxn _ = False
-
-
-sliceStmt :: Date -> Date -> Statement -> Statement
-sliceStmt sd ed (Statement txns) 
-  = Statement $ sliceBy II sd ed txns
 
 viewBalanceAsOf :: Date -> [Txn] -> Balance
 viewBalanceAsOf d [] = 0.0 
@@ -175,9 +171,9 @@ weightAvgBalance' sd ed (_txn:_txns)
 data Statement = Statement [Txn]
               deriving (Show, Generic, Eq, Ord, Read)
 
-appendStmt :: Maybe Statement -> Txn -> Maybe Statement
-appendStmt (Just stmt@(Statement txns)) txn = Just $ Statement (txns++[txn])
-appendStmt Nothing txn = Just $ Statement [txn]
+appendStmt :: Txn -> Maybe Statement -> Maybe Statement
+appendStmt txn (Just stmt@(Statement txns)) = Just $ Statement (txns++[txn])
+appendStmt txn Nothing = Just $ Statement [txn]
 
 
 statementTxns :: Lens' Statement [Txn]
@@ -197,11 +193,14 @@ getTxns :: Maybe Statement -> [Txn]
 getTxns Nothing = []
 getTxns (Just (Statement txn)) = txn
 
--- BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
-
 combineTxn :: Txn -> Txn -> Txn
 combineTxn (BondTxn d1 b1 i1 p1 r1 c1 f1 g1 h1 m1) (BondTxn d2 b2 i2 p2 r2 c2 f2 g2 h2 m2)
-    = BondTxn d1 b2 (i1 + i2) (p1 + p2) r2 (c1+c2) f2 g2 h2 (TxnComments [m1,m2]) 
+    = let 
+        rateToSet (FundWith _ _) _ = r2 
+        rateToSet _ (FundWith _ _) = r1 
+        rateToSet _ _ = r2 
+      in 
+        BondTxn d1 b2 (i1 + i2) (p1 + p2) (rateToSet m1 m2) (c1+c2) f2 g2 h2 (TxnComments [m1,m2]) 
 combineTxn (SupportTxn d1 b1 b0 i1 p1 c1 m1) (SupportTxn d2 b2 b02 i2 p2 c2 m2)
     = SupportTxn d1 b2  b02 (i1 + i2) (p1 + p2) (c1 + c2) (TxnComments [m1,m2])
 
@@ -240,8 +239,8 @@ getFlow comment =
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
       SwapAccrue  -> Noneflow
-      SwapInSettle -> Inflow
-      SwapOutSettle -> Outflow
+      SwapInSettle _ -> Inflow
+      SwapOutSettle _ -> Outflow
       PurchaseAsset _ _-> Outflow
       IssuanceProceeds _ -> Inflow
       TxnDirection _ -> Noneflow
@@ -257,6 +256,10 @@ getFlow comment =
           else
             Noneflow
       _ -> error ("Missing in GetFlow >> "++ show comment)
+
+
+filterTxn :: (TxnComment -> Bool) -> [Txn] -> [Txn]
+filterTxn f txns = filter (\t -> f (getTxnComment t) ) txns
 
 instance Ord Txn where
   compare :: Txn -> Txn -> Ordering
@@ -282,11 +285,10 @@ class QueryByComment a where
     queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
     queryTxnAmtAsOf :: a -> Date -> TxnComment -> Balance 
     queryTxnAmtAsOf a d tc =  sum $ getTxnAmt <$> queryStmtAsOf a d tc
--- queryTxn :: [Txn] -> TxnComment -> [Txn]
--- queryTxn txns comment = [ txn | txn <- txns, getTxnComment txn == comment]
--- 
--- queryTxnAmt :: [Txn] -> TxnComment -> Balance
--- queryTxnAmt txns comment 
---   = sum $ geTxnAmt <$> queryTxn txns comment
+
+
+class HasStmt a where 
+  getAllTxns :: a -> [Txn]
+  hasEmptyTxn :: a -> Bool
 
 $(deriveJSON defaultOptions ''Statement)

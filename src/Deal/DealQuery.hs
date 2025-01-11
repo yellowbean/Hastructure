@@ -37,6 +37,7 @@ import Util
 import Errors
 import DateUtil
 import Control.Lens hiding (element)
+import Control.Lens.Extras (is)
 import Control.Lens.TH
 import Control.Applicative
 import Data.Map.Lens
@@ -176,8 +177,8 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     CapWith s cap -> min (queryCompound t d s) (queryCompound t d cap)
     Abs s -> abs <$> queryCompound t d s
     Round ds rb -> do 
-                     q <- queryCompound t d ds
-                     return $ roundingBy rb q
+                      q <- queryCompound t d ds
+                      return $ roundingBy rb q
     DivideRatio s1 s2 -> queryCompound t d (Divide s1 s2)
     AvgRatio ss -> queryCompound t d (Avg ss)
     Constant v -> Right v
@@ -198,14 +199,9 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     
     BondRate bn -> 
       case Map.lookup bn (bonds t) of 
-        Just b@(L.Bond {}) -> Right . toRational $ L.bndRate b 
-        Just b@(L.BondGroup bSubMap) -> 
-          let 
-            bnds = Map.elems bSubMap
-            rates = toRational . L.bndRate <$> bnds
-            bals = L.getCurBalance <$> bnds
-          in 
-            Right $ weightedBy bals rates
+        Just b@(L.Bond {}) -> Right . toRational $ L.getCurRate b 
+        Just b@(L.MultiIntBond {}) -> Right . toRational $ L.getCurRate b 
+        Just b@(L.BondGroup bSubMap) -> Right . toRational $ L.getCurRate b  
         Nothing -> 
           case viewDealBondsByNames t [bn] of 
             [b] -> Right $ toRational $ L.bndRate b
@@ -215,13 +211,22 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         rs <- sequenceA $ (\bn -> queryCompound t d (BondRate bn)) <$> bns
         ws <- sequenceA $ (\bn -> queryCompound t d (CurrentBondBalanceOf [bn])) <$> bns
         return $ weightedBy (fromRational <$> ws) rs
-    PoolWaRate mPns -> 
+
+    PoolWaRate Nothing -> 
       let 
-        latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t mPns
-        rates = toRational . maybe 0.0 CF.mflowRate  <$> latestCfs
+        latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t Nothing
+        rates = toRational . maybe 0.0 CF.mflowRate <$> latestCfs
         bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
       in 
-        Right $ weightedBy bals rates
+        Right $ weightedBy (toRational <$> bals) rates
+
+    PoolWaRate (Just pName) -> 
+      let 
+        latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t (Just [pName])
+        rates = toRational . maybe 0.0 CF.mflowRate <$> latestCfs
+      in 
+        Right $ sum rates
+
 
     -- int query
     FutureCurrentPoolBorrowerNum _d mPns ->
@@ -242,7 +247,6 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         case mm of
           Nothing -> Left $ "Date:"++show d++"There is maturity date for bond " ++ bn
           Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
-          
 
     ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
 
@@ -274,7 +278,10 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     OriginalBondBalanceOf bnds -> Right . toRational $ sum $ getOriginBalance <$> viewDealBondsByNames t bnds
 
     CurrentBondBalanceOf bns -> Right . toRational $ sum $ getCurBalance <$> viewDealBondsByNames t bns
-    
+
+    BondTotalFunding bnds -> 
+      Right . toRational $ sum $ L.totalFundedBalance <$> viewDealBondsByNames t bnds
+
     CurrentPoolBalance mPns ->
       let
         assetM = concat $ Map.elems $ getAllAsset t mPns
@@ -300,8 +307,9 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           Nothing -> Left $ "Date:"++show d++"No issuance balance found in the pool, pls specify it in the pool stats map `issuanceStat`"
     
     UnderlyingBondBalance mBndNames -> Left $ "Date:"++show d++"Not implemented for underlying bond balance"
- 
-    AllAccBalance -> Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
+
+    AllAccBalance -> 
+      Right . toRational $ sum $ map A.accBalance $ Map.elems accMap 
     
     AccBalance ans -> 
       do 
@@ -326,7 +334,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             let ldgL = Map.elems lgdsM
             let bs Credit = filter (\x -> LD.ledgBalance x < 0) ldgL
             let bs Debit = filter (\x -> LD.ledgBalance x >= 0) ldgL
-            return $ toRational $ abs $ sum $ LD.ledgBalance <$> bs dr -- `debug` ("dr"++show dr++">> bs dr"++ show (bs dr))
+            return $ toRational $ abs $ sum $ LD.ledgBalance <$> bs dr
 
     FutureCurrentPoolBalance mPns ->
       case (mPns,pt) of 
@@ -558,19 +566,36 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         fSubMap = getFeeByName t (Just fns)
         stmts = map F.feeStmt $ Map.elems fSubMap
         ex s = case s of
-                 Nothing -> 0
-                 Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) txns
+                  Nothing -> 0
+                  Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) txns
       in
         Right . toRational $ sum $ map ex stmts
 
     CurrentDueBondInt bns -> 
-      Right . toRational $ sum $ L.bndDueInt <$> viewDealBondsByNames t bns  
+      Right . toRational $ sum $ L.getDueInt <$> viewDealBondsByNames t bns  
+
+    CurrentDueBondIntAt idx bns -> 
+      let 
+        bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
+        dueInts = (\x -> x!!idx) <$> (L.bndDueInts <$> bs)
+      in 
+        Right . toRational $ sum dueInts 
 
     CurrentDueBondIntOverInt bns -> 
-      Right . toRational $ sum $ L.bndDueIntOverInt <$> viewDealBondsByNames t bns  
+      Right . toRational $ sum $ L.getDueIntOverInt <$> viewDealBondsByNames t bns  
+
+    CurrentDueBondIntOverIntAt idx bns -> 
+      let 
+        bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
+        dueInts = (\x -> x!!idx) <$> (L.bndDueIntOverInts <$> bs)
+      in 
+        Right . toRational $ sum $ dueInts
 
     CurrentDueBondIntTotal bns -> 
       sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
+    
+    CurrentDueBondIntTotalAt idx bns -> 
+      sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondIntAt idx bns,CurrentDueBondIntOverIntAt idx bns])
 
     CurrentDueFee fns -> 
       do 
@@ -605,7 +630,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     WeightedAvgCurrentBondBalance d1 d2 bns ->
       Right . toRational $ 
-        Map.foldr (\v a-> a + (L.weightAverageBalance d1 d2 v)) -- `debug` (" Avg Bal for bond"++ show (L.weightAverageBalance d1 d2 v)) )
+        Map.foldr (\v a-> a + (L.weightAverageBalance d1 d2 v)) 
                   0.0 
                   (getBondsByName t (Just bns))
 
@@ -628,9 +653,31 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     WeightedAvgOriginalPoolBalance d1 d2 mPns ->
       Right . toRational $
-         mulBR
+          mulBR
           (Map.findWithDefault 0.0 IssuanceBalance (getIssuanceStatsConsol t mPns))
           (yearCountFraction DC_ACT_365F d1 d2)
+
+    -- Analytics query 
+    AmountRequiredForTargetIRR irr bondName ->
+      case getBondByName t True bondName of
+        Nothing -> Left $ "Failed to find bond by name"++ bondName
+        Just bnd ->
+          let 
+            (ds,vs) = L.bondCashflow bnd
+            valid _vs = case (and ((>0) <$> vs)) of
+                          True -> Left $ "all cashflows are positive"++ show vs
+                          _ -> Right _vs
+            oDate = L.originDate $ L.bndOriginInfo bnd
+          in
+            do
+              validVs <- valid vs
+              case A.calcRequiredAmtForIrrAtDate irr ds vs d of 
+                Nothing -> Left $ "Failed to get the required amount for target IRR: "++ bondName++" Rate:"++ show irr
+                Just amt -> Right $ 
+                              if oDate <= d then
+                                (toRational amt)
+                              else
+                                0.0
 
     CustomData s d ->
         case custom t of 

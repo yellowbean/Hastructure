@@ -1,4 +1,4 @@
-module UT.AnalyticsTest(walTest,durationTest,fvTest,assetPricingTest)
+module UT.AnalyticsTest(walTest,durationTest,fvTest,assetPricingTest,irrTest)
 where
 
 import Test.Tasty
@@ -49,7 +49,8 @@ durationTest =
         (L.mkRateTs [(L.toDate "20230101",0.01)]))
   ]
 
-fvTest = testGroup "FV Test" [
+fvTest = 
+  testGroup "FV Test" [
     testCase "FV2 test" $ 
         assertEqual "1-year"
             108
@@ -58,7 +59,7 @@ fvTest = testGroup "FV Test" [
         assertEqual "0.5-year"
             103.89
             (fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 
- ]
+  ]
 
 assetPricingTest = 
   testGroup "Pricing on Asset" [
@@ -80,5 +81,18 @@ assetPricingTest =
                     (LoanAssump Nothing Nothing Nothing Nothing,DummyDelinqAssump,DummyDefaultAssump)
                     Nothing 
                     Exc)
- 
   ]
+
+irrTest = 
+  testGroup "Irr Test" [
+    testCase "required Amount with 8%" $ 
+        assertEqual "12 months"
+            (Just 108.01)
+            (calcRequiredAmtForIrrAtDate 0.08 (L.toDates ["20230101"])
+                                                [-100] 
+                                                (L.toDate "20240101"))
+  ]
+    -- ,testCase "FV2 test" $ 
+    --     assertEqual "0.5-year"
+    --         103.89
+    --         (fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 

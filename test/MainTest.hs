@@ -30,7 +30,6 @@ import qualified Lib as L
 import qualified Stmt as S
 import qualified Data.Time as T
 import qualified Data.Vector as UtilT
-import qualified UT.AnalyticsTest as AnalyticsT
 import qualified UT.UtilTest as RH
 import qualified UT.RateHedgeTest as RHT
 import GHC.Generics (U1(U1))
@@ -104,6 +103,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AnalyticsT.durationTest
                            ,AnalyticsT.fvTest
                            ,AnalyticsT.assetPricingTest
+                           ,AnalyticsT.irrTest
                            ,DealTest.baseTests
                            ,RevolvingTest.baseTests
                            --,DealMultiTest.baseTests
