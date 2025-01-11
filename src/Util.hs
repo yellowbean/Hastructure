@@ -14,6 +14,7 @@ module Util
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,adjustM,lookupAndApply,lookupAndUpdate,lookupAndApplies
     ,lookupInMap,selectInMap
+    ,lookupTuple6 ,lookupTuple7
     -- for debug
     ,debugOnDate
     )
@@ -425,6 +426,16 @@ selectInMap errMsg keys m
   where 
       inputKs = S.fromList keys
       mapKs = Map.keysSet m
+
+lookupTuple6 :: (Ord k) => (k, k, k, k, k, k) -> Map.Map k v -> (Maybe v, Maybe v, Maybe v, Maybe v, Maybe v, Maybe v)
+lookupTuple6 (k1, k2, k3, k4, k5, k6) m =
+  ( Map.lookup k1 m , Map.lookup k2 m , Map.lookup k3 m , Map.lookup k4 m , Map.lookup k5 m , Map.lookup k6 m)
+
+lookupTuple7 :: (Ord k) => (k, k, k, k, k, k, k) -> Map.Map k v -> (Maybe v, Maybe v, Maybe v, Maybe v, Maybe v, Maybe v, Maybe v)
+lookupTuple7 (k1, k2, k3, k4, k5, k6, k7) m =
+  ( Map.lookup k1 m , Map.lookup k2 m , Map.lookup k3 m , Map.lookup k4 m , Map.lookup k5 m , Map.lookup k6 m, Map.lookup k7 m)
+
+
 
 ----- DEBUG/PRINT
 debugOnDate :: Date -> Date -> Date -> String

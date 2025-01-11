@@ -5716,41 +5716,6 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/Day"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DatePattern"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DatePattern"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/Day"
-                                    }
-                                ],
-                                "maxItems": 4,
-                                "minItems": 4,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "WarehousingDates"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "WarehousingDates",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
                                         "items": [
                                             {
                                                 "$ref": "#/components/schemas/Day"
@@ -5812,6 +5777,28 @@
                             "contents"
                         ],
                         "title": "CurrentDates",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "additionalProperties": {
+                                    "$ref": "#/components/schemas/DatePattern"
+                                },
+                                "type": "object"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "GenericDates"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "GenericDates",
                         "type": "object"
                     }
                 ]
@@ -6054,6 +6041,25 @@
                             "contents"
                         ],
                         "title": "CustomDate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "SingletonDate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "SingletonDate",
                         "type": "object"
                     },
                     {

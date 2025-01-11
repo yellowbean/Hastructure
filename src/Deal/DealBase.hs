@@ -66,7 +66,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | ResetLiqProvider Date String         -- ^ reset credit for liquidity provider
                   | ResetLiqProviderRate Date String     -- ^ accure interest/premium amount for liquidity provider
                   | PoolCollection Date String           -- ^ collect pool cashflow and deposit to accounts
-                  | RunWaterfall Date String             -- ^ execute waterfall
+                  | RunWaterfall Date String             -- ^ execute waterfall on distribution date
                   | DealClosed Date                      -- ^ actions to perform at the deal closing day, and enter a new deal status
                   | FireTrigger Date DealCycle String    -- ^ fire a trigger
                   | InspectDS Date [DealStats]           -- ^ inspect formulas
@@ -173,6 +173,8 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               -- <Pool Collection DP> <Waterfall DP> 
               --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
+              -- Dict based 
+              | GenericDates (Map.Map DateType DatePattern)
               deriving (Show,Eq, Generic,Ord)
 
 
@@ -225,32 +227,30 @@ data PoolType a = MultiPool (Map.Map PoolId (P.Pool a))
 
 
 data TestDeal a = TestDeal { name :: DealName
-                             ,status :: DealStatus
-                             ,dates :: DateDesp
-                             ,accounts :: Map.Map AccountName A.Account
-                             ,fees :: Map.Map FeeName F.Fee
-                             ,bonds :: Map.Map BondName L.Bond
-                             ,pool ::  PoolType a 
-                             ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
-                             ,collects :: [W.CollectionRule]
-                             ,call :: Maybe [C.CallOption]
-                             ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
-                             ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
-                             ,rateCap :: Maybe (Map.Map String HE.RateCap)
-                             ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
-                             ,custom:: Maybe (Map.Map String CustomDataType)
-                             ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
-                             ,overrides :: Maybe [OverrideType]
-                             ,ledgers :: Maybe (Map.Map String LD.Ledger)
-                           } deriving 
-                           
-                (Show,Generic,Eq,Ord)
+                            ,status :: DealStatus
+                            ,dates :: DateDesp
+                            ,accounts :: Map.Map AccountName A.Account
+                            ,fees :: Map.Map FeeName F.Fee
+                            ,bonds :: Map.Map BondName L.Bond
+                            ,pool ::  PoolType a 
+                            ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
+                            ,collects :: [W.CollectionRule]
+                            ,call :: Maybe [C.CallOption]
+                            ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
+                            ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
+                            ,rateCap :: Maybe (Map.Map String HE.RateCap)
+                            ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
+                            ,custom:: Maybe (Map.Map String CustomDataType)
+                            ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
+                            ,overrides :: Maybe [OverrideType]
+                            ,ledgers :: Maybe (Map.Map String LD.Ledger)
+                            } deriving (Show,Generic,Eq,Ord)
 
 instance SPV (TestDeal a) where
   getBondsByName t bns
     = case bns of
-         Nothing -> bonds t
-         Just _bns -> Map.filterWithKey (\k _ -> S.member k (S.fromList _bns)) (bonds t)
+        Nothing -> bonds t
+        Just _bns -> Map.filterWithKey (\k _ -> S.member k (S.fromList _bns)) (bonds t)
   
   getActiveBonds t bns = 
     let 
@@ -425,7 +425,7 @@ getPoolIds t@TestDeal{pool = pt}
       MultiPool pm -> Map.keys pm
       ResecDeal pm -> Map.keys pm
       _ -> error "failed to match pool type in pool ids"
-                         
+
 -- ^ to handle with bond group, with flag to good deep if it is a bond group
 getBondByName :: Ast.Asset a => TestDeal a -> Bool -> BondName -> Maybe L.Bond
 getBondByName t False bName = Map.lookup bName (bonds t)

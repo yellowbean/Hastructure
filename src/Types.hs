@@ -176,10 +176,18 @@ data DayCount = DC_30E_360       -- ^ ISMA European 30S/360 Special German Eurob
               deriving (Show,Eq,Generic,Ord,Read)
 
 
-data DateType = ClosingDate        -- ^ deal closing day
-              | CutoffDate         -- ^ after which, the pool cashflow was aggregated to SPV
-              | FirstPayDate       -- ^ first payment day for bond/waterfall to run with
-              | StatedMaturityDate -- ^ sated maturity date, all cashflow projection/deal action stops by
+data DateType = ClosingDate             -- ^ deal closing day
+              | CutoffDate              -- ^ after which, the pool cashflow was aggregated to SPV
+              | FirstPayDate            -- ^ first payment day for bond/waterfall to run with
+              | NextPayDate
+              | NextCollectDate
+              | FirstCollectDate        -- ^ first collection day for pool
+              | LastCollectDate         -- ^ last collection day for pool
+              | LastPayDate            -- ^ last payment day for bond/waterfall 
+              | StatedMaturityDate      -- ^ sated maturity date, all cashflow projection/deal action stops by
+              | DistributionDates       -- ^ distribution date for waterfall
+              | CollectionDates         -- ^ collection date for pool
+              | CustomExeDates String   -- ^ custom execution date
               deriving (Show,Ord,Eq,Generic,Read)
 
 
@@ -194,6 +202,7 @@ data DatePattern = MonthEnd
                  | DayOfMonth Int -- T.DayOfMonth 
                  | SemiAnnual (Int, Int) (Int, Int)
                  | CustomDate [Date]
+                 | SingletonDate Date
                  | DaysInYear [(Int, Int)]
                  | EveryNMonth Date Int
                  | Weekday Int 
@@ -994,38 +1003,49 @@ data CustomDataType = CustomConstant Rational
                     | CustomDS       DealStats
                     deriving (Show,Ord,Eq,Read,Generic)
 
-
-
+opts :: JSONKeyOptions
+opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)
 
+
+
+-- $(deriveJSON defaultOptions ''DateType)
+
 $(concat <$> traverse (deriveJSON defaultOptions) [''BookDirection, ''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )
 
-
 instance ToJSONKey DateType where
-  toJSONKey = genericToJSONKey defaultJSONKeyOptions
-
+  toJSONKey = genericToJSONKey opts
 instance FromJSONKey DateType where
-  fromJSONKey = genericFromJSONKey defaultJSONKeyOptions
+  fromJSONKey = FromJSONKeyTextParser $ \t -> 
+    case T.splitOn " " t of
+      ["CustomExeDates", rest] -> pure $ CustomExeDates (T.unpack rest)
+      _ -> case readMaybe (T.unpack t) of
+        Just k -> pure k
+        Nothing -> fail ("Invalid key (DateType): " ++ show t++">>"++ show (T.unpack t))
 
 
 
 $(deriveJSON defaultOptions ''RangeType)
 $(deriveJSON defaultOptions ''Pre)
 
-
 $(deriveJSON defaultOptions ''CustomDataType)
+
 $(deriveJSON defaultOptions ''ActionWhen)
 
 instance ToJSONKey ActionWhen where
   toJSONKey = toJSONKeyText (T.pack . show)
 
 instance FromJSONKey ActionWhen where
-  fromJSONKey = FromJSONKeyTextParser $ \t -> case readMaybe (T.unpack t) of
-    Just k -> pure k
-    Nothing -> fail ("Invalid key: " ++ show t++">>"++ show (T.unpack t))
+  fromJSONKey = FromJSONKeyTextParser $ \t -> 
+    case T.splitOn " " t of
+      ["CustomWaterfall", rest] -> pure $ CustomWaterfall (T.unpack rest)
+      _ -> case readMaybe (T.unpack t) of
+        Just k -> pure k
+        Nothing -> fail ("Invalid key (Action When): " ++ show t++">>"++ show (T.unpack t))
+
 
 $(deriveJSON defaultOptions ''ResultComponent)
 $(deriveJSON defaultOptions ''PriceResult)
@@ -1064,10 +1084,6 @@ instance Show MyRatio where
   show (MyRatio r) = case fromRationalRepetend Nothing r of
       Left (sci, _)         -> show $ formatScientific Fixed (Just 8) sci
       Right (sci, rep) -> show $ formatScientific Fixed (Just 8) sci
-
-opts :: JSONKeyOptions
-opts = defaultJSONKeyOptions -- { keyModifier = toLower }
-
 
 $(deriveJSON defaultOptions ''Index)
 $(deriveJSON defaultOptions ''DayCount)

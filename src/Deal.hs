@@ -451,14 +451,15 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 run dRunWithTrigger1 (runPoolFlow rc3) (Just ads3) rates calls rAssump (newLogs0++newLogs++ eopActionsLog ++newLogs1) -- `debug` ("PoolCollection: Pt 05>> "++ show d++">> context flow>> "++show (runPoolFlow rc3))
           else
             run t poolFlowMap (Just ads) rates calls rAssump log -- `debug` ("PoolCollection: hit zero pool length"++ show d++"pool"++ (show poolFlowMap)++"collected cf"++ show pt) 
-   
-        RunWaterfall d _ ->
+
+        -- Default waterfall execution action from payFreq from deal dates 
+        RunWaterfall d "" -> 
           let
             runContext = RunContext poolFlowMap rAssump rates
             waterfallKey = if Map.member (W.DistributionDay dStatus) waterfallM then 
-                             W.DistributionDay dStatus
-                           else 
-                             W.DefaultDistribution
+                              W.DistributionDay dStatus
+                            else 
+                              W.DefaultDistribution
                         
             waterfallToExe = Map.findWithDefault [] waterfallKey waterfallM
             callTest = fst $ fromMaybe ([]::[Pre],[]::[Pre]) calls
@@ -482,6 +483,22 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                   (dAfterWaterfall, rc2, newLogsWaterfall) <- foldM (performActionWrap d) (dRunWithTrigger0,rc1,log) waterfallToExe -- `debug` ("In RunWaterfall Date"++show d++">>> status "++show (status dRunWithTrigger0)++"before run waterfall collected >>"++ show (pool dRunWithTrigger0))
                   (dRunWithTrigger1, rc3, ads2, newLogs2) <- runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  -- `debug` ("In RunWaterfall Date"++show d++"after run waterfall >>"++ show (runPoolFlow rc2)++" collected >>"++ show (pool dAfterWaterfall))
                   run dRunWithTrigger1 (runPoolFlow rc3) (Just ads2) rates calls rAssump (newLogsWaterfall++newLogs2++logsBeforeDist++[RunningWaterfall d waterfallKey]) -- `debug` ("In RunWaterfall Date"++show d++"after run waterfall 3>>"++ show (pool dRunWithTrigger1)++" status>>"++ show (status dRunWithTrigger1))
+
+        -- Custom waterfall execution action from deal dates
+        RunWaterfall d wName -> 
+          let
+            runContext = RunContext poolFlowMap rAssump rates
+            waterfallKey = W.CustomWaterfall wName
+            waterfallToExe = Map.findWithDefault [] waterfallKey waterfallM
+          in 
+            do 
+              -- (dRunWithTrigger0, rc1, ads1, newLogs0) <- runTriggers (t, runContext, ads) d BeginDistributionWF -- `debug` ("In RunWaterfall Date"++show d++"before run trigger>> collected"++ show (pool t))
+              let logsBeforeDist =[ WarningMsg (" No waterfall distribution found on date "++show d++" with waterfall key "++show waterfallKey) 
+                                        | Map.notMember waterfallKey waterfallM ]  
+              (dAfterWaterfall, rc2, newLogsWaterfall) <- foldM (performActionWrap d) (t,runContext,log) waterfallToExe -- `debug` (show d ++ " running action"++ show waterfallToExe)
+              -- (dRunWithTrigger1, rc3, ads2, newLogs2) <- runTriggers (dAfterWaterfall,rc2,ads1) d EndDistributionWF  -- `debug` ("In RunWaterfall Date"++show d++"after run waterfall >>"++ show (runPoolFlow rc2)++" collected >>"++ show (pool dAfterWaterfall))
+              run dAfterWaterfall (runPoolFlow rc2) (Just ads) rates calls rAssump (newLogsWaterfall++logsBeforeDist++[RunningWaterfall d waterfallKey]) -- `debug` ("size of logs"++ show (length newLogsWaterfall)++ ">>"++ show d++ show (length logsBeforeDist))
+
 
         EarnAccInt d accName ->
           let 
@@ -997,17 +1014,19 @@ removePoolCf t@TestDeal{pool=pt} =
     t {pool = newPt}
 
 
-populateDealDates :: DateDesp -> DealStatus -> (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date)
+populateDealDates :: DateDesp -> DealStatus -> Either String (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date,[ActionOnDate])
 populateDealDates (CustomDates cutoff pa closing ba) _ 
-  = (cutoff  
+  = Right $
+    (cutoff  
     ,closing
     ,getDate (head ba)
     ,pa
     ,ba
-    ,getDate (max (last pa) (last ba)))
+    ,getDate (max (last pa) (last ba))
+    ,[])
 
 populateDealDates (PatternInterval _m) _
-  = (cutoff,closing,nextPay,pa,ba,max ed1 ed2) 
+  = Right $ (cutoff,closing,nextPay,pa,ba,max ed1 ed2, []) 
     where 
       (cutoff,dp1,ed1) = _m Map.! CutoffDate
       (nextPay,dp2,ed2) = _m Map.! FirstPayDate 
@@ -1016,18 +1035,71 @@ populateDealDates (PatternInterval _m) _
       ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill nextPay dp2 ed2 ]
 
 populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp)) _
-  = (cutoff,closing,firstPay,pa,ba,end) 
+  = Right $ (cutoff,closing,firstPay,pa,ba,end, []) 
     where 
       pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE firstCollect poolDp end ]
       ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE firstPay bondDp end ]
 
 populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollect,poolDp) (nextPay,bondDp)) _
-  = (lastCollect, lastPay,head futurePayDates, pa, ba, end) 
+  = Right $ (lastCollect, lastPay,head futurePayDates, pa, ba, end, []) 
     where 
       futurePayDates = genSerialDatesTill2 IE nextPay bondDp end 
       ba = [ RunWaterfall _d "" | _d <- futurePayDates]
       futureCollectDates = genSerialDatesTill2 IE nextCollect poolDp end 
       pa = [ PoolCollection _d "" | _d <- futureCollectDates]
+
+populateDealDates (GenericDates m) 
+                  (PreClosing _)
+  = let 
+      requiredFields = (CutoffDate, ClosingDate, FirstPayDate, StatedMaturityDate
+                        , DistributionDates, CollectionDates) 
+      vals = lookupTuple6 requiredFields m
+      
+      isCustomWaterfallKey (CustomExeDates _) _ = True
+      isCustomWaterfallKey _ _ = False
+      custWaterfall = Map.toList $ Map.filterWithKey isCustomWaterfallKey m
+    in 
+      case vals of
+        (Just (SingletonDate coffDate), Just (SingletonDate closingDate), Just (SingletonDate fPayDate)
+          , Just (SingletonDate statedDate), Just bondDp, Just poolDp)
+          -> let 
+                pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE closingDate poolDp statedDate ]
+                ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE fPayDate bondDp statedDate ]
+                cu = [ RunWaterfall _d custName | (CustomExeDates custName, custDp) <- custWaterfall
+                                                , _d <- genSerialDatesTill2 EE closingDate custDp statedDate ]
+              in 
+                Right (coffDate, closingDate, fPayDate, pa, ba, statedDate, cu) -- `debug` ("custom action"++ show cu)
+        _ 
+          -> Left "Missing required dates in GenericDates in deal status PreClosing"
+
+populateDealDates (GenericDates m) _ 
+  = let 
+      requiredFields = (LastCollectDate, LastPayDate, NextPayDate, StatedMaturityDate
+                        , DistributionDates, CollectionDates) 
+      vals = lookupTuple6 requiredFields m
+      
+      isCustomWaterfallKey (CustomExeDates _) _ = True
+      isCustomWaterfallKey _ _ = False
+      custWaterfall = Map.toList $ Map.filterWithKey isCustomWaterfallKey m
+    in 
+      case vals of
+        (Just (SingletonDate lastCollect), Just (SingletonDate lastPayDate), Just (SingletonDate nextPayDate)
+          , Just (SingletonDate statedDate), Just bondDp, Just poolDp)
+          -> let 
+                pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 EE lastCollect poolDp statedDate ]
+                ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE nextPayDate bondDp statedDate ]
+                cu = [ RunWaterfall _d custName | (CustomExeDates custName, custDp) <- custWaterfall
+                                                , _d <- genSerialDatesTill2 EE lastCollect custDp statedDate ]
+              in 
+                Right (lastCollect, lastPayDate, nextPayDate, pa, ba, statedDate, cu) -- `debug` ("custom action"++ show cu)
+        _ 
+          -> Left "Missing required dates in GenericDates in deal status PreClosing"
+
+
+
+
+-- populateDealDates (GenericDates m) (Running _)
+--   = Right $ (epocDate, epocDate, epocDate, [], [], epocDate, [])
 
 
 -- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
@@ -1245,155 +1317,147 @@ runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
 getInits :: Ast.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption 
          -> Either String (TestDeal a,[ActionOnDate], Map.Map PoolId CF.CashFlowFrame, Map.Map PoolId CF.CashFlowFrame)
 getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump =
-  let 
-    (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate) = populateDealDates (dates t) status
+    do 
+      (startDate,closingDate,firstPayDate,pActionDates,bActionDates,endDate,custWdates) <- populateDealDates (dates t) status
 
-    intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) endDate [] 
-
-    intAccRateResetDates = (A.buildRateResetDates endDate) <$> (Map.elems (accounts t))
-
-    iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates
-                                           , _d <- accIntDates ] 
-    iAccRateResetDates = concat [ [ResetAccRate _d accName | _d <- _ds] | rst@(Just (accName, _ds)) <- intAccRateResetDates, isJust rst ]
+      let intEarnDates = A.buildEarnIntAction (Map.elems (accounts t)) endDate [] 
+      let intAccRateResetDates = (A.buildRateResetDates endDate) <$> (Map.elems (accounts t))
+      let iAccIntDates = [ EarnAccInt _d accName | (accName,accIntDates) <- intEarnDates , _d <- accIntDates ] 
+      let iAccRateResetDates = concat [ [ResetAccRate _d accName | _d <- _ds] | rst@(Just (accName, _ds)) <- intAccRateResetDates, isJust rst ]
     
-    --fee accrue dates 
-    _feeAccrueDates = F.buildFeeAccrueAction (Map.elems feeMap) endDate [] 
-    feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates
-                                             , _d <- feeAccureDates ]
+      --fee accrue dates 
+      let _feeAccrueDates = F.buildFeeAccrueAction (Map.elems feeMap) endDate [] 
+      let feeAccrueDates = [ AccrueFee _d _feeName | (_feeName,feeAccureDates) <- _feeAccrueDates , _d <- feeAccureDates ]
     --liquidation facility
-    liqResetDates = case liqProvider t of 
-                      Nothing -> []
-                      Just mLiqProvider -> 
-                          let 
-                            _liqResetDates = CE.buildLiqResetAction (Map.elems mLiqProvider) endDate []
-                            _liqRateResetDates = CE.buildLiqRateResetAction (Map.elems mLiqProvider) endDate []
-                          in 
-                            [ ResetLiqProvider _d _liqName |(_liqName,__liqResetDates) <- _liqResetDates
-                                                           , _d <- __liqResetDates ]
-                            ++ 
-                            [ ResetLiqProviderRate _d _liqName |(_liqName,__liqResetDates) <- _liqRateResetDates
-                                                               , _d <- __liqResetDates ]                            
+      let liqResetDates = case liqProvider t of 
+                        Nothing -> []
+                        Just mLiqProvider -> 
+                            let 
+                              _liqResetDates = CE.buildLiqResetAction (Map.elems mLiqProvider) endDate []
+                              _liqRateResetDates = CE.buildLiqRateResetAction (Map.elems mLiqProvider) endDate []
+                            in 
+                              [ ResetLiqProvider _d _liqName |(_liqName,__liqResetDates) <- _liqResetDates , _d <- __liqResetDates ]
+                              ++ 
+                              [ ResetLiqProviderRate _d _liqName |(_liqName,__liqResetDates) <- _liqRateResetDates , _d <- __liqResetDates ]                            
     --inspect dates 
-    expandInspect (AP.InspectPt dp ds) = [ InspectDS _d [ds] | _d <- genSerialDatesTill2 II startDate dp endDate ]
-    expandInspect (AP.InspectRpt dp dss) = [ InspectDS _d dss | _d <- genSerialDatesTill2 II startDate dp endDate ] 
-    inspectDates = case mNonPerfAssump of
-                     Just AP.NonPerfAssumption{AP.inspectOn = Just inspectList } -> concat $ expandInspect <$> inspectList
-                     _ -> []
+      let expandInspect (AP.InspectPt dp ds) = [ InspectDS _d [ds] | _d <- genSerialDatesTill2 II startDate dp endDate ]
+      let expandInspect (AP.InspectRpt dp dss) = [ InspectDS _d dss | _d <- genSerialDatesTill2 II startDate dp endDate ] 
+      
+      let inspectDates = case mNonPerfAssump of
+                          Just AP.NonPerfAssumption{AP.inspectOn = Just inspectList } -> concat $ expandInspect <$> inspectList
+                          _ -> []
     
-    financialRptDates = case mNonPerfAssump of 
-                          Just AP.NonPerfAssumption{AP.buildFinancialReport= Just dp } 
-                            -> let 
-                                 _ds = genSerialDatesTill2 II startDate dp endDate 
-                               in 
-                                 [ BuildReport _sd _ed  | (_sd,_ed) <- zip _ds (tail _ds) ] -- `debug` ("ds"++ show _ds)
-                          _ -> []  -- `debug` ("emtpy rpt dates")
+      let financialRptDates = case mNonPerfAssump of 
+                            Just AP.NonPerfAssumption{AP.buildFinancialReport= Just dp } 
+                              -> let 
+                                   _ds = genSerialDatesTill2 II startDate dp endDate 
+                                 in 
+                                   [ BuildReport _sd _ed  | (_sd,_ed) <- zip _ds (tail _ds) ] -- `debug` ("ds"++ show _ds)
+                            _ -> []  -- `debug` ("emtpy rpt dates")
 
-    irUpdateSwapDates = case rateSwap t of
-                        Nothing -> []
-                        Just rsm -> Map.elems $ Map.mapWithKey 
-                                                 (\k x -> let 
-                                                           resetDs = genSerialDatesTill2 EE (HE.rsStartDate x) (HE.rsUpdateDates x) endDate
+      let irUpdateSwapDates = case rateSwap t of
+                          Nothing -> []
+                          Just rsm -> Map.elems $ Map.mapWithKey 
+                                                   (\k x -> let 
+                                                             resetDs = genSerialDatesTill2 EE (HE.rsStartDate x) (HE.rsUpdateDates x) endDate
+                                                            in 
+                                                             flip CalcIRSwap k <$> resetDs)
+                                                   rsm
+      let irSettleSwapDates = case rateSwap t of
+                          Nothing -> []
+                          Just rsm -> Map.elems $ Map.mapWithKey 
+                                                    (\k x@HE.RateSwap{ HE.rsSettleDates = sDates} ->
+                                                      case sDates of 
+                                                        Nothing -> []
+                                                        Just (sdp,_) ->
+                                                          let 
+                                                            resetDs = genSerialDatesTill2 EE (HE.rsStartDate x) sdp endDate
                                                           in 
-                                                           flip CalcIRSwap k <$> resetDs)
-                                                 rsm
-    irSettleSwapDates = case rateSwap t of
-                        Nothing -> []
-                        Just rsm -> Map.elems $ Map.mapWithKey 
-                                                  (\k x@HE.RateSwap{ HE.rsSettleDates = sDates} ->
-                                                    case sDates of 
-                                                      Nothing -> []
-                                                      Just (sdp,_) ->
-                                                        let 
-                                                          resetDs = genSerialDatesTill2 EE (HE.rsStartDate x) sdp endDate
-                                                        in 
-                                                          flip SettleIRSwap k <$> resetDs)
-                                                  rsm
-    rateCapSettleDates = case rateCap t of 
-                           Nothing -> []
-                           Just rcM -> Map.elems $ Map.mapWithKey 
-                                                     (\k x -> let 
-                                                                resetDs = genSerialDatesTill2 EE (HE.rcStartDate x) (HE.rcSettleDates x) endDate
-                                                              in 
-                                                                flip AccrueCapRate k <$> resetDs)
-                                                     rcM
+                                                            flip SettleIRSwap k <$> resetDs)
+                                                    rsm
+      let rateCapSettleDates = case rateCap t of 
+                             Nothing -> []
+                             Just rcM -> Map.elems $ Map.mapWithKey 
+                                                       (\k x -> let 
+                                                                  resetDs = genSerialDatesTill2 EE (HE.rcStartDate x) (HE.rcSettleDates x) endDate
+                                                                in 
+                                                                  flip AccrueCapRate k <$> resetDs)
+                                                       rcM
     -- bond rate resets 
-    bndRateResets = let 
-                      bndWithDate = Map.toList $ Map.map 
-                                                (\b -> L.buildRateResetDates b closingDate endDate) 
-                                                bndMap
-                    in 
-                      [ ResetBondRate bdate bn | (bn, bdates) <- bndWithDate
-                                                  , bdate <- bdates ] 
-
-    -- bond step ups events
-    bndStepUpDates = let 
-                      bndWithDate = Map.toList $ Map.map 
-                                                (\b -> L.buildStepUpDates b closingDate endDate) 
-                                                bndMap
-                    in
-                      [ StepUpBondRate bdate bn  | (bn, bdates) <- bndWithDate
+      let bndRateResets = let 
+                        bndWithDate = Map.toList $ Map.map 
+                                                  (\b -> L.buildRateResetDates b closingDate endDate) 
+                                                  bndMap
+                      in 
+                        [ ResetBondRate bdate bn | (bn, bdates) <- bndWithDate
                                                     , bdate <- bdates ] 
 
+    -- bond step ups events
+      let bndStepUpDates = let 
+                        bndWithDate = Map.toList $ Map.map 
+                                                  (\b -> L.buildStepUpDates b closingDate endDate) 
+                                                  bndMap
+                      in
+                        [ StepUpBondRate bdate bn  | (bn, bdates) <- bndWithDate , bdate <- bdates ] 
+
     -- mannual triggers 
-    mannualTrigger = case mNonPerfAssump of 
-                       Just AP.NonPerfAssumption{AP.fireTrigger = Just evts} -> [ FireTrigger d cycle n | (d,cycle,n) <- evts]
-                       _ -> []
+      let mannualTrigger = case mNonPerfAssump of 
+                            Just AP.NonPerfAssumption{AP.fireTrigger = Just evts} -> [ FireTrigger d cycle n | (d,cycle,n) <- evts]
+                            _ -> []
 
     -- make whole assumption
-    makeWholeDate = case mNonPerfAssump of
-                      Just AP.NonPerfAssumption{AP.makeWholeWhen = Just (_d,_s,_t)} -> [MakeWhole _d _s _t]
-                      _ -> [] 
+      let makeWholeDate = case mNonPerfAssump of
+                            Just AP.NonPerfAssumption{AP.makeWholeWhen = Just (_d,_s,_t)} -> [MakeWhole _d _s _t]
+                            _ -> [] 
 
     -- issue bonds in the future 
-    bondIssuePlan = case mNonPerfAssump of 
-                      Just AP.NonPerfAssumption{AP.issueBondSchedule = Just bndPlan} 
-                        -> [ IssueBond _d mPre bGroupName accName b mBal mRate | TsPoint _d (AP.IssueBondEvent mPre bGroupName accName b mBal mRate) <- bndPlan]
-                            ++ [FundBond _d mPre bName accName amount | TsPoint _d (AP.FundingBondEvent mPre bName accName amount) <- bndPlan]
-                      _ -> []
+      let bondIssuePlan = case mNonPerfAssump of 
+                            Just AP.NonPerfAssumption{AP.issueBondSchedule = Just bndPlan} 
+                              -> [ IssueBond _d mPre bGroupName accName b mBal mRate | TsPoint _d (AP.IssueBondEvent mPre bGroupName accName b mBal mRate) <- bndPlan]
+                                  ++ [FundBond _d mPre bName accName amount | TsPoint _d (AP.FundingBondEvent mPre bName accName amount) <- bndPlan]
+                            _ -> []
 
     -- refinance bonds in the future 
-    bondRefiPlan = case mNonPerfAssump of 
-                      Just AP.NonPerfAssumption{AP.refinance = Just bndPlan} 
-                        -> [ RefiBondRate _d accName bName iInfo | TsPoint _d (AP.RefiRate accName bName iInfo) <- bndPlan]
-                          ++ [ RefiBond _d accName bnd | TsPoint _d (AP.RefiBond accName bnd) <- bndPlan] 
-                           
-                      _ -> []
+      let bondRefiPlan = case mNonPerfAssump of 
+                        Just AP.NonPerfAssumption{AP.refinance = Just bndPlan} 
+                          -> [ RefiBondRate _d accName bName iInfo | TsPoint _d (AP.RefiRate accName bName iInfo) <- bndPlan]
+                            ++ [ RefiBond _d accName bnd | TsPoint _d (AP.RefiBond accName bnd) <- bndPlan] 
+                             
+                        _ -> []
 
-    extractTestDates (AP.CallOnDates dp _) = [TestCall x | x <- genSerialDatesTill2 EE startDate dp endDate ]
-    extractTestDates _ = []
+      let extractTestDates (AP.CallOnDates dp _) = [TestCall x | x <- genSerialDatesTill2 EE startDate dp endDate ]
+      let extractTestDates _ = []
     -- extractTestDates (AP.CallOptions opts) = concat [ extractTestDates opt | opt <- opts ]
     -- call test dates 
-    callDates = case mNonPerfAssump of
-                  Just AP.NonPerfAssumption{AP.callWhen = Just callOpts}
-                    -> concat [ extractTestDates callOpt | callOpt <- callOpts ]
-                  _ -> []
+      let callDates = case mNonPerfAssump of
+                    Just AP.NonPerfAssumption{AP.callWhen = Just callOpts}
+                      -> concat [ extractTestDates callOpt | callOpt <- callOpts ]
+                    _ -> []
 
-    allActionDates = let 
-                       __actionDates = let 
-                                        a = concat [bActionDates,pActionDates,iAccIntDates,makeWholeDate
-                                                   ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
-                                                   ,concat irUpdateSwapDates, concat irSettleSwapDates ,inspectDates, bndRateResets,financialRptDates
-                                                   ,bondIssuePlan,bondRefiPlan,callDates, iAccRateResetDates 
-                                                   ,bndStepUpDates] -- `debug` ("reports"++ show financialRptDates)
-                                      in
-                                        case (dates t,status) of 
-                                          (PreClosingDates {}, PreClosing _) -> sortBy sortActionOnDate $ DealClosed closingDate:a 
-                                          _ -> sortBy sortActionOnDate a
-                       _actionDates = __actionDates++[HitStatedMaturity endDate]
-                     in 
-                       case mNonPerfAssump of
-                         Just AP.NonPerfAssumption{AP.stopRunBy = Just d} -> cutBy Exc Past d __actionDates ++ [StopRunFlag d]
-                         _ -> _actionDates  
+      let allActionDates = let 
+                         __actionDates = let 
+                                          a = concat [bActionDates,pActionDates,custWdates,iAccIntDates,makeWholeDate
+                                                     ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
+                                                     ,concat irUpdateSwapDates, concat irSettleSwapDates ,inspectDates, bndRateResets,financialRptDates
+                                                     ,bondIssuePlan,bondRefiPlan,callDates, iAccRateResetDates 
+                                                     ,bndStepUpDates] 
+                                        in
+                                          case (dates t,status) of 
+                                            (PreClosingDates {}, PreClosing _) -> sortBy sortActionOnDate $ DealClosed closingDate:a 
+                                            _ -> sortBy sortActionOnDate a
+                         _actionDates = __actionDates++[HitStatedMaturity endDate]
+                       in 
+                         case mNonPerfAssump of
+                           Just AP.NonPerfAssumption{AP.stopRunBy = Just d} -> cutBy Exc Past d __actionDates ++ [StopRunFlag d]
+                           _ -> _actionDates  
      
-    newFeeMap = case mNonPerfAssump of
-                  Nothing -> feeMap
-                  Just AP.NonPerfAssumption{AP.projectedExpense = Nothing } -> feeMap
-                  -- Just AP.NonPerfAssumption{AP.projectedExpense = Just (fn,projectedFlow) } 
-                  --  -> Map.adjust (\x -> x {F.feeType = F.FeeFlow projectedFlow}) fn feeMap
-                  Just AP.NonPerfAssumption{AP.projectedExpense = Just pairs } 
-                    ->   foldr  (\(feeName,feeFlow) accM -> Map.adjust (\v -> v {F.feeType = F.FeeFlow feeFlow}) feeName accM)  feeMap pairs
-  in  
-    do 
+      let newFeeMap = case mNonPerfAssump of
+                        Nothing -> feeMap
+                        Just AP.NonPerfAssumption{AP.projectedExpense = Nothing } -> feeMap
+                        -- Just AP.NonPerfAssumption{AP.projectedExpense = Just (fn,projectedFlow) } 
+                        --  -> Map.adjust (\x -> x {F.feeType = F.FeeFlow projectedFlow}) fn feeMap
+                        Just AP.NonPerfAssumption{AP.projectedExpense = Just pairs } 
+                          ->   foldr  (\(feeName,feeFlow) accM -> Map.adjust (\v -> v {F.feeType = F.FeeFlow feeFlow}) feeName accM)  feeMap pairs
       pCfM <- runPoolType thePool mAssumps mNonPerfAssump
       pScheduleCfM <- runPoolType thePool Nothing mNonPerfAssump
       let poolCfTsM = Map.map (\(CF.CashFlowFrame _ txns, pstats) -> cutBy Inc Future startDate txns) pCfM -- `debug` ("Pool cfm"++ show pCfM)

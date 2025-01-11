@@ -21,9 +21,13 @@ instance DealDates DateDesp where
         (sd,dp,ed) = _m Map.! ClosingDate 
       in 
         sd
-         
+
   getClosingDate (CustomDates _ _ cd _) = cd
 
+  getClosingDate (GenericDates m) = case Map.lookup ClosingDate m of 
+                                      Just (SingletonDate x) -> x
+                                      Nothing -> error "ClosingDate not found in GenericDates"
+  
   getClosingDate (FixInterval _m _p1 _p2) = _m Map.! ClosingDate
 
   getClosingDate (PreClosingDates _ x _ _ _ _) = x
@@ -45,3 +49,7 @@ instance DealDates DateDesp where
   getFirstPayDate (PreClosingDates _ _ _ _ _ (fp,_)) = fp
   
   getFirstPayDate (CurrentDates _ _ _ _ (cpay,_)) = cpay    
+
+  getFirstPayDate (GenericDates m) = case Map.lookup FirstPayDate m of
+                                        Just (SingletonDate x) -> x
+                                        Nothing -> error "FirstPayDate not found in GenericDates"                 
