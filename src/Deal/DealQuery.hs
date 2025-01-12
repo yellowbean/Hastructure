@@ -41,9 +41,9 @@ import Control.Lens.Extras (is)
 import Control.Lens.TH
 import Control.Applicative
 import Data.Map.Lens
+import Data.List.Lens
 import Debug.Trace
 import Lib
-import Cashflow (CashFlowFrame(CashFlowFrame))
 import qualified Cashflow as P
 debug = flip trace
 
@@ -577,9 +577,11 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     CurrentDueBondIntAt idx bns -> 
       let 
         bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
-        dueInts = (\x -> x!!idx) <$> (L.bndDueInts <$> bs)
+        mDueInts = sequenceA $ (\x -> x ^? ix idx) <$> (L.bndDueInts <$> bs)
       in 
-        Right . toRational $ sum dueInts 
+        case mDueInts of 
+          Nothing -> Left $ "Date:"++show d++"Failed to find due int at index for bonds"++ show bns ++ "with Index"++ show idx ++ " but bonds has"++ show (L.bndDueInts <$> bs)
+          Just dueInts -> Right . toRational $ sum dueInts 
 
     CurrentDueBondIntOverInt bns -> 
       Right . toRational $ sum $ L.getDueIntOverInt <$> viewDealBondsByNames t bns  
@@ -587,9 +589,11 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     CurrentDueBondIntOverIntAt idx bns -> 
       let 
         bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
-        dueInts = (\x -> x!!idx) <$> (L.bndDueIntOverInts <$> bs)
+        mDueInts = sequenceA $ (\x -> x ^?  ix idx) <$> (L.bndDueIntOverInts <$> bs)
       in 
-        Right . toRational $ sum $ dueInts
+        case mDueInts of 
+          Nothing -> Left $ "Date:"++show d++"Failed to find due int over int at index for bonds"++ show bns ++ "with Index"++ show idx ++ " but bonds has"++ show (L.bndDueIntOverInts <$> bs)
+          Just dueInts -> Right . toRational $ sum $ dueInts
 
     CurrentDueBondIntTotal bns -> 
       sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])

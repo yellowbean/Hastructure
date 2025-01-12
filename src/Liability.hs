@@ -639,7 +639,6 @@ buildStepUpDates b@Bond{bndStepUp = mSt } sd ed
 buildStepUpDates b@MultiIntBond{bndStepUps = mSt } sd ed 
   = case mSt of
       Nothing -> []
-      -- TODO: perf: sort and distinct
       Just sts -> Set.toList $
                     Set.fromList $
                       concat $
@@ -649,33 +648,6 @@ buildStepUpDates b@MultiIntBond{bndStepUps = mSt } sd ed
                             (PassDateSpread d _) -> [d]
                             ) <$> sts
 
--- buildRateResetDates b@MultiIntBond{bndInterestInfo = ii,bndStepUp = mSt } sd ed 
-
-
--- scaleBond :: Rate -> Bond -> Bond
--- scaleBond r (BondGroup bMap) = BondGroup $ Map.map (scaleBond r) bMap
--- scaleBond r b@Bond{ bndOriginInfo = oi, bndInterestInfo = iinfo, bndStmt = mstmt
---                   , bndBalance = bal, bndDuePrin = dp, bndDueInt = di, bndDueIntDate = did
---                   , bndLastIntPay = lip, bndLastPrinPay = lpp
---                   , bndType = bt} 
---   = b {
---     bndType = scaleBndType r bt
---     ,bndOriginInfo = scaleBndOriginInfo r oi
---     ,bndBalance = mulBR bal r
---     ,bndDuePrin = mulBR dp r
---     ,bndDueInt = mulBR di r
---     ,bndStmt = scaleStmt r mstmt
---   }
---     where 
---       scaleBndType r (PAC ts) = let 
---                                   vs = (flip mulBR r . fromRational <$> getTsVals ts)
---                                   ds = getTsDates ts
---                                 in 
---                                   PAC $ BalanceCurve [ TsPoint d v | (d,v) <- zip ds vs]
---       scaleBndType r _bt = _bt
---       scaleBndOriginInfo r oi@OriginalInfo{originBalance = ob} = oi {originBalance = mulBR ob r}
---       scaleStmt r Nothing = Nothing
---       scaleStmt r (Just (S.Statement txns)) = Just (S.Statement (S.scaleTxn r <$> txns))
 
 instance S.QueryByComment Bond where 
   queryStmt Bond{bndStmt = Nothing} tc = []
