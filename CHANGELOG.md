@@ -2,6 +2,16 @@
 
 <!-- towncrier release notes start -->
 
+## 0.41.1
+### 2025-01-11
+* NEW: `Multi Interest Bond` which used to model in bond with `step up` feature ( sub ordinated interest) in European 
+* NEW: new assumption ,which used to funding existing bond.
+* NEW: new query `totalFunding` for bond,which records all funding amount of bond.
+* NEW: new query `AmountRequiredForIRR` for bond,which return the amount to be paid out make bond met the target IRR.
+* NEW: in `Rate Swap` , the notional can be set by `Formula`
+* ENHANCE: when account is being used as a source for `support`, it has option to book ledger with both `credit` and `debit` direction.
+* FIX: `payPrinBySeq` was not paying out principal.
+
 
 ## 0.40.13
 ### 2024-12-17
