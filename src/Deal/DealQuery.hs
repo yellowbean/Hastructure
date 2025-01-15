@@ -216,7 +216,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       let 
         latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t Nothing
         rates = toRational . maybe 0.0 CF.mflowRate <$> latestCfs
-        bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
+        bals = maybe 0.0 (view CF.tsRowBalance)  <$> latestCfs
       in 
         Right $ weightedBy (toRational <$> bals) rates
 
@@ -353,7 +353,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       let 
         scheduleFlowM = Map.elems $ view dealScheduledCashflow t
       in 
-        Right . toRational $ sum $ maybe 0 (CF.mflowBalance . head . view CF.cashflowTxn) <$> scheduleFlowM
+        Right . toRational $ sum $ maybe 0 ((view CF.tsRowBalance) . head . view CF.cashflowTxn) <$> scheduleFlowM
     
     FutureCurrentSchedulePoolBegBalance mPns ->
       let 

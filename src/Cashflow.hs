@@ -2,20 +2,20 @@
 {-# LANGUAGE DeriveGeneric       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
-                ,combine,mergePoolCf,sumTsCF,tsSetDate,tsSetLoss,tsSetRecovery
+                ,combine,mergePoolCf,sumTsCF,tsSetLoss,tsSetRecovery
                 ,sizeCashFlowFrame,aggTsByDates
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
-                ,mflowDefault,mflowLoss,mflowDate
+                ,mflowDefault,mflowLoss
                 ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
                 ,lookupSource,lookupSourceM,combineTss
-                ,mflowBalance,mflowBegBalance,tsDefaultBal
-                ,mflowBorrowerNum,mflowPrepaymentPenalty
+                ,mflowBegBalance,tsDefaultBal
+                ,mflowBorrowerNum,mflowPrepaymentPenalty,tsRowBalance
                 ,emptyTsRow,mflowAmortAmount
                 ,tsTotalCash, setPrepaymentPenalty, setPrepaymentPenaltyFlow
                 ,getDate,getTxnLatestAsOf,totalPrincipal
-                ,mflowWeightAverageBalance
-                ,addFlowBalance,totalLoss,totalDefault,totalRecovery,firstDate
+                ,mflowWeightAverageBalance,tsDate
+                ,totalLoss,totalDefault,totalRecovery,firstDate
                 ,shiftCfToStartDate,cfInsertHead,buildBegTsRow,insertBegTsRow
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchCumulative,extendTxns,dropTailEmptyTxns
@@ -326,7 +326,7 @@ combineTss [] r [] = r
 combineTss [] (r1:r1s) (r2:r2s)
   | getDate r1 > getDate r2 = combineTss [] (r2:r2s) (r1:r1s)
   | getDate r1 == getDate r2 = combineTss [combineTs r1 r2] r1s r2s -- `debug` ("combineTss after same"++show r1s++" "++show r2s)
-  | otherwise = combineTss [updateFlowBalance (mflowBegBalance r2+mflowBalance r1) r1]
+  | otherwise = combineTss [set tsRowBalance (mflowBegBalance r2+(view tsRowBalance r1)) r1]
                            r1s
                            (r2:r2s)
                            
@@ -346,17 +346,17 @@ appendTs :: TsRow -> TsRow -> TsRow
 appendTs bn1@(BondFlow d1 b1 _ _ ) bn2@(BondFlow d2 b2 p2 i2 ) 
   = set tsRowBalance (b1 - mflowAmortAmount bn2) bn2 -- `debug` ("b1 >> "++show b1++">>"++show (mflowAmortAmount bn2))
 appendTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 _ def1 rec1 los1 rat1 mbn1 _ mstat1) bn2@(MortgageDelinqFlow _ b2 p2 i2 prep2 _ def2 rec2 los2 rat2 mbn2 _ mstat2)
-  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+  = set tsRowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs bn1@(MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 _ mstat1) bn2@(MortgageFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mbn2 _ mstat2)
-  =  updateFlowBalance (b1 - mflowAmortAmount bn2) bn2 -- `debug` ("Summing stats"++ show bn1 ++ show mstat1++">>"++ show bn2 ++ show mstat2)
+  =  set tsRowBalance (b1 - mflowAmortAmount bn2) bn2 -- `debug` ("Summing stats"++ show bn1 ++ show mstat1++">>"++ show bn2 ++ show mstat2)
 appendTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mstat1) bn2@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mstat2)
-  =  updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+  =  set tsRowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs (LeaseFlow d1 b1 r1) bn2@(LeaseFlow d2 b2 r2) 
-  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+  = set tsRowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs (FixedFlow d1 b1 de1 cde1 p1 c1 ) bn2@(FixedFlow d2 b2 de2 cde2 p2 c2)
-  = updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+  = set tsRowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 mstat1) bn2@(ReceivableFlow _ b2 af2 p2 fp2 def2 rec2 los2 mstat2)
-  =  updateFlowBalance (b1 - mflowAmortAmount bn2) bn2
+  =  set tsRowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs _1 _2 = error $ "appendTs failed with "++ show _1 ++ ">>" ++ show _2
 
 -- ^ add up TsRow from same entity
@@ -393,13 +393,13 @@ buildBegBal (x:_) = mflowBegBalance x
 
 
 sumTs :: [TsRow] -> Date -> TsRow
-sumTs trs = tsSetDate (foldr1 addTs trs)
+sumTs trs d = set tsDate d (foldr1 addTs trs)
 
 -- ^ group cashflow from same entity by a single date
 sumTsCF :: [TsRow] -> Date -> TsRow
 -- sumTsCF [] = tsSetDate (foldl1 addTsCF trs) -- `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
-sumTsCF [] = error "sumTsCF failed with empty list"
-sumTsCF trs = tsSetDate (foldl1 addTsCF trs) --  `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
+sumTsCF [] _ = error "sumTsCF failed with empty list"
+sumTsCF trs d = set tsDate d (foldl1 addTsCF trs) --  `debug` ("Summing"++show trs++">>"++ show (tsSetDate (foldr1 addTsCF trs) d))
 
 tsTotalCash :: TsRow -> Balance
 tsTotalCash (CashFlow _ x) = x
@@ -447,16 +447,6 @@ tsCumLossBal tr = preview (tsCumulative . _Just . _6) tr
 
 tsCumRecoveriesBal :: TsRow -> Maybe Balance
 tsCumRecoveriesBal tr = preview (tsCumulative . _Just . _5) tr
-
-tsSetDate :: TsRow -> Date -> TsRow
-tsSetDate (CashFlow _ a) x  = CashFlow x a
-tsSetDate (BondFlow _ a b c) x = BondFlow x a b c
-tsSetDate (MortgageDelinqFlow _ a b c d e f g h i j k l) x = MortgageDelinqFlow x a b c d e f g h i j k l
-tsSetDate (MortgageFlow _ a b c d e f g h i j k) x = MortgageFlow x a b c d e f g h i j k
-tsSetDate (LoanFlow _ a b c d e f g h i) x = LoanFlow x a b c d e f g h i
-tsSetDate (LeaseFlow _ a b) x = LeaseFlow x a b
-tsSetDate (FixedFlow _ a b c d e) x = FixedFlow x a b c d e 
-tsSetDate (ReceivableFlow _ a b c d e f g h) x = ReceivableFlow x a b c d e f g h
 
 tsDate :: Lens' TsRow Date 
 tsDate = lens getter setter 
@@ -613,7 +603,6 @@ mflowRecovery FixedFlow {} = 0
 mflowRecovery (ReceivableFlow _ _ _ _ _ _ x _ _ ) = x
 mflowRecovery _  = error "not supported"
 
-
 tsRowBalance :: Lens' TsRow Balance
 tsRowBalance = lens getter setter 
   where 
@@ -632,34 +621,6 @@ tsRowBalance = lens getter setter
     setter (LeaseFlow a _ r) x = LeaseFlow a x r
     setter (FixedFlow a _ b c d e) x = FixedFlow a x b c d e
     setter (ReceivableFlow a _ b c d e f g h) x = ReceivableFlow a x b c d e f g h
-
-
-mflowBalance :: TsRow -> Balance
-mflowBalance (BondFlow _ x _ _) = x
-mflowBalance (MortgageFlow _ x _ _ _ _ _ _ _ _ _ _) = x
-mflowBalance (MortgageDelinqFlow _ x _ _ _ _ _ _ _ _ _ _ _) = x
-mflowBalance (LoanFlow _ x _ _ _ _ _ _ _ _) = x
-mflowBalance (LeaseFlow _ x _ ) = x
-mflowBalance (FixedFlow _ x _ _ _ _) = x
-mflowBalance (ReceivableFlow _ x _ _ _ _ _ _ _ ) = x
-
-addFlowBalance :: Balance -> TsRow -> TsRow 
-addFlowBalance 0 x = x
-addFlowBalance b (MortgageFlow a x c d e f g h i j k l) = MortgageFlow a (x+b) c d e f g h i j k l
-addFlowBalance b (MortgageDelinqFlow a x c d e f g h i j k l m) = MortgageDelinqFlow a (x+b) c d e f g h i j k l m
-addFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a (x+b) c d e f g i j k
-addFlowBalance b (LeaseFlow a x c ) = LeaseFlow a (x+b) c
-addFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a (x+b) c d e f
-addFlowBalance b (ReceivableFlow a x c d e f g h i) = ReceivableFlow a (x+b) c d e f g h i
-
-updateFlowBalance :: Balance -> TsRow -> TsRow 
-updateFlowBalance b (BondFlow x _ p i) = BondFlow x b p i
-updateFlowBalance b (MortgageDelinqFlow a x c d e f g h i j k l m ) = MortgageDelinqFlow a b c d e f g h i j k l m
-updateFlowBalance b (MortgageFlow a x c d e f g h i j k l) = MortgageFlow a b c d e f g h i j k l
-updateFlowBalance b (LoanFlow a x c d e f g i j k) = LoanFlow a b c d e f g i j k
-updateFlowBalance b (LeaseFlow a x c ) = LeaseFlow a b c
-updateFlowBalance b (FixedFlow a x c d e f ) = FixedFlow a b c d e f
-updateFlowBalance b (ReceivableFlow a x c d e f g h i) = ReceivableFlow a b c d e f g h i
 
 
 mflowBegBalance :: TsRow -> Balance
@@ -698,15 +659,6 @@ mflowFeePaid :: TsRow -> Amount
 mflowFeePaid (ReceivableFlow _ _ _ _ x _ _ _ _ ) = x
 mflowFeePaid _ = 0
 
-
-mflowDate :: TsRow -> Date
--- ^ get date for a cashflow record
-mflowDate (MortgageFlow x _ _ _ _ _ _ _ _ _ _ _) = x
-mflowDate (MortgageDelinqFlow x _ _ _ _ _ _ _ _ _ _ _ _) = x
-mflowDate (LoanFlow x _ _ _ _ _ _ _ _ _) = x
-mflowDate (LeaseFlow x _ _ ) = x
-mflowDate (ReceivableFlow x _ _ _ _ _ _ _ _ ) = x
-
 mflowAmortAmount :: TsRow -> Balance
 -- ^ calculate amortized amount for cashflow (for defaults only)
 mflowAmortAmount (MortgageFlow _ _ p _ ppy def _ _ _ _ _ _) = p + ppy + def
@@ -736,8 +688,8 @@ mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs
   = sum $ zipWith mulBR _bals _dfs  -- `debug` ("CalcingAvgBal=>"++show sd++show ed++show txns  )
     where
-     txns = filter (\x -> (mflowDate x>=sd)&& mflowDate x<=ed) trs
-     _ds = map mflowDate txns -- `debug` ("fee base txns"++show txns)
+     txns = filter (\x -> (view tsDate x >=sd)&& (view tsDate x)<=ed) trs
+     _ds = view tsDate <$> txns -- `debug` ("fee base txns"++show txns)
      _bals = map mflowBegBalance txns
      _dfs =  getIntervalFactors $ sd:_ds
 
@@ -776,7 +728,7 @@ buildBegTsRow :: Date -> TsRow -> TsRow
 buildBegTsRow d flow@FixedFlow{} = flow
 buildBegTsRow d tr = 
   let 
-    r = tsSetBalance (mflowBalance tr + mflowAmortAmount tr) (emptyTsRow d tr)
+    r = tsSetBalance ((view tsRowBalance tr) + mflowAmortAmount tr) (emptyTsRow d tr)
     rate = mflowRate tr
   in
     tsSetRate rate r
@@ -844,10 +796,10 @@ sliceCfFrame :: Date -> Date -> RangeType -> CashFlowFrame -> CashFlowFrame
 sliceCfFrame sd ed rt (CashFlowFrame st txns) 
   = let 
       txns' = case rt of 
-                EE -> filter (\x -> (mflowDate x > sd) && (mflowDate x < ed)) txns
-                EI -> filter (\x -> (mflowDate x > sd) && (mflowDate x <= ed)) txns
-                II -> filter (\x -> (mflowDate x >= sd) && (mflowDate x <= ed)) txns
-                IE -> filter (\x -> (mflowDate x >= sd) && (mflowDate x < ed)) txns
+                EE -> filter (\x -> (view tsDate x > sd) && (view tsDate x < ed)) txns
+                EI -> filter (\x -> (view tsDate x > sd) && (view tsDate x <= ed)) txns
+                II -> filter (\x -> (view tsDate x >= sd) && (view tsDate x <= ed)) txns
+                IE -> filter (\x -> (view tsDate x >= sd) && (view tsDate x < ed)) txns
     in 
       CashFlowFrame st txns'
 
@@ -986,7 +938,7 @@ lookupSource tr CollectedCash = tsTotalCash tr
 lookupSource tr NewDelinquencies = mflowDelinq tr
 lookupSource tr NewDefaults = mflowDefault tr
 lookupSource tr NewLosses = mflowLoss tr
-lookupSource tr CurBalance = mflowBalance tr
+lookupSource tr CurBalance = view tsRowBalance tr
 lookupSource tr CurBegBalance = mflowBegBalance tr
 lookupSource tr x = error ("Failed to lookup source"++ show x)
 

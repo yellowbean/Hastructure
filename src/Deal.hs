@@ -984,7 +984,7 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                                           txns -> fromMaybe (0,0,0,0,0,0) $ view CF.txnCumulativeStats (last txns)
                           balInCollected = case length txnCollected of 
                                              0 -> 0 
-                                             _ ->  CF.mflowBalance $ last txnCollected
+                                             _ ->  view CF.tsRowBalance $ last txnCollected
                           txnToAppend = CF.patchCumulative currentStats [] txnCollected
                           accUpdated =  Map.adjust (over P.poolFutureTxn (++ txnToAppend)) k acc 
                         in 
@@ -1491,6 +1491,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
              , pUnstressedAfterCutoff)
 
 -- ^ UI translation : to read pool cash
+-- TODO: need to make this a Maybe
 readProceeds :: PoolSource -> CF.TsRow -> Balance
 readProceeds CollectedInterest  = CF.mflowInterest
 readProceeds CollectedPrincipal = CF.mflowPrincipal

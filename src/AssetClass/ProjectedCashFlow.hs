@@ -30,10 +30,11 @@ import qualified Cashflow as CF
 import AssetClass.AssetBase
 import AssetClass.AssetCashflow
 
-import Cashflow (extendTxns,TsRow(..),mflowBalance)
+import Cashflow (extendTxns,TsRow(..))
 
 import Debug.Trace
-
+import Control.Lens hiding (element,Index)
+import Control.Lens.TH
 debug = flip trace
 
 
@@ -132,8 +133,8 @@ seperateCashflows (ProjectedFlowMixFloater pflow@(CF.CashFlowFrame (begBal, begD
                   mRates
   = let
         begBal = CF.mflowBegBalance $ head flows
-        totalBals = begBal: (CF.mflowBalance <$> flows)
-        ds = CF.mflowDate <$> flows
+        totalBals = begBal: ((view CF.tsRowBalance) <$> flows)
+        ds = (view CF.tsDate) <$> flows
         flowSize = length ds
         -- fix rate cashflow
         fixedBals = flip mulBR fixPct <$> totalBals

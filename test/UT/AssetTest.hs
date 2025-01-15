@@ -127,7 +127,7 @@ mortgageTests = testGroup "Mortgage cashflow Tests"
         assertEqual "Empty for principal"
                     (0.0, asDay, 1)
                     (CF.mflowPrincipal (head trs)
-                    ,CF.mflowDate (head trs)
+                    ,(view CF.tsDate (head trs))
                     ,length trs)
      ,
      testCase "Balloon Mortgage test 1" $

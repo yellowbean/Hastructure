@@ -30,6 +30,8 @@ import AssetClass.AssetCashflow
 import Debug.Trace
 import Assumptions (AssetDefaultAssumption(DefaultCDR))
 import qualified Asset as A
+import Control.Lens hiding (element)
+import Control.Lens.TH
 debug = flip trace
 
 
@@ -42,7 +44,7 @@ projectLoanFlow ((originBal,ot,or), startBal, lastPayDate, pt, dc,startRate, beg
     foldl
       (\(acc,factor) (pDate, ppyRate, defRate, intRate, rt)
         -> let 
-             begBal = CF.mflowBalance (last acc)
+             begBal = view CF.tsRowBalance (last acc)
              lastPaidDate = getDate (last acc)
              newDefault = mulBR begBal defRate
              newPrepay = mulBR (begBal - newDefault) ppyRate

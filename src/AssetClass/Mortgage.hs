@@ -33,6 +33,8 @@ import Debug.Trace
 import Assumptions (AssetPerfAssumption(MortgageAssump))
 import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (extendTxns)
+import Control.Lens hiding (element)
+import Control.Lens.TH
 debug = flip trace
 
 projectMortgageFlow :: (Balance, Balance, Date, Maybe BorrowerNum, AmortPlan, DayCount, IRate, Period, Int) -> (Dates, [DefaultRate],[PrepaymentRate],[IRate],[Int]) -> ([CF.TsRow], Balance)
@@ -43,7 +45,7 @@ projectMortgageFlow (originBal, startBal, lastPayDate, mbn, pt, dc, startRate, p
     foldl 
       (\(acc,lastOriginBal) (pDate, defRate, ppyRate, intRate, rt)
           -> let 
-               begBal = CF.mflowBalance (last acc) 
+               begBal = view CF.tsRowBalance (last acc) 
                lastPaidDate = getDate (last acc) -- `debug` ("beg bal"++ show begBal)
                newDefault = mulBR begBal defRate 
                newPrepay = mulBR (begBal - newDefault) ppyRate
@@ -182,7 +184,7 @@ projectScheduleDelinqFlow (trs,backToPerfCfs) surviveRate begBal (flow:flows) (d
       ppyAmt = mulBR (begBal - delinqAmt) ppyRate -- `debug` ("begbal"++ show begBal++">>"++ show delinqAmt)
       newSurviveRate = (1-delinqRate) * (1-ppyRate) * surviveRate
 
-      scheduleBal = CF.mflowBalance flow
+      scheduleBal = view CF.tsRowBalance flow
       schedulePrin = mulBR (CF.mflowPrincipal flow) surviveRate
       scheduleInt = mulBR (CF.mflowInterest flow) surviveRate
 
@@ -193,7 +195,7 @@ projectScheduleDelinqFlow (trs,backToPerfCfs) surviveRate begBal (flow:flows) (d
                                splitPct = divideBB (mulBR delinqAmt (1-defaultPct)) begBal
                                perfFlows = take (length flows - defaultLag - recoveryLag + 1) $ CF.splitTrs splitPct (flow:flows)
                              in 
-                               [ CF.tsSetDate f d | (d,f) <- zip futureDs perfFlows ]
+                               [ set CF.tsDate d f | (d,f) <- zip futureDs perfFlows ]
 
       newDefaultBals = replace defaultBals (pred defaultLag) newDefaultBal  
       newRecoveryBals = replace recoveryBals (recoveryLag + pred defaultLag) (mulBR newDefaultBal recoveryRate)  
@@ -210,7 +212,7 @@ projCashflowByDefaultAmt (cb,lastPayDate,pt,p,cr,mbn) (cfDates,(expectedDefaultB
     foldl
        (\acc (pDate, (defaultBal,futureDefualtBal), ppyRate, rate, rt)
          -> let 
-             begBal = CF.mflowBalance (last acc)  
+             begBal = view CF.tsRowBalance (last acc)  
              mBorrower = CF.mflowBorrowerNum (last acc)   
              newDefault = if begBal <= (defaultBal+futureDefualtBal) then
                              begBal  
@@ -244,7 +246,7 @@ calcScheduleBalaceToday m mRates asOfDay
       case calcCashflow (resetToOrig m) sd mRates of
         Right (CF.CashFlowFrame _ scheduleTxn) ->
           case getByDate asOfDay scheduleTxn of
-            Just f -> CF.mflowBalance f
+            Just f -> view CF.tsRowBalance f
             Nothing -> error "Failed to find schedule balance"
         Left _ -> 0
 
@@ -260,7 +262,7 @@ projScheduleCashflowByDefaultAmt (cb,lastPayDate,cr,mbn) (scheduleFlows,(expecte
          -> let 
              pDate = getDate cflow
              
-             begBal = CF.mflowBalance (last acc)  
+             begBal = view CF.tsRowBalance (last acc)  
              mBorrower = CF.mflowBorrowerNum (last acc)
 
              newDefault = if begBal <= (defaultBal+futureDefualtBal) then
@@ -308,7 +310,7 @@ instance Ast.Asset Mortgage where
     = fst <$> (projCashflow m d (MortgageAssump Nothing Nothing Nothing Nothing,A.DummyDelinqAssump,A.DummyDefaultAssump) mRates)
 
   calcCashflow s@(ScheduleMortgageFlow beg_date flows _)  d _ 
-    = Right $ CF.CashFlowFrame ( (CF.mflowBalance . head) flows, beg_date, Nothing ) flows
+    = Right $ CF.CashFlowFrame ( ((view CF.tsRowBalance) . head) flows, beg_date, Nothing ) flows
 
   calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates = Left $ "to be implement on adjust rate mortgage"
   
