@@ -337,6 +337,8 @@ payPrin d amt bnd = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newSt
     r = getCurRate bnd
     newStmt = S.appendStmt (BondTxn d newBal 0 amt r amt dueInt dueIoI Nothing (S.PayPrin [bn] )) stmt 
 
+
+-- TODO  check maximum amount to write off
 writeOff :: Date -> Amount -> Bond -> Bond
 writeOff d 0 b = b
 writeOff d amt bnd = bnd {bndBalance = newBal , bndStmt=newStmt}
@@ -357,7 +359,7 @@ fundWith d amt bnd
     dueInt = getDueInt bnd
     bn = bndName bnd
     stmt = bndStmt bnd
-    newBal = (bndBalance bnd) - amt
+    newBal = (bndBalance bnd) + amt
     newStmt = S.appendStmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt )) stmt 
 
 
