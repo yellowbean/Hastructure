@@ -1141,8 +1141,7 @@ performAction d t@TestDeal{accounts=accMap, bonds=bndMap} (W.FundWith mlimit an 
                   _ -> Left $ "Date:"++show d ++"Not valid limit for funding with bond"++ show bnd
     let fundAmt = fromRational fundAmt_
     let accMapAfterFund = Map.adjust (A.deposit fundAmt d (FundWith bnd fundAmt)) an accMap
-    newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
-    let bndFunded = L.fundWith d fundAmt newBnd
+    let bndFunded = L.fundWith d fundAmt $ bndMap Map.! bnd
     return $ t {accounts = accMapAfterFund, bonds= Map.fromList [(bnd,bndFunded)] <> bndMap } 
 
 -- ^ write off bonds and book 
@@ -1155,8 +1154,7 @@ performAction d t@TestDeal{bonds = bndMap, ledgers = Just ledgerM }
       do 
         writeAmt <- applyLimit t d bndBal bndBal mLimit
         let newLedgerM = Map.adjust (LD.entryLogByDr dr writeAmt d (Just (WriteOff bnd writeAmt))) lName ledgerM
-        newBnd <- calcDueInt t d Nothing Nothing bndToWriteOff
-        let bndWritedOff = L.writeOff d writeAmt newBnd
+        let bndWritedOff = L.writeOff d writeAmt bndToWriteOff
         return $ t {bonds = Map.fromList [(bnd,bndWritedOff)] <> bndMap, ledgers = Just newLedgerM}
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
@@ -1168,8 +1166,7 @@ performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
                     x -> Left $ "Date:"++show d ++"not supported type to determine the amount to write off"++ show x
 
       let writeAmtCapped = min (fromRational writeAmt) $ L.bndBalance $ bndMap Map.! bnd
-      newBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bnd
-      let bndWritedOff = L.writeOff d writeAmtCapped newBnd
+      let bndWritedOff = L.writeOff d writeAmtCapped $ bndMap Map.! bnd
       return $ t {bonds = Map.fromList [(bnd,bndWritedOff)] <> bndMap}
 
 performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM} 

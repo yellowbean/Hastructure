@@ -334,23 +334,23 @@ payPrin d amt bnd = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newSt
 
 
 -- TODO : check maximum amount to write off
--- TODO : similar to others , as long as balance changes, it should be accured first
 writeOff :: Date -> Amount -> Bond -> Bond
 writeOff d 0 b = b
-writeOff d amt bnd = bnd {bndBalance = newBal , bndStmt=newStmt}
-    where
-      newBal = (bndBalance bnd) - amt
-      dueIoI = getDueIntOverInt bnd
-      dueInt = getDueInt bnd
-      bn = bndName bnd
-      stmt = bndStmt bnd
-      newStmt = S.appendStmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt )) stmt 
+writeOff d amt _bnd = bnd {bndBalance = newBal , bndStmt=newStmt}
+  where
+    bnd = accrueInt d _bnd
+    newBal = (bndBalance bnd) - amt
+    dueIoI = getDueIntOverInt bnd
+    dueInt = getDueInt bnd
+    bn = bndName bnd
+    stmt = bndStmt bnd
+    newStmt = S.appendStmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt )) stmt 
 
 fundWith :: Date -> Amount -> Bond -> Bond
 fundWith d 0 b = b
-fundWith d amt bnd
-  = bnd {bndBalance = newBal, bndStmt=newStmt } 
+fundWith d amt _bnd = bnd {bndBalance = newBal, bndStmt=newStmt } 
   where
+    bnd = accrueInt d _bnd
     dueIoI = getDueIntOverInt bnd
     dueInt = getDueInt bnd
     bn = bndName bnd
