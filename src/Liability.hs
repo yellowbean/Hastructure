@@ -7,7 +7,7 @@
 
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
-  ,payInt,payPrin,consolStmt,backoutDueIntByYield,isPaidOff,getCurBalance
+  ,payInt,payPrin,consolStmt,isPaidOff,getCurBalance
   ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
   ,getDueInt
   ,weightAverageBalance,calcZspread,payYield,getTotalDueInt
@@ -65,7 +65,6 @@ isAdjustble :: InterestInfo -> Bool
 isAdjustble Floater {} = True
 isAdjustble RefRate {} = True
 isAdjustble Fix {} = False
-isAdjustble InterestByYield {} = False
 isAdjustble (CapRate r _ ) = isAdjustble r
 isAdjustble (FloorRate r _ ) = isAdjustble r
 isAdjustble (WithIoI r _) = isAdjustble r
@@ -82,7 +81,6 @@ isStepUp _  = True
 getIndexFromInfo :: InterestInfo -> Maybe [Index]
 getIndexFromInfo (Floater _ idx _ _  _ _ _) = Just [idx]
 getIndexFromInfo Fix {} = Nothing 
-getIndexFromInfo InterestByYield {} = Nothing 
 getIndexFromInfo RefRate {} = Nothing 
 getIndexFromInfo (CapRate info _) = getIndexFromInfo info
 getIndexFromInfo (FloorRate info _) = getIndexFromInfo info
@@ -91,7 +89,6 @@ getIndexFromInfo (WithIoI info _) = getIndexFromInfo info
 getDayCountFromInfo :: InterestInfo -> Maybe DayCount
 getDayCountFromInfo (Floater _ _ _ _ dc _ _) = Just dc
 getDayCountFromInfo (Fix _ dc) = Just dc
-getDayCountFromInfo InterestByYield {} = Nothing 
 getDayCountFromInfo RefRate {} = Nothing 
 getDayCountFromInfo (CapRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (FloorRate info _) = getDayCountFromInfo info
@@ -109,7 +106,6 @@ data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by 
 --------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
 data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount                                    -- ^ fixed rate
-                  | InterestByYield IRate
                   | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
@@ -147,7 +143,6 @@ getBeginRate (RefRate a _ _ _ ) = a
 getBeginRate (CapRate a  _ ) = getBeginRate a
 getBeginRate (FloorRate a  _ ) = getBeginRate a
 getBeginRate (WithIoI a _) = getBeginRate a
-getBeginRate InterestByYield {} = 0.0
 
 data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
             | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
@@ -204,7 +199,7 @@ data Bond = Bond {
               ,bndDuePrin :: Balance               -- ^ principal due for current period
               ,bndDueInts :: [Balance]                -- ^ interest due
               ,bndDueIntOverInts :: [Balance]         -- ^ IoI
-              ,bndDueIntDates :: Maybe [Date]         -- ^ last interest due calc date
+              ,bndDueIntDate :: Maybe Date         -- ^ last interest due calc date
               ,bndLastIntPays :: Maybe [Date]         -- ^ last interest pay date
               ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
               ,bndStmt :: Maybe S.Statement        -- ^ transaction history
@@ -338,7 +333,8 @@ payPrin d amt bnd = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newSt
     newStmt = S.appendStmt (BondTxn d newBal 0 amt r amt dueInt dueIoI Nothing (S.PayPrin [bn] )) stmt 
 
 
--- TODO  check maximum amount to write off
+-- TODO : check maximum amount to write off
+-- TODO : similar to others , as long as balance changes, it should be accured first
 writeOff :: Date -> Amount -> Bond -> Bond
 writeOff d 0 b = b
 writeOff d amt bnd = bnd {bndBalance = newBal , bndStmt=newStmt}
@@ -388,19 +384,16 @@ accrueInt d b@Bond{bndInterestInfo = ii,bndDueIntDate = mDueIntDate, bndDueInt= 
                   Nothing -> getOriginDate b
 
 
--- TODO:  HOW to accrue a single index ? 
-accrueInt d b@MultiIntBond{bndInterestInfos = iis, bndDueIntDates = mDueIntDates 
+-- accure all the index 
+accrueInt d b@MultiIntBond{bndInterestInfos = iis, bndDueIntDate = mDueIntDate 
                             , bndDueInts = dueInts, bndDueIntOverInts = dueIoIs
                             , bndRates = rs, bndBalance = bal}
-  | all (==d) beginDates = b
+  | beginDate == d = b
   | otherwise 
       = let 
         l = length iis -- `debug` ("bond Name>>> "++ show (bndName b))
         daycounts = (fromMaybe DC_ACT_365F) . getDayCountFromInfo <$> iis
-        beginDates = case mDueIntDates of
-                      Just ds -> ds
-                      Nothing -> getOriginDate b <$ [1..l]
-        periods = zipWith3 yearCountFraction daycounts beginDates (repeat d) -- `debug` ((bndName b) ++"  date"++ show d++"daycounts"++show daycounts++"beginDates "++show beginDates++ show "end dates"++ show d)
+        periods = zipWith3 yearCountFraction daycounts (replicate l beginDate) (repeat d) -- `debug` ((bndName b) ++"  date"++ show d++"daycounts"++show daycounts++"beginDates "++show beginDates++ show "end dates"++ show d)
         newDues = zipWith3 (\r p due -> (mulBR (mulBIR bal r) p) + due) rs periods dueInts -- `debug` ((bndName b) ++"  date"++ show d++"rs"++show rs++"periods "++show periods++">>"++show dueInts)
         newIoiDues = zipWith5 (\r p due dueIoI ii -> 
                                 (mulBR (mulBIR due (getIoI ii r)) p) + dueIoI)
@@ -410,12 +403,12 @@ accrueInt d b@MultiIntBond{bndInterestInfos = iis, bndDueIntDates = mDueIntDates
                               dueIoIs
                               iis
       in
-        b {bndDueInts = newDues, bndDueIntOverInts = newIoiDues, bndDueIntDates = Just (replicate l d) }
+        b {bndDueInts = newDues, bndDueIntOverInts = newIoiDues, bndDueIntDate = Just d }
     where 
       l = length iis
-      beginDates = case mDueIntDates of
+      beginDate = case mDueIntDate of
                     Just ds -> ds
-                    Nothing -> (getOriginDate b) <$ [1..l]
+                    Nothing -> getOriginDate b
 
 accrueInt d (BondGroup bMap) = BondGroup $ accrueInt d <$> bMap
 
@@ -517,19 +510,6 @@ priceBond d rc bnd
     od = getOriginDate bnd
 
 
--- ^ backout interest due for a Yield Maintainace type bond
--- ^ TODO: need to handle MuitIntBond here
-backoutDueIntByYield :: Date -> Bond -> Balance
-backoutDueIntByYield d b@(Bond _ _ (OriginalInfo obal odate _ _) (InterestByYield y) _ currentBalance _  _ _ _ _ _ _ stmt)
-  = projFv - fvs - currentBalance  -- `debug` ("Date"++ show d ++"FV->"++show projFv++">>"++show fvs++">>cb"++show currentBalance)
-    where
-      projFv = fv2 y odate d obal 
-      fvs = sum $ [ fv2 y cfDate d cfAmt  | (cfDate,cfAmt) <- cashflows ] -- `debug` (show d ++ ":CFS"++ show cashflows)
-      cashflows = case stmt of
-                    Just (S.Statement txns) -> [ ((S.getDate txn),(S.getTxnAmt txn))  | txn <- txns ] -- `debug` (show d ++":TXNS"++ show txns)
-                    Nothing -> []
-
-  
 weightAverageBalance :: Date -> Date -> Bond -> Balance
 weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
   = mulBR currentBalance (yearCountFraction DC_ACT_365F (max bd sd) ed) 

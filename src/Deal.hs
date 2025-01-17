@@ -102,10 +102,6 @@ setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ bal currentR
       rate <- queryCompound t d (patchDateToStats d ds)
       return b' {L.bndRate = fromRational (rate * toRational factor) }
 
--- ^ do nothing for bond with interest by yield
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.InterestByYield {}) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
-  = Right b
-
 -- ^ cap & floor & IoI
 setBondNewRate t d ras b@(L.Bond _ _ _ ii _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
   = Right $ (L.accrueInt d b) { L.bndRate = applyFloatRate ii d ras}
@@ -514,7 +510,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               newF <- calcDueFee t d fToAcc
               let newFeeMap = (Map.fromList [(feeName,newF)]) <> feeMap
               run (t{fees=newFeeMap}) poolFlowMap (Just ads) rates calls rAssump log
-   
+
         ResetLiqProvider d liqName -> 
           case liqProvider t of 
             Nothing -> run t poolFlowMap (Just ads) rates calls rAssump log
@@ -626,14 +622,14 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               newBndMap <- adjustM (setBondStepUpRate t d (fromMaybe [] rates)) bn bndMap
               run t{bonds = newBndMap } poolFlowMap (Just ads) rates calls rAssump log
         
-        -- TODO When reset rate, need to accrue interest
         ResetAccRate d accName -> 
           do
             newAccMap <- adjustM 
                           (\a@(A.Account _ _ (Just (A.InvestmentAccount idx spd dp dp1 lastDay _)) _ _)
                             -> do
                                  newRate <- AP.lookupRate (fromMaybe [] rates) (idx,spd) d 
-                                 return a { A.accInterest = Just (A.InvestmentAccount idx spd dp dp1 lastDay newRate)})
+                                 let accWithNewInt = A.depositInt d a
+                                 return accWithNewInt { A.accInterest = Just (A.InvestmentAccount idx spd dp dp1 lastDay newRate)})
                           accName accMap
             run t{accounts = newAccMap} poolFlowMap (Just ads) rates calls rAssump log
 
@@ -857,27 +853,6 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bondPrices)
     where 
       rateToday = getValByDate curve Inc     
 
--- priceBonds t@TestDeal {bonds = bndMap} (AP.IRRInput inputList)
---   = let 
---       bondHistoryFlow = []
---       futureCashFlow = []
---     in 
-
--- priceBondIrr :: BondName -> (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)) -> Map.Map BondName L.Bond -> L.PriceResult
--- priceBondIrr bName (historyCashflow,position,mSell) m =
---   let 
---     b = m Map.! bName
---     bBegBal = L.bndBalance b
---     bPct = position / bBegBal
---     bProjFlow = (\s -> (getDate s, mulBR (getTxnAmt s) bPct)) <$> getTxns $ L.bndStmt b
---     bCashFlow = bProjFlow ++ historyCashflow
---     bLastCf Nothing = []
---     bLastCf (Just (ds,ByRate r)) = []
---     bLastCf (Just (ds,ByCurve ts)) = []
---     bLastCf (Just (ds,ByBalanceFactor r)) = []
---     bLastCf (Just (ds,ByDm idx spd)) = []
---   in 
---      
 
 
 -- ^ split call option assumption , 
@@ -887,17 +862,17 @@ splitCallOpts :: AP.CallOpt -> ([Pre],[Pre])
 splitCallOpts (AP.CallPredicate ps) = (ps,[])
 splitCallOpts (AP.LegacyOpts copts) = 
     let 
-       cFn (C.PoolBalance bal) = If L (CurrentPoolBalance Nothing) bal
-       cFn (C.BondBalance bal) = If L CurrentBondBalance bal
-       cFn (C.PoolFactor r) = IfRate L (PoolFactor Nothing) (fromRational r)
-       cFn (C.BondFactor r) = IfRate L BondFactor (fromRational r)
-       cFn (C.OnDate d) = IfDate E d
-       cFn (C.AfterDate d) = IfDate G d
-       cFn (C.And _opts) = All [ cFn o | o <- _opts  ]
-       cFn (C.Or _opts) = Any [ cFn o | o <- _opts  ]
-       cFn (C.Pre p) = p
+      cFn (C.PoolBalance bal) = If L (CurrentPoolBalance Nothing) bal
+      cFn (C.BondBalance bal) = If L CurrentBondBalance bal
+      cFn (C.PoolFactor r) = IfRate L (PoolFactor Nothing) (fromRational r)
+      cFn (C.BondFactor r) = IfRate L BondFactor (fromRational r)
+      cFn (C.OnDate d) = IfDate E d
+      cFn (C.AfterDate d) = IfDate G d
+      cFn (C.And _opts) = All [ cFn o | o <- _opts  ]
+      cFn (C.Or _opts) = Any [ cFn o | o <- _opts  ]
+      cFn (C.Pre p) = p
     in 
-       ([ cFn copt | copt <- copts ],[])
+      ([ cFn copt | copt <- copts ],[])
 -- legacyCallOptConvert (AP.CallOptions opts) = concat [ legacyCallOptConvert o | o <- opts ]
 splitCallOpts (AP.CallOnDates dp ps) = ([],ps)
 splitCallOpts x = error $ "Failed to find call option types but got"++ show x
@@ -1479,8 +1454,8 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
       let poolWithSchedule = patchScheduleFlow pUnstressedAfterCutoff thePool -- `debug` ("D")
       let poolWithIssuanceBalance = patchIssuanceBalance status (Map.map 
                                                                   (\case 
-                                                                     [] -> 0
-                                                                     txns -> (CF.mflowBegBalance . head) txns)
+                                                                      [] -> 0
+                                                                      txns -> (CF.mflowBegBalance . head) txns)
                                                                   poolAggCfM)
                                                                 poolWithSchedule
       let poolWithRunPoolBalance = patchRuntimeBal (Map.map (\(CF.CashFlowFrame (b,_,_) _) -> b) pCollectionCfAfterCutoff) poolWithIssuanceBalance
@@ -1498,10 +1473,10 @@ readProceeds CollectedPrincipal = CF.mflowPrincipal
 readProceeds CollectedRecoveries = CF.mflowRecovery
 readProceeds CollectedPrepayment = CF.mflowPrepayment
 readProceeds CollectedRental     = CF.mflowRental
-readProceeds CollectedPrepaymentPenalty =  CF.mflowPrepaymentPenalty
+readProceeds CollectedPrepaymentPenalty = CF.mflowPrepaymentPenalty
 readProceeds CollectedCash =  CF.tsTotalCash
 readProceeds CollectedFeePaid = CF.mflowFeePaid
-readProceeds a = error $ "failed to read pool cashflow rule"++show a
+readProceeds a = error $ " Failed to read pool cashflow rule "++show a
 
 
 extractTxnsFromFlowFrameMap :: Maybe [PoolId] -> Map.Map PoolId CF.CashFlowFrame -> [CF.TsRow]
@@ -1533,7 +1508,7 @@ depositInflow d (W.CollectByPct mPids s splitRules) pFlowMap amap    --TODO need
       txns =  extractTxnsFromFlowFrameMap mPids pFlowMap 
       amt = sum $ readProceeds s <$> txns
 
-depositInflow _ a _ _ = error $ "Failed to match collection rule"++ show a
+depositInflow _ a _ _ = error $ " Failed to match collection rule "++ show a
 
 -- ^ deposit cash to account by pool map CF and rules
 depositPoolFlow :: [W.CollectionRule] -> Date -> Map.Map PoolId CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account

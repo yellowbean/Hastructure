@@ -117,12 +117,6 @@ pricingTests = testGroup "Pricing Tests"
             pr  --TODO need to confirm
     ,
     let
-      b3 = b1 {B.bndStmt = Nothing,B.bndInterestInfo = B.InterestByYield 0.02}
-    in
-      testCase "pay interest to satisfy on yield" $
-      assertEqual "" 60 (B.backoutDueIntByYield (L.toDate "20230101") b3)
-    ,
-    let
       b4 = b1
       pday = L.toDate "20220801"
     in

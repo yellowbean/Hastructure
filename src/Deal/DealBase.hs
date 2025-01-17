@@ -60,6 +60,22 @@ import qualified Control.Lens as P
 debug = flip trace
 
 
+data DealComp = CompBond 
+              | CompAccount 
+              | CompFee 
+              | CompPool 
+              | CompTrigger 
+              | CompLedger 
+              | CompRateSwap 
+              | CompRateCap 
+              | CompCurrencySwap 
+              | CompLiqProvider 
+              deriving (Show,Eq,Ord,Generic,Read)
+
+data ActionTypeOnDate = DoSettle
+                      | DoAccrue
+                      | DoUpdateRate
+
 data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
                   | AccrueFee Date FeeName               -- ^ accure fee

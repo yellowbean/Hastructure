@@ -42,19 +42,6 @@ debug = flip trace
 
 
 
-
-annualRateToPeriodRate :: Period -> Float -> Float
-annualRateToPeriodRate p annualRate =
-    1 - (1 - annualRate ) ** n
-  where 
-    n = case p of 
-          Monthly -> 1/12
-          Quarterly -> 1/4 
-          SemiAnnually -> 1/2
-          Annually -> 1.0
-          Daily -> 1 / 365
-          Weekly -> 1 / 52.143
-
 periodRateFromAnnualRate :: Period -> IRate -> IRate
 periodRateFromAnnualRate Annually annual_rate  = annual_rate
 periodRateFromAnnualRate Monthly annual_rate  = annual_rate / 12

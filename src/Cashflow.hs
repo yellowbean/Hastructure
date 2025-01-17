@@ -20,7 +20,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,tsCumDefaultBal,tsCumDelinqBal,tsCumLossBal,tsCumRecoveriesBal
                 ,TsRow(..),cfAt,cutoffTrs,patchCumulative,extendTxns,dropTailEmptyTxns
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
-                ,mergeCf,buildStartTsRow, sliceCfFrame
+                ,mergeCf,buildStartTsRow
                 ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
                 ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance) where
 
@@ -411,15 +411,15 @@ tsTotalCash (LeaseFlow _ _ a) =  a
 tsTotalCash (FixedFlow _ _ _ _ _ x) = x
 tsTotalCash (ReceivableFlow _ _ _ a b _ c _ _ ) = a + b + c
 
-tsDefaultBal :: TsRow -> Balance
-tsDefaultBal CashFlow {} = error "not supported"
-tsDefaultBal BondFlow {} = error "not supported"
-tsDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ x _ _ _ _ _ _) = x
-tsDefaultBal (MortgageFlow _ _ _ _ _ x _ _ _ _ _ _) = x
-tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _ _) = x
-tsDefaultBal LeaseFlow {} = error "not supported"
-tsDefaultBal (FixedFlow _ _ x _ _ _) = x
-tsDefaultBal (ReceivableFlow _ _ _ _ _ x _ _ _ ) = x
+tsDefaultBal :: TsRow -> Either String Balance
+tsDefaultBal CashFlow {} = Left "no default amount for bond flow"
+tsDefaultBal BondFlow {} = Left "no default amount for bond flow"
+tsDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ x _ _ _ _ _ _) = Right x
+tsDefaultBal (MortgageFlow _ _ _ _ _ x _ _ _ _ _ _) = Right x
+tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _ _) = Right x
+tsDefaultBal LeaseFlow {} = Left "not default amoutn for lease flow"
+tsDefaultBal (FixedFlow _ _ x _ _ _) =  Right x
+tsDefaultBal (ReceivableFlow _ _ _ _ _ x _ _ _ ) = Right x
 
 tsCumulative :: Lens' TsRow (Maybe CumulativeStat)
 tsCumulative = lens getter setter
@@ -467,17 +467,6 @@ tsDate = lens getter setter
     setter (LeaseFlow _ a b) x = LeaseFlow x a b
     setter (FixedFlow _ a b c d e) x = FixedFlow x a b c d e
     setter (ReceivableFlow _ a b c d e f g h) x = ReceivableFlow x a b c d e f g h
-
-
-tsSetBalance :: Balance -> TsRow -> TsRow
-tsSetBalance x (CashFlow _d a) = CashFlow _d x
-tsSetBalance x (BondFlow _d a b c) = BondFlow _d x b c
-tsSetBalance x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d x b c d e f g h i j k l
-tsSetBalance x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow _d x b c d e f g h i j k 
-tsSetBalance x (LoanFlow _d a b c d e f g h i) = LoanFlow _d x b c d e f g h i
-tsSetBalance x (LeaseFlow _d a b) = LeaseFlow _d x b
-tsSetBalance x (FixedFlow _d a b c d e) = FixedFlow _d x b c d e
-tsSetBalance x (ReceivableFlow _d a b c d e f g h) = ReceivableFlow _d x b c d e f g h
 
 tsSetLoss :: Balance -> TsRow -> TsRow
 tsSetLoss x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow _d a b c d e f g x i j k l
@@ -728,7 +717,7 @@ buildBegTsRow :: Date -> TsRow -> TsRow
 buildBegTsRow d flow@FixedFlow{} = flow
 buildBegTsRow d tr = 
   let 
-    r = tsSetBalance ((view tsRowBalance tr) + mflowAmortAmount tr) (emptyTsRow d tr)
+    r = set tsRowBalance ((view tsRowBalance tr) + mflowAmortAmount tr) (emptyTsRow d tr)
     rate = mflowRate tr
   in
     tsSetRate rate r
@@ -738,7 +727,7 @@ buildStartTsRow (CashFlowFrame (begBal,begDate,accInt) []) = Nothing
 buildStartTsRow (CashFlowFrame (begBal,begDate,accInt) (txn:txns)) = 
   let 
     rEmpty = emptyTsRow begDate txn 
-    r = tsSetBalance begBal rEmpty
+    r = set tsRowBalance begBal rEmpty
     rate = mflowRate txn
   in
     Just $ tsSetRate rate r
@@ -790,19 +779,6 @@ mergePoolCf cf1@(CashFlowFrame st1 txns1) cf2@(CashFlowFrame st2 txns2)
           CashFlowFrame st1 (txn0++txn1) -- `debug` ("Txn1"++show txn1)
   where 
     [startDate1,startDate2] = firstDate <$> [cf1,cf2]
-    -- rightToLeft = startDate1 >= startDate2
-
-sliceCfFrame :: Date -> Date -> RangeType -> CashFlowFrame -> CashFlowFrame
-sliceCfFrame sd ed rt (CashFlowFrame st txns) 
-  = let 
-      txns' = case rt of 
-                EE -> filter (\x -> (view tsDate x > sd) && (view tsDate x < ed)) txns
-                EI -> filter (\x -> (view tsDate x > sd) && (view tsDate x <= ed)) txns
-                II -> filter (\x -> (view tsDate x >= sd) && (view tsDate x <= ed)) txns
-                IE -> filter (\x -> (view tsDate x >= sd) && (view tsDate x < ed)) txns
-    in 
-      CashFlowFrame st txns'
-
 
 
 -- ^ agg cashflow (but not updating the cumulative stats)

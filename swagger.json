@@ -10758,26 +10758,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "multipleOf": 1.0e-6,
-                                "type": "number"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "InterestByYield"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "InterestByYield",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "items": [
                                     {
                                         "multipleOf": 1.0e-6,

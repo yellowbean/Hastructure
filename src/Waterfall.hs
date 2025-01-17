@@ -54,6 +54,18 @@ data PayOrderBy = ByName
 type BookLedger = (BookDirection, LedgerName) 
 type BookLedgers = (BookDirection, [LedgerName]) 
 
+
+-- data ActionTag = Pay 
+--                 | TransferTo
+--                 | Accrue
+--                 | WriteOffTo
+--                 | Receive
+--                 | Settle
+--                 | Buy
+--                 | Sell 
+
+
+
 data Action =
             -- Accounts 
             Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)

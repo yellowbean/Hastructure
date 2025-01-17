@@ -84,20 +84,19 @@ accrueInt endDate a@(Account bal _ (Just interestType) _ stmt)
 depositInt :: Date -> Account -> Account
 depositInt _ a@(Account _ _ Nothing _ _) = a 
 depositInt ed a@(Account bal _ (Just intType) _ stmt)
-          = a {accBalance = newBal ,accStmt= appendStmt newTxn stmt ,accInterest = Just (newIntInfoType intType)}
-          where 
-            -- accruedInt = accrueInt a (mkTs [(lastCollectDate, toRational r),(ed, toRational r)])  ed
-            accruedInt = accrueInt ed a
-            newIntInfoType (BankAccount x y _d) = BankAccount x y ed
-            newIntInfoType (InvestmentAccount x y z z1 _d z2) = (InvestmentAccount x y z z1 ed z2)
-            newBal = accruedInt + bal  -- `debug` ("INT ACC->"++ show accrued_int)
-            newTxn = AccTxn ed newBal accruedInt BankInt
+  = a {accBalance = newBal ,accStmt= appendStmt newTxn stmt ,accInterest = Just (newIntInfoType intType)}
+  where 
+    accruedInt = accrueInt ed a
+    newIntInfoType (BankAccount x y _d) = BankAccount x y ed
+    newIntInfoType (InvestmentAccount x y z z1 _d z2) = (InvestmentAccount x y z z1 ed z2)
+    newBal = accruedInt + bal  
+    newTxn = AccTxn ed newBal accruedInt BankInt
 
 -- | move cash from account A to account B
 transfer :: (Account,Account) -> Date -> Amount -> (Account, Account)
 transfer (sourceAcc@(Account sBal san _ _ sStmt), targetAcc@(Account tBal tan _ _ tStmt))
-         d
-         amount
+          d
+          amount
   = (sourceAcc {accBalance = newSBal, accStmt = sourceNewStmt}
     ,targetAcc {accBalance = newTBal, accStmt = targetNewStmt})
   where

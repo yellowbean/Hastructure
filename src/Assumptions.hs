@@ -245,7 +245,6 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
             ratesFromCurve = case _rateAssumption of
                                 (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
                                 (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
-                                _ -> error ("Invalid rate type "++ show _rateAssumption)
             ratesUsedByDates =  getValByDates
                                   (mkRateTs $ zip ((head ds):resetDates) (sr:ratesFromCurve))
                                   Inc
@@ -256,6 +255,7 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
               (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
               (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
               (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
+
 projRates _ rt rassump ds = Left ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
 
 
