@@ -59,7 +59,7 @@ calcPmt :: Balance -> IRate -> Int -> Amount
 --   where
 --     periodRate1 = toRational periodRate
 --     r1 = ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1)
-
+calcPmt bal 0.0 periods = divideBI bal periods
 calcPmt bal periodRate periods =
   let
     periodRate1 = toRational periodRate
