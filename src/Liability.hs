@@ -57,6 +57,7 @@ import Control.Lens hiding (Index)
 import Control.Lens.TH
 import Language.Haskell.TH.Lens 
 import Stmt (getTxnAmt)
+import Numeric.RootFinding
 
 debug = flip trace
 
@@ -532,51 +533,34 @@ weightAverageBalance sd ed b@(MultiIntBond _ _ (OriginalInfo ob bd _ _ )  _ _ cu
 weightAverageBalance sd ed bg@(BondGroup bMap)
   = sum $ weightAverageBalance sd ed <$> Map.elems bMap -- `debug` (">>>"++ show (weightAverageBalance sd ed <$> Map.elems bMap))
 
-calcZspread :: (Rational,Date) -> Int -> (Float, (Rational,Rational),Rational) -> Bond -> Ts -> Spread
-calcZspread _ _ _ b@Bond{bndStmt = Nothing} _ = error "No Cashflow for bond"
-calcZspread _ _ _ b@MultiIntBond{bndStmt = Nothing} _ = error "No Cashflow for bond"
-calcZspread (tradePrice,priceDay) count (level ,(lastSpd,lastSpd2),spd) b riskFreeCurve  
-  | count >= 10000 =  fromRational spd -- error "Failed to find Z spread with 10000 times try"
-  | otherwise =
+
+tryCalcZspread :: Rational -> Balance -> Date -> [(Date,Balance)] -> Ts -> Double -> Double
+tryCalcZspread tradePrice originBalance priceDay futureCfs riskFreeCurve spread
+  = let 
+      pvCurve = shiftTsByAmt riskFreeCurve (fromRational (toRational spread))
+      pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- futureCfs ]
+      newPrice = 100 * sum pvs
+      faceVal = fromRational $ divideBB newPrice originBalance
+    in 
+      faceVal - fromRational tradePrice
+
+
+calcZspread :: (Rational,Date) -> Bond -> Ts -> Either String Spread
+calcZspread _ b@Bond{bndStmt = Nothing} _ = Left "No Cashflow for bond"
+calcZspread _ b@MultiIntBond{bndStmt = Nothing} _ = Left "No Cashflow for bond"
+calcZspread (tradePrice,priceDay) b riskFreeCurve =
     let 
       txns = S.getAllTxns b
       bInfo = bndOriginInfo b
       (_,futureTxns) = splitByDate txns priceDay EqToRight
-     
       cashflow = S.getTxnAmt <$> futureTxns
       ds = S.getDate <$> futureTxns
       oBalance = originBalance bInfo
-
-      pvCurve = shiftTsByAmt riskFreeCurve spd -- `debug` ("Shfiting using spd"++ show (fromRational spd))
-      pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- zip ds cashflow ] -- `debug` (" using pv curve"++ show pvCurve)
-      newPrice = 100 * sum pvs -- `debug` ("PVS->>"++ show pvs)
-      pricingFaceVal = toRational $ newPrice / oBalance -- `debug` ("new price"++ show newPrice)
-      gap = (pricingFaceVal - tradePrice) -- `debug` ("Face val"++show pricingFaceVal++"T price"++show tradePrice)
-      newSpd = case [gap ==0 ,gap > 0, spd > 0] of
-                 [True,_,_]   -> spd
-                 [_,True,_]   -> spd + f -- `debug` ("1 -> "++ show f)
-                 [_,False,_]  -> spd - f -- `debug` ("3 -> "++ show f)
-                 where 
-                   f = let 
-                        thresholds = toRational  <$> (level *) <$> [50,20,10,5,2,0.1,0.05,0.01,0.005]
-                        shiftPcts = (level *) <$> [0.5,0.2,0.1,0.05,0.02,0.01,0.005,0.001,0.0005]
-                       in 
-                         case find (\(a,b) -> a < abs(toRational gap)) (zip thresholds shiftPcts ) of
-                           Just (_,v) -> toRational v  -- `debug` ("shifting ->"++ show v)
-                           Nothing -> toRational (level * 0.00001) --  `debug` ("shifting-> <> 0.00005")
-                  
-      newLevel = case [abs newSpd < 0.0001
-                       ,abs(newSpd-lastSpd)<0.000001
-                       ,abs(newSpd-lastSpd2)<0.000001] of
-                   [True,_,_] -> level * 0.5
-                   [_,True,_] -> level * 0.5
-                   [_,_,True] -> level * 0.5
-                   _ -> level
-    in 
-      if abs(pricingFaceVal - tradePrice) <= 0.01 then 
-        fromRational spd  -- `debug` ("Curve -> "++show pvCurve)
-      else
-        calcZspread (tradePrice,priceDay) (succ count) (newLevel, (spd, lastSpd), newSpd) b riskFreeCurve -- `debug` ("new price"++ show pricingFaceVal++"trade price"++ show tradePrice++ "new spd"++ show (fromRational newSpd))
+      def = RiddersParam { riddersMaxIter = 500, riddersTol = RelTol 0.00001 }
+    in
+      case ridders def (0.0001,100) (tryCalcZspread tradePrice oBalance priceDay (zip ds cashflow) riskFreeCurve) of
+        Root r -> Right (fromRational (toRational r))
+        _ -> Left "Failed to find Z spread with 500 times try"
 
 
 totalFundedBalance :: Bond -> Balance
@@ -661,8 +645,8 @@ instance Liable Bond where
         (toRational . getCurBalance <$> Map.elems bMap)
         (toRational . getCurRate <$> Map.elems bMap)
   
-  getOriginBalance b = originBalance $ bndOriginInfo b
   getOriginBalance (BondGroup bMap) = sum $ getOriginBalance <$> Map.elems bMap
+  getOriginBalance b = originBalance $ bndOriginInfo b
 
   getOriginDate b = originDate $ bndOriginInfo b
 

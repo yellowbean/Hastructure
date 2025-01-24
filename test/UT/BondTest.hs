@@ -139,8 +139,8 @@ pricingTests = testGroup "Pricing Tests"
     in 
       testCase "Z spread test" $
       assertEqual "Z spread test 01" 
-      (0.175999)
-      (B.calcZspread  (100.0,pday) 0 (1.0,(0.01,0.02),0.03) b6 rateCurve)
+      (Right 0.176754)
+      (B.calcZspread  (100.0,pday) b6 rateCurve)
       --(B.calcZspread  (500.0,pday) (103.0,1/100) Nothing rateCurve)
 
   ]

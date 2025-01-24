@@ -839,18 +839,11 @@ priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (viewBondsInMa
 priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bondPrices) 
   = Map.mapWithKey 
       (\bn (pd,price)-> L.ZSpread $
-                           L.calcZspread 
-                             (price,pd) 
-                             0
-                             (1.0
-                              ,(1.0,0.5)
-                              ,toRational (rateToday pd - toRational (L.bndRate (bndMap Map.!bn))))
-                             (bndMap Map.! bn)
-                             curve)
+                        case L.calcZspread (price,pd) (bndMap Map.! bn) curve of 
+                          Left e -> error e
+                          Right z -> z
+                        )
       bondPrices
-    where 
-      rateToday = getValByDate curve Inc     
-
 
 
 -- ^ split call option assumption , 

@@ -390,7 +390,7 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | Ended                             -- ^ Deal is marked as closed
                 deriving (Show,Ord,Eq,Read, Generic)
 
--- ^ different pricing methods
+-- ^ pricing methods for assets
 data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
                    | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
@@ -400,7 +400,14 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | PvWal Ts
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
-                   deriving (Show, Eq ,Generic, Read,Ord)
+                   deriving (Show, Eq ,Generic, Read, Ord)
+
+-- ^ pricing methods for bonds
+data BondPricingMethod = BondBalanceFactor Rate 
+                        | PvBondByRate Rate
+                        | PvBondByCurve Ts
+                        deriving (Show, Eq ,Generic, Read, Ord)
+
 
 -- ^ condition which can be evaluated to a boolean value
 data Pre = IfZero DealStats
