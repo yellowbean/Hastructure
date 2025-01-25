@@ -9,7 +9,7 @@
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList,dealScheduledCashflow
-                     ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..),OverrideType(..)
+                     ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..)
                      ,sortActionOnDate,dealBondGroups
                      ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
                      )                      
@@ -170,10 +170,6 @@ sortActionOnDate a1 a2
     d2 = getDate a2 
 
 
-data OverrideType = CustomActionOnDates [ActionOnDate]
-                    deriving (Show,Generic,Ord,Eq)
-
-
 type CutoffDate = Date
 type ClosingDate = Date
 type RevolvingDate = Date
@@ -258,7 +254,6 @@ data TestDeal a = TestDeal { name :: DealName
                             ,currencySwap :: Maybe (Map.Map String HE.CurrencySwap)
                             ,custom:: Maybe (Map.Map String CustomDataType)
                             ,triggers :: Maybe (Map.Map DealCycle (Map.Map String Trigger))
-                            ,overrides :: Maybe [OverrideType]
                             ,ledgers :: Maybe (Map.Map String LD.Ledger)
                             } deriving (Show,Generic,Eq,Ord)
 
@@ -521,4 +516,4 @@ getAllCollectedTxnsList t mPns
 data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType, ''DateDesp, ''ActionOnDate, ''OverrideType])
+$(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType, ''DateDesp, ''ActionOnDate])

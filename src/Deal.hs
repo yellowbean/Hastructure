@@ -11,7 +11,7 @@ module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,calcTargetAmount,updateLiqProvider
             ,projAssetUnion,priceAssetUnion
             ,removePoolCf,runPoolType,PoolType
-            ,ActionOnDate(..),DateDesp(..),OverrideType(..)
+            ,ActionOnDate(..),DateDesp(..)
             ,changeDealStatus
             ) where
 

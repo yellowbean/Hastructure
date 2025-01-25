@@ -191,7 +191,7 @@ data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
                          deriving (Show,Generic)
 
 type HistoryCash = Ts
-type CurrentHolding = Balance
+type CurrentHolding = Balance -- as of the deal date
 type PricingDate = Date
 
 data BondPricingInput = DiscountCurve PricingDate Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 

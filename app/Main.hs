@@ -199,7 +199,6 @@ instance ToSchema CE.LiqDrawType
 instance ToSchema CustomDataType
 instance ToSchema TRG.Trigger
 instance ToSchema TRG.TriggerEffect
-instance ToSchema DB.OverrideType
 instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem

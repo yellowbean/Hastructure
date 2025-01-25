@@ -347,6 +347,7 @@ writeOff d amt _bnd = bnd {bndBalance = newBal , bndStmt=newStmt}
     stmt = bndStmt bnd
     newStmt = S.appendStmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt )) stmt 
 
+-- TODO: should increase the original balance of the bond?
 fundWith :: Date -> Amount -> Bond -> Bond
 fundWith d 0 b = b
 fundWith d amt _bnd = bnd {bndBalance = newBal, bndStmt=newStmt } 
@@ -361,6 +362,7 @@ fundWith d amt _bnd = bnd {bndBalance = newBal, bndStmt=newStmt }
 
 
 -- TODO: add how to handle different rate for IOI
+-- ^ get interest rate for due interest
 getIoI :: InterestInfo -> IRate -> IRate
 getIoI (WithIoI _ (OverCurrRateBy r)) rate = rate * (1+ fromRational r)
 getIoI (WithIoI _ (OverFixSpread r)) rate = rate + r
@@ -468,7 +470,7 @@ calcAccrueInt d bnd@(MultiIntBond {bndStmt = mstmt, bndRates = rs, bndBalance = 
           (Nothing,_) -> IR.calcInt bal (getOriginDate bnd) d (sum rs) DC_ACT_365F
           (Just txn,_) ->  IR.calcInt (S.getTxnBalance txn) (S.getDate txn) d (getTxnRate txn) DC_ACT_365F
 
-
+-- ^ get present value of a bond
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0 []
 priceBond d rc b@(MultiIntBond _ _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0 []
