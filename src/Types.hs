@@ -269,33 +269,46 @@ data PoolSource = CollectedInterest               -- ^ interest
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read,Generic)
 
-data PerPoint a = PoolPerPoint Int a
-                | BondPerPoint Int a
+data PerPoint a = PerPoint Int a
                 deriving (Show,Eq,Read,Generic)
 
-data PerCurve a = NextVal [PerPoint a]
-                | CurrentVal [PerPoint a]
+data PerCurve a = CurrentVal [PerPoint a]
+                | WithTrailVal [PerPoint a]
                 deriving (Show,Eq,Read,Generic,Ord)
 
-getValFromPerCurve :: PerCurve a -> Int -> Maybe a
-getValFromPerCurve (NextVal ps) i = case find (\x -> getIdxFromPerPoint x == i) ps of
-                                      Nothing -> Nothing
-                                      Just rs -> Just $ getValFromPerPoint rs
+getValFromPerCurve :: PerCurve a -> CutoffType -> Int -> Maybe a
+getValFromPerCurve (WithTrailVal []) _ _ = Nothing 
+getValFromPerCurve (CurrentVal []) _ _ = Nothing 
+
+getValFromPerCurve (CurrentVal ps) Inc i 
+  = case find (\x -> getIdxFromPerPoint x >= i) ps of
+      Nothing -> Nothing
+      Just rs -> Just $ getValFromPerPoint rs
+
+getValFromPerCurve (CurrentVal ps) Exc i 
+  = case find (\x -> getIdxFromPerPoint x > i) ps of
+      Nothing -> Nothing
+      Just rs -> Just $ getValFromPerPoint rs
+
+getValFromPerCurve (WithTrailVal ps) Inc i 
+  = case find (\x -> getIdxFromPerPoint x >= i) ps of
+      Nothing -> Just $ getValFromPerPoint (last ps)
+      Just rs -> Just $ getValFromPerPoint rs
+
+getValFromPerCurve (WithTrailVal ps) Exc i 
+  = case find (\x -> getIdxFromPerPoint x > i) ps of
+      Nothing -> Just $ getValFromPerPoint (last ps)
+      Just rs -> Just $ getValFromPerPoint rs
 
 getIdxFromPerPoint :: PerPoint a -> Int
-getIdxFromPerPoint (PoolPerPoint i _) = i
-getIdxFromPerPoint (BondPerPoint i _) = i
+getIdxFromPerPoint (PerPoint i _) = i
 
 getValFromPerPoint :: PerPoint a -> a
-getValFromPerPoint (PoolPerPoint _ v) = v
-getValFromPerPoint (BondPerPoint _ v) = v
+getValFromPerPoint (PerPoint _ v) = v
 
 
 instance Ord a => Ord (PerPoint a) where
-  compare (PoolPerPoint i _) (PoolPerPoint j _) = compare i j
-  compare (BondPerPoint i _) (BondPerPoint j _) = compare i j
-  compare (PoolPerPoint i _) (BondPerPoint j _) = compare i j
-  compare (BondPerPoint i _) (PoolPerPoint j _) = compare i j
+  compare (PerPoint i _) (PerPoint j _) = compare i j
 
 data RangeType = II     -- ^ include both start and end date
                | IE     -- ^ include start date ,but not end date

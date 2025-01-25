@@ -4341,11 +4341,8 @@
                                 "multipleOf": 1.0e-2,
                                 "type": "number"
                             },
-                            "bndDueIntDates": {
-                                "items": {
-                                    "$ref": "#/components/schemas/Day"
-                                },
-                                "type": "array"
+                            "bndDueIntDate": {
+                                "$ref": "#/components/schemas/Day"
                             },
                             "bndDueIntOverInts": {
                                 "items": {
@@ -4640,6 +4637,25 @@
                             "contents"
                         ],
                         "title": "PAC",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/PerCurve_(Fixed_*_E2)"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "AmtByPeriod"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "AmtByPeriod",
                         "type": "object"
                     },
                     {
@@ -12254,12 +12270,6 @@
                 ],
                 "type": "object"
             },
-            "OverrideType": {
-                "items": {
-                    "$ref": "#/components/schemas/ActionOnDate"
-                },
-                "type": "array"
-            },
             "PayOrderBy": {
                 "enum": [
                     "ByName",
@@ -12269,6 +12279,70 @@
                     "ByStartDate"
                 ],
                 "type": "string"
+            },
+            "PerCurve_(Fixed_*_E2)": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PerPoint_(Fixed_*_E2)"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CurrentVal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentVal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PerPoint_(Fixed_*_E2)"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WithTrailVal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WithTrailVal",
+                        "type": "object"
+                    }
+                ]
+            },
+            "PerPoint_(Fixed_*_E2)": {
+                "items": [
+                    {
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "type": "integer"
+                    },
+                    {
+                        "multipleOf": 1.0e-2,
+                        "type": "number"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
             },
             "Period": {
                 "enum": [
@@ -16682,12 +16756,6 @@
                         },
                         "type": "object"
                     },
-                    "call": {
-                        "items": {
-                            "$ref": "#/components/schemas/CallOption"
-                        },
-                        "type": "array"
-                    },
                     "collects": {
                         "items": {
                             "$ref": "#/components/schemas/CollectionRule"
@@ -16730,12 +16798,6 @@
                     "name": {
                         "type": "string"
                     },
-                    "overrides": {
-                        "items": {
-                            "$ref": "#/components/schemas/OverrideType"
-                        },
-                        "type": "array"
-                    },
                     "pool": {
                         "$ref": "#/components/schemas/PoolType_AssetUnion"
                     },
@@ -16750,6 +16812,41 @@
                             "$ref": "#/components/schemas/RateSwap"
                         },
                         "type": "object"
+                    },
+                    "stats": {
+                        "items": [
+                            {
+                                "additionalProperties": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "boolean"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "maximum": 9223372036854775807,
+                                    "minimum": -9223372036854775808,
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DealStatus"
@@ -16782,7 +16879,8 @@
                     "bonds",
                     "pool",
                     "waterfall",
-                    "collects"
+                    "collects",
+                    "stats"
                 ],
                 "type": "object"
             },
@@ -16800,12 +16898,6 @@
                         },
                         "type": "object"
                     },
-                    "call": {
-                        "items": {
-                            "$ref": "#/components/schemas/CallOption"
-                        },
-                        "type": "array"
-                    },
                     "collects": {
                         "items": {
                             "$ref": "#/components/schemas/CollectionRule"
@@ -16848,12 +16940,6 @@
                     "name": {
                         "type": "string"
                     },
-                    "overrides": {
-                        "items": {
-                            "$ref": "#/components/schemas/OverrideType"
-                        },
-                        "type": "array"
-                    },
                     "pool": {
                         "$ref": "#/components/schemas/PoolType_FixedAsset"
                     },
@@ -16868,6 +16954,41 @@
                             "$ref": "#/components/schemas/RateSwap"
                         },
                         "type": "object"
+                    },
+                    "stats": {
+                        "items": [
+                            {
+                                "additionalProperties": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "boolean"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "maximum": 9223372036854775807,
+                                    "minimum": -9223372036854775808,
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DealStatus"
@@ -16900,7 +17021,8 @@
                     "bonds",
                     "pool",
                     "waterfall",
-                    "collects"
+                    "collects",
+                    "stats"
                 ],
                 "type": "object"
             },
@@ -16918,12 +17040,6 @@
                         },
                         "type": "object"
                     },
-                    "call": {
-                        "items": {
-                            "$ref": "#/components/schemas/CallOption"
-                        },
-                        "type": "array"
-                    },
                     "collects": {
                         "items": {
                             "$ref": "#/components/schemas/CollectionRule"
@@ -16966,12 +17082,6 @@
                     "name": {
                         "type": "string"
                     },
-                    "overrides": {
-                        "items": {
-                            "$ref": "#/components/schemas/OverrideType"
-                        },
-                        "type": "array"
-                    },
                     "pool": {
                         "$ref": "#/components/schemas/PoolType_Installment"
                     },
@@ -16986,6 +17096,41 @@
                             "$ref": "#/components/schemas/RateSwap"
                         },
                         "type": "object"
+                    },
+                    "stats": {
+                        "items": [
+                            {
+                                "additionalProperties": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "boolean"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "maximum": 9223372036854775807,
+                                    "minimum": -9223372036854775808,
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DealStatus"
@@ -17018,7 +17163,8 @@
                     "bonds",
                     "pool",
                     "waterfall",
-                    "collects"
+                    "collects",
+                    "stats"
                 ],
                 "type": "object"
             },
@@ -17036,12 +17182,6 @@
                         },
                         "type": "object"
                     },
-                    "call": {
-                        "items": {
-                            "$ref": "#/components/schemas/CallOption"
-                        },
-                        "type": "array"
-                    },
                     "collects": {
                         "items": {
                             "$ref": "#/components/schemas/CollectionRule"
@@ -17084,12 +17224,6 @@
                     "name": {
                         "type": "string"
                     },
-                    "overrides": {
-                        "items": {
-                            "$ref": "#/components/schemas/OverrideType"
-                        },
-                        "type": "array"
-                    },
                     "pool": {
                         "$ref": "#/components/schemas/PoolType_Lease"
                     },
@@ -17104,6 +17238,41 @@
                             "$ref": "#/components/schemas/RateSwap"
                         },
                         "type": "object"
+                    },
+                    "stats": {
+                        "items": [
+                            {
+                                "additionalProperties": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "boolean"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "maximum": 9223372036854775807,
+                                    "minimum": -9223372036854775808,
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DealStatus"
@@ -17136,7 +17305,8 @@
                     "bonds",
                     "pool",
                     "waterfall",
-                    "collects"
+                    "collects",
+                    "stats"
                 ],
                 "type": "object"
             },
@@ -17154,12 +17324,6 @@
                         },
                         "type": "object"
                     },
-                    "call": {
-                        "items": {
-                            "$ref": "#/components/schemas/CallOption"
-                        },
-                        "type": "array"
-                    },
                     "collects": {
                         "items": {
                             "$ref": "#/components/schemas/CollectionRule"
@@ -17202,12 +17366,6 @@
                     "name": {
                         "type": "string"
                     },
-                    "overrides": {
-                        "items": {
-                            "$ref": "#/components/schemas/OverrideType"
-                        },
-                        "type": "array"
-                    },
                     "pool": {
                         "$ref": "#/components/schemas/PoolType_Loan"
                     },
@@ -17222,6 +17380,41 @@
                             "$ref": "#/components/schemas/RateSwap"
                         },
                         "type": "object"
+                    },
+                    "stats": {
+                        "items": [
+                            {
+                                "additionalProperties": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "boolean"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "maximum": 9223372036854775807,
+                                    "minimum": -9223372036854775808,
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DealStatus"
@@ -17254,7 +17447,8 @@
                     "bonds",
                     "pool",
                     "waterfall",
-                    "collects"
+                    "collects",
+                    "stats"
                 ],
                 "type": "object"
             },
@@ -17272,12 +17466,6 @@
                         },
                         "type": "object"
                     },
-                    "call": {
-                        "items": {
-                            "$ref": "#/components/schemas/CallOption"
-                        },
-                        "type": "array"
-                    },
                     "collects": {
                         "items": {
                             "$ref": "#/components/schemas/CollectionRule"
@@ -17320,12 +17508,6 @@
                     "name": {
                         "type": "string"
                     },
-                    "overrides": {
-                        "items": {
-                            "$ref": "#/components/schemas/OverrideType"
-                        },
-                        "type": "array"
-                    },
                     "pool": {
                         "$ref": "#/components/schemas/PoolType_Mortgage"
                     },
@@ -17340,6 +17522,41 @@
                             "$ref": "#/components/schemas/RateSwap"
                         },
                         "type": "object"
+                    },
+                    "stats": {
+                        "items": [
+                            {
+                                "additionalProperties": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "boolean"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "maximum": 9223372036854775807,
+                                    "minimum": -9223372036854775808,
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DealStatus"
@@ -17372,7 +17589,8 @@
                     "bonds",
                     "pool",
                     "waterfall",
-                    "collects"
+                    "collects",
+                    "stats"
                 ],
                 "type": "object"
             },
@@ -17390,12 +17608,6 @@
                         },
                         "type": "object"
                     },
-                    "call": {
-                        "items": {
-                            "$ref": "#/components/schemas/CallOption"
-                        },
-                        "type": "array"
-                    },
                     "collects": {
                         "items": {
                             "$ref": "#/components/schemas/CollectionRule"
@@ -17438,12 +17650,6 @@
                     "name": {
                         "type": "string"
                     },
-                    "overrides": {
-                        "items": {
-                            "$ref": "#/components/schemas/OverrideType"
-                        },
-                        "type": "array"
-                    },
                     "pool": {
                         "$ref": "#/components/schemas/PoolType_ProjectedCashflow"
                     },
@@ -17458,6 +17664,41 @@
                             "$ref": "#/components/schemas/RateSwap"
                         },
                         "type": "object"
+                    },
+                    "stats": {
+                        "items": [
+                            {
+                                "additionalProperties": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "boolean"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "maximum": 9223372036854775807,
+                                    "minimum": -9223372036854775808,
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DealStatus"
@@ -17490,7 +17731,8 @@
                     "bonds",
                     "pool",
                     "waterfall",
-                    "collects"
+                    "collects",
+                    "stats"
                 ],
                 "type": "object"
             },
@@ -17508,12 +17750,6 @@
                         },
                         "type": "object"
                     },
-                    "call": {
-                        "items": {
-                            "$ref": "#/components/schemas/CallOption"
-                        },
-                        "type": "array"
-                    },
                     "collects": {
                         "items": {
                             "$ref": "#/components/schemas/CollectionRule"
@@ -17556,12 +17792,6 @@
                     "name": {
                         "type": "string"
                     },
-                    "overrides": {
-                        "items": {
-                            "$ref": "#/components/schemas/OverrideType"
-                        },
-                        "type": "array"
-                    },
                     "pool": {
                         "$ref": "#/components/schemas/PoolType_Receivable"
                     },
@@ -17576,6 +17806,41 @@
                             "$ref": "#/components/schemas/RateSwap"
                         },
                         "type": "object"
+                    },
+                    "stats": {
+                        "items": [
+                            {
+                                "additionalProperties": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "type": "boolean"
+                                },
+                                "type": "object"
+                            },
+                            {
+                                "additionalProperties": {
+                                    "maximum": 9223372036854775807,
+                                    "minimum": -9223372036854775808,
+                                    "type": "integer"
+                                },
+                                "type": "object"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
                     },
                     "status": {
                         "$ref": "#/components/schemas/DealStatus"
@@ -17608,7 +17873,8 @@
                     "bonds",
                     "pool",
                     "waterfall",
-                    "collects"
+                    "collects",
+                    "stats"
                 ],
                 "type": "object"
             },

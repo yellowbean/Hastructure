@@ -62,6 +62,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,BT.pricingTests
                            ,BT.bndConsolTest
                            ,LT.curveTests
+                           ,LT.periodCurveTest
                            ,LT.pvTests
                            ,LT.seqFunTest
                            -- --,LT.queryStmtTests

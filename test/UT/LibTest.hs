@@ -3,7 +3,7 @@ module UT.LibTest(curveTests
                  ,datesTests
                  ,prorataTests
                  ,tsOperationTests
-                 ,pvTests,seqFunTest)
+                 ,pvTests,seqFunTest,periodCurveTest)
 where
 
 import Test.Tasty
@@ -47,6 +47,24 @@ curveTests =
       assertEqual "Mid"
         (13 % 900)
         (getValByDate _priceTs Exc (toDate "20210105"))
+  ]
+
+periodCurveTest = 
+  let
+    _ts = CurrentVal [PerPoint 0 100, PerPoint 1 200, PerPoint 2 300]
+    _r1 = getValFromPerCurve _ts Inc 1
+    _r2 = getValFromPerCurve _ts Exc 1
+    _r21 = getValFromPerCurve _ts Inc 3
+    _ts1 = WithTrailVal [PerPoint 0 100, PerPoint 1 200, PerPoint 2 300]
+    _r3 = getValFromPerCurve _ts1 Inc 4
+    _r4 = getValFromPerCurve _ts1 Exc 2
+  in
+  testGroup "Period Curve Tests"
+  [
+    testCase "Query period curve by period" $
+      assertEqual
+        "test 5 period"
+        [_r1,_r2,_r21,_r3,_r4] [Just 200, Just 300, Nothing, Just 300, Just 300]
   ]
 
 --queryStmtTests = testGroup "queryStmtTest"
