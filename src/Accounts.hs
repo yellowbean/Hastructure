@@ -88,7 +88,7 @@ depositInt ed a@(Account bal _ (Just intType) _ stmt)
   where 
     accruedInt = accrueInt ed a
     newIntInfoType (BankAccount x y _d) = BankAccount x y ed
-    newIntInfoType (InvestmentAccount x y z z1 _d z2) = (InvestmentAccount x y z z1 ed z2)
+    newIntInfoType (InvestmentAccount x y z z1 _d z2) = InvestmentAccount x y z z1 ed z2
     newBal = accruedInt + bal  
     newTxn = AccTxn ed newBal accruedInt BankInt
 

@@ -11,6 +11,7 @@ module Types
   ,DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Ts(..),TsPoint(..),PoolSource(..)
+  ,PerPoint(..),PerCurve(..),getValFromPerCurve
   ,Period(..), Threshold(..)
   ,RangeType(..),CutoffType(..),DealStatus(..)
   ,Balance,Index(..)
@@ -47,7 +48,7 @@ import Text.Regex.PCRE
 import GHC.Generics
 import Language.Haskell.TH
 
-import Text.Read (readMaybe)
+import Text.Read (readMaybe, get)
 import Data.Aeson (ToJSON, toJSON, Value(String))
 import Data.Ratio (Ratio, numerator, denominator)
 import Data.Text (pack)
@@ -61,7 +62,7 @@ import Data.Fixed hiding (Ratio)
 import Data.Ix
 
 
-import Data.List (intercalate, findIndex)
+import Data.List (intercalate, findIndex, find)
 -- import Cashflow (CashFlowFrame)
 
 import Debug.Trace
@@ -267,6 +268,34 @@ data PoolSource = CollectedInterest               -- ^ interest
 
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read,Generic)
+
+data PerPoint a = PoolPerPoint Int a
+                | BondPerPoint Int a
+                deriving (Show,Eq,Read,Generic)
+
+data PerCurve a = NextVal [PerPoint a]
+                | CurrentVal [PerPoint a]
+                deriving (Show,Eq,Read,Generic,Ord)
+
+getValFromPerCurve :: PerCurve a -> Int -> Maybe a
+getValFromPerCurve (NextVal ps) i = case find (\x -> getIdxFromPerPoint x == i) ps of
+                                      Nothing -> Nothing
+                                      Just rs -> Just $ getValFromPerPoint rs
+
+getIdxFromPerPoint :: PerPoint a -> Int
+getIdxFromPerPoint (PoolPerPoint i _) = i
+getIdxFromPerPoint (BondPerPoint i _) = i
+
+getValFromPerPoint :: PerPoint a -> a
+getValFromPerPoint (PoolPerPoint _ v) = v
+getValFromPerPoint (BondPerPoint _ v) = v
+
+
+instance Ord a => Ord (PerPoint a) where
+  compare (PoolPerPoint i _) (PoolPerPoint j _) = compare i j
+  compare (BondPerPoint i _) (BondPerPoint j _) = compare i j
+  compare (PoolPerPoint i _) (BondPerPoint j _) = compare i j
+  compare (BondPerPoint i _) (PoolPerPoint j _) = compare i j
 
 data RangeType = II     -- ^ include both start and end date
                | IE     -- ^ include start date ,but not end date
@@ -781,8 +810,7 @@ instance TimeSeries (TsPoint a) where
 
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
-
-
+  -- compare (PoolPeriodPoint i1 tv1) (PoolPeriodPoint i2 tv2) = compare i1 i2
 
 instance Show PoolId where
   show (PoolName n)  = n
@@ -807,6 +835,7 @@ instance (Read PoolId) where
 
 
 $(deriveJSON defaultOptions ''TsPoint)
+$(deriveJSON defaultOptions ''PerPoint)
 $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''Cmp)
 $(deriveJSON defaultOptions ''PoolSource)
@@ -1059,6 +1088,7 @@ $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''HowToPay)
 
+$(deriveJSON defaultOptions ''PerCurve)
 
 
 

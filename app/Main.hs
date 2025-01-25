@@ -236,6 +236,11 @@ instance ToSchema AP.LeaseAssetRentAssump
 
 instance ToSchema Threshold
 
+instance ToSchema DB.DealStatFields
+
+instance ToSchema (PerPoint Balance)
+instance ToSchema (PerCurve Balance)
+
 instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)

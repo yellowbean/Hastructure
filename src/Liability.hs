@@ -161,6 +161,7 @@ type PlannedAmorSchedule = Ts
 -- ^ the way of principal due is calculated
 data BondType = Sequential                                 -- ^ Pass through type tranche
               | PAC PlannedAmorSchedule                    -- ^ bond with schedule amortization 
+              | AmtByPeriod (PerCurve Balance)              -- ^ principal due by period
               | PacAnchor PlannedAmorSchedule [BondName]   -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
               | Lockout Date                               -- ^ No principal due till date
               | Z                                          -- ^ Z tranche
@@ -170,7 +171,6 @@ data BondType = Sequential                                 -- ^ Pass through typ
 
 -- TODO: for multi int bond, should origin rate be a list of rates?
 --     : sofar remain orginate rate as a single rate for multi int bond
-
 data Bond = Bond {
               bndName :: String
               ,bndType :: BondType                 -- ^ bond type ,which describe the how principal due was calculated

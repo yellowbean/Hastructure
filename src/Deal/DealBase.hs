@@ -12,6 +12,8 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,getPoolIds,getBondByName, UnderlyingDeal(..),dealCashflow, uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..)
                      ,sortActionOnDate,dealBondGroups
                      ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
+                     ,increaseBondPaidPeriod,increasePoolCollectedPeriod
+                     ,DealStatFields(..),getDealStatInt
                      )                      
   where
 import qualified Accounts as A
@@ -237,6 +239,14 @@ data PoolType a = MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map PoolId (UnderlyingDeal a))
                 deriving (Generic, Eq, Ord, Show)
 
+data DealStatFields = PoolCollectedPeriod
+                    | BondPaidPeriod
+                    deriving (Generic, Eq, Ord, Show)
+
+type BalDealStatMap = Map.Map DealStatFields Balance
+type RDealStatMap = Map.Map DealStatFields Rate
+type BDealStatMap = Map.Map DealStatFields Bool
+type IDealStatMap = Map.Map DealStatFields Int
 
 data TestDeal a = TestDeal { name :: DealName
                             ,status :: DealStatus
@@ -247,7 +257,7 @@ data TestDeal a = TestDeal { name :: DealName
                             ,pool ::  PoolType a 
                             ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
                             ,collects :: [W.CollectionRule]
-                            ,call :: Maybe [C.CallOption]
+                            ,stats :: (BalDealStatMap,RDealStatMap,BDealStatMap,IDealStatMap)
                             ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
                             ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
                             ,rateCap :: Maybe (Map.Map String HE.RateCap)
@@ -512,8 +522,35 @@ getAllCollectedTxnsList t mPns
     where 
       listOfTxns = Map.elems $ getAllCollectedTxns t mPns
 
+increasePoolCollectedPeriod :: TestDeal a -> TestDeal a
+increasePoolCollectedPeriod t@TestDeal{stats = (balMap,rateMap,boolMap,intMap)} 
+  = let 
+      intMap' = Map.insertWith (+) PoolCollectedPeriod 1 intMap
+    in 
+      t {stats = (balMap,rateMap,boolMap,intMap')}
+
+increaseBondPaidPeriod :: TestDeal a -> TestDeal a
+increaseBondPaidPeriod t@TestDeal{stats = (balMap,rateMap,boolMap,intMap)} 
+  = let 
+      intMap' = Map.insertWith (+) BondPaidPeriod 1 intMap
+    in 
+      t {stats = (balMap,rateMap,boolMap,intMap')}
+
+getDealStatInt :: TestDeal a -> DealStatFields -> Maybe Int
+getDealStatInt t@TestDeal{stats = (balMap,rateMap,boolMap,intMap)} f 
+  = Map.lookup f intMap
 
 data UnderBond b = UnderBond BondName Rate (TestDeal b)
+
+opts :: JSONKeyOptions
+opts = defaultJSONKeyOptions -- { keyModifier = toLower }
+
+$(deriveJSON defaultOptions ''DealStatFields)
+
+instance ToJSONKey DealStatFields where
+  toJSONKey = genericToJSONKey opts
+instance FromJSONKey DealStatFields where
+  fromJSONKey = genericFromJSONKey opts
 
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''TestDeal, ''UnderlyingDeal, ''PoolType, ''DateDesp, ''ActionOnDate])

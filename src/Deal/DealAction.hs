@@ -277,54 +277,58 @@ calcDuePrin t d b@(L.BondGroup bMap)
       m <- sequenceA $ Map.map (calcDuePrin t d) bMap
       return $ L.BondGroup m 
 
-calcDuePrin t d b@(L.Bond _ L.Sequential _ _ _ bondBal _ _ _ _ _ _ _ _)
-  = Right $ b {L.bndDuePrin = bondBal } 
+calcDuePrin t d b =
+  let 
+    bondBal = L.bndBalance b
+    btype = L.bndType b
+  in 
+    case btype of
+      L.Sequential -> Right $ b {L.bndDuePrin = bondBal}
+      L.Lockout cd | cd > d -> Right $ b {L.bndDuePrin = 0 }
+                   | otherwise -> Right $ b {L.bndDuePrin = bondBal}
+      L.PAC schedule -> 
+        let 
+          scheduleDue = getValOnByDate schedule d
+          duePrin = max (bondBal - scheduleDue) 0
+        in 
+          Right $ b {L.bndDuePrin = duePrin} 
+      L.AmtByPeriod schedule -> 
+        let
+          currentBondPaidPeriod = fromMaybe 0 $ getDealStatInt t BondPaidPeriod 
+        in 
+          case getValFromPerCurve schedule currentBondPaidPeriod of
+            Nothing -> Left $ "Failed to find due principal from period curve at index" ++ show currentBondPaidPeriod
+            Just scheduleDue -> Right $ b {L.bndDuePrin = max (bondBal - scheduleDue) 0 }
+      L.PacAnchor schedule bns -> 
+        let 
+          scheduleDue = getValOnByDate schedule d
+        in
+          do 
+            anchor_bond_balance <- queryCompound t d (CurrentBondBalanceOf bns)
+            let duePrin = if anchor_bond_balance > 0 then
+                            max (bondBal - scheduleDue) 0
+                          else
+                            bondBal
+            return $ b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+      L.Z -> Right $
+              if all isZbond activeBnds then
+                  b {L.bndDuePrin = bond_bal} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+              else 
+                  b {L.bndDuePrin = 0, L.bndBalance = new_bal, L.bndLastIntPay=Just d} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+              where
+                isZbond (L.Bond _ L.Z _ _ _ _ _ _ _ _ _ _ _ _) = True
+                isZbond L.Bond {} = False
+                bond_bal = L.bndBalance b
+                lstIntPay = L.bndLastIntPay b
 
-calcDuePrin t d b@(L.Bond bn (L.Lockout cd) bo bi _ bondBal _ _ _ _ _ _ _ _) 
-  | cd > d = Right $ b {L.bndDuePrin = 0}
-  | otherwise = Right $ b {L.bndDuePrin = bondBal }
+                activeBnds = filter (\x -> L.bndBalance x > 0) (Map.elems (bonds t))
+                new_bal = bond_bal + dueInt
+                lastIntPayDay = case lstIntPay of
+                                  Just pd -> pd
+                                  Nothing -> getClosingDate (dates t)
+                dueInt = IR.calcInt bond_bal lastIntPayDay d (L.getCurRate b) DC_ACT_365F     
+      L.Equity -> Right $ b {L.bndDuePrin = bondBal }
 
-calcDuePrin t d b@(L.Bond bn (L.PAC schedule) _ _ _ bondBal _ _ _ _ _ _ _ _)
-  = Right $ b {L.bndDuePrin = duePrin} 
-  where
-    scheduleDue = getValOnByDate schedule d
-    duePrin = max (bondBal - scheduleDue) 0
-
-calcDuePrin t d b@(L.Bond bn (L.PacAnchor schedule bns) _ _ _ bondBal _ _ _ _ _ _ _ _)
-  = let 
-      scheduleDue = getValOnByDate schedule d
-    in
-      do 
-        anchor_bond_balance <- queryCompound t d (CurrentBondBalanceOf bns)
-        let duePrin = if anchor_bond_balance > 0 then
-                        max (bondBal - scheduleDue) 0
-                      else
-                        bondBal
-        return $ b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
-
-calcDuePrin t calc_date b@(L.Bond bn L.Z bo bi _ bond_bal bond_rate prin_arr int_arrears _ _ lstIntPay _ _)
-  = Right $
-      if all isZbond activeBnds then
-          b {L.bndDuePrin = bond_bal} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
-      else 
-          b {L.bndDuePrin = 0, L.bndBalance = new_bal, L.bndLastIntPay=Just calc_date} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
-      where
-        isZbond (L.Bond _ L.Z _ _ _ _ _ _ _ _ _ _ _ _) = True
-        isZbond L.Bond {} = False
-        
-        activeBnds = filter (\x -> L.bndBalance x > 0) (Map.elems (bonds t))
-        new_bal = bond_bal + dueInt
-        lastIntPayDay = case lstIntPay of
-                          Just pd -> pd
-                          Nothing -> getClosingDate (dates t)
-        dueInt = IR.calcInt bond_bal lastIntPayDay calc_date bond_rate DC_ACT_365F
-
-calcDuePrin t calc_date b@(L.Bond bn L.Equity bo bi _ bondBal _ _ _ _ _ _ _ _)
-  = Right $ b {L.bndDuePrin = bondBal }
-
--- TODO: add more generic to handle with MultiIntBond
-calcDuePrin t d b@(L.MultiIntBond _ L.Sequential _ _ _ bondBal _ _ _ _ _ _ _ _)
-  = Right $ b {L.bndDuePrin = bondBal }
 
 priceAssetUnion :: ACM.AssetUnion -> Date -> PricingMethod  -> AP.AssetPerf -> Maybe [RateAssumption] 
                 -> Either String PriceResult
@@ -906,7 +910,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap,ledgers= Just ledgerM}
      do
        paidOutAmt <- actualPaidOut
        let (bondsPaid, remainAmt) = payProRata d paidOutAmt L.getTotalDueInt (L.payInt d) bndsList
-       let accPaidOut = (min availAccBal paidOutAmt)
+       let accPaidOut = min availAccBal paidOutAmt
        let newLedgerM = Map.adjust (LD.entryLogByDr dr paidOutAmt d Nothing) lName ledgerM
      
        let dealAfterAcc = t {accounts = Map.adjust (A.draw accPaidOut d (PayInt bnds)) an accMap

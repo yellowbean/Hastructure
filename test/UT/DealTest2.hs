@@ -136,10 +136,8 @@ td = D.TestDeal {
    ])]
  ,D.collects = [W.Collect Nothing W.CollectedCash "General"]
  ,D.custom = Nothing
- ,D.call = Nothing
  ,D.liqProvider = Nothing
  ,D.triggers = Nothing
- ,D.overrides = Nothing
  ,D.ledgers = Nothing
 }
 
