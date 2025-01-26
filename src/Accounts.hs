@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 module Accounts (Account(..),ReserveAmount(..),draw,deposit
                 ,transfer,depositInt ,InterestInfo(..),buildEarnIntAction
@@ -20,10 +21,10 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 import Control.Lens.Tuple
-
 import Control.Lens hiding (Index)
-
 import qualified InterestRate as IR
+
+import Web.Hyperbole
 
 import Debug.Trace
 debug = flip trace

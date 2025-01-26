@@ -4,7 +4,7 @@ github:              "yellowbean/Hastructure"
 license:             BSD3
 author:              "Xiaoyu"
 maintainer:          "always.zhang@gmail.com"
-copyright:           "2024 Xiaoyu, Zhang"
+copyright:           "2025 Xiaoyu, Zhang"
 
 extra-source-files:
 - README.md
@@ -48,6 +48,7 @@ dependencies:
 - numeric-limits
 - scientific
 - math-functions
+- hyperbole
 
 library:
   source-dirs: 
@@ -88,6 +89,7 @@ executables:
     - exceptions
     - tabular
     - math-functions
+    - hyperbole
     # - servant-errors
     # - servant-exceptions
     - servant-checked-exceptions
