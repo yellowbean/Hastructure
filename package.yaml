@@ -48,7 +48,6 @@ dependencies:
 - numeric-limits
 - scientific
 - math-functions
-- hyperbole
 
 library:
   source-dirs: 
@@ -89,7 +88,6 @@ executables:
     - exceptions
     - tabular
     - math-functions
-    - hyperbole
     # - servant-errors
     # - servant-exceptions
     - servant-checked-exceptions

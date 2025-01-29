@@ -24,7 +24,7 @@ import Control.Lens.Tuple
 import Control.Lens hiding (Index)
 import qualified InterestRate as IR
 
-import Web.Hyperbole
+-- import Web.Hyperbole
 
 import Debug.Trace
 debug = flip trace

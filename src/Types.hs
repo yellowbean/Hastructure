@@ -65,7 +65,7 @@ import Data.Ix
 import Data.List (intercalate, findIndex, find)
 -- import Cashflow (CashFlowFrame)
 
-import Web.Hyperbole hiding (All,Fixed)
+-- import Web.Hyperbole hiding (All,Fixed)
 
 import Debug.Trace
 -- import qualified Cashflow as CF
@@ -216,7 +216,7 @@ data DatePattern = MonthEnd
                  | Exclude DatePattern [DatePattern]
                  | OffsetBy DatePattern Int
                  -- | DayOfWeek Int -- T.DayOfWeek
-                 deriving (Show, Eq, Generic, Ord, Read, ViewId)
+                 deriving (Show, Eq, Generic, Ord, Read)
 
 
 data Period = Daily 
