@@ -1270,7 +1270,7 @@ performAction d t@TestDeal{fees=feeMap,liqProvider = Just _liqProvider} (W.LiqSu
         totalDueFee <- queryCompound t d (CurrentDueFee fns)
         supportAmt <- applyLimit t d (fromRational totalDueFee) (fromRational totalDueFee) mLimit
 
-        let transferAmt = case (CE.liqCredit liq) of 
+        let transferAmt = case CE.liqCredit liq of 
                             Nothing -> supportAmt
                             (Just v) -> min supportAmt v
 
@@ -1289,7 +1289,7 @@ performAction d t@TestDeal{bonds=bndMap,liqProvider = Just _liqProvider}
         totalDueInt <- queryCompound t d (CurrentDueBondInt bns)
         supportAmt <- applyLimit t d (fromRational totalDueInt) (fromRational totalDueInt) mLimit
 
-        let transferAmt = case (CE.liqCredit liq) of 
+        let transferAmt = case CE.liqCredit liq of 
                             Nothing -> supportAmt
                             (Just v) -> min supportAmt v
 

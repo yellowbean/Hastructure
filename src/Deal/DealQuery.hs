@@ -227,6 +227,12 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       in 
         Right $ sum rates
 
+    DealStatRate s -> 
+      case stats t of 
+        (_,m,_,_) -> case Map.lookup s m of
+                      Just v -> Right . toRational $ v
+                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+
 
     -- int query
     FutureCurrentPoolBorrowerNum _d mPns ->
@@ -249,6 +255,13 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
 
     ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
+
+    DealStatInt s -> 
+      case stats t of 
+        (_,_,_,m) -> case Map.lookup s m of
+                      Just v -> Right . toRational $ v
+                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+
 
     ReserveBalance ans -> 
       do 
@@ -679,7 +692,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                 Nothing -> Left $ "Failed to get the required amount for target IRR: "++ bondName++" Rate:"++ show irr
                 Just amt -> Right $ 
                               if oDate <= d then
-                                (toRational amt)
+                                toRational amt
                               else
                                 0.0
 
@@ -692,6 +705,12 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                 Just (CustomCurve cv) -> Right . toRational $ getValOnByDate cv d
                 Just (CustomDS ds) -> queryCompound t d (patchDateToStats d ds )
                 _ -> Left $ "Date:"++show d++"Unsupported custom data found for key " ++ show s
+
+    DealStatBalance s -> 
+      case stats t of 
+        (m,_,_,_) -> case Map.lookup s m of
+                      Just v -> Right . toRational $ v
+                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
 
     _ -> Left ("Date:"++show d++"Failed to query formula of -> "++ show s)
     
@@ -747,6 +766,15 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
                                return $ all (<= 0) ms
 
     IsDealStatus st -> Right $ status t == st
+
+
+    DealStatBool s -> 
+      case stats t of 
+        (_,_,m,_) -> case Map.lookup s m of
+                      Just v -> Right . toRational $ v
+                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+
+
 
     TestNot ds -> do not <$> (queryDealBool t ds d)
     -- TestAny b dss -> b `elem` [ queryDealBool t ds d | ds <- dss ]

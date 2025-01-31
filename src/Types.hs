@@ -613,6 +613,7 @@ data DealStats = CurrentBondBalance
                | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgOriginalBondBalance Date Date [BondName]
                | CustomData String Date
+               | DealStatBalance String
                -- analytical query
                | AmountRequiredForTargetIRR Double BondName 
                -- integer type
@@ -620,6 +621,7 @@ data DealStats = CurrentBondBalance
                | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
                | ProjCollectPeriodNum
                | MonthsTillMaturity BondName
+               | DealStatInt String
                -- boolean type
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
@@ -631,6 +633,7 @@ data DealStats = CurrentBondBalance
                | IsOutstanding [BondName]
                | HasPassedMaturity [BondName]
                | TriggersStatus DealCycle String
+               | DealStatBool String
                -- rate type
                | PoolWaRate (Maybe PoolId)
                | BondRate BondName
@@ -643,6 +646,7 @@ data DealStats = CurrentBondBalance
                | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
                | PoolFactor (Maybe [PoolId])
                | BondWaRate [BondName]
+               | DealStatRate String
                -- Compond type
                | Factor DealStats Rational
                | Multiply [DealStats]

@@ -220,7 +220,7 @@ bndTxns = lens getter setter
 
 bondCashflow :: Bond -> ([Date], [Amount])
 bondCashflow b = 
-  let t = (S.getAllTxns b)
+  let t = S.getAllTxns b
   in 
     (S.getDate <$> t, S.getTxnAmt <$> t)
 
