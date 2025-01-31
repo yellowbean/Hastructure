@@ -51,20 +51,37 @@ curveTests =
 
 periodCurveTest = 
   let
-    _ts = CurrentVal [PerPoint 0 100, PerPoint 1 200, PerPoint 2 300]
-    _r1 = getValFromPerCurve _ts Inc 1
-    _r2 = getValFromPerCurve _ts Exc 1
-    _r21 = getValFromPerCurve _ts Inc 3
+    _ts = CurrentVal [PerPoint 0 100, PerPoint 1 200, PerPoint 2 300, PerPoint 4 400]
+    _rs1 = getValFromPerCurve _ts Future Inc <$> [0,1,2,3,4,5]
+    _rs2 = getValFromPerCurve _ts Future Exc <$> [0,1,2,3,4,5]
+    _rs3 = getValFromPerCurve _ts Past Inc <$> [0,1,2,3,4,5]
+    _rs4 = getValFromPerCurve _ts Past Exc <$> [0,1,2,3,4,5]
     _ts1 = WithTrailVal [PerPoint 0 100, PerPoint 1 200, PerPoint 2 300]
-    _r3 = getValFromPerCurve _ts1 Inc 4
-    _r4 = getValFromPerCurve _ts1 Exc 2
+    _r3 = getValFromPerCurve _ts1 Future Inc 4
+    _r4 = getValFromPerCurve _ts1 Future Exc 2
   in
   testGroup "Period Curve Tests"
   [
-    testCase "Query period curve by period" $
+    testCase "Query period curve by period:Future" $
       assertEqual
-        "test 5 period"
-        [_r1,_r2,_r21,_r3,_r4] [Just 200, Just 300, Nothing, Just 300, Just 300]
+        "test 5 period:Future:Inc"
+        [Just 100, Just 200, Just 300, Just 400, Just 400, Nothing]
+        _rs1 
+    ,testCase "Query period curve by period:Future" $
+      assertEqual
+        "test 5 period:Future:Exc"
+        [Just 200, Just 300, Just 400, Just 400, Nothing, Nothing]
+        _rs2
+    ,testCase "Query period curve by period:Past " $
+      assertEqual
+        "test 5 period:Past:Inc"
+        [Just 100, Just 200, Just 300, Just 300, Just 400, Just 400]
+        _rs3
+    ,testCase "Query period curve by period:Past " $
+      assertEqual
+        "test 5 period:Past:Exc"
+        [Nothing, Just 100, Just 200, Just 300, Just 300, Just 400]
+        _rs4
   ]
 
 --queryStmtTests = testGroup "queryStmtTest"

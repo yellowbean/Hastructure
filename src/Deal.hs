@@ -492,7 +492,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                       rAssump 
                       (newLogsWaterfall++newLogs2++logsBeforeDist++[RunningWaterfall d waterfallKey]) -- `debug` ("In RunWaterfall Date"++show d++"after run waterfall 3>>"++ show (pool dRunWithTrigger1)++" status>>"++ show (status dRunWithTrigger1))
 
-        -- Custom waterfall execution action from deal dates
+        -- Custom waterfall execution action from custom dates
         RunWaterfall d wName -> 
           let
             runContext = RunContext poolFlowMap rAssump rates

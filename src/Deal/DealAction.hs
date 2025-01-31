@@ -294,11 +294,11 @@ calcDuePrin t d b =
           Right $ b {L.bndDuePrin = duePrin} 
       L.AmtByPeriod schedule -> 
         let
-          currentBondPaidPeriod = fromMaybe 0 $ getDealStatInt t BondPaidPeriod 
+          currentBondPaidPeriod = succ $ fromMaybe 0 $ getDealStatInt t BondPaidPeriod 
         in 
-          case getValFromPerCurve schedule Inc currentBondPaidPeriod of
+          case getValFromPerCurve schedule Past Inc currentBondPaidPeriod of
             Nothing -> Left $ "Failed to find due principal from period curve at index" ++ show currentBondPaidPeriod
-            Just scheduleDue -> Right $ b {L.bndDuePrin = max (bondBal - scheduleDue) 0 } -- `debug` ("Hit bal"++show d++"date"++ show scheduleDue++">" ++show currentBondPaidPeriod++"schedule"++show schedule)
+            Just scheduleDue -> Right $ b {L.bndDuePrin = max (bondBal - scheduleDue) 0 } 
       L.PacAnchor schedule bns -> 
         let 
           scheduleDue = getValOnByDate schedule d

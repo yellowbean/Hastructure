@@ -29,7 +29,7 @@ module Types
   ,DealName,lookupIntervalTable,CutoffFields(..),PriceResult(..)
   ,DueInt,DuePremium, DueIoI,DateVector,DealStats(..)
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
-  ,ActionWhen(..)
+  ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
   ,MyRatio,HowToPay(..),ApplyRange(..)
   )
@@ -278,29 +278,45 @@ data PerCurve a = CurrentVal [PerPoint a]
                 | WithTrailVal [PerPoint a]
                 deriving (Show,Eq,Read,Generic,Ord)
 
-getValFromPerCurve :: PerCurve a -> CutoffType -> Int -> Maybe a
-getValFromPerCurve (WithTrailVal []) _ _ = Nothing 
-getValFromPerCurve (CurrentVal []) _ _ = Nothing 
+getValFromPerCurve :: PerCurve a -> DateDirection -> CutoffType -> Int -> Maybe a
+getValFromPerCurve (WithTrailVal []) _ _ _ = Nothing 
+getValFromPerCurve (CurrentVal []) _ _ _ = Nothing 
 
-getValFromPerCurve (CurrentVal ps) Inc i 
-  = case find (\x -> getIdxFromPerPoint x >= i) ps of
-      Nothing -> Nothing
-      Just rs -> Just $ getValFromPerPoint rs
+getValFromPerCurve (CurrentVal (v:vs)) Future p i 
+  = let 
+      cmp = case p of
+              Inc -> (>=)
+              Exc -> (>)
+    in
+      if cmp (getIdxFromPerPoint v) i then 
+        Just $ getValFromPerPoint v
+      else 
+        getValFromPerCurve (CurrentVal vs) Future p i
 
-getValFromPerCurve (CurrentVal ps) Exc i 
-  = case find (\x -> getIdxFromPerPoint x > i) ps of
-      Nothing -> Nothing
-      Just rs -> Just $ getValFromPerPoint rs
+getValFromPerCurve (CurrentVal vs) Past p i
+  = let 
+      cmp = case p of
+              Inc -> (<=)
+              Exc -> (<)
+      ps = reverse vs
+    in
+      case find (\x -> cmp (getIdxFromPerPoint x) i) ps of
+        Just rs -> Just $ getValFromPerPoint rs
+        Nothing -> Nothing
 
-getValFromPerCurve (WithTrailVal ps) Inc i 
-  = case find (\x -> getIdxFromPerPoint x >= i) ps of
-      Nothing -> Just $ getValFromPerPoint (last ps)
-      Just rs -> Just $ getValFromPerPoint rs
 
-getValFromPerCurve (WithTrailVal ps) Exc i 
-  = case find (\x -> getIdxFromPerPoint x > i) ps of
-      Nothing -> Just $ getValFromPerPoint (last ps)
-      Just rs -> Just $ getValFromPerPoint rs
+getValFromPerCurve (WithTrailVal _ps) dr p i 
+  = let 
+      ps = case dr of 
+            Future -> _ps
+            Past -> reverse _ps
+      cmp = case p of 
+              Inc -> (>=)
+              Exc -> (>)
+    in 
+      case find (\x -> cmp (getIdxFromPerPoint x) i) ps of
+        Nothing -> Just $ getValFromPerPoint (last ps)
+        Just rs -> Just $ getValFromPerPoint rs
 
 getIdxFromPerPoint :: PerPoint a -> Int
 getIdxFromPerPoint (PerPoint i _) = i
@@ -538,6 +554,11 @@ data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (May
          | TrgTxn Date Bool TxnComment
          deriving (Show, Generic, Eq, Read)
 
+
+data DealStatFields = PoolCollectedPeriod
+                    | BondPaidPeriod
+                    deriving (Generic, Eq, Ord, Show, Read)
+
 -- ^ different types of deal stats
 data DealStats = CurrentBondBalance
                | CurrentPoolBalance (Maybe [PoolId])
@@ -613,7 +634,7 @@ data DealStats = CurrentBondBalance
                | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgOriginalBondBalance Date Date [BondName]
                | CustomData String Date
-               | DealStatBalance String
+               | DealStatBalance DealStatFields
                -- analytical query
                | AmountRequiredForTargetIRR Double BondName 
                -- integer type
@@ -621,7 +642,7 @@ data DealStats = CurrentBondBalance
                | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
                | ProjCollectPeriodNum
                | MonthsTillMaturity BondName
-               | DealStatInt String
+               | DealStatInt DealStatFields
                -- boolean type
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
@@ -633,7 +654,7 @@ data DealStats = CurrentBondBalance
                | IsOutstanding [BondName]
                | HasPassedMaturity [BondName]
                | TriggersStatus DealCycle String
-               | DealStatBool String
+               | DealStatBool DealStatFields
                -- rate type
                | PoolWaRate (Maybe PoolId)
                | BondRate BondName
@@ -646,7 +667,7 @@ data DealStats = CurrentBondBalance
                | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
                | PoolFactor (Maybe [PoolId])
                | BondWaRate [BondName]
-               | DealStatRate String
+               | DealStatRate DealStatFields
                -- Compond type
                | Factor DealStats Rational
                | Multiply [DealStats]
@@ -1064,9 +1085,7 @@ opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)
 
-
-
--- $(deriveJSON defaultOptions ''DateType)
+$(deriveJSON defaultOptions ''DealStatFields)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''BookDirection, ''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )

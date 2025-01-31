@@ -239,9 +239,6 @@ data PoolType a = MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map PoolId (UnderlyingDeal a))
                 deriving (Generic, Eq, Ord, Show)
 
-data DealStatFields = PoolCollectedPeriod
-                    | BondPaidPeriod
-                    deriving (Generic, Eq, Ord, Show)
 
 type BalDealStatMap = Map.Map DealStatFields Balance
 type RDealStatMap = Map.Map DealStatFields Rate
@@ -544,8 +541,6 @@ data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }
-
-$(deriveJSON defaultOptions ''DealStatFields)
 
 instance ToJSONKey DealStatFields where
   toJSONKey = genericToJSONKey opts

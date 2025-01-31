@@ -6378,6 +6378,13 @@
                 ],
                 "type": "string"
             },
+            "DealStatFields": {
+                "enum": [
+                    "PoolCollectedPeriod",
+                    "BondPaidPeriod"
+                ],
+                "type": "string"
+            },
             "DealStats": {
                 "oneOf": [
                     {
@@ -8365,6 +8372,25 @@
                     {
                         "properties": {
                             "contents": {
+                                "$ref": "#/components/schemas/DealStatFields"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DealStatBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DealStatBalance",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "format": "double",
@@ -8478,6 +8504,25 @@
                             "contents"
                         ],
                         "title": "MonthsTillMaturity",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStatFields"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DealStatInt"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DealStatInt",
                         "type": "object"
                     },
                     {
@@ -8745,6 +8790,25 @@
                     {
                         "properties": {
                             "contents": {
+                                "$ref": "#/components/schemas/DealStatFields"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DealStatBool"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DealStatBool",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "$ref": "#/components/schemas/PoolId"
                             },
                             "tag": {
@@ -8985,6 +9049,25 @@
                             "contents"
                         ],
                         "title": "BondWaRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/DealStatFields"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DealStatRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DealStatRate",
                         "type": "object"
                     },
                     {

@@ -771,7 +771,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
     DealStatBool s -> 
       case stats t of 
         (_,_,m,_) -> case Map.lookup s m of
-                      Just v -> Right . toRational $ v
+                      Just v -> Right v
                       Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
 
 
