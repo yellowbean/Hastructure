@@ -2,6 +2,13 @@
 
 <!-- towncrier release notes start -->
 
+## 0.42.0
+### 2025-01-31
+* NEW: `` 
+* NEW: ``
+* FIX: ``
+* ENHANCE: ``
+
 ## 0.41.1
 ### 2025-01-11
 * NEW: `Multi Interest Bond` which used to model in bond with `step up` feature ( sub ordinated interest) in European 
