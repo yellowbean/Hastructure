@@ -7514,21 +7514,14 @@
                     {
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/Day"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "items": {
+                                    "type": "string"
+                                },
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "FeePaidAt"
+                                    "FeePaidAmt"
                                 ],
                                 "type": "string"
                             }
@@ -7537,7 +7530,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "FeePaidAt",
+                        "title": "FeePaidAmt",
                         "type": "object"
                     },
                     {
@@ -10420,6 +10413,44 @@
                             "contents"
                         ],
                         "title": "FeeFlow",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/PerCurve_(Fixed_*_E2)"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FeeFlowByPoolPeriod"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FeeFlowByPoolPeriod",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/PerCurve_(Fixed_*_E2)"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FeeFlowByBondPeriod"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FeeFlowByBondPeriod",
                         "type": "object"
                     },
                     {
@@ -20343,7 +20374,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.41.3"
+        "version": "0.42.0"
     },
     "openapi": "3.0.0",
     "paths": {

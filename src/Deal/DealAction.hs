@@ -198,6 +198,21 @@ calcDueFee t calcDay f@(F.Fee fn (F.AmtByTbl _ ds tbl) fs fd fdday fa lpd _)
       let dueAmt = fromMaybe 0.0 $ lookupTable tbl Up ( fromRational lookupVal >=)
       return f {F.feeDue = dueAmt + fd, F.feeDueDate = Just calcDay}
 
+
+calcDueFee t calcDay f@(F.Fee fn (F.FeeFlowByPoolPeriod pc) fs fd fdday fa lpd stmt)
+  = do 
+      currentPoolPeriod <- queryCompound t calcDay (DealStatInt PoolCollectedPeriod)
+      feePaidAmt <- queryCompound t calcDay (FeePaidAmt [fn])
+      let dueAmt = fromMaybe 0 $ getValFromPerCurve pc Past Inc (succ (floor (fromRational currentPoolPeriod)))
+      return f {F.feeDue = max 0 (dueAmt - fromRational feePaidAmt) + fd, F.feeDueDate = Just calcDay}
+
+calcDueFee t calcDay f@(F.Fee fn (F.FeeFlowByBondPeriod pc) fs fd fdday fa lpd stmt)
+  = do 
+      currentBondPeriod <- queryCompound t calcDay (DealStatInt BondPaidPeriod)
+      feePaidAmt <- queryCompound t calcDay (FeePaidAmt [fn])
+      let dueAmt = fromMaybe 0 $ getValFromPerCurve pc Past Inc (succ (floor (fromRational currentBondPeriod)))
+      return f {F.feeDue = max 0 (dueAmt - fromRational feePaidAmt) + fd, F.feeDueDate = Just calcDay} 
+
 disableLiqProvider :: Ast.Asset a => TestDeal a -> Date -> CE.LiqFacility -> CE.LiqFacility
 disableLiqProvider _ d liq@CE.LiqFacility{CE.liqEnds = Just endDate } 
   | d > endDate = liq{CE.liqCredit = Just 0}

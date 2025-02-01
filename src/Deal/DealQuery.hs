@@ -528,6 +528,13 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
               in 
                 sumTxn $ cutBy Inc Past d _txn 
     
+    FeePaidAmt fns -> 
+      let 
+        fees = (feeMap Map.!) <$> fns
+        feeTxns = concat [ getTxns (F.feeStmt fee) | fee <- fees ]
+      in 
+        Right . toRational $ sumTxn feeTxns
+    
     BondTxnAmtBy d bns mCmt -> 
       let 
         bnds = viewDealBondsByNames t bns

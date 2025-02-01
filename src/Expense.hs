@@ -41,6 +41,8 @@ data FeeType = AnnualRateFee DealStats FormulaRate                       -- ^ an
              | AmtByTbl DatePattern DealStats (Table Balance Balance)    -- ^ lookup query value in a table
              | TargetBalanceFee DealStats DealStats                      -- ^ fee due amount = max( 0, (ds1 - ds2))
              | FeeFlow Ts                                                -- ^ a time series based fee 
+             | FeeFlowByPoolPeriod (PerCurve Balance)                    -- ^ a pool index series based fee
+             | FeeFlowByBondPeriod (PerCurve Balance)                    -- ^ a bond index series based fee
              | ByCollectPeriod Amount                                    -- ^ fix amount per collection period
              deriving (Show,Eq, Generic,Ord)
 

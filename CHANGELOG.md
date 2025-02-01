@@ -2,12 +2,18 @@
 
 <!-- towncrier release notes start -->
 
+## 0.42.1
+### 2025-02-02
+* NEW: add custom fee flow by `BondPaidPeriod` `PoolCollectedPeriod` index
+
+
 ## 0.42.0
-### 2025-01-31
-* NEW: `` 
-* NEW: ``
-* FIX: ``
-* ENHANCE: ``
+### 2025-02-01
+* ENHANCE: refactor `calcPmt` to boost 15x performance for mortgage cashflow projection. 
+* NEW: add `ScheduleByIndex` for bonds
+* FIX: `fundWith` shall increase the bond balance
+* ENHANCE: refactor Z-spread calc logic with numeric.root.finder
+
 
 ## 0.41.1
 ### 2025-01-11

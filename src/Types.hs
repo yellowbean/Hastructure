@@ -604,7 +604,7 @@ data DealStats = CurrentBondBalance
                | BondBalanceGapAt Date BondName
                | BondDuePrin [BondName]
                | BondReturn BondName Balance [TsPoint Amount]
-               | FeePaidAt Date FeeName
+               | FeePaidAmt [FeeName]
                | FeeTxnAmt [FeeName] (Maybe TxnComment)
                | BondTxnAmt [BondName] (Maybe TxnComment)
                | AccTxnAmt  [AccName] (Maybe TxnComment)
@@ -1051,10 +1051,16 @@ getDealStatType (PoolWaRate _) = RtnRate
 getDealStatType (BondRate _) = RtnRate
 getDealStatType (DivideRatio {}) = RtnRate
 getDealStatType (AvgRatio {}) = RtnRate
+getDealStatType (DealStatRate _) = RtnRate
+getDealStatType (Avg dss) = RtnRate
+getDealStatType (Divide ds1 ds2) = RtnRate
+getDealStatType (Multiply _) = RtnRate
+getDealStatType (Factor _ _) = RtnRate
 
 getDealStatType (CurrentPoolBorrowerNum _) = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
 getDealStatType ProjCollectPeriodNum = RtnInt
+getDealStatType (DealStatInt _) = RtnInt
 
 getDealStatType (IsMostSenior _ _) = RtnBool
 getDealStatType (TriggersStatus _ _)= RtnBool
@@ -1062,11 +1068,7 @@ getDealStatType (IsDealStatus _)= RtnBool
 getDealStatType TestRate {} = RtnBool
 getDealStatType (TestAny _ _) = RtnBool
 getDealStatType (TestAll _ _) = RtnBool
-
-getDealStatType (Avg dss) = RtnRate
-getDealStatType (Divide ds1 ds2) = RtnRate
-getDealStatType (Multiply _) = RtnRate
-getDealStatType (Factor _ _) = RtnRate
+getDealStatType (DealStatBool _) = RtnBool
 
 getDealStatType (Max dss) = getDealStatType (head dss)
 getDealStatType (Min dss) = getDealStatType (head dss)
