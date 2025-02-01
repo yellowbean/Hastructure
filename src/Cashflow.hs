@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE DeriveAnyClass       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf,sumTsCF,tsSetLoss,tsSetRecovery
@@ -47,6 +48,7 @@ import Debug.Trace
 import qualified Control.Lens as Map
 import Control.Applicative (liftA2)
 import Data.OpenApi (HasPatch(patch), HasXml (xml))
+import Control.DeepSeq (NFData,rnf)
 import Data.Text.Internal.Encoding.Fusion (streamUtf16BE)
 
 import qualified Text.Tabular as TT
@@ -103,7 +105,7 @@ data TsRow = CashFlow Date Amount
            | FixedFlow Date Balance NewDepreciation Depreciation Balance Balance -- unit cash 
            | ReceivableFlow Date Balance AccuredFee Principal FeePaid Default Recovery Loss (Maybe CumulativeStat) 
                 -- remain balance, amortized amount, unit, cash
-           deriving(Show,Eq,Ord,Generic)
+           deriving(Show,Eq,Ord,Generic,NFData)
 
 instance Semigroup TsRow where 
   CashFlow d1 a1 <> (CashFlow d2 a2) = CashFlow (max d1 d2) (a1 + a2)
@@ -217,6 +219,9 @@ instance Show CashFlowFrame where
     in 
         show st <> "\n" <> A.render id id id tbl
 
+instance NFData CashFlowFrame where 
+  rnf (CashFlowFrame st txns) = rnf st `seq` rnf txns
+  rnf (MultiCashFlowFrame m) = rnf m
 
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame _ ts) = length ts

@@ -52,6 +52,7 @@ import Text.Read (readMaybe, get)
 import Data.Aeson (ToJSON, toJSON, Value(String))
 import Data.Ratio (Ratio, numerator, denominator)
 import Data.Text (pack)
+import Control.DeepSeq (NFData,rnf)
 
 import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
 
@@ -765,7 +766,7 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryFeePaid
                   | AccruedInterest      -- ^ accrued interest at closing
                   | RuntimeCurrentPoolBalance   -- ^ current pool balance
-                  deriving (Show,Ord,Eq,Read,Generic)
+                  deriving (Show,Ord,Eq,Read,Generic,NFData)
 
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest [Txn]

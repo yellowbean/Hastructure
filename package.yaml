@@ -48,6 +48,8 @@ dependencies:
 - numeric-limits
 - scientific
 - math-functions
+- parallel
+- deepseq
 
 library:
   source-dirs: 

@@ -77,6 +77,7 @@ library
     , base
     , bytestring
     , containers
+    , deepseq
     , generic-lens
     , hashable
     , ieee754
@@ -85,6 +86,7 @@ library
     , monad-loops
     , numeric-limits
     , openapi3
+    , parallel
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
@@ -119,6 +121,7 @@ executable Hastructure-exe
     , base-compat
     , bytestring
     , containers
+    , deepseq
     , exceptions
     , generic-lens
     , hashable
@@ -131,6 +134,7 @@ executable Hastructure-exe
     , mtl
     , numeric-limits
     , openapi3
+    , parallel
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
@@ -188,6 +192,7 @@ test-suite Hastructure-test
     , base
     , bytestring
     , containers
+    , deepseq
     , generic-lens
     , hashable
     , ieee754
@@ -196,6 +201,7 @@ test-suite Hastructure-test
     , monad-loops
     , numeric-limits
     , openapi3
+    , parallel
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa

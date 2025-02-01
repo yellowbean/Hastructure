@@ -4,6 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE TupleSections #-}
 
 module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,performAction
@@ -15,6 +16,7 @@ module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,changeDealStatus
             ) where
 
+import Control.Parallel.Strategies
 import qualified Accounts as A
 import qualified Ledger as LD
 import qualified Asset as Ast
@@ -31,7 +33,6 @@ import AssetClass.Mortgage
 import AssetClass.Lease
 import AssetClass.Loan
 import AssetClass.Installment
-
 import AssetClass.MixedAsset
 
 import qualified Call as C
@@ -1084,7 +1085,7 @@ populateDealDates (GenericDates m) _
 runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] 
         -> Either String [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]
 -- schedule cashflow just ignores the interest rate assumption
-runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ = Right $ [(cf, Map.empty)]
+runPool (P.Pool [] (Just cf) _ asof _ _ ) Nothing _ = Right [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
 runPool (P.Pool [] (Just (CF.CashFlowFrame _ txn)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates 
   = sequenceA [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
@@ -1092,15 +1093,15 @@ runPool (P.Pool [] (Just (CF.CashFlowFrame _ txn)) _ asof _ (Just dp)) (Just (AP
 -- project contractual cashflow if nothing found in pool perf assumption
 -- use interest rate assumption
 runPool (P.Pool as _ _ asof _ _) Nothing mRates 
-  -- = Right $ map (\x -> (Ast.calcCashflow x asof mRates,Map.empty)) as 
   = do 
-      cf <- sequenceA $ map (\x -> Ast.calcCashflow x asof mRates) as 
+      cf <- sequenceA $ parMap rdeepseq  
+                              (\x -> Ast.calcCashflow x asof mRates) 
+                              as 
       return [ (x, Map.empty) | x <- cf ]
-
 -- asset cashflow with credit stress
 ---- By pool level
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates 
-  = sequenceA $ map (\x -> Ast.projCashflow x asof assumps mRates) as  
+  = sequenceA $ parMap rdeepseq (\x -> Ast.projCashflow x asof assumps mRates) as  
 ---- By index
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
@@ -1108,16 +1109,22 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByIndex idxAssumps)) mRat
   in
     do 
       _assumps <- sequenceA $ map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
-      sequenceA $ zipWith (\x a -> Ast.projCashflow x asof a mRates) as _assumps 
+      sequenceA $ parMap rdeepseq (\(x, a) -> Ast.projCashflow x asof a mRates) (zip as _assumps)
+
 ---- By Obligor
 runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
   let
     -- result cf,rules,assets
     -- matchAssets:: Ast.Asset c => [Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> [AP.ObligorStrategy] 
     --               -> [c] -> Either String [(CF.CashFlowFrame, Map.Map CutoffFields Balance)] 
-    matchAssets []   _ [] = Right $ [(CF.CashFlowFrame (0,epocDate,Nothing) [], Map.empty)] 
-    matchAssets cfs [] [] = sequenceA cfs 
-    matchAssets cfs [] astList = sequenceA $ cfs ++ ((\x -> (\y -> (y, Map.empty)) <$> (Ast.calcCashflow x asof mRates)) <$> astList)
+    matchAssets []   _ [] = Right [(CF.CashFlowFrame (0,epocDate,Nothing) [], Map.empty)] 
+    matchAssets cfs [] [] = sequenceA cfs
+    -- matchAssets cfs [] astList = sequenceA $ cfs ++ ((\x -> (\y -> (y, Map.empty)) <$> (Ast.calcCashflow x asof mRates)) <$> astList)
+    matchAssets cfs [] astList = let
+                                    poolCfs = parMap rdeepseq (\x -> Ast.calcCashflow x asof mRates) astList
+                                    poolCfs' = (\x -> (, Map.empty) <$> x) <$> poolCfs
+                                 in 
+                                    sequenceA $ cfs ++ poolCfs'
     matchAssets cfs (rule:rules) astList = 
       case rule of 
         AP.ObligorById ids assetPerf 
@@ -1128,7 +1135,7 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) 
                                                          Just oid -> S.member oid idSet
                                                          Nothing -> False) 
                                                astList
-               matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
+               matchedCfs = parMap rdeepseq (\x -> Ast.projCashflow x asof assetPerf mRates) matchedAsts 
              in 
                matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
         AP.ObligorByTag tags tagRule assetPerf ->
@@ -1142,13 +1149,12 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) 
             matchRuleFn (AP.TagNot tRule) s1 s2 = not $ matchRuleFn tRule s1 s2
             
             (matchedAsts,unMatchedAsts) = partition (\x -> matchRuleFn tagRule (Ast.getObligorTags x) obrTags) astList
-            matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
+            matchedCfs = parMap rdeepseq (\x -> Ast.projCashflow x asof assetPerf mRates) matchedAsts 
           in 
             matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
         
         AP.ObligorByField fieldRules assetPerf -> 
           let 
-
             matchRuleFn (AP.FieldIn fv fvals) Nothing = False
             matchRuleFn (AP.FieldIn fv fvals) (Just fm) = case Map.lookup fv fm of
                                                     Just (Left v) -> v `elem` fvals
@@ -1174,12 +1180,12 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) 
             matchRulesFn fs fm = all (`matchRuleFn` fm) fs
 
             (matchedAsts,unMatchedAsts) = partition (matchRulesFn fieldRules . Ast.getObligorFields) astList            
-            matchedCfs = (\x -> Ast.projCashflow x asof assetPerf mRates) <$> matchedAsts 
+            matchedCfs = parMap rdeepseq (\x -> Ast.projCashflow x asof assetPerf mRates) matchedAsts 
           in 
             matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
         AP.ObligorByDefault assetPerf ->
           matchAssets 
-            (cfs ++ ((\x -> Ast.projCashflow x asof assetPerf mRates) <$> astList))
+            (cfs ++ (parMap rdeepseq (\x -> Ast.projCashflow x asof assetPerf mRates) astList))
             []
             []
 
