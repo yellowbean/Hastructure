@@ -484,22 +484,8 @@ priceBond d rc bnd
                               Just _txn -> S.getTxnBegBalance _txn
           accruedInt = calcAccrueInt d bnd
           wal = calcWalBond d bnd
-          duration = calcDuration d (zip futureCfDates futureCfFlow) rc
-          convexity = let 
-                        b = (foldr (\x acc ->
-                                            let 
-                                                _t = yearCountFraction DC_ACT_365F d (S.getDate x) -- `debug` ("calc _T"++show d++">>"++show (S.getTxnDate x))
-                                                _t2 = _t * _t + _t -- `debug` ("T->"++show _t)
-                                                _cash_date = S.getDate x
-                                                _yield = getValByDate rc Exc _cash_date
-                                                _y = (1+ _yield) * (1+ _yield) -- `debug` ("yield->"++ show _yield++"By date"++show d)
-                                                _x = ((mulBR  (pv rc d _cash_date (S.getTxnAmt x)) _t2) / (fromRational _y)) -- `debug` ("PRICING -E") -- `debug` ("PV:->"++show (pv rc d (S.getTxnDate x) (S.getTxnAmt x))++"Y->"++ show _y++"T2-->"++ show _t2)
-                                            in 
-                                                _x + acc) 
-                                    0
-                                    futureCfs) -- `debug` ("PRICING VALUE"++ show presentValue)
-                      in 
-                        b/presentValue -- `debug` "PRICING -D" -- `debug` ("B->"++show b++"PV"++show presentValue)
+          duration = calcDuration DC_ACT_365F d (zip futureCfDates futureCfFlow) rc
+          convexity = calcConvexity DC_ACT_365F d (zip futureCfDates futureCfFlow) rc
         in 
           PriceResult presentValue (fromRational (100* (safeDivide' presentValue obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt futureCfs-- `debug` ("Obal->"++ show obal++"Rate>>"++ show (bndRate b))
   where 

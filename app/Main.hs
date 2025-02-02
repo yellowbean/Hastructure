@@ -328,9 +328,8 @@ type RunPoolTypeRtn = Either String RunPoolTypeRtn_
 patchCumulativeToPoolRun :: RunPoolTypeRtn_ -> RunPoolTypeRtn_
 patchCumulativeToPoolRun
   = Map.map
-         (\(CF.CashFlowFrame _ txns,stats) -> 
-            (CF.CashFlowFrame (0,Lib.toDate "19000101",Nothing) (CF.patchCumulative (0,0,0,0,0,0) [] txns),stats)
-         )
+          (\(CF.CashFlowFrame _ txns,stats) -> 
+            (CF.CashFlowFrame (0,Lib.toDate "19000101",Nothing) (CF.patchCumulative (0,0,0,0,0,0) [] txns),stats))
 
 wrapRunPoolType :: PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> RunPoolTypeRtn
 wrapRunPoolType (MPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
@@ -447,17 +446,20 @@ runPool (SingleRunPoolReq pt passumption mRates)
 runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
 runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) 
   = return $ Map.map (\assump -> 
-                       patchCumulativeToPoolRun <$> (wrapRunPoolType pt (Just assump) mRates)) 
-                     mAssumps
+                        patchCumulativeToPoolRun <$> (wrapRunPoolType pt (Just assump) mRates)) 
+                      mAssumps
 
 runDeal :: RunDealReq -> Handler RunResp
-runDeal (SingleRunReq dt assump nonPerfAssump) =  return $ wrapRun dt assump nonPerfAssump
+runDeal (SingleRunReq dt assump nonPerfAssump) 
+  = return $ wrapRun dt assump nonPerfAssump
 
 runDealScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
-runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump) = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
+runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump) 
+  = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
 
 runMultiDeals :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
-runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
+runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
+  = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
 
 runDate :: RunDateReq -> Handler [Date]
 runDate (RunDateReq sd dp md) = return $ 
@@ -505,7 +507,6 @@ data Config = Config { port :: Int}
 instance FromJSON Config
 
 app :: Application
--- app = serve (Proxy :: Proxy API) myServer
 app = simpleCors $ serve (Proxy :: Proxy API) myServer
 
 
