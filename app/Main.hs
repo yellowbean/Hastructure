@@ -437,8 +437,7 @@ showVersion :: Handler Version
 showVersion = return version1
 
 runAsset :: RunAssetReq -> Handler RunAssetResp
-runAsset req = return $ 
-                 wrapRunAsset req
+runAsset req = return $ wrapRunAsset req
 
 runPool :: RunPoolReq -> Handler PoolRunResp
 runPool (SingleRunPoolReq pt passumption mRates) 

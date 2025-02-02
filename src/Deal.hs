@@ -180,22 +180,6 @@ updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPre
 
 updateLiqProviderRate t d ras liq = liq 
 
--- CDS
-
--- ^ accure CDS 
--- accrueCDS :: Ast.Asset a => TestDeal a -> Date -> CE.CreditDefaultSwap -> Either String CE.CreditDefaultSwap
--- accrueCDS t d cds@CDS{} = Right cds
-
--- accrueCDS 
-
-
-
--- ^ settle CDS 
--- settleCDS :: Ast.Asset a => TestDeal a -> Date -> CE.CDS -> Either String (CE.CDS
-
-
-
-
 evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
 evalFloaterRate _ _ (IR.Fix _ r) = r 
 evalFloaterRate d ras (IR.Floater _ idx spd _r _ mFloor mCap mRounding)
@@ -433,7 +417,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               -- deposit cashflow to SPV from external pool cf               
             in 
               do 
-                let accs = depositPoolFlow (collects t) d collectedFlow accMap -- `debug` ("PoolCollection: deposit >>"++ show d++">>>"++ show collectedFlow++"\n")
+                accs <- depositPoolFlow (collects t) d collectedFlow accMap -- `debug` ("PoolCollection: deposit >>"++ show d++">>>"++ show collectedFlow++"\n")
                 let dAfterDeposit = (appendCollectedCF d t collectedFlow) {accounts=accs}   -- `debug` ("Collected flow"++ show collectedFlow)
                 -- newScheduleFlowMap = Map.map (over CF.cashflowTxn (cutBy Exc Future d)) (fromMaybe Map.empty (getScheduledCashflow t Nothing))
                 let dealAfterUpdateScheduleFlow = over dealScheduledCashflow 
@@ -1476,16 +1460,16 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
 
 -- ^ UI translation : to read pool cash
 -- TODO: need to make this a Maybe
-readProceeds :: PoolSource -> CF.TsRow -> Balance
-readProceeds CollectedInterest  = CF.mflowInterest
-readProceeds CollectedPrincipal = CF.mflowPrincipal
-readProceeds CollectedRecoveries = CF.mflowRecovery
-readProceeds CollectedPrepayment = CF.mflowPrepayment
-readProceeds CollectedRental     = CF.mflowRental
-readProceeds CollectedPrepaymentPenalty = CF.mflowPrepaymentPenalty
-readProceeds CollectedCash =  CF.tsTotalCash
-readProceeds CollectedFeePaid = CF.mflowFeePaid
-readProceeds a = error $ " Failed to read pool cashflow rule "++show a
+readProceeds :: PoolSource -> CF.TsRow -> Either String Balance
+readProceeds CollectedInterest x = Right $ CF.mflowInterest x
+readProceeds CollectedPrincipal x = Right $ CF.mflowPrincipal x
+readProceeds CollectedRecoveries x = Right $ CF.mflowRecovery x
+readProceeds CollectedPrepayment x = Right $ CF.mflowPrepayment x
+readProceeds CollectedRental  x    = Right $ CF.mflowRental x
+readProceeds CollectedPrepaymentPenalty x = Right $ CF.mflowPrepaymentPenalty x
+readProceeds CollectedCash x = Right $ CF.tsTotalCash x
+readProceeds CollectedFeePaid x = Right $ CF.mflowFeePaid x
+readProceeds a _ = Left $ " Failed to find pool cashflow field from pool cashflow rule "++show a
 
 
 extractTxnsFromFlowFrameMap :: Maybe [PoolId] -> Map.Map PoolId CF.CashFlowFrame -> [CF.TsRow]
@@ -1498,30 +1482,36 @@ extractTxnsFromFlowFrameMap mPids pflowMap =
     -- extractTxns m = concatMap $ (view CF.cashflowTxn) $ Map.elems m
 
 -- ^ deposit cash to account by collection rule
-depositInflow :: Date -> W.CollectionRule -> Map.Map PoolId CF.CashFlowFrame -> Map.Map AccountName A.Account -> Map.Map AccountName A.Account
+depositInflow :: Date -> W.CollectionRule -> Map.Map PoolId CF.CashFlowFrame -> Map.Map AccountName A.Account -> Either String (Map.Map AccountName A.Account)
 depositInflow d (W.Collect mPids s an) pFlowMap amap 
-  = Map.adjust (A.deposit amt d (PoolInflow mPids s)) an amap -- `debug` ("Date"++show d++"Deposit"++show amt++"Rule"++show s ++">>AN"++ show an)
+  = do 
+      amts <- sequenceA $ readProceeds s <$> txns
+      let amt = sum amts
+      return $ Map.adjust (A.deposit amt d (PoolInflow mPids s)) an amap
     where 
       txns =  extractTxnsFromFlowFrameMap mPids pFlowMap
-      amt = sum $ readProceeds s <$> txns
 
 
 depositInflow d (W.CollectByPct mPids s splitRules) pFlowMap amap    --TODO need to check 100%
-  = foldr
-      (\(accName,accAmt) accM -> 
-        Map.adjust (A.deposit accAmt d (PoolInflow mPids s)) accName accM)
-      amap
-      amtsToAccs
+  = do 
+      amts <- sequenceA $ readProceeds s <$> txns
+      let amt = sum amts
+      let amtsToAccs = [ (an, mulBR amt splitRate) | (splitRate, an) <- splitRules]
+      return $ 
+              foldr
+                (\(accName,accAmt) accM -> 
+                  Map.adjust (A.deposit accAmt d (PoolInflow mPids s)) accName accM)
+                amap
+                amtsToAccs
     where 
-      amtsToAccs = [ (an, mulBR amt splitRate) | (splitRate, an) <- splitRules]
       txns =  extractTxnsFromFlowFrameMap mPids pFlowMap 
-      amt = sum $ readProceeds s <$> txns
 
-depositInflow _ a _ _ = error $ " Failed to match collection rule "++ show a
+depositInflow _ a _ _ = Left $ " Failed to match collection rule "++ show a
 
 -- ^ deposit cash to account by pool map CF and rules
-depositPoolFlow :: [W.CollectionRule] -> Date -> Map.Map PoolId CF.CashFlowFrame -> Map.Map String A.Account -> Map.Map String A.Account
+depositPoolFlow :: [W.CollectionRule] -> Date -> Map.Map PoolId CF.CashFlowFrame -> Map.Map String A.Account -> Either String (Map.Map String A.Account)
 depositPoolFlow rules d pFlowMap amap
-  = foldr (\rule acc -> depositInflow d rule pFlowMap acc) amap rules
+  -- = foldr (\rule acc -> depositInflow d rule pFlowMap acc) amap rules
+  = foldM (\acc rule -> depositInflow d rule pFlowMap acc) amap rules
 
 $(deriveJSON defaultOptions ''ExpectReturn)
