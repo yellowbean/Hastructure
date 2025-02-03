@@ -284,7 +284,7 @@ instance SPV (TestDeal a) where
   getBondBegBal t bn 
     = 
       case b of 
-        Nothing -> 0  `debug` ("it is not supposed to happen")
+        Nothing -> 0
         Just bnd ->
           case L.bndStmt bnd of
             Just (Statement []) -> L.getCurBalance bnd -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))

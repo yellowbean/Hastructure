@@ -61,6 +61,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,CFT.testPoolAggTest
                            ,BT.pricingTests
                            ,BT.bndConsolTest
+                           ,BT.writeOffTest
                            ,LT.curveTests
                            ,LT.periodCurveTest
                            ,LT.pvTests
@@ -92,6 +93,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.splitTsTest
                            ,UtilT.tableTest
                            ,UtilT.lastOftest
+                           ,UtilT.paySeqTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest

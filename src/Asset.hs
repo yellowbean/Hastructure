@@ -307,7 +307,7 @@ priceAsset m d (BalanceFactor currentFactor defaultedFactor) assumps mRates cTyp
                amts = CF.tsTotalCash <$> txns 
                wal = calcWAL ByYear cb d (zip amts ds) -- `debug` ("pricing"++ show d++ show ds++ show amts)
            in  
-             Right $ AssetPrice val wal (-1) (-1) (-1)  --TODO missing convixity
+             Right $ AssetPrice val wal (-1) (-1) (-1)  
          Left x -> Left x
       
 priceAsset m d (PvRate r) assumps mRates cType
@@ -335,5 +335,5 @@ priceAsset m d (PvRate r) assumps mRates cType
                 duration = calcDuration DC_ACT_365F d (zip ds amts) curve
                 convexity = calcConvexity DC_ACT_365F d (zip ds amts) curve
             in
-              Right $ AssetPrice pv wal duration convexity accruedInt  --TODO missing convixity 
+              Right $ AssetPrice pv wal duration convexity accruedInt
           Left x -> Left x

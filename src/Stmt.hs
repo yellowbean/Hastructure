@@ -12,7 +12,7 @@ module Stmt
    ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
    ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
    ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf,filterTxn
-   ,HasStmt(..)
+   ,HasStmt(..),Txn(..)
    ,getAllTxns,hasEmptyTxn
   )
   where

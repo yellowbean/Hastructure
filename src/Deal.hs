@@ -910,7 +910,6 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
       -- run() is a recusive function loop over all actions till deal end conditions are met
       
 -- | get bond principal and interest shortfalls from a deal
--- TODO , what if bonds has funded during life time ? whatś the correct bond beg balance to be used ? 
 getRunResult :: Ast.Asset a => TestDeal a -> [ResultComponent]
 getRunResult t = os_bn_i ++ os_bn_b -- `debug` ("Done with get result")
   where 

@@ -1173,7 +1173,7 @@ performAction d t@TestDeal{bonds = bndMap, ledgers = Just ledgerM }
       do 
         writeAmt <- applyLimit t d bndBal bndBal mLimit
         let newLedgerM = Map.adjust (LD.entryLogByDr dr writeAmt d (Just (WriteOff bnd writeAmt))) lName ledgerM
-        let bndWritedOff = L.writeOff d writeAmt bndToWriteOff
+        bndWritedOff <- L.writeOff d writeAmt bndToWriteOff
         return $ t {bonds = Map.fromList [(bnd,bndWritedOff)] <> bndMap, ledgers = Just newLedgerM}
 
 performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
@@ -1185,7 +1185,7 @@ performAction d t@TestDeal{bonds=bndMap} (W.WriteOff mlimit bnd)
                     x -> Left $ "Date:"++show d ++"not supported type to determine the amount to write off"++ show x
 
       let writeAmtCapped = min (fromRational writeAmt) $ L.bndBalance $ bndMap Map.! bnd
-      let bndWritedOff = L.writeOff d writeAmtCapped $ bndMap Map.! bnd
+      bndWritedOff <- L.writeOff d writeAmtCapped $ bndMap Map.! bnd
       return $ t {bonds = Map.fromList [(bnd,bndWritedOff)] <> bndMap}
 
 performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM} 
@@ -1193,8 +1193,9 @@ performAction d t@TestDeal{bonds=bndMap, ledgers = Just ledgerM}
   = do
       bndsToWriteOff <- mapM (calcDueInt t d Nothing Nothing . (bndMap Map.!)) bnds
       let totalBondBal = sum $ L.bndBalance <$> bndsToWriteOff
+      -- total amount to be write off
       writeAmt <- applyLimit t d totalBondBal totalBondBal mLimit
-      let (bndWrited, _) = paySequentially d writeAmt L.bndBalance (L.writeOff d) [] bndsToWriteOff 
+      (bndWrited, _) <- paySeqM d writeAmt L.bndBalance (L.writeOff d) (Right []) bndsToWriteOff 
       let bndMapUpdated = lstToMapByFn L.bndName bndWrited
       let newLedgerM = Map.adjust (LD.entryLogByDr dr writeAmt d Nothing) lName ledgerM
       return t {bonds = bndMapUpdated <> bndMap, ledgers = Just newLedgerM}
@@ -1205,7 +1206,7 @@ performAction d t@TestDeal{bonds=bndMap } (W.WriteOffBySeq mLimit bnds)
       bondsToWriteOff <- mapM (calcDueInt t d Nothing Nothing . (bndMap Map.!)) bnds
       let totalBondBal = sum $ L.bndBalance <$> bondsToWriteOff
       writeAmt <- applyLimit t d totalBondBal totalBondBal mLimit
-      let (bndWrited, _) = paySequentially d writeAmt L.bndBalance (L.writeOff d) [] bondsToWriteOff 
+      (bndWrited, _) <- paySeqM d writeAmt L.bndBalance (L.writeOff d) (Right []) bondsToWriteOff 
       let bndMapUpdated = lstToMapByFn L.bndName bndWrited
       return t {bonds = bndMapUpdated <> bndMap }
 

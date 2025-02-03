@@ -161,7 +161,7 @@ type PlannedAmorSchedule = Ts
 -- ^ the way of principal due is calculated
 data BondType = Sequential                                 -- ^ Pass through type tranche
               | PAC PlannedAmorSchedule                    -- ^ bond with schedule amortization 
-              | AmtByPeriod (PerCurve Balance)              -- ^ principal due by period
+              | AmtByPeriod (PerCurve Balance)             -- ^ principal due by period
               | PacAnchor PlannedAmorSchedule [BondName]   -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
               | Lockout Date                               -- ^ No principal due till date
               | Z                                          -- ^ Z tranche
@@ -170,7 +170,7 @@ data BondType = Sequential                                 -- ^ Pass through typ
 
 
 -- TODO: for multi int bond, should origin rate be a list of rates?
---     : sofar remain orginate rate as a single rate for multi int bond
+--     : so far remain orginate rate as a single rate for multi int bond
 data Bond = Bond {
               bndName :: String
               ,bndType :: BondType                 -- ^ bond type ,which describe the how principal due was calculated
@@ -190,22 +190,22 @@ data Bond = Bond {
             } 
             | MultiIntBond {
               bndName :: String
-              ,bndType :: BondType                 -- ^ bond type ,which describe the how principal due was calculated
-              ,bndOriginInfo :: OriginalInfo       -- ^ fact data on origination
+              ,bndType :: BondType                    -- ^ bond type ,which describe the how principal due was calculated
+              ,bndOriginInfo :: OriginalInfo          -- ^ fact data on origination
               ,bndInterestInfos :: [InterestInfo]     -- ^ interest info which used to update interest rate
               ,bndStepUps :: Maybe [StepUp]           -- ^ step up which update interest rate
               -- status
-              ,bndBalance :: Balance               -- ^ current balance
+              ,bndBalance :: Balance                  -- ^ current balance
               ,bndRates :: [IRate]                    -- ^ current rate
-              ,bndDuePrin :: Balance               -- ^ principal due for current period
+              ,bndDuePrin :: Balance                  -- ^ principal due for current period
               ,bndDueInts :: [Balance]                -- ^ interest due
               ,bndDueIntOverInts :: [Balance]         -- ^ IoI
-              ,bndDueIntDate :: Maybe Date         -- ^ last interest due calc date
+              ,bndDueIntDate :: Maybe Date            -- ^ last interest due calc date
               ,bndLastIntPays :: Maybe [Date]         -- ^ last interest pay date
-              ,bndLastPrinPay :: Maybe Date        -- ^ last principal pay date
-              ,bndStmt :: Maybe S.Statement        -- ^ transaction history
+              ,bndLastPrinPay :: Maybe Date           -- ^ last principal pay date
+              ,bndStmt :: Maybe S.Statement           -- ^ transaction history
             }
-            | BondGroup (Map.Map String Bond)      -- ^ bond group
+            | BondGroup (Map.Map String Bond)         -- ^ bond group
             deriving (Show, Eq, Generic, Ord, Read)            
 
 
@@ -334,18 +334,21 @@ payPrin d amt bnd = bnd {bndDuePrin =newDue, bndBalance = newBal , bndStmt=newSt
     newStmt = S.appendStmt (BondTxn d newBal 0 amt r amt dueInt dueIoI Nothing (S.PayPrin [bn] )) stmt 
 
 
--- TODO : check maximum amount to write off
-writeOff :: Date -> Amount -> Bond -> Bond
-writeOff d 0 b = b
-writeOff d amt _bnd = bnd {bndBalance = newBal , bndStmt=newStmt}
-  where
-    bnd = accrueInt d _bnd
-    newBal = (bndBalance bnd) - amt
-    dueIoI = getDueIntOverInt bnd
-    dueInt = getDueInt bnd
-    bn = bndName bnd
-    stmt = bndStmt bnd
-    newStmt = S.appendStmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt )) stmt 
+writeOff :: Date -> Amount -> Bond -> Either String Bond
+writeOff d 0 b = Right b
+writeOff d amt _bnd 
+  | bndBalance _bnd < amt = Left $ "Insufficient balance to write off "++ show amt ++ show " bond name "++ show (bndName _bnd)
+  | otherwise = 
+    let 
+      bnd = accrueInt d _bnd
+      newBal = bndBalance bnd - amt
+      dueIoI = getDueIntOverInt bnd
+      dueInt = getDueInt bnd
+      bn = bndName bnd
+      stmt = bndStmt bnd
+      newStmt = S.appendStmt (BondTxn d newBal 0 0 0 0 dueInt dueIoI Nothing (S.WriteOff bn amt )) stmt 
+    in 
+      Right $ bnd {bndBalance = newBal , bndStmt=newStmt}
 
 -- TODO: should increase the original balance of the bond?
 fundWith :: Date -> Amount -> Bond -> Bond

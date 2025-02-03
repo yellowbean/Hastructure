@@ -1,4 +1,4 @@
-module UT.BondTest(pricingTests,bndConsolTest)
+module UT.BondTest(pricingTests,bndConsolTest,writeOffTest)
 where
 
 import Test.Tasty
@@ -219,9 +219,23 @@ bndConsolTest = testGroup "Bond consoliation & patchtesting" [
       assertEqual ""
       (Just (S.Statement [ BondTxn (L.toDate "20220501") 1000 0 1000 0.08 0 0 0 (Just 0.5) (S.TxnComments [S.Empty, S.Empty])]))
       bTestConsol
+    ]
 
 
-
-     
-      
-                                                             ]
+writeOffTest = 
+  let 
+    d1 = L.toDate "20200101"
+    bnd1 = B.Bond "A" B.Sequential (B.OriginalInfo 100 d1 0.06 Nothing) (B.Fix 0.05 DC_ACT_365F) Nothing 100 0.08 0 0 0 Nothing Nothing Nothing Nothing
+    writeAmt1 = 70 
+    writeAmt2 = 120 
+  in 
+  testGroup "write off on bond" [
+    testCase "write off on bond 1" $
+    assertEqual "only 1st bond is written off by 70"
+    (Right (bnd1 {B.bndBalance = 30,B.bndStmt = Just (S.Statement [S.BondTxn d1 30.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (S.WriteOff "A" 70.00)])}))
+    (B.writeOff d1 writeAmt1 bnd1),
+    testCase "over write off on bond 1" $
+    assertEqual "over write off on bond 1"
+    (Left "Insufficient balance to write off 120.00\" bond name \"\"A\"")
+    (B.writeOff d1 writeAmt2 bnd1)
+  ]
