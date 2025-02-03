@@ -117,10 +117,8 @@ calcRequiredAmtForIrrAtDate :: Double -> [Date] -> [Amount] -> Date -> Maybe Amo
 calcRequiredAmtForIrrAtDate irr [] _ d = Nothing 
 calcRequiredAmtForIrrAtDate irr ds vs d = 
   let 
-    def = RiddersParam
-        { riddersMaxIter = 200
-        , riddersTol     = RelTol 0.00000001
-        }
+    itertimes = 500
+    def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.00000001}
   in 
     case ridders def (0.0001,100000000000000) (calcPvFromIRR irr ds vs d) of
           Root finalAmt -> Just (fromRational (toRational finalAmt))

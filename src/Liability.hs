@@ -453,7 +453,7 @@ getTxnRate :: Txn -> IRate
 getTxnRate (BondTxn _ _ _ _ r _ _ _ _ _) = r
 getTxnRate _ = 0.0
 
--- ^TODO to be tested
+-- ^TODO to be tested 
 calcAccrueInt :: Date -> Bond -> Balance
 calcAccrueInt d bnd@(BondGroup bMap) = sum $ calcAccrueInt d <$> Map.elems bMap
 calcAccrueInt d bnd@(Bond {bndStmt = mstmt, bndRate = r, bndBalance = bal}) 
@@ -556,13 +556,14 @@ calcZspread (tradePrice,priceDay) b riskFreeCurve =
       cashflow = S.getTxnAmt <$> futureTxns
       ds = S.getDate <$> futureTxns
       oBalance = originBalance bInfo
-      def = RiddersParam { riddersMaxIter = 500, riddersTol = RelTol 0.00001 }
+      itertimes = 500
+      def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.00001 }
     in
       case ridders def (0.0001,100) (tryCalcZspread tradePrice oBalance priceDay (zip ds cashflow) riskFreeCurve) of
         Root r -> Right (fromRational (toRational r))
-        _ -> Left "Failed to find Z spread with 500 times try"
+        _ -> Left $ "Failed to find Z spread with "++ show itertimes ++ " times try"
 
-
+-- ^ get total funded balance (from transaction) of a bond
 totalFundedBalance :: Bond -> Balance
 totalFundedBalance (BondGroup bMap) = sum $ totalFundedBalance <$> Map.elems bMap
 totalFundedBalance b

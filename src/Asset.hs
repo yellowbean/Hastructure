@@ -80,6 +80,12 @@ class (Show a,IR.UseRate a) => Asset a where
   -- | get number of remaining payments
   getRemainTerms :: a -> Int
   -- | project asset cashflow under credit stress and interest assumptions
+  getTotalTerms :: a -> Int 
+  getTotalTerms a = ACM.originTerm (getOriginInfo a)
+
+  getPastTerms :: a -> Int
+  getPastTerms a = getTotalTerms a - getRemainTerms a
+
   projCashflow :: a -> Date -> A.AssetPerf -> Maybe [RateAssumption] -> Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)
   -- | Get possible number of borrower 
   getBorrowerNum :: a -> Int
@@ -156,9 +162,12 @@ applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
                                        ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
 
 
-buildPrepayRates :: [Date] -> Maybe A.AssetPrepayAssumption -> Either String [Rate]
-buildPrepayRates ds Nothing = Right $ replicate (pred (length ds)) 0.0
-buildPrepayRates ds mPa = 
+cpr2smm :: Rate -> Rate
+cpr2smm r = toRational $ 1 - (1 - fromRational r :: Double) ** (1/12)
+
+buildPrepayRates :: Asset b => b -> [Date] -> Maybe A.AssetPrepayAssumption -> Either String [Rate]
+buildPrepayRates _ ds Nothing = Right $ replicate (pred (length ds)) 0.0
+buildPrepayRates a ds mPa = 
   case mPa of
     Just (A.PrepaymentConstant r) -> Right $ replicate size r
     Just (A.PrepaymentCPR r) -> Right $ Util.toPeriodRateByInterval r <$> getIntervalDays ds
@@ -172,8 +181,18 @@ buildPrepayRates ds mPa =
                                          (getIntervalDays ds)
     Just (A.PrepayStressByTs ts x) -> 
       do
-        rs <- buildPrepayRates ds (Just x)
+        rs <- buildPrepayRates a ds (Just x)
         return $ getTsVals $ multiplyTs Exc (zipTs (tail ds) rs) ts 
+    Just (A.PrepaymentPSA r) -> 
+      let 
+        agedTerm = getPastTerms a
+        remainingTerm = getRemainTerms a
+        ppyVectorInCPR = (* r) <$> [0.002,0.004..0.06] ++ repeat 0.06
+        vectorUsed = take remainingTerm $ drop agedTerm ppyVectorInCPR
+      in 
+        case period (getOriginInfo a) of
+          Monthly -> Right $ cpr2smm <$> vectorUsed
+          _ -> Left $ "PSA is only supported for monthly payment"
 
     _ -> Left ("failed to find prepayment type"++ show mPa)
   where
@@ -213,16 +232,16 @@ getRecoveryLagAndRate Nothing = (0,0)
 getRecoveryLagAndRate (Just (A.Recovery (r,lag))) = (r,lag)
 
 -- | build pool assumption rate (prepayment, defaults, recovery rate , recovery lag)
-buildAssumptionPpyDefRecRate :: [Date] -> A.AssetPerfAssumption -> Either String ([Rate],[Rate],Rate,Int)
-buildAssumptionPpyDefRecRate ds (A.LoanAssump mDa mPa mRa mESa) = buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
-buildAssumptionPpyDefRecRate ds (A.MortgageAssump mDa mPa mRa mESa)
+buildAssumptionPpyDefRecRate :: Asset a => a -> [Date] -> A.AssetPerfAssumption -> Either String ([Rate],[Rate],Rate,Int)
+buildAssumptionPpyDefRecRate a ds (A.LoanAssump mDa mPa mRa mESa) = buildAssumptionPpyDefRecRate a ds (A.MortgageAssump mDa mPa mRa mESa)
+buildAssumptionPpyDefRecRate a ds (A.MortgageAssump mDa mPa mRa mESa)
   = let  
       size = length ds
       zeros = replicate size 0.0
       (recoveryRate,recoveryLag) = getRecoveryLagAndRate mRa
     in 
       do 
-        prepayRates <- buildPrepayRates ds mPa
+        prepayRates <- buildPrepayRates a ds mPa
         defaultRates <- buildDefaultRates ds mDa
         let (prepayRates2,defaultRates2) = applyExtraStress mESa ds prepayRates defaultRates
         return (prepayRates2,defaultRates2,recoveryRate,recoveryLag)
@@ -239,9 +258,9 @@ getDefaultLagAndRate Nothing = (0,0)
 getDefaultLagAndRate (Just (A.Recovery (r,lag))) = (r,lag)
 
 -- | build prepayment rates/ delinq rates and (%,lag) convert to default, recovery rate, recovery lag
-buildAssumptionPpyDelinqDefRecRate :: [Date] -> A.AssetPerfAssumption -> Either String ([Rate],[Rate],(Rate,Lag),Rate,Int)
-buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa (Just _)) = Left "Delinq assumption doesn't support extra stress"
-buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa Nothing)
+buildAssumptionPpyDelinqDefRecRate :: Asset a => a -> [Date] -> A.AssetPerfAssumption -> Either String ([Rate],[Rate],(Rate,Lag),Rate,Int)
+buildAssumptionPpyDelinqDefRecRate _ ds (A.MortgageDeqAssump mDeqDefault mPa mRa (Just _)) = Left "Delinq assumption doesn't support extra stress"
+buildAssumptionPpyDelinqDefRecRate a ds (A.MortgageDeqAssump mDeqDefault mPa mRa Nothing)
   = let 
       (recoveryRate,recoveryLag) = getRecoveryLagAndRate mRa
       zeros = replicate (length ds) 0.0
@@ -253,7 +272,7 @@ buildAssumptionPpyDelinqDefRecRate ds (A.MortgageDeqAssump mDeqDefault mPa mRa N
                                                 ,pct)
     in 
       do 
-        prepayRates <- buildPrepayRates ds mPa
+        prepayRates <- buildPrepayRates a ds mPa
         return (prepayRates,delinqRates,(defaultPct,defaultLag),recoveryRate, recoveryLag)
 
 

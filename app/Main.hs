@@ -369,7 +369,6 @@ wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates (Just pm
       let assetCf = P.aggPool Nothing cfs
       return (assetCf , Just pricingResult)
 
---TODO implement on running via ByIndex
 type ScenarioName = String
 
 data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption

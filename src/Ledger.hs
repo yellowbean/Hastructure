@@ -58,7 +58,7 @@ entryLogByDr Debit amt d (Just (TxnComments cms)) = entryLog amt d (TxnComments 
 
 hasTxnDirection :: TxnComment -> Bool
 hasTxnDirection (TxnDirection _) = True
-hasTxnDirection (TxnComments txns) = any (hasTxnDirection) txns
+hasTxnDirection (TxnComments txns) = any hasTxnDirection txns
 hasTxnDirection _ = False
 
 isTxnDirection :: BookDirection -> TxnComment -> Bool 

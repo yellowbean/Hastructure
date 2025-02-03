@@ -141,6 +141,7 @@ data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentVecPadding [Rate] 
                            | PrepayByAmt (Balance,[Rate])
                            | PrepayStressByTs Ts AssetPrepayAssumption
+                           | PrepaymentPSA Rate
                            deriving (Show,Generic,Read)
 
 data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^ Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss

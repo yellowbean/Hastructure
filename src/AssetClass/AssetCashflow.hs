@@ -4,7 +4,7 @@
 
 module AssetClass.AssetCashflow
   (applyHaircut,patchPrepayPenaltyFlow,getRecoveryLag,decreaseBorrowerNum
-  ,patchLossRecovery)
+  ,patchLossRecovery,getRecoveryLagFromAssumption)
   where
 
 import qualified Data.Time as T
@@ -128,6 +128,15 @@ patchPrepayPenaltyFlow (ot,mPpyPen) mflow@(CF.CashFlowFrame st trs)
 getRecoveryLag :: A.RecoveryAssumption -> Int
 getRecoveryLag (A.Recovery (_,lag)) = lag 
 getRecoveryLag (A.RecoveryTiming (_,rs)) = length rs
+
+getRecoveryLagFromAssumption :: A.AssetPerfAssumption -> Maybe Int
+getRecoveryLagFromAssumption (A.MortgageAssump _ _ (Just ra) _) = Just $ getRecoveryLag ra
+getRecoveryLagFromAssumption (A.MortgageDeqAssump _ _ (Just ra) _) = Just $ getRecoveryLag ra
+getRecoveryLagFromAssumption (A.LoanAssump _ _ (Just ra) _) = Just $ getRecoveryLag ra
+getRecoveryLagFromAssumption (A.InstallmentAssump _ _ (Just ra) _) = Just $ getRecoveryLag ra
+getRecoveryLagFromAssumption (A.ReceivableAssump _ (Just ra) _) = Just $ getRecoveryLag ra
+getRecoveryLagFromAssumption _ = Nothing
+
 
 decreaseBorrowerNum :: Balance -> Balance -> Maybe BorrowerNum -> Maybe Int
 decreaseBorrowerNum bb 0 mBn = Nothing

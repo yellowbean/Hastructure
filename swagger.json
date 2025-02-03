@@ -4099,6 +4099,26 @@
                         ],
                         "title": "PrepayStressByTs",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PrepaymentPSA"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PrepaymentPSA",
+                        "type": "object"
                     }
                 ]
             },
@@ -14164,11 +14184,11 @@
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
+                                        "format": "double",
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-6,
+                                        "format": "double",
                                         "type": "number"
                                     },
                                     {
@@ -14213,11 +14233,11 @@
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
+                                        "format": "double",
                                         "type": "number"
                                     },
                                     {
-                                        "multipleOf": 1.0e-6,
+                                        "format": "double",
                                         "type": "number"
                                     },
                                     {

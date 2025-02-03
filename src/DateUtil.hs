@@ -24,7 +24,8 @@ import Control.Exception
 debug = flip trace
 
 -- http://www.deltaquants.com/day-count-conventions
-yearCountFraction :: DayCount -> Date -> Date -> Rational --TODO https://www.iso20022.org/15022/uhb/mt565-16-field-22f.htm
+-- https://www.iso20022.org/15022/uhb/mt565-16-field-22f.htm
+yearCountFraction :: DayCount -> Date -> Date -> Rational 
 yearCountFraction dc sd ed 
   = case dc of 
       DC_ACT_ACT -> if sameYear then 
