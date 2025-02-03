@@ -364,11 +364,13 @@ fundWith d amt _bnd = bnd {bndBalance = newBal, bndStmt=newStmt }
     newStmt = S.appendStmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt )) stmt 
 
 
--- TODO: add how to handle different rate for IOI
 -- ^ get interest rate for due interest
 getIoI :: InterestInfo -> IRate -> IRate
+-- ^ inflate interest rate by pct over current rate
 getIoI (WithIoI _ (OverCurrRateBy r)) rate = rate * (1+ fromRational r)
+-- ^ inflate interest rate by adding a fix spread
 getIoI (WithIoI _ (OverFixSpread r)) rate = rate + r
+-- ^ no inflation,just use current bond's rate
 getIoI _ rate = rate
 
 
@@ -420,10 +422,17 @@ accrueInt d (BondGroup bMap) = BondGroup $ accrueInt d <$> bMap
 
 
 
--- ^ TODO WAL for bond group
+-- ^ TODO WAL for bond group -- tobe tested on algo
 calcWalBond :: Date -> Bond -> Rational
 calcWalBond d b@Bond{bndStmt = Nothing} = 0.0
 calcWalBond d b@MultiIntBond{bndStmt = Nothing} = 0.0
+calcWalBond d (BondGroup bMap) 
+  = let
+      bndWal = calcWalBond d <$> Map.elems bMap 
+      bndBals = toRational <$> getCurBalance <$> Map.elems bMap
+    in 
+      weightedBy bndBals bndWal
+
 calcWalBond d b
   = let 
       txns = cutBy Exc Future d $ S.getAllTxns b 
