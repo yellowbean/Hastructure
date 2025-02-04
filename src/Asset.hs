@@ -192,15 +192,23 @@ buildPrepayRates a ds mPa =
       in 
         case period (getOriginInfo a) of
           Monthly -> Right $ cpr2smm <$> vectorUsed
-          _ -> Left $ "PSA is only supported for monthly payment"
+          _ -> Left $ "PSA is only supported for monthly payment but got "++ show (period (getOriginInfo a))
+    Just (A.PrepaymentByTerm rs) -> 
+      let 
+        agedTerm = getPastTerms a
+        oTerm = originTerm (getOriginInfo a)
+      in 
+        case find (\x -> oTerm == length x) rs of 
+          Just v -> Right $ drop agedTerm v
+          Nothing -> Left "Prepayment by term doesn't match the origin term"
 
     _ -> Left ("failed to find prepayment type"++ show mPa)
   where
     size = length ds
 
-buildDefaultRates :: [Date] -> Maybe A.AssetDefaultAssumption -> Either String [Rate]
-buildDefaultRates ds Nothing = Right $ replicate (pred (length ds)) 0.0
-buildDefaultRates ds mDa = 
+buildDefaultRates :: Asset b => b -> [Date] -> Maybe A.AssetDefaultAssumption -> Either String [Rate]
+buildDefaultRates _ ds Nothing = Right $ replicate (pred (length ds)) 0.0
+buildDefaultRates a ds mDa = 
   case mDa of
     Just (A.DefaultConstant r) -> Right $ replicate size r
     Just (A.DefaultCDR r) -> Right $ Util.toPeriodRateByInterval r <$> getIntervalDays ds
@@ -220,9 +228,21 @@ buildDefaultRates ds mDa =
 
     Just (A.DefaultStressByTs ts x) -> 
       do
-        rs <- buildDefaultRates ds (Just x)
+        rs <- buildDefaultRates a ds (Just x)
         let r = getTsVals $ multiplyTs Inc (zipTs (tail ds) rs) ts 
         return r
+
+    Just (A.DefaultByTerm rs) -> 
+      let 
+        agedTerm = getPastTerms a
+        oTerm = originTerm (getOriginInfo a)
+      in 
+        case find (\x -> oTerm == length x) rs of 
+          Just v -> Right $ drop agedTerm v
+          Nothing -> Left "Default by term doesn't match the origin term"
+
+
+
     _ -> Left ("failed to find default rate type"++ show mDa)    
   where
     size = length ds
@@ -242,7 +262,7 @@ buildAssumptionPpyDefRecRate a ds (A.MortgageAssump mDa mPa mRa mESa)
     in 
       do 
         prepayRates <- buildPrepayRates a ds mPa
-        defaultRates <- buildDefaultRates ds mDa
+        defaultRates <- buildDefaultRates a ds mDa
         let (prepayRates2,defaultRates2) = applyExtraStress mESa ds prepayRates defaultRates
         return (prepayRates2,defaultRates2,recoveryRate,recoveryLag)
 

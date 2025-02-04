@@ -136,7 +136,7 @@ instance Asset Loan where
         do
           rateVector <- A.projRates cr or mRate cfDates
           ppyRates <- A.buildPrepayRates pl (lastPayDate:cfDates) prepayAssump 
-          defRates <- A.buildDefaultRates (lastPayDate:cfDates) defaultAssump
+          defRates <- A.buildDefaultRates pl (lastPayDate:cfDates) defaultAssump
           let dc = getDayCount or          
           let remainTerms = reverse $ replicate recoveryLag 0 ++ [0..rt] -- `debug` ("rateVector"++show rateVector)
           let initFactor = case prinPayType of 

@@ -3523,6 +3523,32 @@
                         ],
                         "title": "DefaultStressByTs",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    "type": "array"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultByTerm"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultByTerm",
+                        "type": "object"
                     }
                 ]
             },
@@ -4118,6 +4144,32 @@
                             "contents"
                         ],
                         "title": "PrepaymentPSA",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "items": {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    "type": "array"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PrepaymentByTerm"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PrepaymentByTerm",
                         "type": "object"
                     }
                 ]

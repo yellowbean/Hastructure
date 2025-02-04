@@ -467,7 +467,7 @@ instance Ast.Asset Mortgage where
     in  
       do
         rateVector <- A.projRates cr or mRates cfDates 
-        defRates <- Ast.buildDefaultRates (lastPayDate:cfDates) amd
+        defRates <- Ast.buildDefaultRates m (lastPayDate:cfDates) amd
         ppyRates <- Ast.buildPrepayRates m (lastPayDate:cfDates) amp
         let (txns,_) = projectMortgageFlow 
                           (ob, cb,lastPayDate,mbn,prinPayType,dc,cr,p,ot) 
