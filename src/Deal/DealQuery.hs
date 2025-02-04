@@ -591,8 +591,17 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       in
         Right . toRational $ sum $ map ex stmts
 
+    -- ^ get total int due for bonds
     CurrentDueBondInt bns -> 
       Right . toRational $ sum $ L.getDueInt <$> viewDealBondsByNames t bns  
+
+    -- ^ get total int over int due for bonds
+    CurrentDueBondIntOverInt bns -> 
+      Right . toRational $ sum $ L.getDueIntOverInt <$> viewDealBondsByNames t bns  
+
+    -- ^ get total due (due int + int over int due) for bonds
+    CurrentDueBondIntTotal bns -> 
+      sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
 
     CurrentDueBondIntAt idx bns -> 
       let 
@@ -603,9 +612,6 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           Nothing -> Left $ "Date:"++show d++"Failed to find due int at index for bonds"++ show bns ++ "with Index"++ show idx ++ " but bonds has"++ show (L.bndDueInts <$> bs)
           Just dueInts -> Right . toRational $ sum dueInts 
 
-    CurrentDueBondIntOverInt bns -> 
-      Right . toRational $ sum $ L.getDueIntOverInt <$> viewDealBondsByNames t bns  
-
     CurrentDueBondIntOverIntAt idx bns -> 
       let 
         bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
@@ -615,9 +621,6 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           Nothing -> Left $ "Date:"++show d++"Failed to find due int over int at index for bonds"++ show bns ++ "with Index"++ show idx ++ " but bonds has"++ show (L.bndDueIntOverInts <$> bs)
           Just dueInts -> Right . toRational $ sum $ dueInts
 
-    CurrentDueBondIntTotal bns -> 
-      sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
-    
     CurrentDueBondIntTotalAt idx bns -> 
       sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondIntAt idx bns,CurrentDueBondIntOverIntAt idx bns])
 

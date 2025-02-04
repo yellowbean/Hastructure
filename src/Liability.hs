@@ -114,8 +114,6 @@ data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) 
                   deriving (Show, Eq, Generic, Ord, Read)
 
 
--- data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
---             | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
 stepUpInterestInfo :: StepUp -> InterestInfo -> InterestInfo
 stepUpInterestInfo sp ii =
   case ii of 
@@ -129,6 +127,7 @@ stepUpInterestInfo sp ii =
     getSpread (PassDateSpread _ s) = s
     getSpread (PassDateLadderSpread _ s _) = s
 
+
 getDpFromIntInfo :: InterestInfo -> Maybe DatePattern
 getDpFromIntInfo (Floater _ _ _ dp _ _ _) = Just dp
 getDpFromIntInfo (RefRate _ _ _ dp) = Just dp
@@ -136,6 +135,7 @@ getDpFromIntInfo (CapRate ii _) = getDpFromIntInfo ii
 getDpFromIntInfo (FloorRate ii _) = getDpFromIntInfo ii
 getDpFromIntInfo (WithIoI ii _) = getDpFromIntInfo ii
 getDpFromIntInfo _ = Nothing
+
 
 getBeginRate :: InterestInfo -> IRate 
 getBeginRate (Floater a _ _ _ _ _ _ ) = a
@@ -145,9 +145,11 @@ getBeginRate (CapRate a  _ ) = getBeginRate a
 getBeginRate (FloorRate a  _ ) = getBeginRate a
 getBeginRate (WithIoI a _) = getBeginRate a
 
+
 data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
             | PassDateLadderSpread Date Spread RateReset   -- ^ add a spread on the date pattern
             deriving (Show, Eq, Generic, Ord, Read)
+
 
 data OriginalInfo = OriginalInfo {
   originBalance::Balance           -- ^ issuance balance
@@ -373,7 +375,7 @@ getIoI (WithIoI _ (OverFixSpread r)) rate = rate + r
 -- ^ no inflation,just use current bond's rate
 getIoI _ rate = rate
 
-
+-- ^ accure interest to a bond, update the due interest and due IoI of the bond
 accrueInt :: Date -> Bond -> Bond
 accrueInt d b@Bond{bndInterestInfo = ii,bndDueIntDate = mDueIntDate, bndDueInt= dueInt
                   , bndDueIntOverInt = dueIoI, bndRate = r, bndBalance = bal} 
@@ -453,35 +455,6 @@ getTxnRate :: Txn -> IRate
 getTxnRate (BondTxn _ _ _ _ r _ _ _ _ _) = r
 getTxnRate _ = 0.0
 
--- ^TODO to be tested 
-calcAccrueInt :: Date -> Bond -> Balance
-calcAccrueInt d bnd@(BondGroup bMap) = sum $ calcAccrueInt d <$> Map.elems bMap
-calcAccrueInt d bnd@(Bond {bndStmt = mstmt, bndRate = r, bndBalance = bal}) 
-  | isNothing mstmt = IR.calcInt bal (getOriginDate bnd) d r DC_ACT_365F
-  | d <= getOriginDate bnd = 0
-  | isJust mstmt = 
-      let
-        txns = S.getAllTxns bnd
-        ds = S.getDate <$> txns
-      in
-        case (S.getTxnAsOf txns d, elem d ds) of
-          (_ , True) -> 0
-          (Nothing,_) -> IR.calcInt bal (getOriginDate bnd) d r DC_ACT_365F -- `debug` (">>> "++ show (getOriginDate bnd) ++ ">>> "++ show d++"bal"++show bal++"rate"++show r++"r"++ show ( IR.calcInt bal (getOriginDate bnd) d r DC_ACT_365F)++ ">>\n txns"++ show txns)
-          (Just txn,_) -> IR.calcInt (S.getTxnBalance txn) (S.getDate txn) d r DC_ACT_365F -- `debug` ("Accrue Int"++show d++">>"++show (S.getDate txn)++ ">>"++show (S.getTxnBalance txn)++"Rate"++show r)
-
-calcAccrueInt d bnd@(MultiIntBond {bndStmt = mstmt, bndRates = rs, bndBalance = bal}) 
-  | isNothing mstmt = IR.calcInt bal (getOriginDate bnd) d (sum rs) DC_ACT_365F
-  | d <= getOriginDate bnd = 0
-  | isJust mstmt = 
-      let
-        txns = S.getAllTxns bnd
-        ds = S.getDate <$> txns
-      in
-        case (S.getTxnAsOf txns d, elem d ds) of
-          (_, True) -> 0
-          (Nothing,_) -> IR.calcInt bal (getOriginDate bnd) d (sum rs) DC_ACT_365F
-          (Just txn,_) ->  IR.calcInt (S.getTxnBalance txn) (S.getDate txn) d (getTxnRate txn) DC_ACT_365F
-
 -- ^ get present value of a bond
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0 []
@@ -494,7 +467,7 @@ priceBond d rc bnd
           cutoffBalance = case S.getTxnAsOf txns d of
                               Nothing ->  (S.getTxnBegBalance . head) txns
                               Just _txn -> S.getTxnBegBalance _txn
-          accruedInt = calcAccrueInt d bnd
+          accruedInt =  getTotalDueInt (accrueInt d bnd)
           wal = calcWalBond d bnd
           duration = calcDuration DC_ACT_365F d (zip futureCfDates futureCfFlow) rc
           convexity = calcConvexity DC_ACT_365F d (zip futureCfDates futureCfFlow) rc
@@ -652,6 +625,7 @@ instance Liable Bond where
   getOriginDate b = originDate $ bndOriginInfo b
 
 
+  -- ^ get due int of a bond
   getDueInt b@Bond{bndDueInt=di} = di 
   getDueInt MultiIntBond{bndDueInts=dis} = sum dis
   getDueInt (BondGroup bMap) = sum $ getDueInt <$> Map.elems bMap
@@ -660,10 +634,12 @@ instance Liable Bond where
   getDueIntOverIntAt MultiIntBond{bndDueIntOverInts=diois} idx = diois !! idx 
   getTotalDueIntAt b idx = getDueIntAt b idx + getDueIntOverIntAt b idx
 
+  -- ^ get due IoI of a bond
   getDueIntOverInt b@Bond{bndDueIntOverInt=dioi} = dioi
   getDueIntOverInt MultiIntBond{bndDueIntOverInts=diois} = sum diois
   getDueIntOverInt (BondGroup bMap) = sum $ getDueIntOverInt <$> Map.elems bMap
 
+  -- ^ get total due interest of a bond (both due int and due IoI)
   getTotalDueInt b@Bond{bndDueInt=di,bndDueIntOverInt=dioi} = di + dioi
   getTotalDueInt MultiIntBond{bndDueInts=dis,bndDueIntOverInts=diois} = sum dis + sum diois
   getTotalDueInt (BondGroup bMap) = sum $ getTotalDueInt <$> Map.elems bMap

@@ -319,15 +319,15 @@ calcDuePrin t d b =
           scheduleDue = getValOnByDate schedule d
         in
           do 
-            anchor_bond_balance <- queryCompound t d (CurrentBondBalanceOf bns)
-            let duePrin = if anchor_bond_balance > 0 then
+            anchor_bond_flag <- queryDealBool t (IsOutstanding bns) d
+            let duePrin = if anchor_bond_flag then
                             max (bondBal - scheduleDue) 0
                           else
                             bondBal
-            return $ b {L.bndDuePrin = duePrin} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+            return $ b {L.bndDuePrin = duePrin}
       L.Z -> Right $
               if all isZbond activeBnds then
-                  b {L.bndDuePrin = bond_bal} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
+                  b {L.bndDuePrin = bond_bal}
               else 
                   b {L.bndDuePrin = 0, L.bndBalance = new_bal, L.bndLastIntPay=Just d} -- `debug` ("bn >> "++bn++"Due Prin set=>"++show(duePrin) )
               where
