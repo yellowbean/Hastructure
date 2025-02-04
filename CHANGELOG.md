@@ -2,6 +2,14 @@
 
 <!-- towncrier release notes start -->
 
+
+## 0.42.3
+### 2025-02-04
+* NEW: `Multi-thread` on pool cashflow projection
+* NEW: Expose `convexity` on bond/asset
+* NEW: Add new prepayment assumption `PSA` for Monthly mortgage
+* NEW: Add new prepayment/default vector assumption based on asset origin term
+
 ## 0.42.1
 ### 2025-02-02
 * NEW: add custom fee flow by `BondPaidPeriod` `PoolCollectedPeriod` index
