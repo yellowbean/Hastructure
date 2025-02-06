@@ -2,6 +2,11 @@
 
 <!-- towncrier release notes start -->
 
+## 0.42.4
+### 2025-02-06
+* NEW: `FirstLoss` as new endpoint, which will stress on `Default` assumption till 0.01 loss on input tranche.
+* NEW: New prepayment /default assumption via `byTerm`, which vector curves are being applied via term of the assets.
+
 
 ## 0.42.3
 ### 2025-02-04

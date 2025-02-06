@@ -10011,45 +10011,6 @@
                     }
                 ]
             },
-            "Either_[Char]_(Double,ApplyAssumptionType)": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "Left": {
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "Left"
-                        ],
-                        "title": "Left",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "Right": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/ApplyAssumptionType"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            }
-                        },
-                        "required": [
-                            "Right"
-                        ],
-                        "title": "Right",
-                        "type": "object"
-                    }
-                ]
-            },
             "Either_[Char]_(Map_PoolId_(CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))))": {
                 "oneOf": [
                     {
@@ -10114,6 +10075,34 @@
                             "Right": {
                                 "format": "double",
                                 "type": "number"
+                            }
+                        },
+                        "required": [
+                            "Right"
+                        ],
+                        "title": "Right",
+                        "type": "object"
+                    }
+                ]
+            },
+            "Either_[Char]_FirstLossResult": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "Left": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "Left"
+                        ],
+                        "title": "Left",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "Right": {
+                                "$ref": "#/components/schemas/FirstLossResult"
                             }
                         },
                         "required": [
@@ -10761,6 +10750,55 @@
                             "tag"
                         ],
                         "title": "Dummyyy",
+                        "type": "object"
+                    }
+                ]
+            },
+            "FirstLossResult": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ApplyAssumptionType"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FirstLossResult"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FirstLossResult",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "Dummyyyy"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "Dummyyyy",
                         "type": "object"
                     }
                 ]
@@ -14525,11 +14563,11 @@
                                         "type": "number"
                                     },
                                     {
-                                        "format": "double",
+                                        "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
                                     {
-                                        "format": "double",
+                                        "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
                                     {
@@ -14574,11 +14612,11 @@
                                         "type": "number"
                                     },
                                     {
-                                        "format": "double",
+                                        "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
                                     {
-                                        "format": "double",
+                                        "multipleOf": 1.0e-6,
                                         "type": "number"
                                     },
                                     {
@@ -20814,7 +20852,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Either_[Char]_(Double,ApplyAssumptionType)"
+                                    "$ref": "#/components/schemas/Either_[Char]_FirstLossResult"
                                 }
                             }
                         },

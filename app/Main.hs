@@ -111,7 +111,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.42.3"
+version1 = Version "0.42.4"
 
 
 
@@ -125,62 +125,6 @@ data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | UDeal (DB.TestDeal AB.AssetUnion)
               deriving(Show, Generic)
 
--- type family DealTypeToAsset (d :: DealType) :: * where
---   DealTypeToAsset ('MDeal _) = AB.Mortgage
---   DealTypeToAsset ('LDeal _) = AB.Loan
---   DealTypeToAsset ('IDeal _) = AB.Installment
---   DealTypeToAsset ('RDeal _) = AB.Lease
---   DealTypeToAsset ('FDeal _) = AB.FixedAsset
---   DealTypeToAsset ('VDeal _) = AB.Receivable
---   DealTypeToAsset ('PDeal _) = AB.ProjectedCashflow
---   DealTypeToAsset ('UDeal _) = AB.AssetUnion
-
--- dealFromDealType :: DealType -> DB.TestDeal (DealTypeToAsset d)
-
-class (Ast.Asset a) => DealTypeToAsset a where
-  dealFromDealType :: DealType -> DB.TestDeal a
-
-instance DealTypeToAsset AB.Mortgage where
-  dealFromDealType (MDeal d) = d
-  dealFromDealType _ = error "Type mismatch"
-
-instance DealTypeToAsset AB.Loan where
-  dealFromDealType (LDeal d) = d
-  dealFromDealType _ = error "Type mismatch"
-
-instance DealTypeToAsset AB.Installment where
-  dealFromDealType (IDeal d) = d
-  dealFromDealType _ = error "Type mismatch"
-
-instance DealTypeToAsset AB.Lease where
-  dealFromDealType (RDeal d) = d
-  dealFromDealType _ = error "Type mismatch"
-
-instance DealTypeToAsset AB.FixedAsset where
-  dealFromDealType (FDeal d) = d
-  dealFromDealType _ = error "Type mismatch"
-
-instance DealTypeToAsset AB.Receivable where
-  dealFromDealType (VDeal d) = d
-  dealFromDealType _ = error "Type mismatch"
-
-instance DealTypeToAsset AB.ProjectedCashflow where
-  dealFromDealType (PDeal d) = d
-  dealFromDealType _ = error "Type mismatch"
-
-instance DealTypeToAsset AB.AssetUnion where
-  dealFromDealType (UDeal d) = d
-  dealFromDealType _ = error "Type mismatch"
-
--- dealFromDealType :: forall a. (Ast.Asset a) => DealType -> DB.TestDeal a
--- dealFromDealType (MDeal d) = d
--- dealFromDealType (LDeal d) = d
--- dealFromDealType (IDeal d) = d
--- dealFromDealType (RDeal d) = d
--- dealFromDealType (FDeal d) = d
--- dealFromDealType (VDeal d) = d
--- dealFromDealType (PDeal d) = d
--- dealFromDealType (UDeal d) = d
 
 instance ToSchema CF.CashFlowFrame
 instance ToSchema AB.Loan
@@ -447,7 +391,16 @@ type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 
 type PoolRunResp = Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
 
-type FirstLossResp = Either String (Double,AP.ApplyAssumptionType)
+data FirstLossResult = FirstLossResult Double AP.ApplyAssumptionType
+                      | Dummyyyy
+                       deriving(Show, Generic)
+
+$(deriveJSON defaultOptions ''FirstLossResult)
+instance ToSchema FirstLossResult
+
+
+
+type FirstLossResp = Either String FirstLossResult
 data FirstLossReq = FirstLossReq DealType AP.ApplyAssumptionType AP.NonPerfAssumption BondName
                   | Dummyyy
                   deriving(Show, Generic)
@@ -519,11 +472,6 @@ testByDefault :: DealType -> AP.ApplyAssumptionType -> AP.NonPerfAssumption -> B
 testByDefault dt assumps nonPerfAssump bn r 
   = let 
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps
-      -- runResult = D.runDeal 
-      --               (dealFromDealType dt)
-      --               D.DealPoolFlowPricing
-      --               (Just stressed)
-      --               nonPerfAssump
       runResult = wrapRun dt (Just stressed) nonPerfAssump
     in
       case runResult of 
@@ -553,7 +501,9 @@ runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump bn)
         def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
       in 
         case ridders def (1.000,500) (testByDefault dt assumps nonPerfAssump bn) of
-          Root r -> Right (r, over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps)
+          Root r -> Right $ FirstLossResult
+                              r
+                              (over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps)
           _ -> Left "Not able to find the root"
 
 
