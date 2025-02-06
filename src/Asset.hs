@@ -325,8 +325,8 @@ priceAsset m d (PVCurve curve) assumps mRates cType
                                     Inc -> txns)
             pv = pv3 curve d ds amts -- `debug` ("pricing"++ show d++ show ds++ show amts)
             wal = calcWAL ByYear cb d (zip amts ds)
-            duration = calcDuration DC_ACT_365F d (zip ds amts) curve
-            convexity = calcConvexity DC_ACT_365F d (zip ds amts) curve
+            duration = fromRational $ calcDuration DC_ACT_365F d (zip ds amts) curve
+            convexity = fromRational $ calcConvexity DC_ACT_365F d (zip ds amts) curve
           in
             Right $ AssetPrice pv wal duration convexity accruedInt
         Left x -> Left x
@@ -370,8 +370,8 @@ priceAsset m d (PvRate r) assumps mRates cType
                 wal = calcWAL ByYear cb d (zip amts ds) 
                 pv = sum $ zipWith (pv2  r d) ds amts
                 curve = mkTs $ zip ds (repeat (toRational r))
-                duration = calcDuration DC_ACT_365F d (zip ds amts) curve
-                convexity = calcConvexity DC_ACT_365F d (zip ds amts) curve
+                duration = fromRational $ calcDuration DC_ACT_365F d (zip ds amts) curve
+                convexity = fromRational $ calcConvexity DC_ACT_365F d (zip ds amts) curve
             in
               Right $ AssetPrice pv wal duration convexity accruedInt
           Left x -> Left x

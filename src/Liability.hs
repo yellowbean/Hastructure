@@ -465,7 +465,7 @@ priceBond d rc bnd
           cutoffBalance = case S.getTxnAsOf txns d of
                               Nothing ->  (S.getTxnBegBalance . head) txns
                               Just _txn -> S.getTxnBegBalance _txn
-          accruedInt =  getTotalDueInt (accrueInt d bnd)
+          accruedInt = getTotalDueInt (accrueInt d bnd)
           wal = calcWalBond d bnd
           duration = calcDuration DC_ACT_365F d (zip futureCfDates futureCfFlow) rc
           convexity = calcConvexity DC_ACT_365F d (zip futureCfDates futureCfFlow) rc

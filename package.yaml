@@ -44,6 +44,8 @@ dependencies:
 - openapi3
 - swagger2
 - split
+- yaml
+- lucid
 - tabular
 - numeric-limits
 - scientific
@@ -90,11 +92,7 @@ executables:
     - exceptions
     - tabular
     - math-functions
-    # - servant-errors
-    # - servant-exceptions
     - servant-checked-exceptions
-    # - jsonschema-gen
-    # - timeseries
 
 tests:
   Hastructure-test:

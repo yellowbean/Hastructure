@@ -85,7 +85,7 @@ assetPricingTest =
   testGroup "Pricing on Asset" [
     testCase "Loan Pricing(Inc Int)" $
       assertEqual "Loan Pricing"
-        (Right (AssetPrice 1037.38 0.76 (3928277 % 5409300) (2476228822532733 % 4611686018427387904) 0.21))
+        (Right (AssetPrice 1037.38 0.76 0.726208 0.0005369 0.21))
         (priceAsset (PersonalLoan (LoanOriginalInfo 1200 (Fix DC_30_360_US 0.08) 12 Monthly (L.toDate "20240701") I_P Nothing) 1000 0.08 10 Current)
                     (L.toDate "20241002") 
                     (PvRate 0.03) 
@@ -94,7 +94,7 @@ assetPricingTest =
                     Inc)
     ,testCase "Loan Pricing(Exc Int)" $
       assertEqual "Loan Pricing"
-        (Right (AssetPrice 1037.17 0.76 (3928187 % 5408205) (2398635088997495 % 4611686018427387904) 0.21))
+        (Right (AssetPrice 1037.17 0.76  0.72633840 0.00052012  0.21))
         (priceAsset (PersonalLoan (LoanOriginalInfo 1200 (Fix DC_30_360_US 0.08) 12 Monthly (L.toDate "20240701") I_P Nothing) 1000 0.08 10 Current)
                     (L.toDate "20241002") 
                     (PvRate 0.03) 
