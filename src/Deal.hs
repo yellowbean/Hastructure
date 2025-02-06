@@ -372,7 +372,6 @@ changeDealStatus:: Ast.Asset a => (Date,String)-> DealStatus -> TestDeal a -> (M
 changeDealStatus _ _ t@TestDeal{status=Ended} = (Nothing, t) 
 changeDealStatus (d,why) newSt t@TestDeal{status=oldSt} = (Just (DealStatusChangeTo d oldSt newSt why), t {status=newSt})
 
-
 -- runWaterfall :: Ast.Asset a => (TestDeal a ,Date, Runcontext a ,[ResultComponent]) -> String -> Either String (TestDeal a, RunContext a,[ResultComponent])
 -- runWaterfall (t,d, runContext,logs) waterfallKey = 
 --   let 
@@ -831,6 +830,8 @@ data ExpectReturn = DealPoolFlow
                   | ExecutionSummary
                   deriving (Show,Generic)
 
+
+-- TODO : need to lift the result and make function Either String xxx
 priceBonds :: TestDeal a -> AP.BondPricingInput -> Map.Map String L.PriceResult
 priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (viewBondsInMap t)
 priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bondPrices) 
@@ -878,11 +879,7 @@ readCallOptions opts =
 
 runDeal :: Ast.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
         -> Either String (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Maybe (Map.Map String L.PriceResult))
-runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen  = opts
-                                                           ,AP.pricing   = mPricing
-                                                           ,AP.revolving = mRevolving
-                                                           ,AP.interest  = mInterest} 
-  -- | not runFlag = Right $ (t, Nothing, Just valLogs, Nothing) --TODO should be left as warning errors to be sent back to user
+runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts ,AP.pricing = mPricing ,AP.revolving = mRevolving ,AP.interest = mInterest} 
   | not runFlag = Left $ intercalate ";" $ show <$> valLogs 
   | otherwise 
     = do 
@@ -921,14 +918,11 @@ prepareDeal :: Ast.Asset a => TestDeal a -> TestDeal a
 prepareDeal t@TestDeal {bonds = bndMap, liqProvider = mLiqProvider} 
   = let 
       pIdCf = view dealCashflow t
-      -- dropTailEmptyTxns   
       newPtMap = Map.map (\mCf -> (over CF.cashflowTxn CF.dropTailEmptyTxns) <$> mCf )
                           pIdCf
       t1 = set dealCashflow newPtMap t
     in 
-      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap
-          -- liqProvider = (Map.map CE.consolStmt) <$> mLiqProvider
-           }  -- `debug` ("Prepare Done")
+      t1 {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap }
 
 
 appendCollectedCF :: Ast.Asset a => Date -> TestDeal a -> Map.Map PoolId CF.CashFlowFrame -> TestDeal a

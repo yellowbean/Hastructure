@@ -540,7 +540,7 @@ calcAvailAfterLimit t d acc mSupport dueAmt mLimit
                  Just (DuePct pct) -> min (mulBR dueAmt pct) <$> availFund 
                  _ -> Left ("Failed to find <limit> type"++ show mLimit)
         if r < 0 then
-          (Left ("Negative value when calculates Limit:"++ show mLimit))
+          (Left ("Negative value when calculates Limit:"++ show mLimit++ "but got from availFund"++ show availFund))
         else 
           return r
 
@@ -957,10 +957,8 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntResidual mLimi
                  , bonds = Map.adjust (L.payYield d limitAmt) bndName bndMap}
 
 
--- TODO index out of bound check
 -- TODO check for multi interest bond
-performAction d t@TestDeal{bonds=bndMap,accounts=accMap} 
-              (W.PayIntByRateIndex mLimit an bndNames idx mSupport)
+performAction d t@TestDeal{bonds=bndMap,accounts=accMap} (W.PayIntByRateIndex mLimit an bndNames idx mSupport)
   = let 
       availAccBal = A.accBalance (accMap Map.! an)
       bndsList = filter (is L._MultiIntBond) $ (Map.!) bndMap <$> bndNames

@@ -82,6 +82,7 @@ library
     , hashable
     , ieee754
     , lens
+    , lucid
     , math-functions
     , monad-loops
     , numeric-limits
@@ -102,6 +103,7 @@ library
     , time
     , vector
     , wai
+    , yaml
   default-language: Haskell2010
 
 executable Hastructure-exe
@@ -197,6 +199,7 @@ test-suite Hastructure-test
     , hashable
     , ieee754
     , lens
+    , lucid
     , math-functions
     , monad-loops
     , numeric-limits
@@ -221,4 +224,5 @@ test-suite Hastructure-test
     , time
     , vector
     , wai
+    , yaml
   default-language: Haskell2010

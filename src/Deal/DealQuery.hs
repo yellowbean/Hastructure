@@ -609,7 +609,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         mDueInts = sequenceA $ (\x -> x ^? ix idx) <$> (L.bndDueInts <$> bs)
       in 
         case mDueInts of 
-          Nothing -> Left $ "Date:"++show d++"Failed to find due int at index for bonds"++ show bns ++ "with Index"++ show idx ++ " but bonds has"++ show (L.bndDueInts <$> bs)
+          Nothing -> Left $ "Date:"++show d++"Failed to find due int at index for bonds"++ show bns ++ "with Index:"++ show idx ++ " but bonds has "++ show (L.bndDueInts <$> bs)
           Just dueInts -> Right . toRational $ sum dueInts 
 
     CurrentDueBondIntOverIntAt idx bns -> 
@@ -618,7 +618,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         mDueInts = sequenceA $ (\x -> x ^?  ix idx) <$> (L.bndDueIntOverInts <$> bs)
       in 
         case mDueInts of 
-          Nothing -> Left $ "Date:"++show d++"Failed to find due int over int at index for bonds"++ show bns ++ "with Index"++ show idx ++ " but bonds has"++ show (L.bndDueIntOverInts <$> bs)
+          Nothing -> Left $ "Date:"++show d++"Failed to find due int over int at index for bonds"++ show bns ++ "with Index:"++ show idx ++ " but bonds has "++ show (L.bndDueIntOverInts <$> bs)
           Just dueInts -> Right . toRational $ sum $ dueInts
 
     CurrentDueBondIntTotalAt idx bns -> 

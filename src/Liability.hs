@@ -19,7 +19,7 @@ module Liability
   ,accrueInt,stepUpInterestInfo,payIntByIndex,_MultiIntBond
   ,getDueIntAt,getDueIntOverIntAt,getDueIntOverInt,getTotalDueIntAt
   ,getCurRate
-  ,bondCashflow
+  ,bondCashflow,getOutstandingAmount
   )
   where
 
@@ -423,15 +423,13 @@ accrueInt d b@MultiIntBond{bndInterestInfos = iis, bndDueIntDate = mDueIntDate
 accrueInt d (BondGroup bMap) = BondGroup $ accrueInt d <$> bMap
 
 
-
--- ^ TODO WAL for bond group -- tobe tested on algo
 calcWalBond :: Date -> Bond -> Rational
 calcWalBond d b@Bond{bndStmt = Nothing} = 0.0
 calcWalBond d b@MultiIntBond{bndStmt = Nothing} = 0.0
 calcWalBond d (BondGroup bMap) 
   = let
       bndWal = calcWalBond d <$> Map.elems bMap 
-      bndBals = toRational <$> getCurBalance <$> Map.elems bMap
+      bndBals = toRational . getCurBalance <$> Map.elems bMap
     in 
       weightedBy bndBals bndWal
 

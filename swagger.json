@@ -10011,6 +10011,45 @@
                     }
                 ]
             },
+            "Either_[Char]_(Double,ApplyAssumptionType)": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "Left": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "Left"
+                        ],
+                        "title": "Left",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "Right": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ApplyAssumptionType"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "Right"
+                        ],
+                        "title": "Right",
+                        "type": "object"
+                    }
+                ]
+            },
             "Either_[Char]_(Map_PoolId_(CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))))": {
                 "oneOf": [
                     {
@@ -10668,6 +10707,60 @@
                             "contents"
                         ],
                         "title": "FieldNot",
+                        "type": "object"
+                    }
+                ]
+            },
+            "FirstLossReq": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealType"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ApplyAssumptionType"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/NonPerfAssumption"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FirstLossReq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FirstLossReq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "Dummyyy"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "Dummyyy",
                         "type": "object"
                     }
                 ]
@@ -12433,28 +12526,224 @@
                 ]
             },
             "OriginalInfo": {
-                "properties": {
-                    "maturityDate": {
-                        "$ref": "#/components/schemas/Day"
+                "oneOf": [
+                    {
+                        "properties": {
+                            "obligor": {
+                                "$ref": "#/components/schemas/Obligor"
+                            },
+                            "originBalance": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "originRate": {
+                                "$ref": "#/components/schemas/RateType"
+                            },
+                            "originTerm": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "period": {
+                                "$ref": "#/components/schemas/Period"
+                            },
+                            "prepaymentPenalty": {
+                                "$ref": "#/components/schemas/PrepayPenaltyType"
+                            },
+                            "prinType": {
+                                "$ref": "#/components/schemas/AmortPlan"
+                            },
+                            "startDate": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MortgageOriginalInfo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "originBalance",
+                            "originRate",
+                            "originTerm",
+                            "period",
+                            "startDate",
+                            "prinType",
+                            "tag"
+                        ],
+                        "title": "MortgageOriginalInfo",
+                        "type": "object"
                     },
-                    "originBalance": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
+                    {
+                        "properties": {
+                            "obligor": {
+                                "$ref": "#/components/schemas/Obligor"
+                            },
+                            "originBalance": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "originRate": {
+                                "$ref": "#/components/schemas/RateType"
+                            },
+                            "originTerm": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "period": {
+                                "$ref": "#/components/schemas/Period"
+                            },
+                            "prinType": {
+                                "$ref": "#/components/schemas/AmortPlan"
+                            },
+                            "startDate": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "LoanOriginalInfo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "originBalance",
+                            "originRate",
+                            "originTerm",
+                            "period",
+                            "startDate",
+                            "prinType",
+                            "tag"
+                        ],
+                        "title": "LoanOriginalInfo",
+                        "type": "object"
                     },
-                    "originDate": {
-                        "$ref": "#/components/schemas/Day"
+                    {
+                        "properties": {
+                            "obligor": {
+                                "$ref": "#/components/schemas/Obligor"
+                            },
+                            "originRental": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "originTerm": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "paymentDates": {
+                                "$ref": "#/components/schemas/DatePattern"
+                            },
+                            "startDate": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "LeaseInfo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "startDate",
+                            "originTerm",
+                            "paymentDates",
+                            "originRental",
+                            "tag"
+                        ],
+                        "title": "LeaseInfo",
+                        "type": "object"
                     },
-                    "originRate": {
-                        "format": "double",
-                        "type": "number"
+                    {
+                        "properties": {
+                            "accRule": {
+                                "$ref": "#/components/schemas/AmortRule"
+                            },
+                            "capacity": {
+                                "$ref": "#/components/schemas/Capacity"
+                            },
+                            "originBalance": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "originTerm": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "period": {
+                                "$ref": "#/components/schemas/Period"
+                            },
+                            "residualBalance": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "startDate": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FixedAssetInfo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "startDate",
+                            "originBalance",
+                            "residualBalance",
+                            "originTerm",
+                            "period",
+                            "accRule",
+                            "capacity",
+                            "tag"
+                        ],
+                        "title": "FixedAssetInfo",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "dueDate": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "feeType": {
+                                "$ref": "#/components/schemas/ReceivableFeeType"
+                            },
+                            "obligor": {
+                                "$ref": "#/components/schemas/Obligor"
+                            },
+                            "originAdvance": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "originBalance": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "startDate": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ReceivableInfo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "startDate",
+                            "originBalance",
+                            "originAdvance",
+                            "dueDate",
+                            "tag"
+                        ],
+                        "title": "ReceivableInfo",
+                        "type": "object"
                     }
-                },
-                "required": [
-                    "originBalance",
-                    "originDate",
-                    "originRate"
-                ],
-                "type": "object"
+                ]
             },
             "PayOrderBy": {
                 "enum": [
@@ -20446,7 +20735,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.42.2"
+        "version": "0.42.3"
     },
     "openapi": "3.0.0",
     "paths": {
@@ -20498,6 +20787,34 @@
                                         "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
                                     },
                                     "type": "object"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/runByFirstLoss": {
+            "post": {
+                "requestBody": {
+                    "content": {
+                        "application/json;charset=utf-8": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FirstLossReq"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json;charset=utf-8": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Either_[Char]_(Double,ApplyAssumptionType)"
                                 }
                             }
                         },

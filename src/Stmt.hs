@@ -275,11 +275,15 @@ instance TimeSeries Txn where
   getDate (EntryTxn t _ _ _) = t
 
 class QueryByComment a where 
+    
     queryStmt :: a -> TxnComment -> [Txn]
+    
     queryStmtAsOf :: a -> Date -> TxnComment -> [Txn]
     queryStmtAsOf a d tc =  [ txn | txn <- queryStmt a tc, getDate txn <= d]
+    
     queryTxnAmt :: a -> TxnComment -> Balance
     queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
+    
     queryTxnAmtAsOf :: a -> Date -> TxnComment -> Balance 
     queryTxnAmtAsOf a d tc =  sum $ getTxnAmt <$> queryStmtAsOf a d tc
 

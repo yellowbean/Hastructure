@@ -9,19 +9,20 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 module Main where 
 
 import Prelude ()
 import Prelude.Compat
 import System.Environment
-
 import Control.Monad.Catch       (MonadCatch, MonadThrow (..))
 import Control.Monad.IO.Class    (liftIO)
 import Control.Monad (mapM)
 import Control.Exception (Exception,throwIO,throw)
 import Control.Monad.Except
 import Control.Monad.Reader
-import Control.Lens
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Aeson.TH
@@ -48,14 +49,11 @@ import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Cors
 import qualified Data.Aeson.Parser
 import Language.Haskell.TH
-
 import Network.HTTP.Types.Status
-
 import Servant.OpenApi
 import Servant
 import Servant.Types.SourceT (source)
 import Servant.API.ContentTypes (contentType)
-
 
 import Types 
 import qualified Deal as D
@@ -87,14 +85,12 @@ import qualified Revolving as RV
 import qualified Lib
 import qualified Util as U
 import qualified DateUtil as DU
--- import Servant.Checked.Exceptions (NoThrow, Throws)
--- import Servant.Checked.Exceptions.Internal.Servant.API (ErrStatus(toErrStatus))
-
 import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
 import Control.Lens
 import qualified Types as W
 import Cashflow (patchCumulative)
 
+import Numeric.RootFinding
 
 import Debug.Trace
 debug = flip Debug.Trace.trace
@@ -128,6 +124,63 @@ data DealType = MDeal (DB.TestDeal AB.Mortgage)
               | PDeal (DB.TestDeal AB.ProjectedCashflow) 
               | UDeal (DB.TestDeal AB.AssetUnion)
               deriving(Show, Generic)
+
+-- type family DealTypeToAsset (d :: DealType) :: * where
+--   DealTypeToAsset ('MDeal _) = AB.Mortgage
+--   DealTypeToAsset ('LDeal _) = AB.Loan
+--   DealTypeToAsset ('IDeal _) = AB.Installment
+--   DealTypeToAsset ('RDeal _) = AB.Lease
+--   DealTypeToAsset ('FDeal _) = AB.FixedAsset
+--   DealTypeToAsset ('VDeal _) = AB.Receivable
+--   DealTypeToAsset ('PDeal _) = AB.ProjectedCashflow
+--   DealTypeToAsset ('UDeal _) = AB.AssetUnion
+
+-- dealFromDealType :: DealType -> DB.TestDeal (DealTypeToAsset d)
+
+class (Ast.Asset a) => DealTypeToAsset a where
+  dealFromDealType :: DealType -> DB.TestDeal a
+
+instance DealTypeToAsset AB.Mortgage where
+  dealFromDealType (MDeal d) = d
+  dealFromDealType _ = error "Type mismatch"
+
+instance DealTypeToAsset AB.Loan where
+  dealFromDealType (LDeal d) = d
+  dealFromDealType _ = error "Type mismatch"
+
+instance DealTypeToAsset AB.Installment where
+  dealFromDealType (IDeal d) = d
+  dealFromDealType _ = error "Type mismatch"
+
+instance DealTypeToAsset AB.Lease where
+  dealFromDealType (RDeal d) = d
+  dealFromDealType _ = error "Type mismatch"
+
+instance DealTypeToAsset AB.FixedAsset where
+  dealFromDealType (FDeal d) = d
+  dealFromDealType _ = error "Type mismatch"
+
+instance DealTypeToAsset AB.Receivable where
+  dealFromDealType (VDeal d) = d
+  dealFromDealType _ = error "Type mismatch"
+
+instance DealTypeToAsset AB.ProjectedCashflow where
+  dealFromDealType (PDeal d) = d
+  dealFromDealType _ = error "Type mismatch"
+
+instance DealTypeToAsset AB.AssetUnion where
+  dealFromDealType (UDeal d) = d
+  dealFromDealType _ = error "Type mismatch"
+
+-- dealFromDealType :: forall a. (Ast.Asset a) => DealType -> DB.TestDeal a
+-- dealFromDealType (MDeal d) = d
+-- dealFromDealType (LDeal d) = d
+-- dealFromDealType (IDeal d) = d
+-- dealFromDealType (RDeal d) = d
+-- dealFromDealType (FDeal d) = d
+-- dealFromDealType (VDeal d) = d
+-- dealFromDealType (PDeal d) = d
+-- dealFromDealType (UDeal d) = d
 
 instance ToSchema CF.CashFlowFrame
 instance ToSchema AB.Loan
@@ -233,14 +286,10 @@ instance ToSchema AP.ExtraStress
 instance ToSchema AP.AssetDelinquencyAssumption
 instance ToSchema AP.LeaseAssetGapAssump
 instance ToSchema AP.LeaseAssetRentAssump
-
 instance ToSchema Threshold
-
 instance ToSchema DB.DealStatFields
-
 instance ToSchema (PerPoint Balance)
 instance ToSchema (PerCurve Balance)
-
 instance ToSchema (DB.TestDeal AB.Mortgage)
 instance ToSchema (DB.TestDeal AB.Loan)
 instance ToSchema (DB.TestDeal AB.Installment)
@@ -249,7 +298,6 @@ instance ToSchema (DB.TestDeal AB.Receivable)
 instance ToSchema (DB.TestDeal AB.ProjectedCashflow)
 instance ToSchema (DB.TestDeal AB.AssetUnion)
 instance ToSchema (DB.TestDeal AB.FixedAsset)
-
 instance ToSchema (DB.PoolType AB.Mortgage)
 instance ToSchema (DB.PoolType AB.Loan)
 instance ToSchema (DB.PoolType AB.Installment)
@@ -258,7 +306,6 @@ instance ToSchema (DB.PoolType AB.FixedAsset)
 instance ToSchema (DB.PoolType AB.Receivable)
 instance ToSchema (DB.PoolType AB.ProjectedCashflow)
 instance ToSchema (DB.PoolType AB.AssetUnion)
-
 instance ToSchema (DB.UnderlyingDeal AB.Mortgage)
 instance ToSchema (DB.UnderlyingDeal AB.Loan)
 instance ToSchema (DB.UnderlyingDeal AB.Installment)
@@ -267,7 +314,6 @@ instance ToSchema (DB.UnderlyingDeal AB.FixedAsset)
 instance ToSchema (DB.UnderlyingDeal AB.Receivable)
 instance ToSchema (DB.UnderlyingDeal AB.ProjectedCashflow)
 instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
-
 instance ToSchema ResultComponent
 instance ToSchema L.PriceResult
 instance ToSchema DealType
@@ -345,7 +391,6 @@ wrapRunPoolType x _ _ = Left $ "RunPool Failed ,due to unsupport pool type "++ s
 
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)
-
 instance ToSchema RunAssetReq
 
 type RunAssetResp = Either String ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
@@ -360,7 +405,6 @@ wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates Nothing)
   = do 
       cfs <- sequenceA $ (\a -> MA.projAssetUnion a d assumps mRates) <$> assets
       return (P.aggPool Nothing [(cf,Map.empty) | (cf,_) <- cfs] , Nothing) 
-
 wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates (Just pm)) 
   = 
     do 
@@ -396,13 +440,20 @@ instance ToSchema RunDateReq
 
 
 $(deriveJSON defaultOptions ''DealType)
-
 $(concat <$> traverse (deriveJSON defaultOptions) [''RunDealReq, ''RunPoolReq,''RunAssetReq, ''RunDateReq,''PoolTypeWrap])
 
 -- Swagger API
 type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 
 type PoolRunResp = Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
+
+type FirstLossResp = Either String (Double,AP.ApplyAssumptionType)
+data FirstLossReq = FirstLossReq DealType AP.ApplyAssumptionType AP.NonPerfAssumption BondName
+                  | Dummyyy
+                  deriving(Show, Generic)
+
+$(deriveJSON defaultOptions ''FirstLossReq)
+instance ToSchema FirstLossReq
 
 type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runAsset" :> ReqBody '[JSON] RunAssetReq :> Post '[JSON] RunAssetResp
@@ -413,6 +464,7 @@ type EngineAPI = "version" :> Get '[JSON] Version
             :<|> "runMultiDeals" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runDealByRunScenarios" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map ScenarioName RunResp)
             :<|> "runByCombo" :> ReqBody '[JSON] RunDealReq :> Post '[JSON] (Map.Map String RunResp)
+            :<|> "runByFirstLoss" :> ReqBody '[JSON] FirstLossReq :> Post '[JSON] FirstLossResp
             :<|> "runDate" :> ReqBody '[JSON] RunDateReq :> Post '[JSON] [Date]
 
 
@@ -452,6 +504,59 @@ runDeal :: RunDealReq -> Handler RunResp
 runDeal (SingleRunReq dt assump nonPerfAssump) 
   = return $ wrapRun dt assump nonPerfAssump
 
+stressAssetPerf :: Rate -> AP.AssetPerfAssumption -> AP.AssetPerfAssumption
+stressAssetPerf r (AP.MortgageAssump (Just da) mp mr ms) 
+  = AP.MortgageAssump (Just (AP.stressDefaultAssump r da)) mp mr ms
+stressAssetPerf r (AP.LoanAssump (Just da) mp mr ms) 
+  = AP.LoanAssump (Just (AP.stressDefaultAssump r da)) mp mr ms 
+stressAssetPerf r (AP.InstallmentAssump (Just da) mp mr ms) 
+  = AP.InstallmentAssump (Just (AP.stressDefaultAssump r da)) mp mr ms
+stressAssetPerf r (AP.ReceivableAssump (Just da) mr ms) 
+  = AP.ReceivableAssump (Just (AP.stressDefaultAssump r da)) mr ms
+stressAssetPerf _ x = x
+
+testByDefault :: DealType -> AP.ApplyAssumptionType -> AP.NonPerfAssumption -> BondName -> Double -> Double
+testByDefault dt assumps nonPerfAssump bn r 
+  = let 
+      stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps
+      -- runResult = D.runDeal 
+      --               (dealFromDealType dt)
+      --               D.DealPoolFlowPricing
+      --               (Just stressed)
+      --               nonPerfAssump
+      runResult = wrapRun dt (Just stressed) nonPerfAssump
+    in
+      case runResult of 
+        Right (d,_,_,_) -> 
+          let 
+            bMap = case d of 
+                    MDeal d' -> DB.bonds d' Map.! bn
+                    RDeal d' -> DB.bonds d' Map.! bn
+                    IDeal d' -> DB.bonds d' Map.! bn
+                    LDeal d' -> DB.bonds d' Map.! bn
+                    FDeal d' -> DB.bonds d' Map.! bn
+                    UDeal d' -> DB.bonds d' Map.! bn
+                    VDeal d' -> DB.bonds d' Map.! bn
+                    PDeal d' -> DB.bonds d' Map.! bn
+
+            bondBal = L.getOutstandingAmount bMap
+          in
+            (fromRational (toRational bondBal) - 0.01)
+        Left errorMsg -> error $ "error on deal run >> " ++ errorMsg
+
+
+runDealByFirstLoss :: FirstLossReq -> Handler FirstLossResp
+runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump bn)
+  = return $ 
+      let 
+        itertimes = 500
+        def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
+      in 
+        case ridders def (1.000,500) (testByDefault dt assumps nonPerfAssump bn) of
+          Root r -> Right (r, over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps)
+          _ -> Left "Not able to find the root"
+
+
 runDealScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump) 
   = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
@@ -480,7 +585,7 @@ runDealByCombo (MultiComboReq dMap assumpMap nonPerfAssumpMap)
       r = [ (intercalate "^" [dk,ak,nk], wrapRun d a n) | (dk,d) <- dList, (ak,a) <- aList, (nk,n) <- nList ]
       rMap = Map.fromList r
     in 
-      return rMap -- `debug` ("RunDealByCombo->"++ show rMap)
+      return rMap
 
 
 myServer :: ServerT API Handler
@@ -494,6 +599,7 @@ myServer =  return engineSwagger
       :<|> runMultiDeals
       :<|> runDealByRunScenarios
       :<|> runDealByCombo
+      :<|> runDealByFirstLoss
       :<|> runDate
 
 

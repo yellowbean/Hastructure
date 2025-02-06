@@ -47,7 +47,7 @@ projectMortgageFlow (originBal, startBal, lastPayDate, mbn, pt, dc, startRate, p
           -> let 
                begBal = view CF.tsRowBalance (last acc) 
                lastPaidDate = getDate (last acc) -- `debug` ("beg bal"++ show begBal)
-               newDefault = mulBR begBal defRate 
+               newDefault = mulBR begBal defRate -- `debug` ("new default"++ show defRate++ ">>"++ show begBal)
                newPrepay = mulBR (begBal - newDefault) ppyRate
                -- performing balance
                _balAfterPpy = begBal - newDefault - newPrepay -- `debug` ("new ppy "++ show newPrepay ++ "beg bal"++ show (begBal - newDefault) ++ "ppy rate"++ show ppyRate)
@@ -352,10 +352,9 @@ instance Ast.Asset Mortgage where
   getPaymentDates (Mortgage (MortgageOriginalInfo _ _ ot p sd _ _ _) _ _ _ _ _) extra = genDates sd p (ot+extra)
   getPaymentDates (AdjustRateMortgage (MortgageOriginalInfo _ _ ot p sd _ _ _) _ _ _ _ _ _) extra = genDates sd p (ot+extra)
   getPaymentDates (ScheduleMortgageFlow begDate flows dp) extra 
-    = 
-      let 
+    = let 
         lastPayDay = (getDate . last) flows
-        extDates =genSerialDates dp Exc lastPayDay extra 
+        extDates = genSerialDates dp Exc lastPayDay extra 
       in 
         getDates flows ++ extDates
 

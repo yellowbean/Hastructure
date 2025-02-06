@@ -304,6 +304,7 @@ slice from to xs = take (to - from ) (drop from xs)
 dropLastN :: Int -> [a] -> [a]
 dropLastN n xs = slice 0 (length xs - n) xs
 
+-- ^ convert annual rate (in 365 days) to period rate by interval days
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
   = toRational $ 1 - fromRational (1-annualRate) ** (fromIntegral days / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
