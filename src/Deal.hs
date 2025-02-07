@@ -294,9 +294,6 @@ accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = inde
                   let newStmt = appendStmt (IrsTxn d newAmt addAmt 0 0 0 SwapAccrue) mstmt 
                   return $ rc { rcLastStlDate = Just d ,rcNetCash = newAmt, rcStmt = newStmt }
 
-
-
-
 -- ^ test if a clean up call should be fired
 testCall :: Ast.Asset a => TestDeal a -> Date -> C.CallOption -> Either String Bool 
 testCall t d opt = 
@@ -1024,7 +1021,7 @@ populateDealDates (GenericDates m)
                 cu = [ RunWaterfall _d custName | (CustomExeDates custName, custDp) <- custWaterfall
                                                 , _d <- genSerialDatesTill2 EE closingDate custDp statedDate ]
               in 
-                Right (coffDate, closingDate, fPayDate, pa, ba, statedDate, cu) -- `debug` ("custom action"++ show cu)
+                Right (coffDate, closingDate, fPayDate, pa, ba, statedDate, cu)
         _ 
           -> Left "Missing required dates in GenericDates in deal status PreClosing"
 

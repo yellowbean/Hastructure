@@ -638,6 +638,14 @@ performActionWrap d
                   (W.BuyAsset ml pricingMethod accName _)
   = Left $ "Date:"++ show d ++"Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
 
+performActionWrap d 
+                  (t
+                  ,rc@RunContext{runPoolFlow=pcf
+                                ,revolvingAssump=Nothing
+                                ,revolvingInterestRateAssump=mRates}
+                  ,logs)
+                  (W.BuyAssetFrom _ _ _ _ _)
+  = Left $ "Date:"++ show d ++"Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
 -- TODO need to set a limit to sell
 performActionWrap d 
                   (t@TestDeal{accounts = accMap, pool = pt}  
