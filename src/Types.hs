@@ -11,6 +11,7 @@ module Types
   ,DatePattern(..)
   ,BondName,BondNames,FeeName,FeeNames,AccName,AccNames,AccountName
   ,Ts(..),TsPoint(..),PoolSource(..)
+  ,PerPoint(..),PerCurve(..),getValFromPerCurve
   ,Period(..), Threshold(..)
   ,RangeType(..),CutoffType(..),DealStatus(..)
   ,Balance,Index(..)
@@ -28,7 +29,7 @@ module Types
   ,DealName,lookupIntervalTable,CutoffFields(..),PriceResult(..)
   ,DueInt,DuePremium, DueIoI,DateVector,DealStats(..)
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
-  ,ActionWhen(..)
+  ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
   ,MyRatio,HowToPay(..),ApplyRange(..)
   )
@@ -47,10 +48,11 @@ import Text.Regex.PCRE
 import GHC.Generics
 import Language.Haskell.TH
 
-import Text.Read (readMaybe)
+import Text.Read (readMaybe, get)
 import Data.Aeson (ToJSON, toJSON, Value(String))
 import Data.Ratio (Ratio, numerator, denominator)
 import Data.Text (pack)
+import Control.DeepSeq (NFData,rnf)
 
 import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
 
@@ -61,8 +63,10 @@ import Data.Fixed hiding (Ratio)
 import Data.Ix
 
 
-import Data.List (intercalate, findIndex)
+import Data.List (intercalate, findIndex, find)
 -- import Cashflow (CashFlowFrame)
+
+-- import Web.Hyperbole hiding (All,Fixed)
 
 import Debug.Trace
 -- import qualified Cashflow as CF
@@ -120,7 +124,7 @@ type Lag = Int
 type Valuation = Centi
 type PerFace = Micro
 type WAL = Centi
-type Duration = Balance
+type Duration = Micro
 type Convexity = Micro
 type Yield = Micro
 type AccruedInterest = Centi
@@ -268,6 +272,63 @@ data PoolSource = CollectedInterest               -- ^ interest
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read,Generic)
 
+data PerPoint a = PerPoint Int a
+                deriving (Show,Eq,Read,Generic)
+
+data PerCurve a = CurrentVal [PerPoint a]
+                | WithTrailVal [PerPoint a]
+                deriving (Show,Eq,Read,Generic,Ord)
+
+getValFromPerCurve :: PerCurve a -> DateDirection -> CutoffType -> Int -> Maybe a
+getValFromPerCurve (WithTrailVal []) _ _ _ = Nothing 
+getValFromPerCurve (CurrentVal []) _ _ _ = Nothing 
+
+getValFromPerCurve (CurrentVal (v:vs)) Future p i 
+  = let 
+      cmp = case p of
+              Inc -> (>=)
+              Exc -> (>)
+    in
+      if cmp (getIdxFromPerPoint v) i then 
+        Just $ getValFromPerPoint v
+      else 
+        getValFromPerCurve (CurrentVal vs) Future p i
+
+getValFromPerCurve (CurrentVal vs) Past p i
+  = let 
+      cmp = case p of
+              Inc -> (<=)
+              Exc -> (<)
+      ps = reverse vs
+    in
+      case find (\x -> cmp (getIdxFromPerPoint x) i) ps of
+        Just rs -> Just $ getValFromPerPoint rs
+        Nothing -> Nothing
+
+
+getValFromPerCurve (WithTrailVal _ps) dr p i 
+  = let 
+      ps = case dr of 
+            Future -> _ps
+            Past -> reverse _ps
+      cmp = case p of 
+              Inc -> (>=)
+              Exc -> (>)
+    in 
+      case find (\x -> cmp (getIdxFromPerPoint x) i) ps of
+        Nothing -> Just $ getValFromPerPoint (last ps)
+        Just rs -> Just $ getValFromPerPoint rs
+
+getIdxFromPerPoint :: PerPoint a -> Int
+getIdxFromPerPoint (PerPoint i _) = i
+
+getValFromPerPoint :: PerPoint a -> a
+getValFromPerPoint (PerPoint _ v) = v
+
+
+instance Ord a => Ord (PerPoint a) where
+  compare (PerPoint i _) (PerPoint j _) = compare i j
+
 data RangeType = II     -- ^ include both start and end date
                | IE     -- ^ include start date ,but not end date
                | EI     -- ^ exclude start date but include end date
@@ -390,7 +451,7 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | Ended                             -- ^ Deal is marked as closed
                 deriving (Show,Ord,Eq,Read, Generic)
 
--- ^ different pricing methods
+-- ^ pricing methods for assets
 data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
                    | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
@@ -400,7 +461,14 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | PvWal Ts
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
-                   deriving (Show, Eq ,Generic, Read,Ord)
+                   deriving (Show, Eq ,Generic, Read, Ord)
+
+-- ^ pricing methods for bonds
+data BondPricingMethod = BondBalanceFactor Rate 
+                        | PvBondByRate Rate
+                        | PvBondByCurve Ts
+                        deriving (Show, Eq ,Generic, Read, Ord)
+
 
 -- ^ condition which can be evaluated to a boolean value
 data Pre = IfZero DealStats
@@ -487,6 +555,11 @@ data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (May
          | TrgTxn Date Bool TxnComment
          deriving (Show, Generic, Eq, Read)
 
+
+data DealStatFields = PoolCollectedPeriod
+                    | BondPaidPeriod
+                    deriving (Generic, Eq, Ord, Show, Read)
+
 -- ^ different types of deal stats
 data DealStats = CurrentBondBalance
                | CurrentPoolBalance (Maybe [PoolId])
@@ -532,7 +605,7 @@ data DealStats = CurrentBondBalance
                | BondBalanceGapAt Date BondName
                | BondDuePrin [BondName]
                | BondReturn BondName Balance [TsPoint Amount]
-               | FeePaidAt Date FeeName
+               | FeePaidAmt [FeeName]
                | FeeTxnAmt [FeeName] (Maybe TxnComment)
                | BondTxnAmt [BondName] (Maybe TxnComment)
                | AccTxnAmt  [AccName] (Maybe TxnComment)
@@ -562,6 +635,7 @@ data DealStats = CurrentBondBalance
                | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
                | WeightedAvgOriginalBondBalance Date Date [BondName]
                | CustomData String Date
+               | DealStatBalance DealStatFields
                -- analytical query
                | AmountRequiredForTargetIRR Double BondName 
                -- integer type
@@ -569,6 +643,7 @@ data DealStats = CurrentBondBalance
                | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
                | ProjCollectPeriodNum
                | MonthsTillMaturity BondName
+               | DealStatInt DealStatFields
                -- boolean type
                | TestRate DealStats Cmp Micro
                | TestAny Bool [DealStats]
@@ -580,6 +655,7 @@ data DealStats = CurrentBondBalance
                | IsOutstanding [BondName]
                | HasPassedMaturity [BondName]
                | TriggersStatus DealCycle String
+               | DealStatBool DealStatFields
                -- rate type
                | PoolWaRate (Maybe PoolId)
                | BondRate BondName
@@ -592,6 +668,7 @@ data DealStats = CurrentBondBalance
                | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
                | PoolFactor (Maybe [PoolId])
                | BondWaRate [BondName]
+               | DealStatRate DealStatFields
                -- Compond type
                | Factor DealStats Rational
                | Multiply [DealStats]
@@ -689,7 +766,7 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryFeePaid
                   | AccruedInterest      -- ^ accrued interest at closing
                   | RuntimeCurrentPoolBalance   -- ^ current pool balance
-                  deriving (Show,Ord,Eq,Read,Generic)
+                  deriving (Show,Ord,Eq,Read,Generic,NFData)
 
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest [Txn]
@@ -774,8 +851,7 @@ instance TimeSeries (TsPoint a) where
 
 instance Ord a => Ord (TsPoint a) where
   compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
-
-
+  -- compare (PoolPeriodPoint i1 tv1) (PoolPeriodPoint i2 tv2) = compare i1 i2
 
 instance Show PoolId where
   show (PoolName n)  = n
@@ -800,6 +876,7 @@ instance (Read PoolId) where
 
 
 $(deriveJSON defaultOptions ''TsPoint)
+$(deriveJSON defaultOptions ''PerPoint)
 $(deriveJSON defaultOptions ''Ts)
 $(deriveJSON defaultOptions ''Cmp)
 $(deriveJSON defaultOptions ''PoolSource)
@@ -975,10 +1052,16 @@ getDealStatType (PoolWaRate _) = RtnRate
 getDealStatType (BondRate _) = RtnRate
 getDealStatType (DivideRatio {}) = RtnRate
 getDealStatType (AvgRatio {}) = RtnRate
+getDealStatType (DealStatRate _) = RtnRate
+getDealStatType (Avg dss) = RtnRate
+getDealStatType (Divide ds1 ds2) = RtnRate
+getDealStatType (Multiply _) = RtnRate
+getDealStatType (Factor _ _) = RtnRate
 
 getDealStatType (CurrentPoolBorrowerNum _) = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
 getDealStatType ProjCollectPeriodNum = RtnInt
+getDealStatType (DealStatInt _) = RtnInt
 
 getDealStatType (IsMostSenior _ _) = RtnBool
 getDealStatType (TriggersStatus _ _)= RtnBool
@@ -986,11 +1069,7 @@ getDealStatType (IsDealStatus _)= RtnBool
 getDealStatType TestRate {} = RtnBool
 getDealStatType (TestAny _ _) = RtnBool
 getDealStatType (TestAll _ _) = RtnBool
-
-getDealStatType (Avg dss) = RtnRate
-getDealStatType (Divide ds1 ds2) = RtnRate
-getDealStatType (Multiply _) = RtnRate
-getDealStatType (Factor _ _) = RtnRate
+getDealStatType (DealStatBool _) = RtnBool
 
 getDealStatType (Max dss) = getDealStatType (head dss)
 getDealStatType (Min dss) = getDealStatType (head dss)
@@ -1009,9 +1088,7 @@ opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)
 
-
-
--- $(deriveJSON defaultOptions ''DateType)
+$(deriveJSON defaultOptions ''DealStatFields)
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''BookDirection, ''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )
@@ -1052,6 +1129,7 @@ $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''HowToPay)
 
+$(deriveJSON defaultOptions ''PerCurve)
 
 
 

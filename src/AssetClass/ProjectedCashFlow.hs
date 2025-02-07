@@ -30,10 +30,11 @@ import qualified Cashflow as CF
 import AssetClass.AssetBase
 import AssetClass.AssetCashflow
 
-import Cashflow (extendTxns,TsRow(..),mflowBalance)
+import Cashflow (extendTxns,TsRow(..))
 
 import Debug.Trace
-
+import Control.Lens hiding (element,Index)
+import Control.Lens.TH
 debug = flip trace
 
 
@@ -71,37 +72,31 @@ projectScheduleFlow trs b_factor lastBal [] _ _ (r:rs) (l:ls) (recovery_lag,reco
 
 
 
-projFixCfwithAssumption :: (CF.CashFlowFrame, DatePattern) -> Maybe A.AssetPerfAssumption -> Date -> Either String CF.CashFlowFrame
+-- ^ project cashflow with floater rate portion
+projFixCfwithAssumption :: (CF.CashFlowFrame, DatePattern) -> ([Rate],[Rate],Rate,Int) -> Date -> Either String CF.CashFlowFrame
 projFixCfwithAssumption (cf@(CF.CashFlowFrame (begBal, begDate, accInt) flows), dp)
-                        mPassump 
+                        (ppyRates,defRates,recoveryRate,recoveryLag)
                         asOfDay
   = let
         curveDatesLength = recoveryLag + length flows
         endDate = CF.getDate (last flows)
         extraDates = genSerialDates dp Exc endDate recoveryLag
-        (recoveryRate,recoveryLag) = case mPassump of 
-                                       Nothing -> (0,0)
-                                       (Just (A.MortgageAssump _ _ x _) )-> Ast.getRecoveryLagAndRate x
-                                       (Just (A.MortgageDeqAssump _ _ x _) )-> Ast.getRecoveryLagAndRate x
         cfDates = (CF.getDate <$> flows) ++ extraDates
     in 
       do
-        (ppyRates,defRates,recoveryRate,recoveryLag) <- case mPassump of 
-                                                          Just pAssump -> buildAssumptionPpyDefRecRate (begDate:cfDates) pAssump 
-                                                          Nothing -> Right (replicate curveDatesLength 0.0, replicate curveDatesLength 0.0, 0.0, 0)
-        
         let txns = projectScheduleFlow [] 1.0 begBal flows defRates ppyRates
-                                   (replicate curveDatesLength 0.0)
-                                   (replicate curveDatesLength 0.0)
-                                   (recoveryLag,recoveryRate) --  `debug` (" begin bal"++ show begBal)
+                    (replicate curveDatesLength 0.0)
+                    (replicate curveDatesLength 0.0)
+                    (recoveryLag,recoveryRate) --  `debug` (" begin bal"++ show begBal)
         
         let (futureTxns,historyM) = CF.cutoffTrs asOfDay txns 
         
         let cb = (CF.mflowBegBalance . head) futureTxns
         return $ CF.CashFlowFrame (cb,asOfDay,Nothing) futureTxns
 
-projIndexCashflows :: ([Date],[Balance],[Principal],Index,Spread) -> DatePattern -> Maybe A.AssetPerfAssumption -> Maybe [RateAssumption] -> Either String CF.CashFlowFrame
-projIndexCashflows (ds,bals,principals,index,spd) dp mPassump (Just ras) = 
+-- ^ project cashflow with fix rate portion
+projIndexCashflows :: ([Date],[Balance],[Principal],Index,Spread) -> DatePattern -> ([Rate],[Rate],Rate,Int) -> Maybe [RateAssumption] -> Either String CF.CashFlowFrame
+projIndexCashflows (ds,bals,principals,index,spd) dp pAssump (Just ras) = 
   do
     -- mIndexToApply = A.getRateAssumption ras index
     indexRates <- sequenceA $ A.lookupRate0 ras index <$> ds 
@@ -123,42 +118,55 @@ projIndexCashflows (ds,bals,principals,index,spd) dp mPassump (Just ras) =
                                                   (replicate flowSize Nothing)
                                                   (replicate flowSize Nothing)
                                                   (replicate flowSize Nothing) 
-    projFixCfwithAssumption (scheduleCf, dp) mPassump (head ds) 
+    projFixCfwithAssumption (scheduleCf, dp) pAssump (head ds) 
     
 -- ^ project cashflow with fix rate portion and floater rate portion
 seperateCashflows :: ProjectedCashflow -> Maybe A.AssetPerfAssumption -> Maybe [RateAssumption] -> Either String (CF.CashFlowFrame, [CF.CashFlowFrame])
-seperateCashflows (ProjectedFlowMixFloater pflow@(CF.CashFlowFrame (begBal, begDate, accuredInt) flows) dp (fixPct,fixRate) floaterList)
+seperateCashflows a@(ProjectedFlowMixFloater pflow@(CF.CashFlowFrame (begBal, begDate, accuredInt) flows) dp (fixPct,fixRate) floaterList)
                   mPassump
                   mRates
   = let
         begBal = CF.mflowBegBalance $ head flows
-        totalBals = begBal: (CF.mflowBalance <$> flows)
-        ds = CF.mflowDate <$> flows
+        totalBals = begBal: ((view CF.tsRowBalance) <$> flows)
+        ds = (view CF.tsDate) <$> flows
         flowSize = length ds
         -- fix rate cashflow
+        -- fix balance = total balance * fix percent
         fixedBals = flip mulBR fixPct <$> totalBals
+        -- fix principal flow = total principal flow * fix percent
         fixedPrincipalFlow = flip mulBR fixPct <$> CF.mflowPrincipal <$> flows
+        -- fix principal interest = total principal flow * fix rate
         fixedInterestFlow = flip mulBIR fixRate <$> fixedBals
         fixFlow = zipWith12 MortgageFlow ds fixedBals fixedPrincipalFlow fixedInterestFlow (replicate flowSize 0) (replicate flowSize 0) (replicate flowSize 0) (replicate flowSize 0) (replicate flowSize fixRate) (replicate flowSize Nothing) (replicate flowSize Nothing) (replicate flowSize Nothing)
-       -- float rate cashflow
+        -- float rate cashflow
+        -- float balance = total balance - fixed balance
         totalFloatBalFlow = zipWith (-) totalBals fixedBals
+        -- float principal flow = total principal flow - fixed principal flow
         floatPrincipalFlow = zipWith (-) (CF.mflowPrincipal <$> flows) fixedPrincipalFlow
         
-        floaterSize = length rs
         rs = (\(a,b,c) -> a) <$> floaterList      -- portion of each floater
         spds = (\(a,b,c) -> b) <$> floaterList    -- spreads
         indexes = (\(a,b,c) -> c) <$> floaterList -- indexes
-
+        floaterSize = length rs
+        -- float bal brekdown by index
         floatBalsBreakDown = (\r -> flip mulBR r <$> totalFloatBalFlow ) <$> rs
+        -- float principal flow breakdown by index
         floatPrincipalFlowBreakDown = (\r -> flip mulBR r <$> floatPrincipalFlow)  <$> rs -- `debug` ("float bal breakdown"++ show floatBalsBreakDown)
+        recoveryLag = case mPassump of 
+                        Nothing -> 0 
+                        Just passump -> fromMaybe 0 $ getRecoveryLagFromAssumption passump
+        curveDatesLength = length flows + recoveryLag
       in
-        do 
+        do
+          assumptionInput <- case mPassump of 
+                              Just pAssump -> buildAssumptionPpyDefRecRate a (begDate:ds) pAssump 
+                              Nothing -> Right (replicate curveDatesLength 0.0, replicate curveDatesLength 0.0, 0.0, 0)
           fixedCashFlow <- projFixCfwithAssumption ((CF.CashFlowFrame ( ((flip mulBR) fixPct) begBal
                                                                     , begDate
                                                                     , (flip mulBR) fixPct <$> accuredInt)
                                                                    fixFlow)
-                                                , dp) mPassump begDate 
-          floatedCashFlow <- sequenceA $ (\x -> projIndexCashflows x dp mPassump mRates) <$> zip5 
+                                                , dp) assumptionInput begDate 
+          floatedCashFlow <- sequenceA $ (\x -> projIndexCashflows x dp assumptionInput mRates) <$> zip5 
                                                                                               (replicate floaterSize ds) 
                                                                                               floatBalsBreakDown 
                                                                                               floatPrincipalFlowBreakDown 
@@ -188,11 +196,13 @@ instance Ast.Asset ProjectedCashflow where
       = do
           (fixedCashFlow, floatedCashFlow) <- seperateCashflows f Nothing mRate   -- `debug` ("running fixed cashflow"++show fixedCashFlow)
           return $ foldl CF.combine fixedCashFlow floatedCashFlow
--- projFixCfwithAssumption :: (CF.CashFlowFrame, DatePattern) -> A.AssetPerfAssumption -> Date -> CF.CashFlowFrame
+
     projCashflow f@(ProjectedFlowFixed cf dp) asOfDay (pAssump,_,_) mRates 
-      =  
-        do 
-          p <- projFixCfwithAssumption (cf, dp) (Just pAssump) asOfDay
+      = do 
+          let cfDates = CF.getDatesCashFlowFrame cf
+          let begDate = view (CF.cfBeginStatus . _2) cf
+          pRates <- buildAssumptionPpyDefRecRate f (begDate:cfDates) pAssump 
+          p <- projFixCfwithAssumption (cf, dp) pRates asOfDay
           return (p, Map.empty)
 
     projCashflow f asOfDay (pAssump, _, _) mRates

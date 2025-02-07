@@ -3,6 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE BangPatterns #-}
 
 module AssetClass.AssetBase 
   (Installment(..),Lease(..),OriginalInfo(..),Status(..)
@@ -52,15 +53,24 @@ data AmortPlan = Level                    -- ^ for mortgage / french system  -> 
 
 -- | calculate period payment (Annuity/Level mortgage)
 calcPmt :: Balance -> IRate -> Int -> Amount
-calcPmt bal 0.0 periods = divideBI bal periods
-calcPmt bal periodRate periods =
-  let
-    periodRate1 = toRational periodRate
-    r1 =  ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1) -- `debug` ("PR>>"++show periodRate)
-    pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
-  in
-    mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
+-- calcPmt bal 0.0 periods = divideBI bal periods
+-- calcPmt bal periodRate periods =
+--   let
+--     periodRate1 = toRational periodRate
+--     r1 =  ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1) -- `debug` ("PR>>"++show periodRate)
+--     pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
+--   in
+--     mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
 
+-- Generate by gork
+calcPmt bal rate periods | rate == 0.0 = divideBI bal periods
+                         | otherwise = 
+  let rate' = realToFrac rate :: Double
+      logBase = log (1 + rate')
+      num = exp (logBase * fromIntegral periods)
+      den = num - 1
+      r1 = num / den
+  in mulBR (realToFrac bal) (toRational (rate' * r1))
 
 type InterestAmount = Amount
 type PrincipalAmount = Amount

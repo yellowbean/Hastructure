@@ -1,10 +1,10 @@
 name:                Hastructure
-version:	 0.41.1
+version:	 0.41.3
 github:              "yellowbean/Hastructure"
 license:             BSD3
 author:              "Xiaoyu"
 maintainer:          "always.zhang@gmail.com"
-copyright:           "2024 Xiaoyu, Zhang"
+copyright:           "2025 Xiaoyu, Zhang"
 
 extra-source-files:
 - README.md
@@ -44,10 +44,14 @@ dependencies:
 - openapi3
 - swagger2
 - split
+- yaml
+- lucid
 - tabular
 - numeric-limits
 - scientific
 - math-functions
+- parallel
+- deepseq
 
 library:
   source-dirs: 
@@ -88,11 +92,7 @@ executables:
     - exceptions
     - tabular
     - math-functions
-    # - servant-errors
-    # - servant-exceptions
     - servant-checked-exceptions
-    # - jsonschema-gen
-    # - timeseries
 
 tests:
   Hastructure-test:

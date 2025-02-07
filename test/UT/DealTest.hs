@@ -153,7 +153,6 @@ td2 = D.TestDeal {
  ,D.collects = [W.Collect Nothing W.CollectedInterest "General"
              ,W.Collect Nothing W.CollectedPrincipal "General"]
  ,D.custom = Nothing
- ,D.call = Nothing
  ,D.liqProvider = Just $ Map.fromList $
                     [("Liq1",CE.LiqFacility 
                                 "" 
@@ -180,14 +179,15 @@ td2 = D.TestDeal {
                                                                     ,Trg.trgStatus = False 
                                                                     ,Trg.trgCurable = False })]
                                                                     )]
- ,D.overrides = Nothing
  ,D.ledgers = Nothing
+ ,D.stats = (Map.empty,Map.empty,Map.empty,Map.empty)
 }
 
 baseDeal = D.TestDeal {
   D.name = "base deal"
   ,D.status = Amortizing
   ,D.rateSwap = Nothing
+  ,D.stats = (Map.empty,Map.empty,Map.empty,Map.empty)
   ,D.currencySwap = Nothing
   ,D.dates = PatternInterval $ 
                (Map.fromList [
@@ -268,10 +268,8 @@ baseDeal = D.TestDeal {
    ])]
  ,D.collects = [W.Collect Nothing W.CollectedCash "General"]
  ,D.custom = Nothing
- ,D.call = Nothing
  ,D.liqProvider = Nothing 
  ,D.triggers = Nothing 
- ,D.overrides = Nothing
  ,D.ledgers = Nothing
  ,D.rateCap = Nothing
 }

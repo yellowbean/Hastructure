@@ -74,11 +74,11 @@ poolFutureTxn :: Asset a => Lens' (Pool a) [CF.TsRow]
 poolFutureTxn = lens getter setter
   where 
     getter p = case futureCf p of
-                 Nothing -> []::[CF.TsRow]
-                 Just (CF.CashFlowFrame _ txns) -> txns
+                Nothing -> []::[CF.TsRow]
+                Just (CF.CashFlowFrame _ txns) -> txns
     setter p trs = case futureCf p of
-                     Nothing -> p {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) trs)}  --TODO fix this
-                     Just (CF.CashFlowFrame st _) -> p {futureCf = Just (CF.CashFlowFrame st trs)}
+                    Nothing -> p {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) trs)}  --TODO fix this
+                    Just (CF.CashFlowFrame st _) -> p {futureCf = Just (CF.CashFlowFrame st trs)}
 
 poolIssuanceStat :: Asset a => Lens' (Pool a) (Map.Map CutoffFields Balance)
 poolIssuanceStat = lens getter setter
@@ -154,7 +154,7 @@ calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d
         in 
           case earlierTxns of 
             [] -> 0  -- `debug` ("No pool Inflow")
-            _ -> (mulBR (CF.mflowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor)
+            _ -> (mulBR (view CF.tsRowBalance (last earlierTxns)) currentFactor) + (mulBR currentCumulativeDefaultBal defaultFactor)
             -- TODO need to check if missing last row
 
 

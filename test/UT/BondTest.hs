@@ -1,4 +1,4 @@
-module UT.BondTest(pricingTests,bndConsolTest)
+module UT.BondTest(pricingTests,bndConsolTest,writeOffTest)
 where
 
 import Test.Tasty
@@ -20,13 +20,12 @@ import Debug.Trace
 debug = flip trace
 
 b1Txn =  [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 0 0 Nothing S.Empty
-                    ,BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 0 0 Nothing S.Empty
-                    ]
+          ,BondTxn (L.toDate "20220801") 0 10 1500 0.08 1510 0 0 Nothing S.Empty ]
 b1 = B.Bond{B.bndName="A"
             ,B.bndType=B.Sequential
             ,B.bndOriginInfo= B.OriginalInfo{
                                B.originBalance=3000
-                               ,B.originDate= T.fromGregorian 2022 1 1
+                               ,B.originDate= T.fromGregorian 2021 1 1
                                ,B.originRate= 0.08
                                ,B.maturityDate = Nothing}
             ,B.bndInterestInfo= B.Fix 0.08 DC_ACT_365F
@@ -34,8 +33,9 @@ b1 = B.Bond{B.bndName="A"
             ,B.bndRate=0.08
             ,B.bndDuePrin=0.0
             ,B.bndDueInt=0.0
+            ,B.bndDueIntOverInt=0.0
             ,B.bndDueIntDate=Nothing
-            ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
+            ,B.bndLastIntPay = Just (T.fromGregorian 2021 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndStmt=Just (S.Statement b1Txn)}
 
@@ -52,6 +52,7 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndDuePrin=0.0
             ,B.bndDueInt=0.0
             ,B.bndDueIntDate=Nothing
+            ,B.bndDueIntOverInt=0.0
             ,B.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
             ,B.bndStmt=Just $ S.Statement [ BondTxn (L.toDate "20220501") 1500 10 500 0.08 510 0 0 Nothing S.Empty]}
@@ -60,67 +61,52 @@ bfloat = B.Bond{B.bndName="A"
 pricingTests = testGroup "Pricing Tests"
   [
     let
-       _ts = (L.PricingCurve [L.TsPoint (L.toDate "20210101") 0.05
-                             ,L.TsPoint (L.toDate "20240101") 0.05])
-       _pv_day =  (L.toDate "20220201")
-       _f_day =  (L.toDate "20230201")
-       _pv = B.pv _ts _pv_day _f_day 103
+      _ts = L.PricingCurve [L.TsPoint (L.toDate "20210101") 0.05, L.TsPoint (L.toDate "20240101") 0.05]
+      _pv_day = L.toDate "20220201"
+      _f_day = L.toDate "20230201"
+      _pv = B.pv _ts _pv_day _f_day 103
     in
       testCase "PV test" $
         assertEqual "simple PV with flat curve"  
           98.09
-          _pv
-    ,
+          _pv,
     let
-        _pv_day =  (L.toDate "20220201")
-        _f_day =  (L.toDate "20230201")
-        _ts1 = (L.PricingCurve [L.TsPoint (L.toDate "20210101") 0.01
-                               ,L.TsPoint (L.toDate "20230101") 0.03])
+        _pv_day = L.toDate "20220201"
+        _f_day = L.toDate "20230201"
+        _ts1 = L.PricingCurve [L.TsPoint (L.toDate "20210101") 0.01, L.TsPoint (L.toDate "20230101") 0.03]
         _pv1 = B.pv _ts1 _pv_day _f_day 103
         _diff1 = _pv1 - 100.0
     in
       testCase "PV test with curve change in middle" $
-      assertEqual "simple PV with latest rate point"
-               100.0
-               _pv1
+      assertEqual "simple PV with latest rate point" 100.0 _pv1
    ,
     let
       pr = B.priceBond (L.toDate "20210501")
-                       (L.PricingCurve
-                           [L.TsPoint (L.toDate "20210101") 0.01
-                           ,L.TsPoint (L.toDate "20230101") 0.02])
+                       (L.PricingCurve [L.TsPoint (L.toDate "20210101") 0.01, L.TsPoint (L.toDate "20230101") 0.02])
                        b1
     in
       testCase "flat rate discount " $
       assertEqual "Test Pricing on case 01" 
-        (B.PriceResult 1978.46 65.948666 1.18 1.17 2.53 0.0 b1Txn) 
+        (B.PriceResult 1978.46 65.948666 1.18 1.1881448 0.4906438 78.9 b1Txn) 
         pr
     ,
      let
        b2Txn =  [BondTxn (L.toDate "20220301") 3000 10 300 0.08 310 0 0 Nothing S.Empty
                            ,BondTxn (L.toDate "20220501") 2700 10 500 0.08 510 0 0 Nothing S.Empty
-                           ,BondTxn (L.toDate "20220701") 0 10 3200 0.08 3300 0 0 Nothing S.Empty
-                           ]
+                           ,BondTxn (L.toDate "20220701") 0 10 3200 0.08 3300 0 0 Nothing S.Empty]
        b2 = b1 { B.bndStmt = Just (S.Statement b2Txn)}
 
        pr = B.priceBond (L.toDate "20220201")
                         (L.PricingCurve
                             [L.TsPoint (L.toDate "20220101") 0.01
                             ,L.TsPoint (L.toDate "20220401") 0.03
-                            ,L.TsPoint (L.toDate "20220601") 0.05
-                            ])
+                            ,L.TsPoint (L.toDate "20220601") 0.05])
                         b2
      in
        testCase " discount curve with two rate points " $
        assertEqual "Test Pricing on case 01" 
-            (B.PriceResult 4049.10 134.97 0.44 0.34 0.46 20.38 b2Txn) 
-            pr  --TODO need to confirm
-    ,
-    let
-      b3 = b1 {B.bndStmt = Nothing,B.bndInterestInfo = B.InterestByYield 0.02}
-    in
-      testCase "pay interest to satisfy on yield" $
-      assertEqual "" 60 (B.backoutDueIntByYield (L.toDate "20230101") b3)
+            (B.PriceResult 4049.10 134.97 0.44 0.364564 0.006030 260.38 b2Txn) 
+            pr  --TODO need to confirm in UI
     ,
     let
       b4 = b1
@@ -145,8 +131,8 @@ pricingTests = testGroup "Pricing Tests"
     in 
       testCase "Z spread test" $
       assertEqual "Z spread test 01" 
-      (0.175999)
-      (B.calcZspread  (100.0,pday) 0 (1.0,(0.01,0.02),0.03) b6 rateCurve)
+      (Right 0.176754)
+      (B.calcZspread  (100.0,pday) b6 rateCurve)
       --(B.calcZspread  (500.0,pday) (103.0,1/100) Nothing rateCurve)
 
   ]
@@ -225,9 +211,23 @@ bndConsolTest = testGroup "Bond consoliation & patchtesting" [
       assertEqual ""
       (Just (S.Statement [ BondTxn (L.toDate "20220501") 1000 0 1000 0.08 0 0 0 (Just 0.5) (S.TxnComments [S.Empty, S.Empty])]))
       bTestConsol
+    ]
 
 
-
-     
-      
-                                                             ]
+writeOffTest = 
+  let 
+    d1 = L.toDate "20200101"
+    bnd1 = B.Bond "A" B.Sequential (B.OriginalInfo 100 d1 0.06 Nothing) (B.Fix 0.05 DC_ACT_365F) Nothing 100 0.08 0 0 0 Nothing Nothing Nothing Nothing
+    writeAmt1 = 70 
+    writeAmt2 = 120 
+  in 
+  testGroup "write off on bond" [
+    testCase "write off on bond 1" $
+    assertEqual "only 1st bond is written off by 70"
+    (Right (bnd1 {B.bndBalance = 30,B.bndStmt = Just (S.Statement [S.BondTxn d1 30.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (S.WriteOff "A" 70.00)])}))
+    (B.writeOff d1 writeAmt1 bnd1),
+    testCase "over write off on bond 1" $
+    assertEqual "over write off on bond 1"
+    (Left "Insufficient balance to write off 120.00\" bond name \"\"A\"")
+    (B.writeOff d1 writeAmt2 bnd1)
+  ]

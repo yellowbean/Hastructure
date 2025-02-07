@@ -2,6 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections #-}
 
 module Assumptions (BondPricingInput(..)
                     ,AssumptionInput(..),ApplyAssumptionType(..)
@@ -19,6 +20,7 @@ module Assumptions (BondPricingInput(..)
                     ,FieldMatchRule(..),CallOpt(..)
                     ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
                     ,_ReceivableAssump,_FixedAssetAssump  
+                    ,stressDefaultAssump,applyAssumptionTypeAssetPerf
                     )
 where
 
@@ -85,6 +87,23 @@ data ApplyAssumptionType = PoolLevel AssetPerf               -- ^ assumption app
                          | ByDealName (Map.Map DealName (ApplyAssumptionType, NonPerfAssumption)) -- ^ assumption for a named deal 
                          deriving (Show, Generic)
 
+
+applyAssumptionTypeAssetPerf :: Traversal' ApplyAssumptionType AssetPerf
+applyAssumptionTypeAssetPerf f = go
+  where
+    go (PoolLevel x) = PoolLevel <$> f x
+    go (ByIndex strats) = ByIndex <$> traverse (\(idxs,aps) -> (idxs,) <$> f aps) strats
+    go (ByName m) = ByName <$> traverse f m
+    go (ByObligor os) = ByObligor <$> traverse (\case
+                                                  ObligorById ids ap -> ObligorById ids <$> f ap
+                                                  ObligorByTag tags m ap -> ObligorByTag tags m <$> f ap
+                                                  ObligorByField fs ap -> ObligorByField fs <$> f ap
+                                                  ObligorByDefault ap -> ObligorByDefault <$> f ap
+                                              ) os
+    go (ByPoolId m) = ByPoolId <$> traverse go m
+    go (ByDealName m) = ByDealName <$> traverse (\(a,b) -> (,) <$> go a <*> pure b) m
+
+
 type RateFormula = DealStats
 type BalanceFormula = DealStats
 
@@ -133,7 +152,20 @@ data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using const
                             | DefaultAtEnd                      -- ^ default 100% at end
                             | DefaultAtEndByRate Rate Rate      -- ^ life time default rate and default rate at end
                             | DefaultStressByTs Ts AssetDefaultAssumption
+                            | DefaultByTerm [[Rate]]
                             deriving (Show,Generic,Read)
+
+-- ^ stress the default assumption by a factor
+stressDefaultAssump :: Rate -> AssetDefaultAssumption -> AssetDefaultAssumption
+stressDefaultAssump x (DefaultConstant r) = DefaultConstant (r*x)
+stressDefaultAssump x (DefaultCDR r) = DefaultCDR (r*x)
+stressDefaultAssump x (DefaultVec rs) = DefaultVec ((x*) <$> rs)
+stressDefaultAssump x (DefaultVecPadding rs) = DefaultVecPadding ((x*) <$> rs)
+stressDefaultAssump x (DefaultByAmt (b,rs)) = DefaultByAmt (mulBR b x, rs)
+stressDefaultAssump x (DefaultAtEndByRate r1 r2) = DefaultAtEndByRate (r1*x) (r2*x)
+stressDefaultAssump x (DefaultByTerm rss) = DefaultByTerm (map (map (* x)) rss)
+stressDefaultAssump x (DefaultStressByTs ts a) = DefaultStressByTs ts (stressDefaultAssump x a)
+
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentCPR Rate 
@@ -141,6 +173,8 @@ data AssetPrepayAssumption = PrepaymentConstant Rate
                            | PrepaymentVecPadding [Rate] 
                            | PrepayByAmt (Balance,[Rate])
                            | PrepayStressByTs Ts AssetPrepayAssumption
+                           | PrepaymentPSA Rate
+                           | PrepaymentByTerm [[Rate]]
                            deriving (Show,Generic,Read)
 
 data AssetDelinquencyAssumption = DelinqCDR Rate (Lag,Rate)                 -- ^ Annualized Rate to Delinq status , period lag become defaulted, loss rate, period lag become loss
@@ -191,7 +225,7 @@ data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
                          deriving (Show,Generic)
 
 type HistoryCash = Ts
-type CurrentHolding = Balance
+type CurrentHolding = Balance -- as of the deal date
 type PricingDate = Date
 
 data BondPricingInput = DiscountCurve PricingDate Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
@@ -245,7 +279,6 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
             ratesFromCurve = case _rateAssumption of
                                 (RateCurve _ ts) -> (\x -> spd + (fromRational x) ) <$> (getValByDates ts Inc resetDates)
                                 (RateFlat _ v)   -> (spd +) <$> replicate (length resetDates) v
-                                _ -> error ("Invalid rate type "++ show _rateAssumption)
             ratesUsedByDates =  getValByDates
                                   (mkRateTs $ zip ((head ds):resetDates) (sr:ratesFromCurve))
                                   Inc
@@ -256,6 +289,7 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
               (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
               (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
               (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
+
 projRates _ rt rassump ds = Left ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
 
 
@@ -267,6 +301,8 @@ calcResetDates (r:rs) bs
   | r == head rs = calcResetDates rs (bs++[False])
   | otherwise = calcResetDates rs (bs++[True])
 
+makePrisms ''AssetPerfAssumption 
+makePrisms ''AssetDefaultAssumption
 
 $(deriveJSON defaultOptions ''CallOpt)
 $(deriveJSON defaultOptions ''BondPricingInput)
@@ -279,5 +315,3 @@ $(concat <$> traverse (deriveJSON defaultOptions) [''FieldMatchRule,''TagMatchRu
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption,''InspectType])
-
-makePrisms ''AssetPerfAssumption 

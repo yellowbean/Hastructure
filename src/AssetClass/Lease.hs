@@ -96,17 +96,6 @@ nextLeaseTill l (rsc,tc,mg) lastDate ed accum
                 where 
                  (new_lease,new_lastDate) = nextLease l (rsc,tc,mg) 
 
--- extractAssump :: [AP.AssumptionBuilder] -> (Rate,Ts,([(Amount,Int)],Int),DayGap,Date)-> (Rate,Ts,([(Amount,Int)],Int),DayGap,Date)
--- extractAssump [] r = r
--- extractAssump (ap:aps) (a,b,c,d,e) 
---   = case ap of 
---       (AP.LeaseProjectionEnd ed) -> extractAssump aps (a,b,c,d,ed)
---       (AP.LeaseGapDays mg) -> extractAssump aps (a,b,c,mg,e)
---       (AP.LeaseBaseAnnualRate r) -> extractAssump aps (r,b,c,d,e)
---       (AP.LeaseBaseCurve ts) -> extractAssump aps (a,ts,c,d,e)
---       (AP.LeaseGapDaysByAmount tbl rest) -> extractAssump aps (a,b,(tbl,rest),d,e)
---       _ -> extractAssump aps (a,b,c,d,e)
-
 getGapDaysByBalance :: Lease -> ([(Amount,Int)],Int) -> Int 
 getGapDaysByBalance l tbl@(rows,defaultVal)
   = let 

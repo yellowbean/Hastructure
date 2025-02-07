@@ -41,9 +41,9 @@ import Control.Lens.Extras (is)
 import Control.Lens.TH
 import Control.Applicative
 import Data.Map.Lens
+import Data.List.Lens
 import Debug.Trace
 import Lib
-import Cashflow (CashFlowFrame(CashFlowFrame))
 import qualified Cashflow as P
 debug = flip trace
 
@@ -216,7 +216,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       let 
         latestCfs = filter isJust $ Map.elems $ getLatestCollectFrame t Nothing
         rates = toRational . maybe 0.0 CF.mflowRate <$> latestCfs
-        bals = maybe 0.0 CF.mflowBalance  <$> latestCfs
+        bals = maybe 0.0 (view CF.tsRowBalance)  <$> latestCfs
       in 
         Right $ weightedBy (toRational <$> bals) rates
 
@@ -226,6 +226,12 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         rates = toRational . maybe 0.0 CF.mflowRate <$> latestCfs
       in 
         Right $ sum rates
+
+    DealStatRate s -> 
+      case stats t of 
+        (_,m,_,_) -> case Map.lookup s m of
+                      Just v -> Right . toRational $ v
+                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
 
 
     -- int query
@@ -249,6 +255,13 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
 
     ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
+
+    DealStatInt s -> 
+      case stats t of 
+        (_,_,_,m) -> case Map.lookup s m of
+                      Just v -> Right . toRational $ v
+                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+
 
     ReserveBalance ans -> 
       do 
@@ -353,7 +366,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       let 
         scheduleFlowM = Map.elems $ view dealScheduledCashflow t
       in 
-        Right . toRational $ sum $ maybe 0 (CF.mflowBalance . head . view CF.cashflowTxn) <$> scheduleFlowM
+        Right . toRational $ sum $ maybe 0 ((view CF.tsRowBalance) . head . view CF.cashflowTxn) <$> scheduleFlowM
     
     FutureCurrentSchedulePoolBegBalance mPns ->
       let 
@@ -515,6 +528,13 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
               in 
                 sumTxn $ cutBy Inc Past d _txn 
     
+    FeePaidAmt fns -> 
+      let 
+        fees = (feeMap Map.!) <$> fns
+        feeTxns = concat [ getTxns (F.feeStmt fee) | fee <- fees ]
+      in 
+        Right . toRational $ sumTxn feeTxns
+    
     BondTxnAmtBy d bns mCmt -> 
       let 
         bnds = viewDealBondsByNames t bns
@@ -571,29 +591,36 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       in
         Right . toRational $ sum $ map ex stmts
 
+    -- ^ get total int due for bonds
     CurrentDueBondInt bns -> 
       Right . toRational $ sum $ L.getDueInt <$> viewDealBondsByNames t bns  
+
+    -- ^ get total int over int due for bonds
+    CurrentDueBondIntOverInt bns -> 
+      Right . toRational $ sum $ L.getDueIntOverInt <$> viewDealBondsByNames t bns  
+
+    -- ^ get total due (due int + int over int due) for bonds
+    CurrentDueBondIntTotal bns -> 
+      sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
 
     CurrentDueBondIntAt idx bns -> 
       let 
         bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
-        dueInts = (\x -> x!!idx) <$> (L.bndDueInts <$> bs)
+        mDueInts = sequenceA $ (\x -> x ^? ix idx) <$> (L.bndDueInts <$> bs)
       in 
-        Right . toRational $ sum dueInts 
-
-    CurrentDueBondIntOverInt bns -> 
-      Right . toRational $ sum $ L.getDueIntOverInt <$> viewDealBondsByNames t bns  
+        case mDueInts of 
+          Nothing -> Left $ "Date:"++show d++"Failed to find due int at index for bonds"++ show bns ++ "with Index:"++ show idx ++ " but bonds has "++ show (L.bndDueInts <$> bs)
+          Just dueInts -> Right . toRational $ sum dueInts 
 
     CurrentDueBondIntOverIntAt idx bns -> 
       let 
         bs = filter (is L._MultiIntBond) $ viewDealBondsByNames t bns
-        dueInts = (\x -> x!!idx) <$> (L.bndDueIntOverInts <$> bs)
+        mDueInts = sequenceA $ (\x -> x ^?  ix idx) <$> (L.bndDueIntOverInts <$> bs)
       in 
-        Right . toRational $ sum $ dueInts
+        case mDueInts of 
+          Nothing -> Left $ "Date:"++show d++"Failed to find due int over int at index for bonds"++ show bns ++ "with Index:"++ show idx ++ " but bonds has "++ show (L.bndDueIntOverInts <$> bs)
+          Just dueInts -> Right . toRational $ sum $ dueInts
 
-    CurrentDueBondIntTotal bns -> 
-      sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondInt bns,CurrentDueBondIntOverInt bns])
-    
     CurrentDueBondIntTotalAt idx bns -> 
       sum <$> sequenceA (queryCompound t d <$> [CurrentDueBondIntAt idx bns,CurrentDueBondIntOverIntAt idx bns])
 
@@ -675,7 +702,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                 Nothing -> Left $ "Failed to get the required amount for target IRR: "++ bondName++" Rate:"++ show irr
                 Just amt -> Right $ 
                               if oDate <= d then
-                                (toRational amt)
+                                toRational amt
                               else
                                 0.0
 
@@ -688,6 +715,12 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                 Just (CustomCurve cv) -> Right . toRational $ getValOnByDate cv d
                 Just (CustomDS ds) -> queryCompound t d (patchDateToStats d ds )
                 _ -> Left $ "Date:"++show d++"Unsupported custom data found for key " ++ show s
+
+    DealStatBalance s -> 
+      case stats t of 
+        (m,_,_,_) -> case Map.lookup s m of
+                      Just v -> Right . toRational $ v
+                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
 
     _ -> Left ("Date:"++show d++"Failed to query formula of -> "++ show s)
     
@@ -743,6 +776,15 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
                                return $ all (<= 0) ms
 
     IsDealStatus st -> Right $ status t == st
+
+
+    DealStatBool s -> 
+      case stats t of 
+        (_,_,m,_) -> case Map.lookup s m of
+                      Just v -> Right v
+                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+
+
 
     TestNot ds -> do not <$> (queryDealBool t ds d)
     -- TestAny b dss -> b `elem` [ queryDealBool t ds d | ds <- dss ]

@@ -41,6 +41,8 @@ data FeeType = AnnualRateFee DealStats FormulaRate                       -- ^ an
              | AmtByTbl DatePattern DealStats (Table Balance Balance)    -- ^ lookup query value in a table
              | TargetBalanceFee DealStats DealStats                      -- ^ fee due amount = max( 0, (ds1 - ds2))
              | FeeFlow Ts                                                -- ^ a time series based fee 
+             | FeeFlowByPoolPeriod (PerCurve Balance)                    -- ^ a pool index series based fee
+             | FeeFlowByBondPeriod (PerCurve Balance)                    -- ^ a bond index series based fee
              | ByCollectPeriod Amount                                    -- ^ fix amount per collection period
              deriving (Show,Eq, Generic,Ord)
 
@@ -60,10 +62,7 @@ payFee :: Date   -- ^ When pay action happen
        -> Fee    -- ^ Fee before being paid
        -> Fee    -- ^ Fee after paid
 payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
-   f {feeLastPaidDay = Just d
-     ,feeDue = dueRemain
-     ,feeArrears = arrearRemain
-     ,feeStmt = newStmt}
+   f {feeLastPaidDay = Just d ,feeDue = dueRemain ,feeArrears = arrearRemain ,feeStmt = newStmt}
    where
     [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd]
     paid = fa + fd - arrearRemain - dueRemain 
@@ -72,10 +71,7 @@ payFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
 -- | pay amount of fee regardless the due amount
 payResidualFee :: Date -> Amount -> Fee -> Fee
 payResidualFee d amt f@(Fee fn ft fs fd fdDay fa flpd fstmt) =
-   f {feeLastPaidDay = Just d
-     ,feeDue = dueRemain
-     ,feeArrears = arrearRemain
-     ,feeStmt = newStmt}
+   f {feeLastPaidDay = Just d ,feeDue = dueRemain ,feeArrears = arrearRemain ,feeStmt = newStmt}
    where
     [(r0,arrearRemain),(r1,dueRemain)] = paySeqLiabilities amt [fa,fd] 
     newStmt = appendStmt (ExpTxn d dueRemain amt arrearRemain (PayFee fn)) fstmt  

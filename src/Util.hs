@@ -16,7 +16,7 @@ module Util
     ,lookupInMap,selectInMap
     ,lookupTuple6 ,lookupTuple7
     -- for debug
-    ,debugOnDate
+    ,debugOnDate,paySeqM
     )
     where
 import qualified Data.Time as T
@@ -304,6 +304,7 @@ slice from to xs = take (to - from ) (drop from xs)
 dropLastN :: Int -> [a] -> [a]
 dropLastN n xs = slice 0 (length xs - n) xs
 
+-- ^ convert annual rate (in 365 days) to period rate by interval days
 toPeriodRateByInterval :: Rate -> Int -> Rate
 toPeriodRateByInterval annualRate days
   = toRational $ 1 - fromRational (1-annualRate) ** (fromIntegral days / 365) -- `debug` ("days>>"++show days++"DIV"++ show ((fromIntegral days) / 365))
@@ -346,6 +347,24 @@ lstToMapByFn fn lst =
     ks = fn <$> lst 
   in 
     M.fromList $ zip ks lst
+
+paySeqM :: Date -> Amount -> (a->Balance) -> (Amount->a->Either String a) -> Either String [a] -> [a] -> Either String ([a],Amount)
+paySeqM d amt getDueAmt payFn paidList []
+  = do 
+      pList <- paidList 
+      return (reverse pList, amt)
+paySeqM d 0 getDueAmt payFn paidList tobePaidList
+  = do 
+      pList <- paidList 
+      return (reverse pList++tobePaidList, 0)
+paySeqM d amt getDueAmt payFn paidList (l:tobePaidList)
+  = do 
+      let dueAmt = getDueAmt l
+      let actualPaidOut = min amt dueAmt 
+      let remainAmt = amt - actualPaidOut
+      paidL <- payFn actualPaidOut l
+      paidList_ <- paidList
+      paySeqM d remainAmt getDueAmt payFn (Right $ paidL:paidList_) tobePaidList
 
 paySequentially :: Date -> Amount -> (a->Balance) -> (Amount->a->a) -> [a] -> [a] -> ([a],Amount)
 paySequentially d amt getDueAmt payFn paidList []

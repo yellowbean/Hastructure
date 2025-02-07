@@ -1,18 +1,18 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.35.2.
 --
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:	 0.41.1
+version:        0.41.3
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance;Securitisation;Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
 bug-reports:    https://github.com/yellowbean/Hastructure/issues
 author:         Xiaoyu
 maintainer:     always.zhang@gmail.com
-copyright:      2024 Xiaoyu, Zhang
+copyright:      2025 Xiaoyu, Zhang
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -66,6 +66,7 @@ library
       Util
       Validation
       Waterfall
+      WebUI
   other-modules:
       Paths_Hastructure
   hs-source-dirs:
@@ -76,14 +77,17 @@ library
     , base
     , bytestring
     , containers
+    , deepseq
     , generic-lens
     , hashable
     , ieee754
     , lens
+    , lucid
     , math-functions
     , monad-loops
     , numeric-limits
     , openapi3
+    , parallel
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
@@ -99,6 +103,7 @@ library
     , time
     , vector
     , wai
+    , yaml
   default-language: Haskell2010
 
 executable Hastructure-exe
@@ -118,6 +123,7 @@ executable Hastructure-exe
     , base-compat
     , bytestring
     , containers
+    , deepseq
     , exceptions
     , generic-lens
     , hashable
@@ -130,6 +136,7 @@ executable Hastructure-exe
     , mtl
     , numeric-limits
     , openapi3
+    , parallel
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
@@ -187,14 +194,17 @@ test-suite Hastructure-test
     , base
     , bytestring
     , containers
+    , deepseq
     , generic-lens
     , hashable
     , ieee754
     , lens
+    , lucid
     , math-functions
     , monad-loops
     , numeric-limits
     , openapi3
+    , parallel
     , regex-base
     , regex-pcre-builtin
     , regex-tdfa
@@ -214,4 +224,5 @@ test-suite Hastructure-test
     , time
     , vector
     , wai
+    , yaml
   default-language: Haskell2010

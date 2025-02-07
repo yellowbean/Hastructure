@@ -8,7 +8,11 @@
 # A snapshot resolver dictates the compiler version and the set of packages
 # to be used for project dependencies. For example:
 #
-resolver: lts-22.34
+resolver: lts-23.5
+# urls:
+#   latest-snapshot: http://www.stackage.org/download/snapshots.json
+#   lts-build-plans: http://www.stackage.org/download/lts-build-plans.json
+#   nightly-build-plans: http://www.stackage.org/download/nightly-build-plans.json
 
 # resolver: nightly-2021-12-26
 # resolver: nightly-2015-09-21

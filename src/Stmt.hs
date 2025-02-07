@@ -6,14 +6,14 @@
 
 module Stmt
   (Statement(..)
-   ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
-   ,appendStmt,combineTxn,getTxnBegBalance,getDate,getDates
-   ,TxnComment(..),QueryByComment(..)
-   ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
-   ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
-   ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf,filterTxn
-   ,HasStmt(..)
-   ,getAllTxns,hasEmptyTxn
+  ,getTxns,getTxnComment,getTxnAmt,toDate,getTxnPrincipal,getTxnAsOf,getTxnBalance
+  ,appendStmt,combineTxn,getTxnBegBalance,getDate,getDates
+  ,TxnComment(..),QueryByComment(..)
+  ,weightAvgBalanceByDates,weightAvgBalance,weightAvgBalance',sumTxn, consolTxn
+  ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
+  ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf,filterTxn
+  ,HasStmt(..),Txn(..)
+  ,getAllTxns,hasEmptyTxn
   )
   where
 
@@ -219,30 +219,30 @@ getFlow comment =
       PayPrin _ -> Outflow
       PayGroupPrin _ -> Outflow
       PayGroupInt _ -> Outflow 
-      WriteOff _ _ -> Noneflow
-      FundWith _ _ -> Inflow
       PayPrinResidual _ -> Outflow
       PayFee _ -> Outflow
       SeqPayFee _ -> Outflow
       PayFeeYield _ -> Outflow
+      LiquidationRepay _ -> Outflow
+      SwapOutSettle _ -> Outflow
+      PurchaseAsset _ _-> Outflow
       Transfer _ _ -> Interflow 
       TransferBy _ _ _ -> Interflow 
+      FundWith _ _ -> Inflow
       PoolInflow _ _ -> Inflow
       LiquidationProceeds _ -> Inflow
       LiquidationSupport _ -> Inflow
-      LiquidationDraw -> Noneflow
-      LiquidationRepay _ -> Outflow
-      LiquidationSupportInt _ _ -> Noneflow
       BankInt -> Inflow
+      SwapInSettle _ -> Inflow
+      IssuanceProceeds _ -> Inflow
+      LiquidationDraw -> Noneflow
+      LiquidationSupportInt _ _ -> Noneflow
+      WriteOff _ _ -> Noneflow
       SupportDraw -> Noneflow
       Empty -> Noneflow 
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
       SwapAccrue  -> Noneflow
-      SwapInSettle _ -> Inflow
-      SwapOutSettle _ -> Outflow
-      PurchaseAsset _ _-> Outflow
-      IssuanceProceeds _ -> Inflow
       TxnDirection _ -> Noneflow
       BookLedgerBy _ _ -> Noneflow
       TxnComments cmts ->  --TODO the direction of combine txns
@@ -257,17 +257,14 @@ getFlow comment =
             Noneflow
       _ -> error ("Missing in GetFlow >> "++ show comment)
 
-
+-- ^ filter transaction by apply a filter function on txn comment
 filterTxn :: (TxnComment -> Bool) -> [Txn] -> [Txn]
-filterTxn f txns = filter (\t -> f (getTxnComment t) ) txns
+filterTxn f = filter (f . getTxnComment)
 
 instance Ord Txn where
   compare :: Txn -> Txn -> Ordering
   compare (BondTxn d1 _ _ _ _ _ _ _ _ _) (BondTxn d2 _ _ _ _ _ _ _ _ _) = compare d1 d2
   compare (AccTxn d1 _ _ _ ) (AccTxn d2 _ _ _  ) = compare d1 d2
-
--- instance Eq Txn where
---  (BondTxn d1 _ _ _ _ _ _ _) == (BondTxn d2 _ _ _ _ _ _ _) = d1 == d2
 
 instance TimeSeries Txn where 
   getDate (BondTxn t _ _ _ _ _ _ _ _ _ ) = t
@@ -278,11 +275,15 @@ instance TimeSeries Txn where
   getDate (EntryTxn t _ _ _) = t
 
 class QueryByComment a where 
+    
     queryStmt :: a -> TxnComment -> [Txn]
+    
     queryStmtAsOf :: a -> Date -> TxnComment -> [Txn]
     queryStmtAsOf a d tc =  [ txn | txn <- queryStmt a tc, getDate txn <= d]
+    
     queryTxnAmt :: a -> TxnComment -> Balance
     queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
+    
     queryTxnAmtAsOf :: a -> Date -> TxnComment -> Balance 
     queryTxnAmtAsOf a d tc =  sum $ getTxnAmt <$> queryStmtAsOf a d tc
 

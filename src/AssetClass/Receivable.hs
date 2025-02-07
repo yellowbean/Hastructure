@@ -148,7 +148,7 @@ instance Asset Receivable where
         initTxn = CF.ReceivableFlow sd ob 0 0 0 0 0 0 Nothing
       in 
         do 
-          defaultRates <- A.buildDefaultRates (sd:[dd]) amd
+          defaultRates <- A.buildDefaultRates r (sd:[dd]) amd
           let defaultAmt = mulBR ob (head defaultRates)
           let afterDefaultBal =  ob - defaultAmt
           let afterDefaultFee =  mulBR feeDue (1 - (head defaultRates))

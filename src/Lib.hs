@@ -10,7 +10,7 @@ module Lib
     ,afterNPeriod,Ts(..),periodsBetween
     ,periodRateFromAnnualRate
     ,Floor,Cap,TsPoint(..)
-    ,toDate,toDates,genDates,nextDate,isTsEmpty
+    ,toDate,toDates,genDates,nextDate
     ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors
     ,zipWith8,zipWith9,zipWith10,zipWith11,zipWith12
@@ -41,19 +41,6 @@ import Debug.Trace
 debug = flip trace
 
 
-
-
-annualRateToPeriodRate :: Period -> Float -> Float
-annualRateToPeriodRate p annualRate =
-    1 - (1 - annualRate ) ** n
-  where 
-    n = case p of 
-          Monthly -> 1/12
-          Quarterly -> 1/4 
-          SemiAnnually -> 1/2
-          Annually -> 1.0
-          Daily -> 1 / 365
-          Weekly -> 1 / 52.143
 
 periodRateFromAnnualRate :: Period -> IRate -> IRate
 periodRateFromAnnualRate Annually annual_rate  = annual_rate
@@ -163,7 +150,7 @@ splitTsByDate (BalanceCurve ds) d
                   where
                    (l,r) = splitAt idx ds
 
-subTsBetweenDates :: Ts -> Maybe T.Day -> Maybe T.Day -> Ts
+subTsBetweenDates :: Ts -> Maybe Date -> Maybe Date -> Ts
 subTsBetweenDates (BalanceCurve vs) (Just sd) (Just ed)
   =  BalanceCurve $ filter(\(TsPoint x _) -> (x > sd) && (x < ed) ) vs
 subTsBetweenDates (BalanceCurve vs) Nothing (Just ed)
@@ -183,28 +170,27 @@ toDates ds = toDate <$> ds
 
 zipWith8 :: (a->b->c->d->e->f->g->h->i) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]
 zipWith8 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs)
-                   =  z a b c d e f g h : zipWith8 z as bs cs ds es fs gs hs
+  = z a b c d e f g h : zipWith8 z as bs cs ds es fs gs hs
 zipWith8 _ _ _ _ _ _ _ _ _ = []
 
 zipWith9 :: (a->b->c->d->e->f->g->h->i->j) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]
 zipWith9 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js)
-                   =  z a b c d e f g h j : zipWith9 z as bs cs ds es fs gs hs js
+  = z a b c d e f g h j : zipWith9 z as bs cs ds es fs gs hs js
 zipWith9 _ _ _ _ _ _ _ _ _ _ = []
 
 zipWith10 :: (a->b->c->d->e->f->g->h->i->j->k) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]->[k]
 zipWith10 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks)
-                   =  z a b c d e f g h j k: zipWith10 z as bs cs ds es fs gs hs js ks
+  = z a b c d e f g h j k: zipWith10 z as bs cs ds es fs gs hs js ks
 zipWith10 _ _ _ _ _ _ _ _ _ _ _ = []
 
 zipWith11 :: (a->b->c->d->e->f->g->h->i->j->k->l) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]->[k]->[l]
 zipWith11 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks) (l:ls)
-                   =  z a b c d e f g h j k l: zipWith11 z as bs cs ds es fs gs hs js ks ls
+  = z a b c d e f g h j k l: zipWith11 z as bs cs ds es fs gs hs js ks ls
 zipWith11 _ _ _ _ _ _ _ _ _ _ _ _ = []
-
 
 zipWith12 :: (a->b->c->d->e->f->g->h->i->j->k->l->m) -> [a]->[b]->[c]->[d]->[e]->[f]->[g]->[h]->[i]->[j]->[k]->[l]->[m]
 zipWith12 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks) (l:ls) (m:ms)
-                   = z a b c d e f g h j k l m: zipWith12 z as bs cs ds es fs gs hs js ks ls ms
+  = z a b c d e f g h j k l m: zipWith12 z as bs cs ds es fs gs hs js ks ls ms
 zipWith12 _ _ _ _ _ _ _ _ _ _ _ _ _ = []
 
 
@@ -253,8 +239,3 @@ nextDate d p
         SemiAnnually -> 6
         Annually -> 12
         _ -> 0
-
-isTsEmpty :: Ts -> Bool
-isTsEmpty (FloatCurve []) = True
-isTsEmpty (RatioCurve []) = True
-isTsEmpty _ = False

@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Analytics (calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21,calcRequiredAmtForIrrAtDate)
+module Analytics (calcConvexity,calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21,calcRequiredAmtForIrrAtDate)
 
   where 
 import Types
@@ -32,18 +32,33 @@ calcWAL th bal d ps =
   in 
     sum weightedAmts / bal
 
-calcDuration :: Date -> [(Date,Balance)] -> Ts -> Balance
-calcDuration d ps pricingCurve 
+calcDuration :: DayCount -> Date -> [(Date,Balance)] -> Ts -> Rate
+calcDuration dc d ps pricingCurve 
   = (foldr (\(_d,_b) acc ->
-                    (mulBR  
-                      ((pv pricingCurve d _d _b) / presentValue) 
-                      (yearCountFraction DC_ACT_365F d _d))
+                    (*) 
+                      (divideBB (pv pricingCurve d _d _b) presentValue) 
+                      (yearCountFraction dc d _d)
                     + acc)
-                    0
+                    0.0000
                     ps)
     where 
       presentValue = sum [ pv pricingCurve d _d _b | (_d,_b) <- ps ] 
 
+calcConvexity :: DayCount -> Date -> [(Date,Balance)] -> Ts -> Rate
+calcConvexity dc d ps pricingCurve 
+  = toRational $
+      (*)
+        presentValue' $
+        (foldr (\(_t,_c,_f) acc ->
+                      (_t * (_t + 1) * fromRational _c) / ((1.000 + _f) ** (_t+2))
+                      )
+                      0.0000
+                      (zip3 ts payments pvFactors)) -- `debug` ("'v"++show presentValue'++"others"++ show (zip3 ts payments pvFactors))
+    where 
+      pvFactors::[Double] = fromRational <$> getValByDate pricingCurve Inc <$> fst <$> ps
+      presentValue'::Double = 1 / (fromRational . toRational) (sum [ pv pricingCurve d _d _b | (_d,_b) <- ps ])
+      payments = toRational . snd <$> ps
+      ts::[Double] = fromRational <$> yearCountFraction dc d <$> fst <$> ps
 
 -- ^ calculate present value of input amount in future with given a curve and PV date
 pv :: Ts -> Date -> Date -> Amount -> Amount
@@ -102,10 +117,8 @@ calcRequiredAmtForIrrAtDate :: Double -> [Date] -> [Amount] -> Date -> Maybe Amo
 calcRequiredAmtForIrrAtDate irr [] _ d = Nothing 
 calcRequiredAmtForIrrAtDate irr ds vs d = 
   let 
-    def = RiddersParam
-        { riddersMaxIter = 200
-        , riddersTol     = RelTol 0.00000001
-        }
+    itertimes = 500
+    def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.00000001}
   in 
     case ridders def (0.0001,100000000000000) (calcPvFromIRR irr ds vs d) of
           Root finalAmt -> Just (fromRational (toRational finalAmt))

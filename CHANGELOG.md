@@ -2,6 +2,32 @@
 
 <!-- towncrier release notes start -->
 
+## 0.42.4
+### 2025-02-06
+* NEW: `FirstLoss` as new endpoint, which will stress on `Default` assumption till 0.01 loss on input tranche.
+* NEW: New prepayment /default assumption via `byTerm`, which vector curves are being applied via term of the assets.
+
+
+## 0.42.3
+### 2025-02-04
+* NEW: `Multi-thread` on pool cashflow projection
+* NEW: Expose `convexity` on bond/asset
+* NEW: Add new prepayment assumption `PSA` for Monthly mortgage
+* NEW: Add new prepayment/default vector assumption based on asset origin term
+
+## 0.42.1
+### 2025-02-02
+* NEW: add custom fee flow by `BondPaidPeriod` `PoolCollectedPeriod` index
+
+
+## 0.42.0
+### 2025-02-01
+* ENHANCE: refactor `calcPmt` to boost 15x performance for mortgage cashflow projection. 
+* NEW: add `ScheduleByIndex` for bonds
+* FIX: `fundWith` shall increase the bond balance
+* ENHANCE: refactor Z-spread calc logic with numeric.root.finder
+
+
 ## 0.41.1
 ### 2025-01-11
 * NEW: `Multi Interest Bond` which used to model in bond with `step up` feature ( sub ordinated interest) in European 
