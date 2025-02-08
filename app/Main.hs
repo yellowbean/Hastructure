@@ -490,7 +490,7 @@ testByDefault dt assumps nonPerfAssump bn r
             bondBal = L.getOutstandingAmount bMap
           in
             (fromRational (toRational bondBal) - 0.01)
-        Left errorMsg -> 0
+        Left errorMsg -> 0 `debug` ("Error in testByDefault->"++ errorMsg)
 
 
 runDealByFirstLoss :: FirstLossReq -> Handler FirstLossResp
