@@ -811,6 +811,11 @@ class Liable lb where
   -- getTotalDue :: [lb] -> Balance
   -- getTotalDue lbs =  sum $ getDue <$> lbs
 
+class Accurable ac where 
+  accrue :: ac -> Date -> Balance
+
+
+
 lookupTable :: Ord a => Table a b -> Direction -> (a -> Bool) -> Maybe b
 lookupTable (ThresholdTable rows) direction lkUpFunc
   = case findIndex lkUpFunc rs of 

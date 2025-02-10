@@ -490,7 +490,7 @@ testByDefault dt assumps nonPerfAssump bn r
             bondBal = L.getOutstandingAmount bMap
           in
             (fromRational (toRational bondBal) - 0.01)
-        Left errorMsg -> 0 `debug` ("Error in testByDefault->"++ errorMsg)
+        Left errorMsg -> error $ "Error in test fun for first loss" ++ show errorMsg
 
 
 runDealByFirstLoss :: FirstLossReq -> Handler FirstLossResp
@@ -500,11 +500,12 @@ runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump bn)
         itertimes = 500
         def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
       in 
-        case ridders def (1.000,500) (testByDefault dt assumps nonPerfAssump bn) of
+        case ridders def (500.0,0.00) (testByDefault dt assumps nonPerfAssump bn) of
           Root r -> Right $ FirstLossResult
                               r
                               (over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps)
-          _ -> Left "Not able to find the root"
+          NotBracketed -> Left "Not able to bracket the root"
+          SearchFailed -> Left "Not able to find the root"
 
 
 runDealScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
