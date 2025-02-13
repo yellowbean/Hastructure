@@ -157,12 +157,12 @@ data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using const
 
 -- ^ stress the default assumption by a factor
 stressDefaultAssump :: Rate -> AssetDefaultAssumption -> AssetDefaultAssumption
-stressDefaultAssump x (DefaultConstant r) = DefaultConstant $ max 1.0 (r*x)
-stressDefaultAssump x (DefaultCDR r) = DefaultCDR $ max 1.0 (r*x)
+stressDefaultAssump x (DefaultConstant r) = DefaultConstant $ min 1.0 (r*x)
+stressDefaultAssump x (DefaultCDR r) = DefaultCDR $ min 1.0 (r*x)
 stressDefaultAssump x (DefaultVec rs) = DefaultVec $ capWith 1.0 ((x*) <$> rs)
 stressDefaultAssump x (DefaultVecPadding rs) = DefaultVecPadding $ capWith 1.0 ((x*) <$> rs)
 stressDefaultAssump x (DefaultByAmt (b,rs)) = DefaultByAmt (mulBR b x, rs)
-stressDefaultAssump x (DefaultAtEndByRate r1 r2) = DefaultAtEndByRate (max 1.0 (r1*x)) (max 1.0 (r2*x))
+stressDefaultAssump x (DefaultAtEndByRate r1 r2) = DefaultAtEndByRate (min 1.0 (r1*x)) (min 1.0 (r2*x))
 stressDefaultAssump x (DefaultByTerm rss) = DefaultByTerm $ ((capWith 1.0) <$> (map (map (* x)) rss))
 stressDefaultAssump x (DefaultStressByTs ts a) = DefaultStressByTs ts (stressDefaultAssump x a)
 

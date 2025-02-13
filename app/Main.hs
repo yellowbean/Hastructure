@@ -491,7 +491,7 @@ testByDefault dt assumps nonPerfAssump bn r
 
             bondBal = L.getOutstandingAmount bMap
           in
-            (fromRational (toRational bondBal) - 0.01)
+            (fromRational (toRational bondBal) - 0.01) -- `debug` ("iter with"++ show r++"\n"++ show stressed ++"\n and bondBal"++ show bondBal)
         Left errorMsg -> error $ "Error in test fun for first loss" ++ show errorMsg
 
 -- TODO: check the bond name exsits
