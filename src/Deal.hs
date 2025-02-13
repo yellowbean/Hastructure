@@ -65,6 +65,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 import Control.Monad
+import Control.Monad.Writer
 import Control.Monad.Loops (allM,anyM)
 import Control.Applicative (liftA2)
 
@@ -854,8 +855,8 @@ splitCallOpts (AP.LegacyOpts copts) =
       cFn (C.BondFactor r) = IfRate L BondFactor (fromRational r)
       cFn (C.OnDate d) = IfDate E d
       cFn (C.AfterDate d) = IfDate G d
-      cFn (C.And _opts) = All [ cFn o | o <- _opts  ]
-      cFn (C.Or _opts) = Any [ cFn o | o <- _opts  ]
+      cFn (C.And _opts) = Types.All [ cFn o | o <- _opts  ]
+      cFn (C.Or _opts) = Types.Any [ cFn o | o <- _opts  ]
       cFn (C.Pre p) = p
     in 
       ([ cFn copt | copt <- copts ],[])

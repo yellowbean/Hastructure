@@ -85,6 +85,7 @@ library
     , lucid
     , math-functions
     , monad-loops
+    , mtl
     , numeric-limits
     , openapi3
     , parallel
@@ -202,6 +203,7 @@ test-suite Hastructure-test
     , lucid
     , math-functions
     , monad-loops
+    , mtl
     , numeric-limits
     , openapi3
     , parallel

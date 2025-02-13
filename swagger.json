@@ -12841,6 +12841,54 @@
                     }
                 ]
             },
+            "PerCurve_(Ratio_Integer)": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PerPoint_(Ratio_Integer)"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CurrentVal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentVal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PerPoint_(Ratio_Integer)"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WithTrailVal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WithTrailVal",
+                        "type": "object"
+                    }
+                ]
+            },
             "PerPoint_(Fixed_*_E2)": {
                 "items": [
                     {
@@ -12850,6 +12898,22 @@
                     },
                     {
                         "multipleOf": 1.0e-2,
+                        "type": "number"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
+            "PerPoint_(Ratio_Integer)": {
+                "items": [
+                    {
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "type": "integer"
+                    },
+                    {
+                        "format": "double",
                         "type": "number"
                     }
                 ],
@@ -13903,6 +13967,41 @@
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PerCurve_(Fixed_*_E2)"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfByPeriodCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfByPeriodCurve",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Ts"
                                     }
                                 ],
@@ -13922,6 +14021,41 @@
                             "contents"
                         ],
                         "title": "IfRateCurve",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PerCurve_(Ratio_Integer)"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfRateByPeriodCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfRateByPeriodCurve",
                         "type": "object"
                     },
                     {
@@ -20773,7 +20907,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.42.5"
+        "version": "0.42.7"
     },
     "openapi": "3.0.0",
     "paths": {

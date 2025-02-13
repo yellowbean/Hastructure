@@ -176,6 +176,8 @@ instance ToSchema L.BondType
 instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
 instance ToSchema L.InterestOverInterestType
+instance ToSchema (PerPoint (Ratio Integer))
+instance ToSchema (PerCurve Rate)
 instance ToSchema Pre
 instance ToSchema W.PayOrderBy
 instance ToSchema W.ActionWhen
@@ -475,7 +477,7 @@ testByDefault dt assumps nonPerfAssump bn r
       runResult = wrapRun dt (Just stressed) nonPerfAssump
     in
       case runResult of 
-        Right (d,_,_,_) -> 
+        Right (d,mPoolCfMap,mResult,mPricing) -> 
           let 
             bMap = case d of 
                     MDeal d' -> DB.bonds d' Map.! bn
@@ -492,7 +494,7 @@ testByDefault dt assumps nonPerfAssump bn r
             (fromRational (toRational bondBal) - 0.01)
         Left errorMsg -> error $ "Error in test fun for first loss" ++ show errorMsg
 
-
+-- TODO: check the bond name exsits
 runDealByFirstLoss :: FirstLossReq -> Handler FirstLossResp
 runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump bn)
   = return $ 

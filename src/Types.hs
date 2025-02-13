@@ -472,33 +472,34 @@ data BondPricingMethod = BondBalanceFactor Rate
 
 -- ^ condition which can be evaluated to a boolean value
 data Pre = IfZero DealStats
-         | If Cmp DealStats Balance
-         | IfRate Cmp DealStats Micro
-         | IfCurve Cmp DealStats Ts
-         | IfRateCurve Cmp DealStats Ts
-         | IfIntCurve Cmp DealStats Ts
-         
-         -- Integer
-         | IfInt Cmp DealStats Int
-         | IfIntBetween DealStats RangeType Int Int
-         | IfIntIn DealStats [Int]
-         -- Dates
-         | IfDate Cmp Date
-         | IfDateBetween RangeType Date Date
-         | IfDateIn Dates
-         
-         | IfBool DealStats Bool
-         -- compare deal 
-         | If2 Cmp DealStats DealStats
-         | IfRate2 Cmp DealStats DealStats
-         | IfInt2 Cmp DealStats DealStats
-         -- | IfRateCurve DealStats Cmp Ts
-         | IfDealStatus DealStatus
-         | Always Bool
-         | IfNot Pre
-         | Any [Pre]
-         | All [Pre]                            -- ^ 
-         deriving (Show,Generic,Eq,Ord,Read)
+        | If Cmp DealStats Balance
+        | IfRate Cmp DealStats Micro
+        | IfCurve Cmp DealStats Ts
+        | IfByPeriodCurve Cmp DealStats DealStats (PerCurve Balance)
+        | IfRateCurve Cmp DealStats Ts
+        | IfRateByPeriodCurve Cmp DealStats DealStats (PerCurve Rate)
+        | IfIntCurve Cmp DealStats Ts
+        -- Integer
+        | IfInt Cmp DealStats Int
+        | IfIntBetween DealStats RangeType Int Int
+        | IfIntIn DealStats [Int]
+        -- Dates
+        | IfDate Cmp Date
+        | IfDateBetween RangeType Date Date
+        | IfDateIn Dates
+        -- Bool
+        | IfBool DealStats Bool
+        -- compare deal status 
+        | If2 Cmp DealStats DealStats
+        | IfRate2 Cmp DealStats DealStats
+        | IfInt2 Cmp DealStats DealStats
+        -- | IfRateCurve DealStats Cmp Ts
+        | IfDealStatus DealStatus
+        | Always Bool
+        | IfNot Pre
+        | Any [Pre]
+        | All [Pre]                            -- ^ 
+        deriving (Show,Generic,Eq,Ord,Read)
 
 
 
@@ -715,13 +716,11 @@ data HowToPay = ByProRata
               | BySequential
               deriving (Show,Ord,Eq,Read, Generic)
 
-
 type BookItems = [BookItem]
 
 data BookItem = Item String Balance 
               | ParentItem String BookItems
               deriving (Show,Read,Generic)
-
 
 data BalanceSheetReport = BalanceSheetReport {
                             asset :: BookItem
@@ -729,7 +728,7 @@ data BalanceSheetReport = BalanceSheetReport {
                             ,equity :: BookItem
                             ,reportDate :: Date}         -- ^ snapshot date of the balance sheet
                             deriving (Show,Read,Generic)
- 
+
 data CashflowReport = CashflowReport {
                         inflow :: BookItem
                         ,outflow :: BookItem
@@ -744,13 +743,11 @@ data Threshold = Below
                | EqAbove
                deriving (Show,Eq,Ord,Read,Generic)
 
-
 data SplitType = EqToLeft   -- if equal, the element belongs to left
                | EqToRight  -- if equal, the element belongs to right
                | EqToLeftKeepOne
                | EqToLeftKeepOnes
                deriving (Show, Eq, Generic)
-
 
 data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryRecoveries    -- ^ cumulative recoveries
@@ -775,8 +772,6 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | ZSpread Spread 
 --                 | IRRbyDate Valuation
                  deriving (Show, Eq, Generic)
-
-
 
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
@@ -811,10 +806,16 @@ class Liable lb where
   -- getTotalDue :: [lb] -> Balance
   -- getTotalDue lbs =  sum $ getDue <$> lbs
 
-class Accurable ac where 
-  accrue :: ac -> Date -> Balance
 
+class Accruable ac where 
+  accrue :: Date -> ac -> ac
+  calcAccrual :: Date -> ac -> Balance
 
+  -- buildAccrualAction :: ac -> Date -> Date -> [ActionOnDate]
+
+-- class Resettable rs where 
+--   reset :: Date -> rs -> rs
+--   buildResetAction :: rs -> Date -> Date -> [Txn]
 
 lookupTable :: Ord a => Table a b -> Direction -> (a -> Bool) -> Maybe b
 lookupTable (ThresholdTable rows) direction lkUpFunc
@@ -1111,6 +1112,9 @@ instance FromJSONKey DateType where
 
 
 $(deriveJSON defaultOptions ''RangeType)
+-- $(deriveJSON defaultOptions ''(PerCurve Balance))
+-- $(deriveJSON defaultOptions ''(PerCurve Rate))
+$(deriveJSON defaultOptions ''PerCurve)
 $(deriveJSON defaultOptions ''Pre)
 
 $(deriveJSON defaultOptions ''CustomDataType)
@@ -1133,8 +1137,6 @@ $(deriveJSON defaultOptions ''ResultComponent)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''HowToPay)
-
-$(deriveJSON defaultOptions ''PerCurve)
 
 
 
