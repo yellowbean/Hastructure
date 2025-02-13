@@ -250,7 +250,15 @@ data Cmp = G      -- ^ Greater than
          | L      -- ^ Less than
          | LE     -- ^ Less Equal than
          | E      -- ^ Equals to
-         deriving (Show,Generic,Eq,Ord,Read)
+         deriving (Generic,Eq,Ord,Read)
+
+instance Show Cmp where
+  show :: Cmp -> String
+  show G  = ">"
+  show GE = ">="
+  show L  = "<"
+  show LE = "<="
+  show E  = "=="
 
 
 data PoolSource = CollectedInterest               -- ^ interest
