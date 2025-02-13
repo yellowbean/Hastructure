@@ -231,7 +231,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       case stats t of 
         (_,m,_,_) -> case Map.lookup s m of
                       Just v -> Right . toRational $ v
-                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+                      Nothing -> Left $ "Date:"++show d++"Failed to rate deal stat of -> "++ show s
 
 
     -- int query
@@ -260,7 +260,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       case stats t of 
         (_,_,_,m) -> case Map.lookup s m of
                       Just v -> Right . toRational $ v
-                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+                      Nothing -> Left $ "Date:"++show d++"Failed to query int deal stat of -> "++ show s ++" in map"++ show m
 
 
     ReserveBalance ans -> 
@@ -720,7 +720,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       case stats t of 
         (m,_,_,_) -> case Map.lookup s m of
                       Just v -> Right . toRational $ v
-                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+                      Nothing -> Left $ "Date:"++show d++"Failed to query balance deal stat  of -> "++ show s
 
     _ -> Left ("Date:"++show d++"Failed to query formula of -> "++ show s)
     
@@ -782,7 +782,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
       case stats t of 
         (_,_,m,_) -> case Map.lookup s m of
                       Just v -> Right v
-                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+                      Nothing -> Left $ "Date:"++show d++"Failed to query bool deal stat of -> "++ show s
 
 
 

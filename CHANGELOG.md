@@ -4,7 +4,7 @@
 
 
 ## 0.42.8
-### 2025-02-06
+### 2025-02-13
 * FIX: Enable `byTerm` assumption on `Installment`
 * FIX: cap the default rate vector with 100% geneated by `root.finder`
 * NEW: add `PeriodBased` rate curve or balance curve in `Pre`, i.e. easy to build default rate trigger in structuring stage

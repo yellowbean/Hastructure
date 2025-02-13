@@ -13,7 +13,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,sortActionOnDate,dealBondGroups
                      ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
                      ,increaseBondPaidPeriod,increasePoolCollectedPeriod
-                     ,DealStatFields(..),getDealStatInt
+                     ,DealStatFields(..),getDealStatInt,isPreClosing
                      )                      
   where
 import qualified Accounts as A
@@ -306,6 +306,11 @@ instance SPV (TestDeal a) where
   isResec t = case pool t of
                  ResecDeal _ -> True
                  _ -> False
+
+isPreClosing :: TestDeal a -> Bool
+isPreClosing t@TestDeal{ status = PreClosing _ } = True
+isPreClosing _ = False
+
 
 -- ^ list all bonds and bond groups in list
 viewDealAllBonds :: TestDeal a -> [L.Bond]

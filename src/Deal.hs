@@ -394,7 +394,8 @@ run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = Right (prepareDeal t,log++[En
 run t pCfM (Just []) _ _ _ log  = Right (prepareDeal t,log++[EndRun Nothing "No Actions"])
 run t pCfM (Just [HitStatedMaturity d]) _ _ _ log  = Right (prepareDeal t,log++[EndRun (Just d) "Stop: Stated Maturity"])
 run t pCfM (Just (StopRunFlag d:_)) _ _ _ log  = Right (prepareDeal t,log++[EndRun (Just d) "Stop Run Flag"])
-run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus,waterfall=waterfallM,name=dealName,pool=pt} 
+run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus
+              ,waterfall=waterfallM,name=dealName,pool=pt,stats=_stat} 
     poolFlowMap (Just (ad:ads)) rates calls rAssump log
   | all (== 0) futureCashToCollect && (queryCompound t (getDate ad) AllAccBalance == Right 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
      = do 
@@ -525,9 +526,9 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         
         DealClosed d ->
           let
-            w = Map.findWithDefault [] W.OnClosingDay (waterfall t)  -- `debug` ("DDD0")
+            w = Map.findWithDefault [] W.OnClosingDay (waterfall t) 
             rc = RunContext poolFlowMap rAssump rates  
-            logForClosed = [RunningWaterfall d W.OnClosingDay| not (null w)] -- `debug` ("DDD1")]
+            logForClosed = [RunningWaterfall d W.OnClosingDay| not (null w)]
           in 
             do
               newSt <- case dStatus of
@@ -1275,7 +1276,7 @@ runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
 
 getInits :: Ast.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption 
          -> Either String (TestDeal a,[ActionOnDate], Map.Map PoolId CF.CashFlowFrame, Map.Map PoolId CF.CashFlowFrame)
-getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump =
+getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap,stats=_stats} mAssumps mNonPerfAssump =
   let 
     expandInspect sd ed (AP.InspectPt dp ds) = [ InspectDS _d [ds] | _d <- genSerialDatesTill2 II sd dp ed ]
     expandInspect sd ed (AP.InspectRpt dp dss) = [ InspectDS _d dss | _d <- genSerialDatesTill2 II sd dp ed ] 
@@ -1444,7 +1445,11 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                                 poolWithSchedule
       let poolWithRunPoolBalance = patchRuntimeBal (Map.map (\(CF.CashFlowFrame (b,_,_) _) -> b) pCollectionCfAfterCutoff) poolWithIssuanceBalance
 
-      return (t {fees = newFeeMap , pool = poolWithRunPoolBalance }
+      let newStat = if (isPreClosing t) then 
+                      _stats & (over _4) (`Map.union` (Map.fromList [(BondPaidPeriod,0),(PoolCollectedPeriod,0)]))
+                    else 
+                      _stats
+      return (t {fees = newFeeMap , pool = poolWithRunPoolBalance , stats = newStat}
              , allActionDates
              , pCollectionCfAfterCutoff
              , pUnstressedAfterCutoff)
