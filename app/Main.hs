@@ -111,7 +111,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.42.7"
+version1 = Version "0.42.8"
 
 
 
