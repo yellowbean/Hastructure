@@ -235,7 +235,7 @@ buildDefaultRates a ds mDa =
         do
           rs <- buildDefaultRates a ds (Just x)
           let r = getTsVals $ multiplyTs Inc (zipTs (tail ds) rs) ts 
-          return r
+          return $ capWith 1.0 r
 
       Just (A.DefaultByTerm rs) -> 
         let 
