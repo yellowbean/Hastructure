@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 
-module Assumptions (BondPricingInput(..)
+module Assumptions (BondPricingInput(..),IrrType(..)
                     ,AssumptionInput(..),ApplyAssumptionType(..)
                     ,lookupAssumptionByIdx,lookupRate,AssetPerfAssumption(..)
                     ,ExtraStress(..),RevolvingAssumption(..)
@@ -61,8 +61,8 @@ lookupAssumptionByIdx sbi i
 type ObligorTagStr = String
 
 data TagMatchRule = TagEq                  -- ^ match exactly
-                  | TagSubset
-                  | TagSuperset
+                  | TagSubset              -- ^ match subset
+                  | TagSuperset            -- ^ match superset
                   | TagAny                 -- ^ match any tag hit
                   | TagNot  TagMatchRule   -- ^ Negative match
                   deriving (Show, Generic, Read)
@@ -121,7 +121,7 @@ data InspectType = InspectPt DatePattern DealStats
                  deriving (Show, Generic, Read)
 
 data CallOpt = LegacyOpts [C.CallOption]                 -- ^ legacy support
-             | CallPredicate [Pre]                           -- ^ default test call for each pay day, keep backward compatible
+             | CallPredicate [Pre]                       -- ^ default test call for each pay day, keep backward compatible
              | CallOnDates DatePattern [Pre]             -- ^ test call at end of day
              deriving (Show, Generic, Read, Ord, Eq)
 
@@ -224,15 +224,23 @@ data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
                          | AvailableAssetsBy (Map.Map String (RevolvingPool, ApplyAssumptionType))
                          deriving (Show,Generic)
 
-type HistoryCash = Ts
+type HistoryCash = [(Date,Amount)]
 type CurrentHolding = Balance -- as of the deal date
 type PricingDate = Date
 
-data BondPricingInput = DiscountCurve PricingDate Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
-                      | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
-                      -- | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
+
+data IrrType = HoldingBond HistoryCash CurrentHolding (Maybe (Date, BondPricingMethod))
+              | BuyBond Date PricingMethod  (Maybe (Dates, PricingMethod))
+              deriving (Show,Generic)
+
+data BondPricingInput = DiscountCurve PricingDate Ts                               
+                      -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
+                      | RunZSpread Ts (Map.Map BondName (Date,Rational))    
+                      -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
                       | DiscountRate PricingDate Rate
-                      | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
+                      -- | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
+                      | IrrInput  (Map.Map BondName IrrType)        
+                      -- ^ IRR calculation for a list of bonds
                       deriving (Show,Generic)
 
 
@@ -305,6 +313,7 @@ makePrisms ''AssetPerfAssumption
 makePrisms ''AssetDefaultAssumption
 
 $(deriveJSON defaultOptions ''CallOpt)
+$(deriveJSON defaultOptions ''IrrType)
 $(deriveJSON defaultOptions ''BondPricingInput)
 $(deriveJSON defaultOptions ''IssueBondEvent)
 $(deriveJSON defaultOptions ''RefiEvent)

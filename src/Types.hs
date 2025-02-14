@@ -31,7 +31,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio,HowToPay(..),ApplyRange(..)
+  ,MyRatio,HowToPay(..),ApplyRange(..),BondPricingMethod(..)
   )
   
   where
@@ -128,7 +128,7 @@ type Duration = Micro
 type Convexity = Micro
 type Yield = Micro
 type AccruedInterest = Centi
-type IRR = Rational
+type IRR = Micro
 
 
 data Index = LPR5Y
@@ -465,7 +465,7 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
                    | PV IRate Rate                    -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
-                   | PvRate IRate                      -- ^ [CF] Pricing cashflow with a constant rate
+                   | PvRate IRate                     -- ^ [CF] Pricing cashflow with a constant rate
                    | PvWal Ts
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
@@ -778,7 +778,7 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
---                 | IRRbyDate Valuation
+                 | IrrResult Rate [(Date,Balance)]
                  deriving (Show, Eq, Generic)
 
 getPriceValue :: PriceResult -> Balance
@@ -801,6 +801,7 @@ class Liable lb where
   getCurRate :: lb -> IRate
   getOriginBalance :: lb -> Balance
   getOriginDate :: lb -> Date
+  getAccrueBegDate :: lb -> Date
   getDueInt :: lb -> Balance
   getDueIntAt :: lb -> Int -> Balance
   getDueIntOverInt :: lb -> Balance
@@ -1098,6 +1099,9 @@ data CustomDataType = CustomConstant Rational
 
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }
+
+
+$(deriveJSON defaultOptions ''BondPricingMethod)
 
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)

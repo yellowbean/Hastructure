@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Analytics (calcConvexity,calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21,calcRequiredAmtForIrrAtDate)
+module Analytics (calcConvexity,calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21,calcRequiredAmtForIrrAtDate,calcIRR)
 
   where 
 import Types
@@ -110,8 +110,6 @@ calcPvFromIRR irr ds vs d amt =
   in 
     (fromRational . toRational) pv
 
--- IRR 
-
 -- ^ calculate IRR of a series of cashflow
 calcRequiredAmtForIrrAtDate :: Double -> [Date] -> [Amount] -> Date -> Maybe Amount
 calcRequiredAmtForIrrAtDate irr [] _ d = Nothing 
@@ -123,3 +121,22 @@ calcRequiredAmtForIrrAtDate irr ds vs d =
     case ridders def (0.0001,100000000000000) (calcPvFromIRR irr ds vs d) of
           Root finalAmt -> Just (fromRational (toRational finalAmt))
           _ -> Nothing
+
+-- ^ calc IRR from a cashflow 
+calcIRR :: [Date] -> [Amount] -> Either String Rate
+calcIRR  _ [] = Left "No cashflow amount"
+calcIRR [] _ = Left "No cashflow date"
+calcIRR ds vs
+  | all (> 0) vs = Left "All cashflow can't be all positive"
+  | all (< 0) vs = Left "All cashflow can't be all negative"
+  | otherwise = 
+    let 
+      itertimes = 500
+      def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.00000001}
+      beginDate = head ds
+
+      sumOfPv irr = fromRational . toRational $ pv21 ((fromRational . toRational) irr) beginDate ds vs
+    in 
+      case ridders def (0.0001,1000) sumOfPv of
+            Root irrRate -> Right $ toRational irrRate
+            _ -> Left "IRR can't be calculated"

@@ -214,6 +214,7 @@ instance ToSchema AP.RefiEvent
 instance ToSchema AP.InspectType
 instance ToSchema AP.CallOpt
 instance ToSchema AP.NonPerfAssumption
+instance ToSchema AP.IrrType
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption
 instance ToSchema AP.TagMatchRule
@@ -261,10 +262,10 @@ instance ToSchema (DB.UnderlyingDeal AB.Receivable)
 instance ToSchema (DB.UnderlyingDeal AB.ProjectedCashflow)
 instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
 instance ToSchema ResultComponent
-instance ToSchema L.PriceResult
+instance ToSchema PriceResult
 instance ToSchema DealType
 
-type RunResp = Either String (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
+type RunResp = Either String (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String PriceResult))
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
 wrapRun (MDeal d) mAssump mNonPerfAssump 

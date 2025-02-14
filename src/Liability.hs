@@ -8,9 +8,8 @@
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,isPaidOff,getCurBalance
-  ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,getDueInt
-  ,weightAverageBalance,calcZspread,payYield,getTotalDueInt
+  ,priceBond,pv,InterestInfo(..),RateReset(..)
+  ,getDueInt,weightAverageBalance,calcZspread,payYield,getTotalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
   ,getCurBalance,setBondOrigDate,isFloaterBond
@@ -18,8 +17,8 @@ module Liability
   ,totalFundedBalance,getIndexFromInfo,buildStepUpDates
   ,accrueInt,stepUpInterestInfo,payIntByIndex,_MultiIntBond
   ,getDueIntAt,getDueIntOverIntAt,getDueIntOverInt,getTotalDueIntAt
-  ,getCurRate
-  ,bondCashflow,getOutstandingAmount
+  ,getCurRate,bondCashflow,getOutstandingAmount,valueBond,getTxnRate
+  ,getAccrueBegDate
   )
   where
 
@@ -27,30 +26,22 @@ import Language.Haskell.TH
 import Data.Aeson       hiding (json)
 import Data.Aeson.TH
 import Data.Fixed
-
 import qualified Data.Time as T
 import Lib (Period(..),Ts(..) ,TsPoint(..) ,daysBetween, weightedBy,paySeqLiabResi)
-
 import Util
 import DateUtil
 import Types
 import Analytics
-
 import Data.Ratio 
 import Data.Maybe
 import Data.List
 import qualified Data.Set as Set
-
-
 import qualified Stmt as S 
-
 import qualified Cashflow as CF
 import qualified InterestRate as IR
 import qualified Lib
-
 import GHC.Generics
 import qualified Data.Map as Map
-
 import Debug.Trace
 import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
@@ -77,7 +68,6 @@ isFloaterBond _ = False
 isStepUp :: Bond -> Bool
 isStepUp Bond{bndStepUp = Nothing} = False
 isStepUp _  = True
-
 
 getIndexFromInfo :: InterestInfo -> Maybe [Index]
 getIndexFromInfo (Floater _ idx _ _  _ _ _) = Just [idx]
@@ -481,6 +471,8 @@ priceBond d rc bnd
     obal = getOriginBalance bnd
     od = getOriginDate bnd
 
+valueBond :: BondPricingMethod -> Date -> [(Date,Balance)] -> Balance
+valueBond _ _ [] = 0
 
 weightAverageBalance :: Date -> Date -> Bond -> Balance
 weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
@@ -622,6 +614,9 @@ instance Liable Bond where
 
   getOriginDate b = originDate $ bndOriginInfo b
 
+  getAccrueBegDate b = case bndDueIntDate b of
+                        Just d -> d
+                        Nothing -> getOriginDate b
 
   -- ^ get due int of a bond
   getDueInt b@Bond{bndDueInt=di} = di 

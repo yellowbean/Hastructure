@@ -13,7 +13,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,sortActionOnDate,dealBondGroups
                      ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
                      ,increaseBondPaidPeriod,increasePoolCollectedPeriod
-                     ,DealStatFields(..),getDealStatInt,isPreClosing
+                     ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
                      )                      
   where
 import qualified Accounts as A
@@ -32,6 +32,7 @@ import qualified InterestRate as IR
 import Stmt
 import Lib
 import Util
+import DateUtil
 import Types
 import Revolving
 import Triggers
@@ -192,6 +193,89 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
               deriving (Show,Eq, Generic,Ord)
 
 
+populateDealDates :: DateDesp -> DealStatus -> Either String (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date,[ActionOnDate])
+populateDealDates (CustomDates cutoff pa closing ba) _ 
+  = Right $
+    (cutoff  
+    ,closing
+    ,getDate (head ba)
+    ,pa
+    ,ba
+    ,getDate (max (last pa) (last ba))
+    ,[])
+
+populateDealDates (PatternInterval _m) _
+  = Right (cutoff,closing,nextPay,pa,ba,max ed1 ed2, []) 
+    where 
+      (cutoff,dp1,ed1) = _m Map.! CutoffDate
+      (nextPay,dp2,ed2) = _m Map.! FirstPayDate 
+      (closing,_,_) = _m Map.! ClosingDate
+      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill cutoff dp1 ed1 ]
+      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill nextPay dp2 ed2 ]
+
+populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp)) _
+  = Right (cutoff,closing,firstPay,pa,ba,end, []) 
+    where 
+      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE firstCollect poolDp end ]
+      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE firstPay bondDp end ]
+
+populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollect,poolDp) (nextPay,bondDp)) _
+  = Right (lastCollect, lastPay,head futurePayDates, pa, ba, end, []) 
+    where 
+      futurePayDates = genSerialDatesTill2 IE nextPay bondDp end 
+      ba = [ RunWaterfall _d "" | _d <- futurePayDates]
+      futureCollectDates = genSerialDatesTill2 IE nextCollect poolDp end 
+      pa = [ PoolCollection _d "" | _d <- futureCollectDates]
+
+populateDealDates (GenericDates m) 
+                  (PreClosing _)
+  = let 
+      requiredFields = (CutoffDate, ClosingDate, FirstPayDate, StatedMaturityDate
+                        , DistributionDates, CollectionDates) 
+      vals = lookupTuple6 requiredFields m
+      
+      isCustomWaterfallKey (CustomExeDates _) _ = True
+      isCustomWaterfallKey _ _ = False
+      custWaterfall = Map.toList $ Map.filterWithKey isCustomWaterfallKey m
+    in 
+      case vals of
+        (Just (SingletonDate coffDate), Just (SingletonDate closingDate), Just (SingletonDate fPayDate)
+          , Just (SingletonDate statedDate), Just bondDp, Just poolDp)
+          -> let 
+                pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE closingDate poolDp statedDate ]
+                ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE fPayDate bondDp statedDate ]
+                cu = [ RunWaterfall _d custName | (CustomExeDates custName, custDp) <- custWaterfall
+                                                , _d <- genSerialDatesTill2 EE closingDate custDp statedDate ]
+              in 
+                Right (coffDate, closingDate, fPayDate, pa, ba, statedDate, cu)
+        _ 
+          -> Left "Missing required dates in GenericDates in deal status PreClosing"
+
+populateDealDates (GenericDates m) _ 
+  = let 
+      requiredFields = (LastCollectDate, LastPayDate, NextPayDate, StatedMaturityDate
+                        , DistributionDates, CollectionDates) 
+      vals = lookupTuple6 requiredFields m
+      
+      isCustomWaterfallKey (CustomExeDates _) _ = True
+      isCustomWaterfallKey _ _ = False
+      custWaterfall = Map.toList $ Map.filterWithKey isCustomWaterfallKey m
+    in 
+      case vals of
+        (Just (SingletonDate lastCollect), Just (SingletonDate lastPayDate), Just (SingletonDate nextPayDate)
+          , Just (SingletonDate statedDate), Just bondDp, Just poolDp)
+          -> let 
+                pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 EE lastCollect poolDp statedDate ]
+                ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE nextPayDate bondDp statedDate ]
+                cu = [ RunWaterfall _d custName | (CustomExeDates custName, custDp) <- custWaterfall
+                                                , _d <- genSerialDatesTill2 EE lastCollect custDp statedDate ]
+              in 
+                Right (lastCollect, lastPayDate, nextPayDate, pa, ba, statedDate, cu) -- `debug` ("custom action"++ show cu)
+        _ 
+          -> Left "Missing required dates in GenericDates in deal status PreClosing"
+
+
+
 class SPV a where
   getBondsByName :: a -> Maybe [String] -> Map.Map String L.Bond
   getActiveBonds :: a -> [String] -> [L.Bond]
@@ -200,6 +284,7 @@ class SPV a where
   getFeeByName :: a -> Maybe [String] -> Map.Map String F.Fee
   getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
   isResec :: a -> Bool
+  getNextBondPayDate :: a -> Date
 
 
 data UnderlyingDeal a = UnderlyingDeal {
@@ -280,6 +365,11 @@ instance SPV (TestDeal a) where
     = Map.map L.bndStmt bndsM
       where
       bndsM = Map.map L.consolStmt $ getBondsByName t bns
+
+  getNextBondPayDate t
+    = case populateDealDates (dates t) (status t) of
+        Right _dates -> view _3 _dates 
+        Left _ -> error "Failed to populate dates"
 
   getBondBegBal t bn 
     = 

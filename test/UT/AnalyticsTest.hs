@@ -111,6 +111,14 @@ irrTest =
             (calcRequiredAmtForIrrAtDate 0.08 (L.toDates ["20230101"])
                                                 [-100] 
                                                 (L.toDate "20240101"))
+    ,testCase "IRR with 8%" $ 
+        assertEqual "12 months"
+            (Right (359811346104759 % 4503599627370496))
+            (calcIRR (L.toDates ["20230101","20240101"]) [-100,108])
+    ,testCase "IRR with custom" $ 
+        assertEqual "3 months"
+            (Right (3839628277034149 % 9007199254740992))
+            (calcIRR (L.toDates ["20250101","20250301","20251018"]) [-100,50,70])
   ]
     -- ,testCase "FV2 test" $ 
     --     assertEqual "0.5-year"
