@@ -24,7 +24,7 @@ import qualified Pool as P
 import qualified Expense as F
 import qualified Liability as L
 import qualified CreditEnhancement as CE
-import qualified Analytics as Analytics
+import qualified Analytics
 import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
@@ -849,7 +849,7 @@ priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns _
       (ds2,vs2) = (getDate <$> bProjectedTxn, getTxnAmt <$> bProjectedTxn)
     in 
       do 
-        irr <- Analytics.calcIRR (ds++ds2) (vs++vs2)
+        irr <- Analytics.calcIRR (ds++ds2) (vs++vs2) -- `debug` ("projected holding"++ show (ds2,vs2))
         return (irr, historyCash++zip ds2 vs2)
 
 -- TODO: need to use DC from bond
@@ -907,10 +907,10 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput)
                                     let _irrTxns = projectedTxns (getAllTxns b)
                                     let lastIntPayDate = L.getAccrueBegDate b 
                                     (_irr,flows) <- priceBondIrr v _irrTxns lastIntPayDate
-                                    return (IrrResult _irr flows))
+                                    return (IrrResult (fromRational _irr) flows))
                                 bndMap'
     in 
-      case (sequenceA bndMap'') of 
+      case sequenceA bndMap'' of 
         Right x -> x
         Left e -> error e
 

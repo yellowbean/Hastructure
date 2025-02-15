@@ -4628,40 +4628,13 @@
                         "properties": {
                             "contents": {
                                 "additionalProperties": {
-                                    "items": [
-                                        {
-                                            "$ref": "#/components/schemas/Ts"
-                                        },
-                                        {
-                                            "multipleOf": 1.0e-2,
-                                            "type": "number"
-                                        },
-                                        {
-                                            "items": [
-                                                {
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/Day"
-                                                    },
-                                                    "type": "array"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/PricingMethod"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "minItems": 2,
-                                            "type": "array"
-                                        }
-                                    ],
-                                    "maxItems": 3,
-                                    "minItems": 3,
-                                    "type": "array"
+                                    "$ref": "#/components/schemas/IrrType"
                                 },
                                 "type": "object"
                             },
                             "tag": {
                                 "enum": [
-                                    "IRRInput"
+                                    "IrrInput"
                                 ],
                                 "type": "string"
                             }
@@ -4670,7 +4643,70 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "IRRInput",
+                        "title": "IrrInput",
+                        "type": "object"
+                    }
+                ]
+            },
+            "BondPricingMethod": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondBalanceFactor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondBalanceFactor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PvBondByRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PvBondByRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Ts"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PvBondByCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PvBondByCurve",
                         "type": "object"
                     }
                 ]
@@ -11260,6 +11296,112 @@
                     }
                 ]
             },
+            "IrrType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
+                                                },
+                                                {
+                                                    "multipleOf": 1.0e-2,
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/Day"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/BondPricingMethod"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "HoldingBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "HoldingBond",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PricingMethod"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/Day"
+                                                },
+                                                "type": "array"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/PricingMethod"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BuyBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BuyBond",
+                        "type": "object"
+                    }
+                ]
+            },
             "IssueBondEvent": {
                 "oneOf": [
                     {
@@ -14831,6 +14973,50 @@
                             "contents"
                         ],
                         "title": "ZSpread",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
+                                                },
+                                                {
+                                                    "multipleOf": 1.0e-2,
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IrrResult"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IrrResult",
                         "type": "object"
                     }
                 ]

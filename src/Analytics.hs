@@ -131,12 +131,11 @@ calcIRR ds vs
   | all (< 0) vs = Left "All cashflow can't be all negative"
   | otherwise = 
     let 
-      itertimes = 500
-      def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.00000001}
+      itertimes = 1000
+      def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0000000001}
       beginDate = head ds
-
       sumOfPv irr = fromRational . toRational $ pv21 ((fromRational . toRational) irr) beginDate ds vs
     in 
-      case ridders def (0.0001,1000) sumOfPv of
+      case ridders def (-1,1000) sumOfPv of
             Root irrRate -> Right $ toRational irrRate
             _ -> Left "IRR can't be calculated"
