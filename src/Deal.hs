@@ -831,15 +831,18 @@ data ExpectReturn = DealPoolFlow
                   deriving (Show,Generic)
 
 
-priceBondIrr :: AP.IrrType -> [Txn] -> Either String (Rate, [(Date,Balance)])
+-- priceBondIrr :: AP.IrrType -> [Txn] -> Either String (Rate, [(Date,Balance)])
+priceBondIrr :: AP.IrrType -> [Txn] -> Either String (Rate, [Txn])
 -- No projected transaction, use history cashflow only
+priceBondIrr AP.BuyBond {} [] = Left "No transaction to buy the bond" 
 priceBondIrr (AP.HoldingBond historyCash _ _) [] 
   = let 
       (ds,vs) = unzip historyCash
+      txns' = [ BondTxn d 0 0 0 0 v 0 0 Nothing Types.Empty | (d,v) <- historyCash ]
     in 
       do 
         irr <- Analytics.calcIRR ds vs
-        return (irr, historyCash)
+        return (irr, txns')
 -- Projected transaction and hold to maturity
 priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns
   = let 
@@ -848,10 +851,12 @@ priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns
       bProjectedTxn = scaleTxn holdingPct <$> txns
       (ds,vs) = unzip historyCash
       (ds2,vs2) = (getDate <$> bProjectedTxn, getTxnAmt <$> bProjectedTxn)
+      
+      txns' = [ BondTxn d 0 0 0 0 v 0 0 Nothing Types.Empty | (d,v) <- historyCash ]
     in 
       do 
         irr <- Analytics.calcIRR (ds++ds2) (vs++vs2) -- `debug` ("projected holding"++ show (ds2,vs2))
-        return (irr, historyCash++zip ds2 vs2)
+        return (irr, txns' ++ bProjectedTxn)
 
 -- TODO: need to use DC from bond
 -- Projected transaction and sell at a Date
@@ -859,9 +864,11 @@ priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMet
   = let 
       -- history cash
       (ds,vs) = unzip historyCash
+      txns' = [ BondTxn d 0 0 0 0 v 0 0 Nothing Types.Empty | (d,v) <- historyCash ]
+      
       begBal = (getTxnBegBalance . head) txns
       holdingPct = toRational $ holding / begBal
-      -- assume cashflow of sell date belongs to seller
+      -- assume cashflow of sell date belongs to seller(owner)
       (bProjectedTxn',futureFlow') = splitByDate txns sellDate EqToLeft
       (bProjectedTxn,futureFlow) = ((scaleTxn holdingPct) <$> bProjectedTxn',(scaleTxn holdingPct) <$> futureFlow')
       -- projected cash
@@ -869,7 +876,7 @@ priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMet
       -- accrued interest
       accruedInt = case (bProjectedTxn, futureFlow) of
                       (xs,[]) -> 0
-                      (_,x:xs) -> let 
+                      (_,x:xs) -> let --TODO what about interest over interest
                                       accruedInt' = calcInt (getTxnBegBalance x) sellDate (getDate x) (getTxnRate x) DC_ACT_365F
                                       totalInt' = (fromMaybe 0) <$> [(preview (_BondTxn . _3 ) x), (preview (_BondTxn . _7 ) x), (preview (_BondTxn . _8 ) x)]
                                     in 
@@ -884,7 +891,41 @@ priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMet
     in 
       do 
         irr <- Analytics.calcIRR (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]) -- `debug` ("vs:"++ show vs++ "vs2:"++ show vs2++ "vs3:"++ show vs3++ "vs4:"++ show vs4 ++">>> ds "++ show ds++ "ds2"++ show ds2++ "ds3"++ show ds3++ "ds4"++ show ds4)
-        return (irr, zip (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4])) 
+        -- return (irr, zip (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4])) 
+        return (irr, txns'++ bProjectedTxn++ [(BondTxn sellDate 0 vs3 sellPrice 0 (sellPrice+vs3) 0 0 Nothing Types.Empty)]) 
+
+-- Buy and hold to maturity
+priceBondIrr (AP.BuyBond dateToBuy bPricingMethod (AP.ByCash cash) Nothing) txns
+  | null futureFlow' = Left "No transaction to buy bond"
+  | otherwise
+    = let 
+      -- balance of bond on buy date
+      nextTxn = head futureFlow'
+      balAsBuyDate = getTxnBegBalance nextTxn
+      buyPrice = case bPricingMethod of 
+                    BondBalanceFactor f -> mulBR balAsBuyDate f 
+      buyPaidOut = min buyPrice cash
+      buyPct = divideBB buyPaidOut buyPrice
+      boughtTxns = scaleTxn buyPct <$> futureFlow'
+      -- buy price (including accrued interest)
+
+      accuredInt = let
+                    --TODO what about interest over interest
+                    accruedInt' = calcInt balAsBuyDate dateToBuy (getDate nextTxn) (getTxnRate nextTxn) DC_ACT_365F
+                    x = nextTxn
+                    totalInt' = (fromMaybe 0) <$> [(preview (_BondTxn . _3 ) x), (preview (_BondTxn . _7 ) x), (preview (_BondTxn . _8 ) x)]
+                   in
+                    sum(totalInt') - accruedInt'
+
+      (ds1, vs1) = (dateToBuy, negate (buyPaidOut + accuredInt))
+      (ds2, vs2) = (getDate <$> futureFlow', getTxnAmt <$> boughtTxns)
+    in 
+      do 
+        irr <- Analytics.calcIRR ([ds1]++ds2) ([vs1]++vs2)
+        return (irr, (BondTxn dateToBuy 0 (negate accuredInt) (negate buyPaidOut) 0 vs1 0 0 Nothing Types.Empty):boughtTxns)
+  where 
+    -- assume cashflow of buy date belongs to seller(owner)
+    (bProjectedTxn',futureFlow') = splitByDate txns dateToBuy EqToLeft
 
 
 -- TODO : need to lift the result and make function Either String xxx
@@ -912,7 +953,7 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput)
       bndMap'' = Map.mapWithKey (\bName (Just b, v) -> 
                                   do 
                                     let _irrTxns = projectedTxns (getAllTxns b)
-                                    (_irr,flows) <- priceBondIrr v _irrTxns
+                                    (_irr, flows) <- priceBondIrr v _irrTxns
                                     return (IrrResult (fromRational _irr) flows))
                                 bndMap'
     in 

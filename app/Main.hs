@@ -215,6 +215,7 @@ instance ToSchema AP.InspectType
 instance ToSchema AP.CallOpt
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema BondPricingMethod
+instance ToSchema AP.TradeType
 instance ToSchema AP.IrrType
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption

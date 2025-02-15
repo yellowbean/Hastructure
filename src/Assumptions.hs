@@ -20,7 +20,7 @@ module Assumptions (BondPricingInput(..),IrrType(..)
                     ,FieldMatchRule(..),CallOpt(..)
                     ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
                     ,_ReceivableAssump,_FixedAssetAssump  
-                    ,stressDefaultAssump,applyAssumptionTypeAssetPerf
+                    ,stressDefaultAssump,applyAssumptionTypeAssetPerf,TradeType(..)
                     )
 where
 
@@ -227,10 +227,15 @@ data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
 type HistoryCash = [(Date,Amount)]
 type CurrentHolding = Balance -- as of the deal date
 type PricingDate = Date
+type AmountToBuy = Balance
 
+
+data TradeType = ByCash Balance 
+              | ByBalance Balance
+              deriving (Show,Generic)
 
 data IrrType = HoldingBond HistoryCash CurrentHolding (Maybe (Date, BondPricingMethod))
-              | BuyBond Date PricingMethod  (Maybe (Dates, PricingMethod))
+              | BuyBond Date BondPricingMethod TradeType (Maybe (Date, BondPricingMethod))
               deriving (Show,Generic)
 
 data BondPricingInput = DiscountCurve PricingDate Ts                               
@@ -313,6 +318,7 @@ makePrisms ''AssetPerfAssumption
 makePrisms ''AssetDefaultAssumption
 
 $(deriveJSON defaultOptions ''CallOpt)
+$(deriveJSON defaultOptions ''TradeType)
 $(deriveJSON defaultOptions ''IrrType)
 $(deriveJSON defaultOptions ''BondPricingInput)
 $(deriveJSON defaultOptions ''IssueBondEvent)
