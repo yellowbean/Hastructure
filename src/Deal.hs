@@ -832,6 +832,7 @@ data ExpectReturn = DealPoolFlow
 
 
 priceBondIrr :: AP.IrrType -> [Txn] -> Date -> Either String (Rate, [(Date,Balance)])
+-- No projected transaction, use history cashflow only
 priceBondIrr (AP.HoldingBond historyCash _ _) [] _ 
   = let 
       (ds,vs) = unzip historyCash
@@ -839,7 +840,7 @@ priceBondIrr (AP.HoldingBond historyCash _ _) [] _
       do 
         irr <- Analytics.calcIRR ds vs
         return (irr, historyCash)
-
+-- Projected transaction and hold to maturity
 priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns _
   = let 
       begBal = (getTxnBegBalance . head) txns
@@ -853,6 +854,7 @@ priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns _
         return (irr, historyCash++zip ds2 vs2)
 
 -- TODO: need to use DC from bond
+-- Projected transaction and sell at a Date
 priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMethod))) txns lastIntPayDate
   = let 
       -- history cash
@@ -866,18 +868,20 @@ priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMet
       (ds2,vs2) = (getDate <$> bProjectedTxn, getTxnAmt <$> bProjectedTxn)
       -- accrued interest
       accruedInt = case (bProjectedTxn, futureFlow) of
-                      ([],x:xs) -> mulBIR (getTxnBegBalance x) (getTxnRate x) * (fromRational (yearCountFraction DC_ACT_365F lastIntPayDate sellDate))
+                      ([],x:xs) -> calcInt (getTxnBegBalance x) lastIntPayDate sellDate (getTxnRate x) DC_ACT_365F
                       (xs,[]) -> 0
-                      (xs, ys) -> mulBIR (getTxnBalance (last xs)) (getTxnRate (last xs)) * (fromRational (yearCountFraction DC_ACT_365F (getDate (last xs)) sellDate))
-      (ds3,vs3) = (sellDate, accruedInt) 
+                      (xs, ys) -> calcInt (getTxnBalance (last xs)) (getDate (last xs)) sellDate (getTxnRate (last xs)) DC_ACT_365F
+      (ds3,vs3) = (sellDate, accruedInt) --  `debug` ("accrued interest"++ show (accruedInt,sellDate))
       -- sell price 
       sellPrice = case sellPricingMethod of 
-                    BondBalanceFactor f -> mulBR (getTxnBegBalance (head txns)) f
-      (ds4,vs4) = (sellDate,  sellPrice)
+                    BondBalanceFactor f -> case bProjectedTxn of 
+                                            [] -> mulBR begBal f 
+                                            _txns -> mulBR (getTxnBalance (last _txns)) f
+      (ds4,vs4) = (sellDate,  sellPrice) -- `debug` ("sale price, date"++ show (sellPrice,sellDate))
     in 
       do 
-        irr <- Analytics.calcIRR (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4])
-        return (irr, historyCash++zip (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]))
+        irr <- Analytics.calcIRR (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]) -- `debug` ("ds"++ show ds++ "ds2"++ show ds2++ "ds3"++ show ds3++ "ds4"++ show ds4)
+        return (irr, zip (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]))
 
 
 -- TODO : need to lift the result and make function Either String xxx
