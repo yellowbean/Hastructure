@@ -2,6 +2,13 @@
 
 <!-- towncrier release notes start -->
 
+## 0.42.10
+### 2025-02-15
+* NEW: expose new bond pricing : calculate IRR for `holding` a bond, `hold and sell` a bond, or `buy a bond`.
+* ENHANCE: lift `Pricing` to expose error message.
+* ENHANCE: change compare symbol in response from `GT` to `>` and others as well.
+* ENHANCE: auto patch `bond paid periods` and `pool collection periods` for `preClosing` deal.
+
 
 ## 0.42.8
 ### 2025-02-13
