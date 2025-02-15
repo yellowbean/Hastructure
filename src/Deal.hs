@@ -929,17 +929,15 @@ priceBondIrr (AP.BuyBond dateToBuy bPricingMethod (AP.ByCash cash) Nothing) txns
 
 
 -- TODO : need to lift the result and make function Either String xxx
-priceBonds :: Ast.Asset a => TestDeal a -> AP.BondPricingInput -> Map.Map String PriceResult
+priceBonds :: Ast.Asset a => TestDeal a -> AP.BondPricingInput -> Either String (Map.Map String PriceResult)
 -- Price bond via discount future cashflow
-priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (viewBondsInMap t)
+priceBonds t (AP.DiscountCurve d dc) = Right $ Map.map (L.priceBond d dc) (viewBondsInMap t)
 -- Run Z-Spread
 priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bondPrices) 
-  = Map.mapWithKey 
-      (\bn (pd,price)-> ZSpread $
-                        case L.calcZspread (price,pd) (bndMap Map.! bn) curve of 
-                          Left e -> error e
-                          Right z -> z)
-      bondPrices
+  = sequenceA $ 
+      Map.mapWithKey 
+        (\bn (pd,price)-> ZSpread <$> (L.calcZspread (price,pd) (bndMap Map.! bn) curve))
+        bondPrices
 -- Calc Irr of bonds 
 priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput) 
   = let
@@ -957,9 +955,7 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput)
                                     return (IrrResult (fromRational _irr) flows))
                                 bndMap'
     in 
-      case sequenceA bndMap'' of 
-        Right x -> x
-        Left e -> error e
+      sequenceA bndMap''
 
 
 -- ^ split call option assumption , 
@@ -996,7 +992,7 @@ readCallOptions opts =
 
 
 runDeal :: Ast.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
-        -> Either String (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Maybe (Map.Map String PriceResult))
+        -> Either String (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Map.Map String PriceResult)
 runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts ,AP.pricing = mPricing ,AP.revolving = mRevolving ,AP.interest = mInterest} 
   | not runFlag = Left $ intercalate ";" $ show <$> valLogs 
   | otherwise 
@@ -1011,7 +1007,9 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts ,
                                   []  
         let poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) [])) (getAllCollectedFrame finalDeal Nothing)  
         let poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed  
-        let bndPricing = (priceBonds finalDeal) <$> mPricing
+        bndPricing <- case mPricing of 
+                        (Just p) -> priceBonds finalDeal p 
+                        Nothing -> Right Map.empty
         return (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 

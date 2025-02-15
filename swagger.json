@@ -11363,18 +11363,18 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/PricingMethod"
+                                        "$ref": "#/components/schemas/BondPricingMethod"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TradeType"
                                     },
                                     {
                                         "items": [
                                             {
-                                                "items": {
-                                                    "$ref": "#/components/schemas/Day"
-                                                },
-                                                "type": "array"
+                                                "$ref": "#/components/schemas/Day"
                                             },
                                             {
-                                                "$ref": "#/components/schemas/PricingMethod"
+                                                "$ref": "#/components/schemas/BondPricingMethod"
                                             }
                                         ],
                                         "maxItems": 2,
@@ -11382,8 +11382,8 @@
                                         "type": "array"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -14985,18 +14985,7 @@
                                     },
                                     {
                                         "items": {
-                                            "items": [
-                                                {
-                                                    "$ref": "#/components/schemas/Day"
-                                                },
-                                                {
-                                                    "multipleOf": 1.0e-2,
-                                                    "type": "number"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "minItems": 2,
-                                            "type": "array"
+                                            "$ref": "#/components/schemas/Txn"
                                         },
                                         "type": "array"
                                     }
@@ -18710,6 +18699,50 @@
                     "stats"
                 ],
                 "type": "object"
+            },
+            "TradeType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByCash"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByCash",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByBalance",
+                        "type": "object"
+                    }
+                ]
             },
             "Trigger": {
                 "properties": {
