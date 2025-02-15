@@ -113,11 +113,11 @@ irrTest =
                                                 (L.toDate "20240101"))
     ,testCase "IRR with 8%" $ 
         assertEqual "12 months"
-            (Right (5764043365771763 % 72057594037927936))
+            (Right (1441151880758559 % 18014398509481984))
             (calcIRR (L.toDates ["20230101","20240101"]) [-100,108])
     ,testCase "IRR with custom" $ 
         assertEqual "3 months"
-            (Right (7675165524655689 % 18014398509481984))
+            (Right (7681459818792919 % 18014398509481984))
             (calcIRR (L.toDates ["20250101","20250301","20251018"]) [-100,50,70])
   ]
     -- ,testCase "FV2 test" $ 

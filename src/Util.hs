@@ -454,7 +454,12 @@ lookupTuple7 :: (Ord k) => (k, k, k, k, k, k, k) -> Map.Map k v -> (Maybe v, May
 lookupTuple7 (k1, k2, k3, k4, k5, k6, k7) m =
   ( Map.lookup k1 m , Map.lookup k2 m , Map.lookup k3 m , Map.lookup k4 m , Map.lookup k5 m , Map.lookup k6 m, Map.lookup k7 m)
 
-
+-- flowCombination :: [Date] -> [Amount] -> [(Date,Amount)]
+-- flowCombination ds vs = 
+--   let 
+--     
+--   in 
+--     zip ds vs
 
 ----- DEBUG/PRINT
 debugOnDate :: Date -> Date -> Date -> String

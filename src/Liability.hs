@@ -18,7 +18,7 @@ module Liability
   ,accrueInt,stepUpInterestInfo,payIntByIndex,_MultiIntBond
   ,getDueIntAt,getDueIntOverIntAt,getDueIntOverInt,getTotalDueIntAt
   ,getCurRate,bondCashflow,getOutstandingAmount,valueBond,getTxnRate
-  ,getAccrueBegDate
+  ,getAccrueBegDate,getTxnInt
   )
   where
 
@@ -442,6 +442,11 @@ calcWalBond d b
 getTxnRate :: Txn -> IRate
 getTxnRate (BondTxn _ _ _ _ r _ _ _ _ _) = r
 getTxnRate _ = 0.0
+
+getTxnInt :: Txn -> Amount
+getTxnInt (BondTxn _ _ _ i _ _ _ _ _ _) = i
+getTxnInt _ = 0.0
+
 
 -- ^ get present value of a bond
 priceBond :: Date -> Ts -> Bond -> PriceResult

@@ -831,9 +831,9 @@ data ExpectReturn = DealPoolFlow
                   deriving (Show,Generic)
 
 
-priceBondIrr :: AP.IrrType -> [Txn] -> Date -> Either String (Rate, [(Date,Balance)])
+priceBondIrr :: AP.IrrType -> [Txn] -> Either String (Rate, [(Date,Balance)])
 -- No projected transaction, use history cashflow only
-priceBondIrr (AP.HoldingBond historyCash _ _) [] _ 
+priceBondIrr (AP.HoldingBond historyCash _ _) [] 
   = let 
       (ds,vs) = unzip historyCash
     in 
@@ -841,7 +841,7 @@ priceBondIrr (AP.HoldingBond historyCash _ _) [] _
         irr <- Analytics.calcIRR ds vs
         return (irr, historyCash)
 -- Projected transaction and hold to maturity
-priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns _
+priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns
   = let 
       begBal = (getTxnBegBalance . head) txns
       holdingPct = toRational $ holding / begBal
@@ -855,7 +855,7 @@ priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns _
 
 -- TODO: need to use DC from bond
 -- Projected transaction and sell at a Date
-priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMethod))) txns lastIntPayDate
+priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMethod))) txns
   = let 
       -- history cash
       (ds,vs) = unzip historyCash
@@ -868,20 +868,23 @@ priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMet
       (ds2,vs2) = (getDate <$> bProjectedTxn, getTxnAmt <$> bProjectedTxn)
       -- accrued interest
       accruedInt = case (bProjectedTxn, futureFlow) of
-                      ([],x:xs) -> calcInt (getTxnBegBalance x) lastIntPayDate sellDate (getTxnRate x) DC_ACT_365F
                       (xs,[]) -> 0
-                      (xs, ys) -> calcInt (getTxnBalance (last xs)) (getDate (last xs)) sellDate (getTxnRate (last xs)) DC_ACT_365F
-      (ds3,vs3) = (sellDate, accruedInt) --  `debug` ("accrued interest"++ show (accruedInt,sellDate))
+                      (_,x:xs) -> let 
+                                      accruedInt' = calcInt (getTxnBegBalance x) sellDate (getDate x) (getTxnRate x) DC_ACT_365F
+                                      totalInt' = (fromMaybe 0) <$> [(preview (_BondTxn . _3 ) x), (preview (_BondTxn . _7 ) x), (preview (_BondTxn . _8 ) x)]
+                                    in 
+                                      sum(totalInt') - accruedInt'
+      (ds3,vs3) = (sellDate, accruedInt)  -- `debug` ("accrued interest"++ show (accruedInt,sellDate))
       -- sell price 
       sellPrice = case sellPricingMethod of 
                     BondBalanceFactor f -> case bProjectedTxn of 
-                                            [] -> mulBR begBal f 
+                                            [] -> mulBR begBal (f * holdingPct) 
                                             _txns -> mulBR (getTxnBalance (last _txns)) f
-      (ds4,vs4) = (sellDate,  sellPrice) -- `debug` ("sale price, date"++ show (sellPrice,sellDate))
+      (ds4,vs4) = (sellDate,  sellPrice)  -- `debug` ("sale price, date"++ show (sellPrice,sellDate))
     in 
       do 
-        irr <- Analytics.calcIRR (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]) -- `debug` ("ds"++ show ds++ "ds2"++ show ds2++ "ds3"++ show ds3++ "ds4"++ show ds4)
-        return (irr, zip (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]))
+        irr <- Analytics.calcIRR (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]) -- `debug` ("vs:"++ show vs++ "vs2:"++ show vs2++ "vs3:"++ show vs3++ "vs4:"++ show vs4 ++">>> ds "++ show ds++ "ds2"++ show ds2++ "ds3"++ show ds3++ "ds4"++ show ds4)
+        return (irr, zip (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4])) 
 
 
 -- TODO : need to lift the result and make function Either String xxx
@@ -909,8 +912,7 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput)
       bndMap'' = Map.mapWithKey (\bName (Just b, v) -> 
                                   do 
                                     let _irrTxns = projectedTxns (getAllTxns b)
-                                    let lastIntPayDate = L.getAccrueBegDate b 
-                                    (_irr,flows) <- priceBondIrr v _irrTxns lastIntPayDate
+                                    (_irr,flows) <- priceBondIrr v _irrTxns
                                     return (IrrResult (fromRational _irr) flows))
                                 bndMap'
     in 

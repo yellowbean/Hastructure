@@ -32,6 +32,7 @@ module Types
   ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
   ,MyRatio,HowToPay(..),ApplyRange(..),BondPricingMethod(..)
+  ,_BondTxn
   )
   
   where
@@ -47,6 +48,9 @@ import Text.Regex.Base
 import Text.Regex.PCRE
 import GHC.Generics
 import Language.Haskell.TH
+
+import Control.Lens hiding (element,Index,Empty)
+import Control.Lens.TH
 
 import Text.Read (readMaybe, get)
 import Data.Aeson (ToJSON, toJSON, Value(String))
@@ -1194,4 +1198,5 @@ instance FromJSONKey Threshold where
 $(deriveJSON defaultOptions ''RateAssumption)
 $(deriveJSON defaultOptions ''Direction)
 
+makePrisms ''Txn
 $(concat <$> traverse (deriveJSON defaultOptions) [''Limit] )
