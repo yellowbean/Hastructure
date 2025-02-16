@@ -9,7 +9,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module Main where 
@@ -111,7 +110,7 @@ $(deriveJSON defaultOptions ''Version)
 instance ToSchema Version
 
 version1 :: Version 
-version1 = Version "0.42.5"
+version1 = Version "0.42.12"
 
 
 
@@ -176,6 +175,8 @@ instance ToSchema L.BondType
 instance ToSchema L.OriginalInfo
 instance ToSchema L.InterestInfo
 instance ToSchema L.InterestOverInterestType
+instance ToSchema (PerPoint (Ratio Integer))
+instance ToSchema (PerCurve Rate)
 instance ToSchema Pre
 instance ToSchema W.PayOrderBy
 instance ToSchema W.ActionWhen
@@ -212,6 +213,9 @@ instance ToSchema AP.RefiEvent
 instance ToSchema AP.InspectType
 instance ToSchema AP.CallOpt
 instance ToSchema AP.NonPerfAssumption
+instance ToSchema BondPricingMethod
+instance ToSchema AP.TradeType
+instance ToSchema AP.IrrType
 instance ToSchema AP.BondPricingInput
 instance ToSchema AP.RevolvingAssumption
 instance ToSchema AP.TagMatchRule
@@ -259,10 +263,10 @@ instance ToSchema (DB.UnderlyingDeal AB.Receivable)
 instance ToSchema (DB.UnderlyingDeal AB.ProjectedCashflow)
 instance ToSchema (DB.UnderlyingDeal AB.AssetUnion)
 instance ToSchema ResultComponent
-instance ToSchema L.PriceResult
+instance ToSchema PriceResult
 instance ToSchema DealType
 
-type RunResp = Either String (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Maybe (Map.Map String L.PriceResult))
+type RunResp = Either String (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Map.Map String PriceResult)
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
 wrapRun (MDeal d) mAssump mNonPerfAssump 
@@ -391,7 +395,7 @@ type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 
 type PoolRunResp = Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
 
-data FirstLossResult = FirstLossResult Double AP.ApplyAssumptionType
+data FirstLossResult = FirstLossResult Double AP.ApplyAssumptionType (Maybe AP.RevolvingAssumption)
                       | Dummyyyy
                        deriving(Show, Generic)
 
@@ -468,14 +472,22 @@ stressAssetPerf r (AP.ReceivableAssump (Just da) mr ms)
   = AP.ReceivableAssump (Just (AP.stressDefaultAssump r da)) mr ms
 stressAssetPerf _ x = x
 
+stressRevovlingPerf :: Rate -> Maybe AP.RevolvingAssumption -> Maybe AP.RevolvingAssumption
+stressRevovlingPerf r Nothing = Nothing
+stressRevovlingPerf r (Just (AP.AvailableAssets rp applyAssumpType)) 
+  = Just (AP.AvailableAssets rp (over (AP.applyAssumptionTypeAssetPerf . _1) (stressAssetPerf r) applyAssumpType))
+stressRevovlingPerf r (Just (AP.AvailableAssetsBy m))
+  = Just (AP.AvailableAssetsBy (Map.map (over (_2 . AP.applyAssumptionTypeAssetPerf . _1) (stressAssetPerf r)) m))
+
 testByDefault :: DealType -> AP.ApplyAssumptionType -> AP.NonPerfAssumption -> BondName -> Double -> Double
-testByDefault dt assumps nonPerfAssump bn r 
+testByDefault dt assumps nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving} bn r 
   = let 
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps
-      runResult = wrapRun dt (Just stressed) nonPerfAssump
+      stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (toRational r) mRevolving }
+      runResult = wrapRun dt (Just stressed) stressedNonPerf
     in
       case runResult of 
-        Right (d,_,_,_) -> 
+        Right (d,mPoolCfMap,mResult,mPricing) -> 
           let 
             bMap = case d of 
                     MDeal d' -> DB.bonds d' Map.! bn
@@ -489,22 +501,24 @@ testByDefault dt assumps nonPerfAssump bn r
 
             bondBal = L.getOutstandingAmount bMap
           in
-            (fromRational (toRational bondBal) - 0.01)
-        Left errorMsg -> 0
+            (fromRational (toRational bondBal) - 0.01) -- `debug` ("iter with"++ show r++"\n"++ show stressed ++"\n and bondBal"++ show bondBal)
+        Left errorMsg -> error $ "Error in test fun for first loss" ++ show errorMsg
 
-
+-- TODO: check the bond name exsits
 runDealByFirstLoss :: FirstLossReq -> Handler FirstLossResp
-runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump bn)
+runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving} bn)
   = return $ 
       let 
         itertimes = 500
         def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
       in 
-        case ridders def (1.000,500) (testByDefault dt assumps nonPerfAssump bn) of
+        case ridders def (500.0,0.00) (testByDefault dt assumps nonPerfAssump bn) of
           Root r -> Right $ FirstLossResult
                               r
                               (over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps)
-          _ -> Left "Not able to find the root"
+                              (stressRevovlingPerf (toRational r) mRevolving)
+          NotBracketed -> Left "Not able to bracket the root"
+          SearchFailed -> Left "Not able to find the root"
 
 
 runDealScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)

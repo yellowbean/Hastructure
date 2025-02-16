@@ -231,7 +231,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       case stats t of 
         (_,m,_,_) -> case Map.lookup s m of
                       Just v -> Right . toRational $ v
-                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+                      Nothing -> Left $ "Date:"++show d++"Failed to rate deal stat of -> "++ show s
 
 
     -- int query
@@ -260,7 +260,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       case stats t of 
         (_,_,_,m) -> case Map.lookup s m of
                       Just v -> Right . toRational $ v
-                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+                      Nothing -> Left $ "Date:"++show d++"Failed to query int deal stat of -> "++ show s ++" in map"++ show m
 
 
     ReserveBalance ans -> 
@@ -720,7 +720,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       case stats t of 
         (m,_,_,_) -> case Map.lookup s m of
                       Just v -> Right . toRational $ v
-                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+                      Nothing -> Left $ "Date:"++show d++"Failed to query balance deal stat  of -> "++ show s
 
     _ -> Left ("Date:"++show d++"Failed to query formula of -> "++ show s)
     
@@ -782,7 +782,7 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
       case stats t of 
         (_,_,m,_) -> case Map.lookup s m of
                       Just v -> Right v
-                      Nothing -> Left $ "Date:"++show d++"Failed to query formula of -> "++ show s
+                      Nothing -> Left $ "Date:"++show d++"Failed to query bool deal stat of -> "++ show s
 
 
 
@@ -839,6 +839,24 @@ testPre d t p =
                            return $ toCmp cmp q (getValByDate _ts Inc d)
     IfRateCurve cmp s _ts -> do v <- (queryCompound t d (ps s))
                                 return $ (toCmp cmp) v (getValByDate _ts Inc d)
+    IfByPeriodCurve cmp sVal sSelect pc -> 
+      do 
+        v <- queryCompound t d (ps sVal)
+        selector <- queryCompound t d (ps sSelect)
+        case getValFromPerCurve pc Past Inc (round $ fromRational selector) of 
+          Nothing -> Left $ "Date:"++show d++"Failed to find value from period curve"++ show pc
+          Just vFromCurve -> 
+            return $ (toCmp cmp) (fromRational v) vFromCurve
+
+    IfRateByPeriodCurve cmp sVal sSelect pc -> 
+      do 
+        v <- queryCompound t d (ps sVal)
+        selector <- queryCompound t d (ps sSelect)
+        case getValFromPerCurve pc Past Inc (round $ fromRational selector) of 
+          Nothing -> Left $ "Date:"++show d++"Failed to find value from period curve"++ show pc
+          Just vFromCurve -> 
+            return $ (toCmp cmp) (fromRational v) vFromCurve
+
     IfBool s True -> queryDealBool t s d
     IfBool s False -> do 
                         q <- (queryDealBool t s d)
@@ -881,7 +899,7 @@ preToStr :: P.Asset a => TestDeal a -> Date -> Pre -> String
 preToStr t d p =
   case p of 
     (IfZero ds) ->  "0 == " ++ show (fromRational <$> (queryCompound t d (ps ds)))
-    (If cmp ds bal) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show bal -- `debug` (">>> left"++ show (queryDeal t (ps ds)))
+    (If cmp ds bal) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show bal
     (IfRate cmp ds r) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show r
     (IfInt cmp ds r) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show r
     (IfCurve cmp ds ts) -> show (fromRational <$> (queryCompound t d (ps ds))) ++" "++ show cmp ++" " ++show (fromRational (getValByDate ts Inc d))
@@ -891,6 +909,28 @@ preToStr t d p =
     (IfRate2 cmp ds1 ds2) -> show (fromRational <$> (queryCompound t d (ps ds1))) ++" "++ show cmp ++" " ++show (fromRational <$> (queryCompound t d (ps ds2)))
     (IfInt2 cmp ds1 ds2) -> show (fromRational <$> (queryCompound t d (ps ds1))) ++" "++ show cmp ++" " ++show (fromRational <$> (queryCompound t d (ps ds2)))
     (IfDealStatus st) -> show (status t) ++" == "++ show st
+    (IfByPeriodCurve cmp ds1 ds2 pc) 
+      -> let 
+            v = (fromRational <$> queryCompound t d (ps ds1))
+          in 
+            case (fromRational <$> queryCompound t d (ps ds2)) of
+              Left _error -> "Failed to read selector for period curve"++ show ds2 ++ "Error:"++ _error
+              Right s -> 
+                let
+                  c = getValFromPerCurve pc Past Inc (round s) 
+                in 
+                  show v ++" "++ show cmp ++" " ++show c
+    (IfRateByPeriodCurve cmp ds1 ds2 pc) 
+      -> let 
+            v = (fromRational <$> queryCompound t d (ps ds1))
+          in 
+            case queryCompound t d (ps ds2) of
+              Left _error -> "Failed to read selector for period curve"++ show ds2 ++ "Error:"++ _error
+              Right s -> 
+                let
+                  c = getValFromPerCurve pc Past Inc (round s) 
+                in 
+                  show v ++" "++ show cmp ++" " ++show (fromRational <$> c)
     (Always b) -> show b
     (IfNot _p) -> "Not "++ preToStr t d _p
     (Types.All pds) -> "All:["++ intercalate "|" (map (preToStr t d) pds)++"]"

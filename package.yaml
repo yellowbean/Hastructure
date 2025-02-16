@@ -52,6 +52,7 @@ dependencies:
 - math-functions
 - parallel
 - deepseq
+- mtl
 
 library:
   source-dirs: 

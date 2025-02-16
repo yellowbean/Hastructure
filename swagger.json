@@ -4628,40 +4628,13 @@
                         "properties": {
                             "contents": {
                                 "additionalProperties": {
-                                    "items": [
-                                        {
-                                            "$ref": "#/components/schemas/Ts"
-                                        },
-                                        {
-                                            "multipleOf": 1.0e-2,
-                                            "type": "number"
-                                        },
-                                        {
-                                            "items": [
-                                                {
-                                                    "items": {
-                                                        "$ref": "#/components/schemas/Day"
-                                                    },
-                                                    "type": "array"
-                                                },
-                                                {
-                                                    "$ref": "#/components/schemas/PricingMethod"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "minItems": 2,
-                                            "type": "array"
-                                        }
-                                    ],
-                                    "maxItems": 3,
-                                    "minItems": 3,
-                                    "type": "array"
+                                    "$ref": "#/components/schemas/IrrType"
                                 },
                                 "type": "object"
                             },
                             "tag": {
                                 "enum": [
-                                    "IRRInput"
+                                    "IrrInput"
                                 ],
                                 "type": "string"
                             }
@@ -4670,7 +4643,70 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "IRRInput",
+                        "title": "IrrInput",
+                        "type": "object"
+                    }
+                ]
+            },
+            "BondPricingMethod": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondBalanceFactor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondBalanceFactor",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PvBondByRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PvBondByRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Ts"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PvBondByCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PvBondByCurve",
                         "type": "object"
                     }
                 ]
@@ -9958,7 +9994,7 @@
                     }
                 ]
             },
-            "Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))": {
+            "Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))": {
                 "oneOf": [
                     {
                         "properties": {
@@ -10766,10 +10802,13 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/ApplyAssumptionType"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RevolvingAssumption"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
@@ -11256,6 +11295,112 @@
                             "contents"
                         ],
                         "title": "OverFixSpread",
+                        "type": "object"
+                    }
+                ]
+            },
+            "IrrType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": {
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/Day"
+                                                },
+                                                {
+                                                    "multipleOf": 1.0e-2,
+                                                    "type": "number"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/Day"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/BondPricingMethod"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "HoldingBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "HoldingBond",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/BondPricingMethod"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/TradeType"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/Day"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/BondPricingMethod"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BuyBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BuyBond",
                         "type": "object"
                     }
                 ]
@@ -12841,6 +12986,54 @@
                     }
                 ]
             },
+            "PerCurve_(Ratio_Integer)": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PerPoint_(Ratio_Integer)"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CurrentVal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CurrentVal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PerPoint_(Ratio_Integer)"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WithTrailVal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WithTrailVal",
+                        "type": "object"
+                    }
+                ]
+            },
             "PerPoint_(Fixed_*_E2)": {
                 "items": [
                     {
@@ -12850,6 +13043,22 @@
                     },
                     {
                         "multipleOf": 1.0e-2,
+                        "type": "number"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
+            "PerPoint_(Ratio_Integer)": {
+                "items": [
+                    {
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "type": "integer"
+                    },
+                    {
+                        "format": "double",
                         "type": "number"
                     }
                 ],
@@ -13903,6 +14112,41 @@
                                         "$ref": "#/components/schemas/DealStats"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PerCurve_(Fixed_*_E2)"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfByPeriodCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfByPeriodCurve",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/Ts"
                                     }
                                 ],
@@ -13922,6 +14166,41 @@
                             "contents"
                         ],
                         "title": "IfRateCurve",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Cmp"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PerCurve_(Ratio_Integer)"
+                                    }
+                                ],
+                                "maxItems": 4,
+                                "minItems": 4,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IfRateByPeriodCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IfRateByPeriodCurve",
                         "type": "object"
                     },
                     {
@@ -14697,6 +14976,39 @@
                             "contents"
                         ],
                         "title": "ZSpread",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Txn"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IrrResult"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IrrResult",
                         "type": "object"
                     }
                 ]
@@ -18391,6 +18703,50 @@
                 ],
                 "type": "object"
             },
+            "TradeType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByCash"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByCash",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByBalance",
+                        "type": "object"
+                    }
+                ]
+            },
             "Trigger": {
                 "properties": {
                     "trgCondition": {
@@ -20773,7 +21129,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.42.4"
+        "version": "0.42.11"
     },
     "openapi": "3.0.0",
     "paths": {
@@ -20822,7 +21178,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                     },
                                     "type": "object"
                                 }
@@ -20911,7 +21267,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                 }
                             }
                         },
@@ -20940,7 +21296,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                     },
                                     "type": "object"
                                 }
@@ -20971,7 +21327,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                     },
                                     "type": "object"
                                 }
@@ -21002,7 +21358,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                     },
                                     "type": "object"
                                 }

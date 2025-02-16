@@ -24,6 +24,7 @@ import qualified Pool as P
 import qualified Expense as F
 import qualified Liability as L
 import qualified CreditEnhancement as CE
+import qualified Analytics
 import qualified Waterfall as W
 import qualified Cashflow as CF
 import qualified Assumptions as AP
@@ -65,6 +66,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 import Control.Monad
+import Control.Monad.Writer
 import Control.Monad.Loops (allM,anyM)
 import Control.Applicative (liftA2)
 
@@ -77,7 +79,7 @@ import qualified Types as P
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import InterestRate (calcInt)
-import Liability (getDayCountFromInfo)
+import Liability (getDayCountFromInfo,getTxnRate)
 import Hedge (RateCap(..),RateSwapBase(..),RateSwap(rsRefBalance))
 import qualified Hedge as HE
 
@@ -393,7 +395,8 @@ run t@TestDeal{status=Ended} pCfM ads _ _ _ log  = Right (prepareDeal t,log++[En
 run t pCfM (Just []) _ _ _ log  = Right (prepareDeal t,log++[EndRun Nothing "No Actions"])
 run t pCfM (Just [HitStatedMaturity d]) _ _ _ log  = Right (prepareDeal t,log++[EndRun (Just d) "Stop: Stated Maturity"])
 run t pCfM (Just (StopRunFlag d:_)) _ _ _ log  = Right (prepareDeal t,log++[EndRun (Just d) "Stop Run Flag"])
-run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus,waterfall=waterfallM,name=dealName,pool=pt} 
+run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus
+              ,waterfall=waterfallM,name=dealName,pool=pt,stats=_stat} 
     poolFlowMap (Just (ad:ads)) rates calls rAssump log
   | all (== 0) futureCashToCollect && (queryCompound t (getDate ad) AllAccBalance == Right 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
      = do 
@@ -524,9 +527,9 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         
         DealClosed d ->
           let
-            w = Map.findWithDefault [] W.OnClosingDay (waterfall t)  -- `debug` ("DDD0")
+            w = Map.findWithDefault [] W.OnClosingDay (waterfall t) 
             rc = RunContext poolFlowMap rAssump rates  
-            logForClosed = [RunningWaterfall d W.OnClosingDay| not (null w)] -- `debug` ("DDD1")]
+            logForClosed = [RunningWaterfall d W.OnClosingDay| not (null w)]
           in 
             do
               newSt <- case dStatus of
@@ -828,17 +831,131 @@ data ExpectReturn = DealPoolFlow
                   deriving (Show,Generic)
 
 
+-- priceBondIrr :: AP.IrrType -> [Txn] -> Either String (Rate, [(Date,Balance)])
+priceBondIrr :: AP.IrrType -> [Txn] -> Either String (Rate, [Txn])
+-- No projected transaction, use history cashflow only
+priceBondIrr AP.BuyBond {} [] = Left "No transaction to buy the bond" 
+priceBondIrr (AP.HoldingBond historyCash _ _) [] 
+  = let 
+      (ds,vs) = unzip historyCash
+      txns' = [ BondTxn d 0 0 0 0 v 0 0 Nothing Types.Empty | (d,v) <- historyCash ]
+    in 
+      do 
+        irr <- Analytics.calcIRR ds vs
+        return (irr, txns')
+-- Projected transaction and hold to maturity
+priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns
+  = let 
+      begBal = (getTxnBegBalance . head) txns
+      holdingPct = toRational $ holding / begBal
+      bProjectedTxn = scaleTxn holdingPct <$> txns
+      (ds,vs) = unzip historyCash
+      (ds2,vs2) = (getDate <$> bProjectedTxn, getTxnAmt <$> bProjectedTxn)
+      
+      txns' = [ BondTxn d 0 0 0 0 v 0 0 Nothing Types.Empty | (d,v) <- historyCash ]
+    in 
+      do 
+        irr <- Analytics.calcIRR (ds++ds2) (vs++vs2) -- `debug` ("projected holding"++ show (ds2,vs2))
+        return (irr, txns' ++ bProjectedTxn)
+
+-- TODO: need to use DC from bond
+-- Projected transaction and sell at a Date
+priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMethod))) txns
+  = let 
+      -- history cash
+      (ds,vs) = unzip historyCash
+      txns' = [ BondTxn d 0 0 0 0 v 0 0 Nothing Types.Empty | (d,v) <- historyCash ]
+      
+      begBal = (getTxnBegBalance . head) txns
+      holdingPct = toRational $ holding / begBal
+      -- assume cashflow of sell date belongs to seller(owner)
+      (bProjectedTxn',futureFlow') = splitByDate txns sellDate EqToLeft
+      (bProjectedTxn,futureFlow) = ((scaleTxn holdingPct) <$> bProjectedTxn',(scaleTxn holdingPct) <$> futureFlow')
+      -- projected cash
+      (ds2,vs2) = (getDate <$> bProjectedTxn, getTxnAmt <$> bProjectedTxn)
+      -- accrued interest
+      accruedInt = case (bProjectedTxn, futureFlow) of
+                      (xs,[]) -> 0
+                      (_,x:xs) -> let --TODO what about interest over interest
+                                      accruedInt' = calcInt (getTxnBegBalance x) sellDate (getDate x) (getTxnRate x) DC_ACT_365F
+                                      totalInt' = (fromMaybe 0) <$> [(preview (_BondTxn . _3 ) x), (preview (_BondTxn . _7 ) x), (preview (_BondTxn . _8 ) x)]
+                                    in 
+                                      sum(totalInt') - accruedInt'
+      (ds3,vs3) = (sellDate, accruedInt)  -- `debug` ("accrued interest"++ show (accruedInt,sellDate))
+      -- sell price 
+      sellPrice = case sellPricingMethod of 
+                    BondBalanceFactor f -> case bProjectedTxn of 
+                                            [] -> mulBR begBal (f * holdingPct) 
+                                            _txns -> mulBR (getTxnBalance (last _txns)) f
+      (ds4,vs4) = (sellDate,  sellPrice)  -- `debug` ("sale price, date"++ show (sellPrice,sellDate))
+    in 
+      do 
+        irr <- Analytics.calcIRR (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]) -- `debug` ("vs:"++ show vs++ "vs2:"++ show vs2++ "vs3:"++ show vs3++ "vs4:"++ show vs4 ++">>> ds "++ show ds++ "ds2"++ show ds2++ "ds3"++ show ds3++ "ds4"++ show ds4)
+        -- return (irr, zip (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4])) 
+        return (irr, txns'++ bProjectedTxn++ [(BondTxn sellDate 0 vs3 sellPrice 0 (sellPrice+vs3) 0 0 Nothing Types.Empty)]) 
+
+-- Buy and hold to maturity
+priceBondIrr (AP.BuyBond dateToBuy bPricingMethod (AP.ByCash cash) Nothing) txns
+  | null futureFlow' = Left "No transaction to buy bond"
+  | otherwise
+    = let 
+      -- balance of bond on buy date
+      nextTxn = head futureFlow'
+      balAsBuyDate = getTxnBegBalance nextTxn
+      buyPrice = case bPricingMethod of 
+                    BondBalanceFactor f -> mulBR balAsBuyDate f 
+      buyPaidOut = min buyPrice cash
+      buyPct = divideBB buyPaidOut buyPrice
+      boughtTxns = scaleTxn buyPct <$> futureFlow'
+      -- buy price (including accrued interest)
+
+      accuredInt = let
+                    --TODO what about interest over interest
+                    accruedInt' = calcInt balAsBuyDate dateToBuy (getDate nextTxn) (getTxnRate nextTxn) DC_ACT_365F
+                    x = nextTxn
+                    totalInt' = (fromMaybe 0) <$> [(preview (_BondTxn . _3 ) x), (preview (_BondTxn . _7 ) x), (preview (_BondTxn . _8 ) x)]
+                   in
+                    sum(totalInt') - accruedInt'
+
+      (ds1, vs1) = (dateToBuy, negate (buyPaidOut + accuredInt))
+      (ds2, vs2) = (getDate <$> futureFlow', getTxnAmt <$> boughtTxns)
+    in 
+      do 
+        irr <- Analytics.calcIRR ([ds1]++ds2) ([vs1]++vs2)
+        return (irr, (BondTxn dateToBuy 0 (negate accuredInt) (negate buyPaidOut) 0 vs1 0 0 Nothing Types.Empty):boughtTxns)
+  where 
+    -- assume cashflow of buy date belongs to seller(owner)
+    (bProjectedTxn',futureFlow') = splitByDate txns dateToBuy EqToLeft
+
+
 -- TODO : need to lift the result and make function Either String xxx
-priceBonds :: TestDeal a -> AP.BondPricingInput -> Map.Map String L.PriceResult
-priceBonds t (AP.DiscountCurve d dc) = Map.map (L.priceBond d dc) (viewBondsInMap t)
+priceBonds :: Ast.Asset a => TestDeal a -> AP.BondPricingInput -> Either String (Map.Map String PriceResult)
+-- Price bond via discount future cashflow
+priceBonds t (AP.DiscountCurve d dc) = Right $ Map.map (L.priceBond d dc) (viewBondsInMap t)
+-- Run Z-Spread
 priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bondPrices) 
-  = Map.mapWithKey 
-      (\bn (pd,price)-> L.ZSpread $
-                        case L.calcZspread (price,pd) (bndMap Map.! bn) curve of 
-                          Left e -> error e
-                          Right z -> z
-                        )
-      bondPrices
+  = sequenceA $ 
+      Map.mapWithKey 
+        (\bn (pd,price)-> ZSpread <$> (L.calcZspread (price,pd) (bndMap Map.! bn) curve))
+        bondPrices
+-- Calc Irr of bonds 
+priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput) 
+  = let
+      -- Date 
+      d = getNextBondPayDate t
+      -- get projected bond txn
+      projectedTxns xs = snd $ splitByDate xs d EqToRight 
+      -- (Maybe Bond,IrrType)
+      bndMap' = Map.mapWithKey (\k v -> (getBondByName t True k, v)) bMapInput
+      -- (Rate, [(date, cash)])
+      bndMap'' = Map.mapWithKey (\bName (Just b, v) -> 
+                                  do 
+                                    let _irrTxns = projectedTxns (getAllTxns b)
+                                    (_irr, flows) <- priceBondIrr v _irrTxns
+                                    return (IrrResult (fromRational _irr) flows))
+                                bndMap'
+    in 
+      sequenceA bndMap''
 
 
 -- ^ split call option assumption , 
@@ -854,8 +971,8 @@ splitCallOpts (AP.LegacyOpts copts) =
       cFn (C.BondFactor r) = IfRate L BondFactor (fromRational r)
       cFn (C.OnDate d) = IfDate E d
       cFn (C.AfterDate d) = IfDate G d
-      cFn (C.And _opts) = All [ cFn o | o <- _opts  ]
-      cFn (C.Or _opts) = Any [ cFn o | o <- _opts  ]
+      cFn (C.And _opts) = Types.All [ cFn o | o <- _opts  ]
+      cFn (C.Or _opts) = Types.Any [ cFn o | o <- _opts  ]
       cFn (C.Pre p) = p
     in 
       ([ cFn copt | copt <- copts ],[])
@@ -875,7 +992,7 @@ readCallOptions opts =
 
 
 runDeal :: Ast.Asset a => TestDeal a -> ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
-        -> Either String (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Maybe (Map.Map String L.PriceResult))
+        -> Either String (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Map.Map String PriceResult)
 runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts ,AP.pricing = mPricing ,AP.revolving = mRevolving ,AP.interest = mInterest} 
   | not runFlag = Left $ intercalate ";" $ show <$> valLogs 
   | otherwise 
@@ -890,7 +1007,9 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts ,
                                   []  
         let poolFlowUsed = Map.map (fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) [])) (getAllCollectedFrame finalDeal Nothing)  
         let poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed  
-        let bndPricing = (priceBonds finalDeal) <$> mPricing
+        bndPricing <- case mPricing of 
+                        (Just p) -> priceBonds finalDeal p 
+                        Nothing -> Right Map.empty
         return (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++logs), bndPricing) -- `debug` ("Run Deal end with")
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
@@ -966,87 +1085,6 @@ removePoolCf t@TestDeal{pool=pt} =
   in
     t {pool = newPt}
 
-
-populateDealDates :: DateDesp -> DealStatus -> Either String (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date,[ActionOnDate])
-populateDealDates (CustomDates cutoff pa closing ba) _ 
-  = Right $
-    (cutoff  
-    ,closing
-    ,getDate (head ba)
-    ,pa
-    ,ba
-    ,getDate (max (last pa) (last ba))
-    ,[])
-
-populateDealDates (PatternInterval _m) _
-  = Right $ (cutoff,closing,nextPay,pa,ba,max ed1 ed2, []) 
-    where 
-      (cutoff,dp1,ed1) = _m Map.! CutoffDate
-      (nextPay,dp2,ed2) = _m Map.! FirstPayDate 
-      (closing,_,_) = _m Map.! ClosingDate
-      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill cutoff dp1 ed1 ]
-      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill nextPay dp2 ed2 ]
-
-populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp)) _
-  = Right $ (cutoff,closing,firstPay,pa,ba,end, []) 
-    where 
-      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE firstCollect poolDp end ]
-      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE firstPay bondDp end ]
-
-populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollect,poolDp) (nextPay,bondDp)) _
-  = Right $ (lastCollect, lastPay,head futurePayDates, pa, ba, end, []) 
-    where 
-      futurePayDates = genSerialDatesTill2 IE nextPay bondDp end 
-      ba = [ RunWaterfall _d "" | _d <- futurePayDates]
-      futureCollectDates = genSerialDatesTill2 IE nextCollect poolDp end 
-      pa = [ PoolCollection _d "" | _d <- futureCollectDates]
-
-populateDealDates (GenericDates m) 
-                  (PreClosing _)
-  = let 
-      requiredFields = (CutoffDate, ClosingDate, FirstPayDate, StatedMaturityDate
-                        , DistributionDates, CollectionDates) 
-      vals = lookupTuple6 requiredFields m
-      
-      isCustomWaterfallKey (CustomExeDates _) _ = True
-      isCustomWaterfallKey _ _ = False
-      custWaterfall = Map.toList $ Map.filterWithKey isCustomWaterfallKey m
-    in 
-      case vals of
-        (Just (SingletonDate coffDate), Just (SingletonDate closingDate), Just (SingletonDate fPayDate)
-          , Just (SingletonDate statedDate), Just bondDp, Just poolDp)
-          -> let 
-                pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 IE closingDate poolDp statedDate ]
-                ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE fPayDate bondDp statedDate ]
-                cu = [ RunWaterfall _d custName | (CustomExeDates custName, custDp) <- custWaterfall
-                                                , _d <- genSerialDatesTill2 EE closingDate custDp statedDate ]
-              in 
-                Right (coffDate, closingDate, fPayDate, pa, ba, statedDate, cu)
-        _ 
-          -> Left "Missing required dates in GenericDates in deal status PreClosing"
-
-populateDealDates (GenericDates m) _ 
-  = let 
-      requiredFields = (LastCollectDate, LastPayDate, NextPayDate, StatedMaturityDate
-                        , DistributionDates, CollectionDates) 
-      vals = lookupTuple6 requiredFields m
-      
-      isCustomWaterfallKey (CustomExeDates _) _ = True
-      isCustomWaterfallKey _ _ = False
-      custWaterfall = Map.toList $ Map.filterWithKey isCustomWaterfallKey m
-    in 
-      case vals of
-        (Just (SingletonDate lastCollect), Just (SingletonDate lastPayDate), Just (SingletonDate nextPayDate)
-          , Just (SingletonDate statedDate), Just bondDp, Just poolDp)
-          -> let 
-                pa = [ PoolCollection _d "" | _d <- genSerialDatesTill2 EE lastCollect poolDp statedDate ]
-                ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill2 IE nextPayDate bondDp statedDate ]
-                cu = [ RunWaterfall _d custName | (CustomExeDates custName, custDp) <- custWaterfall
-                                                , _d <- genSerialDatesTill2 EE lastCollect custDp statedDate ]
-              in 
-                Right (lastCollect, lastPayDate, nextPayDate, pa, ba, statedDate, cu) -- `debug` ("custom action"++ show cu)
-        _ 
-          -> Left "Missing required dates in GenericDates in deal status PreClosing"
 
 
 
@@ -1274,7 +1312,7 @@ runPoolType (ResecDeal dm) mAssumps mNonPerfAssump
 
 getInits :: Ast.Asset a => TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption 
          -> Either String (TestDeal a,[ActionOnDate], Map.Map PoolId CF.CashFlowFrame, Map.Map PoolId CF.CashFlowFrame)
-getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssumps mNonPerfAssump =
+getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap,stats=_stats} mAssumps mNonPerfAssump =
   let 
     expandInspect sd ed (AP.InspectPt dp ds) = [ InspectDS _d [ds] | _d <- genSerialDatesTill2 II sd dp ed ]
     expandInspect sd ed (AP.InspectRpt dp dss) = [ InspectDS _d dss | _d <- genSerialDatesTill2 II sd dp ed ] 
@@ -1443,7 +1481,11 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap} mAssump
                                                                 poolWithSchedule
       let poolWithRunPoolBalance = patchRuntimeBal (Map.map (\(CF.CashFlowFrame (b,_,_) _) -> b) pCollectionCfAfterCutoff) poolWithIssuanceBalance
 
-      return (t {fees = newFeeMap , pool = poolWithRunPoolBalance }
+      let newStat = if (isPreClosing t) then 
+                      _stats & (over _4) (`Map.union` (Map.fromList [(BondPaidPeriod,0),(PoolCollectedPeriod,0)]))
+                    else 
+                      _stats
+      return (t {fees = newFeeMap , pool = poolWithRunPoolBalance , stats = newStat}
              , allActionDates
              , pCollectionCfAfterCutoff
              , pUnstressedAfterCutoff)

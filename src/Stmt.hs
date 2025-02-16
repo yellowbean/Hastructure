@@ -36,7 +36,6 @@ import qualified Data.Text as T
 import qualified Data.Map as M
 
 import Control.Applicative (liftA2)
-
 import Control.Lens hiding (element,Empty)
 import Control.Lens.TH
 
