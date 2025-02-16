@@ -9994,7 +9994,7 @@
                     }
                 ]
             },
-            "Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))": {
+            "Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))": {
                 "oneOf": [
                     {
                         "properties": {
@@ -21126,7 +21126,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.42.9"
+        "version": "0.42.10"
     },
     "openapi": "3.0.0",
     "paths": {
@@ -21175,7 +21175,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                     },
                                     "type": "object"
                                 }
@@ -21264,7 +21264,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                 }
                             }
                         },
@@ -21293,7 +21293,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                     },
                                     "type": "object"
                                 }
@@ -21324,7 +21324,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                     },
                                     "type": "object"
                                 }
@@ -21355,7 +21355,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Maybe_(Map_[Char]_PriceResult)))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
                                     },
                                     "type": "object"
                                 }

@@ -87,19 +87,16 @@ pv21 r d ds vs = sum [ pv2 r d _d amt | (_d,amt) <- zip ds vs ]
 
 pv2' :: Double -> Date -> Date -> Double -> Double
 pv2' r today d amt 
+  | amt == 0 = 0
   | today == d = amt
   | otherwise 
-    = realToFrac $ (realToFrac amt) * (1/denominator)  -- `debug` ("pv: cash"++ show amt++" deno"++ show denominator++">> rate"++show discount_rate)
+    = amt * (1/denominator)  -- `debug` ("pv: cash"++ show amt++" deno"++ show denominator++">> rate"++show discount_rate)
       where
         denominator::Double = (1 + r) ** (distance / 365)
         distance::Double = fromIntegral $ daysBetween today d -- `debug` ("days betwwen"++ show (daysBetween today d)++">>"++ show d ++ ">>today>>"++ show today)
 
-pv22 :: Double -> Date -> [Date] -> [Amount] -> Double
-pv22 r d ds vs = 
-  let 
-    vs' = (fromRational . toRational) <$> vs
-  in 
-    sum [ pv2' r d _d amt | (_d,amt) <- zip ds vs' ]
+pv22 :: Double -> Date -> [Date] -> [Double] -> Double
+pv22 r d ds vs = sum [ pv2' r d _d amt | (_d,amt) <- zip ds vs ] 
 
 -- ^ calcualte present value given a series of amount with dates
 pv3 :: Ts -> Date -> [Date] -> [Amount] -> Balance 
@@ -123,7 +120,8 @@ calcPvFromIRR irr [] _ d amt = 0
 calcPvFromIRR irr ds vs d amt = 
   let 
     begDate = head ds
-    pv = pv22 irr begDate (ds++[d]) (vs++[ (fromRational . toRational) amt ])
+    vs' = (fromRational . toRational) <$> vs
+    pv = pv22 irr begDate (ds++[d]) (vs'++[amt])
   in 
     (fromRational . toRational) pv
 
@@ -149,10 +147,12 @@ calcIRR ds vs
   | otherwise = 
     let 
       itertimes = 1000
-      def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0000000001}
+      def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.000001}
       beginDate = head ds
-      sumOfPv irr = fromRational . toRational $ pv22 irr beginDate ds vs
+      vs' = (fromRational . toRational) <$> vs
+      sumOfPv irr = pv22 irr beginDate ds vs'
     in 
       case ridders def (-1,1000) sumOfPv of
             Root irrRate -> Right $ toRational irrRate
-            _ -> Left $ "IRR can't be calculated with input "++ show vs++" and dates"++ show ds
+            NotBracketed -> Left $ "IRR: not bracketed"
+            SearchFailed -> Left $ "IRR: search failed:  can't be calculated with input "++ show vs++" and dates"++ show ds
