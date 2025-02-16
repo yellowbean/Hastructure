@@ -9,7 +9,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module Main where 
@@ -396,7 +395,7 @@ type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
 
 type PoolRunResp = Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
 
-data FirstLossResult = FirstLossResult Double AP.ApplyAssumptionType
+data FirstLossResult = FirstLossResult Double AP.ApplyAssumptionType (Maybe AP.RevolvingAssumption)
                       | Dummyyyy
                        deriving(Show, Generic)
 
@@ -473,11 +472,19 @@ stressAssetPerf r (AP.ReceivableAssump (Just da) mr ms)
   = AP.ReceivableAssump (Just (AP.stressDefaultAssump r da)) mr ms
 stressAssetPerf _ x = x
 
+stressRevovlingPerf :: Rate -> Maybe AP.RevolvingAssumption -> Maybe AP.RevolvingAssumption
+stressRevovlingPerf r Nothing = Nothing
+stressRevovlingPerf r (Just (AP.AvailableAssets rp applyAssumpType)) 
+  = Just (AP.AvailableAssets rp (over (AP.applyAssumptionTypeAssetPerf . _1) (stressAssetPerf r) applyAssumpType))
+stressRevovlingPerf r (Just (AP.AvailableAssetsBy m))
+  = Just (AP.AvailableAssetsBy (Map.map (over (_2 . AP.applyAssumptionTypeAssetPerf . _1) (stressAssetPerf r)) m))
+
 testByDefault :: DealType -> AP.ApplyAssumptionType -> AP.NonPerfAssumption -> BondName -> Double -> Double
-testByDefault dt assumps nonPerfAssump bn r 
+testByDefault dt assumps nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving} bn r 
   = let 
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps
-      runResult = wrapRun dt (Just stressed) nonPerfAssump
+      stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (toRational r) mRevolving }
+      runResult = wrapRun dt (Just stressed) stressedNonPerf
     in
       case runResult of 
         Right (d,mPoolCfMap,mResult,mPricing) -> 
@@ -499,7 +506,7 @@ testByDefault dt assumps nonPerfAssump bn r
 
 -- TODO: check the bond name exsits
 runDealByFirstLoss :: FirstLossReq -> Handler FirstLossResp
-runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump bn)
+runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving} bn)
   = return $ 
       let 
         itertimes = 500
@@ -509,6 +516,7 @@ runDealByFirstLoss (FirstLossReq dt assumps nonPerfAssump bn)
           Root r -> Right $ FirstLossResult
                               r
                               (over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps)
+                              (stressRevovlingPerf (toRational r) mRevolving)
           NotBracketed -> Left "Not able to bracket the root"
           SearchFailed -> Left "Not able to find the root"
 
