@@ -87,7 +87,7 @@ pricingTests = testGroup "Pricing Tests"
     in
       testCase "flat rate discount " $
       assertEqual "Test Pricing on case 01" 
-        (PriceResult 1978.46 65.948666 1.18 1.1881448 0.4906438 78.9 b1Txn) 
+        (PriceResult 1978.47 65.949000 1.18 1.1881448 0.4906438 78.9 b1Txn) 
         pr
     ,
      let

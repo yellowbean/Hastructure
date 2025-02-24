@@ -119,7 +119,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
                                               , Item "Recovery"   (vs!!2) ])
                              poolAstBalMap
           let poolAst = ParentItem "Pool" $ Map.elems poolAstMap
-        
+          -- Asset : Account, pool, swap to collect
           let ast = ParentItem "Asset" [ParentItem "Account" accM , poolAst , swapToCollect]
           feeWithDueAmount <- (F.feeDue <$>) <$>  mapM ((calcDueFee t d)) feeMap
           let feeToPay = ParentItem "Fee" [ ParentItem feeName [Item "Due" feeDueBal] 
@@ -128,6 +128,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
           let bndToShow = Map.map (\bnd -> (L.getCurBalance bnd, L.getTotalDueInt bnd)) bndWithDueAmount 
           let bndM = [ ParentItem bndName [Item "Balance" bndBal,Item "Due Int" bndDueAmt ] 
                                         | (bndName,(bndBal,bndDueAmt)) <- Map.toList bndToShow]
+          -- Liabilities: bond, fee, liquidity, swap to pay
           let liab = ParentItem "Liability" [ ParentItem "Bond" bndM , feeToPay, ParentItem "Liquidity" liqProviderOs, swapToPay]
           let totalDebtBal = getItemBalance liab
           let totalAssetBal = getItemBalance ast  

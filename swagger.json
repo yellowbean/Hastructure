@@ -10121,7 +10121,7 @@
                     }
                 ]
             },
-            "Either_[Char]_FirstLossResult": {
+            "Either_[Char]_RootFindResp": {
                 "oneOf": [
                     {
                         "properties": {
@@ -10138,7 +10138,7 @@
                     {
                         "properties": {
                             "Right": {
-                                "$ref": "#/components/schemas/FirstLossResult"
+                                "$ref": "#/components/schemas/RootFindResp"
                             }
                         },
                         "required": [
@@ -10732,112 +10732,6 @@
                             "contents"
                         ],
                         "title": "FieldNot",
-                        "type": "object"
-                    }
-                ]
-            },
-            "FirstLossReq": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealType"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/ApplyAssumptionType"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/NonPerfAssumption"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 4,
-                                "minItems": 4,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FirstLossReq"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "FirstLossReq",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "tag": {
-                                "enum": [
-                                    "Dummyyy"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag"
-                        ],
-                        "title": "Dummyyy",
-                        "type": "object"
-                    }
-                ]
-            },
-            "FirstLossResult": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/ApplyAssumptionType"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/RevolvingAssumption"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "minItems": 3,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FirstLossResult"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "FirstLossResult",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "tag": {
-                                "enum": [
-                                    "Dummyyyy"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag"
-                        ],
-                        "title": "Dummyyyy",
                         "type": "object"
                     }
                 ]
@@ -16946,6 +16840,180 @@
                     }
                 ]
             },
+            "RootFindReq": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/DealType"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/ApplyAssumptionType"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/NonPerfAssumption"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "minItems": 3,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FirstLossReq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FirstLossReq",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/DealType"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/ApplyAssumptionType"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/NonPerfAssumption"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "minItems": 3,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "type": "string"
+                                            },
+                                            {
+                                                "items": {
+                                                    "type": "string"
+                                                },
+                                                "type": "array"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MaxSpreadToFaceReq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "MaxSpreadToFaceReq",
+                        "type": "object"
+                    }
+                ]
+            },
+            "RootFindResp": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/ApplyAssumptionType"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RevolvingAssumption"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FirstLossResult"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FirstLossResult",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/Bond"
+                                        },
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealType"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BestSpreadResult"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BestSpreadResult",
+                        "type": "object"
+                    }
+                ]
+            },
             "RoundingBy_(Fixed_*_E6)": {
                 "oneOf": [
                     {
@@ -21129,7 +21197,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.42.11"
+        "version": "0.42.12"
     },
     "openapi": "3.0.0",
     "paths": {
@@ -21192,13 +21260,13 @@
                 }
             }
         },
-        "/runByFirstLoss": {
+        "/runByRootFinder": {
             "post": {
                 "requestBody": {
                     "content": {
                         "application/json;charset=utf-8": {
                             "schema": {
-                                "$ref": "#/components/schemas/FirstLossReq"
+                                "$ref": "#/components/schemas/RootFindReq"
                             }
                         }
                     }
@@ -21208,7 +21276,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Either_[Char]_FirstLossResult"
+                                    "$ref": "#/components/schemas/Either_[Char]_RootFindResp"
                                 }
                             }
                         },

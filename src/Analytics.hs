@@ -107,6 +107,16 @@ pv3 pvCurve pricingDate ds vs
     in 
       sum pvs
 
+pv3' :: Ts -> Date -> [Date] -> [Amount] -> Balance
+pv3' pvCurve pricingDate ds vs 
+  = let 
+      rs = fromRational <$> getValByDates pvCurve Inc ds
+      vs' = (fromRational . toRational) <$> vs
+      pvs = [ pv2' r pricingDate d amt | (r,d,amt) <- zip3 rs ds vs' ]
+    in 
+      fromRational . toRational $ foldr (+) 0 pvs
+
+
 fv2 :: IRate -> Date -> Date -> Amount -> Amount
 fv2 discount_rate today futureDay amt 
   = realToFrac $ realToFrac amt * factor 

@@ -14,6 +14,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
                      ,increaseBondPaidPeriod,increasePoolCollectedPeriod
                      ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
+                     ,bondTraversal
                      )                      
   where
 import qualified Accounts as A
@@ -632,10 +633,14 @@ getDealStatInt :: TestDeal a -> DealStatFields -> Maybe Int
 getDealStatInt t@TestDeal{stats = (balMap,rateMap,boolMap,intMap)} f 
   = Map.lookup f intMap
 
+bondTraversal :: Traversal' (TestDeal a) L.Bond
+bondTraversal f t@TestDeal{bonds = bndMap} =
+  (\newBndMap -> t {bonds = newBndMap}) <$> traverse f bndMap
+
 data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 opts :: JSONKeyOptions
-opts = defaultJSONKeyOptions -- { keyModifier = toLower }
+opts = defaultJSONKeyOptions
 
 instance ToJSONKey DealStatFields where
   toJSONKey = genericToJSONKey opts

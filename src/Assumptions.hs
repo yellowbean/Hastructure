@@ -238,6 +238,7 @@ data IrrType = HoldingBond HistoryCash CurrentHolding (Maybe (Date, BondPricingM
               | BuyBond Date BondPricingMethod TradeType (Maybe (Date, BondPricingMethod))
               deriving (Show,Generic)
 
+
 data BondPricingInput = DiscountCurve PricingDate Ts                               
                       -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
                       | RunZSpread Ts (Map.Map BondName (Date,Rational))    

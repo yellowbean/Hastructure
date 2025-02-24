@@ -48,6 +48,7 @@ library
       Deal.DealAction
       Deal.DealBase
       Deal.DealDate
+      Deal.DealMod
       Deal.DealQuery
       Deal.DealValidation
       Errors
@@ -110,6 +111,7 @@ library
 executable Hastructure-exe
   main-is: Main.hs
   other-modules:
+      MainBase
       Paths_Hastructure
   hs-source-dirs:
       app
