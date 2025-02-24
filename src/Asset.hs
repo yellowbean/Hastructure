@@ -165,10 +165,13 @@ applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
 cpr2smm :: Rate -> Rate
 cpr2smm r = toRational $ 1 - (1 - fromRational r :: Double) ** (1/12)
 
+normalPerfVector :: [Rate] -> [Rate]
+normalPerfVector = floorWith 0.0 . capWith 1.0
+
 buildPrepayRates :: Asset b => b -> [Date] -> Maybe A.AssetPrepayAssumption -> Either String [Rate]
 buildPrepayRates _ ds Nothing = Right $ replicate (pred (length ds)) 0.0
 buildPrepayRates a ds mPa = 
-  capWith 1.0 <$> 
+  normalPerfVector <$>
     case mPa of
       Just (A.PrepaymentConstant r) -> Right $ replicate size r
       Just (A.PrepaymentCPR r) -> Right $ Util.toPeriodRateByInterval r <$> getIntervalDays ds
@@ -210,7 +213,7 @@ buildPrepayRates a ds mPa =
 buildDefaultRates :: Asset b => b -> [Date] -> Maybe A.AssetDefaultAssumption -> Either String [Rate]
 buildDefaultRates _ ds Nothing = Right $ replicate (pred (length ds)) 0.0
 buildDefaultRates a ds mDa = 
-  capWith 1.0 <$> 
+  normalPerfVector <$>
     case mDa of
       Just (A.DefaultConstant r) -> Right $ replicate size r
       Just (A.DefaultCDR r) -> Right $ Util.toPeriodRateByInterval r <$> getIntervalDays ds

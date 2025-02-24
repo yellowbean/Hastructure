@@ -8,9 +8,8 @@
 module Liability
   (Bond(..),BondType(..),OriginalInfo(..)
   ,payInt,payPrin,consolStmt,isPaidOff,getCurBalance
-  ,priceBond,PriceResult(..),pv,InterestInfo(..),RateReset(..)
-  ,getDueInt
-  ,weightAverageBalance,calcZspread,payYield,getTotalDueInt
+  ,priceBond,pv,InterestInfo(..),RateReset(..)
+  ,getDueInt,weightAverageBalance,calcZspread,payYield,getTotalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
   ,getCurBalance,setBondOrigDate,isFloaterBond
@@ -18,8 +17,9 @@ module Liability
   ,totalFundedBalance,getIndexFromInfo,buildStepUpDates
   ,accrueInt,stepUpInterestInfo,payIntByIndex,_MultiIntBond
   ,getDueIntAt,getDueIntOverIntAt,getDueIntOverInt,getTotalDueIntAt
-  ,getCurRate
-  ,bondCashflow,getOutstandingAmount
+  ,getCurRate,bondCashflow,getOutstandingAmount,valueBond,getTxnRate
+  ,getAccrueBegDate,getTxnInt,adjInterestInfoByRate,adjInterestInfoBySpread
+  ,interestInfoTraversal,getOriginBalance,curRatesTraversal
   )
   where
 
@@ -27,30 +27,22 @@ import Language.Haskell.TH
 import Data.Aeson       hiding (json)
 import Data.Aeson.TH
 import Data.Fixed
-
 import qualified Data.Time as T
 import Lib (Period(..),Ts(..) ,TsPoint(..) ,daysBetween, weightedBy,paySeqLiabResi)
-
 import Util
 import DateUtil
 import Types
 import Analytics
-
 import Data.Ratio 
 import Data.Maybe
 import Data.List
 import qualified Data.Set as Set
-
-
 import qualified Stmt as S 
-
 import qualified Cashflow as CF
 import qualified InterestRate as IR
 import qualified Lib
-
 import GHC.Generics
 import qualified Data.Map as Map
-
 import Debug.Trace
 import InterestRate (UseRate(getIndexes))
 import Control.Lens hiding (Index)
@@ -77,7 +69,6 @@ isFloaterBond _ = False
 isStepUp :: Bond -> Bool
 isStepUp Bond{bndStepUp = Nothing} = False
 isStepUp _  = True
-
 
 getIndexFromInfo :: InterestInfo -> Maybe [Index]
 getIndexFromInfo (Floater _ idx _ _  _ _ _) = Just [idx]
@@ -112,6 +103,22 @@ data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
                   | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
                   deriving (Show, Eq, Generic, Ord, Read)
+
+adjInterestInfoByRate :: Rate -> InterestInfo -> InterestInfo
+adjInterestInfoByRate r (Floater a idx s dp dc f c) = Floater (a* fromRational r) idx (s* fromRational r) dp dc f c
+adjInterestInfoByRate r (Fix a dc) = Fix (a* fromRational r) dc
+adjInterestInfoByRate r (RefRate a ds f dp) = RefRate (a* fromRational r) ds (f* fromRational r) dp
+adjInterestInfoByRate r (CapRate ii a) = CapRate (adjInterestInfoByRate r ii) a
+adjInterestInfoByRate r (FloorRate ii a) = FloorRate (adjInterestInfoByRate r ii) a
+adjInterestInfoByRate r (WithIoI ii ooi) = WithIoI (adjInterestInfoByRate r ii) ooi
+
+adjInterestInfoBySpread :: Spread -> InterestInfo -> InterestInfo
+adjInterestInfoBySpread s (Floater a idx s' dp dc f c) = Floater s idx (s+s') dp dc f c
+adjInterestInfoBySpread s (Fix a dc) = Fix (a+s) dc
+adjInterestInfoBySpread s (RefRate a ds f dp) = RefRate (a+s) ds f dp
+adjInterestInfoBySpread s (CapRate ii a) = CapRate (adjInterestInfoBySpread s ii) a
+adjInterestInfoBySpread s (FloorRate ii a) = FloorRate (adjInterestInfoBySpread s ii) a
+adjInterestInfoBySpread s (WithIoI ii ooi) = WithIoI (adjInterestInfoBySpread s ii) ooi
 
 
 stepUpInterestInfo :: StepUp -> InterestInfo -> InterestInfo
@@ -210,6 +217,21 @@ data Bond = Bond {
             | BondGroup (Map.Map String Bond)         -- ^ bond group
             deriving (Show, Eq, Generic, Ord, Read)            
 
+interestInfoTraversal :: Traversal' Bond InterestInfo
+interestInfoTraversal f (Bond bn bt oi ii su bal r dp di dioi did lip lpp stmt) 
+  = (\ii' -> Bond bn bt oi ii' su bal r dp di dioi did lip lpp stmt) <$> f ii
+interestInfoTraversal f (MultiIntBond bn bt oi iis sus bal rs dp dis diois did lips lpp stmt)
+  = (\iis' -> MultiIntBond bn bt oi iis' sus bal rs dp dis diois did lips lpp stmt) <$> traverse f iis
+interestInfoTraversal f (BondGroup bMap) 
+  = BondGroup <$> traverse (interestInfoTraversal f) bMap
+
+curRatesTraversal :: Traversal' Bond IRate
+curRatesTraversal f (Bond bn bt oi ii su bal r dp di dioi did lip lpp stmt) 
+  = (\r' -> Bond bn bt oi ii su bal r' dp di dioi did lip lpp stmt) <$> f r
+curRatesTraversal f (MultiIntBond bn bt oi iis sus bal rs dp dis diois did lips lpp stmt)
+  = (\rs' -> MultiIntBond bn bt oi iis sus bal rs' dp dis diois did lips lpp stmt) <$> traverse f rs
+curRatesTraversal f (BondGroup bMap)
+  = BondGroup <$> traverse (curRatesTraversal f) bMap
 
 
 bndTxns :: Lens' Bond (Maybe S.Statement)
@@ -453,15 +475,20 @@ getTxnRate :: Txn -> IRate
 getTxnRate (BondTxn _ _ _ _ r _ _ _ _ _) = r
 getTxnRate _ = 0.0
 
+getTxnInt :: Txn -> Amount
+getTxnInt (BondTxn _ _ _ i _ _ _ _ _ _) = i
+getTxnInt _ = 0.0
+
+
 -- ^ get present value of a bond
 priceBond :: Date -> Ts -> Bond -> PriceResult
 priceBond d rc b@(Bond _ _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0 []
 priceBond d rc b@(MultiIntBond _ _ _ _ _ _ _ _ _ _ _ _ _ Nothing ) = PriceResult 0 0 0 0 0 0 []
 priceBond d rc bnd
-  | sum (S.getTxnAmt <$> futureCfs) == 0 = PriceResult 0 0 0 0 0 0 []
+  | all (==0) (S.getTxnAmt <$> futureCfs) = PriceResult 0 0 0 0 0 0 []
   | otherwise 
       = let
-          presentValue = foldr (\x acc -> acc + pv rc d (S.getDate x) (S.getTxnAmt x)) 0 futureCfs -- `debug` "PRICING -A"
+          presentValue = pv3 rc d (getDate <$> futureCfs) (getTxnAmt <$> futureCfs)
           cutoffBalance = case S.getTxnAsOf txns d of
                               Nothing ->  (S.getTxnBegBalance . head) txns
                               Just _txn -> S.getTxnBegBalance _txn
@@ -481,6 +508,8 @@ priceBond d rc bnd
     obal = getOriginBalance bnd
     od = getOriginDate bnd
 
+valueBond :: BondPricingMethod -> Date -> [(Date,Balance)] -> Balance
+valueBond _ _ [] = 0
 
 weightAverageBalance :: Date -> Date -> Bond -> Balance
 weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
@@ -622,6 +651,9 @@ instance Liable Bond where
 
   getOriginDate b = originDate $ bndOriginInfo b
 
+  getAccrueBegDate b = case bndDueIntDate b of
+                        Just d -> d
+                        Nothing -> getOriginDate b
 
   -- ^ get due int of a bond
   getDueInt b@Bond{bndDueInt=di} = di 

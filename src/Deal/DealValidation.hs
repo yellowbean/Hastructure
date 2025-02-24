@@ -35,10 +35,6 @@ import qualified Assumptions as A
 import Debug.Trace
 debug = flip trace
 
-isPreClosing :: TestDeal a -> Bool
-isPreClosing t@TestDeal{ status = PreClosing _ } = True
-isPreClosing _ = False
-
 validateAction :: [W.Action] -> [ResultComponent] -> Set.Set String -> Set.Set String -> Set.Set String -> Set.Set String-> Set.Set String-> Set.Set String -> Set.Set String -> Set.Set String -> Set.Set String -> Set.Set PoolId -> [ResultComponent]
 validateAction [] rs _ _ _ _ _ _ _ _ _ _ = rs
 validateAction ((W.Transfer _ acc1 acc2 _):as) rs accKeys bndKeys bgNames feeKeys liqProviderKeys rateSwapKeys rcKeys ledgerKeys rPoolKeys poolKeys

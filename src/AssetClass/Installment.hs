@@ -105,7 +105,7 @@ instance Asset Installment where
 
 
   getCurrentBal (Installment _ b _ _ ) = b
-  
+  getOriginInfo (Installment oi _ _ _) = oi
   getOriginBal (Installment (LoanOriginalInfo ob _ _ _ _ _ _) _ _ _) = ob
 
   getOriginRate (Installment (LoanOriginalInfo _ or _ _ _ _ _) _ _ _) 
