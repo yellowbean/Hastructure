@@ -286,6 +286,7 @@ class SPV a where
   getAccountByName :: a -> Maybe [String] -> Map.Map String A.Account
   isResec :: a -> Bool
   getNextBondPayDate :: a -> Date
+  getOustandingBal :: a -> Balance
 
 
 data UnderlyingDeal a = UnderlyingDeal {
@@ -397,6 +398,19 @@ instance SPV (TestDeal a) where
   isResec t = case pool t of
                  ResecDeal _ -> True
                  _ -> False
+
+  getOustandingBal t@TestDeal{ bonds = bndMap, fees= feeMap, liqProvider = mliqMap, rateSwap = rsMap}
+   = let 
+      bndBal = sum $ getOutstandingAmount <$> Map.elems bndMap
+      feeBal = sum $ getOutstandingAmount <$> Map.elems feeMap
+      lqBalace m
+        | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
+        | otherwise = 0
+      rsBalance m
+        | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
+        | otherwise = 0
+     in 
+      bndBal + feeBal + lqBalace (fromMaybe Map.empty mliqMap) + rsBalance (fromMaybe Map.empty rsMap)
 
 isPreClosing :: TestDeal a -> Bool
 isPreClosing t@TestDeal{ status = PreClosing _ } = True

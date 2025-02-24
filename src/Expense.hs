@@ -52,7 +52,7 @@ data Fee = Fee {
   ,feeStart :: Date              -- ^ when fee become effective
   ,feeDue :: Balance             -- ^ outstanding due amount fee
   ,feeDueDate :: Maybe Date      -- ^ the date when due amount was calculated
-  ,feeArrears :: Balance         -- ^ reserved
+  ,feeArrears :: Balance         -- ^ not paid oustanding amout
   ,feeLastPaidDay :: Maybe Date  -- ^ last paid date
   ,feeStmt :: Maybe Statement    -- ^ transaction history
 } deriving (Show,Ord, Eq, Generic)
@@ -103,6 +103,8 @@ instance Liable Fee where
   isPaidOff f@Fee{feeDue=bal,feeArrears=fa}
     | bal==0 && fa==0 = True 
     | otherwise = False
+    
+  getOutstandingAmount Fee{feeDue=bal,feeArrears=fa} = bal + fa
 
 instance IR.UseRate Fee where
   isAdjustbleRate x = False

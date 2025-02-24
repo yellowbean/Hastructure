@@ -728,7 +728,10 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
 
 queryDealBool :: P.Asset a => TestDeal a -> DealStats -> Date -> Either String Bool
-queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d = 
+queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap,fees= feeMap
+                        , liqProvider = liqProviderMap, rateSwap = rateCapMap }
+              ds
+              d = 
   case ds of 
     TriggersStatus dealcycle tName -> 
       case trgs of 
@@ -758,6 +761,21 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap} ds d =
       do 
         vs <- lookupAndApplies (not . isPaidOff) "Is Outstanding" bns bndMap
         return $ and vs 
+
+    IsFeePaidOff fns ->
+      do 
+        vs <- lookupAndApplies isPaidOff "Is Fee Paid Off" fns feeMap
+        return $ and vs
+    
+    IsLiqSupportPaidOff lqNames ->
+      do 
+        lqs <- lookupAndApplies isPaidOff "Is Liq Support Paid Off" lqNames (fromMaybe Map.empty liqProviderMap)
+        return $ and lqs
+
+    IsRateSwapPaidOff rsNames ->
+      do 
+        rps <- lookupAndApplies isPaidOff "Is Swap Paid Off" rsNames (fromMaybe Map.empty rateCapMap)
+        return $ and rps
     
     TestRate ds cmp _r -> do
                             testRate <- queryCompound t d ds

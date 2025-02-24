@@ -665,6 +665,9 @@ data DealStats = CurrentBondBalance
                | IsDealStatus DealStatus
                | IsMostSenior BondName [BondName]
                | IsPaidOff [BondName]
+               | IsFeePaidOff [String]
+               | IsLiqSupportPaidOff [String]
+               | IsRateSwapPaidOff [String]
                | IsOutstanding [BondName]
                | HasPassedMaturity [BondName]
                | TriggersStatus DealCycle String
