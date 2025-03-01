@@ -74,7 +74,7 @@ data ModifyType = AddSpreadToBonds [BondName]
                 | ScaleBondBalByRate
                 deriving (Show,Generic)
 
-
+-- ^ Modify a deal by various type of recipes
 modDeal :: Ast.Asset a => ModifyType -> Double -> DB.TestDeal a -> DB.TestDeal a
 modDeal (AddSpreadToBonds bnds) sprd d 
   = let 

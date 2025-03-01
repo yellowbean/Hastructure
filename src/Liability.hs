@@ -520,8 +520,8 @@ backoutAccruedInt :: Date -> Date -> [Txn] -> Amount
 backoutAccruedInt d txnStartDate txns =
   case splitByDate txns d EqToLeft of 
     (lastTxns, []) -> 0
-    ([], x:xs) -> IR.calcInt (S.getTxnBegBalance x) txnStartDate d (getTxnRate x) DC_ACT_365F 
-    (lastTxns, x:xs) -> IR.calcInt (S.getTxnBegBalance x) (getDate (last lastTxns)) d (getTxnRate x) DC_ACT_365F 
+    ([], x:xs) -> IR.calcInt (S.getTxnBegBalance x) txnStartDate d (getTxnRate x) DC_ACT_365F  -- `debug` ("backout Acc 0 "++ show (S.getTxnBegBalance x)++" "++ show txnStartDate++" "++ show d++" "++ show (getTxnRate x))
+    (lastTxns, x:xs) -> IR.calcInt (S.getTxnBegBalance x) (getDate (last lastTxns)) d (getTxnRate x) DC_ACT_365F -- `debug` ("backout Acc 1"++ show (S.getTxnBegBalance x)++" "++ show (getDate (last lastTxns))++" "++ show d++" "++ show (getTxnRate x))
 
 weightAverageBalance :: Date -> Date -> Bond -> Balance
 weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
