@@ -2,6 +2,20 @@
 
 <!-- towncrier release notes start -->
 
+## 0.42.10
+### 2025-02-15
+* NEW: expose new bond pricing : calculate IRR for `holding` a bond, `hold and sell` a bond, or `buy a bond`.
+* ENHANCE: lift `Pricing` to expose error message.
+* ENHANCE: change compare symbol in response from `GT` to `>` and others as well.
+* ENHANCE: auto patch `bond paid periods` and `pool collection periods` for `preClosing` deal.
+
+
+## 0.42.8
+### 2025-02-13
+* FIX: Enable `byTerm` assumption on `Installment`
+* FIX: cap the default rate vector with 100% geneated by `root.finder`
+* NEW: add `PeriodBased` rate curve or balance curve in `Pre`, i.e. easy to build default rate trigger in structuring stage
+
 ## 0.42.4
 ### 2025-02-06
 * NEW: `FirstLoss` as new endpoint, which will stress on `Default` assumption till 0.01 loss on input tranche.
