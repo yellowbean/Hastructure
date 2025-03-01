@@ -130,7 +130,7 @@ calcPvFromIRR irr [] _ d amt = 0
 calcPvFromIRR irr ds vs d amt = 
   let 
     begDate = head ds
-    vs' = (fromRational . toRational) <$> vs
+    vs' = fromRational . toRational <$> vs
     pv = pv22 irr begDate (ds++[d]) (vs'++[amt])
   in 
     (fromRational . toRational) pv
@@ -159,7 +159,7 @@ calcIRR ds vs
       itertimes = 1000
       def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.000001}
       beginDate = head ds
-      vs' = (fromRational . toRational) <$> vs
+      vs' = fromRational . toRational <$> vs
       sumOfPv irr = pv22 irr beginDate ds vs'
     in 
       case ridders def (-1,1000) sumOfPv of

@@ -874,13 +874,7 @@ priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMet
       -- projected cash
       (ds2,vs2) = (getDate <$> bProjectedTxn, getTxnAmt <$> bProjectedTxn)
       -- accrued interest
-      accruedInt = case (bProjectedTxn, futureFlow) of
-                      (xs,[]) -> 0
-                      (_,x:xs) -> let --TODO what about interest over interest
-                                      accruedInt' = calcInt (getTxnBegBalance x) sellDate (getDate x) (getTxnRate x) DC_ACT_365F
-                                      totalInt' = (fromMaybe 0) <$> [(preview (_BondTxn . _3 ) x), (preview (_BondTxn . _7 ) x), (preview (_BondTxn . _8 ) x)]
-                                    in 
-                                      sum(totalInt') - accruedInt'
+      accruedInt = L.backoutAccruedInt sellDate epocDate (bProjectedTxn++futureFlow)
       (ds3,vs3) = (sellDate, accruedInt)  -- `debug` ("accrued interest"++ show (accruedInt,sellDate))
       -- sell price 
       sellPrice = case sellPricingMethod of 
@@ -891,7 +885,6 @@ priceBondIrr (AP.HoldingBond historyCash holding (Just (sellDate, sellPricingMet
     in 
       do 
         irr <- Analytics.calcIRR (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4]) -- `debug` ("vs:"++ show vs++ "vs2:"++ show vs2++ "vs3:"++ show vs3++ "vs4:"++ show vs4 ++">>> ds "++ show ds++ "ds2"++ show ds2++ "ds3"++ show ds3++ "ds4"++ show ds4)
-        -- return (irr, zip (ds++ds2++[ds3]++[ds4]) (vs++vs2++[vs3]++[vs4])) 
         return (irr, txns'++ bProjectedTxn++ [(BondTxn sellDate 0 vs3 sellPrice 0 (sellPrice+vs3) 0 0 Nothing Types.Empty)]) 
 
 -- Buy and hold to maturity
@@ -1087,10 +1080,6 @@ removePoolCf t@TestDeal{pool=pt} =
 
 
 
-
-
--- populateDealDates (GenericDates m) (Running _)
---   = Right $ (epocDate, epocDate, epocDate, [], [], epocDate, [])
 
 
 -- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied

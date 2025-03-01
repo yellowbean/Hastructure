@@ -20,6 +20,7 @@ module Liability
   ,getCurRate,bondCashflow,getOutstandingAmount,valueBond,getTxnRate
   ,getAccrueBegDate,getTxnInt,adjInterestInfoByRate,adjInterestInfoBySpread
   ,interestInfoTraversal,getOriginBalance,curRatesTraversal
+  ,backoutAccruedInt
   )
   where
 
@@ -45,11 +46,13 @@ import GHC.Generics
 import qualified Data.Map as Map
 import Debug.Trace
 import InterestRate (UseRate(getIndexes))
+import Language.Haskell.TH
 import Control.Lens hiding (Index)
 import Control.Lens.TH
 import Language.Haskell.TH.Lens 
 import Stmt (getTxnAmt)
 import Numeric.RootFinding
+
 
 debug = flip trace
 
@@ -405,7 +408,7 @@ accrueInt d b@Bond{bndInterestInfo = ii,bndDueIntDate = mDueIntDate, bndDueInt= 
   | otherwise = let 
                   period = yearCountFraction (((fromMaybe DC_ACT_365F) . getDayCountFromInfo) ii) beginDate d
                   r2 = getIoI ii r
-                  newDue = mulBR bal $ toRational r * period
+                  newDue = mulBR bal $ toRational r * period -- `debug` ("beg"++ show beginDate++ "d "++ show d ++ "Period"++ show period)
                   newIoiDue = mulBR dueInt (toRational r2 * period)
                 in 
                   b {bndDueInt = newDue+dueInt, bndDueIntOverInt = dueIoI+newIoiDue
@@ -492,12 +495,14 @@ priceBond d rc bnd
           cutoffBalance = case S.getTxnAsOf txns d of
                               Nothing ->  (S.getTxnBegBalance . head) txns
                               Just _txn -> S.getTxnBegBalance _txn
-          accruedInt = getTotalDueInt (accrueInt d bnd)
+          -- Need to use stmt
+          accruedInt = backoutAccruedInt d (fromMaybe (getOriginDate bnd) (bndDueIntDate bnd) ) txns
+
           wal = calcWalBond d bnd
           duration = calcDuration DC_ACT_365F d (zip futureCfDates futureCfFlow) rc
           convexity = calcConvexity DC_ACT_365F d (zip futureCfDates futureCfFlow) rc
         in 
-          PriceResult presentValue (fromRational (100* (safeDivide' presentValue obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt futureCfs-- `debug` ("Obal->"++ show obal++"Rate>>"++ show (bndRate b))
+          PriceResult presentValue (fromRational (100* (safeDivide' presentValue obal))) (realToFrac wal) (realToFrac duration) (realToFrac convexity) accruedInt futureCfs -- `debug` ("Acc int"++ show accruedInt )
   where 
     cr = getCurRate bnd
     bal = getCurBalance bnd
@@ -510,6 +515,13 @@ priceBond d rc bnd
 
 valueBond :: BondPricingMethod -> Date -> [(Date,Balance)] -> Balance
 valueBond _ _ [] = 0
+
+backoutAccruedInt :: Date -> Date -> [Txn] -> Amount
+backoutAccruedInt d txnStartDate txns =
+  case splitByDate txns d EqToLeft of 
+    (lastTxns, []) -> 0
+    ([], x:xs) -> IR.calcInt (S.getTxnBegBalance x) txnStartDate d (getTxnRate x) DC_ACT_365F 
+    (lastTxns, x:xs) -> IR.calcInt (S.getTxnBegBalance x) (getDate (last lastTxns)) d (getTxnRate x) DC_ACT_365F 
 
 weightAverageBalance :: Date -> Date -> Bond -> Balance
 weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 

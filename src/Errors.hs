@@ -10,9 +10,7 @@ module Errors(EngineError(..),ErrorMonad)
  where
 
 import Control.Exception
--- import Control.Monad.Except
 
-instance Exception EngineError
 
 
 data EngineError = DivideZero
@@ -20,4 +18,5 @@ data EngineError = DivideZero
                  | NotValidAction
                  deriving (Show,Eq,Ord,Read)
 
+instance Exception EngineError
 type ErrorMonad = Either EngineError
