@@ -3,7 +3,8 @@
 
 module DateUtil(
     yearCountFraction,genSerialDates,genSerialDatesTill,genSerialDatesTill2,subDates,sliceDates,SliceType(..)
-    ,splitByDate,projDatesByPattern,monthsAfter
+    ,splitByDate,projDatesByPattern,monthsAfter,getIntervalFactorsDc
+    ,daysInterval
 )
 
     where 
@@ -18,6 +19,7 @@ import Debug.Trace
 import Data.Time (addDays)
 import Types
 import Data.Ix
+import Lib
 
 import Control.Exception 
 
@@ -332,3 +334,10 @@ splitByDate xs d st
 
 monthsAfter :: Date -> Integer -> Date
 monthsAfter d n = T.addGregorianDurationClip (T.CalendarDiffDays n 0) d
+
+getIntervalFactorsDc :: DayCount -> [Date] -> [Rate]
+getIntervalFactorsDc dc ds 
+  = zipWith (yearCountFraction dc) (init ds) (tail ds)
+
+daysInterval :: [Date] -> [Integer]
+daysInterval ds = zipWith daysBetween (init ds) (tail ds)

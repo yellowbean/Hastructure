@@ -270,6 +270,7 @@ instance ToSchema RangeType
 instance ToSchema AP.FieldMatchRule
 instance ToSchema AP.ObligorStrategy
 instance ToSchema AP.ApplyAssumptionType
+instance ToSchema AP.LeaseEndType
 instance ToSchema AP.AssetPerfAssumption
 instance ToSchema AP.AssetDelinqPerfAssumption
 instance ToSchema AP.AssetDefaultedPerfAssumption

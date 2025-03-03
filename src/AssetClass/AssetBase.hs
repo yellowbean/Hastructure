@@ -184,8 +184,10 @@ data Installment = Installment OriginalInfo Balance RemainTerms Status
                  | Dummy
                  deriving (Show,Generic,Ord,Eq)
 
-data LeaseStepUp = FlatRate DatePattern Rate
-                 | ByRateCurve DatePattern [Rate]
+data LeaseStepUp = FlatRate Rate
+                 | ByRateCurve [Rate]
+                 | ByFlatAmount Balance
+                 | ByAmountCurve [Balance]
                  deriving (Show,Generic,Ord,Eq)
 
 data Lease = RegularLease OriginalInfo Balance RemainTerms Status

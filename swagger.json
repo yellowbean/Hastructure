@@ -3812,16 +3812,16 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/LeaseAssetGapAssump"
                                     },
                                     {
                                         "$ref": "#/components/schemas/LeaseAssetRentAssump"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/Day"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/ExtraStress"
+                                        "$ref": "#/components/schemas/LeaseEndType"
                                     }
                                 ],
                                 "maxItems": 4,
@@ -11598,6 +11598,25 @@
                         ],
                         "title": "GapDaysByAmount",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Ts"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "GapDaysByCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "GapDaysByCurve",
+                        "type": "object"
                     }
                 ]
             },
@@ -11644,23 +11663,57 @@
                     }
                 ]
             },
+            "LeaseEndType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CutByDate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CutByDate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "maximum": 9223372036854775807,
+                                "minimum": -9223372036854775808,
+                                "type": "integer"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "StopByExtTimes"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "StopByExtTimes",
+                        "type": "object"
+                    }
+                ]
+            },
             "LeaseStepUp": {
                 "oneOf": [
                     {
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DatePattern"
-                                    },
-                                    {
-                                        "format": "double",
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
+                                "format": "double",
+                                "type": "number"
                             },
                             "tag": {
                                 "enum": [
@@ -11679,20 +11732,10 @@
                     {
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DatePattern"
-                                    },
-                                    {
-                                        "items": {
-                                            "format": "double",
-                                            "type": "number"
-                                        },
-                                        "type": "array"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
                                 "type": "array"
                             },
                             "tag": {
@@ -11707,6 +11750,49 @@
                             "contents"
                         ],
                         "title": "ByRateCurve",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByFlatAmount"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByFlatAmount",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "multipleOf": 1.0e-2,
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByAmountCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByAmountCurve",
                         "type": "object"
                     }
                 ]

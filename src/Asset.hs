@@ -79,6 +79,9 @@ class (Show a,IR.UseRate a) => Asset a where
   getPaymentDates :: a -> Int -> [Date]
   -- | get number of remaining payments
   getRemainTerms :: a -> Int
+  -- | get remain payment dates
+  getRemainDates :: a -> [Date]
+  getRemainDates a = lastN (getRemainTerms a) (getPaymentDates a 0)
   -- | project asset cashflow under credit stress and interest assumptions
   getTotalTerms :: a -> Int 
   getTotalTerms a = ACM.originTerm (getOriginInfo a)
