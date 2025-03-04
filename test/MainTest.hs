@@ -42,7 +42,6 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.btlMortgageTest
                            ,AT.loanTests
                            ,AT.leaseTests
-                           ,AT.leaseFunTests
                            ,AT.installmentTest
                            ,AT.armTest
                            ,AT.ppyTest

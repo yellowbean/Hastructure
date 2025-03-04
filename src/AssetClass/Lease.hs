@@ -114,14 +114,14 @@ projectCfDates dp sd ot
 -- ^ calculate the daily rate for a step up lease
 -- TODO: factor rates to model the defaulted factors
 calcPmts :: LeaseStepUp -> [Rate] -> Amount -> Either String [Amount] 
-calcPmts (FlatRate _r) fs amt = Right $ amt:(scanl mulBR amt (replicate (length fs) _r))
-calcPmts (ByFlatAmount _amt) fs amt = Right $ amt:(scanl (+) amt (replicate (length fs) _amt))
+calcPmts (FlatRate _r) fs amt = Right (scanl mulBR amt (replicate (length fs) _r))
+calcPmts (ByFlatAmount _amt) fs amt = Right (scanl (+) amt (replicate (length fs) _amt))
 calcPmts (ByRateCurve rs) fs amt 
-  | length rs /= length fs = Left "The length of the factors and the rate curve should be the same"
-  | otherwise = Right $ amt:(scanl mulBR amt rs)
+  | length rs /= length fs = Left "ByRateCurve: the rate curve should be the same length as remain pay dates"
+  | otherwise = Right $ scanl mulBR amt rs
 calcPmts (ByAmountCurve amts) fs amt 
-  | length amts /= length fs = Left "The length of the factors and the amount curve should be the same"
-  | otherwise = Right $ amt:(scanl (+) amt amts)
+  | length amts /= length fs = Left "ByAmountCurve: the rate curve should be the same length as remain pay dates"
+  | otherwise = Right $ scanl (+) amt amts
 
 
 -- ^ return a lease contract with opening balance and a payment cashflow on each payment date
@@ -138,13 +138,13 @@ patchBalance l@(StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal rt st)
   = let 
       cfDates = sd:getPaymentDates l 0
       intervals = daysInterval cfDates
-      factors = replicate ((length cfDates) - 2) 1.0
+      factors = replicate (pred ot) 1.0
     in 
       do 
         dailyRentals <- calcPmts lsu factors dr
-        let pmts = [ fromRational (mulBInteger r d) | (d,r) <- zip intervals dailyRentals ]
+        let pmts = [ fromRational (mulBInteger r d) | (d,r) <- zip intervals dailyRentals ] 
         let new_bal = sum pmts 
-        return (StepUpLease (LeaseInfo sd ot dp dr ob) lsu new_bal rt st,pmts)
+        return (StepUpLease (LeaseInfo sd ot dp dr ob) lsu new_bal rt st,pmts) -- `debug` ("daily payments" ++ show pmts)
 
 
 instance Asset Lease where 
@@ -152,19 +152,18 @@ instance Asset Lease where
       do 
         (l',pmts) <- patchBalance l
         let bal = getCurrentBal l'
-        let cf_dates = lastN (succ rt) $ projectCfDates dp sd ot
-        let daysBetween = getIntervalDays cf_dates -- `debug` (">>>>>> genSerialDates"++ show cf_dates)
-        let bals = tail $ scanl (-) bal pmts -- `debug` ("PMTS for regular"++show pmts)
-        return $ CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
+        let pDates = lastN rt $ getPaymentDates l 0
+        let bals = tail $ scanl (-) bal pmts
+        return $ CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow pDates bals pmts)
 
     calcCashflow l@(StepUpLease (LeaseInfo sd ot dp dr ob) lsu bal rt st) d _ =
       do 
-        (l' ,pmts) <- patchBalance l -- `debug` ("1")
+        (l' ,pmts) <- patchBalance l
         let bal = getCurrentBal l'
-        let p_dates = projectCfDates dp sd ot -- `debug` ("2")
-        let cf_dates = lastN (succ rt) p_dates -- `debug` ("3")   -- `debug` ("P dates"++ show p_dates)
-        let bals = tail $ scanl (-) bal pmts -- `debug` ("4"++show pmts)     -- `debug` ("PMTS->"++ show pmts) 
-        return $ CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow (tail cf_dates) bals pmts)
+        -- let p_dates = projectCfDates dp sd ot 
+        let pDates = (lastN rt) $ getPaymentDates l 0
+        let bals = (lastN rt) $ tail $ scanl (-) bal pmts
+        return $ CF.CashFlowFrame (0,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow  pDates bals ((lastN rt) pmts))
 
     getPaymentDates l@(RegularLease (LeaseInfo sd ot dp _ _) _ rt _) _
         = genSerialDates dp Inc sd ot 
@@ -206,7 +205,7 @@ instance Asset Lease where
         in
           do
             currentCf <- calcCashflow l asOfDay mRates
-            newCfs <- sequenceA [ calcCashflow l asOfDay mRates | l <- newLeases ]  `debug` ("Current CF\n "++ show currentCf)
+            newCfs <- sequenceA [ calcCashflow l asOfDay mRates | l <- newLeases ] --  `debug` ("Current CF\n "++ show currentCf)
             let allTxns = view CF.cashflowTxn currentCf ++ (concat $ (view CF.cashflowTxn) <$> newCfs)
             let begBal = CF.buildBegBal allTxns
             return $ (CF.CashFlowFrame (begBal,asOfDay,Nothing) allTxns, Map.empty)  
