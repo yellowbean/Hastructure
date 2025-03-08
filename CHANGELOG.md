@@ -2,6 +2,14 @@
 
 <!-- towncrier release notes start -->
 
+## 0.43.0
+### 2025-03-08
+* NEW: new interest type `BalRef` which bond will accrue its interest by a `Formula`, which is being used to model `PO` bond
+* ENHANCE: in `FirstLoss` ,the stress will be applied to `revolving assumption` as well
+* FIX: add `interest accrued` in bond pricing result
+* BREAK: In waterfall ,the action `CalcBondInt` now only accepts a list of bond names
+
+
 ## 0.42.10
 ### 2025-02-15
 * NEW: expose new bond pricing : calculate IRR for `holding` a bond, `hold and sell` a bond, or `buy a bond`.
