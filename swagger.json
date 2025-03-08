@@ -390,22 +390,9 @@
                     {
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "type": "string"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    }
-                                ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "items": {
+                                    "type": "string"
+                                },
                                 "type": "array"
                             },
                             "tag": {
@@ -420,6 +407,38 @@
                             "contents"
                         ],
                         "title": "CalcBondInt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "CalcBondIntBy"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "CalcBondIntBy",
                         "type": "object"
                     },
                     {
@@ -4815,6 +4834,21 @@
                             "contents"
                         ],
                         "title": "Lockout",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "IO"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "IO",
                         "type": "object"
                     },
                     {
@@ -11085,6 +11119,35 @@
                             "contents"
                         ],
                         "title": "Fix",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RefBal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RefBal",
                         "type": "object"
                     },
                     {

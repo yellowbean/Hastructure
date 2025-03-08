@@ -19,15 +19,6 @@ import qualified Expense as F
 import qualified Liability as L
 import Control.Applicative (liftA3)
 import Types
-    ( ResultComponent(FinancialReport),
-      CashflowReport(..),
-      BalanceSheetReport(..),
-      BookItem(..),
-      RangeType(EI),
-      DealStats(..),
-      CutoffFields(IssuanceBalance),
-      Date,sliceBy,
-      Balance, PoolId (..) ,PoolSource(..))
 import Deal.DealBase
     ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap), getIssuanceStatsConsol, getAllCollectedFrame ,poolTypePool, dealPool)
 import Deal.DealQuery ( queryCompound )
@@ -124,7 +115,7 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
           feeWithDueAmount <- (F.feeDue <$>) <$>  mapM ((calcDueFee t d)) feeMap
           let feeToPay = ParentItem "Fee" [ ParentItem feeName [Item "Due" feeDueBal] 
                                            | (feeName,feeDueBal) <- Map.toList feeWithDueAmount ]
-          bndWithDueAmount <- mapM (calcDueInt t d Nothing Nothing) bndMap
+          bndWithDueAmount <- mapM (calcDueInt t d) bndMap
           let bndToShow = Map.map (\bnd -> (L.getCurBalance bnd, L.getTotalDueInt bnd)) bndWithDueAmount 
           let bndM = [ ParentItem bndName [Item "Balance" bndBal,Item "Due Int" bndDueAmt ] 
                                         | (bndName,(bndBal,bndDueAmt)) <- Map.toList bndToShow]

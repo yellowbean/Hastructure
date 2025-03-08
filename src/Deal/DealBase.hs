@@ -411,7 +411,7 @@ instance SPV (TestDeal a) where
         | otherwise = 0
      in 
       bndBal + feeBal + lqBalace (fromMaybe Map.empty mliqMap) + rsBalance (fromMaybe Map.empty rsMap)
-
+  
 isPreClosing :: TestDeal a -> Bool
 isPreClosing t@TestDeal{ status = PreClosing _ } = True
 isPreClosing _ = False

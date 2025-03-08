@@ -18,21 +18,6 @@ import GHC.Generics
 import DateUtil
 
 import Types
-    ( RoundingBy,
-      CutoffType(Inc),
-      RangeType(NO_IE),
-      Ts,
-      DatePattern,
-      Period,
-      Index,
-      Floor,
-      DayCount,
-      Spread,
-      IRate,
-      Dates,
-      Date,
-      Balance )
--- import Deal.DealType
 import Util
 import Lib
 

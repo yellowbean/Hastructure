@@ -78,7 +78,8 @@ data Action =
             | CalcAndPayFee (Maybe Limit) AccountName [FeeName] (Maybe ExtraSupport)       -- ^ combination of CalcFee and PayFee
             | PayFeeResidual (Maybe Limit) AccountName FeeName                             -- ^ pay fee regardless fee due amount
             -- Bond - Interest
-            | CalcBondInt [BondName] (Maybe DealStats) (Maybe DealStats)                   -- ^ calculate interest due amount in the bond names,with optional balance and rate
+            | CalcBondInt [BondName]
+            | CalcBondIntBy BondName DealStats DealStats                   -- ^ calculate interest due amount in the bond names,with optional balance and rate
             | PayIntOverInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)      -- ^ pay interest over interest only  
             | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay interest with cash from the account with optional limit or extra support
             | PayIntAndBook (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) BookLedger -- ^ pay interest with cash from the account with optional limit or extra support

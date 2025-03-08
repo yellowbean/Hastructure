@@ -769,7 +769,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
              newRate = L.getBeginRate iInfo
           in 
              do 
-               nBnd <- calcDueInt t d Nothing Nothing $ bndMap Map.! bName
+               nBnd <- calcDueInt t d $ bndMap Map.! bName
                let dueIntToPay = L.getTotalDueInt nBnd
                let ((shortfall,drawAmt),newAcc) = A.tryDraw dueIntToPay d (PayInt [bName]) (accMap Map.! accName)
                let newBnd = set L.bndIntLens iInfo $ L.payInt d drawAmt nBnd

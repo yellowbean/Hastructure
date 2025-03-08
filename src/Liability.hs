@@ -12,7 +12,7 @@ module Liability
   ,getDueInt,weightAverageBalance,calcZspread,payYield,getTotalDueInt
   ,buildRateResetDates,isAdjustble,StepUp(..),isStepUp,getDayCountFromInfo
   ,calcWalBond,patchBondFactor,fundWith,writeOff,InterestOverInterestType(..)
-  ,getCurBalance,setBondOrigDate,isFloaterBond
+  ,getCurBalance,setBondOrigDate
   ,bndOriginInfoLens,bndIntLens,getBeginRate,_Bond,_BondGroup
   ,totalFundedBalance,getIndexFromInfo,buildStepUpDates
   ,accrueInt,stepUpInterestInfo,payIntByIndex,_MultiIntBond
@@ -24,7 +24,6 @@ module Liability
   )
   where
 
-import Language.Haskell.TH
 import Data.Aeson       hiding (json)
 import Data.Aeson.TH
 import Data.Fixed
@@ -64,10 +63,8 @@ isAdjustble Fix {} = False
 isAdjustble (CapRate r _ ) = isAdjustble r
 isAdjustble (FloorRate r _ ) = isAdjustble r
 isAdjustble (WithIoI r _) = isAdjustble r
+isAdjustble (RefBal _ r) = isAdjustble r
 
-isFloaterBond :: InterestInfo -> Bool
-isFloaterBond Floater {} = True
-isFloaterBond _ = False
 
 isStepUp :: Bond -> Bool
 isStepUp Bond{bndStepUp = Nothing} = False
@@ -80,11 +77,13 @@ getIndexFromInfo RefRate {} = Nothing
 getIndexFromInfo (CapRate info _) = getIndexFromInfo info
 getIndexFromInfo (FloorRate info _) = getIndexFromInfo info
 getIndexFromInfo (WithIoI info _) = getIndexFromInfo info
+getIndexFromInfo (RefBal _ info) = getIndexFromInfo info
 
 getDayCountFromInfo :: InterestInfo -> Maybe DayCount
 getDayCountFromInfo (Floater _ _ _ _ dc _ _) = Just dc
 getDayCountFromInfo (Fix _ dc) = Just dc
 getDayCountFromInfo RefRate {} = Nothing 
+getDayCountFromInfo (RefBal ds info) = getDayCountFromInfo info
 getDayCountFromInfo (CapRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (FloorRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (WithIoI info _) = getDayCountFromInfo info
@@ -101,24 +100,29 @@ data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by 
 --------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
 data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount                                    -- ^ fixed rate
+                  | RefBal DealStats InterestInfo
                   | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
                   | WithIoI InterestInfo InterestOverInterestType         -- ^ Interest Over Interest(normal on left,IoI on right)
                   deriving (Show, Eq, Generic, Ord, Read)
 
+-- ^ scale a spread to interest rate info
 adjInterestInfoByRate :: Rate -> InterestInfo -> InterestInfo
 adjInterestInfoByRate r (Floater a idx s dp dc f c) = Floater (a* fromRational r) idx (s* fromRational r) dp dc f c
 adjInterestInfoByRate r (Fix a dc) = Fix (a* fromRational r) dc
 adjInterestInfoByRate r (RefRate a ds f dp) = RefRate (a* fromRational r) ds (f* fromRational r) dp
+adjInterestInfoByRate r (RefBal ds ii) = RefBal ds (adjInterestInfoByRate r ii)
 adjInterestInfoByRate r (CapRate ii a) = CapRate (adjInterestInfoByRate r ii) a
 adjInterestInfoByRate r (FloorRate ii a) = FloorRate (adjInterestInfoByRate r ii) a
 adjInterestInfoByRate r (WithIoI ii ooi) = WithIoI (adjInterestInfoByRate r ii) ooi
 
+-- ^ add a spread to interest rate info
 adjInterestInfoBySpread :: Spread -> InterestInfo -> InterestInfo
 adjInterestInfoBySpread s (Floater a idx s' dp dc f c) = Floater s idx (s+s') dp dc f c
 adjInterestInfoBySpread s (Fix a dc) = Fix (a+s) dc
 adjInterestInfoBySpread s (RefRate a ds f dp) = RefRate (a+s) ds f dp
+adjInterestInfoBySpread s (RefBal ds ii) = RefBal ds (adjInterestInfoBySpread s ii)
 adjInterestInfoBySpread s (CapRate ii a) = CapRate (adjInterestInfoBySpread s ii) a
 adjInterestInfoBySpread s (FloorRate ii a) = FloorRate (adjInterestInfoBySpread s ii) a
 adjInterestInfoBySpread s (WithIoI ii ooi) = WithIoI (adjInterestInfoBySpread s ii) ooi
@@ -132,15 +136,18 @@ stepUpInterestInfo sp ii =
     (CapRate ii' r) -> CapRate (stepUpInterestInfo sp ii') r
     (FloorRate ii' r) -> FloorRate (stepUpInterestInfo sp ii') r
     (WithIoI ii' ooi) -> WithIoI (stepUpInterestInfo sp ii') ooi
+    (RefBal ds ii') -> RefBal ds (stepUpInterestInfo sp ii')
     _ -> ii
   where
     getSpread (PassDateSpread _ s) = s
     getSpread (PassDateLadderSpread _ s _) = s
 
 
+-- ^ get reset dates from interest info
 getDpFromIntInfo :: InterestInfo -> Maybe DatePattern
 getDpFromIntInfo (Floater _ _ _ dp _ _ _) = Just dp
 getDpFromIntInfo (RefRate _ _ _ dp) = Just dp
+getDpFromIntInfo (RefBal _ ii) = getDpFromIntInfo ii
 getDpFromIntInfo (CapRate ii _) = getDpFromIntInfo ii
 getDpFromIntInfo (FloorRate ii _) = getDpFromIntInfo ii
 getDpFromIntInfo (WithIoI ii _) = getDpFromIntInfo ii
@@ -154,6 +161,7 @@ getBeginRate (RefRate a _ _ _ ) = a
 getBeginRate (CapRate a  _ ) = getBeginRate a
 getBeginRate (FloorRate a  _ ) = getBeginRate a
 getBeginRate (WithIoI a _) = getBeginRate a
+getBeginRate (RefBal _ a) = getBeginRate a
 
 
 data StepUp = PassDateSpread Date Spread                   -- ^ add a spread on a date and effective afterwards
@@ -176,6 +184,7 @@ data BondType = Sequential                                 -- ^ Pass through typ
               | AmtByPeriod (PerCurve Balance)             -- ^ principal due by period
               | PacAnchor PlannedAmorSchedule [BondName]   -- ^ pay till schdule balance if bonds from bond names has oustanding balance, if other bonds are paid off ,then pay oustanding balance
               | Lockout Date                               -- ^ No principal due till date
+              | IO
               | Z                                          -- ^ Z tranche
               | Equity                                     -- ^ Equity type tranche
               deriving (Show, Eq, Generic, Ord, Read)
@@ -272,7 +281,7 @@ setBondOrigDate d (BondGroup bMap) = BondGroup $ (setBondOrigDate d) <$> bMap
 patchBondFactor :: Bond -> Bond
 patchBondFactor (BondGroup bMap) = BondGroup $ patchBondFactor <$> bMap
 patchBondFactor bnd
-  | (S.hasEmptyTxn bnd) = bnd
+  | S.hasEmptyTxn bnd = bnd
   | (originBalance (bndOriginInfo bnd)) == 0 = bnd
   | otherwise = let 
                   oBal = originBalance (bndOriginInfo bnd)
@@ -387,7 +396,7 @@ fundWith d amt _bnd = bnd {bndBalance = newBal, bndStmt=newStmt }
     dueInt = getDueInt bnd
     bn = bndName bnd
     stmt = bndStmt bnd
-    newBal = (bndBalance bnd) + amt
+    newBal = bndBalance bnd + amt
     newStmt = S.appendStmt (BondTxn d newBal 0 (negate amt) 0 0 dueInt dueIoI Nothing (S.FundWith bn amt )) stmt 
 
 
@@ -406,9 +415,11 @@ accrueInt d b@Bond{bndInterestInfo = ii,bndDueIntDate = mDueIntDate, bndDueInt= 
                   , bndDueIntOverInt = dueIoI, bndRate = r, bndBalance = bal} 
   | d == beginDate = b
   | otherwise = let 
-                  period = yearCountFraction (((fromMaybe DC_ACT_365F) . getDayCountFromInfo) ii) beginDate d
+                  dc = (fromMaybe DC_ACT_365F) (getDayCountFromInfo ii)
                   r2 = getIoI ii r
-                  newDue = mulBR bal $ toRational r * period -- `debug` ("beg"++ show beginDate++ "d "++ show d ++ "Period"++ show period)
+                  period = yearCountFraction dc beginDate d
+                  -- newDue = mulBR bal $ toRational r * period 
+                  newDue = IR.calcInt bal beginDate d r dc
                   newIoiDue = mulBR dueInt (toRational r2 * period)
                 in 
                   b {bndDueInt = newDue+dueInt, bndDueIntOverInt = dueIoI+newIoiDue
@@ -697,6 +708,7 @@ instance IR.UseRate Bond where
                                   where combined = concat . catMaybes  $ (\b -> getIndexFromInfo (bndInterestInfo b)) <$> Map.elems bMap
   getIndexes MultiIntBond{bndInterestInfos = iis} 
     = Just $ concat $ concat <$> getIndexFromInfo <$> iis
+
 -- txnsLens :: Lens' Bond [Txn]
 -- txnsLens = bndStmtLens . _Just . S.statementTxns
 instance S.HasStmt Bond where 
