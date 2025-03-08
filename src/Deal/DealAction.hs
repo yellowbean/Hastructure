@@ -254,9 +254,9 @@ calcDueInt t d b@(L.Bond _ bt oi io _ bal r dp _ di Nothing _ lastPrinPay _ )
 -- Interest Only Bond with Reference Balance
 calcDueInt t d b@(L.Bond _ L.IO oi (L.RefBal refBal ii) _ bal r dp dInt dioi (Just lastIntDueDay) _ _ _ ) 
   = do 
-      balUsed <- queryCompound t d refBal `debug`  ("Hit acc int"++show d ++" bond name"++ L.bndName b)
+      balUsed <- queryCompound t d refBal -- `debug`  ("Hit acc int"++show d ++" bond name"++ L.bndName b)
       let newDueInt = IR.calcInt (fromRational balUsed) lastIntDueDay d r 
-                        (fromMaybe DC_ACT_365F (L.getDayCountFromInfo ii)) `debug` ("Balused" ++ show (fromRational balUsed) ++ "lastIntDueDay"++show lastIntDueDay ++ "d"++show d ++ "r"++show r)
+                        (fromMaybe DC_ACT_365F (L.getDayCountFromInfo ii)) -- `debug` ("Balused" ++ show (fromRational balUsed) ++ "lastIntDueDay"++show lastIntDueDay ++ "d"++show d ++ "r"++show r)
       return b { L.bndDueInt = newDueInt + dInt, L.bndDueIntDate = Just d }
 
 -- Z bond
@@ -289,7 +289,7 @@ calcDueInt t d b@(L.MultiIntBond {})
   = Right $ L.accrueInt d b
 
 calcDueInt t d b@(L.Bond {})
-  = Right $ L.accrueInt d b `debug` ("Hit to defualt accru"++ show (L.bndName b)) 
+  = Right $ L.accrueInt d b -- `debug` ("Hit to defualt accru"++ show (L.bndName b)) 
 
 calcDueInt t d b = error $ "Not implemented for calcDueInt for bond type" ++ show b
 
