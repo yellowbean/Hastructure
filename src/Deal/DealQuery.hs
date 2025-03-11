@@ -6,7 +6,7 @@
 
 module Deal.DealQuery (queryDealBool ,patchDateToStats,patchDatesToStats,testPre
                       ,calcTargetAmount, testPre2
-                      ,queryCompound) 
+                      ,queryCompound, calcBondTargetBalance) 
   where
 
 import Deal.DealBase
@@ -67,6 +67,42 @@ calcTargetAmount t d (A.Account _ _ _ (Just r) _ ) =
                                  eval ra2 
        A.Max ras -> maximum' <$> sequenceA (eval <$> ras)
        A.Min ras -> minimum' <$> sequenceA (eval <$> ras)
+
+-- | calculate target bond balance for a bond 
+calcBondTargetBalance :: P.Asset a => TestDeal a -> Date -> L.Bond -> Either String Balance
+calcBondTargetBalance t d (L.BondGroup bMap mPt) = 
+  case mPt of 
+    Nothing -> do 
+                vs <- sequenceA $ calcBondTargetBalance t d <$> Map.elems bMap
+                return $ sum vs
+
+    Just (L.PAC _target) -> Right $ getValOnByDate _target d
+    Just (L.PacAnchor _target _bnds)
+      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ sum $ L.getCurBalance <$> Map.elems bMap
+      | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d
+      | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
+    Just (L.AmtByPeriod pc) -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
+                                 Just v -> Right v
+                                 Nothing -> Left "Failed to find value in calcTargetBalance"
+    _ -> Left $ "not support principal type for bond group"++ show mPt
+calcBondTargetBalance t d b = 
+  case L.bndType b of
+    L.Sequential -> Right 0
+    L.Lockout ld | d >= ld -> Right 0
+                 | otherwise -> Right $ L.bndBalance b
+    L.Z -> Right 0
+    L.IO -> Right 0
+    L.Equity -> Right 0
+    L.PAC _target -> Right $ getValOnByDate _target d
+    L.PacAnchor _target _bnds
+      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ L.getCurBalance b
+      | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d
+      | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
+    L.AmtByPeriod pc -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
+                          Just v -> Right v
+                          Nothing -> Left "Failed to find value in calcTargetBalance"
+    _ -> Left $ "Bond "++ L.bndName b ++" is not a bond with target balance setting"
+
 
 patchDateToStats :: Date -> DealStats -> DealStats
 patchDateToStats d t
@@ -201,7 +237,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       case Map.lookup bn (bonds t) of 
         Just b@(L.Bond {}) -> Right . toRational $ L.getCurRate b 
         Just b@(L.MultiIntBond {}) -> Right . toRational $ L.getCurRate b 
-        Just b@(L.BondGroup bSubMap) -> Right . toRational $ L.getCurRate b  
+        Just b@(L.BondGroup bSubMap _) -> Right . toRational $ L.getCurRate b  
         Nothing -> 
           case viewDealBondsByNames t [bn] of 
             [b] -> Right $ toRational $ L.bndRate b
@@ -573,13 +609,18 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
               Nothing -> Right . toRational $ sum [ LD.ledgBalance lg | lg <- lgs ]
 
     BondBalanceGapAt d bName -> 
-      toRational <$>
-        lookupAndApply 
-          (\b@L.Bond{L.bndBalance = bal ,L.bndType = L.PAC _target} 
-            -> max 0 ( bal - getValOnByDate _target d))
-          ("Failed to find bond "++ bName)
-          bName
-          bndMap
+      do 
+        tbal <- queryCompound t d (BondBalanceTarget [bName])
+        cbal <- queryCompound t d (CurrentBondBalanceOf [bName])
+        return $ max 0 $ cbal - tbal
+
+    BondBalanceTarget bNames ->
+      let 
+        bnds = viewDealBondsByNames t bNames
+      in
+        do
+          targets <- sequenceA $ calcBondTargetBalance t d <$> bnds
+          return $ toRational $ sum targets
 
     FeesPaidAt d fns ->
       let

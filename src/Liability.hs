@@ -226,7 +226,7 @@ data Bond = Bond {
               ,bndLastPrinPay :: Maybe Date           -- ^ last principal pay date
               ,bndStmt :: Maybe S.Statement           -- ^ transaction history
             }
-            | BondGroup (Map.Map String Bond)         -- ^ bond group
+            | BondGroup (Map.Map String Bond) (Maybe BondType)      -- ^ bond group
             deriving (Show, Eq, Generic, Ord, Read)            
 
 interestInfoTraversal :: Traversal' Bond InterestInfo
@@ -234,16 +234,16 @@ interestInfoTraversal f (Bond bn bt oi ii su bal r dp di dioi did lip lpp stmt)
   = (\ii' -> Bond bn bt oi ii' su bal r dp di dioi did lip lpp stmt) <$> f ii
 interestInfoTraversal f (MultiIntBond bn bt oi iis sus bal rs dp dis diois did lips lpp stmt)
   = (\iis' -> MultiIntBond bn bt oi iis' sus bal rs dp dis diois did lips lpp stmt) <$> traverse f iis
-interestInfoTraversal f (BondGroup bMap) 
-  = BondGroup <$> traverse (interestInfoTraversal f) bMap
+interestInfoTraversal f (BondGroup bMap x) 
+  = BondGroup <$> traverse (interestInfoTraversal f) bMap <*> pure x
 
 curRatesTraversal :: Traversal' Bond IRate
 curRatesTraversal f (Bond bn bt oi ii su bal r dp di dioi did lip lpp stmt) 
   = (\r' -> Bond bn bt oi ii su bal r' dp di dioi did lip lpp stmt) <$> f r
 curRatesTraversal f (MultiIntBond bn bt oi iis sus bal rs dp dis diois did lips lpp stmt)
   = (\rs' -> MultiIntBond bn bt oi iis sus bal rs' dp dis diois did lips lpp stmt) <$> traverse f rs
-curRatesTraversal f (BondGroup bMap)
-  = BondGroup <$> traverse (curRatesTraversal f) bMap
+curRatesTraversal f (BondGroup bMap x)
+  = BondGroup <$> traverse (curRatesTraversal f) bMap <*> pure x
 
 
 bndTxns :: Lens' Bond (Maybe S.Statement)
@@ -262,7 +262,7 @@ bondCashflow b =
 
 -- ^ remove empty transaction frgetBondByName :: Ast.Assetom a bond
 consolStmt :: Bond -> Bond
-consolStmt (BondGroup bMap) = BondGroup $ consolStmt <$> bMap
+consolStmt (BondGroup bMap x) = BondGroup (consolStmt <$> bMap) x
 consolStmt b
   | S.hasEmptyTxn b = b
   | otherwise = let 
@@ -275,11 +275,11 @@ consolStmt b
 setBondOrigDate :: Date -> Bond -> Bond
 setBondOrigDate d b@Bond{bndOriginInfo = oi} = b {bndOriginInfo = oi{originDate = d}}
 setBondOrigDate d b@MultiIntBond{bndOriginInfo = oi} = b {bndOriginInfo = oi{originDate = d}}
-setBondOrigDate d (BondGroup bMap) = BondGroup $ (setBondOrigDate d) <$> bMap
+setBondOrigDate d (BondGroup bMap x) = BondGroup ((setBondOrigDate d) <$> bMap) $ x
 
 -- ^ build bond factors
 patchBondFactor :: Bond -> Bond
-patchBondFactor (BondGroup bMap) = BondGroup $ patchBondFactor <$> bMap
+patchBondFactor (BondGroup bMap x) = BondGroup (patchBondFactor <$> bMap) $ x
 patchBondFactor bnd
   | S.hasEmptyTxn bnd = bnd
   | (originBalance (bndOriginInfo bnd)) == 0 = bnd
@@ -456,13 +456,13 @@ accrueInt d b@MultiIntBond{bndInterestInfos = iis, bndDueIntDate = mDueIntDate
                     Just ds -> ds
                     Nothing -> getOriginDate b
 
-accrueInt d (BondGroup bMap) = BondGroup $ accrueInt d <$> bMap
+accrueInt d (BondGroup bMap x) = BondGroup (accrueInt d <$> bMap) $ x
 
 
 calcWalBond :: Date -> Bond -> Rational
 calcWalBond d b@Bond{bndStmt = Nothing} = 0.0
 calcWalBond d b@MultiIntBond{bndStmt = Nothing} = 0.0
-calcWalBond d (BondGroup bMap) 
+calcWalBond d (BondGroup bMap _) 
   = let
       bndWal = calcWalBond d <$> Map.elems bMap 
       bndBals = toRational . getCurBalance <$> Map.elems bMap
@@ -553,7 +553,7 @@ weightAverageBalance sd ed b@(MultiIntBond _ _ (OriginalInfo ob bd _ _ )  _ _ cu
         (view S.statementTxns stmt)
 
 
-weightAverageBalance sd ed bg@(BondGroup bMap)
+weightAverageBalance sd ed bg@(BondGroup bMap _)
   = sum $ weightAverageBalance sd ed <$> Map.elems bMap -- `debug` (">>>"++ show (weightAverageBalance sd ed <$> Map.elems bMap))
 
 
@@ -588,7 +588,7 @@ calcZspread (tradePrice,priceDay) b riskFreeCurve =
 
 -- ^ get total funded balance (from transaction) of a bond
 totalFundedBalance :: Bond -> Balance
-totalFundedBalance (BondGroup bMap) = sum $ totalFundedBalance <$> Map.elems bMap
+totalFundedBalance (BondGroup bMap _) = sum $ totalFundedBalance <$> Map.elems bMap
 totalFundedBalance b
   = let 
       txns = S.getAllTxns b
@@ -599,7 +599,7 @@ totalFundedBalance b
       sum $ (\(BondTxn d b i p r0 c di dioi f t) -> abs p) <$> fundingTxns
 
 buildRateResetDates :: Bond -> StartDate -> EndDate -> [Date]
-buildRateResetDates (BondGroup bMap) sd ed  =  concat $ (\x -> buildRateResetDates x sd ed) <$> Map.elems bMap
+buildRateResetDates (BondGroup bMap _) sd ed  =  concat $ (\x -> buildRateResetDates x sd ed) <$> Map.elems bMap
 buildRateResetDates b@Bond{bndInterestInfo = ii,bndStepUp = mSt } sd ed 
   = let
       resetDp = getDpFromIntInfo ii 
@@ -619,7 +619,7 @@ buildRateResetDates b@MultiIntBond{bndInterestInfos = iis} sd ed
 
 
 buildStepUpDates :: Bond -> StartDate -> EndDate -> [Date]
-buildStepUpDates (BondGroup bMap) sd ed  =  concat $ (\x -> buildStepUpDates x sd ed) <$> Map.elems bMap
+buildStepUpDates (BondGroup bMap _) sd ed  =  concat $ (\x -> buildStepUpDates x sd ed) <$> Map.elems bMap
 buildStepUpDates b@Bond{bndStepUp = mSt } sd ed 
   = case mSt of
       Nothing -> []
@@ -655,21 +655,21 @@ instance Liable Bond where
   isPaidOff MultiIntBond{bndBalance=bal, bndDueInts=dis, bndDueIntOverInts=diois}
     | bal==0 && sum dis==0 && sum diois==0 = True 
     | otherwise = False  -- `debug` (bn ++ ":bal"++show bal++"dp"++show dp++"di"++show di)
-  isPaidOff (BondGroup bMap) = all (==True) $ isPaidOff <$> Map.elems bMap
+  isPaidOff (BondGroup bMap _) = all (==True) $ isPaidOff <$> Map.elems bMap
 
   getCurBalance b@Bond {bndBalance = bal } = bal
   getCurBalance b@MultiIntBond {bndBalance = bal } = bal
-  getCurBalance (BondGroup bMap) = sum $ getCurBalance <$> Map.elems bMap
+  getCurBalance (BondGroup bMap _) = sum $ getCurBalance <$> Map.elems bMap
 
   getCurRate Bond{bndRate = r} = r
   getCurRate MultiIntBond{bndRates = rs} = sum rs
-  getCurRate (BondGroup bMap) = 
+  getCurRate (BondGroup bMap _) = 
     fromRational $
       weightedBy
         (toRational . getCurBalance <$> Map.elems bMap)
         (toRational . getCurRate <$> Map.elems bMap)
   
-  getOriginBalance (BondGroup bMap) = sum $ getOriginBalance <$> Map.elems bMap
+  getOriginBalance (BondGroup bMap _) = sum $ getOriginBalance <$> Map.elems bMap
   getOriginBalance b = originBalance $ bndOriginInfo b
 
   getOriginDate b = originDate $ bndOriginInfo b
@@ -681,7 +681,7 @@ instance Liable Bond where
   -- ^ get due int of a bond
   getDueInt b@Bond{bndDueInt=di} = di 
   getDueInt MultiIntBond{bndDueInts=dis} = sum dis
-  getDueInt (BondGroup bMap) = sum $ getDueInt <$> Map.elems bMap
+  getDueInt (BondGroup bMap _) = sum $ getDueInt <$> Map.elems bMap
 
   getDueIntAt MultiIntBond{bndDueInts=dis} idx = dis !! idx
   getDueIntOverIntAt MultiIntBond{bndDueIntOverInts=diois} idx = diois !! idx 
@@ -690,12 +690,12 @@ instance Liable Bond where
   -- ^ get due IoI of a bond
   getDueIntOverInt b@Bond{bndDueIntOverInt=dioi} = dioi
   getDueIntOverInt MultiIntBond{bndDueIntOverInts=diois} = sum diois
-  getDueIntOverInt (BondGroup bMap) = sum $ getDueIntOverInt <$> Map.elems bMap
+  getDueIntOverInt (BondGroup bMap _) = sum $ getDueIntOverInt <$> Map.elems bMap
 
   -- ^ get total due interest of a bond (both due int and due IoI)
   getTotalDueInt b@Bond{bndDueInt=di,bndDueIntOverInt=dioi} = di + dioi
   getTotalDueInt MultiIntBond{bndDueInts=dis,bndDueIntOverInts=diois} = sum dis + sum diois
-  getTotalDueInt (BondGroup bMap) = sum $ getTotalDueInt <$> Map.elems bMap
+  getTotalDueInt (BondGroup bMap _ ) = sum $ getTotalDueInt <$> Map.elems bMap
 
   getOutstandingAmount b = getTotalDueInt b + getCurBalance b
 
@@ -704,7 +704,7 @@ instance IR.UseRate Bond where
   isAdjustbleRate Bond{bndInterestInfo = iinfo} = isAdjustble iinfo
   -- getIndex Bond{bndInterestInfo = iinfo }
   getIndexes Bond{bndInterestInfo = iinfo}  = getIndexFromInfo iinfo
-  getIndexes (BondGroup bMap)  = if Data.List.null combined then Nothing else Just combined
+  getIndexes (BondGroup bMap _)  = if Data.List.null combined then Nothing else Just combined
                                   where combined = concat . catMaybes  $ (\b -> getIndexFromInfo (bndInterestInfo b)) <$> Map.elems bMap
   getIndexes MultiIntBond{bndInterestInfos = iis} 
     = Just $ concat $ concat <$> getIndexFromInfo <$> iis
@@ -717,13 +717,13 @@ instance S.HasStmt Bond where
   getAllTxns Bond{bndStmt = Just (S.Statement txns)} = txns
   getAllTxns MultiIntBond{bndStmt = Nothing} = []
   getAllTxns MultiIntBond{bndStmt = Just (S.Statement txns)} = txns
-  getAllTxns (BondGroup bMap) = concat $ S.getAllTxns <$> Map.elems bMap
+  getAllTxns (BondGroup bMap _) = concat $ S.getAllTxns <$> Map.elems bMap
 
   hasEmptyTxn Bond{bndStmt = Nothing} = True
   hasEmptyTxn Bond{bndStmt = Just (S.Statement [])} = True
   hasEmptyTxn MultiIntBond{bndStmt = Nothing} = True
   hasEmptyTxn MultiIntBond{bndStmt = Just (S.Statement [])} = True
-  hasEmptyTxn (BondGroup bMap) = all S.hasEmptyTxn $ Map.elems bMap
+  hasEmptyTxn (BondGroup bMap _) = all S.hasEmptyTxn $ Map.elems bMap
   hasEmptyTxn _ = False
 
 

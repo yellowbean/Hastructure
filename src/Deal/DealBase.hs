@@ -423,7 +423,7 @@ viewDealAllBonds d =
     let 
        bs = Map.elems (bonds d)
        view a@(L.Bond {} ) = [a]
-       view a@(L.BondGroup bMap) = Map.elems bMap
+       view a@(L.BondGroup bMap _) = Map.elems bMap
        view a@(L.MultiIntBond {}) = [a]
     in 
        concat $ view <$> bs
@@ -446,7 +446,7 @@ viewDealBondsByNames t@TestDeal{bonds= bndMap } bndNames
       bnds = filter (\b -> L.bndName b `elem` bndNames) $ viewDealAllBonds t
       -- bndsFromGrp = $ Map.filter (\L.BondGroup {} -> True)  bndMap
       bndsFromGrp = Map.foldrWithKey
-                      (\k (L.BondGroup bMap) acc -> 
+                      (\k (L.BondGroup bMap _) acc -> 
                         if k `elem` bndNames 
                         then 
                           acc ++ Map.elems bMap
@@ -474,9 +474,9 @@ dealBondGroups = lens getter setter
 bondGroupsBonds :: Lens' L.Bond (Map.Map BondName L.Bond)
 bondGroupsBonds = lens getter setter 
   where 
-    getter (L.BondGroup bMap) = bMap
+    getter (L.BondGroup bMap _) = bMap
     getter _ = Map.empty
-    setter (L.BondGroup _) newBMap = L.BondGroup newBMap
+    setter (L.BondGroup b x) newBMap = L.BondGroup newBMap x
     setter x _ = x
 
 dealAccounts :: Ast.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 

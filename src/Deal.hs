@@ -110,10 +110,10 @@ setBondNewRate t d ras b@(L.Bond _ _ _ ii _ bal currentRate _ dueInt _ (Just due
   = Right $ (L.accrueInt d b) { L.bndRate = applyFloatRate ii d ras}
 
 -- ^ bond group
-setBondNewRate t d ras bg@(L.BondGroup bMap)
+setBondNewRate t d ras bg@(L.BondGroup bMap pt)
   = do 
       m <- mapM (setBondNewRate t d ras) bMap
-      return $ L.BondGroup m 
+      return $ L.BondGroup m pt
 
 -- ^ apply all rates for multi-int bond
 setBondNewRate t d ras b@(L.MultiIntBond bn _ _ iis _ bal currentRates _ dueInts dueIoIs _ _ _ _)
@@ -143,10 +143,10 @@ setBondStepUpRate t d ras b@(L.MultiIntBond bn _ _ iis (Just sps) _ _ _ _ _ _ _ 
       in 
         (L.accrueInt d b) { L.bndInterestInfos = newIIs, L.bndRates = newRates }  -- `debug` (show d ++ ">> accure due to step up rate "++ bn)
 
-setBondStepUpRate t d ras bg@(L.BondGroup bMap)
+setBondStepUpRate t d ras bg@(L.BondGroup bMap pt)
   = do 
       m <- mapM (setBondStepUpRate t d ras) bMap
-      return $ L.BondGroup m
+      return $ L.BondGroup m pt
 
 
 
@@ -740,7 +740,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                              let newBonds = case Map.lookup bGroupName bndMap of
                                               Nothing -> bndMap
                                               Just L.Bond {} -> bndMap
-                                              Just (L.BondGroup bndGrpMap) -> let
+                                              Just (L.BondGroup bndGrpMap pt) -> let
                                                                                 bndOInfo = (L.bndOriginInfo bnd) {L.originDate = d, L.originRate = newRate, L.originBalance = fromRational newBalance }
                                                                                 bndToInsert = bnd {L.bndOriginInfo = bndOInfo,
                                                                                                    L.bndDueIntDate = Just d,
@@ -750,7 +750,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                                                                                    L.bndBalance = fromRational newBalance}
                                                                               in 
                                                                                 Map.insert bGroupName 
-                                                                                           (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap))
+                                                                                           (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap) pt)
                                                                                            bndMap
 
                              let issuanceProceeds = fromRational newBalance

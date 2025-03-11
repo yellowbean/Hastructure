@@ -614,6 +614,7 @@ data DealStats = CurrentBondBalance
                | BondsIntPaidAt Date [BondName]
                | BondPrinPaidAt Date BondName
                | BondsPrinPaidAt Date [BondName]
+               | BondBalanceTarget [BondName]
                | BondBalanceGap BondName
                | BondBalanceGapAt Date BondName
                | BondDuePrin [BondName]
