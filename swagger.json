@@ -4518,10 +4518,20 @@
                     {
                         "properties": {
                             "contents": {
-                                "additionalProperties": {
-                                    "$ref": "#/components/schemas/Bond"
-                                },
-                                "type": "object"
+                                "items": [
+                                    {
+                                        "additionalProperties": {
+                                            "$ref": "#/components/schemas/Bond"
+                                        },
+                                        "type": "object"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/BondType"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
                             },
                             "tag": {
                                 "enum": [
@@ -7545,6 +7555,28 @@
                             "contents"
                         ],
                         "title": "BondsPrinPaidAt",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondBalanceTarget"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondBalanceTarget",
                         "type": "object"
                     },
                     {
@@ -13038,14 +13070,105 @@
                 ]
             },
             "PayOrderBy": {
-                "enum": [
-                    "ByName",
-                    "ByProRataCurBal",
-                    "ByCurrentRate",
-                    "ByMaturity",
-                    "ByStartDate"
-                ],
-                "type": "string"
+                "oneOf": [
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ByName"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ByName",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ByProRataCurBal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ByProRataCurBal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ByCurrentRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ByCurrentRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ByMaturity"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ByMaturity",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ByStartDate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ByStartDate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByCustomNames"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByCustomNames",
+                        "type": "object"
+                    }
+                ]
             },
             "PerCurve_(Fixed_*_E2)": {
                 "oneOf": [
@@ -21412,7 +21535,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.42.12"
+        "version": "0.43.0"
     },
     "openapi": "3.0.0",
     "paths": {

@@ -2,12 +2,20 @@
 
 <!-- towncrier release notes start -->
 
+## 0.43.1
+### 2025-03-11
+* BREAK: Add `PAC` `PAC Anchor` to `BondGroup`, now `BondGroup` is `Map String L.Bond (Maybe PrinType)`
+* NEW: add formula `bondTargetBalance` to query target amortized balance
+* ENHANCE: expose `PAC Anchor` which is same to `PAC` except that the balance schedule will be ineffective if `Anchor Bonds` are paid off.
+
+
 ## 0.43.0
 ### 2025-03-08
-* NEW: new interest type `BalRef` which bond will accrue its interest by a `Formula`, which is being used to model `PO` bond
+* NEW: new interest type `BalRef` which bond will accrue its interest by a `Formula`, which is being used to model `IO` bond
 * ENHANCE: in `FirstLoss` ,the stress will be applied to `revolving assumption` as well
 * FIX: add `interest accrued` in bond pricing result
 * BREAK: In waterfall ,the action `CalcBondInt` now only accepts a list of bond names
+* BREAK: asset modeling and analytics `lease` has been refactored
 
 
 ## 0.42.10
