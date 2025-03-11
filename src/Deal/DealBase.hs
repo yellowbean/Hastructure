@@ -14,7 +14,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
                      ,increaseBondPaidPeriod,increasePoolCollectedPeriod
                      ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
-                     ,bondTraversal
+                     ,bondTraversal,findBondByNames
                      )                      
   where
 import qualified Accounts as A
@@ -456,6 +456,20 @@ viewDealBondsByNames t@TestDeal{bonds= bndMap } bndNames
                       (view dealBondGroups t )
     in 
       bnds ++ bndsFromGrp
+
+-- ^ find bonds with first match
+findBondByNames :: Map.Map String L.Bond -> [BondName] -> Either String [L.Bond]
+findBondByNames bMap bNames
+  = let 
+      (firstMatch, notMatched) = Map.partitionWithKey (\k _ -> k `elem` bNames) bMap
+      remainNames::[String] = bNames \\ Map.keys firstMatch
+      listOfBondGrps::[Map.Map String L.Bond] = [ bM |  (bM,_) <-catMaybes $ (preview L._BondGroup) <$> Map.elems notMatched ]
+      (secondMatch, notMatched2) = Map.partitionWithKey (\k _ -> k `elem` remainNames) $ Map.unions listOfBondGrps
+    in 
+      if Map.null notMatched2 then 
+        Right $ Map.elems firstMatch ++ Map.elems secondMatch
+      else
+        Left $ "Failed to find bonds by names:"++ show (Map.keys notMatched2)
 
 -- ^ not support bond group
 dealBonds :: Ast.Asset a => Lens' (TestDeal a) (Map.Map BondName L.Bond)

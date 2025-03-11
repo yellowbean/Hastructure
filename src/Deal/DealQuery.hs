@@ -74,12 +74,12 @@ calcBondTargetBalance t d (L.BondGroup bMap mPt) =
   case mPt of 
     Nothing -> do 
                 vs <- sequenceA $ calcBondTargetBalance t d <$> Map.elems bMap
-                return $ sum vs
+                return $ sum vs 
 
     Just (L.PAC _target) -> Right $ getValOnByDate _target d
     Just (L.PacAnchor _target _bnds)
-      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ sum $ L.getCurBalance <$> Map.elems bMap
-      | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d
+      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ sum $ L.getCurBalance <$> Map.elems bMap 
+      | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d 
       | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
     Just (L.AmtByPeriod pc) -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
                                  Just v -> Right v
@@ -612,15 +612,13 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       do 
         tbal <- queryCompound t d (BondBalanceTarget [bName])
         cbal <- queryCompound t d (CurrentBondBalanceOf [bName])
-        return $ max 0 $ cbal - tbal
+        return $ max 0 $ cbal - tbal -- `debug` (show d ++">"++ "tbal"++show tbal++"cbal"++show cbal)
 
     BondBalanceTarget bNames ->
-      let 
-        bnds = viewDealBondsByNames t bNames
-      in
-        do
-          targets <- sequenceA $ calcBondTargetBalance t d <$> bnds
-          return $ toRational $ sum targets
+      do
+        bnds <- findBondByNames bndMap bNames
+        targets <- sequenceA $ calcBondTargetBalance t d <$> bnds
+        return $ toRational $ sum targets
 
     FeesPaidAt d fns ->
       let
