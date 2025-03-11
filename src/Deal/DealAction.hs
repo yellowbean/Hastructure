@@ -104,6 +104,8 @@ allocAmtToBonds theOrder amt bndsWithDue =
                       W.ByCurrentRate -> (\(b1,_) (b2,_) -> compare (L.bndRate b2) (L.bndRate b1)) 
                       W.ByMaturity -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.maturityDate bo1) (L.maturityDate bo2))
                       W.ByStartDate -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.originDate bo1) (L.originDate bo2))
+                      -- TODO: how to handle if now names found in the bonds
+                      W.ByCustomNames names -> (\(b1,_) (b2,_) -> compare (findIndex (== (L.bndName b1)) names) (findIndex (== (L.bndName b2)) names))
     orderedBonds = sortBy sortFn bndsWithDue
     orderedAmt = snd <$> orderedBonds
   in 

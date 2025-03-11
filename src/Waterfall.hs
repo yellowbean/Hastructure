@@ -48,6 +48,7 @@ data PayOrderBy = ByName
                 | ByCurrentRate
                 | ByMaturity
                 | ByStartDate
+                | ByCustomNames [String]
                 -- | InverseSeq PayOrderBy
                 deriving (Show,Generic,Eq,Ord)
 
