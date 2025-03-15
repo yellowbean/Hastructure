@@ -2,7 +2,7 @@
 
 <!-- towncrier release notes start -->
 
-## 0.43.1
+## 0.44.0
 ### 2025-03-11
 * BREAK: Add `PAC` `PAC Anchor` to `BondGroup`, now `BondGroup` is `Map String L.Bond (Maybe PrinType)`
 * NEW: add formula `bondTargetBalance` to query target amortized balance
