@@ -181,7 +181,7 @@ bondGroups = Map.fromList [("A"
                                         ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
                                         ,L.bndStmt=Nothing})
                                  ]            
-                                ))
+                                ) Nothing)
                              ,("B"
                                ,L.Bond{
                                 L.bndName="B"

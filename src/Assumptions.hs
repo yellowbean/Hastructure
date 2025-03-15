@@ -4,7 +4,7 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE TupleSections #-}
 
-module Assumptions (BondPricingInput(..)
+module Assumptions (BondPricingInput(..),IrrType(..)
                     ,AssumptionInput(..),ApplyAssumptionType(..)
                     ,lookupAssumptionByIdx,lookupRate,AssetPerfAssumption(..)
                     ,ExtraStress(..),RevolvingAssumption(..)
@@ -20,7 +20,8 @@ module Assumptions (BondPricingInput(..)
                     ,FieldMatchRule(..),CallOpt(..)
                     ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
                     ,_ReceivableAssump,_FixedAssetAssump  
-                    ,stressDefaultAssump,applyAssumptionTypeAssetPerf
+                    ,stressDefaultAssump,applyAssumptionTypeAssetPerf,TradeType(..)
+                    ,LeaseEndType(..)
                     )
 where
 
@@ -61,8 +62,8 @@ lookupAssumptionByIdx sbi i
 type ObligorTagStr = String
 
 data TagMatchRule = TagEq                  -- ^ match exactly
-                  | TagSubset
-                  | TagSuperset
+                  | TagSubset              -- ^ match subset
+                  | TagSuperset            -- ^ match superset
                   | TagAny                 -- ^ match any tag hit
                   | TagNot  TagMatchRule   -- ^ Negative match
                   deriving (Show, Generic, Read)
@@ -121,7 +122,7 @@ data InspectType = InspectPt DatePattern DealStats
                  deriving (Show, Generic, Read)
 
 data CallOpt = LegacyOpts [C.CallOption]                 -- ^ legacy support
-             | CallPredicate [Pre]                           -- ^ default test call for each pay day, keep backward compatible
+             | CallPredicate [Pre]                       -- ^ default test call for each pay day, keep backward compatible
              | CallOnDates DatePattern [Pre]             -- ^ test call at end of day
              deriving (Show, Generic, Read, Ord, Eq)
 
@@ -157,13 +158,13 @@ data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using const
 
 -- ^ stress the default assumption by a factor
 stressDefaultAssump :: Rate -> AssetDefaultAssumption -> AssetDefaultAssumption
-stressDefaultAssump x (DefaultConstant r) = DefaultConstant (r*x)
-stressDefaultAssump x (DefaultCDR r) = DefaultCDR (r*x)
-stressDefaultAssump x (DefaultVec rs) = DefaultVec ((x*) <$> rs)
-stressDefaultAssump x (DefaultVecPadding rs) = DefaultVecPadding ((x*) <$> rs)
+stressDefaultAssump x (DefaultConstant r) = DefaultConstant $ min 1.0 (r*x)
+stressDefaultAssump x (DefaultCDR r) = DefaultCDR $ min 1.0 (r*x)
+stressDefaultAssump x (DefaultVec rs) = DefaultVec $ capWith 1.0 ((x*) <$> rs)
+stressDefaultAssump x (DefaultVecPadding rs) = DefaultVecPadding $ capWith 1.0 ((x*) <$> rs)
 stressDefaultAssump x (DefaultByAmt (b,rs)) = DefaultByAmt (mulBR b x, rs)
-stressDefaultAssump x (DefaultAtEndByRate r1 r2) = DefaultAtEndByRate (r1*x) (r2*x)
-stressDefaultAssump x (DefaultByTerm rss) = DefaultByTerm (map (map (* x)) rss)
+stressDefaultAssump x (DefaultAtEndByRate r1 r2) = DefaultAtEndByRate (min 1.0 (r1*x)) (min 1.0 (r2*x))
+stressDefaultAssump x (DefaultByTerm rss) = DefaultByTerm $ ((capWith 1.0) <$> (map (map (* x)) rss))
 stressDefaultAssump x (DefaultStressByTs ts a) = DefaultStressByTs ts (stressDefaultAssump x a)
 
 
@@ -187,13 +188,18 @@ data RecoveryAssumption = Recovery (Rate,Int)                    -- ^ recovery r
                         | RecoveryByDays Rate [(Int, Rate)]      -- ^ recovery rate, with distribution of recoveries by offset dates
                         deriving (Show,Generic,Read)
 
-data LeaseAssetGapAssump = GapDays Int                         -- ^ days between leases, when creating dummy leases
-                         | GapDaysByAmount [(Amount,Int)] Int  -- ^ days depends on the size of leases, when a default a default days for size greater
+data LeaseAssetGapAssump = GapDays Int                           -- ^ days between leases, when creating dummy leases
+                         | GapDaysByAmount [(Amount,Int)] Int    -- ^ days depends on the size of leases, when a default a default days for size greater
+                         | GapDaysByCurve Ts                     -- ^ days depends on the size of leases, when a default a default days for size greater
                          deriving (Show,Generic,Read)
 
 data LeaseAssetRentAssump = BaseAnnualRate Rate
                           | BaseCurve Ts 
                           deriving (Show,Generic,Read)
+
+data LeaseEndType = CutByDate Date 
+                  | StopByExtTimes Int 
+                  deriving (Show,Generic,Read)
 
 data ExtraStress = ExtraStress {
                      defaultFactors :: Maybe Ts                 -- ^ stress default rate via a time series based factor curve
@@ -212,7 +218,7 @@ data AssetDelinqPerfAssumption = DummyDelinqAssump
 
 data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)
                          | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
-                         | LeaseAssump       LeaseAssetGapAssump LeaseAssetRentAssump EndDate  (Maybe ExtraStress)
+                         | LeaseAssump       (Maybe AssetDefaultAssumption) LeaseAssetGapAssump LeaseAssetRentAssump LeaseEndType
                          | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | ReceivableAssump  (Maybe AssetDefaultAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
@@ -224,15 +230,29 @@ data RevolvingAssumption = AvailableAssets RevolvingPool ApplyAssumptionType
                          | AvailableAssetsBy (Map.Map String (RevolvingPool, ApplyAssumptionType))
                          deriving (Show,Generic)
 
-type HistoryCash = Ts
+type HistoryCash = [(Date,Amount)]
 type CurrentHolding = Balance -- as of the deal date
 type PricingDate = Date
+type AmountToBuy = Balance
 
-data BondPricingInput = DiscountCurve PricingDate Ts                               -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
-                      | RunZSpread Ts (Map.Map BondName (Date,Rational))    -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
-                      -- | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
+
+data TradeType = ByCash Balance 
+              | ByBalance Balance
+              deriving (Show,Generic)
+
+data IrrType = HoldingBond HistoryCash CurrentHolding (Maybe (Date, BondPricingMethod))
+              | BuyBond Date BondPricingMethod TradeType (Maybe (Date, BondPricingMethod))
+              deriving (Show,Generic)
+
+
+data BondPricingInput = DiscountCurve PricingDate Ts                               
+                      -- ^ PV curve used to discount bond cashflow and a PV date where cashflow discounted to 
+                      | RunZSpread Ts (Map.Map BondName (Date,Rational))    
+                      -- ^ PV curve as well as bond trading price with a deal used to calc Z - spread
                       | DiscountRate PricingDate Rate
-                      | IRRInput  (Map.Map BondName (HistoryCash,CurrentHolding,Maybe (Dates, PricingMethod)))        -- ^ IRR calculation for a list of bonds
+                      -- | OASInput Date BondName Balance [Spread] (Map.Map String Ts)                        -- ^ only works in multiple assumption request 
+                      | IrrInput  (Map.Map BondName IrrType)        
+                      -- ^ IRR calculation for a list of bonds
                       deriving (Show,Generic)
 
 
@@ -305,13 +325,15 @@ makePrisms ''AssetPerfAssumption
 makePrisms ''AssetDefaultAssumption
 
 $(deriveJSON defaultOptions ''CallOpt)
+$(deriveJSON defaultOptions ''TradeType)
+$(deriveJSON defaultOptions ''IrrType)
 $(deriveJSON defaultOptions ''BondPricingInput)
 $(deriveJSON defaultOptions ''IssueBondEvent)
 $(deriveJSON defaultOptions ''RefiEvent)
 
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
+$(concat <$> traverse (deriveJSON defaultOptions) [''LeaseEndType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption,''InspectType])

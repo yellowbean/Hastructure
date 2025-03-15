@@ -238,8 +238,6 @@ capWith cap xs = [ min cap x | x <- xs ]
 floorWith :: Ord a => a -> [a] -> [a]
 floorWith floor xs = [ max x floor | x <- xs]
 
-daysInterval :: [Date] -> [Integer]
-daysInterval ds = zipWith daysBetween (init ds) (tail ds)
 
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
@@ -265,9 +263,6 @@ assert1 :: Bool -> a -> String -> a
 assert1 False x msg = error msg
 assert1 _     x _ = x
 
-getIntervalFactorsDc :: DayCount -> [Date] -> [Rate]
-getIntervalFactorsDc dc ds 
-  = zipWith (yearCountFraction dc) (init ds) (tail ds)
 
 -- ^ get a weighted average balance on year basis with a dayCount required
 calcWeightBalanceByDates :: DayCount -> [Balance] -> [Date] -> Balance 
@@ -454,7 +449,12 @@ lookupTuple7 :: (Ord k) => (k, k, k, k, k, k, k) -> Map.Map k v -> (Maybe v, May
 lookupTuple7 (k1, k2, k3, k4, k5, k6, k7) m =
   ( Map.lookup k1 m , Map.lookup k2 m , Map.lookup k3 m , Map.lookup k4 m , Map.lookup k5 m , Map.lookup k6 m, Map.lookup k7 m)
 
-
+-- flowCombination :: [Date] -> [Amount] -> [(Date,Amount)]
+-- flowCombination ds vs = 
+--   let 
+--     
+--   in 
+--     zip ds vs
 
 ----- DEBUG/PRINT
 debugOnDate :: Date -> Date -> Date -> String

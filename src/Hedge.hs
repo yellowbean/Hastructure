@@ -114,6 +114,10 @@ instance Liable RateSwap where
     | bal == 0 = True
     | otherwise = False
 
+  getOutstandingAmount rs@RateSwap{rsNetCash=bal} 
+    | bal < 0 = negate bal
+    | otherwise = 0
+
 data RateCap = RateCap {
                 rcIndex :: Types.Index
                 ,rcStrikeRate :: Ts

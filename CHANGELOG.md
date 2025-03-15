@@ -2,6 +2,36 @@
 
 <!-- towncrier release notes start -->
 
+## 0.44.0
+### 2025-03-11
+* BREAK: Add `PAC` `PAC Anchor` to `BondGroup`, now `BondGroup` is `Map String L.Bond (Maybe PrinType)`
+* NEW: add formula `bondTargetBalance` to query target amortized balance
+* ENHANCE: expose `PAC Anchor` which is same to `PAC` except that the balance schedule will be ineffective if `Anchor Bonds` are paid off.
+
+
+## 0.43.0
+### 2025-03-08
+* NEW: new interest type `BalRef` which bond will accrue its interest by a `Formula`, which is being used to model `IO` bond
+* ENHANCE: in `FirstLoss` ,the stress will be applied to `revolving assumption` as well
+* FIX: add `interest accrued` in bond pricing result
+* BREAK: In waterfall ,the action `CalcBondInt` now only accepts a list of bond names
+* BREAK: asset modeling and analytics `lease` has been refactored
+
+
+## 0.42.10
+### 2025-02-15
+* NEW: expose new bond pricing : calculate IRR for `holding` a bond, `hold and sell` a bond, or `buy a bond`.
+* ENHANCE: lift `Pricing` to expose error message.
+* ENHANCE: change compare symbol in response from `GT` to `>` and others as well.
+* ENHANCE: auto patch `bond paid periods` and `pool collection periods` for `preClosing` deal.
+
+
+## 0.42.8
+### 2025-02-13
+* FIX: Enable `byTerm` assumption on `Installment`
+* FIX: cap the default rate vector with 100% geneated by `root.finder`
+* NEW: add `PeriodBased` rate curve or balance curve in `Pre`, i.e. easy to build default rate trigger in structuring stage
+
 ## 0.42.4
 ### 2025-02-06
 * NEW: `FirstLoss` as new endpoint, which will stress on `Default` assumption till 0.01 loss on input tranche.

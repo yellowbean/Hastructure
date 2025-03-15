@@ -31,7 +31,8 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio,HowToPay(..),ApplyRange(..)
+  ,MyRatio,HowToPay(..),ApplyRange(..),BondPricingMethod(..)
+  ,_BondTxn
   )
   
   where
@@ -47,6 +48,9 @@ import Text.Regex.Base
 import Text.Regex.PCRE
 import GHC.Generics
 import Language.Haskell.TH
+
+import Control.Lens hiding (element,Index,Empty)
+import Control.Lens.TH
 
 import Text.Read (readMaybe, get)
 import Data.Aeson (ToJSON, toJSON, Value(String))
@@ -128,7 +132,7 @@ type Duration = Micro
 type Convexity = Micro
 type Yield = Micro
 type AccruedInterest = Centi
-type IRR = Rational
+type IRR = Micro
 
 
 data Index = LPR5Y
@@ -250,7 +254,15 @@ data Cmp = G      -- ^ Greater than
          | L      -- ^ Less than
          | LE     -- ^ Less Equal than
          | E      -- ^ Equals to
-         deriving (Show,Generic,Eq,Ord,Read)
+         deriving (Generic,Eq,Ord,Read)
+
+instance Show Cmp where
+  show :: Cmp -> String
+  show G  = ">"
+  show GE = ">="
+  show L  = "<"
+  show LE = "<="
+  show E  = "=="
 
 
 data PoolSource = CollectedInterest               -- ^ interest
@@ -457,7 +469,7 @@ data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multi
                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
                    | PV IRate Rate                    -- ^ discount factor, recovery pct on default
                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
-                   | PvRate IRate                      -- ^ [CF] Pricing cashflow with a constant rate
+                   | PvRate IRate                     -- ^ [CF] Pricing cashflow with a constant rate
                    | PvWal Ts
                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
                    | Custom Rate                      -- ^ custom amount
@@ -472,33 +484,34 @@ data BondPricingMethod = BondBalanceFactor Rate
 
 -- ^ condition which can be evaluated to a boolean value
 data Pre = IfZero DealStats
-         | If Cmp DealStats Balance
-         | IfRate Cmp DealStats Micro
-         | IfCurve Cmp DealStats Ts
-         | IfRateCurve Cmp DealStats Ts
-         | IfIntCurve Cmp DealStats Ts
-         
-         -- Integer
-         | IfInt Cmp DealStats Int
-         | IfIntBetween DealStats RangeType Int Int
-         | IfIntIn DealStats [Int]
-         -- Dates
-         | IfDate Cmp Date
-         | IfDateBetween RangeType Date Date
-         | IfDateIn Dates
-         
-         | IfBool DealStats Bool
-         -- compare deal 
-         | If2 Cmp DealStats DealStats
-         | IfRate2 Cmp DealStats DealStats
-         | IfInt2 Cmp DealStats DealStats
-         -- | IfRateCurve DealStats Cmp Ts
-         | IfDealStatus DealStatus
-         | Always Bool
-         | IfNot Pre
-         | Any [Pre]
-         | All [Pre]                            -- ^ 
-         deriving (Show,Generic,Eq,Ord,Read)
+        | If Cmp DealStats Balance
+        | IfRate Cmp DealStats Micro
+        | IfCurve Cmp DealStats Ts
+        | IfByPeriodCurve Cmp DealStats DealStats (PerCurve Balance)
+        | IfRateCurve Cmp DealStats Ts
+        | IfRateByPeriodCurve Cmp DealStats DealStats (PerCurve Rate)
+        | IfIntCurve Cmp DealStats Ts
+        -- Integer
+        | IfInt Cmp DealStats Int
+        | IfIntBetween DealStats RangeType Int Int
+        | IfIntIn DealStats [Int]
+        -- Dates
+        | IfDate Cmp Date
+        | IfDateBetween RangeType Date Date
+        | IfDateIn Dates
+        -- Bool
+        | IfBool DealStats Bool
+        -- compare deal status 
+        | If2 Cmp DealStats DealStats
+        | IfRate2 Cmp DealStats DealStats
+        | IfInt2 Cmp DealStats DealStats
+        -- | IfRateCurve DealStats Cmp Ts
+        | IfDealStatus DealStatus
+        | Always Bool
+        | IfNot Pre
+        | Any [Pre]
+        | All [Pre]                            -- ^ 
+        deriving (Show,Generic,Eq,Ord,Read)
 
 
 
@@ -601,6 +614,7 @@ data DealStats = CurrentBondBalance
                | BondsIntPaidAt Date [BondName]
                | BondPrinPaidAt Date BondName
                | BondsPrinPaidAt Date [BondName]
+               | BondBalanceTarget [BondName]
                | BondBalanceGap BondName
                | BondBalanceGapAt Date BondName
                | BondDuePrin [BondName]
@@ -652,6 +666,9 @@ data DealStats = CurrentBondBalance
                | IsDealStatus DealStatus
                | IsMostSenior BondName [BondName]
                | IsPaidOff [BondName]
+               | IsFeePaidOff [String]
+               | IsLiqSupportPaidOff [String]
+               | IsRateSwapPaidOff [String]
                | IsOutstanding [BondName]
                | HasPassedMaturity [BondName]
                | TriggersStatus DealCycle String
@@ -715,13 +732,11 @@ data HowToPay = ByProRata
               | BySequential
               deriving (Show,Ord,Eq,Read, Generic)
 
-
 type BookItems = [BookItem]
 
 data BookItem = Item String Balance 
               | ParentItem String BookItems
               deriving (Show,Read,Generic)
-
 
 data BalanceSheetReport = BalanceSheetReport {
                             asset :: BookItem
@@ -729,7 +744,7 @@ data BalanceSheetReport = BalanceSheetReport {
                             ,equity :: BookItem
                             ,reportDate :: Date}         -- ^ snapshot date of the balance sheet
                             deriving (Show,Read,Generic)
- 
+
 data CashflowReport = CashflowReport {
                         inflow :: BookItem
                         ,outflow :: BookItem
@@ -744,13 +759,11 @@ data Threshold = Below
                | EqAbove
                deriving (Show,Eq,Ord,Read,Generic)
 
-
 data SplitType = EqToLeft   -- if equal, the element belongs to left
                | EqToRight  -- if equal, the element belongs to right
                | EqToLeftKeepOne
                | EqToLeftKeepOnes
                deriving (Show, Eq, Generic)
-
 
 data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
                   | HistoryRecoveries    -- ^ cumulative recoveries
@@ -773,10 +786,8 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
                  | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
---                 | IRRbyDate Valuation
+                 | IrrResult IRR [Txn]
                  deriving (Show, Eq, Generic)
-
-
 
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
@@ -798,6 +809,7 @@ class Liable lb where
   getCurRate :: lb -> IRate
   getOriginBalance :: lb -> Balance
   getOriginDate :: lb -> Date
+  getAccrueBegDate :: lb -> Date
   getDueInt :: lb -> Balance
   getDueIntAt :: lb -> Int -> Balance
   getDueIntOverInt :: lb -> Balance
@@ -810,6 +822,17 @@ class Liable lb where
   -- optional implement
   -- getTotalDue :: [lb] -> Balance
   -- getTotalDue lbs =  sum $ getDue <$> lbs
+
+
+class Accruable ac where 
+  accrue :: Date -> ac -> ac
+  calcAccrual :: Date -> ac -> Balance
+
+  -- buildAccrualAction :: ac -> Date -> Date -> [ActionOnDate]
+
+-- class Resettable rs where 
+--   reset :: Date -> rs -> rs
+--   buildResetAction :: rs -> Date -> Date -> [Txn]
 
 lookupTable :: Ord a => Table a b -> Direction -> (a -> Bool) -> Maybe b
 lookupTable (ThresholdTable rows) direction lkUpFunc
@@ -1085,6 +1108,9 @@ data CustomDataType = CustomConstant Rational
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 
+
+$(deriveJSON defaultOptions ''BondPricingMethod)
+
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)
 
@@ -1106,6 +1132,9 @@ instance FromJSONKey DateType where
 
 
 $(deriveJSON defaultOptions ''RangeType)
+-- $(deriveJSON defaultOptions ''(PerCurve Balance))
+-- $(deriveJSON defaultOptions ''(PerCurve Rate))
+$(deriveJSON defaultOptions ''PerCurve)
 $(deriveJSON defaultOptions ''Pre)
 
 $(deriveJSON defaultOptions ''CustomDataType)
@@ -1128,8 +1157,6 @@ $(deriveJSON defaultOptions ''ResultComponent)
 $(deriveJSON defaultOptions ''PriceResult)
 $(deriveJSON defaultOptions ''CutoffFields)
 $(deriveJSON defaultOptions ''HowToPay)
-
-$(deriveJSON defaultOptions ''PerCurve)
 
 
 
@@ -1175,4 +1202,5 @@ instance FromJSONKey Threshold where
 $(deriveJSON defaultOptions ''RateAssumption)
 $(deriveJSON defaultOptions ''Direction)
 
+makePrisms ''Txn
 $(concat <$> traverse (deriveJSON defaultOptions) [''Limit] )
