@@ -245,13 +245,22 @@ calcDueInt t d b@(L.BondGroup bMap pt)
       m <- mapM (calcDueInt t d) bMap 
       return $ L.BondGroup m pt
 
--- won't accrue interest
-calcDueInt t d b@(L.Bond _ bt oi io _ bal r dp _ di Nothing _ lastPrinPay _ ) 
-  | d <= closingDate = Right b
+-- first time to accrue interest\
+-- use default date to start to accrue
+calcDueInt t@TestDeal{ status = st} d b@(L.Bond _ bt oi io _ bal r dp _ di Nothing _ lastPrinPay _ ) 
   | bal+di == 0 && (bt /= L.IO) = Right b
-  | otherwise = calcDueInt t d (b {L.bndDueIntDate = Just closingDate })  -- `debug` ("hit")
-    where 
-      closingDate = getClosingDate (dates t)
+  | otherwise = 
+    case st of 
+      (PreClosing {}) -> 
+        do 
+          sd <- getClosingDate (dates t)
+          b' <- calcDueInt t d (b {L.bndDueIntDate = Just sd })  -- `debug` ("hit")
+          return b'
+      _ -> 
+        do 
+          sd <- getLastPayDate (dates t) 
+          b' <- calcDueInt t d (b {L.bndDueIntDate = Just sd})  -- `debug` ("hit")
+          return b' 
 
 -- Interest Only Bond with Reference Balance
 calcDueInt t d b@(L.Bond _ L.IO oi (L.RefBal refBal ii) _ bal r dp dInt dioi (Just lastIntDueDay) _ _ _ ) 
