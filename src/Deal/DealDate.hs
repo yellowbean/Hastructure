@@ -31,7 +31,7 @@ instance DealDates DateDesp where
 
   getLastPayDate (CurrentDates (_,cd) _ _ _ _ ) = Right cd
   
-  getLastPayDate (PreClosingDates {}) = Left "not Last Pay for deal in preclosing stage"
+  getLastPayDate (PreClosingDates {}) = Left "Error : try to get last pay date from PreClosingDates"
 
   getFirstPayDate (PreClosingDates _ _ _ _ _ (fp,_)) = fp
   
