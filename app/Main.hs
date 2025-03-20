@@ -101,7 +101,7 @@ debug = flip Debug.Trace.trace
 
 
 version1 :: Version 
-version1 = Version "0.44.1"
+version1 = Version "0.45.0"
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
 wrapRun (MDeal d) mAssump mNonPerfAssump 
