@@ -2,6 +2,13 @@
 
 <!-- towncrier release notes start -->
 
+## 0.45.0
+### 2025-03-21
+* BREAK: remove unused `DealDates` : `FixInterval`, `CustomDates` and `PatternInterval`. Since all these can be replace by new `GenericDates` in type `DateDesp`
+* ENHANCE: now bond with `No last interest accure day` will begin accrue interest from `closing date` if the deal is in `PreClosing` mode, while the bond will use `last bond day` otherwise.
+* FIX: `IsPaidOff` now can be queried in inspection formula
+
+
 ## 0.44.0
 ### 2025-03-11
 * BREAK: Add `PAC` `PAC Anchor` to `BondGroup`, now `BondGroup` is `Map String L.Bond (Maybe PrinType)`

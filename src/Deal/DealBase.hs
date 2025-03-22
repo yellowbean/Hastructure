@@ -181,11 +181,8 @@ type StatedDate = Date
 type DistributionDates = DatePattern
 type PoolCollectionDates = DatePattern
 
-data DateDesp = FixInterval (Map.Map DateType Date) Period Period 
-              | CustomDates CutoffDate [ActionOnDate] ClosingDate [ActionOnDate]
-              | PatternInterval (Map.Map DateType (Date, DatePattern, Date))
-              --  cutoff closing mRevolving end-date dp1-pc dp2-bond-pay 
-              | PreClosingDates CutoffDate ClosingDate (Maybe RevolvingDate) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
+
+data DateDesp = PreClosingDates CutoffDate ClosingDate (Maybe RevolvingDate) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
               -- <Pool Collection DP> <Waterfall DP> 
               --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
               | CurrentDates (Date,Date) (Maybe Date) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
@@ -195,25 +192,6 @@ data DateDesp = FixInterval (Map.Map DateType Date) Period Period
 
 
 populateDealDates :: DateDesp -> DealStatus -> Either String (Date,Date,Date,[ActionOnDate],[ActionOnDate],Date,[ActionOnDate])
-populateDealDates (CustomDates cutoff pa closing ba) _ 
-  = Right $
-    (cutoff  
-    ,closing
-    ,getDate (head ba)
-    ,pa
-    ,ba
-    ,getDate (max (last pa) (last ba))
-    ,[])
-
-populateDealDates (PatternInterval _m) _
-  = Right (cutoff,closing,nextPay,pa,ba,max ed1 ed2, []) 
-    where 
-      (cutoff,dp1,ed1) = _m Map.! CutoffDate
-      (nextPay,dp2,ed2) = _m Map.! FirstPayDate 
-      (closing,_,_) = _m Map.! ClosingDate
-      pa = [ PoolCollection _d "" | _d <- genSerialDatesTill cutoff dp1 ed1 ]
-      ba = [ RunWaterfall _d "" | _d <- genSerialDatesTill nextPay dp2 ed2 ]
-
 populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp)) _
   = Right (cutoff,closing,firstPay,pa,ba,end, []) 
     where 

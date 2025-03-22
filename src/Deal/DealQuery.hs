@@ -78,8 +78,11 @@ calcBondTargetBalance t d (L.BondGroup bMap mPt) =
 
     Just (L.PAC _target) -> Right $ getValOnByDate _target d
     Just (L.PacAnchor _target _bnds)
-      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ sum $ L.getCurBalance <$> Map.elems bMap 
-      | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d 
+      | queryDealBool t (IsPaidOff _bnds) d == Right True -> 
+          do
+            subBondTargets <- sequenceA $ calcBondTargetBalance t d <$> Map.elems bMap
+            return $ sum subBondTargets
+      | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d
       | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
     Just (L.AmtByPeriod pc) -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
                                  Just v -> Right v
@@ -95,8 +98,8 @@ calcBondTargetBalance t d b =
     L.Equity -> Right 0
     L.PAC _target -> Right $ getValOnByDate _target d
     L.PacAnchor _target _bnds
-      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ L.getCurBalance b
-      | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d
+      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ 0  
+      | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d  
       | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
     L.AmtByPeriod pc -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
                           Just v -> Right v
@@ -761,7 +764,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                       Just v -> Right . toRational $ v
                       Nothing -> Left $ "Date:"++show d++"Failed to query balance deal stat  of -> "++ show s
 
-    _ -> Left ("Date:"++show d++"Failed to query formula of -> "++ show s)
+    _ -> Left ("Date:"++show d++"Failed to query balance formula of -> "++ show s)
     
 
 
@@ -793,8 +796,8 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap,fees= feeMap
 
     IsPaidOff bns -> 
       do 
-        vs <- lookupAndApplies isPaidOff "Is Paid Off" bns bndMap
-        return $ and vs
+        vs <- lookupAndApplies isPaidOff "Is Paid Off" bns bndMap 
+        return $ and vs -- `debug` ("bond paid off?"++ show vs)
 
     IsOutstanding bns -> 
       do 

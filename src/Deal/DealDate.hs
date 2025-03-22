@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Deal.DealDate (DealDates,getClosingDate,getFirstPayDate) 
+module Deal.DealDate (DealDates,getClosingDate,getFirstPayDate,getLastPayDate) 
   where
 
 import qualified Data.Map as Map
@@ -12,40 +12,27 @@ import Types
 import Lib
 
 class DealDates a where 
-  getClosingDate :: a -> Date
+  getClosingDate :: a -> Either String Date
   getFirstPayDate :: a -> Date
+  getLastPayDate :: a -> Either String Date
 
 instance DealDates DateDesp where 
-  getClosingDate (PatternInterval _m)
-    = let 
-        (sd,dp,ed) = _m Map.! ClosingDate 
-      in 
-        sd
-
-  getClosingDate (CustomDates _ _ cd _) = cd
-
   getClosingDate (GenericDates m) = case Map.lookup ClosingDate m of 
-                                      Just (SingletonDate x) -> x
-                                      Nothing -> error "ClosingDate not found in GenericDates"
+                                      Just (SingletonDate x) -> Right x
+                                      Nothing -> Left $ "ClosingDate not found in GenericDates"++show m
   
-  getClosingDate (FixInterval _m _p1 _p2) = _m Map.! ClosingDate
+  getClosingDate (PreClosingDates _ x _ _ _ _) = Right x
 
-  getClosingDate (PreClosingDates _ x _ _ _ _) = x
+  getClosingDate (CurrentDates (_,cd) _ _ _ _ ) = Right cd
 
-  getClosingDate (CurrentDates (_,cd) _ _ _ _ ) = cd
+  getLastPayDate (GenericDates m) = case Map.lookup LastPayDate m of 
+                                      Just (SingletonDate x) -> Right x
+                                      Nothing -> Left $ "LastPayDate not found in GenericDates"++ show m
 
-  getFirstPayDate (PatternInterval _m) 
-    = let 
-        (sd,dp,ed) = _m Map.! FirstPayDate
-      in 
-         sd
+  getLastPayDate (CurrentDates (_,cd) _ _ _ _ ) = Right cd
   
-  getFirstPayDate (CustomDates _ _ _ bActions )
-    = getDate $ head bActions
-  
-  getFirstPayDate (FixInterval _m _p1 _p2)  
-    = _m Map.! FirstPayDate
-  
+  getLastPayDate (PreClosingDates {}) = Left "Error : try to get last pay date from PreClosingDates"
+
   getFirstPayDate (PreClosingDates _ _ _ _ _ (fp,_)) = fp
   
   getFirstPayDate (CurrentDates _ _ _ _ (cpay,_)) = cpay    
