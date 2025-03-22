@@ -182,7 +182,6 @@ type DistributionDates = DatePattern
 type PoolCollectionDates = DatePattern
 
 
--- TODO : remove un used dates
 data DateDesp = PreClosingDates CutoffDate ClosingDate (Maybe RevolvingDate) StatedDate (Date,PoolCollectionDates) (Date,DistributionDates)
               -- <Pool Collection DP> <Waterfall DP> 
               --  (last collect,last pay), mRevolving end-date dp1-pool-pay dp2-bond-pay
