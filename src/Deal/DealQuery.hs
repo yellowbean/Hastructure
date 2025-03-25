@@ -615,7 +615,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       do 
         tbal <- queryCompound t d (BondBalanceTarget [bName])
         cbal <- queryCompound t d (CurrentBondBalanceOf [bName])
-        return $ max 0 $ cbal - tbal  `debug` (show d ++">"++ "tbal"++show tbal++"cbal"++show cbal)
+        return $ max 0 $ cbal - tbal  -- `debug` (show d ++">"++ "tbal"++show tbal++"cbal"++show cbal)
 
     BondBalanceTarget bNames ->
       do
