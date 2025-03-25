@@ -1,11 +1,11 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.2.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:        0.41.3
+version:        0.45.0
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance;Securitisation;Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
@@ -73,7 +73,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      aeson
+      Decimal
+    , aeson
     , aeson-pretty
     , base
     , bytestring
@@ -117,7 +118,8 @@ executable Hastructure-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Hastructure
+      Decimal
+    , Hastructure
     , aeson
     , aeson-pretty
     , attoparsec
@@ -191,7 +193,8 @@ test-suite Hastructure-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Hastructure
+      Decimal
+    , Hastructure
     , aeson
     , aeson-pretty
     , base

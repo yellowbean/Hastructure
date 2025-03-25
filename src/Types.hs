@@ -64,6 +64,7 @@ import Data.Aeson hiding (json)
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Fixed hiding (Ratio)
+import Data.Decimal
 import Data.Ix
 
 
@@ -86,53 +87,56 @@ type AccName = String
 type AccountName = String
 type AccNames = [String]
 type CeName = String
-type Balance = Centi
+type Comment = String
 
 type Date = Time.Day
 type Dates = [Time.Day]
-type Rate = Rational  -- general Rate like pool factor
-type IRate = Micro    -- Interest Rate Type
-type Spread = Micro
-type Amount = Centi
-type Comment = String
-type StartDate = Time.Day
-type EndDate = Time.Day
-type LastIntPayDate = Time.Day
-type Floor = Micro
-type Principal = Centi
-type Interest = Centi
-type Default = Centi
-type Loss = Centi
-type Cash = Centi
-type Recovery = Centi
-type Prepayment = Centi
-type Rental = Centi
-type Cap = Micro
-type PrepaymentPenalty = Centi
+type StartDate = Date
+type EndDate = Date
+type LastIntPayDate = Date
 
-type CumPrepay = Centi
-type CumPrincipal = Centi
-type CumDefault = Centi
-type CumDelinq = Centi
-type CumLoss = Centi
-type CumRecovery = Centi
+type Balance = Centi
+-- type Balance = Decimal
+type Amount = Balance
+type Principal = Balance
+type Valuation = Balance
 
-type PrepaymentRate = Rate
-type DefaultRate = Rate
-type RecoveryRate = Rate
-type RemainTerms = Int
-type BorrowerNum = Int
-type Lag = Int
+type Interest = Balance
+type Default = Balance
+type Loss = Balance
+type Cash = Balance
+type Recovery = Balance
+type Prepayment = Balance
+type Rental = Balance
+type PrepaymentPenalty = Balance
+type CumPrepay = Balance
+type CumPrincipal = Balance
+type CumDefault = Balance
+type CumDelinq = Balance
+type CumLoss = Balance
+type CumRecovery = Balance
+type AccruedInterest = Balance
 
-
-type Valuation = Centi
 type PerFace = Micro
 type WAL = Centi
 type Duration = Micro
 type Convexity = Micro
 type Yield = Micro
-type AccruedInterest = Centi
 type IRR = Micro
+
+type Rate = Rational  -- general Rate like pool factor
+type PrepaymentRate = Rate
+type DefaultRate = Rate
+type RecoveryRate = Rate
+
+type IRate = Micro    -- Interest Rate Type
+type Spread = Micro
+type Floor = Micro
+type Cap = Micro
+
+type RemainTerms = Int
+type BorrowerNum = Int
+type Lag = Int
 
 
 data Index = LPR5Y
@@ -898,6 +902,7 @@ instance (Read PoolId) where
         _ -> error $ "Invalid PoolId: "++ show pn
 
 
+$(deriveJSON defaultOptions ''DecimalRaw)
 $(deriveJSON defaultOptions ''TsPoint)
 $(deriveJSON defaultOptions ''PerPoint)
 $(deriveJSON defaultOptions ''Ts)
@@ -1111,12 +1116,9 @@ opts = defaultJSONKeyOptions -- { keyModifier = toLower }
 
 
 $(deriveJSON defaultOptions ''BondPricingMethod)
-
 $(deriveJSON defaultOptions ''DealStatus)
 $(deriveJSON defaultOptions ''CutoffType)
-
 $(deriveJSON defaultOptions ''DealStatFields)
-
 $(concat <$> traverse (deriveJSON defaultOptions) [''BookDirection, ''DealStats, ''PricingMethod, ''DealCycle, ''DateType, ''Period, 
   ''DatePattern, ''Table, ''BalanceSheetReport, ''BookItem, ''CashflowReport, ''Txn] )
 

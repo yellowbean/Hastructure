@@ -38,12 +38,8 @@ td = D.TestDeal {
   ,D.status = Amortizing
   ,D.rateSwap = Nothing
   ,D.currencySwap = Nothing
-  ,D.dates = PatternInterval $ 
-               (Map.fromList [
-                (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
-                ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
-                ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
-               ])
+  ,D.dates = CurrentDates (toDate "20220101",toDate "20220101") Nothing (toDate "20300101")
+                (toDate "20220201" , MonthFirst) (toDate "20220225" , MonthFirst)
   ,D.accounts = Map.fromList
                 [("General", A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing })]
   ,D.fees = (Map.fromList [("Service-Fee"

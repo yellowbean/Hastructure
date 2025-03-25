@@ -49,12 +49,8 @@ td2 = D.TestDeal {
   ,D.status = Amortizing
   ,D.rateSwap = Nothing
   ,D.currencySwap = Nothing
-  ,D.dates = PatternInterval $ 
-               (Map.fromList [
-                (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
-                ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
-                ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
-               ])
+  ,D.dates = CurrentDates (toDate "20220101",toDate "20220101") Nothing (toDate "20300101")
+                (toDate "20220201" , MonthFirst) (toDate "20220225" , MonthFirst)
   ,D.accounts = (Map.fromList
   [("General", (A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing
   })),
@@ -189,12 +185,8 @@ baseDeal = D.TestDeal {
   ,D.rateSwap = Nothing
   ,D.stats = (Map.empty,Map.empty,Map.empty,Map.empty)
   ,D.currencySwap = Nothing
-  ,D.dates = PatternInterval $ 
-               (Map.fromList [
-                (ClosingDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
-                ,(CutoffDate,((T.fromGregorian 2022 1 1),MonthFirst,(toDate "20300101")))
-                ,(FirstPayDate,((T.fromGregorian 2022 2 25),DayOfMonth 25,(toDate "20300101")))
-               ])
+  ,D.dates = CurrentDates (toDate "20220101",toDate "20220101") Nothing (toDate "20300101")
+                (toDate "20220201" , MonthFirst) (toDate "20220225" , MonthFirst)
   ,D.accounts = Map.fromList [("General", A.Account { A.accName="General" ,A.accBalance=1000.0 ,A.accType=Nothing, A.accInterest=Nothing ,A.accStmt=Nothing})]
   ,D.fees = Map.empty 
   ,D.bonds = (Map.fromList [("A"
@@ -260,7 +252,7 @@ baseDeal = D.TestDeal {
                  ,P.futureCf=Nothing
                  ,P.extendPeriods = Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
-                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]})]
+                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70),(IssuanceBalance, 4000)]})]
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
@@ -277,16 +269,16 @@ baseDeal = D.TestDeal {
 poolFlowTest = 
    let 
      (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal DealPoolFlowPricing Nothing emptyRunAssump) of
-                                              (Left er) -> undefined 
+                                              (Left er) -> error $ "Deal run failed"++ show er
                                               (Right (a,b,c,d)) -> (a,b,c,d) 
      bndMap = D.viewBondsInMap deal
    in 
    testGroup "pool cashflow test" 
     [
       testCase "pool begin flow" $
-      assertEqual "pool size should be 60+1" 
-      (Just (Map.fromList [(PoolConsol ,61)]))
-      ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf ) -- `debug` ("pool "++ show (viewBond))
+      assertEqual "pool size should be 60" 
+      (Just (Map.fromList [(PoolConsol ,60)]))
+      ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf )  -- `debug` ("pool "++ show (mPoolCf))
       
       ,testCase "total principal bal" $
       assertEqual "pool bal should equal to total collect"
@@ -295,7 +287,7 @@ poolFlowTest =
       
       ,testCase "last bond A payment date" $
        assertEqual "pool bal should equal to total collect"
-       (Just (BondTxn (toDate "20240225") 0.00 0.00 30.56 0.080000 30.56 0.00 0.00 (Just 0.0) (PayPrin ["A"])))
+       (Just (BondTxn (toDate "20240201") 0.00 0.00 30.56 0.080000 30.56 0.00 0.00 (Just 0.0) (PayPrin ["A"])))
        $ (\s -> last (view Stmt.statementTxns s)) <$> (L.bndStmt $ (bndMap Map.! "A"))
     ]
 
