@@ -8,7 +8,7 @@
 * BREAK: 
 * FIX: in `Pricing/IRR`, error when holding position is too small
 * NEW: 
-* ENHANCE: 
+* ENHANCE: engine will auto patch `interest start date` for bonds if it is not modeled. In `PreClosing` status, engine will use `closing date` as bond interest begin date ; In `Non-PreClosing` status, it defaults to use last waterfall distribution date as bond interest begin date.
 
 
 ## 0.44.0
