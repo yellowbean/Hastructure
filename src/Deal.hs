@@ -848,7 +848,7 @@ priceBondIrr (AP.HoldingBond historyCash holding Nothing) txns
   = let 
       begBal = (getTxnBegBalance . head) txns
       holdingPct = divideBB holding begBal
-      bProjectedTxn = scaleTxn holdingPct <$> txns `debug` ("holding pct"++ show holding ++"/" ++ show begBal ++" : " ++ show holdingPct)
+      bProjectedTxn = scaleTxn holdingPct <$> txns -- `debug` ("holding pct"++ show holding ++"/" ++ show begBal ++" : " ++ show holdingPct)
       (ds,vs) = unzip historyCash
       (ds2,vs2) = (getDate <$> bProjectedTxn, getTxnAmt <$> bProjectedTxn) -- `debug` ("projected txn position"++ show bProjectedTxn)
       
