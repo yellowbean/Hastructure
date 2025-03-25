@@ -506,6 +506,7 @@ priceBond d rc bnd
           cutoffBalance = case S.getTxnAsOf txns d of
                               Nothing ->  (S.getTxnBegBalance . head) txns
                               Just _txn -> S.getTxnBegBalance _txn
+          -- TODO: what if in current deal,no transaction before pricing day ? what's the begin day for interest to accrual?
           accruedInt = backoutAccruedInt d (getOriginDate bnd) txns
 
           wal = calcWalBond d bnd

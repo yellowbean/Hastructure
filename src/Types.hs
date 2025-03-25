@@ -1087,6 +1087,7 @@ getDealStatType ProjCollectPeriodNum = RtnInt
 getDealStatType (DealStatInt _) = RtnInt
 
 getDealStatType (IsMostSenior _ _) = RtnBool
+getDealStatType (IsPaidOff {}) = RtnBool
 getDealStatType (TriggersStatus _ _)= RtnBool
 getDealStatType (IsDealStatus _)= RtnBool
 getDealStatType TestRate {} = RtnBool

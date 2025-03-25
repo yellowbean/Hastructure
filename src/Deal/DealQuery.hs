@@ -78,7 +78,7 @@ calcBondTargetBalance t d (L.BondGroup bMap mPt) =
 
     Just (L.PAC _target) -> Right $ getValOnByDate _target d
     Just (L.PacAnchor _target _bnds)
-      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ sum $ L.getCurBalance <$> Map.elems bMap 
+      | queryDealBool t (IsPaidOff _bnds) d == Right True -> sum <$> sequenceA ((calcBondTargetBalance t d) <$> (Map.elems bMap))
       | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d 
       | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
     Just (L.AmtByPeriod pc) -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
@@ -95,7 +95,7 @@ calcBondTargetBalance t d b =
     L.Equity -> Right 0
     L.PAC _target -> Right $ getValOnByDate _target d
     L.PacAnchor _target _bnds
-      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right $ L.getCurBalance b
+      | queryDealBool t (IsPaidOff _bnds) d == Right True -> Right 0
       | queryDealBool t (IsPaidOff _bnds) d == Right False -> Right $ getValOnByDate _target d
       | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
     L.AmtByPeriod pc -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
@@ -612,7 +612,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       do 
         tbal <- queryCompound t d (BondBalanceTarget [bName])
         cbal <- queryCompound t d (CurrentBondBalanceOf [bName])
-        return $ max 0 $ cbal - tbal -- `debug` (show d ++">"++ "tbal"++show tbal++"cbal"++show cbal)
+        return $ max 0 $ cbal - tbal  `debug` (show d ++">"++ "tbal"++show tbal++"cbal"++show cbal)
 
     BondBalanceTarget bNames ->
       do
@@ -761,7 +761,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                       Just v -> Right . toRational $ v
                       Nothing -> Left $ "Date:"++show d++"Failed to query balance deal stat  of -> "++ show s
 
-    _ -> Left ("Date:"++show d++"Failed to query formula of -> "++ show s)
+    _ -> Left ("Date:"++show d++"Failed to query balance formula of -> "++ show s)
     
 
 
@@ -943,14 +943,6 @@ testPre d t p =
                   E -> (==)
       ps = patchDateToStats d
 
-replaceToInf :: String -> String
-replaceToInf x = unpack $ Data.Text.replace nInf "-inf" $ Data.Text.replace inf "inf" c
-                  where 
-                    c = pack x
-                    inf = pack "179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216.00" 
-                    nInf = pack "-179769313486231590772930519078902473361797697894230657273430081157732675805500963132708477322407536021120113879871393357658789768814416622492847430639474124377767893424865485276302219601246094119453082952085005768838150682342462881473913110540827237163350510684586298239947245938479716304835356329624224137216.00"
-
-
 -- ^ convert a condition to string in a deal context
 preToStr :: P.Asset a => TestDeal a -> Date -> Pre -> String
 preToStr t d p =
@@ -998,4 +990,4 @@ preToStr t d p =
     ps = patchDateToStats d
 
 testPre2 :: P.Asset a => Date -> TestDeal a -> Pre -> (String, Either String Bool)
-testPre2 d t p = (replaceToInf (preToStr t d p), testPre d t p)
+testPre2 d t p = (preToStr t d p, testPre d t p)
