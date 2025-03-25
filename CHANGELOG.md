@@ -2,11 +2,22 @@
 
 <!-- towncrier release notes start -->
 
+## 0.45.1
+### 2025-03-25
+* BREAK: 
+* FIX: in `Pricing/IRR`, error when holding position is too small
+* NEW: 
+* ENHANCE: engine will auto patch `interest start date` for bonds if it is not modeled. In `PreClosing` status, engine will use `closing date` as bond interest begin date ; In `Non-PreClosing` status, it defaults to use last waterfall distribution date as bond interest begin date.
+
+
 ## 0.45.0
 ### 2025-03-21
 * BREAK: remove unused `DealDates` : `FixInterval`, `CustomDates` and `PatternInterval`. Since all these can be replace by new `GenericDates` in type `DateDesp`
 * ENHANCE: now bond with `No last interest accure day` will begin accrue interest from `closing date` if the deal is in `PreClosing` mode, while the bond will use `last bond day` otherwise.
 * FIX: `IsPaidOff` now can be queried in inspection formula
+
+
+
 
 
 ## 0.44.0
