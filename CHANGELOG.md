@@ -2,6 +2,15 @@
 
 <!-- towncrier release notes start -->
 
+
+## 0.45.1
+### 2025-03-25
+* BREAK: 
+* FIX: in `Pricing/IRR`, error when holding position is too small
+* NEW: 
+* ENHANCE: 
+
+
 ## 0.44.0
 ### 2025-03-11
 * BREAK: Add `PAC` `PAC Anchor` to `BondGroup`, now `BondGroup` is `Map String L.Bond (Maybe PrinType)`
