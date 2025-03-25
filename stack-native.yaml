@@ -1,9 +1,0 @@
-docker:
-  enable: true
-image:
-  container:
-    base: "fpco/myapp-base"
-    name: "fpco/myapp"
-    add:
-      static/: /opt/app
-      config/: /opt/app/config

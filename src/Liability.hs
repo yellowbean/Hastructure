@@ -507,7 +507,7 @@ priceBond d rc bnd
                               Nothing ->  (S.getTxnBegBalance . head) txns
                               Just _txn -> S.getTxnBegBalance _txn
           -- Need to use stmt
-          accruedInt = backoutAccruedInt d (fromMaybe (getOriginDate bnd) (bndDueIntDate bnd) ) txns
+          accruedInt = backoutAccruedInt d (getOriginDate bnd) txns
 
           wal = calcWalBond d bnd
           duration = calcDuration DC_ACT_365F d (zip futureCfDates futureCfFlow) rc
