@@ -164,5 +164,5 @@ calcIRR ds vs
     in 
       case ridders def (-1,1000) sumOfPv of
             Root irrRate -> Right $ toRational irrRate
-            NotBracketed -> Left $ "IRR: not bracketed"
+            NotBracketed -> Left $ "IRR: not bracketed" ++ show vs' ++ " and dates"++ show ds
             SearchFailed -> Left $ "IRR: search failed:  can't be calculated with input "++ show vs++" and dates"++ show ds

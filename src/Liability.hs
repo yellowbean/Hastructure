@@ -506,7 +506,6 @@ priceBond d rc bnd
           cutoffBalance = case S.getTxnAsOf txns d of
                               Nothing ->  (S.getTxnBegBalance . head) txns
                               Just _txn -> S.getTxnBegBalance _txn
-          -- Need to use stmt
           accruedInt = backoutAccruedInt d (getOriginDate bnd) txns
 
           wal = calcWalBond d bnd
