@@ -111,7 +111,6 @@ library
 executable Hastructure-exe
   main-is: Main.hs
   other-modules:
-      GenInterface
       MainBase
       Paths_Hastructure
   hs-source-dirs:
