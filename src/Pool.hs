@@ -36,10 +36,10 @@ import Control.Lens hiding (element)
 import Control.Lens.TH
 import Assumptions (ApplyAssumptionType)
 
-import Debug.Trace
 import Util
 import Cashflow (CashFlowFrame)
 import qualified Stmt as CF
+import Debug.Trace
 debug = flip trace
 
 
@@ -90,13 +90,13 @@ poolIssuanceStat = lens getter setter
 
 
 -- | get stats of pool 
-getIssuanceField :: Pool a -> CutoffFields -> Balance
+getIssuanceField :: Pool a -> CutoffFields -> Either String Balance
 getIssuanceField p@Pool{issuanceStat = Just m} s
   = case Map.lookup s m of
-      Just r -> r
-      Nothing -> 0.0
-getIssuanceField Pool{issuanceStat = Nothing} _ 
-  = error "There is no pool stats"
+      Just r -> Right r
+      Nothing -> Left $ "Faile dto find field "++ show s ++ "in pool issuance " ++ show m
+getIssuanceField Pool{issuanceStat = Nothing} s 
+  = Left $ "There is no pool stats to lookup:" ++ show s
 
 poolBegStats :: Pool a -> (Balance,Balance,Balance,Balance,Balance,Balance)
 poolBegStats p = 
