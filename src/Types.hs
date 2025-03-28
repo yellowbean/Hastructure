@@ -32,7 +32,7 @@ module Types
   ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
   ,MyRatio,HowToPay(..),ApplyRange(..),BondPricingMethod(..)
-  ,_BondTxn
+  ,_BondTxn ,_InspectBal
   )
   
   where
@@ -167,6 +167,7 @@ data Index = LPR5Y
             | BBSW
             | IRPH --  The IRPH (Índice de Referencia de Préstamos Hipotecarios) is a reference index used in Spain to fix the interest rate of mortgage loans
             | SONIA 
+            -- deriving (Show,Eq,Generic,Ord,Read, Bounded, Enum, Finite, Named, ProtoEnum)
             deriving (Show,Eq,Generic,Ord,Read)
 
 type Floater = (Index,Spread)
@@ -215,7 +216,7 @@ data DatePattern = MonthEnd
                  | SemiAnnual (Int, Int) (Int, Int)
                  | CustomDate [Date]
                  | SingletonDate Date
-                 | DaysInYear [(Int, Int)]
+                 | DaysInYear [(Int, Int)] -- MM/DD
                  | EveryNMonth Date Int
                  | Weekday Int 
                  | AllDatePattern [DatePattern]
@@ -740,14 +741,14 @@ type BookItems = [BookItem]
 
 data BookItem = Item String Balance 
               | ParentItem String BookItems
-              deriving (Show,Read,Generic)
+              deriving (Show,Read,Generic,Eq)
 
 data BalanceSheetReport = BalanceSheetReport {
                             asset :: BookItem
                             ,liability :: BookItem
                             ,equity :: BookItem
                             ,reportDate :: Date}         -- ^ snapshot date of the balance sheet
-                            deriving (Show,Read,Generic)
+                            deriving (Show,Read,Generic,Eq)
 
 data CashflowReport = CashflowReport {
                         inflow :: BookItem
@@ -755,7 +756,7 @@ data CashflowReport = CashflowReport {
                         ,net ::  BookItem
                         ,startDate :: Date 
                         ,endDate :: Date }
-                        deriving (Show,Read,Generic)
+                        deriving (Show,Read,Generic,Eq)
 
 data Threshold = Below
                | EqBelow
@@ -947,7 +948,9 @@ data ResultComponent = CallAt Date                                          -- ^
                      | WarningMsg String
                      | EndRun (Maybe Date) String                             -- ^ end of run with a message
                      -- | SnapshotCashflow Date String CashFlowFrame
-                     deriving (Show, Generic)
+                     deriving (Show, Generic,Eq)
+
+makePrisms ''ResultComponent
 
 
 listToStrWithComma :: [String] -> String
