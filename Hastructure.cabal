@@ -1,4 +1,4 @@
-cabal-version: 1.12
+cabal-version: 3.0
 
 -- This file has been generated from package.yaml by hpack version 0.37.0.
 --
@@ -13,7 +13,7 @@ bug-reports:    https://github.com/yellowbean/Hastructure/issues
 author:         Xiaoyu
 maintainer:     always.zhang@gmail.com
 copyright:      2025 Xiaoyu, Zhang
-license:        BSD3
+license:        BSD-3-Clause
 license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
@@ -103,9 +103,10 @@ library
     , template-haskell
     , text
     , time
-    , vector
     , wai
     , yaml
+    , vector
+--    , proto3-wire
   default-language: Haskell2010
 
 executable Hastructure-exe
@@ -157,11 +158,11 @@ executable Hastructure-exe
     , text
     , time
     , unordered-containers
-    , vector
     , wai
     , wai-cors
     , warp
     , yaml
+--    , proto3-suite
   default-language: Haskell2010
 
 test-suite Hastructure-test
@@ -228,7 +229,6 @@ test-suite Hastructure-test
     , template-haskell
     , text
     , time
-    , vector
     , wai
     , yaml
   default-language: Haskell2010
