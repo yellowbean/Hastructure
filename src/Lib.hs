@@ -62,7 +62,7 @@ getIntervalFactors :: [Date] -> [Rate]
 getIntervalFactors ds = (\x -> toRational x / 365) <$> getIntervalDays ds -- `debug` ("Interval Days"++show(ds))
 
 -- | 
-prorataFactors :: [Centi] -> Centi -> [Centi]
+prorataFactors :: [Balance] -> Balance -> [Balance]
 prorataFactors bals amt =
   case s of 
     0.0 -> replicate (length bals) 0.0
@@ -82,7 +82,7 @@ prorataFactors bals amt =
 
 -- 
 
-paySeqLiabilities :: Amount -> [Balance] -> [(Amount,Balance)]
+paySeqLiabilities :: Balance -> [Balance] -> [(Balance,Balance)]
 paySeqLiabilities startAmt liabilities =
   tail $ reverse $ foldl pay [(startAmt, 0)] liabilities
   where pay accum@((amt, _):xs) target = 
@@ -93,7 +93,7 @@ paySeqLiabilities startAmt liabilities =
 
 -- Input: 1000, [100,200,300] -> [100,200,300]
 -- Input: 100, [50,80] ->[50,50]
-paySeqLiabilitiesAmt :: Amount -> [Balance] -> [Amount]
+paySeqLiabilitiesAmt :: Balance -> [Balance] -> [Balance]
 paySeqLiabilitiesAmt startAmt funds
   = zipWith (-) funds remainBals
     -- map (\(a,b) -> (a-b)) $ zip funds remainBals

@@ -58,7 +58,7 @@ import Control.Lens.TH
 
 debug = flip trace
 
-type Delinquent = Centi
+type Delinquent = Balance
 type Amounts = [Float]
 type Principals = [Principal]
 type Interests = [Interest]

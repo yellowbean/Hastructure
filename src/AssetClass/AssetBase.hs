@@ -26,6 +26,7 @@ import Data.OpenApi hiding (Server,contentType)
 import Types hiding (Current,startDate,originTerm)
 import Data.Ratio
 import Data.Proxy
+import Data.Decimal
 import Util
 import qualified Data.Map as Map
 import qualified InterestRate as IR
@@ -72,8 +73,8 @@ calcPmt bal rate periods | rate == 0.0 = divideBI bal periods
       r1 = num / den
   in mulBR (realToFrac bal) (toRational (rate' * r1))
 
-type InterestAmount = Amount
-type PrincipalAmount = Amount
+type InterestAmount = Balance
+type PrincipalAmount = Balance
 
 calcAssetPrinInt :: AmortPlan -> Balance -> IRate -> Int -> Int -> (Balance,Int) -> (InterestAmount, PrincipalAmount)
 calcAssetPrinInt pt bal rate ot rt (amortBal, amortTerm) = 
@@ -324,6 +325,9 @@ $(deriveJSON defaultOptions ''AssetUnion)
 instance ToSchema Capacity
 instance ToSchema AmortRule
 instance ToSchema (Ratio Integer) where 
+  declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
+
+instance ToSchema (Decimal) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
 
 instance ToSchema PrepayPenaltyType

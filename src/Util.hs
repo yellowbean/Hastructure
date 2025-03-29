@@ -40,10 +40,10 @@ import Data.Time (addDays)
 import Debug.Trace
 debug = flip trace
 
-mulBR :: Balance -> Rate -> Centi
+mulBR :: Balance -> Rate -> Balance
 mulBR b r = fromRational $ toRational b * r 
 
-mulBIR :: Balance -> IRate -> Centi
+mulBIR :: Balance -> IRate -> Balance
 mulBIR b r = fromRational $ toRational b * toRational r
 
 mulIR :: Int -> Rational -> Rational
@@ -389,7 +389,7 @@ payProRata d amt getDueAmt payFn tobePaidList
     in 
       (paidList, remainAmt)
 
-payInMap :: Date -> Amount -> (a->Balance) -> (Amount->a->a)-> [String] 
+payInMap :: Date -> Balance -> (a->Balance) -> (Balance->a->a)-> [String] 
           -> HowToPay -> Map.Map String a -> Map.Map String a
 payInMap d amt getDueFn payFn objNames how inputMap 
   = let 
@@ -435,7 +435,7 @@ lookupInMap = lookupAndUpdate id
 
 selectInMap :: (Show k, Ord k) => String -> [k] -> Map.Map k a -> Either String (Map.Map k a)
 selectInMap errMsg keys m 
-  | S.isSubsetOf inputKs mapKs = Right $ (Map.filterWithKey (\k _ -> S.member k inputKs) m)
+  | S.isSubsetOf inputKs mapKs = Right $ Map.filterWithKey (\k _ -> S.member k inputKs) m
   | otherwise = Left $ errMsg++":Missing keys, valid range "++ show mapKs ++ "But got:" ++ show inputKs
   where 
       inputKs = S.fromList keys

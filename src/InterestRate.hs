@@ -16,6 +16,7 @@ import Data.Maybe
 import Data.Fixed
 import GHC.Generics
 import DateUtil
+import Data.Decimal
 
 import Types
 import Util

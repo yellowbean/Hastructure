@@ -118,7 +118,7 @@ type CumRecovery = Balance
 type AccruedInterest = Balance
 
 type PerFace = Micro
-type WAL = Centi
+type WAL = Balance
 type Duration = Micro
 type Convexity = Micro
 type Yield = Micro

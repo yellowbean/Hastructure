@@ -31,6 +31,7 @@ import qualified Stmt as S
 
 import Debug.Trace
 import Lib (paySeqLiabilities)
+import Data.Decimal
 debug = flip trace
 
 type LiquidityProviderName = String
