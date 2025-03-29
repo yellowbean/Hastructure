@@ -100,7 +100,7 @@ data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by 
 --------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
 data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount                                    -- ^ fixed rate
-                  | RefBal DealStats InterestInfo
+                  | RefBal DealStats InterestInfo                         -- ^ accure interest based on balance(described by a formula)
                   | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
