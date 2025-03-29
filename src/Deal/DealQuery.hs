@@ -394,12 +394,14 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         (Just pids, MultiPool pm) -> 
           if S.isSubsetOf  (S.fromList pids) (S.fromList (Map.keys pm)) then 
             let 
-              m = Map.filterWithKey (\k _ -> S.member k (S.fromList pids)) pm
+              selectedPools = Map.elems $ Map.filterWithKey (\k _ -> S.member k (S.fromList pids)) pm
             in 
-              Right . toRational $ sum $ Map.elems $ Map.map (`Pl.getIssuanceField` RuntimeCurrentPoolBalance) m 
+              do 
+                currentBals <- sequenceA $ (`Pl.getIssuanceField` RuntimeCurrentPoolBalance) <$> selectedPools
+                return $ toRational $ sum currentBals
           else 
             Left $ "Date:"++show d++"Failed to find pool balance" ++ show pids ++ " from deal "++ show (Map.keys pm)
-        _ -> Left $ "Date:"++show d++"Failed to find pool" ++ show (mPns) ++","++ show pt
+        _ -> Left $ "Date:"++show d++"Failed to find pool" ++ show mPns ++","++ show pt
 
     FutureCurrentSchedulePoolBalance mPns ->
       let 

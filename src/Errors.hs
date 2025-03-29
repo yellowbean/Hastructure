@@ -1,22 +1,13 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveAnyClass #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 
-module Errors(EngineError(..),ErrorMonad)
+module Errors(EngineError(..))
  where
 
-import Control.Exception
 
 
 
-data EngineError = DivideZero
+data EngineError = DivideZero 
                  | NoComponentFound
                  | NotValidAction
                  deriving (Show,Eq,Ord,Read)
-
-instance Exception EngineError
-type ErrorMonad = Either EngineError

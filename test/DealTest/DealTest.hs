@@ -72,11 +72,13 @@ baseCase = D.TestDeal {
                              ,L.bndBalance=3000
                              ,L.bndRate=0.08
                              ,L.bndDuePrin=0.0
+                             ,L.bndStepUp = Nothing
                              ,L.bndDueInt=0.0
                              ,L.bndDueIntDate=Nothing
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})
+                             ,L.bndStmt=Nothing
+                             ,L.bndDueIntOverInt = 0})
                          ]
            )
   ,D.pool = D.MultiPool $
@@ -96,7 +98,7 @@ baseCase = D.TestDeal {
                                          AB.Current]
                                ,P.futureCf=Just (CF.CashFlowFrame dummySt [])
                                ,P.asOfDate = T.fromGregorian 2022 1 1
-                               ,P.issuanceStat = Nothing
+                               ,P.issuanceStat = Just $ Map.fromList [(IssuanceBalance, 4000)]
                                ,P.extendPeriods = Nothing}))])
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (W.PayInt Nothing "General" ["A"] Nothing)
@@ -104,22 +106,43 @@ baseCase = D.TestDeal {
    ])]
  ,D.collects = [W.Collect Nothing W.CollectedInterest "General"
              ,W.Collect Nothing W.CollectedPrincipal "General"]
+ ,D.liqProvider = Nothing
+ ,D.rateCap = Nothing
+ ,D.triggers = Nothing
+ ,D.ledgers = Nothing
+ ,D.stats = (Map.empty,Map.empty,Map.empty,Map.empty)
 }
 
 baseTests = 
   let 
-   (dealAfterRun,poolCf,_,_) = case DR.runDeal baseCase DealPoolFlowPricing Nothing (AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing) of
-                                 Left e -> error $ "Deal run failed"++ show e
-                                 Right x -> x
+    nonRunAssump = (AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing (Just [AP.InspectPt MonthEnd (FutureCurrentPoolBalance Nothing)]) Nothing Nothing Nothing Nothing Nothing Nothing)
+    (dealAfterRun,poolCf,Just rcs,_) = case DR.runDeal baseCase DealPoolFlowPricing Nothing nonRunAssump of
+                                         Left e -> error $ "Deal run failed"++ show e
+                                         Right x -> x
+    inspects = [ rc | rc@(InspectBal {}) <- rcs ] 
   in 
    testGroup "Base Deal Test" 
-   [ testCase "Dates pattern" $
-     assertEqual  "First Pay"
-     True
-     True
-     ,testCase "empty pool flow" $
+   [ testCase "empty pool flow" $
      assertEqual "empty pool flow"
      0
      -- (P.futureCf (D.pool baseCase))
      0
+     -- https://docs.google.com/spreadsheets/d/1gmz8LOB01qqfPldquyDn43PJJ1MI016tS-JS5KW3SvM/edit?gid=1325808922#gid=1325808922
+     ,testCase "pool current balance (run time)" $
+     assertEqual "pool current balance (run time)"
+      (InspectBal (toDate "20220101") (FutureCurrentPoolBalance Nothing) 4000)
+      (inspects!!0)
+     ,testCase "pool current balance (run time 1)" $
+     assertEqual "pool current balance (run time 1)"
+      (InspectBal (toDate "20220131") (FutureCurrentPoolBalance Nothing) 4000)
+      (inspects!!1)
+     ,testCase "pool current balance (run time 2)" $
+     assertEqual "pool current balance (run time 2)"
+      (InspectBal (toDate "20220228") (FutureCurrentPoolBalance Nothing) 3946.27)
+      (inspects!!2)
+     ,testCase "pool current balance (run time 60)" $
+     assertEqual "pool current balance (run time 60)"
+      (InspectBal (toDate "20270131") (FutureCurrentPoolBalance Nothing) 0.0)
+      (inspects!!61)
    ]
+

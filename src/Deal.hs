@@ -95,7 +95,7 @@ setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) 
   = Right $ (L.accrueInt d b){ L.bndRate = applyFloatRate ii d ras }
 
 -- ^ Fix rate, do nothing
-setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Fix {}) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+setBondNewRate t d ras b@(L.Bond _ _ _ L.Fix {} _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
   = Right b
 
 -- ^ Ref rate
