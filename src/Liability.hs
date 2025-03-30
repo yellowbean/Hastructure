@@ -563,9 +563,9 @@ tryCalcZspread tradePrice originBalance priceDay futureCfs riskFreeCurve spread
       pvCurve = shiftTsByAmt riskFreeCurve (fromRational (toRational spread))
       pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- futureCfs ]
       newPrice = 100 * sum pvs
-      faceVal = fromRational $ divideBB newPrice originBalance
+      faceVal = divideBB newPrice originBalance
     in 
-      faceVal - fromRational tradePrice
+      fromRational (faceVal - tradePrice)
 
 
 calcZspread :: (Rational,Date) -> Bond -> Ts -> Either String Spread

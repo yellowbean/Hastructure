@@ -56,17 +56,6 @@ type BookLedger = (BookDirection, LedgerName)
 type BookLedgers = (BookDirection, [LedgerName]) 
 
 
--- data ActionTag = Pay 
---                 | TransferTo
---                 | Accrue
---                 | WriteOffTo
---                 | Receive
---                 | Settle
---                 | Buy
---                 | Sell 
-
-
-
 data Action =
             -- Accounts 
             Transfer (Maybe Limit) AccountName AccountName (Maybe TxnComment)
@@ -91,7 +80,6 @@ data Action =
             | PayIntResidual (Maybe Limit) AccountName BondName                            -- ^ pay interest to bond regardless interest due
             | PayIntByRateIndex (Maybe Limit) AccountName [BondName] Int (Maybe ExtraSupport)      -- ^ pay interest to bond by index
             | PayIntByRateIndexBySeq (Maybe Limit) AccountName [BondName] Int (Maybe ExtraSupport)      -- ^ pay interest to bond by index
-            -- | PayTillYield AccountName [BondName]
             -- Bond - Principal
             | CalcBondPrin (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)        -- ^ calculate principal due amount in the bond names
             | CalcBondPrin2 (Maybe Limit) [BondName]                                        -- ^ calculate principal due amount in the bond names

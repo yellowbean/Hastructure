@@ -106,6 +106,8 @@ library
     , wai
     , yaml
     , vector
+    , MissingH
+    , dlist
 --    , proto3-wire
   default-language: Haskell2010
 
@@ -232,4 +234,6 @@ test-suite Hastructure-test
     , wai
     , yaml
     , vector
+    , MissingH
+    , dlist
   default-language: Haskell2010

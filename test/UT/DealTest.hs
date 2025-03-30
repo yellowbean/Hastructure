@@ -23,6 +23,7 @@ import qualified Call as C
 import InterestRate
 import qualified CreditEnhancement as CE
 import qualified Triggers as Trg
+import qualified Data.DList as DL
 import Lib
 import Types
 
@@ -325,7 +326,7 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_) = case run td2 poolflowM (Just ads) Nothing Nothing Nothing [] of 
+      (fdeal,_) = case run td2 poolflowM (Just ads) Nothing Nothing Nothing DL.empty of 
                     Left _ -> error ""
                     Right x -> x
     in 

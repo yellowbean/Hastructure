@@ -9,6 +9,7 @@ module Reports (patchFinancialReports,getItemBalance,buildBalanceSheet,buildCash
             ) where
 
 import Data.List ( find, sort )
+import qualified Data.DList as DL
 import qualified Asset as P
 import qualified Data.Map as Map
 import qualified Cashflow as CF
@@ -36,10 +37,10 @@ import Stmt
       FlowDirection(Outflow, Inflow) )
 
 -- ^ add financial report to the logs
-patchFinancialReports :: P.Asset a => TestDeal a -> Date -> [ResultComponent] -> Either String [ResultComponent]
-patchFinancialReports t d [] = Right []
+patchFinancialReports :: P.Asset a => TestDeal a -> Date -> DL.DList ResultComponent -> Either String (DL.DList ResultComponent)
+-- patchFinancialReports t d DL.empty = return (DL.empty)
 patchFinancialReports t d logs 
-  = case (find pickReportLog (reverse logs)) of 
+  = case (find pickReportLog (reverse (DL.toList logs))) of 
       Nothing -> Right logs
       Just (FinancialReport sd ed bs cash) 
         -> let
@@ -48,7 +49,7 @@ patchFinancialReports t d logs
              do 
                bsReport <- buildBalanceSheet t d
                let newlog = FinancialReport ed d bsReport cashReport
-               return (logs++[newlog])
+               return (DL.snoc logs newlog)
       where 
         pickReportLog FinancialReport {} = True
         pickReportLog _ = False

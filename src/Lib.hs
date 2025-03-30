@@ -68,7 +68,7 @@ prorataFactors bals amt =
     0.0 -> replicate (length bals) 0.0
     _ -> let 
            weights = map (\x -> toRational x / s) bals -- `debug` ("bals"++show bals++">>s>>"++show s++"amt to pay"++show amtToPay)
-           outPut = (\y -> fromRational (y * toRational amtToPay)) <$> weights -- `debug` ("Weights->>"++ show weights)
+           outPut = (\y -> fromRational (y * amtToPay)) <$> weights -- `debug` ("Weights->>"++ show weights)
            eps = amt - sum outPut
          in 
            if eps == 0.00 then
@@ -78,7 +78,7 @@ prorataFactors bals amt =
           
   where
     s = toRational $ sum bals
-    amtToPay = min s (toRational amt)
+    amtToPay = toRational $ min s (toRational amt)
 
 -- 
 
