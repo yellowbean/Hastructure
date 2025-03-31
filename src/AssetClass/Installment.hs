@@ -13,6 +13,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Maybe
 import Data.List
+import qualified Data.DList as DL
 import Data.Aeson.TH
 import qualified Data.Map as Map
 import Data.Aeson.Types
@@ -37,7 +38,7 @@ import Control.Lens.TH
 debug = flip trace
 
 
-projectInstallmentFlow :: (Balance,Date,(Balance,Balance),IRate,Rational,AmortPlan,Int) -> (Dates, [DefaultRate], [PrepaymentRate], [Int]) -> ([CF.TsRow],Rational)
+projectInstallmentFlow :: (Balance,Date,(Balance,Balance),IRate,Rational,AmortPlan,Int) -> (Dates, [DefaultRate], [PrepaymentRate], [Int]) -> (DL.DList CF.TsRow, Balance ,Rational)
 projectInstallmentFlow (startBal, lastPaidDate, (originRepay,originInt), startRate,begFactor,pt,ot) (cfDates, defRates, ppyRates, remainTerms)
   = let 
       initRow = CF.LoanFlow lastPaidDate startBal 0.0 0.0 0.0 0.0 0.0 0.0 startRate Nothing
@@ -47,9 +48,9 @@ projectInstallmentFlow (startBal, lastPaidDate, (originRepay,originInt), startRa
                                           _ -> mulBR _opmt _factor
     in
       foldl
-        (\(acc,factor) (pDate, ppyRate, defRate, rt) -> 
+        (\(acc,begBal,factor) (pDate, ppyRate, defRate, rt) -> 
           let 
-            begBal = view CF.tsRowBalance (last acc)
+            -- begBal = view CF.tsRowBalance (last acc)
             newDefault = mulBR begBal defRate
             newPrepay = mulBR (begBal - newDefault) ppyRate
             intBal = begBal - newDefault - newPrepay
@@ -66,9 +67,10 @@ projectInstallmentFlow (startBal, lastPaidDate, (originRepay,originInt), startRa
             newPrin = calcPrin rt intBal originRepay newFactor
             endBal = intBal - newPrin
           in 
-            (acc ++ [CF.LoanFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0 startRate Nothing]
+            (DL.snoc acc (CF.LoanFlow pDate endBal newPrin newInt newPrepay newDefault 0.0 0.0 startRate Nothing)
+            ,endBal
             ,newFactor))
-        ([initRow], begFactor)
+        (DL.singleton initRow, startBal, begFactor)
         (zip4 cfDates ppyRates defRates remainTerms)
 
 
@@ -150,8 +152,8 @@ instance Asset Installment where
           do 
             ppyRates <- Ast.buildPrepayRates inst (lastPayDate:cfDates) prepayAssump
             defRates <- Ast.buildDefaultRates inst (lastPayDate:cfDates) defaultAssump
-            let (txns,_) = projectInstallmentFlow (cb,lastPayDate,(opmt,ofee),orate,currentFactor,pt,ot) (cfDates,defRates,ppyRates,remainTerms) 
-            let (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery txns recoveryAssump)
+            let (txns,_,_) = projectInstallmentFlow (cb,lastPayDate,(opmt,ofee),orate,currentFactor,pt,ot) (cfDates,defRates,ppyRates,remainTerms) 
+            let (futureTxns,historyM) = CF.cutoffTrs asOfDay (patchLossRecovery (DL.toList txns) recoveryAssump)
             let begBal = CF.buildBegBal futureTxns
             return $ (applyHaircut ams (CF.CashFlowFrame (begBal,asOfDay,Nothing) futureTxns), historyM)
 
