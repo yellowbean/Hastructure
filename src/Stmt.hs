@@ -173,7 +173,7 @@ data Statement = Statement (DL.DList Txn)
 
 appendStmt :: Txn -> Maybe Statement -> Maybe Statement
 appendStmt txn (Just stmt@(Statement txns)) = Just $ Statement (DL.snoc txns txn)
-appendStmt txn Nothing = Just $ Statement DL.empty
+appendStmt txn Nothing = Just $ Statement $ DL.singleton txn
 
 
 
