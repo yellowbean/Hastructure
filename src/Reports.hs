@@ -136,7 +136,7 @@ buildCashReport t@TestDeal{accounts = accs} sd ed
                    , startDate = sd
                    , endDate = ed }
       where 
-        _txns = concat $ Map.elems $ Map.map getTxns $ Map.map A.accStmt accs
+        _txns = concat $ Map.elems $ Map.map (DL.toList . getTxns) $ Map.map A.accStmt accs
         txns = sliceBy EI sd ed _txns
    
         inflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Inflow)  txns

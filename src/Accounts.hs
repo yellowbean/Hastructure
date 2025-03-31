@@ -23,6 +23,7 @@ import GHC.Generics
 import Control.Lens.Tuple
 import Control.Lens hiding (Index)
 import qualified InterestRate as IR
+import qualified Data.DList as DL
 
 -- import Web.Hyperbole
 
@@ -69,7 +70,7 @@ accrueInt endDate a@(Account bal _ (Just interestType) _ stmt)
       Nothing -> mulBR (mulBI bal rateToUse) (yearCountFraction defaultDc lastDay endDate) -- `debug` (">>"++show lastCollectDate++">>"++show ed)
       Just (Statement txns) ->
         let 
-          accrueTxns = sliceBy IE lastDay endDate txns
+          accrueTxns = sliceBy IE lastDay endDate (DL.toList txns)
           bals = map getTxnBegBalance accrueTxns ++ [bal]
           ds = [lastDay] ++ getDates accrueTxns ++ [endDate]
           avgBal = calcWeightBalanceByDates defaultDc bals ds
@@ -129,7 +130,7 @@ tryDraw amt d tc acc@(Account bal _ _ _ maybeStmt)
 
 instance QueryByComment Account where 
     queryStmt (Account _ _ _ _ Nothing) tc = []
-    queryStmt (Account _ _ _ _ (Just (Statement txns))) tc = filter (\x -> getTxnComment x == tc) txns
+    queryStmt (Account _ _ _ _ (Just (Statement txns))) tc = filter (\x -> getTxnComment x == tc) (DL.toList txns)
 
 
 -- InvestmentAccount Types.Index Spread DatePattern DatePattern Date IRate 

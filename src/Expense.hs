@@ -18,6 +18,7 @@ import qualified Data.Text
 import           Data.Aeson       hiding (json)
 import           Data.Aeson.TH
 import           Data.Aeson.Types
+import qualified Data.DList as DL
 import GHC.Generics
 
 import Data.Fixed
@@ -97,7 +98,7 @@ buildFeeAccrueAction (fee:fees) ed r =
 instance S.QueryByComment Fee where 
     queryStmt Fee{feeStmt = Nothing} tc = []
     queryStmt Fee{feeStmt = Just (S.Statement txns)} tc
-      = filter (\x -> S.getTxnComment x == tc) txns
+      = filter (\x -> S.getTxnComment x == tc) (DL.toList txns)
 
 instance Liable Fee where 
   isPaidOff f@Fee{feeDue=bal,feeArrears=fa}

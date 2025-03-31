@@ -35,6 +35,7 @@ import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Attoparsec.ByteString
 import Data.ByteString (ByteString)
 import Data.List
+import qualified Data.DList as DL
 import Data.Map
 import Data.Proxy
 import qualified Data.Text as T
@@ -247,8 +248,18 @@ instance ToSchema TRG.TriggerEffect
 instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
-instance ToSchema Stmt.Statement
+-- instance ToSchema a => ToSchema (DL.DList a)
 instance ToSchema Types.Txn
+
+-- instance ToSchema (DL.DList Types.Txn) where
+--   declareNamedSchema _ = declareNamedSchema (Proxy :: Proxy [Types.Txn])
+
+-- instance ToSchema (Generic (DL.DList Types.Txn)) 
+-- instance ToSchema (DL.DList Types.Txn)
+instance ToSchema a => ToSchema (DL.DList a) where
+  declareNamedSchema _ = declareNamedSchema (Proxy :: Proxy [a])
+
+instance ToSchema Stmt.Statement
 instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
 instance ToSchema RV.RevolvingPool

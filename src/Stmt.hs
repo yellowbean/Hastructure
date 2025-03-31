@@ -28,6 +28,7 @@ import Text.Regex.Base
 import Text.Regex.PCRE
 import Data.Fixed
 import Data.List
+import qualified Data.DList as DL
 import Data.Maybe
 import GHC.Generics
 import qualified Data.Set as Set
@@ -167,15 +168,17 @@ weightAvgBalance' sd ed (_txn:_txns)
     in 
       sum $ zipWith mulBR balances factors --`debug` ("In weight avg bal: Factors"++show factors++"Balances"++show balances ++ "interval "++ show (sd,ed))   
 
-data Statement = Statement [Txn]
+data Statement = Statement (DL.DList Txn)
               deriving (Show, Generic, Eq, Ord, Read)
 
 appendStmt :: Txn -> Maybe Statement -> Maybe Statement
-appendStmt txn (Just stmt@(Statement txns)) = Just $ Statement (txns++[txn])
-appendStmt txn Nothing = Just $ Statement [txn]
+appendStmt txn (Just stmt@(Statement txns)) = Just $ Statement (DL.snoc txns txn)
+appendStmt txn Nothing = Just $ Statement DL.empty
 
 
-statementTxns :: Lens' Statement [Txn]
+
+
+statementTxns :: Lens' Statement (DL.DList Txn)
 statementTxns = lens getter setter
   where 
     getter (Statement txns) = txns
@@ -188,8 +191,8 @@ consolTxn (txn:txns) txn0
   | getDate txn == getDate txn0 = combineTxn txn txn0:txns
   | otherwise = txn0:txn:txns 
 
-getTxns :: Maybe Statement -> [Txn]
-getTxns Nothing = []
+getTxns :: Maybe Statement -> DL.DList Txn
+getTxns Nothing = DL.empty
 getTxns (Just (Statement txn)) = txn
 
 combineTxn :: Txn -> Txn -> Txn

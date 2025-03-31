@@ -14,6 +14,7 @@ import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
+import qualified Data.DList as DL
 import GHC.Generics
 
 import Control.Lens hiding (element)
@@ -117,7 +118,7 @@ clearLedgersBySeq dr d amtToAlloc rs (ledger@Ledger{ledgBalance = bal}:ledgers)
 instance QueryByComment Ledger where 
     queryStmt (Ledger _ _ Nothing) tc = []
     queryStmt (Ledger _ _ (Just (Statement txns))) tc
-      = filter (\x -> getTxnComment x == tc) txns
+      = filter (\x -> getTxnComment x == tc) (DL.toList txns)
 
     queryTxnAmt a tc = sum $ map getTxnAmt $ queryStmt a tc
 

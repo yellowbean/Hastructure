@@ -14,6 +14,7 @@ module CreditEnhancement
 import qualified Data.Text as T
 import qualified Data.Time as Time
 import qualified Data.Map as Map
+import qualified Data.DList as DL
 import GHC.Generics
 import Language.Haskell.TH
 import Data.Aeson hiding (json)
@@ -90,14 +91,14 @@ data LiqFacility = LiqFacility {
 
 consolStmt :: LiqFacility -> LiqFacility
 consolStmt liq@LiqFacility{liqStmt = Nothing} = liq
-consolStmt liq@LiqFacility{liqStmt = Just (S.Statement [])} = liq
-consolStmt liq@LiqFacility{liqStmt = Just (S.Statement (txn:txns))}
-  = 
-    let 
-      combinedBondTxns = foldl S.consolTxn [txn] txns    
-      droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns 
-    in 
-      liq {liqStmt = Just (S.Statement (reverse droppedTxns))}
+consolStmt liq@LiqFacility{liqStmt = Just (S.Statement txn')} 
+  | DL.empty == txn' = liq
+  | otherwise = let 
+                  (txn:txns) = DL.toList txn'
+                  combinedBondTxns = foldl S.consolTxn [txn] txns    
+                  droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns 
+                in 
+                  liq {liqStmt = Just (S.Statement (DL.fromList (reverse droppedTxns)))}
 
 
 -- | update the reset events of liquidity provider
@@ -177,7 +178,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit _ mRateType mPRateType r
   = accrueLiqProvider d $ liq{liqStmt = Just defaultStmt} 
     where 
       -- insert begining record
-      defaultStmt = Statement [SupportTxn sd mCredit curBal dueInt duePremium 0 Empty]
+      defaultStmt = Statement $ DL.singleton $ SupportTxn sd mCredit curBal dueInt duePremium 0 Empty
 
 accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt@(Just (Statement txns)))
   = liq { liqStmt = newStmt
@@ -192,14 +193,14 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mP
                     Nothing -> 0
                     Just r -> 
                       let 
-                        bals = weightAvgBalanceByDates [lastAccDate,d] txns
+                        bals = weightAvgBalanceByDates [lastAccDate,d] (DL.toList txns)
                       in 
                         sum $ flip mulBIR r <$> bals -- `debug` ("Accure Using Rate"++show r++"avg bal"++ show bals ++"ds"++show [lastAccDate,d])
       accureFee = case prate of
                     Nothing -> 0 
                     Just r -> 
                       let 
-                        (_,_unAccTxns) = splitByDate txns lastAccDate EqToLeftKeepOne
+                        (_,_unAccTxns) = splitByDate (DL.toList txns) lastAccDate EqToLeftKeepOne
                         accBals = getUnusedBal <$> _unAccTxns 
                         _ds = lastAccDate : tail (getDate <$> _unAccTxns)
                         _avgBal = calcWeightBalanceByDates DC_ACT_365F accBals (_ds++[d])
@@ -222,7 +223,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mP
 instance QueryByComment LiqFacility where 
     queryStmt liq@LiqFacility{liqStmt = Nothing} tc = []
     queryStmt liq@LiqFacility{liqStmt = (Just (Statement txns))} tc
-      = filter (\x -> getTxnComment x == tc) txns
+      = filter (\x -> getTxnComment x == tc) (DL.toList txns)
 
 
 instance Liable LiqFacility where 

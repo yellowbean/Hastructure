@@ -164,6 +164,7 @@ executable Hastructure-exe
     , wai-cors
     , warp
     , yaml
+    , dlist
 --    , proto3-suite
   default-language: Haskell2010
 

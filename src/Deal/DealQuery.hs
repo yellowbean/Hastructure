@@ -24,6 +24,7 @@ import qualified Data.Set as S
 import qualified Liability as L
 import qualified Cashflow as CF
 import qualified Data.Time as T
+import qualified Data.DList as DL 
 import qualified Accounts as A
 import qualified Ledger as LD
 import qualified Expense as F
@@ -538,7 +539,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                           filter (\y -> case getTxnComment y of 
                                           (PayInt _ ) -> True
                                           _ -> False)   $
-                          filter (\x -> d == getDate x) txns
+                          filter (\x -> d == getDate x) (DL.toList txns)
        in
           Right . toRational $ sum $ map ex stmts
 
@@ -552,7 +553,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                           filter (\y -> case getTxnComment y of 
                                           (PayPrin _ ) -> True
                                           _ -> False)   $
-                          filter (\x -> d == getDate x) txns
+                          filter (\x -> d == getDate x) (DL.toList txns)
        in
           Right . toRational $ sum $ map ex stmts
     
@@ -565,14 +566,14 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             Just cmt -> sum [ queryTxnAmtAsOf fee d cmt | fee <- fees ]
             Nothing -> 
               let 
-                _txn = concat [ getTxns (F.feeStmt fee) | fee <- fees ]
+                _txn = concat [ (DL.toList .getTxns)(F.feeStmt fee) | fee <- fees ]
               in 
                 sumTxn $ cutBy Inc Past d _txn 
     
     FeePaidAmt fns -> 
       let 
         fees = (feeMap Map.!) <$> fns
-        feeTxns = concat [ getTxns (F.feeStmt fee) | fee <- fees ]
+        feeTxns = concat [ (DL.toList .getTxns) (F.feeStmt fee) | fee <- fees ]
       in 
         Right . toRational $ sumTxn feeTxns
     
@@ -585,7 +586,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             Just cmt -> sum [ queryTxnAmtAsOf bnd d cmt | bnd <- bnds ]
             Nothing ->
               let 
-                _txn = concat [ getTxns (L.bndStmt bnd) | bnd <- bnds ]
+                _txn = concat [ (DL.toList . getTxns) (L.bndStmt bnd) | bnd <- bnds ]
               in 
                 sumTxn $ cutBy Inc Past d _txn
 
@@ -598,7 +599,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             Just cmt -> sum [ queryTxnAmtAsOf acc d cmt | acc <- accs ]
             Nothing ->
               let 
-                _txn = concat [ getTxns (A.accStmt acc) | acc <- accs ]
+                _txn = concat [ (DL.toList . getTxns) (A.accStmt acc) | acc <- accs ]
               in 
                 sumTxn $ cutBy Inc Past d _txn 
 
@@ -631,7 +632,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         stmts = map F.feeStmt $ Map.elems fSubMap
         ex s = case s of
                   Nothing -> 0
-                  Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) txns
+                  Just (Statement txns) -> sum $ getTxnAmt <$> filter (\x ->  d == getDate x) (DL.toList txns)
       in
         Right . toRational $ sum $ map ex stmts
 
