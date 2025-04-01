@@ -1,7 +1,7 @@
 FROM fpco/stack-build:lts-22.6 as build
 RUN mkdir /opt/build
 COPY . /opt/build
-RUN cd /opt/build && stack build  --copy-bins  \ 
+RUN cd /opt/build && cabal build  --copy-bins  \ 
     --local-bin-path /opt/build  --resolver lts-22.6 # --system-ghc
 
 
