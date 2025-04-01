@@ -9,6 +9,7 @@ import Lib
 import Util
 import Stmt
 import Data.Ratio
+import qualified Data.DList as DL
 import Types
 import CreditEnhancement
 import qualified InterestRate as IR
@@ -27,11 +28,11 @@ liqTest = testGroup "Pricing Tests"
     in
       testCase "First Accure" $
         assertEqual "First Accure"  
-          (Just (Statement [SupportTxn (toDate "20220101") (Just 500) 100 0 0 0 Empty
-                            ,SupportTxn (toDate "20220201") (Just 500) 100 0.25 3.39 0 (LiquidationSupportInt 0.25 3.39)]))
+          (Just (Statement (DL.fromList [SupportTxn (toDate "20220101") (Just 500) 100 0 0 0 Empty
+                            ,SupportTxn (toDate "20220201") (Just 500) 100 0.25 3.39 0 (LiquidationSupportInt 0.25 3.39)])))
           (liqStmt (accrueLiqProvider (toDate "20220201") liq0 ))
     ,let
-        liqStmt1 = [
+        liqStmt1 = DL.fromList [
             SupportTxn (toDate "20220101") (Just 500) 100 0 0 0 Empty
             ,SupportTxn (toDate "20220201") (Just 800) 100 0.25 3.39 0 (LiquidationSupportInt 0.25 3.39)
             ]
@@ -42,12 +43,12 @@ liqTest = testGroup "Pricing Tests"
     in
       testCase "Accure on unused balance" $
         assertEqual "with one history txn"  
-          (Just (Statement [SupportTxn (toDate "20220101") (Just 500) 100 0 0 0 Empty
+          (Just (Statement (DL.fromList [SupportTxn (toDate "20220101") (Just 500) 100 0 0 0 Empty
                             ,SupportTxn (toDate "20220201") (Just 800) 100 0.25 3.39 0 (LiquidationSupportInt 0.25 3.39)
-                            ,SupportTxn (toDate "20220301") (Just 800) 100 0.48 8.29 0 (LiquidationSupportInt 0.23 4.9)]))
+                            ,SupportTxn (toDate "20220301") (Just 800) 100 0.48 8.29 0 (LiquidationSupportInt 0.23 4.9)])))
           (liqStmt (accrueLiqProvider (toDate "20220301") liq1 )) 
     ,let
-        liqStmt1 = [
+        liqStmt1 = DL.fromList [
             SupportTxn (toDate "20220101") (Just 500) 100 0 0 0 Empty
             ,SupportTxn (toDate "20220201") (Just 800) 100 0.25 3.39 0 (LiquidationSupportInt 0.25 3.39)
             ,SupportTxn (toDate "20220301") (Just 1000) 100 0.48 8.29 0 (LiquidationSupportInt 0.23 4.9)
@@ -59,10 +60,10 @@ liqTest = testGroup "Pricing Tests"
     in
       testCase "Accure on unused balance " $
         assertEqual "with multiple history txn"  
-          (Just (Statement [SupportTxn (toDate "20220101") (Just 500) 100 0 0 0 Empty
+          (Just (Statement (DL.fromList [SupportTxn (toDate "20220101") (Just 500) 100 0 0 0 Empty
                             ,SupportTxn (toDate "20220201") (Just 800) 100 0.25 3.39 0 (LiquidationSupportInt 0.25 3.39)
                             ,SupportTxn (toDate "20220301") (Just 1000) 100 0.48 8.29 0 (LiquidationSupportInt 0.23 4.9)
                             ,SupportTxn (toDate "20220401") (Just 1000) 100 0.99 18.49 0 (LiquidationSupportInt 0.74 15.10)
-                            ]))
+                            ])))
           (liqStmt (accrueLiqProvider (toDate "20220401") liq1 ))    
   ]
