@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 # NOTICE THIS LINE
 
 
-COPY --from=build /opt/build/dist/Hastructure-exe .
+COPY --from=build /root/.local/bin/Hastructure-exe .
 COPY --from=build /opt/build/config.yml .
 COPY --from=build /opt/build/swagger.json .
 #COPY config.yml /opt/myapp
