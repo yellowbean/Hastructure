@@ -1,4 +1,4 @@
-FROM haskell:slim-bullseye as build
+FROM haskell:9.8.4-slim-bullseye as build
 RUN mkdir /opt/build
 COPY . /opt/build
 RUN cd /opt/build && cabal update && cabal install
