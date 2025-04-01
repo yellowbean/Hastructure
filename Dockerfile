@@ -1,7 +1,7 @@
 FROM haskell:slim-bullseye as build
 RUN mkdir /opt/build
 COPY . /opt/build
-RUN cd /opt/build && cabal install
+RUN cd /opt/build && cabal update && cabal install
 
 
 FROM --platform=linux/amd64 ubuntu:25.04
