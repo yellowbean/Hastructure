@@ -49,7 +49,6 @@ import GHC.Generics
 import GHC.Real
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.ByteString.Char8 as BS
-import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Cors

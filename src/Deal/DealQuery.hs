@@ -94,7 +94,9 @@ calcBondTargetBalance t d b =
     L.Sequential -> Right 0
     L.Lockout ld | d >= ld -> Right 0
                  | otherwise -> Right $ L.bndBalance b
-    L.Z -> Right 0
+    L.Z 
+      | all (==True) (isPaidOff <$> (Map.elems (Map.delete (L.bndName b) (bonds t)))) -> Right 0
+      | otherwise -> Right $ L.bndBalance b
     L.IO -> Right 0
     L.Equity -> Right 0
     L.PAC _target -> Right $ getValOnByDate _target d
