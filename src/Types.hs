@@ -31,7 +31,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio,HowToPay(..),ApplyRange(..),BondPricingMethod(..)
+  ,MyRatio,HowToPay(..),BondPricingMethod(..)
   ,_BondTxn ,_InspectBal
   )
   
@@ -240,8 +240,6 @@ data Period = Daily
 
 type DateVector = (Date, DatePattern)
 
-
-
 data RoundingBy a = RoundCeil a 
                   | RoundFloor a
                   deriving (Show, Generic, Eq, Ord, Read)
@@ -299,7 +297,6 @@ data PerCurve a = CurrentVal [PerPoint a]
 getValFromPerCurve :: PerCurve a -> DateDirection -> CutoffType -> Int -> Maybe a
 getValFromPerCurve (WithTrailVal []) _ _ _ = Nothing 
 getValFromPerCurve (CurrentVal []) _ _ _ = Nothing 
-
 getValFromPerCurve (CurrentVal (v:vs)) Future p i 
   = let 
       cmp = case p of
@@ -360,11 +357,6 @@ data CutoffType = Inc
 data DateDirection = Future 
                    | Past
                    deriving (Show,Read,Generic)
-
-data ApplyRange = ByAll
-                | ByIndexes [Int]
-                | ByKeys [String]
-                deriving (Show,Read,Generic)
 
 
 class TimeSeries ts where 

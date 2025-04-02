@@ -18,8 +18,6 @@ import Data.Hashable
 import Data.Fixed
 import GHC.Generics
 
-import Accounts (Account)
-import Expense
 import Types
 import Revolving
 import Stmt (TxnComment(..))
@@ -27,9 +25,7 @@ import qualified Lib as L
 import qualified Call as C
 import qualified CreditEnhancement as CE
 import qualified Hedge as HE
-import CreditEnhancement (LiquidityProviderName)
-import Ledger (Ledger,LedgerName)
-
+import Ledger (LedgerName)
 
 
 data BookType = PDL BookDirection DealStats [(LedgerName,DealStats)] -- Reverse PDL Debit reference, [(name,cap reference)]
@@ -38,7 +34,7 @@ data BookType = PDL BookDirection DealStats [(LedgerName,DealStats)] -- Reverse 
               deriving (Show,Generic,Eq,Ord)
 
 data ExtraSupport = SupportAccount AccountName (Maybe BookLedger)  -- ^ if there is deficit, draw another account to pay the shortfall
-                  | SupportLiqFacility LiquidityProviderName                        -- ^ if there is deficit, draw facility's available credit to pay the shortfall
+                  | SupportLiqFacility CE.LiquidityProviderName                        -- ^ if there is deficit, draw facility's available credit to pay the shortfall
                   | MultiSupport [ExtraSupport]                                     -- ^ if there is deficit, draw multiple supports (by sequence in the list) to pay the shortfall
                   | WithCondition Pre ExtraSupport                                  -- ^ support only available if Pre is true
                   deriving (Show,Generic,Eq,Ord)
@@ -54,7 +50,6 @@ data PayOrderBy = ByName
 
 type BookLedger = (BookDirection, LedgerName) 
 type BookLedgers = (BookDirection, [LedgerName]) 
-
 
 data Action =
             -- Accounts 
@@ -141,5 +136,3 @@ $(deriveJSON defaultOptions ''ExtraSupport)
 $(deriveJSON defaultOptions ''PayOrderBy)
 $(deriveJSON defaultOptions ''Action)
 $(deriveJSON defaultOptions ''CollectionRule)
-
-

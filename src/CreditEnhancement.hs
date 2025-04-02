@@ -7,7 +7,7 @@ module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
   ,LiquidityProviderName,draw,repay,accrueLiqProvider
   ,LiqDrawType(..),LiqRepayType(..),LiqCreditCalc(..)
-  ,consolStmt,CreditDefaultSwap(..),CDSType(..)
+  ,consolStmt,CreditDefaultSwap(..),
   )
   where
 
@@ -256,30 +256,22 @@ instance IR.UseRate LiqFacility where
 
   getIndex liq = head <$> IR.getIndexes liq
 
-
-data CDSType = CoverageAttachDetach Balance Balance
-              | CoverageAttach Balance
-              | CoverageDetach Balance
-              | AllCoverage
-              deriving (Show, Generic, Eq, Ord)
-
 data CreditDefaultSwap = CDS {
     cdsName :: String
-    ,cdsType :: CDSType
+    ,cdsAccrue :: Maybe DatePattern
 
-    ,cdsInsure ::  DealStats     -- ^ the coverage 
-    ,cdsCollectDue :: Balance    -- ^ the amount to collect from CDS
+    ,cdsCoverage :: DealStats     -- ^ the coverage 
+    ,cdsDue :: Balance           -- ^ the amount to collect from CDS,paid to SPV as cure to loss incurred by SPV 
+    ,cdsLast :: Maybe Date       -- ^ last date of Due calc
 
     ,cdsPremiumRefBalance :: DealStats  -- ^ how notional balance is calculated
-    ,cdsPremiumNotional :: Balance      -- ^ the balance to calculate premium
-
     ,cdsPremiumRate :: IRate            -- ^ the rate to calculate premium
-    ,cdsRateType :: Maybe IR.RateType   -- ^ interest rate type 
+    ,cdsRateType :: IR.RateType         -- ^ interest rate type 
     
     ,cdsPremiumDue :: Balance           -- ^ the due premium to payout from SPV
+    ,cdsLastCalcDate :: Maybe Date      -- ^ last calculate date on net cash 
 
-    ,cdsLastCalcDate :: Maybe Date     -- ^ last calculate date on net cash 
-
+    ,cdsSettle :: Maybe DatePattern
     ,cdsSettleDate :: Maybe Date       -- ^ last setttle date on net cash 
     ,cdsNetCash :: Balance             -- ^ the net cash to settle ,negative means SPV pay to CDS, positive means CDS pay to SPV
 
@@ -288,7 +280,11 @@ data CreditDefaultSwap = CDS {
     ,cdsStmt :: Maybe Statement
 }  deriving (Show, Generic, Eq, Ord)
 
-
+instance IR.UseRate CreditDefaultSwap where 
+  getIndexes cds@CDS{cdsRateType = rt} 
+    = case rt of 
+        (IR.Floater _ idx _ _ _ _ _ _) -> Just [idx]
+        (IR.Fix _ _) -> Nothing
 
 
 $(deriveJSON defaultOptions ''LiqRepayType)

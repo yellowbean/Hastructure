@@ -34,12 +34,8 @@ import Types
 import Control.Lens
 import Data.List.Lens
 import Control.Lens.TH
--- import Deal.DealType
-
-
 import Debug.Trace
 debug = flip trace
-
 
 
 periodRateFromAnnualRate :: Period -> IRate -> IRate
@@ -55,7 +51,6 @@ addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
 
 getIntervalDays :: [Date] -> [Int]
 getIntervalDays ds = zipWith daysBetweenI (init ds) (tail ds)
-  -- = map (\(x,y)-> (fromIntegral (T.diffDays y x))) $ zip (init ds) (tail ds)
 
 -- get fractional years from a set of dates
 getIntervalFactors :: [Date] -> [Rate]
@@ -134,6 +129,7 @@ mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
 
 mkRateTs :: [(Date,IRate)] -> Ts
 mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
+
 
 getValOnByDate :: Ts -> Date -> Balance
 getValOnByDate (BalanceCurve dps) d 
