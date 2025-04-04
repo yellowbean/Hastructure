@@ -309,13 +309,14 @@ testBySpread (dt,mPAssump,runAssump) (bn,bnds) f
         Right (d, mPoolCfMap, mResult, pResult) -> 
           let 
             v = getPriceValue $ pResult Map.! bn
-            bond = dtToBonds d Map.! bn
+            bondBal = L.getOriginBalance $ dtToBonds d Map.! bn
           in
+            (fromRational . toRational) $ bondBal - v
             -- if L.getCurBalance bond > 0 then
-            if True then
-              1.0
-            else
-              (fromRational . toRational) (v - L.getOriginBalance bond)
+            -- if True then
+            --   1.0
+            -- else
+            --   (fromRational . toRational) (v - bondBal)
         Left errorMsg -> error $ "Error in test fun for spread testing" ++ show errorMsg
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)

@@ -24,6 +24,8 @@ source-repository head
   type: git
   location: https://github.com/yellowbean/Hastructure
 
+with-compiler: ghc-9.8.2
+
 library
   exposed-modules:
       Accounts
