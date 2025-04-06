@@ -300,10 +300,10 @@ testByDefault dt assumps nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevo
 
 -- add spread to bonds till PV of bond (discounted by pricing assumption) equals to face value
 -- with constraint that all liabilities are paid off
-testBySpread :: DealRunInput -> (BondName,[BondName]) -> Double -> Double
-testBySpread (dt,mPAssump,runAssump) (bn,bnds) f 
+testBySpread :: DealRunInput -> BondName -> Double -> Double
+testBySpread (dt,mPAssump,runAssump) bn f 
   = let
-      runResult = wrapRun (modifyDealType (DM.AddSpreadToBonds bnds) f dt) mPAssump runAssump
+      runResult = wrapRun (modifyDealType (DM.AddSpreadToBonds [bn]) f dt) mPAssump runAssump
     in 
       case runResult of 
         Right (d, mPoolCfMap, mResult, pResult) -> 
@@ -311,12 +311,7 @@ testBySpread (dt,mPAssump,runAssump) (bn,bnds) f
             v = getPriceValue $ pResult Map.! bn
             bondBal = L.getOriginBalance $ dtToBonds d Map.! bn
           in
-            (fromRational . toRational) $ bondBal - v
-            -- if L.getCurBalance bond > 0 then
-            -- if True then
-            --   1.0
-            -- else
-            --   (fromRational . toRational) (v - bondBal)
+            (fromRational . toRational) $ bondBal - v -- `debug` ("rate"++ show f ++ "bondBal:"++ show bondBal++"v:"++ show v)
         Left errorMsg -> error $ "Error in test fun for spread testing" ++ show errorMsg
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
@@ -335,15 +330,15 @@ runRootFinderBy (FirstLossReq (dt,Just assumps,nonPerfAssump@AP.NonPerfAssumptio
           NotBracketed -> Left "Not able to bracket the root"
           SearchFailed -> Left "Not able to find the root"
 
-runRootFinderBy (MaxSpreadToFaceReq (dt,pAssump,dAssump) (bn,bnds)) 
+runRootFinderBy (MaxSpreadToFaceReq (dt,pAssump,dAssump) bn) 
   = return $
       let 
         itertimes = 500
         def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
       in 
-        case ridders def (0.00,200.0) (testBySpread (dt,pAssump,dAssump) (bn,bnds)) of
+        case ridders def (0.00,200.0) (testBySpread (dt,pAssump,dAssump) bn) of
           Root r -> let 
-                      dt' = modifyDealType (DM.AddSpreadToBonds bnds) r dt  
+                      dt' = modifyDealType (DM.AddSpreadToBonds [bn]) r dt  
                     in 
                       Right $ BestSpreadResult r (dtToBonds dt') dt' 
           NotBracketed -> Left "Not able to bracket the root"
