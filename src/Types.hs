@@ -31,7 +31,7 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio,HowToPay(..),BondPricingMethod(..)
+  ,MyRatio,HowToPay(..),BondPricingMethod(..),InvestorAction(..)
   ,_BondTxn ,_InspectBal
   )
   
@@ -357,6 +357,10 @@ data CutoffType = Inc
 data DateDirection = Future 
                    | Past
                    deriving (Show,Read,Generic)
+
+data InvestorAction = Buy 
+                    | Sell
+                    deriving (Show,Ord,Read,Generic,Eq)
 
 
 class TimeSeries ts where 

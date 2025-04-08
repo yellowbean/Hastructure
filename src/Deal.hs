@@ -420,7 +420,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                     rates 
                     calls 
                     rAssump 
-                    (consolLogsFn [DL.fromList newLogs0,newLogs,eopActionsLog,DL.fromList newLogs1]) -- `debug` ("PoolCollection: Pt 05>> "++ show d++">> context flow>> "++show (runPoolFlow rc3))
+                    (DL.concat [DL.fromList newLogs0,newLogs,eopActionsLog,DL.fromList newLogs1]) -- `debug` ("PoolCollection: Pt 05>> "++ show d++">> context flow>> "++show (runPoolFlow rc3))
           else
             run t poolFlowMap (Just ads) rates calls rAssump log -- `debug` ("PoolCollection: hit zero pool length"++ show d++"pool"++ (show poolFlowMap)++"collected cf"++ show pt) 
 
@@ -459,7 +459,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                       rates 
                       calls 
                       rAssump 
-                      (consolLogsFn [newLogsWaterfall,DL.fromList (newLogs2 ++ logsBeforeDist++[RunningWaterfall d waterfallKey])]) -- `debug` ("In RunWaterfall Date"++show d++"after run waterfall 3>>"++ show (pool dRunWithTrigger1)++" status>>"++ show (status dRunWithTrigger1))
+                      (DL.concat [newLogsWaterfall,DL.fromList (newLogs2 ++ logsBeforeDist++[RunningWaterfall d waterfallKey])]) -- `debug` ("In RunWaterfall Date"++show d++"after run waterfall 3>>"++ show (pool dRunWithTrigger1)++" status>>"++ show (status dRunWithTrigger1))
 
         -- Custom waterfall execution action from custom dates
         RunWaterfall d wName -> 
@@ -475,7 +475,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                         | Map.notMember waterfallKey waterfallM ]  
               (dAfterWaterfall, rc2, newLogsWaterfall) <- foldM (performActionWrap d) (t,runContext,log) waterfallToExe -- `debug` (show d ++ " running action"++ show waterfallToExe)
               run dAfterWaterfall (runPoolFlow rc2) (Just ads) rates calls rAssump 
-                  (consolLogsFn [newLogsWaterfall,DL.fromList (logsBeforeDist ++ [RunningWaterfall d waterfallKey])]) -- `debug` ("size of logs"++ show (length newLogsWaterfall)++ ">>"++ show d++ show (length logsBeforeDist))
+                  (DL.concat [newLogsWaterfall,DL.fromList (logsBeforeDist ++ [RunningWaterfall d waterfallKey])]) -- `debug` ("size of logs"++ show (length newLogsWaterfall)++ ">>"++ show d++ show (length logsBeforeDist))
 
         EarnAccInt d accName ->
           let 
@@ -522,7 +522,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                          _ -> Left $ "DealClosed action is not in PreClosing status but got"++ show dStatus
               (newDeal, newRc, newLog) <- foldM (performActionWrap d) (t, rc, log) w  -- `debug` ("ClosingDay Action:"++show w)
               run newDeal{status=newSt} (runPoolFlow newRc) (Just ads) rates calls rAssump 
-                  (consolLogsFn [newLog, DL.fromList ([DealStatusChangeTo d (PreClosing newSt) newSt "By Deal Close"]++logForClosed)]) -- `debug` ("new st at closing"++ show newSt)
+                  (DL.concat [newLog, DL.fromList ([DealStatusChangeTo d (PreClosing newSt) newSt "By Deal Close"]++logForClosed)]) -- `debug` ("new st at closing"++ show newSt)
 
         ChangeDealStatusTo d s -> run (t{status=s}) poolFlowMap (Just ads) rates calls rAssump log
 
@@ -644,7 +644,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                     Just efs -> runEffects (t, runContext, ads, DL.empty) d efs
               let (oldStatus,newStatus) = (status t,status newT)
               let stChangeLogs = DL.fromList [DealStatusChangeTo d oldStatus newStatus "by Manual fireTrigger" |  oldStatus /= newStatus] 
-              run newT {triggers = Just triggerFired} newPool (Just ads) rates calls rAssump $ consolLogsFn [log,stChangeLogs,newLogsFromTrigger]
+              run newT {triggers = Just triggerFired} newPool (Just ads) rates calls rAssump $ DL.concat [log,stChangeLogs,newLogsFromTrigger]
         
         MakeWhole d spd walTbl -> 
             let 
@@ -792,7 +792,6 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         _ -> Left $ "Failed to match action on Date"++ show ad
 
        where
-         consolLogsFn = foldl1 DL.append
          cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
          remainCollectionNum = Map.elems $ Map.map CF.sizeCashFlowFrame poolFlowMap
          futureCashToCollect = Map.elems $ Map.map (\pcf -> sum (CF.tsTotalCash <$> view CF.cashflowTxn pcf)) poolFlowMap
