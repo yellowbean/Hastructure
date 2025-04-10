@@ -14,7 +14,7 @@ module Util
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,adjustM,lookupAndApply,lookupAndUpdate,lookupAndApplies
     ,lookupInMap,selectInMap
-    ,lookupTuple6 ,lookupTuple7
+    ,lookupTuple6 ,lookupTuple7,diffNum
     -- for debug
     ,debugOnDate,paySeqM
     )
@@ -238,6 +238,8 @@ capWith cap xs = [ min cap x | x <- xs ]
 floorWith :: Ord a => a -> [a] -> [a]
 floorWith floor xs = [ max x floor | x <- xs]
 
+diffNum :: Num a => [a] -> [a]
+diffNum xs = zipWith (-) (init xs) (tail xs)
 
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""

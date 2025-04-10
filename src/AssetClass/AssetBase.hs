@@ -247,7 +247,7 @@ data AssociateIncome = IncomePerPeriod Balance
                       | IncomePerUnit Balance
                       deriving (Show,Generic,Ord,Eq)
 
-data FixedAsset = FixedAsset OriginalInfo RemainTerms
+data FixedAsset = FixedAsset OriginalInfo Balance RemainTerms
                 | Dummy5
                 deriving (Show,Generic,Eq,Ord)
 

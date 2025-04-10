@@ -36,67 +36,75 @@ import Asset (Asset(projCashflow))
 import Assumptions (AssetDelinqPerfAssumption(DummyDelinqAssump))
 debug = flip trace
 
-calcAmortAmt ::FixedAsset -> [Balance]
+
+-- life time schedule amortization amount list
+calcAmortAmt ::FixedAsset -> Either String [Balance]
 calcAmortAmt fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
-                                               ,residualBalance=rb ,capacity=cap} rt)
+                                               ,residualBalance=rb ,capacity=cap} b rt)
   = case ar of
-      StraightLine -> replicate ot $ divideBI (ob-rb) ot
+      StraightLine -> Right $ replicate ot $ divideBI (ob-rb) ot
       DecliningBalance -> 
         let 
-          r = 1 - (realToFrac (divideBB rb ob)) ** ((1.0/(fromIntegral ot))::Double)
-          remainBals = scanl (\remainBal x -> remainBal - mulBR remainBal x) ob $ replicate ot (toRational r)
+          amortizeRate = realToFrac $ 2 % ot
+          futureBals = scanl (\acc r -> acc * (1 - r)) ob (replicate ot amortizeRate)
+          amortizeAmounts = paySeqLiabilitiesAmt (ob - rb) $ diffNum futureBals
         in 
-          [ x-y |  (x,y) <- zip (init remainBals) (tail remainBals) ] `debug` ("remain bals"++ show remainBals)
-      _ -> error ("Not implemented for depreciation rule"++show ar)
+          Right amortizeAmounts
+
+      _ -> Left ("Not implemented for depreciation rule"++show ar)
  
-calcAmortBals ::FixedAsset -> [Balance]
+calcAmortBals ::FixedAsset -> Either String [Balance]
 calcAmortBals fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
-                                               ,residualBalance=rb ,capacity=cap} rt)
-  = scanl (-) ob $ calcAmortAmt fa
+                                               ,residualBalance=rb ,capacity=cap} b rt)
+  = do 
+      bals <- calcAmortAmt fa
+      return $ scanl (-) ob bals
  
 
 instance Ast.Asset FixedAsset where 
 
   calcCashflow fa@(FixedAsset {}) asOfDay _ = 
-     fst <$> projCashflow fa asOfDay (A.FixedAssetAssump (mkTs []) (mkTs []), A.DummyDelinqAssump, A.DummyDefaultAssump) Nothing
+     fst <$> projCashflow fa asOfDay (A.FixedAssetAssump (mkTs []) (mkTs []) Nothing, A.DummyDelinqAssump, A.DummyDefaultAssump) Nothing
 
   getCurrentBal  fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
-                                                 ,residualBalance=rb ,capacity=cap} rt) 
-    = calcAmortBals fa!!(ot-rt)
+                                                 ,residualBalance=rb ,capacity=cap} curBal rt) 
+    = curBal
 
   resetToOrig fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
-                                                 ,residualBalance=rb ,capacity=cap} rt) 
-    = FixedAsset fai ot
+                                                 ,residualBalance=rb ,capacity=cap} b rt) 
+    = FixedAsset fai b ot
   
   getPaymentDates 
-    (FixedAsset fo@FixedAssetInfo{startDate=sd ,period=p,originTerm=ot} rt)
+    (FixedAsset fo@FixedAssetInfo{startDate=sd ,period=p,originTerm=ot} _ rt)
     extra
     = genDates sd p (ot+extra)
 
   projCashflow fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
-                                                 ,residualBalance=rb ,capacity=cap} rt) 
+                                                 ,residualBalance=rb ,capacity=cap} curBalance rt) 
                asOfDay
-               (A.FixedAssetAssump uCurve pCurve,_,_)
+               (A.FixedAssetAssump uCurve pCurve mExtPeriods,_,_)
                _
     = let 
-        pdates = lastN rt $ Ast.getPaymentDates fa 0
-        cfLength = length pdates 
-        amortizedBals = lastN rt $ calcAmortAmt fa
-        scheduleBals = lastN rt $ calcAmortBals fa
+        extPeriods = fromMaybe 0 mExtPeriods
+        cfLength =  rt + extPeriods
+        pdates = lastN cfLength $ Ast.getPaymentDates fa extPeriods
         capacityCaps = case cap of
-                        FixedCapacity b -> replicate rt b
-                        CapacityByTerm tbl -> lastN rt $ concat [ replicate i b | (i,b)  <- tbl ]
+                        FixedCapacity b -> replicate cfLength b
+                        CapacityByTerm tbl -> lastN cfLength $ concat [ replicate i b | (i,b)  <- tbl ] ++ (replicate extPeriods (snd (last tbl)))
 
-        cumuDep = sum $ take (ot-rt) (calcAmortAmt fa)
         utilsVec = getValByDates uCurve Inc pdates
         units = [ mulBR c u | (u,c) <- zip utilsVec capacityCaps]
         prices = getValByDates pCurve Inc pdates
         cash = [ mulBR u p | (p,u) <- zip prices units]
-        cumuDepreciation = tail $ scanl (+) cumuDep amortizedBals 
-        
-        txns = zipWith6 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash
-        futureTxns = cutBy Inc Future asOfDay txns
-        begBal = CF.buildBegBal futureTxns
       in 
-        Right $ (CF.CashFlowFrame (begBal,asOfDay,Nothing) $ futureTxns, Map.empty)
+        do 
+          scheduleAmt <- calcAmortAmt fa 
+          let amortizedBals = lastN cfLength $ scheduleAmt ++ replicate extPeriods 0
+          let scheduleBals = tail $ scanl (-) curBalance (amortizedBals ++ [0])
+          let cumuDep = sum $ take (ot-rt) scheduleAmt
+          let cumuDepreciation = tail $ scanl (+) cumuDep amortizedBals 
+          let txns = zipWith6 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash
+          let futureTxns = cutBy Inc Future asOfDay txns
+          let begBal = CF.buildBegBal futureTxns
+          return $ (CF.CashFlowFrame (begBal,asOfDay,Nothing) $ futureTxns, Map.empty)
   

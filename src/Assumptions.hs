@@ -216,13 +216,15 @@ data AssetDefaultedPerfAssumption = DefaultedRecovery Rate Int [Rate]
 data AssetDelinqPerfAssumption = DummyDelinqAssump
                                deriving (Show,Generic,Read)
 
+
+
 data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)
                          | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | LeaseAssump       (Maybe AssetDefaultAssumption) LeaseAssetGapAssump LeaseAssetRentAssump LeaseEndType
                          | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | ReceivableAssump  (Maybe AssetDefaultAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
-                         | FixedAssetAssump  Ts Ts   -- util rate, price
+                         | FixedAssetAssump  Ts Ts (Maybe Int)  -- util rate, price, (Maybe extend periods)
                          deriving (Show,Generic,Read)
 
 

@@ -3181,10 +3181,15 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
@@ -9976,13 +9981,17 @@
                                         "$ref": "#/components/schemas/OriginalInfo"
                                     },
                                     {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
                                         "maximum": 9223372036854775807,
                                         "minimum": -9223372036854775808,
                                         "type": "integer"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
