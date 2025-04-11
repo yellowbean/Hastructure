@@ -1,5 +1,5 @@
 module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,installmentTest,armTest,ppyTest
-                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest,nonPayMortgageTest,receivableTest)
+                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest,nonPayMortgageTest,receivableTest,fixedAssetTest)
 where
 
 import Test.Tasty
@@ -834,3 +834,77 @@ receivableTest =
         ((`CF.cfAt` 0) <$> (fst <$> Ast.projCashflow invoice0 (L.toDate "20240501") invoiceAssump Nothing))
     ]
   
+fixedAssetTest = 
+  let 
+    assetInfo = AB.FixedAssetInfo (L.toDate "20250101") 11000 1000 10 Monthly AB.StraightLine (AB.FixedCapacity 100)
+    assetInfo2 = AB.FixedAssetInfo (L.toDate "20250101") 10000 1000 10 Monthly AB.DecliningBalance (AB.FixedCapacity 100)
+    asset = AB.FixedAsset assetInfo 11000 10
+    priceCurve = L.mkTs [(L.toDate "20250101",50), (L.toDate "20251231", 150)]
+    utilCurve = L.mkTs [(L.toDate "20250101",1.0), (L.toDate "20251231", 1.0)]
+  in 
+    testGroup "fixed Asset Test" [
+      testCase "StraightLine:init Asset: size" $ 
+        assertEqual "StraightLine:init Asset: size"
+        (Right 10)
+        (let 
+            asset1 = asset
+          in 
+            (CF.sizeCashFlowFrame <$> (fst <$> (Ast.projCashflow asset1 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve  Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "StraightLine:init Asset with ext " $ 
+        assertEqual "StraightLine:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20260201") 1000 0 10000 100.0 15000.0)))
+        (let 
+            asset1 = asset
+          in 
+            ((`CF.cfAt` 12) <$> (fst <$> (Ast.projCashflow asset1 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "StraightLine:init Asset with diff cur balance " $ 
+        assertEqual "StraightLine:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20250701") 3400 600.0 7600 100.0 5000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo 4000 5
+          in 
+            ((`CF.cfAt` 0) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "StraightLine:init Asset with diff cur balance " $ 
+        assertEqual "StraightLine:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20260201") 1000 0 10000 100.0 15000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo 4000 5
+          in 
+            ((`CF.cfAt` 7) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "StraightLine:init Asset with diff cur balance " $ 
+        assertEqual "StraightLine:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20251101") 1000 3000 10000 100.0 5000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo 4000 1
+          in 
+            ((`CF.cfAt` 0) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "Double Decline" $ 
+        assertEqual "Double Decline:size "
+        (Right 10)
+        (let 
+            asset2 = AB.FixedAsset assetInfo2 10000 10
+          in 
+            (CF.sizeCashFlowFrame <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "Double Decline" $ 
+        assertEqual "Double Decline:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20250201") 8000 2000 2000 100.0 5000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo2 10000 10
+          in 
+            ((`CF.cfAt` 0) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "Double Decline" $ 
+        assertEqual "Double Decline:init Asset :last "
+        (Right (Just (CF.FixedFlow (L.toDate "20251101") 1073.73 268.44 8926.27 100.0 5000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo2 10000 10
+          in 
+            ((`CF.cfAt` 9) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+    ]

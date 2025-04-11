@@ -48,6 +48,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.delinqMortgageTest
                            ,AT.nonPayMortgageTest
                            ,AT.receivableTest
+                           ,AT.fixedAssetTest
                            ,CFT.cfTests
                            ,CFT.tsSplitTests
                            ,CFT.testMergePoolCf
@@ -92,6 +93,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.tableTest
                            ,UtilT.lastOftest
                            ,UtilT.paySeqTest
+                           ,UtilT.scaleListTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest

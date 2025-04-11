@@ -1,6 +1,7 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
-                  ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest)--,daycountTests3,daycountTests4)
+                  ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
+                  ,scaleListTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -629,3 +630,18 @@ paySeqTest =
             ],30))
     (paySeqM d1 230 L.bndBalance (L.writeOff d1) (Right []) [bnd1,bnd2])
   ]
+
+scaleListTest = 
+  let 
+    a = 1
+  in 
+    testGroup "scale list test"
+    [ testCase "" $
+        assertEqual "scale list"
+        [50.0, 37.5, 25.0]
+        $ scaleByFstElement 50 [200.0,150.0,100]
+      , testCase "" $
+        assertEqual "scale list"
+        []
+        $ scaleByFstElement 50 []
+    ]

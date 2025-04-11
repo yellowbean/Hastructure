@@ -42,12 +42,14 @@ calcAmortAmt ::FixedAsset -> Either String [Balance]
 calcAmortAmt fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
                                                ,residualBalance=rb ,capacity=cap} b rt)
   = case ar of
-      StraightLine -> Right $ replicate ot $ divideBI (ob-rb) ot
+      StraightLine -> Right $ replicate ot $ divideBI (b-rb) rt
       DecliningBalance -> 
         let 
           amortizeRate = realToFrac $ 2 % ot
-          futureBals = scanl (\acc r -> acc * (1 - r)) ob (replicate ot amortizeRate)
-          amortizeAmounts = paySeqLiabilitiesAmt (ob - rb) $ diffNum futureBals
+          -- schedule amortized balance (base on original balance)
+          futureBals' = lastN (succ rt) $ scanl (\acc r -> acc * (1 - r)) ob (replicate ot amortizeRate)
+          futureBals = scaleByFstElement b futureBals'
+          amortizeAmounts = paySeqLiabilitiesAmt (ob - rb) $ diffNum futureBals -- `debug` ("Size of amoztized balance"++ show (length futureBals') ++">>"++ show futureBals')
         in 
           Right amortizeAmounts
 
@@ -99,9 +101,9 @@ instance Ast.Asset FixedAsset where
       in 
         do 
           scheduleAmt <- calcAmortAmt fa 
-          let amortizedBals = lastN cfLength $ scheduleAmt ++ replicate extPeriods 0
+          let amortizedBals = lastN cfLength $ scheduleAmt ++ replicate extPeriods 0 `debug` (" size of amortize"++ show (length scheduleAmt))
           let scheduleBals = tail $ scanl (-) curBalance (amortizedBals ++ [0])
-          let cumuDep = sum $ take (ot-rt) scheduleAmt
+          let cumuDep = ob - curBalance
           let cumuDepreciation = tail $ scanl (+) cumuDep amortizedBals 
           let txns = zipWith6 CF.FixedFlow pdates scheduleBals amortizedBals cumuDepreciation units cash
           let futureTxns = cutBy Inc Future asOfDay txns

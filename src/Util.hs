@@ -13,7 +13,7 @@ module Util
     ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,adjustM,lookupAndApply,lookupAndUpdate,lookupAndApplies
-    ,lookupInMap,selectInMap
+    ,lookupInMap,selectInMap,scaleByFstElement
     ,lookupTuple6 ,lookupTuple7,diffNum
     -- for debug
     ,debugOnDate,paySeqM
@@ -240,6 +240,15 @@ floorWith floor xs = [ max x floor | x <- xs]
 
 diffNum :: Num a => [a] -> [a]
 diffNum xs = zipWith (-) (init xs) (tail xs)
+
+scaleByFstElement :: forall a. Fractional a => a -> [a] -> [a]
+scaleByFstElement x [] = []
+scaleByFstElement y (b:xs) = 
+  let 
+    s = y/b 
+  in 
+    y:[ x * s | x <- xs ]
+
 
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
