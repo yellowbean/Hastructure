@@ -883,7 +883,7 @@ fixedAssetTest =
           in 
             ((`CF.cfAt` 0) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
                                   ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
-      ,testCase "Double Decline" $ 
+      ,testCase "Double Decline:size" $ 
         assertEqual "Double Decline:size "
         (Right 10)
         (let 
@@ -891,7 +891,7 @@ fixedAssetTest =
           in 
             (CF.sizeCashFlowFrame <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
                                   ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
-      ,testCase "Double Decline" $ 
+      ,testCase "Double Decline:first row with full cur bal" $ 
         assertEqual "Double Decline:init Asset"
         (Right (Just (CF.FixedFlow (L.toDate "20250201") 8000 2000 2000 100.0 5000.0)))
         (let 
@@ -899,12 +899,29 @@ fixedAssetTest =
           in 
             ((`CF.cfAt` 0) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
                                   ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
-      ,testCase "Double Decline" $ 
-        assertEqual "Double Decline:init Asset :last "
-        (Right (Just (CF.FixedFlow (L.toDate "20251101") 1073.73 268.44 8926.27 100.0 5000.0)))
+      ,testCase "Double Decline:init Asset :last" $ 
+        assertEqual "Double Decline:init Asset :last"
+        (Right (Just (CF.FixedFlow (L.toDate "20251101") 1000.0 338.86 9000.0 100.0 5000.0)))
         (let 
             asset2 = AB.FixedAsset assetInfo2 10000 10
           in 
             ((`CF.cfAt` 9) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
                                   ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "Double Decline:init Asset: with ext periods" $ 
+        assertEqual "Double Decline:init Asset: with ext periods"
+        (Right (Just (CF.FixedFlow (L.toDate "20260201") 1000.00 0.0 9000 100.0 15000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo2 10000 10
+          in 
+            ((`CF.cfAt` 12) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+
+      -- ,testCase "Double Decline" $ 
+      --   assertEqual "Double Decline:init Asset : current with less balance "
+      --   (Right (Just (CF.FixedFlow (L.toDate "20251101") 1073.73 268.44 8926.27 100.0 5000.0)))
+      --   (let 
+      --       asset2 = AB.FixedAsset assetInfo2 5000 5
+      --     in 
+      --       ((`CF.cfAt` 9) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+      --                             ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
     ]
