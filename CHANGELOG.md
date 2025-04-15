@@ -4,8 +4,7 @@
 
 ## 0.45.2
 ### 2025-04-01
-* ENHANCE: Performance optimaization by replace `List` with `DList`.
-* ENHANCE: remove `stack` as build tool
+* ENHANCE: Performance optimization by replace `List` with `DList`.
 * ENHANCE: In `inspection` ,expose `IsOustanding` `HasPassedMaturity` in `Pre` 
 
 
