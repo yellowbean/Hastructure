@@ -166,7 +166,7 @@ type TargetBonds = [BondName]
 --- 1. make sure all bonds are paid off
 --- 2. make sure WAC cap is met
 data RootFindReq = FirstLossReq DealRunInput BondName
-                 | MaxSpreadToFaceReq DealRunInput BondName
+                 | MaxSpreadToFaceReq DealRunInput BondName Bool Bool
                  deriving(Show, Generic)
 
 instance ToSchema RootFindReq

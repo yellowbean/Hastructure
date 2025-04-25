@@ -10,7 +10,7 @@ module AssetClass.AssetBase
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
   ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..),ReceivableFeeType(..),Receivable(..)
-  ,ProjectedCashflow(..),Obligor(..)
+  ,ProjectedCashflow(..),Obligor(..),LeaseRateCalc(..)
   ,calcAssetPrinInt, calcPmt
   )
   where
@@ -125,11 +125,7 @@ data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 
                        deriving (Show,Generic,Eq,Ord)
 
 data AmortRule = DecliningBalance        -- ^ DecliningBalance Method
-               | DoubleDecliningBalance  -- ^ Not implemented
                | StraightLine            -- ^ Straight Line Method
-               -- | UnitBased Int
-               -- | MACRS
-               | SumYearsDigit           -- ^ Not implemented
                deriving (Show,Generic,Eq,Ord)
 
 data ReceivableFeeType = FixedFee Balance                    -- ^ a flat fee amount
@@ -144,6 +140,11 @@ data Obligor = Obligor {obligorId :: String
                         , obligorTag :: [String]
                         , obligorFields :: Map.Map String (Either String Double)
                         } deriving (Show,Generic,Eq,Ord)
+
+data LeaseRateCalc = ByDayRate DailyRate DatePattern
+                   | ByPeriodRental Balance Period
+                   deriving (Show,Generic,Eq,Ord)
+
 
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
@@ -162,8 +163,7 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                       ,obligor :: Maybe Obligor }
                   | LeaseInfo { startDate :: Date            -- ^ lease start date
                               ,originTerm :: Int             -- ^ total terms
-                              ,paymentDates :: DatePattern   -- ^ payment dates pattern
-                              ,originRental :: Amount        -- ^ rental by day
+                              ,originRental :: LeaseRateCalc -- ^ rental by day
                               ,obligor :: Maybe Obligor }       
                   | FixedAssetInfo { startDate :: Date 
                                      ,originBalance :: Balance 
@@ -306,7 +306,7 @@ instance IR.UseRate ProjectedCashflow where
 
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''Obligor, ''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
-    , ''Capacity, ''AmortRule, ''ReceivableFeeType])
+    , ''Capacity, ''AmortRule, ''ReceivableFeeType, ''LeaseRateCalc])
 
 
 makePrisms ''OriginalInfo
@@ -351,5 +351,6 @@ instance ToSchema Period
 instance ToSchema IR.ARM
 instance ToSchema Status
 instance ToSchema ReceivableFeeType
+instance ToSchema LeaseRateCalc
 instance ToSchema OriginalInfo
 instance ToSchema Mortgage 

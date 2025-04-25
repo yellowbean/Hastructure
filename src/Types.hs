@@ -34,7 +34,6 @@ module Types
   ,MyRatio,HowToPay(..),BondPricingMethod(..),InvestorAction(..)
   ,_BondTxn ,_InspectBal
   )
-  
   where
 
 import qualified Data.Text as Text

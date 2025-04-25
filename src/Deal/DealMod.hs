@@ -70,20 +70,20 @@ data AdjStrategy = ScaleBySpread
                  | ScaleByFactor
                  deriving (Show,Generic)
 
-data ModifyType = AddSpreadToBonds [BondName]
+data ModifyType = AddSpreadToBonds BondName
                 | ScaleBondBalByRate
                 deriving (Show,Generic)
 
 -- ^ Modify a deal by various type of recipes
 modDeal :: Ast.Asset a => ModifyType -> Double -> DB.TestDeal a -> DB.TestDeal a
-modDeal (AddSpreadToBonds bnds) sprd d 
+modDeal (AddSpreadToBonds bnd) sprd d 
   = let 
       sprd' = (fromRational . toRational) sprd
       bndMap = DB.bonds d
       bndMap' = U.mapWithinMap 
                   (\b -> b & L.interestInfoTraversal %~ L.adjInterestInfoBySpread sprd'
                            & L.curRatesTraversal %~ (+ sprd')) 
-                  bnds 
+                  [bnd]
                   bndMap
     in 
       d {DB.bonds = bndMap'}
