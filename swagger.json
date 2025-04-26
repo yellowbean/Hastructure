@@ -2352,9 +2352,7 @@
             "AmortRule": {
                 "enum": [
                     "DecliningBalance",
-                    "DoubleDecliningBalance",
-                    "StraightLine",
-                    "SumYearsDigit"
+                    "StraightLine"
                 ],
                 "type": "string"
             },
@@ -10909,6 +10907,70 @@
                     }
                 ]
             },
+            "LeaseRateCalc": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByDayRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByDayRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Period"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByPeriodRental"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByPeriodRental",
+                        "type": "object"
+                    }
+                ]
+            },
             "LeaseStepUp": {
                 "oneOf": [
                     {
@@ -12057,16 +12119,12 @@
                                 "$ref": "#/components/schemas/Obligor"
                             },
                             "originRental": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
+                                "$ref": "#/components/schemas/LeaseRateCalc"
                             },
                             "originTerm": {
                                 "maximum": 9223372036854775807,
                                 "minimum": -9223372036854775808,
                                 "type": "integer"
-                            },
-                            "paymentDates": {
-                                "$ref": "#/components/schemas/DatePattern"
                             },
                             "startDate": {
                                 "$ref": "#/components/schemas/Day"
@@ -12081,7 +12139,6 @@
                         "required": [
                             "startDate",
                             "originTerm",
-                            "paymentDates",
                             "originRental",
                             "tag"
                         ],
@@ -16351,10 +16408,16 @@
                                     },
                                     {
                                         "type": "string"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "type": "boolean"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {

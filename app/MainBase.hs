@@ -11,8 +11,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ExistentialQuantification #-}
+
 module MainBase(DealType(..),RunResp,PoolTypeWrap(..),RunPoolTypeRtn,RunPoolTypeRtn_
-                ,RunAssetReq(..),RunAssetResp,ScenarioName,DealRunInput,RunDealReq(..),RunSimDealReq(..),RunPoolReq(..),RunDateReq(..)
+                ,RunAssetReq(..),RunAssetResp,ScenarioName,DealRunInput,RunDealReq(..),RunSimDealReq(..),RunPoolReq(..)
                 ,RunDateReq(..),Version(..)
                 ,RootFindReq(..),RootFindResp(..),TargetBonds,PoolRunResp
                 )
