@@ -4,12 +4,8 @@
 
 ## 0.45.2
 ### 2025-04-01
-* ENHANCE: Performance optimaization by replace `List` with `DList`.
-* ENHANCE: remove `stack` as build tool
-* ENHANCE: In `inspection` ,expose `IsOustanding` `HasPassedMaturity` in `Pre` 
-
-
-
+* ENHANCE: Performance optimization by replace `List` with `DList`.
+* ENHANCE: In `inspection` ,expose `IsOutstanding` `HasPassedMaturity` in `Pre`
 ## 0.45.1
 ### 2025-03-25
 * FIX: in `Pricing/IRR`, error when holding position is too small
