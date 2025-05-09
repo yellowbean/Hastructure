@@ -428,6 +428,7 @@ data Ts = FloatCurve [TsPoint Rational]
         | FactorCurveClosed [TsPoint Rational] Date
         | PricingCurve [TsPoint Rational] 
         | PeriodCurve [TsPoint Int]
+        | IntCurve [TsPoint Int]
         deriving (Show,Eq,Ord,Read,Generic)
 
 

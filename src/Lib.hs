@@ -11,7 +11,7 @@ module Lib
     ,periodRateFromAnnualRate
     ,Floor,Cap,TsPoint(..)
     ,toDate,toDates,genDates,nextDate
-    ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
+    ,getValOnByDate,getIntValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors
     ,zipWith8,zipWith9,zipWith10,zipWith11,zipWith12
     ,weightedBy, mkTs
@@ -133,6 +133,12 @@ mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
 
 getValOnByDate :: Ts -> Date -> Balance
 getValOnByDate (BalanceCurve dps) d 
+  = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
+      Just (TsPoint _d v) -> v
+      Nothing -> 0
+
+getIntValOnByDate :: Ts -> Date -> Int
+getIntValOnByDate (IntCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
       Nothing -> 0

@@ -1,4 +1,4 @@
-module UT.AnalyticsTest(walTest,durationTest,fvTest,assetPricingTest,irrTest)
+module UT.AnalyticsTest(walTest,durationTest,fvTest,assetPricingTest,irrTest,survivorTest)
 where
 
 import Test.Tasty
@@ -124,3 +124,14 @@ irrTest =
     --     assertEqual "0.5-year"
     --         103.89
     --         (fv2 0.08 (L.toDate "20230101") (L.toDate "20230701") 100) 
+survivorTest = 
+  testGroup "Survivor Test" [
+    testCase "Survivor 1" $ 
+        assertEqual "12 months"
+            [0.9]
+            (calcSurvivorFactors (L.toDate "20230101") [(L.toDate "20240101")] 0.1)
+    ,testCase "Survivor 2" $ 
+        assertEqual "3 months"
+            [0.9743552534572951,0.9]
+            (calcSurvivorFactors (L.toDate "20230101") [(L.toDate "20230401"),(L.toDate "20240101")] 0.1)
+  ]

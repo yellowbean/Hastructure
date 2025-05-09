@@ -3038,7 +3038,7 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                        "$ref": "#/components/schemas/LeaseDefaultType"
                                     },
                                     {
                                         "$ref": "#/components/schemas/LeaseAssetGapAssump"
@@ -10755,53 +10755,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "items": [
-                                                {
-                                                    "multipleOf": 1.0e-2,
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "maximum": 9223372036854775807,
-                                                    "minimum": -9223372036854775808,
-                                                    "type": "integer"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "minItems": 2,
-                                            "type": "array"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "minimum": -9223372036854775808,
-                                        "type": "integer"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "GapDaysByAmount"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "GapDaysByAmount",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "$ref": "#/components/schemas/Ts"
                             },
                             "tag": {
@@ -10859,6 +10812,50 @@
                             "contents"
                         ],
                         "title": "BaseCurve",
+                        "type": "object"
+                    }
+                ]
+            },
+            "LeaseDefaultType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultByContinuation"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultByContinuation",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultByTermination"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultByTermination",
                         "type": "object"
                     }
                 ]
@@ -18823,6 +18820,28 @@
                         ],
                         "title": "PeriodCurve",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/TsPoint_Int"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IntCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IntCurve",
+                        "type": "object"
                     }
                 ]
             },
@@ -19311,10 +19330,14 @@
                                     {
                                         "multipleOf": 1.0e-2,
                                         "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -20692,7 +20715,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.45.3"
+        "version": "0.45.4"
     },
     "openapi": "3.0.0",
     "paths": {

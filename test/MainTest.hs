@@ -107,6 +107,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AnalyticsT.fvTest
                            ,AnalyticsT.assetPricingTest
                            ,AnalyticsT.irrTest
+                           ,AnalyticsT.survivorTest
                            ,DealTest.baseTests
                            ,RevolvingTest.baseTests
                            ,DealMultiTest.mPoolbaseTests

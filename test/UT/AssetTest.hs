@@ -310,11 +310,11 @@ leaseTests =
                 (CF.getDate <$> (cf1 ^. CF.cashflowTxn))
         ,testCase "1 year Regular Lease sum of rentals/first" $
             assertEqual "First flow"
-                (CF.LeaseFlow (L.toDate "20230630") 184.00 30.0)
+                (CF.LeaseFlow (L.toDate "20230630") 184.00 30.0 0.0)
                 (head (cf1 ^. CF.cashflowTxn))
         ,testCase "1 year Regular Lease sum of rentals/last" $
             assertEqual "Last flow"
-                (CF.LeaseFlow (L.toDate "20231231") 0.00 31.0)
+                (CF.LeaseFlow (L.toDate "20231231") 0.00 31.0 0.0)
                 (last (cf1 ^. CF.cashflowTxn))
         ,testCase "1 year Regular Lease sum of rentals" $
             assertEqual "total rental"
@@ -326,7 +326,7 @@ leaseTests =
                 (head (CF.getDatesCashFlowFrame cf1))
         ,testCase "1 year Stepup lease first pay" $
             assertEqual "first pay"
-                (CF.LeaseFlow (L.toDate "20230630") 376.24 29)
+                (CF.LeaseFlow (L.toDate "20230630") 376.24 29 0.0)
                 (head (cf2 ^. CF.cashflowTxn))
         ,testCase "1 year Stepup lease" $
             assertEqual "total rental"
@@ -334,23 +334,23 @@ leaseTests =
                 (sum $ map CF.tsTotalCash (cf2 ^. CF.cashflowTxn))
         ,testCase "1 year Stepup lease" $
             assertEqual "first rental step up at Month 2"
-                (CF.LeaseFlow (L.toDate "20230731") 344.62 31.62)
+                (CF.LeaseFlow (L.toDate "20230731") 344.62 31.62 0.0)
                 ((cf2 ^. CF.cashflowTxn)!!1)
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 0"
-                (CF.LeaseFlow (L.toDate "20230430") 100.59 29.0)
+                (CF.LeaseFlow (L.toDate "20230430") 100.59 29.0 0.0)
                 (head (cf3_0 ^. CF.cashflowTxn )) 
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 1"
-                (CF.LeaseFlow (L.toDate "20230630") 35.65 32.7)
+                (CF.LeaseFlow (L.toDate "20230630") 35.65 32.7 0.0)
                 (head (cf3 ^. CF.cashflowTxn)) -- `debug` ("CF3->"++show cf3)
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 2"
-                (CF.LeaseFlow (L.toDate "20230731") 0 35.65)
+                (CF.LeaseFlow (L.toDate "20230731") 0 35.65 0.0)
                 ((cf3 ^. CF.cashflowTxn)!!1)
         ,testCase "Lease with Assumptions" $ 
             assertEqual "Month Gap=45 days"
-            ((CF.LeaseFlow (L.toDate "20240630") 215 30.0),(CF.LeaseFlow (L.toDate "20250131") 0 31))
+            ((CF.LeaseFlow (L.toDate "20240630") 215 30.0 0.0),(CF.LeaseFlow (L.toDate "20250131") 0 31 0))
             (((cf4 ^. CF.cashflowTxn)!!11),(last (cf4 ^. CF.cashflowTxn))) -- `debug` ("CF4->"++show cf4)
         -- ,testCase "Lease with Assumptions" $ 
         --     assertEqual "Month Gap by Table : New Lease at period 0"
