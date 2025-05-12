@@ -984,7 +984,7 @@ runDeal t _ perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts ,
         let poolFlowUsedNoEmpty = Map.map (over CF.cashflowTxn CF.dropTailEmptyTxns) poolFlowUsed  
         bndPricing <- case mPricing of 
                         (Just p) -> priceBonds finalDeal p 
-                        Nothing -> Right Map.empty
+                        Nothing -> Right $ Map.singleton "No Pricing" PriceResultNull
         return (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList logs), bndPricing) -- `debug` ("Run Deal end with")
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 

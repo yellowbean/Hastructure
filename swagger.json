@@ -14403,6 +14403,21 @@
                         ],
                         "title": "IrrResult",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "PriceResultNull"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "PriceResultNull",
+                        "type": "object"
                     }
                 ]
             },

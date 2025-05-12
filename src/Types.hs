@@ -788,6 +788,7 @@ data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedI
                  | OASResult PriceResult [Valuation] Spread  
                  | ZSpread Spread 
                  | IrrResult IRR [Txn]
+                 | PriceResultNull
                  deriving (Show, Eq, Generic)
 
 getPriceValue :: PriceResult -> Balance
