@@ -296,14 +296,14 @@ testByDefault dt assumps nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevo
   = let 
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps
       stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (toRational r) mRevolving }
-      runResult = wrapRun dt (Just stressed) stressedNonPerf
+      runResult = wrapRun dt (Just stressed) stressedNonPerf -- `debug` ("running stress "++ show stressed)
     in
       case runResult of 
         Right (d,mPoolCfMap,mResult,mPricing) -> 
           let 
-            bondBal = L.getOutstandingAmount $ (getDealBondMap dt) Map.! bn
+            bondBal = L.getOutstandingAmount $ (getDealBondMap d) Map.! bn
           in
-            (fromRational (toRational bondBal) - 0.01)
+            (fromRational (toRational bondBal) - 0.01) -- `debug` (">>> test run result"++ show (fromRational (toRational bondBal) - 0.01))
         Left errorMsg -> error $ "Error in test fun for first loss" ++ show errorMsg
 
 

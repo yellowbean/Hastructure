@@ -75,7 +75,15 @@ library
       src
   build-depends:
       Decimal
+    , base-compat
+    , attoparsec
+    , string-conversions
+    , warp
+    , wai-cors
+    , http-types
+    , exceptions
     , aeson
+    , attoparsec-aeson
     , aeson-pretty
     , base
     , bytestring
