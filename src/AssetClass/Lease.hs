@@ -126,8 +126,8 @@ patchBalance :: Lease -> Either String (Lease,[Amount])
 patchBalance l@(RegularLease (LeaseInfo sd ot (ByDayRate dr dp) ob) bal rt st)
   = let 
       cf_dates = sd:getPaymentDates l 0
-      pmts = [ fromRational (mulBInt dr ds) | ds <- getIntervalDays cf_dates ]
-      new_bal = sum pmts -- `debug` ("cf_date" ++ show cf_dates)
+      pmts = lastN rt $ [ fromRational (mulBInt dr ds) | ds <- getIntervalDays cf_dates ]
+      new_bal = sum pmts 
     in
       Right (RegularLease (LeaseInfo sd ot (ByDayRate dr dp) ob) new_bal rt st, pmts)
 
@@ -135,11 +135,11 @@ patchBalance l@(RegularLease (LeaseInfo sd ot (ByPeriodRental rental per) ob) ba
   = let 
       -- cf_dates = lastN (succ rt) $ getPaymentDates l 0
       -- intervals = daysInterval cf_dates
-      pmts = replicate ot rental
-      new_bal = sum pmts 
+      pmts = lastN rt $ replicate ot rental
+      new_bal = sum pmts -- `debug` ("cf_date" ++ show cf_dates)
     in 
       do 
-        return (RegularLease (LeaseInfo sd ot (ByPeriodRental rental per) ob) new_bal rt st,pmts) -- `debug` ("daily payments" ++ show pmts)
+        return (RegularLease (LeaseInfo sd ot (ByPeriodRental rental per) ob) new_bal rt st, pmts) -- `debug` ("daily payments" ++ show pmts)
 
 
 patchBalance l@(StepUpLease (LeaseInfo sd ot (ByDayRate dr p) ob) lsu bal rt st)
@@ -150,9 +150,9 @@ patchBalance l@(StepUpLease (LeaseInfo sd ot (ByDayRate dr p) ob) lsu bal rt st)
     in 
       do 
         dailyRentals <- calcPmts lsu factors dr
-        let pmts = [ fromRational (mulBInteger r d) | (d,r) <- zip intervals dailyRentals ] 
-        let new_bal = sum pmts 
-        return (StepUpLease (LeaseInfo sd ot (ByDayRate dr p) ob) lsu new_bal rt st,pmts) -- `debug` ("daily payments" ++ show pmts)
+        let pmts = lastN rt $ [ fromRational (mulBInteger r d) | (d,r) <- zip intervals dailyRentals ] 
+        let new_bal = sum pmts -- `debug` ("cf_date" ++ show cf_dates)
+        return (StepUpLease (LeaseInfo sd ot (ByDayRate dr p) ob) lsu new_bal rt st, pmts) -- `debug` ("daily payments" ++ show pmts)
 
 patchBalance l@(StepUpLease (LeaseInfo sd ot (ByPeriodRental rental per) ob) lsu bal rt st)
   = let 
@@ -160,8 +160,9 @@ patchBalance l@(StepUpLease (LeaseInfo sd ot (ByPeriodRental rental per) ob) lsu
     in 
       do 
         periodRentals <- calcPmts lsu factors rental
-        let new_bal = sum periodRentals
-        return (StepUpLease (LeaseInfo sd ot (ByPeriodRental rental per) ob) lsu new_bal rt st,periodRentals) -- `debug` ("daily payments" ++ show pmts)
+        let pmts = lastN rt periodRentals
+        let new_bal = sum pmts
+        return (StepUpLease (LeaseInfo sd ot (ByPeriodRental rental per) ob) lsu new_bal rt st, pmts) -- `debug` ("daily payments" ++ show pmts)
 
 
 allocDefaultToLeaseFlow :: [Rate] -> (Rate,Balance) -> [CF.TsRow] -> [CF.TsRow] -> [CF.TsRow]
@@ -219,18 +220,9 @@ instance Asset Lease where
         (l',pmts) <- patchBalance l
         let bal = getCurrentBal l' -- `debug` ("payments"++ show pmts)
         let pDates = lastN (getRemainTerms l) $ getPaymentDates l 0 
-        let bals = tail $ scanl (-) bal pmts -- `debug` ("pDates "++ show pDates)
-        let defaults = replicate (length pDates) 0.0
+        let bals = tail $ scanl (-) bal pmts  -- `debug` ("pDates "++ show pDates)
+        let defaults = replicate (length pDates) 0.0 -- `debug` ("bals"++ show bals++ ">> d"++ show d)
         return $ CF.CashFlowFrame (head bals,max d (getOriginDate l),Nothing) $ cutBy Inc Future d (zipWith4 CF.LeaseFlow pDates bals pmts defaults)
-
-    -- calcCashflow l@(StepUpLease (LeaseInfo sd ot or ob) lsu bal rt st) d _ =
-    --   do 
-    --     (l' ,pmts) <- patchBalance l
-    --     let bal = getCurrentBal l'
-    --     let pDates = lastN rt $ getPaymentDates l 0
-    --     let bals = tail $ scanl (-) bal pmts
-    --     return $ CF.CashFlowFrame (head bals,d,Nothing) $ cutBy Inc Future d (zipWith3 CF.LeaseFlow  pDates bals pmts)
-
 
     getOriginInfo (StepUpLease lInfo lsteupInfo bal rt st) =  lInfo
     getOriginInfo (RegularLease lInfo bal rt st) = lInfo
