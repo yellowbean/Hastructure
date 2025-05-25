@@ -20,6 +20,7 @@ import DateUtil
 import qualified Data.Map as Map
 import Data.List
 import Data.Aeson hiding (json)
+import Data.Decimal
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -166,15 +167,17 @@ patchBalance l@(StepUpLease (LeaseInfo sd ot (ByPeriodRental rental per) ob) lsu
 
 
 allocDefaultToLeaseFlow :: [Rate] -> (Rate,Balance) -> [CF.TsRow] -> [CF.TsRow] -> [CF.TsRow]
+-- allocDefaultToLeaseFlow :: [Decimal] -> (Decimal,Decimal) -> [CF.TsRow] -> [CF.TsRow] -> [CF.TsRow]
 allocDefaultToLeaseFlow defaultRates (begFactor,begBal) rs [] = reverse rs
 allocDefaultToLeaseFlow (defaultRate:defaultRates) (begFactor,begBal) rs (txn@(CF.LeaseFlow d b r def):txns)
   = let 
       defaultAmt = mulBR begBal defaultRate
       nextFactor = begFactor * (1-defaultRate)
       newRental = mulBR r nextFactor
-      nextBal = min (begBal - defaultAmt - newRental) b -- TODO: hardcode to fix rounding issue
+      rentalDiff = r - newRental
+      nextBal = (begBal - rentalDiff - newRental) -- TODO: hardcode to fix rounding issue
     in 
-      allocDefaultToLeaseFlow defaultRates (nextFactor,nextBal) ((CF.LeaseFlow d nextBal newRental defaultAmt):rs) txns
+      allocDefaultToLeaseFlow defaultRates (nextFactor,nextBal) ((CF.LeaseFlow d nextBal newRental rentalDiff):rs) txns
 
 calcDefaultRates :: Rate -> CF.CashFlowFrame -> [Rate]
 calcDefaultRates r cf
@@ -191,9 +194,9 @@ applyDefaults Nothing (CF.CashFlowFrame _ txn1,cfs) = (txn1,view CF.cashflowTxn 
 applyDefaults (Just (AP.DefaultByTermination r)) (cf1,cfs)
  = let 
      cf1Factors = calcDefaultRates r cf1
-     cfsFactors::[[Rate]] = (calcDefaultRates r) <$> cfs 
+     cfsFactors::[[Rate]] = calcDefaultRates r <$> cfs 
    in 
-      (allocDefaultToLeaseFlow cf1Factors (1.0,(CF.getBegBalCashFlowFrame cf1)) [] (view CF.cashflowTxn cf1) 
+      (allocDefaultToLeaseFlow cf1Factors (1.0, (CF.getBegBalCashFlowFrame cf1)) [] (view CF.cashflowTxn cf1) 
         , (\(fs,cf) -> allocDefaultToLeaseFlow fs (1.0, (CF.getBegBalCashFlowFrame cf)) [] (view CF.cashflowTxn cf)) <$> (zip cfsFactors cfs)
       )
 
