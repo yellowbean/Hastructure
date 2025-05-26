@@ -2,6 +2,11 @@
 
 <!-- towncrier release notes start -->
 
+## 0.45.7
+### 2025-05-26
+* ENHANCE: add `BaseByVec` for vector-based rental change
+
+
 ## 0.45.5
 ### 2025-05-20
 * NEW: `MaxSpread` feature for structuring stage: get max possible bond coupon rate !
