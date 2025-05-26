@@ -194,6 +194,7 @@ data LeaseAssetGapAssump = GapDays Int                           -- ^ days betwe
 
 data LeaseAssetRentAssump = BaseAnnualRate Rate
                           | BaseCurve Ts 
+                          | BaseByVec [Rate]
                           deriving (Show,Generic,Read)
 
 data LeaseDefaultType = DefaultByContinuation Rate

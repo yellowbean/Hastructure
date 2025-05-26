@@ -44,20 +44,39 @@ type TermChangeRate = Rate
 type DayGap = Int
 type LastAccuredDate = Date
 
-calcChangeRateOnRental :: AP.LeaseAssetRentAssump -> Date -> Date -> Rate
-calcChangeRateOnRental (AP.BaseAnnualRate r) sd ed = 1 + yearCountFraction DC_ACT_365F sd ed * r 
-calcChangeRateOnRental (AP.BaseCurve rc) sd ed = 1 + yearCountFraction DC_ACT_365F sd ed * getValByDate rc Exc ed
 
-getNewRental :: AP.LeaseAssetRentAssump -> Date -> Date -> LeaseRateCalc -> LeaseRateCalc
+getNewRental :: AP.LeaseAssetRentAssump -> Date -> Date -> LeaseRateCalc -> (AP.LeaseAssetRentAssump, LeaseRateCalc)
+-- by day rate
 getNewRental (AP.BaseAnnualRate r) sd ed (ByDayRate dr dp) 
-  = ByDayRate (mulBR dr (1 + yearCountFraction DC_ACT_365F sd ed * fromRational r)) dp
+  = (AP.BaseAnnualRate r
+    , ByDayRate (mulBR dr (1 + yearCountFraction DC_ACT_365F sd ed * fromRational r)) dp)
 getNewRental (AP.BaseCurve rc) sd ed (ByDayRate dr dp) 
-  = ByDayRate (mulBR dr (1 + yearCountFraction DC_ACT_365F sd ed * getValByDate rc Exc ed)) dp
+  = (AP.BaseCurve rc
+    , ByDayRate (mulBR dr (1 + yearCountFraction DC_ACT_365F sd ed * getValByDate rc Exc ed)) dp)
+getNewRental (AP.BaseByVec rs) sd ed (ByDayRate dr dp) 
+  = let
+      (newDr,nextRs) = case Data.List.uncons rs of 
+                         Just (r,_rs) -> (mulBR dr (1 + yearCountFraction DC_ACT_365F sd ed * fromRational r)
+                                          , _rs)
+                         Nothing -> (dr,[0.0])
+    in
+      (AP.BaseByVec nextRs, ByDayRate newDr dp)
 
+-- by period rental
 getNewRental (AP.BaseAnnualRate r) sd ed (ByPeriodRental rental per) 
-  = ByPeriodRental (mulBR rental (1 + yearCountFraction DC_ACT_365F sd ed * fromRational r)) per
+  = (AP.BaseAnnualRate r
+    , ByPeriodRental (mulBR rental (1 + yearCountFraction DC_ACT_365F sd ed * fromRational r)) per)
 getNewRental (AP.BaseCurve rc) sd ed (ByPeriodRental rental per) 
-  = ByPeriodRental (mulBR rental (1 + yearCountFraction DC_ACT_365F sd ed * (fromRational (getValByDate rc Exc ed)))) per
+  = (AP.BaseCurve rc
+    , ByPeriodRental (mulBR rental (1 + yearCountFraction DC_ACT_365F sd ed * (fromRational (getValByDate rc Exc ed)))) per)
+getNewRental (AP.BaseByVec rs) sd ed (ByPeriodRental rental per)
+  = let
+      (newRental,nextRs) = case Data.List.uncons rs of 
+                             Just (r,_rs) -> (mulBR rental (1 + yearCountFraction DC_ACT_365F sd ed * fromRational r)
+                                              , _rs)
+                             Nothing -> (rental,[0.0])
+    in
+      (AP.BaseByVec nextRs, ByPeriodRental newRental per)
 
 calcEndDate :: Date -> Int -> LeaseRateCalc -> Date 
 calcEndDate sd periods (ByDayRate _ dp) = last $ genSerialDates dp Exc sd periods
@@ -68,7 +87,7 @@ calcGapDays (AP.GapDays days) _ = days
 calcGapDays (AP.GapDaysByCurve ts) d = round $ fromRational $ getValByDate ts Exc d 
 
 -- ^ Generate next lease with new rental / term changes/ day gap
-nextLease :: Lease -> (AP.LeaseAssetRentAssump, TermChangeRate, DayGap) -> (Lease, Date)
+nextLease :: Lease -> (AP.LeaseAssetRentAssump, TermChangeRate, DayGap) -> (Lease, Date ,(AP.LeaseAssetRentAssump, TermChangeRate, DayGap))
 nextLease l@(RegularLease (LeaseInfo sd ot rental ob) bal rt _) (rAssump,tc,gd) 
   = let
         leaseEndDate = last $ getPaymentDates l 0
@@ -76,40 +95,45 @@ nextLease l@(RegularLease (LeaseInfo sd ot rental ob) bal rt _) (rAssump,tc,gd)
 
         nextOriginTerm = round $ mulIR ot (1+tc) 
         nextEndDate = calcEndDate nextStartDate ot rental
-        nextRental = getNewRental rAssump sd nextStartDate rental
+        (newRassump, nextRental) = getNewRental rAssump sd nextStartDate rental
         newBal =  -1
     in 
       (RegularLease (LeaseInfo nextStartDate nextOriginTerm nextRental ob) 
-                    newBal nextOriginTerm Current,nextEndDate) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
+                    newBal nextOriginTerm Current
+      ,nextEndDate
+      ,(newRassump,tc,gd)
+      ) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
 
 nextLease l@(StepUpLease (LeaseInfo sd ot rental ob) lsteupInfo bal rt _) (rAssump,tc,gd) 
   = let 
         leaseEndDate = last $ getPaymentDates l 0
         nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
         nextOriginTerm = round $ mulIR ot (1+tc) 
-        nextEndDate = calcEndDate sd ot rental
-        nextRental = getNewRental rAssump sd nextStartDate rental
+        nextEndDate = calcEndDate nextStartDate ot rental
+        (newRassump, nextRental) = getNewRental rAssump sd nextStartDate rental
         newBal = -1
     in
       (StepUpLease (LeaseInfo nextStartDate nextOriginTerm nextRental ob) 
-                    lsteupInfo newBal nextOriginTerm Current,nextEndDate) --  `debug` ("leaseEndDate>>"++show leaseEndDate++">>>"++show (succ (toInteger gd)))
+                    lsteupInfo newBal nextOriginTerm Current
+      ,nextEndDate
+      ,(newRassump,tc,gd)
+      ) --  `debug` ("leaseEndDate>>"++show leaseEndDate++">>>"++show (succ (toInteger gd)))
 
 -- | create a new lease base on the lease in 1st argument, with new rental/term, a gap days, till the end date
 nextLeaseTill :: Lease -> (AP.LeaseAssetRentAssump, TermChangeRate, DayGap) -> Date -> AP.LeaseEndType -> [Lease] -> [Lease]
 nextLeaseTill l (rsc,tc,mg) lastDate (AP.CutByDate ed) accum 
   | lastDate >= ed = accum 
-  | otherwise = nextLeaseTill new_lease (rsc,tc,mg) new_lastDate (AP.CutByDate ed) (accum++[new_lease])
+  | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.CutByDate ed) (accum++[new_lease])
                 where 
-                 (new_lease,new_lastDate) = nextLease l (rsc,tc,mg)
+                 (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg)
 
 nextLeaseTill l (rsc,tc,mg) lastDate (AP.StopByExtTimes n) accum 
   | n == 0 = accum 
-  | otherwise = nextLeaseTill new_lease (rsc,tc,mg) new_lastDate (AP.StopByExtTimes (pred n)) (accum++[new_lease])
+  | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.StopByExtTimes (pred n)) (accum++[new_lease])
                 where 
-                 (new_lease,new_lastDate) = nextLease l (rsc,tc,mg) 
+                 (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg) 
 
 -- ^ calculate the daily rate for a step up lease
--- TODO: factor rates to model the defaulted factors
 calcPmts :: LeaseStepUp -> [Rate] -> Amount -> Either String [Amount] 
 calcPmts (FlatRate _r) fs amt = Right (scanl mulBR amt (replicate (length fs) _r))
 calcPmts (ByFlatAmount _amt) fs amt = Right (scanl (+) amt (replicate (length fs) _amt))
@@ -119,8 +143,6 @@ calcPmts (ByRateCurve rs) fs amt
 calcPmts (ByAmountCurve amts) fs amt 
   | length amts /= length fs = Left "ByAmountCurve: the rate curve should be the same length as remain pay dates"
   | otherwise = Right $ scanl (+) amt amts
-
-
 
 -- ^ return a lease contract with opening balance and a payment cashflow on each payment date
 patchBalance :: Lease -> Either String (Lease,[Amount]) 
@@ -225,7 +247,7 @@ instance Asset Lease where
         let pDates = lastN (getRemainTerms l) $ getPaymentDates l 0 
         let bals = tail $ scanl (-) bal pmts  -- `debug` ("pDates "++ show pDates)
         let defaults = replicate (length pDates) 0.0 -- `debug` ("bals"++ show bals++ ">> d"++ show d)
-        return $ CF.CashFlowFrame (head bals,max d (getOriginDate l),Nothing) $ cutBy Inc Future d (zipWith4 CF.LeaseFlow pDates bals pmts defaults)
+        return $ CF.CashFlowFrame (head bals,max d (getOriginDate l), Nothing) $ cutBy Inc Future d (zipWith4 CF.LeaseFlow pDates bals pmts defaults)
 
     getOriginInfo (StepUpLease lInfo lsteupInfo bal rt st) =  lInfo
     getOriginInfo (RegularLease lInfo bal rt st) = lInfo

@@ -10813,6 +10813,29 @@
                         ],
                         "title": "BaseCurve",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BaseByVec"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BaseByVec",
+                        "type": "object"
                     }
                 ]
             },
@@ -20715,7 +20738,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.45.5"
+        "version": "0.45.6"
     },
     "openapi": "3.0.0",
     "paths": {
