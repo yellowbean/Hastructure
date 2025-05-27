@@ -7,13 +7,14 @@ module CreditEnhancement
   (LiqFacility(..),LiqSupportType(..),buildLiqResetAction,buildLiqRateResetAction
   ,LiquidityProviderName,draw,repay,accrueLiqProvider
   ,LiqDrawType(..),LiqRepayType(..),LiqCreditCalc(..)
-  ,consolStmt,CreditDefaultSwap(..),CDSType(..)
+  ,consolStmt,CreditDefaultSwap(..),
   )
   where
 
 import qualified Data.Text as T
 import qualified Data.Time as Time
 import qualified Data.Map as Map
+import qualified Data.DList as DL
 import GHC.Generics
 import Language.Haskell.TH
 import Data.Aeson hiding (json)
@@ -31,6 +32,7 @@ import qualified Stmt as S
 
 import Debug.Trace
 import Lib (paySeqLiabilities)
+import Data.Decimal
 debug = flip trace
 
 type LiquidityProviderName = String
@@ -89,14 +91,14 @@ data LiqFacility = LiqFacility {
 
 consolStmt :: LiqFacility -> LiqFacility
 consolStmt liq@LiqFacility{liqStmt = Nothing} = liq
-consolStmt liq@LiqFacility{liqStmt = Just (S.Statement [])} = liq
-consolStmt liq@LiqFacility{liqStmt = Just (S.Statement (txn:txns))}
-  = 
-    let 
-      combinedBondTxns = foldl S.consolTxn [txn] txns    
-      droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns 
-    in 
-      liq {liqStmt = Just (S.Statement (reverse droppedTxns))}
+consolStmt liq@LiqFacility{liqStmt = Just (S.Statement txn')} 
+  | DL.empty == txn' = liq
+  | otherwise = let 
+                  (txn:txns) = DL.toList txn'
+                  combinedBondTxns = foldl S.consolTxn [txn] txns    
+                  droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns 
+                in 
+                  liq {liqStmt = Just (S.Statement (DL.fromList (reverse droppedTxns)))}
 
 
 -- | update the reset events of liquidity provider
@@ -176,7 +178,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit _ mRateType mPRateType r
   = accrueLiqProvider d $ liq{liqStmt = Just defaultStmt} 
     where 
       -- insert begining record
-      defaultStmt = Statement [SupportTxn sd mCredit curBal dueInt duePremium 0 Empty]
+      defaultStmt = Statement $ DL.singleton $ SupportTxn sd mCredit curBal dueInt duePremium 0 Empty
 
 accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mPRateType rate prate dueDate dueInt duePremium sd mEd mStmt@(Just (Statement txns)))
   = liq { liqStmt = newStmt
@@ -191,14 +193,14 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mP
                     Nothing -> 0
                     Just r -> 
                       let 
-                        bals = weightAvgBalanceByDates [lastAccDate,d] txns
+                        bals = weightAvgBalanceByDates [lastAccDate,d] (DL.toList txns)
                       in 
                         sum $ flip mulBIR r <$> bals -- `debug` ("Accure Using Rate"++show r++"avg bal"++ show bals ++"ds"++show [lastAccDate,d])
       accureFee = case prate of
                     Nothing -> 0 
                     Just r -> 
                       let 
-                        (_,_unAccTxns) = splitByDate txns lastAccDate EqToLeftKeepOne
+                        (_,_unAccTxns) = splitByDate (DL.toList txns) lastAccDate EqToLeftKeepOne
                         accBals = getUnusedBal <$> _unAccTxns 
                         _ds = lastAccDate : tail (getDate <$> _unAccTxns)
                         _avgBal = calcWeightBalanceByDates DC_ACT_365F accBals (_ds++[d])
@@ -221,7 +223,7 @@ accrueLiqProvider d liq@(LiqFacility _ _ curBal mCredit mCreditType mRateType mP
 instance QueryByComment LiqFacility where 
     queryStmt liq@LiqFacility{liqStmt = Nothing} tc = []
     queryStmt liq@LiqFacility{liqStmt = (Just (Statement txns))} tc
-      = filter (\x -> getTxnComment x == tc) txns
+      = filter (\x -> getTxnComment x == tc) (DL.toList txns)
 
 
 instance Liable LiqFacility where 
@@ -254,30 +256,22 @@ instance IR.UseRate LiqFacility where
 
   getIndex liq = head <$> IR.getIndexes liq
 
-
-data CDSType = CoverageAttachDetach Balance Balance
-              | CoverageAttach Balance
-              | CoverageDetach Balance
-              | AllCoverage
-              deriving (Show, Generic, Eq, Ord)
-
 data CreditDefaultSwap = CDS {
     cdsName :: String
-    ,cdsType :: CDSType
+    ,cdsAccrue :: Maybe DatePattern
 
-    ,cdsInsure ::  DealStats     -- ^ the coverage 
-    ,cdsCollectDue :: Balance    -- ^ the amount to collect from CDS
+    ,cdsCoverage :: DealStats     -- ^ the coverage 
+    ,cdsDue :: Balance           -- ^ the amount to collect from CDS,paid to SPV as cure to loss incurred by SPV 
+    ,cdsLast :: Maybe Date       -- ^ last date of Due calc
 
     ,cdsPremiumRefBalance :: DealStats  -- ^ how notional balance is calculated
-    ,cdsPremiumNotional :: Balance      -- ^ the balance to calculate premium
-
     ,cdsPremiumRate :: IRate            -- ^ the rate to calculate premium
-    ,cdsRateType :: Maybe IR.RateType   -- ^ interest rate type 
+    ,cdsRateType :: IR.RateType         -- ^ interest rate type 
     
     ,cdsPremiumDue :: Balance           -- ^ the due premium to payout from SPV
+    ,cdsLastCalcDate :: Maybe Date      -- ^ last calculate date on net cash 
 
-    ,cdsLastCalcDate :: Maybe Date     -- ^ last calculate date on net cash 
-
+    ,cdsSettle :: Maybe DatePattern
     ,cdsSettleDate :: Maybe Date       -- ^ last setttle date on net cash 
     ,cdsNetCash :: Balance             -- ^ the net cash to settle ,negative means SPV pay to CDS, positive means CDS pay to SPV
 
@@ -286,7 +280,11 @@ data CreditDefaultSwap = CDS {
     ,cdsStmt :: Maybe Statement
 }  deriving (Show, Generic, Eq, Ord)
 
-
+instance IR.UseRate CreditDefaultSwap where 
+  getIndexes cds@CDS{cdsRateType = rt} 
+    = case rt of 
+        (IR.Floater _ idx _ _ _ _ _ _) -> Just [idx]
+        (IR.Fix _ _) -> Nothing
 
 
 $(deriveJSON defaultOptions ''LiqRepayType)

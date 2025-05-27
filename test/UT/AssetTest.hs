@@ -1,5 +1,5 @@
 module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,installmentTest,armTest,ppyTest
-                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest,nonPayMortgageTest,receivableTest)
+                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest,nonPayMortgageTest,receivableTest,fixedAssetTest)
 where
 
 import Test.Tasty
@@ -246,7 +246,7 @@ loanTests =
 leaseTests = 
     let 
       lease1 = AB.RegularLease
-                (AB.LeaseInfo (L.toDate "20230101") 12 MonthEnd 1 Nothing)
+                (AB.LeaseInfo (L.toDate "20230101") 12 (AB.ByDayRate 1 MonthEnd) Nothing)
                 100
                 12
                 AB.Current
@@ -256,7 +256,7 @@ leaseTests =
               Right x -> x
  
       lease2 = AB.StepUpLease
-                (AB.LeaseInfo (L.toDate "20230601") 12 MonthEnd 1 Nothing)
+                (AB.LeaseInfo (L.toDate "20230601") 12 (AB.ByDayRate 1 MonthEnd) Nothing)
                 (AB.FlatRate 1.02)
                 100
                 12
@@ -266,7 +266,7 @@ leaseTests =
               Right x -> x
       
       lease3 = AB.StepUpLease
-                (AB.LeaseInfo (L.toDate "20230401") 4 MonthEnd 1 Nothing)
+                (AB.LeaseInfo (L.toDate "20230401") 4 (AB.ByDayRate 1 MonthEnd) Nothing)
                 (AB.ByRateCurve [1.04,1.05,1.06])
                 100
                 4
@@ -287,62 +287,79 @@ leaseTests =
                    Nothing of 
                   Left _ -> undefined
                   Right x -> x
-      (cf5,_) =  case Ast.projCashflow lease1 asofDate 
-                   (A.LeaseAssump Nothing
-                                  (A.GapDaysByAmount [(0.5,12),(1,22),(2,62),(3,82)] 92)
-                                  (A.BaseAnnualRate 0.0)
-                                  (A.CutByDate (L.toDate "20240601"))
-                                  
-                   ,A.DummyDelinqAssump,A.DummyDefaultAssump)
-                   Nothing of
-                  Left _ -> undefined
-                  Right x -> x
+      -- (cf5,_) =  case Ast.projCashflow lease1 asofDate 
+      --              (A.LeaseAssump Nothing
+      --                             (A.GapDaysByAmount [(0.5,12),(1,22),(2,62),(3,82)] 92)
+      --                             (A.BaseAnnualRate 0.0)
+      --                             (A.CutByDate (L.toDate "20240601"))
+      --                             
+      --              ,A.DummyDelinqAssump,A.DummyDefaultAssump)
+      --              Nothing of
+      --             Left _ -> undefined
+      --             Right x -> x
     in 
       testGroup "Lease CF Test" [
-        testCase "1 year Regular Lease sum of rentals" $
+        testCase "1 year Regular Lease sum of rentals/dates" $
+            assertEqual "Dates"
+                (L.toDates ["20230131","20230228","20230331","20230430","20230531","20230630"
+                            ,"20230731","20230831","20230930","20231031","20231130","20231231"])
+                (Ast.getPaymentDates lease1 0)
+        ,testCase "1 year Regular Lease sum of rentals/dates" $
+            assertEqual "cf dates"
+                (L.toDates ["20230630","20230731","20230831","20230930","20231031","20231130","20231231"])
+                (CF.getDate <$> (cf1 ^. CF.cashflowTxn))
+        ,testCase "1 year Regular Lease sum of rentals/first" $
+            assertEqual "First flow"
+                (CF.LeaseFlow (L.toDate "20230630") 184.00 30.0 0.0)
+                (head (cf1 ^. CF.cashflowTxn))
+        ,testCase "1 year Regular Lease sum of rentals/last" $
+            assertEqual "Last flow"
+                (CF.LeaseFlow (L.toDate "20231231") 0.00 31.0 0.0)
+                (last (cf1 ^. CF.cashflowTxn))
+        ,testCase "1 year Regular Lease sum of rentals" $
             assertEqual "total rental"
                 214
-                (sum $ map CF.tsTotalCash (cf1 ^. CF.cashflowTxn)) -- `debug` ("regular test"++show cf1)
+                (sum $ map CF.tsTotalCash (cf1 ^. CF.cashflowTxn))
         ,testCase "1 year Regular Lease first pay date" $
             assertEqual "first date of regular lease"
                 (L.toDate "20230630")
                 (head (CF.getDatesCashFlowFrame cf1))
         ,testCase "1 year Stepup lease first pay" $
             assertEqual "first pay"
-                (CF.LeaseFlow (L.toDate "20230630") 376.24 29)
-                (head (cf2 ^. CF.cashflowTxn)) --`debug` ("CF2 >>" ++ show cf2)
+                (CF.LeaseFlow (L.toDate "20230630") 376.24 29 0.0)
+                (head (cf2 ^. CF.cashflowTxn))
         ,testCase "1 year Stepup lease" $
             assertEqual "total rental"
                 405.24
                 (sum $ map CF.tsTotalCash (cf2 ^. CF.cashflowTxn))
         ,testCase "1 year Stepup lease" $
             assertEqual "first rental step up at Month 2"
-                (CF.LeaseFlow (L.toDate "20230731") 344.62 31.62)
+                (CF.LeaseFlow (L.toDate "20230731") 344.62 31.62 0.0)
                 ((cf2 ^. CF.cashflowTxn)!!1)
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 0"
-                (CF.LeaseFlow (L.toDate "20230430") 100.59 29.0)
+                (CF.LeaseFlow (L.toDate "20230430") 100.59 29.0 0.0)
                 (head (cf3_0 ^. CF.cashflowTxn )) 
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 1"
-                (CF.LeaseFlow (L.toDate "20230630") 35.65 32.7)
+                (CF.LeaseFlow (L.toDate "20230630") 35.65 32.7 0.0)
                 (head (cf3 ^. CF.cashflowTxn)) -- `debug` ("CF3->"++show cf3)
         ,testCase "1 year Stepup Curve lease" $
             assertEqual "first rental step up at Month 2"
-                (CF.LeaseFlow (L.toDate "20230731") 0 35.65)
+                (CF.LeaseFlow (L.toDate "20230731") 0 35.65 0.0)
                 ((cf3 ^. CF.cashflowTxn)!!1)
         ,testCase "Lease with Assumptions" $ 
             assertEqual "Month Gap=45 days"
-            (CF.LeaseFlow (L.toDate "20250131") 0 31)
-            (last (cf4 ^. CF.cashflowTxn) ) -- `debug` ("CF4"++show cf4)
-        ,testCase "Lease with Assumptions" $ 
-            assertEqual "Month Gap by Table : New Lease at period 0"
-            (CF.LeaseFlow (L.toDate "20240131") 335 8)
-            ((cf5 ^. CF.cashflowTxn)!!7)
-        ,testCase "Lease with Assumptions" $ 
-            assertEqual "Month Gap by Table : New Lease at period 1"
-            (CF.LeaseFlow (L.toDate "20240229") 306 29)
-            ((cf5 ^. CF.cashflowTxn)!!8)
+            ((CF.LeaseFlow (L.toDate "20240630") 215 30.0 0.0),(CF.LeaseFlow (L.toDate "20250131") 0 31 0))
+            (((cf4 ^. CF.cashflowTxn)!!11),(last (cf4 ^. CF.cashflowTxn))) -- `debug` ("CF4->"++show cf4)
+        -- ,testCase "Lease with Assumptions" $ 
+        --     assertEqual "Month Gap by Table : New Lease at period 0"
+        --     (CF.LeaseFlow (L.toDate "20240131") 335 8)
+        --     ((cf5 ^. CF.cashflowTxn)!!7) `debug` ("CF5->"++show cf5)
+        -- ,testCase "Lease with Assumptions" $ 
+        --     assertEqual "Month Gap by Table : New Lease at period 1"
+        --     (CF.LeaseFlow (L.toDate "20240229") 306 29)
+        --     ((cf5 ^. CF.cashflowTxn)!!8)
       ]
 
 installmentTest = 
@@ -834,3 +851,94 @@ receivableTest =
         ((`CF.cfAt` 0) <$> (fst <$> Ast.projCashflow invoice0 (L.toDate "20240501") invoiceAssump Nothing))
     ]
   
+fixedAssetTest = 
+  let 
+    assetInfo = AB.FixedAssetInfo (L.toDate "20250101") 11000 1000 10 Monthly AB.StraightLine (AB.FixedCapacity 100)
+    assetInfo2 = AB.FixedAssetInfo (L.toDate "20250101") 10000 1000 10 Monthly AB.DecliningBalance (AB.FixedCapacity 100)
+    asset = AB.FixedAsset assetInfo 11000 10
+    priceCurve = L.mkTs [(L.toDate "20250101",50), (L.toDate "20251231", 150)]
+    utilCurve = L.mkTs [(L.toDate "20250101",1.0), (L.toDate "20251231", 1.0)]
+  in 
+    testGroup "fixed Asset Test" [
+      testCase "StraightLine:init Asset: size" $ 
+        assertEqual "StraightLine:init Asset: size"
+        (Right 10)
+        (let 
+            asset1 = asset
+          in 
+            (CF.sizeCashFlowFrame <$> (fst <$> (Ast.projCashflow asset1 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve  Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "StraightLine:init Asset with ext " $ 
+        assertEqual "StraightLine:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20260201") 1000 0 10000 100.0 15000.0)))
+        (let 
+            asset1 = asset
+          in 
+            ((`CF.cfAt` 12) <$> (fst <$> (Ast.projCashflow asset1 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "StraightLine:init Asset with diff cur balance " $ 
+        assertEqual "StraightLine:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20250701") 3400 600.0 7600 100.0 5000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo 4000 5
+          in 
+            ((`CF.cfAt` 0) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "StraightLine:init Asset with diff cur balance " $ 
+        assertEqual "StraightLine:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20260201") 1000 0 10000 100.0 15000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo 4000 5
+          in 
+            ((`CF.cfAt` 7) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "StraightLine:init Asset with diff cur balance " $ 
+        assertEqual "StraightLine:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20251101") 1000 3000 10000 100.0 5000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo 4000 1
+          in 
+            ((`CF.cfAt` 0) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "Double Decline:size" $ 
+        assertEqual "Double Decline:size "
+        (Right 10)
+        (let 
+            asset2 = AB.FixedAsset assetInfo2 10000 10
+          in 
+            (CF.sizeCashFlowFrame <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "Double Decline:first row with full cur bal" $ 
+        assertEqual "Double Decline:init Asset"
+        (Right (Just (CF.FixedFlow (L.toDate "20250201") 8000 2000 2000 100.0 5000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo2 10000 10
+          in 
+            ((`CF.cfAt` 0) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "Double Decline:init Asset :last" $ 
+        assertEqual "Double Decline:init Asset :last"
+        (Right (Just (CF.FixedFlow (L.toDate "20251101") 1000.0 338.86 9000.0 100.0 5000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo2 10000 10
+          in 
+            ((`CF.cfAt` 9) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+      ,testCase "Double Decline:init Asset: with ext periods" $ 
+        assertEqual "Double Decline:init Asset: with ext periods"
+        (Right (Just (CF.FixedFlow (L.toDate "20260201") 1000.00 0.0 9000 100.0 15000.0)))
+        (let 
+            asset2 = AB.FixedAsset assetInfo2 10000 10
+          in 
+            ((`CF.cfAt` 12) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+                                  ((A.FixedAssetAssump utilCurve priceCurve (Just 3)) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+
+      -- ,testCase "Double Decline" $ 
+      --   assertEqual "Double Decline:init Asset : current with less balance "
+      --   (Right (Just (CF.FixedFlow (L.toDate "20251101") 1073.73 268.44 8926.27 100.0 5000.0)))
+      --   (let 
+      --       asset2 = AB.FixedAsset assetInfo2 5000 5
+      --     in 
+      --       ((`CF.cfAt` 9) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
+      --                             ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
+    ]

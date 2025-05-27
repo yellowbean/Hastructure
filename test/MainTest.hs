@@ -31,7 +31,6 @@ import qualified Stmt as S
 import qualified Data.Time as T
 import qualified Data.Vector as UtilT
 import qualified UT.UtilTest as RH
-import qualified UT.RateHedgeTest as RHT
 import GHC.Generics (U1(U1))
 
 main = defaultMain tests
@@ -49,6 +48,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.delinqMortgageTest
                            ,AT.nonPayMortgageTest
                            ,AT.receivableTest
+                           ,AT.fixedAssetTest
                            ,CFT.cfTests
                            ,CFT.tsSplitTests
                            ,CFT.testMergePoolCf
@@ -93,6 +93,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.tableTest
                            ,UtilT.lastOftest
                            ,UtilT.paySeqTest
+                           ,UtilT.scaleListTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest
@@ -106,9 +107,10 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AnalyticsT.fvTest
                            ,AnalyticsT.assetPricingTest
                            ,AnalyticsT.irrTest
+                           ,AnalyticsT.survivorTest
                            ,DealTest.baseTests
                            ,RevolvingTest.baseTests
-                           --,DealMultiTest.baseTests
+                           ,DealMultiTest.mPoolbaseTests
                            ,RHT.capRateTests
                            ,CET.liqTest
                            ]

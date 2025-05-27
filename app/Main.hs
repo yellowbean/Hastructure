@@ -44,7 +44,6 @@ import GHC.Generics
 import GHC.Real
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.ByteString.Char8 as BS
-import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Cors
@@ -101,7 +100,7 @@ debug = flip Debug.Trace.trace
 
 
 version1 :: Version 
-version1 = Version "0.44.2"
+version1 = Version "0.45.7"
 
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
@@ -241,16 +240,6 @@ stressRevovlingPerf r (Just (AP.AvailableAssets rp applyAssumpType))
 stressRevovlingPerf r (Just (AP.AvailableAssetsBy m))
   = Just (AP.AvailableAssetsBy (Map.map (over (_2 . AP.applyAssumptionTypeAssetPerf . _1) (stressAssetPerf r)) m))
 
-dtToBonds :: DealType -> Map.Map BondName L.Bond
-dtToBonds (MDeal d) = DB.bonds d
-dtToBonds (RDeal d) = DB.bonds d
-dtToBonds (IDeal d) = DB.bonds d
-dtToBonds (LDeal d) = DB.bonds d
-dtToBonds (FDeal d) = DB.bonds d
-dtToBonds (UDeal d) = DB.bonds d
-dtToBonds (VDeal d) = DB.bonds d
-dtToBonds (PDeal d) = DB.bonds d
-
 modifyDealType :: DM.ModifyType -> Double -> DealType -> DealType
 modifyDealType dm f (MDeal d) = MDeal $ DM.modDeal dm f d
 modifyDealType dm f (RDeal d) = RDeal $ DM.modDeal dm f d
@@ -281,6 +270,25 @@ queryDealTypeBool (UDeal _d) d s = Q.queryDealBool _d s d
 queryDealTypeBool (VDeal _d) d s = Q.queryDealBool _d s d
 queryDealTypeBool (PDeal _d) d s = Q.queryDealBool _d s d
 
+getDealBondMap :: DealType -> Map.Map BondName L.Bond
+getDealBondMap (MDeal d) = DB.bonds d
+getDealBondMap (RDeal d) = DB.bonds d
+getDealBondMap (IDeal d) = DB.bonds d
+getDealBondMap (LDeal d) = DB.bonds d
+getDealBondMap (FDeal d) = DB.bonds d
+getDealBondMap (UDeal d) = DB.bonds d
+getDealBondMap (VDeal d) = DB.bonds d
+getDealBondMap (PDeal d) = DB.bonds d
+
+getDealFeeMap :: DealType -> Map.Map FeeName F.Fee
+getDealFeeMap (MDeal d) = DB.fees d
+getDealFeeMap (RDeal d) = DB.fees d
+getDealFeeMap (IDeal d) = DB.fees d
+getDealFeeMap (LDeal d) = DB.fees d
+getDealFeeMap (FDeal d) = DB.fees d
+getDealFeeMap (UDeal d) = DB.fees d
+getDealFeeMap (VDeal d) = DB.fees d
+getDealFeeMap (PDeal d) = DB.fees d
 
 -- stress the pool performance, till a bond suffers first loss
 testByDefault :: DealType -> AP.ApplyAssumptionType -> AP.NonPerfAssumption -> BondName -> Double -> Double
@@ -288,35 +296,41 @@ testByDefault dt assumps nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevo
   = let 
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps
       stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (toRational r) mRevolving }
-      runResult = wrapRun dt (Just stressed) stressedNonPerf
+      runResult = wrapRun dt (Just stressed) stressedNonPerf -- `debug` ("running stress "++ show stressed)
     in
       case runResult of 
         Right (d,mPoolCfMap,mResult,mPricing) -> 
           let 
-            bondBal = L.getOutstandingAmount $ (dtToBonds d) Map.! bn
+            bondBal = L.getOutstandingAmount $ (getDealBondMap d) Map.! bn
           in
-            (fromRational (toRational bondBal) - 0.01)
+            (fromRational (toRational bondBal) - 0.01) -- `debug` (">>> test run result"++ show (fromRational (toRational bondBal) - 0.01))
         Left errorMsg -> error $ "Error in test fun for first loss" ++ show errorMsg
 
 
 -- add spread to bonds till PV of bond (discounted by pricing assumption) equals to face value
 -- with constraint that all liabilities are paid off
-testBySpread :: DealRunInput -> (BondName,[BondName]) -> Double -> Double
-testBySpread (dt,mPAssump,runAssump) (bn,bnds) f 
+testBySpread :: DealRunInput -> (BondName,Bool,Bool) -> Double -> Double
+testBySpread (dt,mPAssump,runAssump) (bn,otherBondFlag,otherFeeFlag) f 
   = let
-      runResult = wrapRun (modifyDealType (DM.AddSpreadToBonds bnds) f dt) mPAssump runAssump
+      runResult = wrapRun (modifyDealType (DM.AddSpreadToBonds bn) f dt) mPAssump runAssump
     in 
       case runResult of 
-        Right (d, mPoolCfMap, mResult, pResult) -> 
+        Right (dt, mPoolCfMap, mResult, pResult) -> 
           let 
+            -- bnds
+            otherBondsName = [] 
+            -- check fees/other bonds
+            otherBondOustanding True = sum $ L.getOutstandingAmount <$> Map.elems (getDealBondMap dt)
+            otherBondOustanding False = 0.0
+            feeOutstanding True = sum $ L.getOutstandingAmount <$> Map.elems (getDealFeeMap dt)
+            feeOutstanding False = 0.0 
             v = getPriceValue $ pResult Map.! bn
-            bond = dtToBonds d Map.! bn
+            bondBal = L.getOriginBalance $ (getDealBondMap dt) Map.! bn
           in
-            -- if L.getCurBalance bond > 0 then
-            if True then
-              1.0
+            if (otherBondOustanding otherBondFlag+feeOutstanding otherFeeFlag) > 0  then 
+              -1
             else
-              (fromRational . toRational) (v - L.getOriginBalance bond)
+              (fromRational . toRational) $ bondBal - v -- `debug` ("rate"++ show f ++ "bondBal:"++ show bondBal++"v:"++ show v)
         Left errorMsg -> error $ "Error in test fun for spread testing" ++ show errorMsg
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
@@ -335,17 +349,17 @@ runRootFinderBy (FirstLossReq (dt,Just assumps,nonPerfAssump@AP.NonPerfAssumptio
           NotBracketed -> Left "Not able to bracket the root"
           SearchFailed -> Left "Not able to find the root"
 
-runRootFinderBy (MaxSpreadToFaceReq (dt,pAssump,dAssump) (bn,bnds)) 
+runRootFinderBy (MaxSpreadToFaceReq (dt,pAssump,dAssump) bns chkOtherBnds chkOtherFees) 
   = return $
       let 
         itertimes = 500
         def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
       in 
-        case ridders def (0.00,200.0) (testBySpread (dt,pAssump,dAssump) (bn,bnds)) of
+        case ridders def (0.00,200.0) (testBySpread (dt,pAssump,dAssump) (bns,chkOtherBnds,chkOtherFees)) of
           Root r -> let 
-                      dt' = modifyDealType (DM.AddSpreadToBonds bnds) r dt  
+                      dt' = modifyDealType (DM.AddSpreadToBonds bns) r dt
                     in 
-                      Right $ BestSpreadResult r (dtToBonds dt') dt' 
+                      Right $ BestSpreadResult r (getDealBondMap dt') dt' 
           NotBracketed -> Left "Not able to bracket the root"
           SearchFailed -> Left "Not able to find the root"
 

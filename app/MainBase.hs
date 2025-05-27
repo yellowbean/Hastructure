@@ -11,8 +11,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ExistentialQuantification #-}
+
 module MainBase(DealType(..),RunResp,PoolTypeWrap(..),RunPoolTypeRtn,RunPoolTypeRtn_
-                ,RunAssetReq(..),RunAssetResp,ScenarioName,DealRunInput,RunDealReq(..),RunSimDealReq(..),RunPoolReq(..),RunDateReq(..)
+                ,RunAssetReq(..),RunAssetResp,ScenarioName,DealRunInput,RunDealReq(..),RunSimDealReq(..),RunPoolReq(..)
                 ,RunDateReq(..),Version(..)
                 ,RootFindReq(..),RootFindResp(..),TargetBonds,PoolRunResp
                 )
@@ -35,6 +37,7 @@ import Data.Aeson.Encode.Pretty (encodePretty)
 import Data.Attoparsec.ByteString
 import Data.ByteString (ByteString)
 import Data.List
+import qualified Data.DList as DL
 import Data.Map
 import Data.Proxy
 import qualified Data.Text as T
@@ -48,7 +51,6 @@ import GHC.Generics
 import GHC.Real
 import qualified Data.ByteString.Lazy.Char8 as BL8
 import qualified Data.ByteString.Char8 as BS
-import Lucid hiding (type_)
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Cors
@@ -166,7 +168,7 @@ type TargetBonds = [BondName]
 --- 1. make sure all bonds are paid off
 --- 2. make sure WAC cap is met
 data RootFindReq = FirstLossReq DealRunInput BondName
-                 | MaxSpreadToFaceReq DealRunInput (BondName,TargetBonds)
+                 | MaxSpreadToFaceReq DealRunInput BondName Bool Bool
                  deriving(Show, Generic)
 
 instance ToSchema RootFindReq
@@ -247,8 +249,18 @@ instance ToSchema TRG.TriggerEffect
 instance ToSchema Types.BalanceSheetReport
 instance ToSchema Types.CashflowReport
 instance ToSchema Types.BookItem
-instance ToSchema Stmt.Statement
+-- instance ToSchema a => ToSchema (DL.DList a)
 instance ToSchema Types.Txn
+
+-- instance ToSchema (DL.DList Types.Txn) where
+--   declareNamedSchema _ = declareNamedSchema (Proxy :: Proxy [Types.Txn])
+
+-- instance ToSchema (Generic (DL.DList Types.Txn)) 
+-- instance ToSchema (DL.DList Types.Txn)
+instance ToSchema a => ToSchema (DL.DList a) where
+  declareNamedSchema _ = declareNamedSchema (Proxy :: Proxy [a])
+
+instance ToSchema Stmt.Statement
 instance ToSchema AB.AssociateExp
 instance ToSchema AB.AssociateIncome
 instance ToSchema RV.RevolvingPool
@@ -271,6 +283,7 @@ instance ToSchema AP.FieldMatchRule
 instance ToSchema AP.ObligorStrategy
 instance ToSchema AP.ApplyAssumptionType
 instance ToSchema AP.LeaseEndType
+instance ToSchema AP.LeaseDefaultType
 instance ToSchema AP.AssetPerfAssumption
 instance ToSchema AP.AssetDelinqPerfAssumption
 instance ToSchema AP.AssetDefaultedPerfAssumption

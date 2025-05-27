@@ -41,6 +41,7 @@ import Triggers
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
+import qualified Data.DList as DL
 import Data.List
 import Data.Fixed
 import Data.Maybe
@@ -357,9 +358,10 @@ instance SPV (TestDeal a) where
         Nothing -> 0
         Just bnd ->
           case L.bndStmt bnd of
-            Just (Statement []) -> L.getCurBalance bnd -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
-            Just (Statement stmts) -> getTxnBegBalance $ head stmts -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
             Nothing -> L.getCurBalance bnd  -- `debug` ("Getting beg bal nothing"++bn)
+            Just (Statement txns) 
+              | DL.empty == txns  -> L.getCurBalance bnd  
+              | otherwise -> getTxnBegBalance $ head (DL.toList txns) -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
       where
           b = find (\x -> ((L.bndName x) == bn)) (viewDealAllBonds t) 
 

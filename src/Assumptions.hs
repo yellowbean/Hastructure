@@ -21,7 +21,7 @@ module Assumptions (BondPricingInput(..),IrrType(..)
                     ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
                     ,_ReceivableAssump,_FixedAssetAssump  
                     ,stressDefaultAssump,applyAssumptionTypeAssetPerf,TradeType(..)
-                    ,LeaseEndType(..)
+                    ,LeaseEndType(..),LeaseDefaultType(..)
                     )
 where
 
@@ -189,13 +189,18 @@ data RecoveryAssumption = Recovery (Rate,Int)                    -- ^ recovery r
                         deriving (Show,Generic,Read)
 
 data LeaseAssetGapAssump = GapDays Int                           -- ^ days between leases, when creating dummy leases
-                         | GapDaysByAmount [(Amount,Int)] Int    -- ^ days depends on the size of leases, when a default a default days for size greater
                          | GapDaysByCurve Ts                     -- ^ days depends on the size of leases, when a default a default days for size greater
                          deriving (Show,Generic,Read)
 
 data LeaseAssetRentAssump = BaseAnnualRate Rate
                           | BaseCurve Ts 
+                          | BaseByVec [Rate]
                           deriving (Show,Generic,Read)
+
+data LeaseDefaultType = DefaultByContinuation Rate
+                       | DefaultByTermination Rate
+                       deriving (Show,Generic,Read)
+
 
 data LeaseEndType = CutByDate Date 
                   | StopByExtTimes Int 
@@ -216,13 +221,15 @@ data AssetDefaultedPerfAssumption = DefaultedRecovery Rate Int [Rate]
 data AssetDelinqPerfAssumption = DummyDelinqAssump
                                deriving (Show,Generic,Read)
 
+
+
 data AssetPerfAssumption = MortgageAssump    (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption)  (Maybe ExtraStress)
                          | MortgageDeqAssump (Maybe AssetDelinquencyAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
-                         | LeaseAssump       (Maybe AssetDefaultAssumption) LeaseAssetGapAssump LeaseAssetRentAssump LeaseEndType
+                         | LeaseAssump       (Maybe LeaseDefaultType) LeaseAssetGapAssump LeaseAssetRentAssump LeaseEndType
                          | LoanAssump        (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | InstallmentAssump (Maybe AssetDefaultAssumption) (Maybe AssetPrepayAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
                          | ReceivableAssump  (Maybe AssetDefaultAssumption) (Maybe RecoveryAssumption) (Maybe ExtraStress)
-                         | FixedAssetAssump  Ts Ts   -- util rate, price
+                         | FixedAssetAssump  Ts Ts (Maybe Int)  -- util rate, price, (Maybe extend periods)
                          deriving (Show,Generic,Read)
 
 
@@ -333,7 +340,7 @@ $(deriveJSON defaultOptions ''RefiEvent)
 
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''LeaseEndType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
+$(concat <$> traverse (deriveJSON defaultOptions) [''LeaseDefaultType, ''LeaseEndType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption,''InspectType])

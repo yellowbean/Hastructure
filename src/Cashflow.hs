@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell       #-}
 {-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE DeriveAnyClass       #-}
+{-# LANGUAGE DataKinds       #-}
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf,sumTsCF,tsSetLoss,tsSetRecovery
@@ -23,7 +24,9 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,cashflowTxn,clawbackInt,scaleTsRow,mflowFeePaid, currentCumulativeStat, patchCumulativeAtInit
                 ,mergeCf,buildStartTsRow
                 ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
-                ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance) where
+                ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance
+                ,getAllDatesCashFlowFrame,splitCf
+                ) where
 
 import Data.Time (Day)
 import Data.Fixed
@@ -58,7 +61,7 @@ import Control.Lens.TH
 
 debug = flip trace
 
-type Delinquent = Centi
+type Delinquent = Balance
 type Amounts = [Float]
 type Principals = [Principal]
 type Interests = [Interest]
@@ -101,10 +104,9 @@ data TsRow = CashFlow Date Amount
            | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
            | MortgageDelinqFlow Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe CumulativeStat)
-           | LeaseFlow Date Balance Rental
+           | LeaseFlow Date Balance Rental Default
            | FixedFlow Date Balance NewDepreciation Depreciation Balance Balance -- unit cash 
            | ReceivableFlow Date Balance AccuredFee Principal FeePaid Default Recovery Loss (Maybe CumulativeStat) 
-                -- remain balance, amortized amount, unit, cash
            deriving(Show,Eq,Ord,Generic,NFData)
 
 instance Semigroup TsRow where 
@@ -116,8 +118,8 @@ instance Semigroup TsRow where
     = MortgageDelinqFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (delinq1 + delinq2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (liftA2 (+) mbn1 mbn2) (liftA2 (+) pn1 pn2) (sumStats st1 st2)
   LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1 <> LoanFlow d2 b2 p2 i2 prep2 def2 rec2 los2 rat2 st2
     = LoanFlow (max d1 d2) (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1 + los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
-  LeaseFlow d1 b1 r1 <> LeaseFlow d2 b2 r2 
-    = LeaseFlow (max d1 d2) (b1 + b2) (r1 + r2)
+  LeaseFlow d1 b1 r1 def1 <> LeaseFlow d2 b2 r2 def2
+    = LeaseFlow (max d1 d2) (b1 + b2) (r1 + r2) (def1 + def2)
   FixedFlow d1 b1 ndep1 dep1 c1 a1 <> FixedFlow d2 b2 ndep2 dep2 c2 a2 
     = FixedFlow (max d1 d2) (b1 + b2) (ndep1 + ndep2) (dep1 + dep2) (c1 + c2) (a1 + a2)
   ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1 <> ReceivableFlow d2 b2 af2 p2 fp2 def2 rec2 los2 st2
@@ -131,7 +133,7 @@ instance TimeSeries TsRow where
     getDate (MortgageFlow x _ _ _ _ _ _ _ _ _ _ _) = x
     getDate (MortgageDelinqFlow x _ _ _ _ _ _ _ _ _ _ _ _) = x
     getDate (LoanFlow x _ _ _ _ _ _ _ _ _) = x
-    getDate (LeaseFlow x _ _ ) = x
+    getDate (LeaseFlow x _ _ _) = x
     getDate (FixedFlow x _ _ _ _ _ ) = x
     getDate (ReceivableFlow x _ _ _ _ _ _ _ _) = x
 
@@ -168,7 +170,7 @@ scaleTsRow r (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st)
       (splitStats r <$> st)
 scaleTsRow r (LoanFlow d b p i prep def rec los rat st) 
   = LoanFlow d (fromRational r * b) (fromRational r * p) (fromRational r * i) (fromRational r * prep) (fromRational r * def) (fromRational r * rec) (fromRational r * los) rat ((splitStats r) <$> st)
-scaleTsRow r (LeaseFlow d b rental) = LeaseFlow d (fromRational r * b) (fromRational r * rental)
+scaleTsRow r (LeaseFlow d b rental def) = LeaseFlow d (fromRational r * b) (fromRational r * rental) (fromRational r * def)
 scaleTsRow r (FixedFlow d b ndep dep c a) = FixedFlow d (fromRational r * b) (fromRational r * ndep) (fromRational r * dep) (fromRational r * c) (fromRational r * a)
 scaleTsRow r (ReceivableFlow d b af p fp def rec los st) = ReceivableFlow d (fromRational r * b) (fromRational r * af) (fromRational r * p) (fromRational r * fp) (fromRational r * def) (fromRational r * rec) (fromRational r * los) ((splitStats r) <$> st)
 
@@ -202,7 +204,7 @@ instance Show CashFlowFrame where
         getCs (MortgageFlow {}) = ["Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
         getCs (MortgageDelinqFlow {}) = [ "Balance", "Principal", "Interest", "Prepayment", "Delinquent", "Default", "Recovery", "Loss", "IRate", "BorrowerNum", "PrepaymentPenalty", "CumulativeStat"]
         getCs (LoanFlow {}) = ["Balance", "Principal", "Interest", "Prepayment", "Default", "Recovery", "Loss", "IRate", "CumulativeStat"]
-        getCs (LeaseFlow {}) = [ "Balance", "Rental"]
+        getCs (LeaseFlow {}) = [ "Balance", "Rental", "Default"]
         getCs (FixedFlow {}) = [ "Balance", "NewDepreciation", "Depreciation", "Balance", "Amount"]
         getCs (ReceivableFlow {}) = [ "Balance", "AccuredFee", "Principal", "FeePaid", "Default", "Recovery", "Loss", "CumulativeStat"]
         colHeader = [TT.Header c | c <- getCs (head txns) ]
@@ -211,7 +213,7 @@ instance Show CashFlowFrame where
         getRs (MortgageFlow d b p i prep def rec los rat mbn pp st) = [ show b, show p, show i, show prep, show def, show rec, show los, show rat, show mbn, show pp, show st]
         getRs (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) = [ show b, show p, show i, show prep, show delinq, show def, show rec, show los, show rat, show mbn, show pp, show st]
         getRs (LoanFlow d b p i prep def rec los rat st) = [ show b, show p, show i, show prep, show def, show rec, show los, show rat, show st]
-        getRs (LeaseFlow d b r) = [ show b, show r]
+        getRs (LeaseFlow d b r def) = [ show b, show r, show def]
         getRs (FixedFlow d b ndep dep c a) = [ show b, show ndep, show dep, show c, show a]
         getRs (ReceivableFlow d b af p fp def rec los st) = [ show b, show af, show p, show fp, show def, show rec, show los, show st]
         values = [ getRs txn  | txn <- txns ]
@@ -228,6 +230,9 @@ sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
+
+getAllDatesCashFlowFrame :: CashFlowFrame -> [Date]
+getAllDatesCashFlowFrame (CashFlowFrame (_,d,_) ts) = d : getDates ts
 
 getBegBalCashFlowFrame :: CashFlowFrame -> Balance
 getBegBalCashFlowFrame (CashFlowFrame _ []) = 0
@@ -281,8 +286,8 @@ addTs (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 pn1
 addTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) tr@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 st2)
   = LoanFlow d1 (b1 - mflowAmortAmount tr) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
 
-addTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
-  = LeaseFlow d1 (b1 - mflowAmortAmount tr) (r1 + r2)
+addTs (LeaseFlow d1 b1 r1 def1) tr@(LeaseFlow d2 b2 r2 def2) 
+  = LeaseFlow d1 (b1 - mflowAmortAmount tr) (r1 + r2) (def1 + def2)
 
 addTs (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1) tr@(ReceivableFlow _ b2 af2 p2 fp2 def2 rec2 los2 st2)
   = ReceivableFlow d1 (b1 - mflowAmortAmount tr) (af1 + af2) (p1 + p2) (fp1 + fp2) (def1 + def2) (rec1 + rec2) (los1 + los2) (sumStats st1 st2)
@@ -314,8 +319,8 @@ combineTs (MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 pn1 st1) tr@(
 combineTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) tr@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 st2)
   = LoanFlow d1 (b1 + b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (sumStats st1 st2)
 
-combineTs (LeaseFlow d1 b1 r1) tr@(LeaseFlow d2 b2 r2) 
-  = LeaseFlow d1 (b1 + b2) (r1 + r2)
+combineTs (LeaseFlow d1 b1 r1 def1) tr@(LeaseFlow d2 b2 r2 def2) 
+  = LeaseFlow d1 (b1 + b2) (r1 + r2) (def1 + def2)
 
 combineTs (FixedFlow d1 b1 de1 cde1 p1 c1 ) (FixedFlow d2 b2 de2 cde2 p2 c2)
   = FixedFlow d1 (b1+b2) (de1+de2) (cde1+cde2) (p1+p2) (c1+c2)
@@ -356,7 +361,7 @@ appendTs bn1@(MortgageFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mbn1 _ mstat1) 
   =  set tsRowBalance (b1 - mflowAmortAmount bn2) bn2 -- `debug` ("Summing stats"++ show bn1 ++ show mstat1++">>"++ show bn2 ++ show mstat2)
 appendTs (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 mstat1) bn2@(LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 mstat2)
   =  set tsRowBalance (b1 - mflowAmortAmount bn2) bn2
-appendTs (LeaseFlow d1 b1 r1) bn2@(LeaseFlow d2 b2 r2) 
+appendTs (LeaseFlow d1 b1 r1 def1) bn2@(LeaseFlow d2 b2 r2 def2) 
   = set tsRowBalance (b1 - mflowAmortAmount bn2) bn2
 appendTs (FixedFlow d1 b1 de1 cde1 p1 c1 ) bn2@(FixedFlow d2 b2 de2 cde2 p2 c2)
   = set tsRowBalance (b1 - mflowAmortAmount bn2) bn2
@@ -385,7 +390,7 @@ addTsCF (MortgageDelinqFlow d1 b1 p1 i1 prep1 delinq1 def1 rec1 los1 rat1 mbn1 p
       MortgageDelinqFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) delinq (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) bn p st
 addTsCF (LoanFlow d1 b1 p1 i1 prep1 def1 rec1 los1 rat1 st1) (LoanFlow _ b2 p2 i2 prep2 def2 rec2 los2 rat2 st2)
   = LoanFlow d1 (min b1 b2) (p1 + p2) (i1 + i2) (prep1 + prep2) (def1 + def2) (rec1 + rec2) (los1+los2) (fromRational (weightedBy (toRational <$> [b1,b2]) (toRational <$> [rat1,rat2]))) (maxStats st1 st2)
-addTsCF (LeaseFlow d1 b1 r1) (LeaseFlow d2 b2 r2) = LeaseFlow d1 (min b1 b2) (r1 + r2)
+addTsCF (LeaseFlow d1 b1 r1 def1) (LeaseFlow d2 b2 r2 def2) = LeaseFlow d1 (min b1 b2) (r1 + r2) (def1 + def2)
 addTsCF (FixedFlow d1 b1 dep1 cd1 u1 c1) (FixedFlow d2 b2 dep2 cd2 u2 c2) 
   = FixedFlow d1 (min b1 b2) (dep1 + dep2) (cd1 + cd2) u2 (c1 + c2)
 addTsCF (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1) (ReceivableFlow d2 b2 af2 p2 fp2 def2 rec2 los2 st2)
@@ -412,7 +417,7 @@ tsTotalCash (BondFlow _ _ a b) = a + b
 tsTotalCash (MortgageDelinqFlow x _ a b c _ _ e _ _ _ mPn _ ) = a + b + c + e + fromMaybe 0 mPn
 tsTotalCash (MortgageFlow x _ a b c _ e _ _ _ mPn _) = a + b + c + e + fromMaybe 0 mPn
 tsTotalCash (LoanFlow _ _ a b c _ e _ _ _) =  a + b + c + e
-tsTotalCash (LeaseFlow _ _ a) =  a
+tsTotalCash (LeaseFlow _ _ a _) =  a
 tsTotalCash (FixedFlow _ _ _ _ _ x) = x
 tsTotalCash (ReceivableFlow _ _ _ a b _ c _ _ ) = a + b + c
 
@@ -422,7 +427,7 @@ tsDefaultBal BondFlow {} = Left "no default amount for bond flow"
 tsDefaultBal (MortgageDelinqFlow _ _ _ _ _ _ x _ _ _ _ _ _) = Right x
 tsDefaultBal (MortgageFlow _ _ _ _ _ x _ _ _ _ _ _) = Right x
 tsDefaultBal (LoanFlow _ _ _ _ _ x _ _ _ _) = Right x
-tsDefaultBal LeaseFlow {} = Left "not default amoutn for lease flow"
+tsDefaultBal (LeaseFlow _ _ _ x) = Right x
 tsDefaultBal (FixedFlow _ _ x _ _ _) =  Right x
 tsDefaultBal (ReceivableFlow _ _ _ _ _ x _ _ _ ) = Right x
 
@@ -461,7 +466,7 @@ tsDate = lens getter setter
     getter (MortgageDelinqFlow x _ _ _ _ _ _ _ _ _ _ _ _) = x 
     getter (MortgageFlow x _ _ _ _ _ _ _ _ _ _ _) = x
     getter (LoanFlow x _ _ _ _ _ _ _ _ _) = x
-    getter (LeaseFlow x _ _) = x
+    getter (LeaseFlow x _ _ _ ) = x
     getter (FixedFlow x _ _ _ _ _) = x
     getter (ReceivableFlow x _ _ _ _ _ _ _ _) = x
     setter (CashFlow _ a) x = CashFlow x a
@@ -469,7 +474,7 @@ tsDate = lens getter setter
     setter (MortgageDelinqFlow _ a b c d e f g h i j k l) x = MortgageDelinqFlow x a b c d e f g h i j k l
     setter (MortgageFlow _ a b c d e f g h i j k) x = MortgageFlow x a b c d e f g h i j k
     setter (LoanFlow _ a b c d e f g h i) x = LoanFlow x a b c d e f g h i
-    setter (LeaseFlow _ a b) x = LeaseFlow x a b
+    setter (LeaseFlow _ a b c) x = LeaseFlow x a b c
     setter (FixedFlow _ a b c d e) x = FixedFlow x a b c d e
     setter (ReceivableFlow _ a b c d e f g h) x = ReceivableFlow x a b c d e f g h
 
@@ -493,7 +498,7 @@ tsOffsetDate x (BondFlow _d a b c) = BondFlow (T.addDays x _d) a b c
 tsOffsetDate x (MortgageDelinqFlow _d a b c d e f g h i j k l) = MortgageDelinqFlow (T.addDays x _d) a b c d e f g h i j k l
 tsOffsetDate x (MortgageFlow _d a b c d e f g h i j k) = MortgageFlow (T.addDays x _d) a b c d e f g h i j k
 tsOffsetDate x (LoanFlow _d a b c d e f g h i) = LoanFlow (T.addDays x _d) a b c d e f g h i
-tsOffsetDate x (LeaseFlow _d a b) = LeaseFlow (T.addDays x _d) a b
+tsOffsetDate x (LeaseFlow _d a b c) = LeaseFlow (T.addDays x _d) a b c
 tsOffsetDate x (ReceivableFlow _d a b c d e f g h) = ReceivableFlow (T.addDays x _d) a b c d e f g h
 
 tsReduceInt :: Balance -> TsRow -> TsRow
@@ -604,7 +609,7 @@ tsRowBalance = lens getter setter
     getter (MortgageFlow _ x _ _ _ _ _ _ _ _ _ _) = x
     getter (MortgageDelinqFlow _ x _ _ _ _ _ _ _ _ _ _ _) = x
     getter (LoanFlow _ x _ _ _ _ _ _ _ _) = x
-    getter (LeaseFlow _ x _ ) = x
+    getter (LeaseFlow _ x _ _) = x
     getter (FixedFlow _ x _ _ _ _) = x
     getter (ReceivableFlow _ x _ _ _ _ _ _ _ ) = x
 
@@ -612,7 +617,7 @@ tsRowBalance = lens getter setter
     setter (MortgageFlow a _ p i prep def rec los rat mbn pn st) x = MortgageFlow a x p i prep def rec los rat mbn pn st
     setter (MortgageDelinqFlow a _ p i prep delinq def rec los rat mbn pn st) x = MortgageDelinqFlow a x p i prep delinq def rec los rat mbn pn st
     setter (LoanFlow a _ p i prep def rec los rat st) x = LoanFlow a x p i prep def rec los rat st
-    setter (LeaseFlow a _ r) x = LeaseFlow a x r
+    setter (LeaseFlow a _ r def) x = LeaseFlow a x r def
     setter (FixedFlow a _ b c d e) x = FixedFlow a x b c d e
     setter (ReceivableFlow a _ b c d e f g h) x = ReceivableFlow a x b c d e f g h
 
@@ -622,7 +627,7 @@ mflowBegBalance (BondFlow _ x p _) = x + p
 mflowBegBalance (MortgageDelinqFlow _ x p _ ppy delinq def _ _ _ _ _ _) = x + p + ppy + delinq
 mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _ _ _ _) = x + p + ppy + def
 mflowBegBalance (LoanFlow _ x p _ ppy def _ _ _ _) = x + p + ppy + def
-mflowBegBalance (LeaseFlow _ b r) = b + r
+mflowBegBalance (LeaseFlow _ b r def ) = b + r + def 
 mflowBegBalance (FixedFlow a b c d e f ) = b + c
 mflowBegBalance (ReceivableFlow _ x _ b f def _ _ _) = x + b + def + f
 
@@ -646,7 +651,7 @@ mflowRate (BondFlow _ _ _ _) = 0
 mflowRate _ = 0
 
 mflowRental :: TsRow -> Amount
-mflowRental (LeaseFlow _ _ x ) = x
+mflowRental (LeaseFlow _ _ x _) = x
 mflowRental x = error ("not support get rental from row"++show x)
 
 mflowFeePaid :: TsRow -> Amount
@@ -658,7 +663,7 @@ mflowAmortAmount :: TsRow -> Balance
 mflowAmortAmount (MortgageFlow _ _ p _ ppy def _ _ _ _ _ _) = p + ppy + def
 mflowAmortAmount (MortgageDelinqFlow _ _ p _ ppy delinq _ _ _ _ _ _ _) = p + ppy + delinq
 mflowAmortAmount (LoanFlow _ _ x _ y z _ _ _ _) = x + y + z
-mflowAmortAmount (LeaseFlow _ _ x ) = x
+mflowAmortAmount (LeaseFlow _ _ x def) = x + def
 mflowAmortAmount (FixedFlow _ _ x _ _ _) = x
 mflowAmortAmount (BondFlow _ _ p i) = p
 mflowAmortAmount (ReceivableFlow _ _ _ x f def _ _ _ ) = x + def + f
@@ -692,7 +697,7 @@ emptyTsRow :: Date -> TsRow -> TsRow
 emptyTsRow _d (MortgageDelinqFlow a x c d e f g h i j k l m) = MortgageDelinqFlow _d 0 0 0 0 0 0 0 0 0 Nothing Nothing Nothing
 emptyTsRow _d (MortgageFlow a x c d e f g h i j k l) = MortgageFlow _d 0 0 0 0 0 0 0 0 Nothing Nothing Nothing
 emptyTsRow _d (LoanFlow a x c d e f g i j k) = LoanFlow _d 0 0 0 0 0 0 0 0 Nothing
-emptyTsRow _d (LeaseFlow a x c ) = LeaseFlow _d 0 0
+emptyTsRow _d (LeaseFlow a x c d) = LeaseFlow _d 0 0 0
 emptyTsRow _d (FixedFlow a x c d e f ) = FixedFlow _d 0 0 0 0 0
 emptyTsRow _d (BondFlow a x c d) = BondFlow _d 0 0 0
 emptyTsRow _d (ReceivableFlow a x c d e f g h i) = ReceivableFlow _d 0 0 0 0 0 0 0 Nothing
@@ -712,7 +717,7 @@ viewTsRow :: Date -> TsRow -> TsRow
 viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 j k l m
 viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 i j k l
 viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
-viewTsRow _d (LeaseFlow a b c ) = LeaseFlow _d b 0
+viewTsRow _d (LeaseFlow a b c d) = LeaseFlow _d b 0 0
 viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
 viewTsRow _d (BondFlow a b c d) = BondFlow _d b 0 0
 viewTsRow _d (ReceivableFlow a b c d e f g h i) = ReceivableFlow _d b 0 0 0 0 0 0 i
@@ -813,6 +818,7 @@ patchBalance (bal,stat) r (tr:trs) =
     patchBalance (newBal,stat) (rWithUpdatedBal:r) trs
 
 -- type CumulativeStat = (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
+-- 
 calcBeginStats :: Maybe CumulativeStat -> TsRow -> CumulativeStat
 calcBeginStats Nothing tr = (0,0,0,0,0,0)
 calcBeginStats (Just (cumPrin,cumPrepay,cumDlinq,cumDef,cumRec,cumLoss)) tr
@@ -827,8 +833,8 @@ calcBeginStats (Just (cumPrin,cumPrepay,cumDlinq,cumDef,cumRec,cumLoss)) tr
         (cumPrin - p, 0 , 0 , cumDef - def, cumRec - rec , cumLoss - los)
       (BondFlow _ _ p i) -> 
         (cumPrin - p,0 , 0 , 0, 0, 0)
-      (LeaseFlow _ b r) -> 
-        (cumPrin - r,0 , 0, 0, 0, 0)
+      (LeaseFlow _ b r def ) -> 
+        (cumPrin - r,0 , 0, cumDef - def, 0, 0)
       (FixedFlow _ b c d e _ ) -> (0, 0 ,0 , 0, 0, 0)
       (CashFlow _ amt) -> (0,0,0,0,0,0)
 
@@ -951,10 +957,18 @@ splitTs r (MortgageFlow d bal p i ppy def recovery loss rate mB mPPN mStat)
                        (mulBR def r) (mulBR recovery r) (mulBR loss r)
                        rate ((\x -> round (toRational x * r)) <$> mB) ((`mulBR` r) <$> mPPN)
                        (splitStats r <$> mStat)
+splitTs r (LeaseFlow d bal p def)
+  = LeaseFlow d (mulBR bal r) (mulBR p r) (mulBR def r)
 splitTs _ tr = error $ "Not support for spliting TsRow"++show tr
 
 splitTrs :: Rate -> [TsRow] -> [TsRow]
 splitTrs r trs = splitTs r <$> trs 
+
+splitCf :: Rate -> CashFlowFrame -> CashFlowFrame
+splitCf 1 cf = cf
+splitCf r (CashFlowFrame st []) = CashFlowFrame st []
+splitCf r (CashFlowFrame (begBal, begDate, mAccInt) trs) 
+  = CashFlowFrame (mulBR begBal r, begDate, (`mulBR` r) <$> mAccInt) $ splitTrs r trs -- `debug` ("split by rate"++ show (fromRational r))
 
 currentCumulativeStat :: [TsRow] -> CumulativeStat
 currentCumulativeStat [] = (0,0,0,0,0,0)
@@ -1035,9 +1049,9 @@ patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
 
 patchCumulative (cPrin,cPrepay,cDelinq,cDefault,cRecovery,cLoss)
               rs
-              ((LeaseFlow a b c) :trs)
+              ((LeaseFlow a b c d) :trs)
   = patchCumulative newSt
-                  (LeaseFlow a b c:rs)
+                  (LeaseFlow a b c d:rs)
                   trs
                where
                  newSt = (0,0,0,0,0,0)
@@ -1068,7 +1082,7 @@ isEmptyRow :: TsRow -> Bool
 isEmptyRow (MortgageDelinqFlow _ 0 0 0 0 0 0 0 0 _ _ _ _) = True
 isEmptyRow (MortgageFlow _ 0 0 0 0 0 0 0 _ _ _ _) = True
 isEmptyRow (LoanFlow _ 0 0 0 0 0 0 0 i j ) = True
-isEmptyRow (LeaseFlow _ 0 0) = True
+isEmptyRow (LeaseFlow _ 0 0 0) = True
 isEmptyRow (FixedFlow _ 0 0 0 0 0) = True
 isEmptyRow (BondFlow _ 0 0 0) = True
 isEmptyRow (CashFlow _ 0) = True
@@ -1079,7 +1093,7 @@ isEmptyRow2 :: TsRow -> Bool
 isEmptyRow2 (MortgageDelinqFlow _ _ 0 0 0 0 0 0 0 _ _ _ _) = True
 isEmptyRow2 (MortgageFlow _ _ 0 0 0 0 0 0 _ _ _ _) = True
 isEmptyRow2 (LoanFlow _ _ 0 0 0 0 0 0 i j ) = True
-isEmptyRow2 (LeaseFlow _ _ 0) = True
+isEmptyRow2 (LeaseFlow _ _ 0 _) = True
 isEmptyRow2 (FixedFlow _ _ 0 0 0 0) = True
 isEmptyRow2 (BondFlow _ _ 0 0) = True
 isEmptyRow2 (CashFlow _ 0) = True

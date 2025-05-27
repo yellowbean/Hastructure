@@ -3,7 +3,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module Analytics (calcConvexity,calcDuration,pv,calcWAL,pv2,pv3,fv2,pv21,calcRequiredAmtForIrrAtDate,calcIRR)
+module Analytics (calcConvexity,calcDuration,pv,calcWAL,pv2,pv3
+      ,fv2,pv21,calcRequiredAmtForIrrAtDate,calcIRR
+      ,calcSurvivorFactors)
 
   where 
 import Types
@@ -20,6 +22,15 @@ import Numeric.RootFinding
 
 import Debug.Trace
 debug = flip trace
+
+calcSurvivorFactors :: Date -> [Date] -> Double -> [Double]
+calcSurvivorFactors sd ds 0 = replicate (length ds) 1.0 
+calcSurvivorFactors sd ds survivalRate = 
+  let 
+    yearFractions::[Double] = [ realToFrac (daysBetween sd d) / 365.0 | d <- ds ]
+    factors = [ (1 - survivalRate) ** x | x <- yearFractions ]
+  in 
+    factors
 
 -- ^ calculate the Weighted Average Life of cashflow, with unit option to Monthly or Yearly
 calcWAL :: TimeHorizion -> Balance -> Date -> [(Balance,Date)] -> Balance 

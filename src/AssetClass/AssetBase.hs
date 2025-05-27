@@ -10,7 +10,7 @@ module AssetClass.AssetBase
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
   ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..),ReceivableFeeType(..),Receivable(..)
-  ,ProjectedCashflow(..),Obligor(..)
+  ,ProjectedCashflow(..),Obligor(..),LeaseRateCalc(..)
   ,calcAssetPrinInt, calcPmt
   )
   where
@@ -26,6 +26,7 @@ import Data.OpenApi hiding (Server,contentType)
 import Types hiding (Current,startDate,originTerm)
 import Data.Ratio
 import Data.Proxy
+import Data.Decimal
 import Util
 import qualified Data.Map as Map
 import qualified InterestRate as IR
@@ -72,8 +73,8 @@ calcPmt bal rate periods | rate == 0.0 = divideBI bal periods
       r1 = num / den
   in mulBR (realToFrac bal) (toRational (rate' * r1))
 
-type InterestAmount = Amount
-type PrincipalAmount = Amount
+type InterestAmount = Balance
+type PrincipalAmount = Balance
 
 calcAssetPrinInt :: AmortPlan -> Balance -> IRate -> Int -> Int -> (Balance,Int) -> (InterestAmount, PrincipalAmount)
 calcAssetPrinInt pt bal rate ot rt (amortBal, amortTerm) = 
@@ -124,11 +125,7 @@ data PrepayPenaltyType = ByTerm Int Rate Rate           -- ^ using penalty rate 
                        deriving (Show,Generic,Eq,Ord)
 
 data AmortRule = DecliningBalance        -- ^ DecliningBalance Method
-               | DoubleDecliningBalance  -- ^ Not implemented
                | StraightLine            -- ^ Straight Line Method
-               -- | UnitBased Int
-               -- | MACRS
-               | SumYearsDigit           -- ^ Not implemented
                deriving (Show,Generic,Eq,Ord)
 
 data ReceivableFeeType = FixedFee Balance                    -- ^ a flat fee amount
@@ -143,6 +140,11 @@ data Obligor = Obligor {obligorId :: String
                         , obligorTag :: [String]
                         , obligorFields :: Map.Map String (Either String Double)
                         } deriving (Show,Generic,Eq,Ord)
+
+data LeaseRateCalc = ByDayRate DailyRate DatePattern
+                   | ByPeriodRental Balance Period
+                   deriving (Show,Generic,Eq,Ord)
+
 
 data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                           ,originRate :: IR.RateType
@@ -161,8 +163,7 @@ data OriginalInfo = MortgageOriginalInfo { originBalance :: Balance
                                       ,obligor :: Maybe Obligor }
                   | LeaseInfo { startDate :: Date            -- ^ lease start date
                               ,originTerm :: Int             -- ^ total terms
-                              ,paymentDates :: DatePattern   -- ^ payment dates pattern
-                              ,originRental :: Amount        -- ^ rental by day
+                              ,originRental :: LeaseRateCalc -- ^ rental by day
                               ,obligor :: Maybe Obligor }       
                   | FixedAssetInfo { startDate :: Date 
                                      ,originBalance :: Balance 
@@ -246,7 +247,7 @@ data AssociateIncome = IncomePerPeriod Balance
                       | IncomePerUnit Balance
                       deriving (Show,Generic,Ord,Eq)
 
-data FixedAsset = FixedAsset OriginalInfo RemainTerms
+data FixedAsset = FixedAsset OriginalInfo Balance RemainTerms
                 | Dummy5
                 deriving (Show,Generic,Eq,Ord)
 
@@ -305,7 +306,7 @@ instance IR.UseRate ProjectedCashflow where
 
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''Obligor, ''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
-    , ''Capacity, ''AmortRule, ''ReceivableFeeType])
+    , ''Capacity, ''AmortRule, ''ReceivableFeeType, ''LeaseRateCalc])
 
 
 makePrisms ''OriginalInfo
@@ -324,6 +325,9 @@ $(deriveJSON defaultOptions ''AssetUnion)
 instance ToSchema Capacity
 instance ToSchema AmortRule
 instance ToSchema (Ratio Integer) where 
+  declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
+
+instance ToSchema (Decimal) where 
   declareNamedSchema _ = NamedSchema Nothing <$> declareSchema (Proxy :: Proxy Double)
 
 instance ToSchema PrepayPenaltyType
@@ -347,5 +351,6 @@ instance ToSchema Period
 instance ToSchema IR.ARM
 instance ToSchema Status
 instance ToSchema ReceivableFeeType
+instance ToSchema LeaseRateCalc
 instance ToSchema OriginalInfo
 instance ToSchema Mortgage 

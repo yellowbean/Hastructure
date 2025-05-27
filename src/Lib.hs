@@ -11,7 +11,7 @@ module Lib
     ,periodRateFromAnnualRate
     ,Floor,Cap,TsPoint(..)
     ,toDate,toDates,genDates,nextDate
-    ,getValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
+    ,getValOnByDate,getIntValOnByDate,sumValTs,subTsBetweenDates,splitTsByDate
     ,paySeqLiabilitiesAmt,getIntervalDays,getIntervalFactors
     ,zipWith8,zipWith9,zipWith10,zipWith11,zipWith12
     ,weightedBy, mkTs
@@ -34,12 +34,8 @@ import Types
 import Control.Lens
 import Data.List.Lens
 import Control.Lens.TH
--- import Deal.DealType
-
-
 import Debug.Trace
 debug = flip trace
-
 
 
 periodRateFromAnnualRate :: Period -> IRate -> IRate
@@ -55,20 +51,19 @@ addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
 
 getIntervalDays :: [Date] -> [Int]
 getIntervalDays ds = zipWith daysBetweenI (init ds) (tail ds)
-  -- = map (\(x,y)-> (fromIntegral (T.diffDays y x))) $ zip (init ds) (tail ds)
 
 -- get fractional years from a set of dates
 getIntervalFactors :: [Date] -> [Rate]
 getIntervalFactors ds = (\x -> toRational x / 365) <$> getIntervalDays ds -- `debug` ("Interval Days"++show(ds))
 
 -- | 
-prorataFactors :: [Centi] -> Centi -> [Centi]
+prorataFactors :: [Balance] -> Balance -> [Balance]
 prorataFactors bals amt =
   case s of 
     0.0 -> replicate (length bals) 0.0
     _ -> let 
            weights = map (\x -> toRational x / s) bals -- `debug` ("bals"++show bals++">>s>>"++show s++"amt to pay"++show amtToPay)
-           outPut = (\y -> fromRational (y * toRational amtToPay)) <$> weights -- `debug` ("Weights->>"++ show weights)
+           outPut = (\y -> fromRational (y * amtToPay)) <$> weights -- `debug` ("Weights->>"++ show weights)
            eps = amt - sum outPut
          in 
            if eps == 0.00 then
@@ -78,11 +73,11 @@ prorataFactors bals amt =
           
   where
     s = toRational $ sum bals
-    amtToPay = min s (toRational amt)
+    amtToPay = toRational $ min s (toRational amt)
 
 -- 
 
-paySeqLiabilities :: Amount -> [Balance] -> [(Amount,Balance)]
+paySeqLiabilities :: Balance -> [Balance] -> [(Balance,Balance)]
 paySeqLiabilities startAmt liabilities =
   tail $ reverse $ foldl pay [(startAmt, 0)] liabilities
   where pay accum@((amt, _):xs) target = 
@@ -93,7 +88,7 @@ paySeqLiabilities startAmt liabilities =
 
 -- Input: 1000, [100,200,300] -> [100,200,300]
 -- Input: 100, [50,80] ->[50,50]
-paySeqLiabilitiesAmt :: Amount -> [Balance] -> [Amount]
+paySeqLiabilitiesAmt :: Balance -> [Balance] -> [Balance]
 paySeqLiabilitiesAmt startAmt funds
   = zipWith (-) funds remainBals
     -- map (\(a,b) -> (a-b)) $ zip funds remainBals
@@ -135,8 +130,15 @@ mkTs ps = FloatCurve [ TsPoint d v | (d,v) <- ps]
 mkRateTs :: [(Date,IRate)] -> Ts
 mkRateTs ps = IRateCurve [ TsPoint d v | (d,v) <- ps]
 
+
 getValOnByDate :: Ts -> Date -> Balance
 getValOnByDate (BalanceCurve dps) d 
+  = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
+      Just (TsPoint _d v) -> v
+      Nothing -> 0
+
+getIntValOnByDate :: Ts -> Date -> Int
+getIntValOnByDate (IntCurve dps) d 
   = case find (\(TsPoint _d _) -> ( d >= _d )) (reverse dps)  of 
       Just (TsPoint _d v) -> v
       Nothing -> 0

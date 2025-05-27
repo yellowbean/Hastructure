@@ -2,22 +2,37 @@
 
 <!-- towncrier release notes start -->
 
+## 0.45.7
+### 2025-05-26
+* ENHANCE: add `BaseByVec` for vector-based rental change
+
+
+## 0.45.5
+### 2025-05-20
+* NEW: `MaxSpread` feature for structuring stage: get max possible bond coupon rate !
+* ENHANCE: Transfer from `stack` to `cabal` as build tool
+* ENHANCE: Apply `DList` to trigger log
+* ENHANCE: Enable `Double Decline Balance` in `FixedAsset`
+* REFACTOR: Refactor `Leasing` asset type
+  * Add `Default` assumption
+  * Add `Period-based` rental ,in addition to `Day-based` rental calculation
+
+
+## 0.45.2
+### 2025-04-01
+* ENHANCE: Performance optimization by replace `List` with `DList`.
+* ENHANCE: In `inspection` ,expose `IsOutstanding` `HasPassedMaturity` in `Pre`
+
 ## 0.45.1
 ### 2025-03-25
-* BREAK: 
 * FIX: in `Pricing/IRR`, error when holding position is too small
-* NEW: 
 * ENHANCE: engine will auto patch `interest start date` for bonds if it is not modeled. In `PreClosing` status, engine will use `closing date` as bond interest begin date ; In `Non-PreClosing` status, it defaults to use last waterfall distribution date as bond interest begin date.
-
 
 ## 0.45.0
 ### 2025-03-21
 * BREAK: remove unused `DealDates` : `FixInterval`, `CustomDates` and `PatternInterval`. Since all these can be replace by new `GenericDates` in type `DateDesp`
 * ENHANCE: now bond with `No last interest accure day` will begin accrue interest from `closing date` if the deal is in `PreClosing` mode, while the bond will use `last bond day` otherwise.
 * FIX: `IsPaidOff` now can be queried in inspection formula
-
-
-
 
 
 ## 0.44.0

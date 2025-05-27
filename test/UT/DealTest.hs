@@ -34,6 +34,7 @@ import Data.Either
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
+import qualified Data.DList as DL
 
 import Debug.Trace
 debug = flip Debug.Trace.trace
@@ -165,8 +166,8 @@ td2 = D.TestDeal {
                                 0
                                 (toDate "20220201")
                                 Nothing
-                                (Just (Stmt.Statement [SupportTxn (toDate "20220215") (Just 110) 10 40 0 0 Empty 
-                                                    ,SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 Empty])))]
+                                (Just (Stmt.Statement (DL.fromList [SupportTxn (toDate "20220215") (Just 110) 10 40 0 0 Empty 
+                                                    ,SupportTxn (toDate "20220315") (Just 100) 10 50 0 0 Empty]))))]
  ,D.triggers = Just $
                 Map.fromList $
                   [(BeginDistributionWF,
@@ -288,7 +289,7 @@ poolFlowTest =
       ,testCase "last bond A payment date" $
        assertEqual "pool bal should equal to total collect"
        (Just (BondTxn (toDate "20240201") 0.00 0.00 30.56 0.080000 30.56 0.00 0.00 (Just 0.0) (PayPrin ["A"])))
-       $ (\s -> last (view Stmt.statementTxns s)) <$> (L.bndStmt $ (bndMap Map.! "A"))
+       $ (\s -> last (DL.toList (view Stmt.statementTxns s))) <$> (L.bndStmt $ (bndMap Map.! "A"))
     ]
 
 
@@ -325,7 +326,7 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_) = case run td2 poolflowM (Just ads) Nothing Nothing Nothing [] of 
+      (fdeal,_) = case run td2 poolflowM (Just ads) Nothing Nothing Nothing DL.empty of 
                     Left _ -> error ""
                     Right x -> x
     in 
@@ -375,9 +376,9 @@ liqProviderTest =
                        (toDate "20220301")
                        Nothing
                        (Just (Stmt.Statement 
-                               [SupportTxn (toDate "20220215") (Just 110) 40 40 0 0 Empty
+                               (DL.fromList ([SupportTxn (toDate "20220215") (Just 110) 40 40 0 0 Empty
                                ,SupportTxn (toDate "20220315") (Just 100) 50 90 0 0 Empty
-                               ]))
+                               ]))))
   in 
     testGroup "Liq provider test" 
       [testCase "Liq Provider Int test" $

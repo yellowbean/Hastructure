@@ -37,6 +37,7 @@ import Data.Ratio
 import Data.Maybe
 import Data.List
 import qualified Data.Set as Set
+import qualified Data.DList as DL
 import qualified Stmt as S 
 import qualified Cashflow as CF
 import qualified InterestRate as IR
@@ -100,7 +101,7 @@ data InterestOverInterestType = OverCurrRateBy Rational -- ^ inflat ioi rate by 
 --------------------------- start Rate, index, spread, reset dates, daycount, floor, cap
 data InterestInfo = Floater IRate Index Spread RateReset DayCount (Maybe Floor) (Maybe Cap)
                   | Fix IRate DayCount                                    -- ^ fixed rate
-                  | RefBal DealStats InterestInfo
+                  | RefBal DealStats InterestInfo                         -- ^ accure interest based on balance(described by a formula)
                   | RefRate IRate DealStats Float RateReset               -- ^ interest rate depends to a formula
                   | CapRate InterestInfo IRate                            -- ^ cap rate 
                   | FloorRate InterestInfo IRate                          -- ^ floor rate
@@ -246,13 +247,15 @@ curRatesTraversal f (BondGroup bMap x)
   = BondGroup <$> traverse (curRatesTraversal f) bMap <*> pure x
 
 
-bndTxns :: Lens' Bond (Maybe S.Statement)
-bndTxns = lens getter setter
+bndmStmt :: Lens' Bond (Maybe S.Statement)
+bndmStmt = lens getter setter
   where 
     getter Bond{bndStmt = mStmt} = mStmt
     getter MultiIntBond{bndStmt = mStmt} = mStmt
+    -- getter BondGroup{bndStmt = mStmt} = mStmt
     setter Bond{bndStmt = _} mStmt = Bond{bndStmt = mStmt}
     setter MultiIntBond{bndStmt = _} mStmt = MultiIntBond{bndStmt = mStmt}
+    -- setter BondGroup{bndStmt = _} mStmt = BondGroup{bndStmt = mStmt}
 
 bondCashflow :: Bond -> ([Date], [Amount])
 bondCashflow b = 
@@ -270,7 +273,7 @@ consolStmt b
                   combinedBondTxns = foldl S.consolTxn [txn] txns    
                   droppedTxns = dropWhile S.isEmptyTxn combinedBondTxns 
                 in 
-                  b {bndStmt = Just (S.Statement (reverse droppedTxns))}
+                  b {bndStmt = Just (S.Statement (DL.fromList (reverse droppedTxns)))}
 
 setBondOrigDate :: Date -> Bond -> Bond
 setBondOrigDate d b@Bond{bndOriginInfo = oi} = b {bndOriginInfo = oi{originDate = d}}
@@ -286,9 +289,12 @@ patchBondFactor bnd
   | otherwise = let 
                   oBal = originBalance (bndOriginInfo bnd)
                   toFactor (BondTxn d b i p r0 c e f Nothing t) = (BondTxn d b i p r0 c e f (Just (fromRational (divideBB b oBal))) t)
-                  newStmt = S.Statement $ toFactor <$> (S.getAllTxns bnd)
+                  -- newStmt = S.Statement $ toFactor <$> (S.getAllTxns bnd)
+                  newBnd = case bndStmt bnd of 
+                              Nothing -> bnd 
+                              Just (S.Statement txns) -> bnd {bndStmt = Just (S.Statement (toFactor <$> txns)) }
                 in 
-                  bnd {bndStmt = Just newStmt} 
+                  newBnd
 
 payInt :: Date -> Amount -> Bond -> Bond
 -- pay 0 interest, do nothing
@@ -540,17 +546,17 @@ weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBal
 weightAverageBalance sd ed b@(MultiIntBond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ Nothing) 
   = mulBR currentBalance (yearCountFraction DC_ACT_365F (max bd sd) ed) 
 
-weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ (Just stmt))
+weightAverageBalance sd ed b@(Bond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ (Just (S.Statement txns)))
   = S.weightAvgBalance' 
         (max bd sd) 
         ed 
-        (view S.statementTxns stmt)
+        (DL.toList txns)
 
-weightAverageBalance sd ed b@(MultiIntBond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ (Just stmt))
+weightAverageBalance sd ed b@(MultiIntBond _ _ (OriginalInfo ob bd _ _ )  _ _ currentBalance _ _ _ _ _ _ _ (Just (S.Statement txns)))
   = S.weightAvgBalance' 
         (max bd sd) 
         ed 
-        (view S.statementTxns stmt)
+        (DL.toList txns)
 
 
 weightAverageBalance sd ed bg@(BondGroup bMap _)
@@ -563,9 +569,9 @@ tryCalcZspread tradePrice originBalance priceDay futureCfs riskFreeCurve spread
       pvCurve = shiftTsByAmt riskFreeCurve (fromRational (toRational spread))
       pvs = [ pv pvCurve priceDay _d _amt | (_d, _amt) <- futureCfs ]
       newPrice = 100 * sum pvs
-      faceVal = fromRational $ divideBB newPrice originBalance
+      faceVal = divideBB newPrice originBalance
     in 
-      faceVal - fromRational tradePrice
+      fromRational (faceVal - tradePrice)
 
 
 calcZspread :: (Rational,Date) -> Bond -> Ts -> Either String Spread
@@ -643,9 +649,9 @@ instance S.QueryByComment Bond where
   queryStmt Bond{bndStmt = Nothing} tc = []
   queryStmt MultiIntBond{bndStmt = Nothing} tc = []
   queryStmt Bond{bndStmt = Just (S.Statement txns)} tc
-    = Data.List.filter (\x -> S.getTxnComment x == tc) txns
+    = Data.List.filter (\x -> S.getTxnComment x == tc) (DL.toList txns)
   queryStmt MultiIntBond{bndStmt = Just (S.Statement txns)} tc
-    = Data.List.filter (\x -> S.getTxnComment x == tc) txns
+    = Data.List.filter (\x -> S.getTxnComment x == tc) (DL.toList txns)
 
 instance Liable Bond where 
 
@@ -714,15 +720,15 @@ instance IR.UseRate Bond where
 instance S.HasStmt Bond where 
   
   getAllTxns Bond{bndStmt = Nothing} = []
-  getAllTxns Bond{bndStmt = Just (S.Statement txns)} = txns
+  getAllTxns Bond{bndStmt = Just (S.Statement txns)} = DL.toList txns
   getAllTxns MultiIntBond{bndStmt = Nothing} = []
-  getAllTxns MultiIntBond{bndStmt = Just (S.Statement txns)} = txns
+  getAllTxns MultiIntBond{bndStmt = Just (S.Statement txns)} = DL.toList txns
   getAllTxns (BondGroup bMap _) = concat $ S.getAllTxns <$> Map.elems bMap
 
   hasEmptyTxn Bond{bndStmt = Nothing} = True
-  hasEmptyTxn Bond{bndStmt = Just (S.Statement [])} = True
+  hasEmptyTxn Bond{bndStmt = Just (S.Statement txn)} = txn == DL.empty
   hasEmptyTxn MultiIntBond{bndStmt = Nothing} = True
-  hasEmptyTxn MultiIntBond{bndStmt = Just (S.Statement [])} = True
+  hasEmptyTxn MultiIntBond{bndStmt = Just (S.Statement txn)} = txn == DL.empty
   hasEmptyTxn (BondGroup bMap _) = all S.hasEmptyTxn $ Map.elems bMap
   hasEmptyTxn _ = False
 

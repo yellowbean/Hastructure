@@ -31,10 +31,9 @@ module Types
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
   ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
-  ,MyRatio,HowToPay(..),ApplyRange(..),BondPricingMethod(..)
-  ,_BondTxn
+  ,MyRatio,HowToPay(..),BondPricingMethod(..),InvestorAction(..)
+  ,_BondTxn ,_InspectBal
   )
-  
   where
 
 import qualified Data.Text as Text
@@ -118,7 +117,7 @@ type CumRecovery = Balance
 type AccruedInterest = Balance
 
 type PerFace = Micro
-type WAL = Centi
+type WAL = Balance
 type Duration = Micro
 type Convexity = Micro
 type Yield = Micro
@@ -167,6 +166,7 @@ data Index = LPR5Y
             | BBSW
             | IRPH --  The IRPH (Índice de Referencia de Préstamos Hipotecarios) is a reference index used in Spain to fix the interest rate of mortgage loans
             | SONIA 
+            -- deriving (Show,Eq,Generic,Ord,Read, Bounded, Enum, Finite, Named, ProtoEnum)
             deriving (Show,Eq,Generic,Ord,Read)
 
 type Floater = (Index,Spread)
@@ -215,7 +215,7 @@ data DatePattern = MonthEnd
                  | SemiAnnual (Int, Int) (Int, Int)
                  | CustomDate [Date]
                  | SingletonDate Date
-                 | DaysInYear [(Int, Int)]
+                 | DaysInYear [(Int, Int)] -- MM/DD
                  | EveryNMonth Date Int
                  | Weekday Int 
                  | AllDatePattern [DatePattern]
@@ -238,8 +238,6 @@ data Period = Daily
             deriving (Show,Eq,Generic,Ord)
 
 type DateVector = (Date, DatePattern)
-
-
 
 data RoundingBy a = RoundCeil a 
                   | RoundFloor a
@@ -298,7 +296,6 @@ data PerCurve a = CurrentVal [PerPoint a]
 getValFromPerCurve :: PerCurve a -> DateDirection -> CutoffType -> Int -> Maybe a
 getValFromPerCurve (WithTrailVal []) _ _ _ = Nothing 
 getValFromPerCurve (CurrentVal []) _ _ _ = Nothing 
-
 getValFromPerCurve (CurrentVal (v:vs)) Future p i 
   = let 
       cmp = case p of
@@ -360,10 +357,9 @@ data DateDirection = Future
                    | Past
                    deriving (Show,Read,Generic)
 
-data ApplyRange = ByAll
-                | ByIndexes [Int]
-                | ByKeys [String]
-                deriving (Show,Read,Generic)
+data InvestorAction = Buy 
+                    | Sell
+                    deriving (Show,Ord,Read,Generic,Eq)
 
 
 class TimeSeries ts where 
@@ -432,6 +428,7 @@ data Ts = FloatCurve [TsPoint Rational]
         | FactorCurveClosed [TsPoint Rational] Date
         | PricingCurve [TsPoint Rational] 
         | PeriodCurve [TsPoint Int]
+        | IntCurve [TsPoint Int]
         deriving (Show,Eq,Ord,Read,Generic)
 
 
@@ -740,14 +737,14 @@ type BookItems = [BookItem]
 
 data BookItem = Item String Balance 
               | ParentItem String BookItems
-              deriving (Show,Read,Generic)
+              deriving (Show,Read,Generic,Eq)
 
 data BalanceSheetReport = BalanceSheetReport {
                             asset :: BookItem
                             ,liability :: BookItem
                             ,equity :: BookItem
                             ,reportDate :: Date}         -- ^ snapshot date of the balance sheet
-                            deriving (Show,Read,Generic)
+                            deriving (Show,Read,Generic,Eq)
 
 data CashflowReport = CashflowReport {
                         inflow :: BookItem
@@ -755,7 +752,7 @@ data CashflowReport = CashflowReport {
                         ,net ::  BookItem
                         ,startDate :: Date 
                         ,endDate :: Date }
-                        deriving (Show,Read,Generic)
+                        deriving (Show,Read,Generic,Eq)
 
 data Threshold = Below
                | EqBelow
@@ -911,6 +908,8 @@ $(deriveJSON defaultOptions ''PoolSource)
 $(deriveJSON defaultOptions ''RoundingBy)
 $(deriveJSON defaultOptions ''PoolId)
 
+
+
 instance ToJSONKey PoolId where
   toJSONKey :: ToJSONKeyFunction PoolId
   toJSONKey = toJSONKeyText (T.pack . show)
@@ -947,7 +946,9 @@ data ResultComponent = CallAt Date                                          -- ^
                      | WarningMsg String
                      | EndRun (Maybe Date) String                             -- ^ end of run with a message
                      -- | SnapshotCashflow Date String CashFlowFrame
-                     deriving (Show, Generic)
+                     deriving (Show, Generic,Eq)
+
+makePrisms ''ResultComponent
 
 
 listToStrWithComma :: [String] -> String
@@ -1078,8 +1079,8 @@ getDealStatType (FutureCurrentPoolFactor _ _) = RtnRate
 getDealStatType (BondWaRate _) = RtnRate
 getDealStatType (PoolWaRate _) = RtnRate
 getDealStatType (BondRate _) = RtnRate
-getDealStatType (DivideRatio {}) = RtnRate
-getDealStatType (AvgRatio {}) = RtnRate
+getDealStatType DivideRatio {} = RtnRate
+getDealStatType AvgRatio {} = RtnRate
 getDealStatType (DealStatRate _) = RtnRate
 getDealStatType (Avg dss) = RtnRate
 getDealStatType (Divide ds1 ds2) = RtnRate
@@ -1092,7 +1093,9 @@ getDealStatType ProjCollectPeriodNum = RtnInt
 getDealStatType (DealStatInt _) = RtnInt
 
 getDealStatType (IsMostSenior _ _) = RtnBool
-getDealStatType (IsPaidOff {}) = RtnBool
+getDealStatType IsPaidOff {} = RtnBool
+getDealStatType IsOutstanding {} = RtnBool
+getDealStatType HasPassedMaturity {} = RtnBool
 getDealStatType (TriggersStatus _ _)= RtnBool
 getDealStatType (IsDealStatus _)= RtnBool
 getDealStatType TestRate {} = RtnBool

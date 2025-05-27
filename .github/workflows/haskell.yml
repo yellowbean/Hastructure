@@ -35,12 +35,13 @@ jobs:
 
     - name: Install dependencies
       run: |
-        stack update
-        stack build   
+        cabal update
     - name: Build
-      run: stack build
+      run: cabal build
     - name: Run tests
-      run: stack test
+      run: cabal test
 
     - name: Badge Action
       uses: emibcn/badge-action@v1.2.4
+
+      

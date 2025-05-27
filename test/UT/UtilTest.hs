@@ -1,6 +1,7 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
-                  ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest)--,daycountTests3,daycountTests4)
+                  ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
+                  ,scaleListTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -15,6 +16,7 @@ import Lib
 import Types
 import Stmt
 import Data.Fixed
+import qualified Data.DList as DL
 import Data.Ratio ((%))
 
 import Debug.Trace
@@ -612,19 +614,34 @@ paySeqTest =
   testGroup "write off on bond" [
     testCase "write off on bond 1" $
     assertEqual "only 1st bond is written off by 70"
-    (Right ([bnd1 {L.bndBalance = 30,L.bndStmt = Just (Statement [BondTxn d1 30.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "A" 70.00)])}
+    (Right ([bnd1 {L.bndBalance = 30,L.bndStmt = Just (Statement (DL.fromList ([BondTxn d1 30.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "A" 70.00)])))}
             , bnd2],0))
     (paySeqM d1 70 L.bndBalance (L.writeOff d1) (Right []) [bnd1,bnd2])
     ,testCase "write off on bond 2" $
     assertEqual "2st bond is written off by 70"
-    (Right ([bnd1 {L.bndBalance = 0,L.bndStmt = Just (Statement [BondTxn d1 0.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "A" 100.00)])}
-            , bnd2{L.bndBalance = 70,L.bndStmt = Just (Statement [BondTxn d1 70.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "B" 30.00)])}
+    (Right ([bnd1 {L.bndBalance = 0,L.bndStmt = Just (Statement  (DL.fromList ([BondTxn d1 0.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "A" 100.00)])))}
+            , bnd2{L.bndBalance = 70,L.bndStmt = Just (Statement (DL.fromList ([BondTxn d1 70.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "B" 30.00)])))}
             ],0))
     (paySeqM d1 130 L.bndBalance (L.writeOff d1) (Right []) [bnd1,bnd2])
     ,testCase "write off on all bonds " $
     assertEqual "over write off"
-    (Right ([bnd1 {L.bndBalance = 0,L.bndStmt = Just (Statement [BondTxn d1 0.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "A" 100.00)])}
-            , bnd2{L.bndBalance = 0,L.bndStmt = Just (Statement [BondTxn d1 0.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "B" 100.00)])}
+    (Right ([bnd1 {L.bndBalance = 0,L.bndStmt = Just (Statement (DL.fromList ([BondTxn d1 0.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "A" 100.00)])))}
+            , bnd2{L.bndBalance = 0,L.bndStmt = Just (Statement (DL.fromList ([BondTxn d1 0.00 0.00 0.00 0.000000 0.00 0.00 0.00 Nothing (WriteOff "B" 100.00)])))}
             ],30))
     (paySeqM d1 230 L.bndBalance (L.writeOff d1) (Right []) [bnd1,bnd2])
   ]
+
+scaleListTest = 
+  let 
+    a = 1
+  in 
+    testGroup "scale list test"
+    [ testCase "" $
+        assertEqual "scale list"
+        [50.0, 37.5, 25.0]
+        $ scaleByFstElement 50 [200.0,150.0,100]
+      , testCase "" $
+        assertEqual "scale list"
+        []
+        $ scaleByFstElement 50 []
+    ]

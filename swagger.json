@@ -2352,9 +2352,7 @@
             "AmortRule": {
                 "enum": [
                     "DecliningBalance",
-                    "DoubleDecliningBalance",
-                    "StraightLine",
-                    "SumYearsDigit"
+                    "StraightLine"
                 ],
                 "type": "string"
             },
@@ -3040,7 +3038,7 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "$ref": "#/components/schemas/AssetDefaultAssumption"
+                                        "$ref": "#/components/schemas/LeaseDefaultType"
                                     },
                                     {
                                         "$ref": "#/components/schemas/LeaseAssetGapAssump"
@@ -3181,10 +3179,15 @@
                                     },
                                     {
                                         "$ref": "#/components/schemas/Ts"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
@@ -9976,13 +9979,17 @@
                                         "$ref": "#/components/schemas/OriginalInfo"
                                     },
                                     {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
                                         "maximum": 9223372036854775807,
                                         "minimum": -9223372036854775808,
                                         "type": "integer"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {
@@ -10748,53 +10755,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "items": [
-                                    {
-                                        "items": {
-                                            "items": [
-                                                {
-                                                    "multipleOf": 1.0e-2,
-                                                    "type": "number"
-                                                },
-                                                {
-                                                    "maximum": 9223372036854775807,
-                                                    "minimum": -9223372036854775808,
-                                                    "type": "integer"
-                                                }
-                                            ],
-                                            "maxItems": 2,
-                                            "minItems": 2,
-                                            "type": "array"
-                                        },
-                                        "type": "array"
-                                    },
-                                    {
-                                        "maximum": 9223372036854775807,
-                                        "minimum": -9223372036854775808,
-                                        "type": "integer"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "GapDaysByAmount"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "GapDaysByAmount",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "$ref": "#/components/schemas/Ts"
                             },
                             "tag": {
@@ -10853,6 +10813,73 @@
                         ],
                         "title": "BaseCurve",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "format": "double",
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BaseByVec"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BaseByVec",
+                        "type": "object"
+                    }
+                ]
+            },
+            "LeaseDefaultType": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultByContinuation"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultByContinuation",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "format": "double",
+                                "type": "number"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "DefaultByTermination"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "DefaultByTermination",
+                        "type": "object"
                     }
                 ]
             },
@@ -10896,6 +10923,70 @@
                             "contents"
                         ],
                         "title": "StopByExtTimes",
+                        "type": "object"
+                    }
+                ]
+            },
+            "LeaseRateCalc": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByDayRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByDayRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Period"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByPeriodRental"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByPeriodRental",
                         "type": "object"
                     }
                 ]
@@ -12048,16 +12139,12 @@
                                 "$ref": "#/components/schemas/Obligor"
                             },
                             "originRental": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
+                                "$ref": "#/components/schemas/LeaseRateCalc"
                             },
                             "originTerm": {
                                 "maximum": 9223372036854775807,
                                 "minimum": -9223372036854775808,
                                 "type": "integer"
-                            },
-                            "paymentDates": {
-                                "$ref": "#/components/schemas/DatePattern"
                             },
                             "startDate": {
                                 "$ref": "#/components/schemas/Day"
@@ -12072,7 +12159,6 @@
                         "required": [
                             "startDate",
                             "originTerm",
-                            "paymentDates",
                             "originRental",
                             "tag"
                         ],
@@ -16341,24 +16427,17 @@
                                         "type": "array"
                                     },
                                     {
-                                        "items": [
-                                            {
-                                                "type": "string"
-                                            },
-                                            {
-                                                "items": {
-                                                    "type": "string"
-                                                },
-                                                "type": "array"
-                                            }
-                                        ],
-                                        "maxItems": 2,
-                                        "minItems": 2,
-                                        "type": "array"
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "type": "boolean"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -18764,6 +18843,28 @@
                         ],
                         "title": "PeriodCurve",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/TsPoint_Int"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IntCurve"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IntCurve",
+                        "type": "object"
                     }
                 ]
             },
@@ -19252,10 +19353,14 @@
                                     {
                                         "multipleOf": 1.0e-2,
                                         "type": "number"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -20633,7 +20738,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.45.1"
+        "version": "0.45.6"
     },
     "openapi": "3.0.0",
     "paths": {

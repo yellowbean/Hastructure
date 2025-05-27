@@ -49,6 +49,7 @@ import qualified Data.Time as T
 import qualified Data.Set as S
 import qualified Control.Lens as LS
 import Data.List
+import qualified Data.DList as DL
 import Data.Fixed
 import Data.Time.Clock
 import Data.Maybe
@@ -105,7 +106,8 @@ allocAmtToBonds theOrder amt bndsWithDue =
                       W.ByMaturity -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.maturityDate bo1) (L.maturityDate bo2))
                       W.ByStartDate -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.originDate bo1) (L.originDate bo2))
                       -- TODO: how to handle if now names found in the bonds
-                      W.ByCustomNames names -> (\(b1,_) (b2,_) -> compare (findIndex (== (L.bndName b1)) names) (findIndex (== (L.bndName b2)) names))
+                      -- W.ByCustomNames names -> (\(b1,_) (b2,_) -> compare (findIndex (== (L.bndName b1)) names) (findIndex (== (L.bndName b2)) names))
+                      W.ByCustomNames names -> (\(b1,_) (b2,_) -> compare (elemIndex (L.bndName b1) names) (elemIndex (L.bndName b2) names))
     orderedBonds = sortBy sortFn bndsWithDue
     orderedAmt = snd <$> orderedBonds
   in 
@@ -517,8 +519,8 @@ updateSupport :: Ast.Asset a => Date -> Maybe W.ExtraSupport -> Balance -> TestD
 updateSupport _ Nothing _ t = t
 updateSupport d (Just support) bal t = fst $ drawExtraSupport d bal support t
 
-performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, [ResultComponent]) 
-                  -> W.Action -> Either String (TestDeal a, RunContext a, [ResultComponent])
+performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, DL.DList ResultComponent) 
+                  -> W.Action -> Either String (TestDeal a, RunContext a, DL.DList ResultComponent)
 
 performActionWrap d (t, rc, logs) (W.BuyAsset ml pricingMethod accName pId) 
   = performActionWrap d (t, rc, logs) (W.BuyAssetFrom ml pricingMethod accName (Just "Consol") pId)
@@ -660,7 +662,7 @@ performActionWrap d
 
 
 performActionWrap d (t, rc, logs) (W.WatchVal ms dss)
-  = (inspectListVars t d dss) >>= (\vs -> Right (t, rc, logs ++ [InspectWaterfall d ms dss (showInspection <$> vs)])) 
+  = (inspectListVars t d dss) >>= (\vs -> Right (t, rc, DL.snoc logs (InspectWaterfall d ms dss (showInspection <$> vs)))) 
 
 
 performActionWrap d (t, rc, logs) (W.ActionWithPre p actions) 

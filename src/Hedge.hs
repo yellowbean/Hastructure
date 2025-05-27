@@ -21,6 +21,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Fixed
 import Data.Maybe
+import qualified Data.DList as DL
 import Types
 import Util
 import Stmt
@@ -107,7 +108,7 @@ payoutIRS d amt rs@RateSwap{rsNetCash = payoutAmt, rsStmt = stmt}
 instance QueryByComment RateSwap where 
     queryStmt RateSwap{rsStmt = Nothing} tc = []
     queryStmt RateSwap{rsStmt = Just (Statement txns)} tc
-      = filter (\x -> getTxnComment x == tc) txns
+      = filter (\x -> getTxnComment x == tc) (DL.toList txns)
 
 instance Liable RateSwap where 
   isPaidOff rs@RateSwap{rsNetCash=bal}
@@ -144,7 +145,7 @@ instance IR.UseRate RateCap where
 instance QueryByComment RateCap where 
     queryStmt RateCap{rcStmt = Nothing} tc = []
     queryStmt RateCap{rcStmt = Just (Statement txns)} tc
-      = filter (\x -> getTxnComment x == tc) txns
+      = filter (\x -> getTxnComment x == tc) (DL.toList txns)
 
 
 data CurrencySwap = CurrencySwap {

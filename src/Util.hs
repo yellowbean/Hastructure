@@ -13,10 +13,10 @@ module Util
     ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,adjustM,lookupAndApply,lookupAndUpdate,lookupAndApplies
-    ,lookupInMap,selectInMap
-    ,lookupTuple6 ,lookupTuple7
+    ,lookupInMap,selectInMap,scaleByFstElement
+    ,lookupTuple6 ,lookupTuple7,diffNum
     -- for debug
-    ,debugOnDate,paySeqM
+    ,debugOnDate,paySeqM,splitByLengths
     )
     where
 import qualified Data.Time as T
@@ -40,10 +40,10 @@ import Data.Time (addDays)
 import Debug.Trace
 debug = flip trace
 
-mulBR :: Balance -> Rate -> Centi
+mulBR :: Balance -> Rate -> Balance
 mulBR b r = fromRational $ toRational b * r 
 
-mulBIR :: Balance -> IRate -> Centi
+mulBIR :: Balance -> IRate -> Balance
 mulBIR b r = fromRational $ toRational b * toRational r
 
 mulIR :: Int -> Rational -> Rational
@@ -238,6 +238,17 @@ capWith cap xs = [ min cap x | x <- xs ]
 floorWith :: Ord a => a -> [a] -> [a]
 floorWith floor xs = [ max x floor | x <- xs]
 
+diffNum :: Num a => [a] -> [a]
+diffNum xs = zipWith (-) (init xs) (tail xs)
+
+scaleByFstElement :: forall a. Fractional a => a -> [a] -> [a]
+scaleByFstElement x [] = []
+scaleByFstElement y (b:xs) = 
+  let 
+    s = y/b 
+  in 
+    y:[ x * s | x <- xs ]
+
 
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
@@ -389,7 +400,7 @@ payProRata d amt getDueAmt payFn tobePaidList
     in 
       (paidList, remainAmt)
 
-payInMap :: Date -> Amount -> (a->Balance) -> (Amount->a->a)-> [String] 
+payInMap :: Date -> Balance -> (a->Balance) -> (Balance->a->a)-> [String] 
           -> HowToPay -> Map.Map String a -> Map.Map String a
 payInMap d amt getDueFn payFn objNames how inputMap 
   = let 
@@ -435,7 +446,7 @@ lookupInMap = lookupAndUpdate id
 
 selectInMap :: (Show k, Ord k) => String -> [k] -> Map.Map k a -> Either String (Map.Map k a)
 selectInMap errMsg keys m 
-  | S.isSubsetOf inputKs mapKs = Right $ (Map.filterWithKey (\k _ -> S.member k inputKs) m)
+  | S.isSubsetOf inputKs mapKs = Right $ Map.filterWithKey (\k _ -> S.member k inputKs) m
   | otherwise = Left $ errMsg++":Missing keys, valid range "++ show mapKs ++ "But got:" ++ show inputKs
   where 
       inputKs = S.fromList keys
@@ -449,12 +460,13 @@ lookupTuple7 :: (Ord k) => (k, k, k, k, k, k, k) -> Map.Map k v -> (Maybe v, May
 lookupTuple7 (k1, k2, k3, k4, k5, k6, k7) m =
   ( Map.lookup k1 m , Map.lookup k2 m , Map.lookup k3 m , Map.lookup k4 m , Map.lookup k5 m , Map.lookup k6 m, Map.lookup k7 m)
 
--- flowCombination :: [Date] -> [Amount] -> [(Date,Amount)]
--- flowCombination ds vs = 
---   let 
---     
---   in 
---     zip ds vs
+
+splitByLengths :: Num a => [a] -> [Int] -> [[a]]
+splitByLengths xs ns = go xs ns
+  where
+    go _ [] = []
+    go [] _ = []
+    go xs (n:ns) = take n xs : go (drop n xs) ns
 
 ----- DEBUG/PRINT
 debugOnDate :: Date -> Date -> Date -> String

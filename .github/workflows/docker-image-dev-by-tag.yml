@@ -53,3 +53,5 @@ jobs:
           tags: ${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:dev, ${{ steps.meta.outputs.tags }}
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max  
+
+          

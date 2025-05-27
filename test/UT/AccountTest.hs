@@ -19,7 +19,9 @@ import Control.Lens hiding (element,Empty)
 import Control.Lens.TH
 import Data.Map.Lens
 
+
 import qualified Data.Time as T
+import qualified Data.DList as DL 
 import qualified Data.Map as Map
 import UT.DealTest (td2)
 
@@ -30,8 +32,8 @@ intTests =
   let 
     acc1 = Account 200 "A1" (Just (BankAccount 0.03 QuarterEnd (toDate "20221001"))) Nothing Nothing
     acc2 = Account 150 "A1" (Just (BankAccount 0.03 MonthEnd (toDate "20220301"))) Nothing 
-          (Just (Statement [ AccTxn (toDate "20220715") 120 10 Empty
-                          ,AccTxn (toDate "20220915") 150 30 Empty ]))
+          (Just (Statement (DL.fromList [ AccTxn (toDate "20220715") 120 10 Empty
+                          ,AccTxn (toDate "20220915") 150 30 Empty ])))
   in 
     testGroup "Interest on Bank Account Test"
      [
@@ -58,8 +60,8 @@ investTests =
     rc = mkTs [(toDate "20211201",0.03),(toDate "20221201",0.03)]
     acc1 = Account 2000 "A1" (Just (InvestmentAccount SOFR1Y 0.015 QuarterEnd QuarterEnd (toDate "20221001") 0.04)) Nothing Nothing
     acc2 = Account 150 "A1" (Just (InvestmentAccount SOFR1Y 0.01 QuarterEnd QuarterEnd (toDate "20220301") 0.03)) Nothing 
-          (Just (Statement [ AccTxn (toDate "20220715") 120 10 Empty
-                            ,AccTxn (toDate "20220915") 150 30 Empty ]))
+          (Just (Statement (DL.fromList [ AccTxn (toDate "20220715") 120 10 Empty
+                            ,AccTxn (toDate "20220915") 150 30 Empty ])))
   in 
     testGroup "Interest on Invest Account Test"
      [
