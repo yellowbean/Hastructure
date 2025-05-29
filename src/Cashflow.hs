@@ -9,7 +9,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss
-                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
+                ,getDatesCashFlowFrame
                 ,lookupSource,lookupSourceM,combineTss
                 ,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty,tsRowBalance
@@ -246,9 +246,6 @@ cfAt (CashFlowFrame _ trs) idx
 cfInsertHead :: TsRow -> CashFlowFrame -> CashFlowFrame
 cfInsertHead tr (CashFlowFrame st trs) = CashFlowFrame st $ tr:trs
 
-getSingleTsCashFlowFrame :: CashFlowFrame -> Date -> TsRow
-getSingleTsCashFlowFrame (CashFlowFrame _ trs) d
-  = head $ filter (\x -> getDate x == d) trs
 
 splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
 splitCashFlowFrameByDate (CashFlowFrame status txns) d st
