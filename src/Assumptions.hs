@@ -294,6 +294,7 @@ getRateAssumption assumps idx
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
 projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> Either String [IRate]
+projRates sr _ _ [] = Left "No dates provided for rate projection"
 projRates sr (Fix _ r) _ ds = Right $ replicate (length ds) sr 
 projRates sr (Floater _ idx spd r dp rfloor rcap mr) Nothing ds = Left $ "Looking up rate error: No rate assumption found for index "++ show idx
 projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
