@@ -204,6 +204,8 @@ data LeaseDefaultType = DefaultByContinuation Rate
 
 data LeaseEndType = CutByDate Date 
                   | StopByExtTimes Int 
+                  | EarlierOf Date Int
+                  | LaterOf Date Int
                   deriving (Show,Generic,Read)
 
 data ExtraStress = ExtraStress {

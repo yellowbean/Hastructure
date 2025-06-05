@@ -10924,6 +10924,68 @@
                         ],
                         "title": "StopByExtTimes",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "EarlierOf"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "EarlierOf",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "LaterOf"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "LaterOf",
+                        "type": "object"
                     }
                 ]
             },
@@ -18554,6 +18616,39 @@
                     {
                         "properties": {
                             "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ChangeBondRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ChangeBondRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": {
                                     "$ref": "#/components/schemas/TriggerEffect"
                                 },
@@ -20738,7 +20833,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.45.6"
+        "version": "0.45.7"
     },
     "openapi": "3.0.0",
     "paths": {
