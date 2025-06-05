@@ -344,6 +344,23 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
                               (newT, newRc, newLogs) <- foldM (performActionWrap d) (t, rc, DL.empty) wActions
                               return (newT, newRc, actions, DL.append logs newLogs)
 
+      ChangeBondRate bName bRateType bRate -> 
+        let 
+          -- accrual rate
+          -- set current rate 
+          -- update rate component
+          updateFn b = L.accrueInt d b  
+                      & set L.interestInfoTraversal bRateType
+                      & set L.curRatesTraversal bRate 
+          -- updated deal
+          t' = t {bonds = updateBondInMap bName updateFn bondMap}
+          -- build bond rate reset actions
+          newActions = case getBondByName t' True bName of 
+                        Just bnd -> [ ResetBondRate _d bName | _d <- L.buildRateResetDates bnd d (getDate (last actions))]
+                        Nothing -> []
+        in 
+          Right (t' , rc, sortBy sortActionOnDate (newActions++actions), logs) 
+
       DoNothing -> Right (t, rc, actions, DL.empty)
       _ -> Left $ "Date:"++ show d++" Failed to match trigger effects: "++show te
 
