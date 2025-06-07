@@ -367,13 +367,13 @@ evalRootFindStop (BondPricingEqOriginBal bn otherBondFlag otherFeeFlag) (dt,_,_,
       else
         (fromRational . toRational) $ bondBal - v 
 
-evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult) 
-  = let 
-      v = L.extractIrrResult $ pResult Map.! bn
-    in 
-      case v of 
-        Nothing -> -1
-        Just irr -> (fromRational . toRational) $ irr - target
+-- evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult) 
+--   = let 
+--       v = L.extractIrrResult $ pResult Map.! bn
+--     in 
+--       case v of 
+--         Nothing -> -1
+--         Just irr -> (fromRational . toRational) $ irr - target
 
 rootFindAlgo :: DealRunInput -> RootFindTweak -> RootFindStop -> Double -> Double
 rootFindAlgo (dt ,poolAssumps, runAssumps) tweak stop r 
@@ -385,7 +385,7 @@ rootFindAlgo (dt ,poolAssumps, runAssumps) tweak stop r
         Left errorMsg -> -1
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
-runRootFinderBy (RFReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) tweak stop)
+runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) tweak stop)
   = return $
       let 
         itertimes = 500

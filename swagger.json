@@ -16201,7 +16201,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "RFReq"
+                                    "RootFinderReq"
                                 ],
                                 "type": "string"
                             }
@@ -16210,7 +16210,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "RFReq",
+                        "title": "RootFinderReq",
                         "type": "object"
                     }
                 ]
@@ -16294,36 +16294,6 @@
                         ],
                         "title": "BondPricingEqOriginBal",
                         "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "BondMetTargetIrr"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "BondMetTargetIrr",
-                        "type": "object"
                     }
                 ]
             },
@@ -16361,35 +16331,6 @@
                             "contents"
                         ],
                         "title": "MaxSpreadTo",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "type": "string"
-                                    },
-                                    {
-                                        "type": "string"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "SplitFixedBalance"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "SplitFixedBalance",
                         "type": "object"
                     }
                 ]
