@@ -91,7 +91,7 @@ nextLease :: Lease -> (AP.LeaseAssetRentAssump, TermChangeRate, DayGap) -> (Leas
 nextLease l@(RegularLease (LeaseInfo sd ot rental ob) bal rt _) (rAssump,tc,gd) 
   = let
         leaseEndDate = last $ getPaymentDates l 0
-        nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate -- `debug` ("Gap Day ->"++ show gd)
+        nextStartDate = T.addDays (succ (toInteger gd)) leaseEndDate
 
         nextOriginTerm = round $ mulIR ot (1+tc) 
         nextEndDate = calcEndDate nextStartDate ot rental
@@ -102,7 +102,7 @@ nextLease l@(RegularLease (LeaseInfo sd ot rental ob) bal rt _) (rAssump,tc,gd)
                     newBal nextOriginTerm Current
       ,nextEndDate
       ,(newRassump,tc,gd)
-      ) -- `debug` ("1+tc"++show (1+tc) ++">>"++ show (mulIR ot (1+tc)))
+      )
 
 nextLease l@(StepUpLease (LeaseInfo sd ot rental ob) lsteupInfo bal rt _) (rAssump,tc,gd) 
   = let 
@@ -132,6 +132,19 @@ nextLeaseTill l (rsc,tc,mg) lastDate (AP.StopByExtTimes n) accum
   | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.StopByExtTimes (pred n)) (accum++[new_lease])
                 where 
                  (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg) 
+
+nextLeaseTill l (rsc,tc,mg) lastDate (AP.EarlierOf ed n) accum 
+  | lastDate >= ed = accum 
+  | n == 0 = accum
+  | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.EarlierOf ed (pred n)) (accum++[new_lease])
+                where 
+                 (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg)
+
+nextLeaseTill l (rsc,tc,mg) lastDate (AP.LaterOf ed n) accum 
+  | lastDate >= ed && n == 0 = accum 
+  | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.LaterOf ed (pred n)) (accum++[new_lease])
+                where 
+                 (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg)
 
 -- ^ calculate the daily rate for a step up lease
 calcPmts :: LeaseStepUp -> [Rate] -> Amount -> Either String [Amount] 

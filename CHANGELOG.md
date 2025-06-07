@@ -2,6 +2,12 @@
 
 <!-- towncrier release notes start -->
 
+## 0.46.1
+### 2025-06-07
+* ENHANCE: add 2 more `leaseEndType` assumptions: `Earlier` `Later` which will end the lease projection base on two input `End date` and `extention times`.
+* ENHANCE: expose `new bond rate type` in `trigger effects`. Now bond rate type can be changed during the projection.
+* REFACTOR: with new refactor `root finder` endpoint and signature. In the long term, the refactor of signature lays down fundation for `deal structuring` domain, now it would be easy to implement all kinds of structuring features.
+
 ## 0.45.7
 ### 2025-05-26
 * ENHANCE: add `BaseByVec` for vector-based rental change

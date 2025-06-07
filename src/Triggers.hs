@@ -9,6 +9,7 @@ module Triggers(
 
 import qualified Data.Text as T
 import qualified Stmt as S
+import qualified Liability as L
 import Text.Read (readMaybe)
 import Lib 
 import Types
@@ -37,6 +38,7 @@ data TriggerEffect = DealStatusTo DealStatus                           -- ^ chan
                                (Maybe [CollectionRule])
                                -- ^ close the deal
                    | BuyAsset AccountName PricingMethod                -- ^ buy asset from the assumption using funds from account
+                   | ChangeBondRate BondName L.InterestInfo IRate      -- ^ change bond rate
                    | TriggerEffects [TriggerEffect]                    -- ^ a combination of effects above
                    | RunActions [Action]                               -- ^ run a list of waterfall actions
                    | DoNothing                                         -- ^ do nothing

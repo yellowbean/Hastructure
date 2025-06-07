@@ -14,7 +14,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                      ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
                      ,increaseBondPaidPeriod,increasePoolCollectedPeriod
                      ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
-                     ,bondTraversal,findBondByNames
+                     ,bondTraversal,findBondByNames,updateBondInMap
                      )                      
   where
 import qualified Accounts as A
@@ -141,6 +141,7 @@ instance TimeSeries ActionOnDate where
     getDate (ResetLiqProviderRate d _) = d
     getDate (TestCall d) = d
     getDate (FundBond d _ _ _ _) = d
+    getDate (HitStatedMaturity d) = d
     getDate x = error $ "Failed to match"++ show x
 
 
@@ -472,6 +473,26 @@ bondGroupsBonds = lens getter setter
     getter _ = Map.empty
     setter (L.BondGroup b x) newBMap = L.BondGroup newBMap x
     setter x _ = x
+
+updateBondInMap :: BondName -> (L.Bond -> L.Bond) -> Map.Map BondName L.Bond ->  Map.Map BondName L.Bond
+updateBondInMap bName f bMap 
+  = let 
+      fn _bName (L.BondGroup subMap bt) = L.BondGroup (Map.adjust f _bName subMap) bt
+      fn _bName bnd 
+        | _bName == bName = f bnd
+        | otherwise = bnd
+    in 
+      Map.mapWithKey fn bMap
+
+-- updateBondInMap' :: BondName -> (L.Bond -> Either String L.Bond) -> Map.Map BondName L.Bond ->  Either String (Map.Map BondName L.Bond)
+-- updateBondInMap' bName f bMap 
+--   = let 
+--       fn _bName (L.BondGroup subMap bt) = L.BondGroup (Map.adjust f _bName subMap) bt
+--       fn _bName bnd 
+--         | _bName == bName = f bnd
+--         | otherwise = Right bnd
+--     in 
+--       traverse fn bMap
 
 dealAccounts :: Ast.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 
 dealAccounts = lens getter setter 
