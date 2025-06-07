@@ -20,7 +20,7 @@ module Liability
   ,getCurRate,bondCashflow,getOutstandingAmount,valueBond,getTxnRate
   ,getAccrueBegDate,getTxnInt,adjInterestInfoByRate,adjInterestInfoBySpread
   ,interestInfoTraversal,getOriginBalance,curRatesTraversal
-  ,backoutAccruedInt
+  ,backoutAccruedInt,extractIrrResult
   )
   where
 
@@ -532,6 +532,9 @@ priceBond d rc bnd
 
 valueBond :: BondPricingMethod -> Date -> [(Date,Balance)] -> Balance
 valueBond _ _ [] = 0
+
+extractIrrResult :: PriceResult -> Maybe IRR
+extractIrrResult priceResult = fst <$> preview _IrrResult priceResult
 
 backoutAccruedInt :: Date -> Date -> [Txn] -> Amount
 backoutAccruedInt d txnStartDate txns =

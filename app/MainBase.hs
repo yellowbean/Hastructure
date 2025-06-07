@@ -15,8 +15,8 @@
 
 module MainBase(DealType(..),RunResp,PoolTypeWrap(..),RunPoolTypeRtn,RunPoolTypeRtn_
                 ,RunAssetReq(..),RunAssetResp,ScenarioName,DealRunInput,RunDealReq(..),RunSimDealReq(..),RunPoolReq(..)
-                ,RunDateReq(..),Version(..)
-                ,RootFindReq(..),RootFindResp(..),TargetBonds,PoolRunResp
+                ,RunDateReq(..),Version(..),RunRespRight
+                ,RootFindReq(..),RootFindResp(..),TargetBonds,PoolRunResp,RootFindTweak(..),RootFindStop(..)
                 )
 
 where
@@ -143,9 +143,9 @@ data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPer
 data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
                     deriving(Show, Generic)
 
-type RunResp = Either String (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Map.Map String PriceResult)
 
-
+type RunRespRight = (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Map.Map String PriceResult)
+type RunResp = Either String RunRespRight
 
 data RunPoolReq = SingleRunPoolReq PoolTypeWrap (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
                 | MultiScenarioRunPoolReq PoolTypeWrap (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe [RateAssumption])
@@ -158,10 +158,6 @@ instance ToSchema RunDateReq
 
 type PoolRunResp = Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
 
-data RootFindResp = FirstLossResult Double AP.ApplyAssumptionType (Maybe AP.RevolvingAssumption)
-                  | BestSpreadResult Double (Map.Map BondName L.Bond) DealType
-                  deriving(Show, Generic)
-
 
 type TargetBonds = [BondName]
 -- calcualte best spread that
@@ -169,11 +165,30 @@ type TargetBonds = [BondName]
 --- 2. make sure WAC cap is met
 data RootFindReq = FirstLossReq DealRunInput BondName
                  | MaxSpreadToFaceReq DealRunInput BondName Bool Bool
+                 | RootFinderReq DealRunInput RootFindTweak RootFindStop
                  deriving(Show, Generic)
 
+data RootFindTweak = StressPoolDefault -- stressed pool perf 
+                   | MaxSpreadTo BondName -- bond component
+                   -- | SplitFixedBalance (BondName,BondName) -- bond component
+                   deriving(Show, Generic)
+
+data RootFindStop = BondIncurLoss BondName
+                  | BondPricingEqOriginBal BondName Bool Bool
+                  -- | BondMetTargetIrr BondName IRR
+                  deriving(Show, Generic)
+
+data RootFindResp = RFResult Double DealRunInput
+                  -- | BestSpreadResult Double (Map.Map BondName L.Bond) DealType
+                  -- | FirstLossResult Double AP.ApplyAssumptionType (Maybe AP.RevolvingAssumption)
+                  deriving(Show, Generic)
+
+$(deriveJSON defaultOptions ''RootFindTweak)
+$(deriveJSON defaultOptions ''RootFindStop)
+
 instance ToSchema RootFindReq
-
-
+instance ToSchema RootFindTweak
+instance ToSchema RootFindStop
 instance ToSchema CF.CashFlowFrame
 instance ToSchema AB.Loan
 instance ToSchema AB.Installment

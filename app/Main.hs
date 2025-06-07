@@ -303,7 +303,7 @@ testByDefault dt assumps nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevo
           let 
             bondBal = L.getOutstandingAmount $ (getDealBondMap d) Map.! bn
           in
-            (fromRational (toRational bondBal) - 0.01) -- `debug` (">>> test run result"++ show (fromRational (toRational bondBal) - 0.01))
+            (fromRational (toRational bondBal) - 0.01)
         Left errorMsg -> error $ "Error in test fun for first loss" ++ show errorMsg
 
 
@@ -330,36 +330,69 @@ testBySpread (dt,mPAssump,runAssump) (bn,otherBondFlag,otherFeeFlag) f
             if (otherBondOustanding otherBondFlag+feeOutstanding otherFeeFlag) > 0  then 
               -1
             else
-              (fromRational . toRational) $ bondBal - v -- `debug` ("rate"++ show f ++ "bondBal:"++ show bondBal++"v:"++ show v)
+              (fromRational . toRational) $ bondBal - v 
         Left errorMsg -> error $ "Error in test fun for spread testing" ++ show errorMsg
 
+doTweak :: Double -> RootFindTweak -> DealRunInput -> DealRunInput
+doTweak r StressPoolDefault (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) 
+  = let
+      stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps
+      stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (toRational r) mRevolving }
+    in
+      (dt ,Just stressed, stressedNonPerf)
+doTweak r (MaxSpreadTo bn) (dt , mAssump, rAssump)
+  = (modifyDealType (DM.AddSpreadToBonds bn) r dt , mAssump, rAssump)
+
+evalRootFindStop :: RootFindStop -> RunRespRight -> Double
+evalRootFindStop (BondIncurLoss bn) (dt,_,_,_) 
+  = let 
+      bondBal = L.getOutstandingAmount $ getDealBondMap dt Map.! bn
+    in
+      (fromRational . toRational) $ bondBal - 0.01
+
+evalRootFindStop (BondPricingEqOriginBal bn otherBondFlag otherFeeFlag) (dt,_,_,pResult) 
+  = let 
+      -- bnds
+      otherBondsName = [] 
+      -- check fees/other bonds
+      otherBondOustanding True = sum $ L.getOutstandingAmount <$> Map.elems (getDealBondMap dt)
+      otherBondOustanding False = 0.0
+      feeOutstanding True = sum $ L.getOutstandingAmount <$> Map.elems (getDealFeeMap dt)
+      feeOutstanding False = 0.0 
+      v = getPriceValue $ pResult Map.! bn
+      bondBal = L.getOriginBalance $ getDealBondMap dt Map.! bn
+    in
+      if (otherBondOustanding otherBondFlag+feeOutstanding otherFeeFlag) > 0  then 
+        -1
+      else
+        (fromRational . toRational) $ bondBal - v 
+
+evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult) 
+  = let 
+      v = L.extractIrrResult $ pResult Map.! bn
+    in 
+      case v of 
+        Nothing -> -1
+        Just irr -> (fromRational . toRational) $ irr - target
+
+rootFindAlgo :: DealRunInput -> RootFindTweak -> RootFindStop -> Double -> Double
+rootFindAlgo (dt ,poolAssumps, runAssumps) tweak stop r 
+  = let 
+      (dt' ,poolAssumps', runAssumps') = doTweak r tweak (dt ,poolAssumps, runAssumps)
+    in 
+      case wrapRun dt' poolAssumps' runAssumps' of
+        Right runRespRight -> evalRootFindStop stop runRespRight
+        Left errorMsg -> -1
+
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
-runRootFinderBy (FirstLossReq (dt,Just assumps,nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) bn)
+runRootFinderBy (RFReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) tweak stop)
   = return $
       let 
         itertimes = 500
         def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
       in
-        case ridders def (500.0,0.00) (testByDefault dt assumps nonPerfAssump bn) of
-          Root r -> Right $
-                      FirstLossResult
-                        r
-                        (over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps)
-                        (stressRevovlingPerf (toRational r) mRevolving)
-          NotBracketed -> Left "Not able to bracket the root"
-          SearchFailed -> Left "Not able to find the root"
-
-runRootFinderBy (MaxSpreadToFaceReq (dt,pAssump,dAssump) bns chkOtherBnds chkOtherFees) 
-  = return $
-      let 
-        itertimes = 500
-        def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
-      in 
-        case ridders def (0.00,200.0) (testBySpread (dt,pAssump,dAssump) (bns,chkOtherBnds,chkOtherFees)) of
-          Root r -> let 
-                      dt' = modifyDealType (DM.AddSpreadToBonds bns) r dt
-                    in 
-                      Right $ BestSpreadResult r (getDealBondMap dt') dt' 
+        case ridders def (500.0,0.00) (rootFindAlgo req tweak stop) of
+          Root r -> Right $ RFResult r (doTweak r tweak req)
           NotBracketed -> Left "Not able to bracket the root"
           SearchFailed -> Left "Not able to find the root"
 

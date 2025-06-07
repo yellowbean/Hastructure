@@ -10189,6 +10189,35 @@
                                         "type": "number"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BankAccount"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BankAccount",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "$ref": "#/components/schemas/Index"
                                     },
                                     {
@@ -10199,150 +10228,23 @@
                                         "$ref": "#/components/schemas/DatePattern"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/DayCount"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 7,
-                                "minItems": 7,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "Floater"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "Floater",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DayCount"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "Fix"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "Fix",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/InterestInfo"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "RefBal"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "RefBal",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "format": "float",
-                                        "type": "number"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/DatePattern"
-                                    }
-                                ],
-                                "maxItems": 4,
-                                "minItems": 4,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "RefRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "RefRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
+                                    },
                                     {
-                                        "$ref": "#/components/schemas/InterestInfo"
+                                        "$ref": "#/components/schemas/Day"
                                     },
                                     {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 6,
+                                "minItems": 6,
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "CapRate"
+                                    "InvestmentAccount"
                                 ],
                                 "type": "string"
                             }
@@ -10351,66 +10253,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "CapRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/InterestInfo"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FloorRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "FloorRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/InterestInfo"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/InterestOverInterestType"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "WithIoI"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "WithIoI",
+                        "title": "InvestmentAccount",
                         "type": "object"
                     }
                 ]
@@ -12101,219 +11944,28 @@
                 ]
             },
             "OriginalInfo": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "obligor": {
-                                "$ref": "#/components/schemas/Obligor"
-                            },
-                            "originBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "originRate": {
-                                "$ref": "#/components/schemas/RateType"
-                            },
-                            "originTerm": {
-                                "maximum": 9223372036854775807,
-                                "minimum": -9223372036854775808,
-                                "type": "integer"
-                            },
-                            "period": {
-                                "$ref": "#/components/schemas/Period"
-                            },
-                            "prepaymentPenalty": {
-                                "$ref": "#/components/schemas/PrepayPenaltyType"
-                            },
-                            "prinType": {
-                                "$ref": "#/components/schemas/AmortPlan"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "MortgageOriginalInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "originBalance",
-                            "originRate",
-                            "originTerm",
-                            "period",
-                            "startDate",
-                            "prinType",
-                            "tag"
-                        ],
-                        "title": "MortgageOriginalInfo",
-                        "type": "object"
+                "properties": {
+                    "maturityDate": {
+                        "$ref": "#/components/schemas/Day"
                     },
-                    {
-                        "properties": {
-                            "obligor": {
-                                "$ref": "#/components/schemas/Obligor"
-                            },
-                            "originBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "originRate": {
-                                "$ref": "#/components/schemas/RateType"
-                            },
-                            "originTerm": {
-                                "maximum": 9223372036854775807,
-                                "minimum": -9223372036854775808,
-                                "type": "integer"
-                            },
-                            "period": {
-                                "$ref": "#/components/schemas/Period"
-                            },
-                            "prinType": {
-                                "$ref": "#/components/schemas/AmortPlan"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "LoanOriginalInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "originBalance",
-                            "originRate",
-                            "originTerm",
-                            "period",
-                            "startDate",
-                            "prinType",
-                            "tag"
-                        ],
-                        "title": "LoanOriginalInfo",
-                        "type": "object"
+                    "originBalance": {
+                        "multipleOf": 1.0e-2,
+                        "type": "number"
                     },
-                    {
-                        "properties": {
-                            "obligor": {
-                                "$ref": "#/components/schemas/Obligor"
-                            },
-                            "originRental": {
-                                "$ref": "#/components/schemas/LeaseRateCalc"
-                            },
-                            "originTerm": {
-                                "maximum": 9223372036854775807,
-                                "minimum": -9223372036854775808,
-                                "type": "integer"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "LeaseInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "startDate",
-                            "originTerm",
-                            "originRental",
-                            "tag"
-                        ],
-                        "title": "LeaseInfo",
-                        "type": "object"
+                    "originDate": {
+                        "$ref": "#/components/schemas/Day"
                     },
-                    {
-                        "properties": {
-                            "accRule": {
-                                "$ref": "#/components/schemas/AmortRule"
-                            },
-                            "capacity": {
-                                "$ref": "#/components/schemas/Capacity"
-                            },
-                            "originBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "originTerm": {
-                                "maximum": 9223372036854775807,
-                                "minimum": -9223372036854775808,
-                                "type": "integer"
-                            },
-                            "period": {
-                                "$ref": "#/components/schemas/Period"
-                            },
-                            "residualBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FixedAssetInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "startDate",
-                            "originBalance",
-                            "residualBalance",
-                            "originTerm",
-                            "period",
-                            "accRule",
-                            "capacity",
-                            "tag"
-                        ],
-                        "title": "FixedAssetInfo",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "dueDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "feeType": {
-                                "$ref": "#/components/schemas/ReceivableFeeType"
-                            },
-                            "obligor": {
-                                "$ref": "#/components/schemas/Obligor"
-                            },
-                            "originAdvance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "originBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "ReceivableInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "startDate",
-                            "originBalance",
-                            "originAdvance",
-                            "dueDate",
-                            "tag"
-                        ],
-                        "title": "ReceivableInfo",
-                        "type": "object"
+                    "originRate": {
+                        "format": "double",
+                        "type": "number"
                     }
-                ]
+                },
+                "required": [
+                    "originBalance",
+                    "originDate",
+                    "originRate"
+                ],
+                "type": "object"
             },
             "PayOrderBy": {
                 "oneOf": [
@@ -16515,24 +16167,32 @@
                         ],
                         "title": "MaxSpreadToFaceReq",
                         "type": "object"
-                    }
-                ]
-            },
-            "RootFindResp": {
-                "oneOf": [
+                    },
                     {
                         "properties": {
                             "contents": {
                                 "items": [
                                     {
-                                        "format": "double",
-                                        "type": "number"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/DealType"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/ApplyAssumptionType"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/NonPerfAssumption"
+                                            }
+                                        ],
+                                        "maxItems": 3,
+                                        "minItems": 3,
+                                        "type": "array"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/ApplyAssumptionType"
+                                        "$ref": "#/components/schemas/RootFindTweak"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/RevolvingAssumption"
+                                        "$ref": "#/components/schemas/RootFindStop"
                                     }
                                 ],
                                 "maxItems": 3,
@@ -16541,7 +16201,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "FirstLossResult"
+                                    "RFReq"
                                 ],
                                 "type": "string"
                             }
@@ -16550,7 +16210,57 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "FirstLossResult",
+                        "title": "RFReq",
+                        "type": "object"
+                    }
+                ]
+            },
+            "RootFindResp": {
+                "items": [
+                    {
+                        "format": "double",
+                        "type": "number"
+                    },
+                    {
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/DealType"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApplyAssumptionType"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NonPerfAssumption"
+                            }
+                        ],
+                        "maxItems": 3,
+                        "minItems": 3,
+                        "type": "array"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
+            "RootFindStop": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondIncurLoss"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondIncurLoss",
                         "type": "object"
                     },
                     {
@@ -16558,17 +16268,13 @@
                             "contents": {
                                 "items": [
                                     {
-                                        "format": "double",
-                                        "type": "number"
+                                        "type": "string"
                                     },
                                     {
-                                        "additionalProperties": {
-                                            "$ref": "#/components/schemas/Bond"
-                                        },
-                                        "type": "object"
+                                        "type": "boolean"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/DealType"
+                                        "type": "boolean"
                                     }
                                 ],
                                 "maxItems": 3,
@@ -16577,7 +16283,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "BestSpreadResult"
+                                    "BondPricingEqOriginBal"
                                 ],
                                 "type": "string"
                             }
@@ -16586,7 +16292,104 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "BestSpreadResult",
+                        "title": "BondPricingEqOriginBal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondMetTargetIrr"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondMetTargetIrr",
+                        "type": "object"
+                    }
+                ]
+            },
+            "RootFindTweak": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "StressPoolDefault"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "StressPoolDefault",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MaxSpreadTo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "MaxSpreadTo",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "SplitFixedBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "SplitFixedBalance",
                         "type": "object"
                     }
                 ]

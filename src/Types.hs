@@ -32,7 +32,7 @@ module Types
   ,ActionWhen(..),DealStatFields(..)
   ,getDealStatType,getPriceValue,preHasTrigger
   ,MyRatio,HowToPay(..),BondPricingMethod(..),InvestorAction(..)
-  ,_BondTxn ,_InspectBal
+  ,_BondTxn ,_InspectBal, _IrrResult
   )
   where
 
@@ -250,6 +250,29 @@ data PoolId = PoolName String                         -- ^ pool name
             | DealBondFlow DealName String Date Rate  -- ^ bond flow from deal
             deriving (Eq,Ord,Generic)
 
+instance Show PoolId where
+  show (PoolName n)  = n
+  show PoolConsol = "PoolConsol"
+  show (DealBondFlow dn bn sd r) = "BondFlow:"++dn++":"++bn++":"++show sd++":"++show r
+
+instance (Read PoolId) where
+  readsPrec d "PoolConsol" = [(PoolConsol,"")]
+  readsPrec d rStr = 
+    let 
+      pn = Data.List.Split.splitOn ":" rStr
+    in
+      case pn of
+        [dn,bn,sd,r] -> 
+          let 
+            sd' = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" sd
+            r' = read r::Rate
+          in 
+            [(DealBondFlow dn bn sd' r',"")]
+        ["PoolName",pn] -> [(PoolName pn,"")]
+        _ -> error $ "Invalid PoolId: "++ show pn
+
+
+
 
 data Cmp = G      -- ^ Greater than 
          | GE     -- ^ Greater Equal than
@@ -285,6 +308,9 @@ data PoolSource = CollectedInterest               -- ^ interest
 
 data TsPoint a = TsPoint Date a
                 deriving (Show,Eq,Read,Generic)
+
+instance Ord a => Ord (TsPoint a) where
+  compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
 
 data PerPoint a = PerPoint Int a
                 deriving (Show,Eq,Read,Generic)
@@ -784,11 +810,13 @@ data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
 
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest [Txn]
-                 | AssetPrice Valuation WAL Duration Convexity AccruedInterest
-                 | OASResult PriceResult [Valuation] Spread  
-                 | ZSpread Spread 
-                 | IrrResult IRR [Txn]
-                 deriving (Show, Eq, Generic)
+         | AssetPrice Valuation WAL Duration Convexity AccruedInterest
+         | OASResult PriceResult [Valuation] Spread  
+         | ZSpread Spread 
+         | IrrResult IRR [Txn]
+         deriving (Show, Eq, Generic)
+
+makePrisms ''PriceResult
 
 getPriceValue :: PriceResult -> Balance
 getPriceValue (AssetPrice v _ _ _ _ ) = v
@@ -873,30 +901,8 @@ data TimeHorizion = ByMonth
 instance TimeSeries (TsPoint a) where 
     getDate (TsPoint d a) = d
 
-instance Ord a => Ord (TsPoint a) where
-  compare (TsPoint d1 tv1) (TsPoint d2 tv2) = compare d1 d2
+
   -- compare (PoolPeriodPoint i1 tv1) (PoolPeriodPoint i2 tv2) = compare i1 i2
-
-instance Show PoolId where
-  show (PoolName n)  = n
-  show PoolConsol = "PoolConsol"
-  show (DealBondFlow dn bn sd r) = "BondFlow:"++dn++":"++bn++":"++show sd++":"++show r
-
-instance (Read PoolId) where
-  readsPrec d "PoolConsol" = [(PoolConsol,"")]
-  readsPrec d rStr = 
-    let 
-      pn = Data.List.Split.splitOn ":" rStr
-    in
-      case pn of
-        [dn,bn,sd,r] -> 
-          let 
-            sd' = TF.parseTimeOrError True TF.defaultTimeLocale "%Y-%m-%d" sd
-            r' = read r::Rate
-          in 
-            [(DealBondFlow dn bn sd' r',"")]
-        ["PoolName",pn] -> [(PoolName pn,"")]
-        _ -> error $ "Invalid PoolId: "++ show pn
 
 
 $(deriveJSON defaultOptions ''DecimalRaw)
