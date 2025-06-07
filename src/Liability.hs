@@ -20,7 +20,7 @@ module Liability
   ,getCurRate,bondCashflow,getOutstandingAmount,valueBond,getTxnRate
   ,getAccrueBegDate,getTxnInt,adjInterestInfoByRate,adjInterestInfoBySpread
   ,interestInfoTraversal,getOriginBalance,curRatesTraversal
-  ,backoutAccruedInt,extractIrrResult
+  ,backoutAccruedInt,extractIrrResult,adjustBalance
   )
   where
 
@@ -246,6 +246,9 @@ curRatesTraversal f (MultiIntBond bn bt oi iis sus bal rs dp dis diois did lips 
 curRatesTraversal f (BondGroup bMap x)
   = BondGroup <$> traverse (curRatesTraversal f) bMap <*> pure x
 
+adjustBalance :: Balance -> Bond -> Bond
+adjustBalance bal b@Bond{bndBalance = _, bndOriginInfo = oi } 
+  = b {bndBalance = bal, bndOriginInfo = oi {originBalance = bal}}
 
 bndmStmt :: Lens' Bond (Maybe S.Statement)
 bndmStmt = lens getter setter

@@ -170,12 +170,12 @@ data RootFindReq = FirstLossReq DealRunInput BondName
 
 data RootFindTweak = StressPoolDefault -- stressed pool perf 
                    | MaxSpreadTo BondName -- bond component
-                   -- | SplitFixedBalance (BondName,BondName) -- bond component
+                   | SplitFixedBalance  BondName BondName  -- bond component
                    deriving(Show, Generic)
 
 data RootFindStop = BondIncurLoss BondName
                   | BondPricingEqOriginBal BondName Bool Bool
-                  -- | BondMetTargetIrr BondName IRR
+                  | BondMetTargetIrr BondName IRR
                   deriving(Show, Generic)
 
 data RootFindResp = RFResult Double DealRunInput
