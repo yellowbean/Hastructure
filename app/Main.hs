@@ -359,8 +359,8 @@ evalRootFindStop (BondPricingEqOriginBal bn otherBondFlag otherFeeFlag) (dt,_,_,
       otherBondOustanding False = 0.0
       feeOutstanding True = sum $ L.getOutstandingAmount <$> Map.elems (getDealFeeMap dt)
       feeOutstanding False = 0.0 
-      v = getPriceValue $ pResult Map.! bn
       bondBal = L.getOriginBalance $ getDealBondMap dt Map.! bn
+      v = maybe bondBal getPriceValue $ Map.lookup bn pResult -- TODO shortcut to avoid error
     in
       if (otherBondOustanding otherBondFlag+feeOutstanding otherFeeFlag) > 0  then 
         -1
