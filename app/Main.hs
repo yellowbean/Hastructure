@@ -100,7 +100,7 @@ debug = flip Debug.Trace.trace
 
 
 version1 :: Version 
-version1 = Version "0.46.1"
+version1 = Version "0.46.2"
 
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
@@ -334,8 +334,8 @@ evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult)
       v = L.extractIrrResult $ pResult Map.! bn
     in 
       case v of 
-        Nothing -> -1  `debug` ("No IRR found for bond:"++ show bn)
-        Just irr -> (fromRational . toRational) $ irr - target `debug` ("IRR for bond:"++ show target ++" is "++ show irr)
+        Nothing -> -1  -- `debug` ("No IRR found for bond:"++ show bn)
+        Just irr -> (fromRational . toRational) $ irr - target -- `debug` ("IRR for bond:"++ show target ++" is "++ show irr)
 
 rootFindAlgo :: DealRunInput -> RootFindTweak -> RootFindStop -> Double -> Double
 rootFindAlgo (dt ,poolAssumps, runAssumps) tweak stop r 
