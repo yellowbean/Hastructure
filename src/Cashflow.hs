@@ -745,6 +745,7 @@ tsSetRate _r (MortgageFlow a b c d e f g h i j k l) = MortgageFlow a b c d e f g
 tsSetRate _r (LoanFlow a b c d e f g i j k) = LoanFlow a b c d e f g i _r k
 tsSetRate _r (BondFlow a b c d) = BondFlow a b c d
 tsSetRate _r (ReceivableFlow a b c d e f g h i) = ReceivableFlow a b c d e f g h i
+tsSetRate _r (LeaseFlow a b c d) = LeaseFlow a b c d
 tsSetRate _r (FixedFlow {} ) = error "Not implement set rate for FixedFlow"
 tsSetRate _ _ = error "Not implement set rate for this type"
 

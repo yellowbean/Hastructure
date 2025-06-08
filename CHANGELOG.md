@@ -2,6 +2,10 @@
 
 <!-- towncrier release notes start -->
 
+## 0.46.2
+### 2025-06-08
+* ENHANCE: add `tweak`: `Balance Split` and `stop`: `Bond Met Target IRR`
+
 ## 0.46.1
 ### 2025-06-07
 * ENHANCE: add 2 more `leaseEndType` assumptions: `Earlier` `Later` which will end the lease projection base on two input `End date` and `extention times`.

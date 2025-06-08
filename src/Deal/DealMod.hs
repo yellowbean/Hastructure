@@ -91,10 +91,10 @@ modDeal (AddSpreadToBonds bnd) sprd d
 modDeal (SlideBalances bn1 bn2) r d@DB.TestDeal {DB.bonds = bndMap}
   = let 
       totalBalance = sum $ L.originBalance . L.bndOriginInfo <$> DB.viewDealBondsByNames d [bn1, bn2]
-      leftBal = mulBR totalBalance (toRational r) `debug` ("split ratio" ++ show r)
+      leftBal = mulBR totalBalance (toRational r) -- `debug` ("split ratio" ++ show r)
       rightBal = totalBalance - leftBal 
       bndMap' = DB.updateBondInMap bn1 (L.adjustBalance leftBal) $
-                 DB.updateBondInMap bn2 (L.adjustBalance rightBal) bndMap `debug` ("leftBal: " ++ show leftBal ++ ", rightBal: " ++ show rightBal )
+                 DB.updateBondInMap bn2 (L.adjustBalance rightBal) bndMap -- `debug` ("leftBal: " ++ show leftBal ++ ", rightBal: " ++ show rightBal )
     in 
       d {DB.bonds = bndMap'}
 
