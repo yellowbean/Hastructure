@@ -169,6 +169,7 @@ data RootFindReq = FirstLossReq DealRunInput BondName
                  deriving(Show, Generic)
 
 data RootFindTweak = StressPoolDefault -- stressed pool perf 
+                   | StressPoolPrepayment -- stressed pool prepayment
                    | MaxSpreadTo BondName -- bond component
                    | SplitFixedBalance  BondName BondName  -- bond component
                    deriving(Show, Generic)

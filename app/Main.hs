@@ -222,23 +222,45 @@ runDeal :: RunDealReq -> Handler RunResp
 runDeal (SingleRunReq dt assump nonPerfAssump) 
   = return $ wrapRun dt assump nonPerfAssump
 
-stressAssetPerf :: Rate -> AP.AssetPerfAssumption -> AP.AssetPerfAssumption
-stressAssetPerf r (AP.MortgageAssump (Just da) mp mr ms) 
-  = AP.MortgageAssump (Just (AP.stressDefaultAssump r da)) mp mr ms
-stressAssetPerf r (AP.LoanAssump (Just da) mp mr ms) 
-  = AP.LoanAssump (Just (AP.stressDefaultAssump r da)) mp mr ms 
-stressAssetPerf r (AP.InstallmentAssump (Just da) mp mr ms) 
-  = AP.InstallmentAssump (Just (AP.stressDefaultAssump r da)) mp mr ms
-stressAssetPerf r (AP.ReceivableAssump (Just da) mr ms) 
-  = AP.ReceivableAssump (Just (AP.stressDefaultAssump r da)) mr ms
-stressAssetPerf _ x = x
 
-stressRevovlingPerf :: Rate -> Maybe AP.RevolvingAssumption -> Maybe AP.RevolvingAssumption
-stressRevovlingPerf r Nothing = Nothing
-stressRevovlingPerf r (Just (AP.AvailableAssets rp applyAssumpType)) 
-  = Just (AP.AvailableAssets rp (over (AP.applyAssumptionTypeAssetPerf . _1) (stressAssetPerf r) applyAssumpType))
-stressRevovlingPerf r (Just (AP.AvailableAssetsBy m))
-  = Just (AP.AvailableAssetsBy (Map.map (over (_2 . AP.applyAssumptionTypeAssetPerf . _1) (stressAssetPerf r)) m))
+-- Stressing default assumption from AssetPerfAssumption
+stressDefaultAssetPerf :: Rate -> AP.AssetPerfAssumption -> AP.AssetPerfAssumption
+stressDefaultAssetPerf r (AP.MortgageAssump (Just da) mp mr ms) 
+  = AP.MortgageAssump (Just (AP.stressDefaultAssump r da)) mp mr ms
+stressDefaultAssetPerf r (AP.LoanAssump (Just da) mp mr ms) 
+  = AP.LoanAssump (Just (AP.stressDefaultAssump r da)) mp mr ms 
+stressDefaultAssetPerf r (AP.InstallmentAssump (Just da) mp mr ms) 
+  = AP.InstallmentAssump (Just (AP.stressDefaultAssump r da)) mp mr ms
+stressDefaultAssetPerf r (AP.ReceivableAssump (Just da) mr ms) 
+  = AP.ReceivableAssump (Just (AP.stressDefaultAssump r da)) mr ms
+stressDefaultAssetPerf r (AP.LeaseAssump (Just (AP.DefaultByContinuation dr)) mg mr me) 
+  = AP.LeaseAssump (Just (AP.DefaultByContinuation (min 1.0 dr * r))) mg mr me
+stressDefaultAssetPerf r (AP.LeaseAssump (Just (AP.DefaultByTermination dr)) mg mr me) 
+  = AP.LeaseAssump (Just (AP.DefaultByTermination (min 1.0 dr * r))) mg mr me
+stressDefaultAssetPerf _ x = x
+
+-- Stressing prepayment assumption from AssetPerfAssumption
+stressPrepayAssetPerf :: Rate -> AP.AssetPerfAssumption -> AP.AssetPerfAssumption
+stressPrepayAssetPerf r (AP.MortgageAssump da (Just mp) mr ms) 
+  = AP.MortgageAssump da (Just (AP.stressPrepaymentAssump r mp)) mr ms
+stressPrepayAssetPerf r (AP.MortgageDeqAssump da (Just mp) mr ms) 
+  = AP.MortgageDeqAssump da (Just (AP.stressPrepaymentAssump r mp)) mr ms
+stressPrepayAssetPerf r (AP.LoanAssump da (Just mp) mr ms)
+  = AP.LoanAssump da (Just (AP.stressPrepaymentAssump r mp)) mr ms
+stressPrepayAssetPerf r (AP.InstallmentAssump da (Just mp) mr ms)
+  = AP.InstallmentAssump da (Just (AP.stressPrepaymentAssump r mp)) mr ms
+stressPrepayAssetPerf _ x = x
+
+
+
+
+-- Stressing default assumption
+stressRevovlingPerf :: (AP.AssetPerfAssumption -> AP.AssetPerfAssumption)-> Maybe AP.RevolvingAssumption -> Maybe AP.RevolvingAssumption
+stressRevovlingPerf f Nothing = Nothing
+stressRevovlingPerf f (Just (AP.AvailableAssets rp applyAssumpType)) 
+  = Just (AP.AvailableAssets rp (over (AP.applyAssumptionTypeAssetPerf . _1) f applyAssumpType))
+stressRevovlingPerf f (Just (AP.AvailableAssetsBy m))
+  = Just (AP.AvailableAssetsBy (Map.map (over (_2 . AP.applyAssumptionTypeAssetPerf . _1) f) m))
 
 modifyDealType :: DM.ModifyType -> Double -> DealType -> DealType
 modifyDealType dm f (MDeal d) = MDeal $ DM.modDeal dm f d
@@ -293,10 +315,18 @@ getDealFeeMap (PDeal d) = DB.fees d
 doTweak :: Double -> RootFindTweak -> DealRunInput -> DealRunInput
 doTweak r StressPoolDefault (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) 
   = let
-      stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressAssetPerf (toRational r)) assumps
-      stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (toRational r) mRevolving }
+      stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressDefaultAssetPerf (toRational r)) assumps
+      stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (stressDefaultAssetPerf (toRational r)) mRevolving }
     in
       (dt ,Just stressed, stressedNonPerf)
+
+doTweak r StressPoolPrepayment (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) 
+  = let
+      stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressPrepayAssetPerf (toRational r)) assumps
+      stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (stressPrepayAssetPerf (toRational r)) mRevolving }
+    in
+      (dt ,Just stressed, stressedNonPerf)
+
 
 doTweak r (MaxSpreadTo bn) (dt , mAssump, rAssump)
   = (modifyDealType (DM.AddSpreadToBonds bn) r dt , mAssump, rAssump)

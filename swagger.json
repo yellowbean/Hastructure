@@ -16346,6 +16346,21 @@
                     },
                     {
                         "properties": {
+                            "tag": {
+                                "enum": [
+                                    "StressPoolPrepayment"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "StressPoolPrepayment",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "contents": {
                                 "type": "string"
                             },
@@ -20636,7 +20651,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.46.2"
+        "version": "0.46.3"
     },
     "openapi": "3.0.0",
     "paths": {
