@@ -484,16 +484,6 @@ updateBondInMap bName f bMap
     in 
       Map.mapWithKey fn bMap
 
--- updateBondInMap' :: BondName -> (L.Bond -> Either String L.Bond) -> Map.Map BondName L.Bond ->  Either String (Map.Map BondName L.Bond)
--- updateBondInMap' bName f bMap 
---   = let 
---       fn _bName (L.BondGroup subMap bt) = L.BondGroup (Map.adjust f _bName subMap) bt
---       fn _bName bnd 
---         | _bName == bName = f bnd
---         | otherwise = Right bnd
---     in 
---       traverse fn bMap
-
 dealAccounts :: Ast.Asset a => Lens' (TestDeal a) (Map.Map AccountName A.Account) 
 dealAccounts = lens getter setter 
   where 

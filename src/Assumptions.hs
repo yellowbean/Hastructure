@@ -164,8 +164,8 @@ stressDefaultAssump x (DefaultVec rs) = DefaultVec $ capWith 1.0 ((x*) <$> rs)
 stressDefaultAssump x (DefaultVecPadding rs) = DefaultVecPadding $ capWith 1.0 ((x*) <$> rs)
 stressDefaultAssump x (DefaultByAmt (b,rs)) = DefaultByAmt (mulBR b x, rs)
 stressDefaultAssump x (DefaultAtEndByRate r1 r2) = DefaultAtEndByRate (min 1.0 (r1*x)) (min 1.0 (r2*x))
-stressDefaultAssump x (DefaultByTerm rss) = DefaultByTerm $ ((capWith 1.0) <$> (map (map (* x)) rss))
 stressDefaultAssump x (DefaultStressByTs ts a) = DefaultStressByTs ts (stressDefaultAssump x a)
+stressDefaultAssump x (DefaultByTerm rss) = DefaultByTerm $ ((capWith 1.0) <$> (map (map (* x)) rss))
 
 stressPrepaymentAssump :: Rate -> AssetPrepayAssumption -> AssetPrepayAssumption
 stressPrepaymentAssump x (PrepaymentConstant r) = PrepaymentConstant $ min 1.0 (r*x)
@@ -174,6 +174,8 @@ stressPrepaymentAssump x (PrepaymentVec rs) = PrepaymentVec $ capWith 1.0 ((x*) 
 stressPrepaymentAssump x (PrepaymentVecPadding rs) = PrepaymentVecPadding $ capWith 1.0 ((x*) <$> rs)
 stressPrepaymentAssump x (PrepayByAmt (b,rs)) = PrepayByAmt (mulBR b x, rs)
 stressPrepaymentAssump x (PrepayStressByTs ts a) = PrepayStressByTs ts (stressPrepaymentAssump x a)
+stressPrepaymentAssump x (PrepaymentPSA r) = PrepaymentPSA $ min 1.0 (r*x)
+stressPrepaymentAssump x (PrepaymentByTerm rss) = PrepaymentByTerm $ (capWith 1.0 <$> (map (map (* x)) rss))
 
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
