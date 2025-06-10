@@ -175,6 +175,8 @@ data RootFindTweak = StressPoolDefault -- stressed pool perf
                    deriving(Show, Generic)
 
 data RootFindStop = BondIncurLoss BondName
+                  | BondIncurPrinLoss BondName Balance
+                  | BondIncurIntLoss BondName Balance
                   | BondPricingEqOriginBal BondName Bool Bool
                   | BondMetTargetIrr BondName IRR
                   deriving(Show, Generic)

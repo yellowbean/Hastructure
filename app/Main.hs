@@ -342,6 +342,19 @@ evalRootFindStop (BondIncurLoss bn) (dt,_,_,_)
     in
       (fromRational . toRational) $ bondBal - 0.01
 
+evalRootFindStop (BondIncurIntLoss bn threshold) (dt,_,_,_) 
+  = let 
+      dueIntAmt = L.getTotalDueInt $ getDealBondMap dt Map.! bn
+    in
+      (fromRational . toRational) $ threshold -  (dueIntAmt-0.01)
+
+evalRootFindStop (BondIncurPrinLoss bn threshold) (dt,_,_,_) 
+  = let 
+      duePrinAmt = L.getCurBalance $ getDealBondMap dt Map.! bn
+    in
+      (fromRational . toRational) $ threshold - (duePrinAmt-0.01)
+
+
 evalRootFindStop (BondPricingEqOriginBal bn otherBondFlag otherFeeFlag) (dt,_,_,pResult) 
   = let 
       -- bnds
@@ -373,7 +386,7 @@ rootFindAlgo (dt ,poolAssumps, runAssumps) tweak stop r
       (dt' ,poolAssumps', runAssumps') = doTweak r tweak (dt ,poolAssumps, runAssumps)
     in 
       case wrapRun dt' poolAssumps' runAssumps' of
-        Right runRespRight -> evalRootFindStop stop runRespRight
+        Right runRespRight -> evalRootFindStop stop runRespRight `debug` ("Begin pool"++ show poolAssumps')
         Left errorMsg -> -1
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
