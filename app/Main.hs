@@ -100,7 +100,7 @@ debug = flip Debug.Trace.trace
 
 
 version1 :: Version 
-version1 = Version "0.46.3"
+version1 = Version "0.46.4"
 
 
 wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
@@ -386,7 +386,7 @@ rootFindAlgo (dt ,poolAssumps, runAssumps) tweak stop r
       (dt' ,poolAssumps', runAssumps') = doTweak r tweak (dt ,poolAssumps, runAssumps)
     in 
       case wrapRun dt' poolAssumps' runAssumps' of
-        Right runRespRight -> evalRootFindStop stop runRespRight `debug` ("Begin pool"++ show poolAssumps')
+        Right runRespRight -> evalRootFindStop stop runRespRight -- `debug` ("Begin pool"++ show poolAssumps')
         Left errorMsg -> -1
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
