@@ -2,6 +2,13 @@
 
 <!-- towncrier release notes start -->
 
+## 0.46.4
+### 2025-06-10
+
+* ENHANCE: add `tweak`: `Stress Prepayment` 
+* ENHANCE: add `stop`: `Bond Principal Loss` `Bond Interest Loss`
+
+
 ## 0.46.2
 ### 2025-06-08
 * ENHANCE: add `tweak`: `Balance Split` and `stop`: `Bond Met Target IRR`

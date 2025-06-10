@@ -15,7 +15,7 @@ module Assumptions (BondPricingInput(..),IrrType(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,calcResetDates,IssueBondEvent(..)
+                    ,IssueBondEvent(..)
                     ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..),InspectType(..)
                     ,FieldMatchRule(..),CallOpt(..)
                     ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
@@ -334,12 +334,6 @@ projRates _ rt rassump ds = Left ("Invalid rate type: "++ show rt++" assump: "++
 
 
 -- ^ Given a list of rates, calcualte whether rates was reset
-calcResetDates :: [IRate] -> [Bool] -> [Bool]
-calcResetDates [] bs = bs
-calcResetDates (r:rs) bs 
-  | null rs = calcResetDates [] (False:bs)
-  | r == head rs = calcResetDates rs (bs++[False])
-  | otherwise = calcResetDates rs (bs++[True])
 
 makePrisms ''AssetPerfAssumption 
 makePrisms ''AssetDefaultAssumption

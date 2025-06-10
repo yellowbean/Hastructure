@@ -163,8 +163,9 @@ calcIRR :: [Date] -> [Amount] -> Either String Rate
 calcIRR  _ [] = Left "No cashflow amount"
 calcIRR [] _ = Left "No cashflow date"
 calcIRR ds vs
-  | all (> 0) vs = Left "All cashflow can't be all positive"
-  | all (< 0) vs = Left "All cashflow can't be all negative"
+  | all (>= 0) vs = Left $ "All cashflow can't be all positive:"++ show vs
+  | all (<= 0) vs = Left $ "All cashflow can't be all negative:"++ show vs
+  | all (== 0) vs = Left "All cashflow can't be all zeros"
   | otherwise = 
     let 
       itertimes = 1000
