@@ -597,6 +597,7 @@ mflowRecovery (MortgageDelinqFlow _ _ _ _ _ _ _ x _ _ _ _ _) = x
 mflowRecovery (LoanFlow _ _ _ _ _ _ x _ _ _) = x
 mflowRecovery FixedFlow {} = 0
 mflowRecovery (ReceivableFlow _ _ _ _ _ _ x _ _ ) = x
+mflowRecovery (LeaseFlow _ _ _ _) = 0
 mflowRecovery _  = error "not supported"
 
 tsRowBalance :: Lens' TsRow Balance
