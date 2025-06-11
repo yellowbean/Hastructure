@@ -155,16 +155,17 @@ calcRequiredAmtForIrrAtDate irr ds vs d =
     def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.00000001}
   in 
     case ridders def (0.0001,100000000000000) (calcPvFromIRR irr ds vs d) of
-          Root finalAmt -> Just (fromRational (toRational finalAmt))
-          _ -> Nothing
+      Root finalAmt -> Just (fromRational (toRational finalAmt))
+      _ -> Nothing
 
 -- ^ calc IRR from a cashflow 
 calcIRR :: [Date] -> [Amount] -> Either String Rate
 calcIRR  _ [] = Left "No cashflow amount"
 calcIRR [] _ = Left "No cashflow date"
 calcIRR ds vs
-  | all (> 0) vs = Left "All cashflow can't be all positive"
-  | all (< 0) vs = Left "All cashflow can't be all negative"
+  | all (>= 0) vs = Left $ "All cashflow can't be all positive:"++ show vs
+  | all (<= 0) vs = Left $ "All cashflow can't be all negative:"++ show vs
+  | all (== 0) vs = Left "All cashflow can't be all zeros"
   | otherwise = 
     let 
       itertimes = 1000
@@ -174,6 +175,6 @@ calcIRR ds vs
       sumOfPv irr = pv22 irr beginDate ds vs'
     in 
       case ridders def (-1,1000) sumOfPv of
-            Root irrRate -> Right $ toRational irrRate
-            NotBracketed -> Left $ "IRR: not bracketed" ++ show vs' ++ " and dates"++ show ds
-            SearchFailed -> Left $ "IRR: search failed:  can't be calculated with input "++ show vs++" and dates"++ show ds
+        Root irrRate -> Right $ toRational irrRate
+        NotBracketed -> Left $ "IRR: not bracketed" ++ show vs' ++ " and dates"++ show ds
+        SearchFailed -> Left $ "IRR: search failed:  can't be calculated with input "++ show vs++" and dates"++ show ds

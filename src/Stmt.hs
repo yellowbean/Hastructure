@@ -207,10 +207,10 @@ combineTxn (SupportTxn d1 b1 b0 i1 p1 c1 m1) (SupportTxn d2 b2 b02 i2 p2 c2 m2)
     = SupportTxn d1 b2  b02 (i1 + i2) (p1 + p2) (c1 + c2) (TxnComments [m1,m2])
 
 
-data FlowDirection = Inflow 
-                   | Outflow
-                   | Interflow
-                   | Noneflow
+data FlowDirection = Inflow -- cash flow into the SPV
+                   | Outflow -- cash flow out of the SPV
+                   | Interflow -- cash flow within the SPV
+                   | Noneflow -- no cash flow
                    deriving (Eq,Show,Generic)
 
 getFlow :: TxnComment -> FlowDirection
@@ -229,7 +229,7 @@ getFlow comment =
       SwapOutSettle _ -> Outflow
       PurchaseAsset _ _-> Outflow
       Transfer _ _ -> Interflow 
-      TransferBy _ _ _ -> Interflow 
+      TransferBy {} -> Interflow 
       FundWith _ _ -> Inflow
       PoolInflow _ _ -> Inflow
       LiquidationProceeds _ -> Inflow

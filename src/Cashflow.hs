@@ -9,7 +9,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss
-                ,getSingleTsCashFlowFrame,getDatesCashFlowFrame
+                ,getDatesCashFlowFrame
                 ,lookupSource,lookupSourceM,combineTss
                 ,mflowBegBalance,tsDefaultBal
                 ,mflowBorrowerNum,mflowPrepaymentPenalty,tsRowBalance
@@ -246,9 +246,6 @@ cfAt (CashFlowFrame _ trs) idx
 cfInsertHead :: TsRow -> CashFlowFrame -> CashFlowFrame
 cfInsertHead tr (CashFlowFrame st trs) = CashFlowFrame st $ tr:trs
 
-getSingleTsCashFlowFrame :: CashFlowFrame -> Date -> TsRow
-getSingleTsCashFlowFrame (CashFlowFrame _ trs) d
-  = head $ filter (\x -> getDate x == d) trs
 
 splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
 splitCashFlowFrameByDate (CashFlowFrame status txns) d st
@@ -600,6 +597,7 @@ mflowRecovery (MortgageDelinqFlow _ _ _ _ _ _ _ x _ _ _ _ _) = x
 mflowRecovery (LoanFlow _ _ _ _ _ _ x _ _ _) = x
 mflowRecovery FixedFlow {} = 0
 mflowRecovery (ReceivableFlow _ _ _ _ _ _ x _ _ ) = x
+mflowRecovery (LeaseFlow _ _ _ _) = 0
 mflowRecovery _  = error "not supported"
 
 tsRowBalance :: Lens' TsRow Balance
@@ -748,6 +746,7 @@ tsSetRate _r (MortgageFlow a b c d e f g h i j k l) = MortgageFlow a b c d e f g
 tsSetRate _r (LoanFlow a b c d e f g i j k) = LoanFlow a b c d e f g i _r k
 tsSetRate _r (BondFlow a b c d) = BondFlow a b c d
 tsSetRate _r (ReceivableFlow a b c d e f g h i) = ReceivableFlow a b c d e f g h i
+tsSetRate _r (LeaseFlow a b c d) = LeaseFlow a b c d
 tsSetRate _r (FixedFlow {} ) = error "Not implement set rate for FixedFlow"
 tsSetRate _ _ = error "Not implement set rate for this type"
 
