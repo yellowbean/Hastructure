@@ -21,7 +21,7 @@ module Assumptions (BondPricingInput(..),IrrType(..)
                     ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
                     ,_ReceivableAssump,_FixedAssetAssump  
                     ,stressDefaultAssump,applyAssumptionTypeAssetPerf,TradeType(..)
-                    ,LeaseEndType(..),LeaseDefaultType(..),stressPrepaymentAssump
+                    ,LeaseEndType(..),LeaseDefaultType(..),stressPrepaymentAssump,StopBy(..)
                     )
 where
 
@@ -126,8 +126,14 @@ data CallOpt = LegacyOpts [C.CallOption]                 -- ^ legacy support
              | CallOnDates DatePattern [Pre]             -- ^ test call at end of day
              deriving (Show, Generic, Read, Ord, Eq)
 
+data StopBy = StopByDate Date		     -- ^ stop by date
+	    | StopByPre DatePattern [Pre]    -- ^ stop by precondition
+	    deriving (Show, Generic, Read)
+
+
 data NonPerfAssumption = NonPerfAssumption {
-  stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
+  -- stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
+  stopRunBy :: Maybe StopBy                                    -- ^ optional stop day,which will stop cashflow projection
   ,projectedExpense :: Maybe [(FeeName,Ts)]                  -- ^ optional expense projection
   ,callWhen :: Maybe [CallOpt]                               -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
   ,revolving :: Maybe RevolvingAssumption                    -- ^ optional revolving assumption with revoving assets
@@ -256,8 +262,8 @@ type AmountToBuy = Balance
 
 
 data TradeType = ByCash Balance 
-              | ByBalance Balance
-              deriving (Show,Generic)
+               | ByBalance Balance
+               deriving (Show,Generic)
 
 data IrrType = HoldingBond HistoryCash CurrentHolding (Maybe (Date, BondPricingMethod))
               | BuyBond Date BondPricingMethod TradeType (Maybe (Date, BondPricingMethod))
@@ -347,7 +353,7 @@ $(deriveJSON defaultOptions ''RefiEvent)
 
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''LeaseDefaultType, ''LeaseEndType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
+$(concat <$> traverse (deriveJSON defaultOptions) [''LeaseDefaultType, ''LeaseEndType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption, ''StopBy
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption,''InspectType])

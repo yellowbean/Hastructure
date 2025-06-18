@@ -806,6 +806,14 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                        return (prepareDeal dealAfterCleanUp, DL.snoc (endingLogs `DL.append` newStLogs) (EndRun (Just d) "Clean Up")) -- `debug` ("Called ! "++ show d)
                 _ -> run t poolFlowMap (Just ads) rates calls rAssump log
 
+        StopRunTest d pres -> 
+	    do
+              flags::[Bool] <- sequenceA $ [ (testPre d t pre) | pre <- pres ]
+              case any id flags of
+		True -> Right (prepareDeal t, DL.snoc log (EndRun (Just d) ("Stop Run Test by:"++ show pres)))
+		_ -> run t poolFlowMap (Just ads) rates calls rAssump log
+
+
         _ -> Left $ "Failed to match action on Date"++ show ad
 
        where
@@ -1418,12 +1426,15 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap,stats=_s
                     Just AP.NonPerfAssumption{AP.callWhen = Just callOpts}
                       -> concat [ extractTestDates callOpt | callOpt <- callOpts ]
                     _ -> []
-
+      let stopTestDates = case mNonPerfAssump of
+		    	    Just AP.NonPerfAssumption{AP.stopRunBy = Just (AP.StopByPre dp pres)} 
+			    	-> [StopRunTest d pres | d <- genSerialDatesTill2 EI startDate dp endDate]
+		    	    _ -> []
       let allActionDates = let 
                          __actionDates = let 
                                           a = concat [bActionDates,pActionDates,custWdates,iAccIntDates,makeWholeDate
                                                      ,feeAccrueDates,liqResetDates,mannualTrigger,concat rateCapSettleDates
-                                                     ,concat irUpdateSwapDates, concat irSettleSwapDates ,inspectDates, bndRateResets,financialRptDates
+                                                     ,concat irUpdateSwapDates, concat irSettleSwapDates ,inspectDates, bndRateResets,financialRptDates, stopTestDates
                                                      ,bondIssuePlan,bondRefiPlan,callDates, iAccRateResetDates 
                                                      ,bndStepUpDates] 
                                         in
@@ -1433,7 +1444,7 @@ getInits t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap,stats=_s
                          _actionDates = __actionDates++[HitStatedMaturity endDate]
                        in 
                          case mNonPerfAssump of
-                           Just AP.NonPerfAssumption{AP.stopRunBy = Just d} -> cutBy Exc Past d __actionDates ++ [StopRunFlag d]
+                           Just AP.NonPerfAssumption{AP.stopRunBy = Just (AP.StopByDate d)} -> cutBy Exc Past d __actionDates ++ [StopRunFlag d]
                            _ -> _actionDates  
      
       let newFeeMap = case mNonPerfAssump of

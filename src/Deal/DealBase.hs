@@ -106,6 +106,7 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | RefiBond Date AccountName L.Bond
                   | BuildReport StartDate EndDate        -- ^ build cashflow report between dates and balance report at end date
                   | StopRunFlag Date                     -- ^ stop the run with a message
+                  | StopRunTest Date [Pre]               -- ^ stop the run with a condition
                   | HitStatedMaturity Date               -- ^ hit the stated maturity date
                   | TestCall Date                        -- ^ test call dates
                   deriving (Show,Generic,Read)
@@ -142,6 +143,7 @@ instance TimeSeries ActionOnDate where
     getDate (TestCall d) = d
     getDate (FundBond d _ _ _ _) = d
     getDate (HitStatedMaturity d) = d
+    getDate (StopRunTest d _) = d
     getDate x = error $ "Failed to match"++ show x
 
 
