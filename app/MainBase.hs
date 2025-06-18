@@ -289,6 +289,7 @@ instance ToSchema (TsPoint AP.RefiEvent)
 instance ToSchema AP.RefiEvent
 instance ToSchema AP.InspectType
 instance ToSchema AP.CallOpt
+instance ToSchema AP.StopBy
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema BondPricingMethod
 instance ToSchema AP.TradeType

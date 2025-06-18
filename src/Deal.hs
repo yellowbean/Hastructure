@@ -807,11 +807,11 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 _ -> run t poolFlowMap (Just ads) rates calls rAssump log
 
         StopRunTest d pres -> 
-	    do
-              flags::[Bool] <- sequenceA $ [ (testPre d t pre) | pre <- pres ]
-              case any id flags of
-		True -> Right (prepareDeal t, DL.snoc log (EndRun (Just d) ("Stop Run Test by:"++ show pres)))
-		_ -> run t poolFlowMap (Just ads) rates calls rAssump log
+	        do
+            flags::[Bool] <- sequenceA $ [ (testPre d t pre) | pre <- pres ]
+            case all id flags of
+		          True -> Right (prepareDeal t, DL.snoc log (EndRun (Just d) ("Stop Run Test by:"++ show (zip pres flags))))
+		          _ -> run t poolFlowMap (Just ads) rates calls rAssump log
 
 
         _ -> Left $ "Failed to match action on Date"++ show ad

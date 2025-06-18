@@ -11739,7 +11739,7 @@
                         "$ref": "#/components/schemas/RevolvingAssumption"
                     },
                     "stopRunBy": {
-                        "$ref": "#/components/schemas/Day"
+                        "$ref": "#/components/schemas/StopBy"
                     }
                 },
                 "type": "object"
@@ -16967,6 +16967,61 @@
                             "contents"
                         ],
                         "title": "PassDateLadderSpread",
+                        "type": "object"
+                    }
+                ]
+            },
+            "StopBy": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "StopByDate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "StopByDate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Pre"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "StopByPre"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "StopByPre",
                         "type": "object"
                     }
                 ]

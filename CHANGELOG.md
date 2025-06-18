@@ -4,7 +4,7 @@
 
 ## 0.46.4
 ### 2025-06-10
-
+* ENHANCE: add error message when calculation IRR for bond with non cashflow
 * ENHANCE: add `tweak`: `Stress Prepayment` 
 * ENHANCE: add `stop`: `Bond Principal Loss` `Bond Interest Loss`
 

@@ -327,7 +327,6 @@ doTweak r StressPoolPrepayment (dt , Just assumps, nonPerfAssump@AP.NonPerfAssum
     in
       (dt ,Just stressed, stressedNonPerf)
 
-
 doTweak r (MaxSpreadTo bn) (dt , mAssump, rAssump)
   = (modifyDealType (DM.AddSpreadToBonds bn) r dt , mAssump, rAssump)
 

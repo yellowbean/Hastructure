@@ -6,6 +6,7 @@ cabal-version: 3.0
 
 name:           Hastructure
 version:        0.45.0
+synopsis:       Cashflow modeling library for structured finance
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance;Securitisation;Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
