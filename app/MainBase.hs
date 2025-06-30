@@ -121,7 +121,7 @@ data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
                   deriving(Show, Generic)
 
 
-type RunPoolTypeRtn_ = Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+type RunPoolTypeRtn_ = Map.Map PoolId CF.PoolCashflow
 type RunPoolTypeRtn = Either String RunPoolTypeRtn_
 
 
@@ -129,15 +129,15 @@ type RunPoolTypeRtn = Either String RunPoolTypeRtn_
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)
 
-type RunAssetResp = Either String ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
+type RunAssetResp = Either String (CF.AssetCashflow, Maybe [PriceResult])
 
 type ScenarioName = String
-type DealRunInput = (DealType, Maybe AP.ApplyAssumptionType, AP.NonPerfAssumption)
-data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
-                | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption --- multi pool perf
-                | MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption  -- multi deal struct
-                | MultiRunAssumpReq DealType (Maybe AP.ApplyAssumptionType) (Map.Map ScenarioName AP.NonPerfAssumption) -- multi run assump 
-                | MultiComboReq (Map.Map ScenarioName DealType)  (Map.Map ScenarioName (Maybe AP.ApplyAssumptionType))  (Map.Map ScenarioName AP.NonPerfAssumption)
+type DealRunInput = (DealType, Maybe AP.ApplyAssumptionType, AP.NonPerfAssumption, [D.ExpectReturn])
+data RunDealReq = SingleRunReq [D.ExpectReturn] DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
+                | MultiScenarioRunReq [D.ExpectReturn] DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption --- multi pool perf
+                | MultiDealRunReq [D.ExpectReturn] (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption  -- multi deal struct
+                | MultiRunAssumpReq [D.ExpectReturn] DealType (Maybe AP.ApplyAssumptionType) (Map.Map ScenarioName AP.NonPerfAssumption) -- multi run assump 
+                | MultiComboReq [D.ExpectReturn] (Map.Map ScenarioName DealType)  (Map.Map ScenarioName (Maybe AP.ApplyAssumptionType))  (Map.Map ScenarioName AP.NonPerfAssumption)
                 deriving(Show, Generic)
 
 data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
@@ -147,8 +147,8 @@ data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionTyp
 type RunRespRight = (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Map.Map String PriceResult)
 type RunResp = Either String RunRespRight
 
-data RunPoolReq = SingleRunPoolReq PoolTypeWrap (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
-                | MultiScenarioRunPoolReq PoolTypeWrap (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe [RateAssumption])
+data RunPoolReq = SingleRunPoolReq Bool PoolTypeWrap (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
+                | MultiScenarioRunPoolReq Bool PoolTypeWrap (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe [RateAssumption])
                 deriving(Show, Generic)
 
 
@@ -156,7 +156,7 @@ data RunDateReq = RunDateReq Date DatePattern (Maybe Date)
                 deriving(Show, Generic)
 instance ToSchema RunDateReq
 
-type PoolRunResp = Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
+type PoolRunResp = Either String (Map.Map PoolId CF.PoolCashflow)
 
 
 type TargetBonds = [BondName]
@@ -189,6 +189,7 @@ data RootFindResp = RFResult Double DealRunInput
 $(deriveJSON defaultOptions ''RootFindTweak)
 $(deriveJSON defaultOptions ''RootFindStop)
 
+instance ToSchema D.ExpectReturn
 instance ToSchema RootFindReq
 instance ToSchema RootFindTweak
 instance ToSchema RootFindStop

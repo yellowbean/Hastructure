@@ -5,7 +5,7 @@
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf,sumTsCF,tsSetLoss,tsSetRecovery
-                ,sizeCashFlowFrame,aggTsByDates
+                ,sizeCashFlowFrame,aggTsByDates,emptyCashFlowFrame
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss
@@ -25,7 +25,10 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mergeCf,buildStartTsRow
                 ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
                 ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance
-                ,getAllDatesCashFlowFrame,splitCf
+		,splitPoolCashflowByDate
+                ,getAllDatesCashFlowFrame,splitCf, cutoffCashflow
+		,AssetCashflow,PoolCashflow
+		,emptyCashflow
                 ) where
 
 import Data.Time (Day)
@@ -34,7 +37,6 @@ import Lib (weightedBy,toDate,getIntervalFactors,daysBetween,paySeqLiabilitiesAm
 import Util (mulBR,mulBInt,mulIR,lastOf)
 import DateUtil ( splitByDate )
 import Types
---import Deal.DealType
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.List as L
@@ -70,6 +72,9 @@ type Recoveries = [Recovery]
 type Rates = [Rate]
 
 type CumulativeStat = (CumPrincipal,CumPrepay,CumDelinq,CumDefault,CumRecovery,CumLoss)
+type AssetCashflow = CashFlowFrame
+type PoolCashflow = (AssetCashflow, Maybe [AssetCashflow])
+emptyCashflow = CashFlowFrame (0,epocDate,Nothing) []
 
 opStats :: (Balance -> Balance -> Balance) -> Maybe CumulativeStat -> Maybe CumulativeStat -> Maybe CumulativeStat
 opStats op (Just (a1,b1,c1,d1,e1,f1)) (Just (a2,b2,c3,d2,e2,f2)) = Just (op a1 a2,op b1 b2,op c1 c3,op d1 d2,op e1 e2,op f1 f2)
@@ -182,7 +187,6 @@ type BeginStatus = (BeginBalance, BeginDate, AccuredInterest)
 
 data CashFlowFrame = CashFlowFrame BeginStatus [TsRow]
                    | MultiCashFlowFrame (Map.Map String [CashFlowFrame])
---                   | CashFlowFrameIndex BeginStatus [TsRow] IR.Index
                    deriving (Eq,Generic,Ord)
 
 cfBeginStatus :: Lens' CashFlowFrame BeginStatus
@@ -228,6 +232,10 @@ instance NFData CashFlowFrame where
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame _ ts) = length ts
 
+emptyCashFlowFrame :: CashFlowFrame -> Bool 
+emptyCashFlowFrame (CashFlowFrame _ []) = True
+emptyCashFlowFrame (CashFlowFrame _ _) = False
+
 getDatesCashFlowFrame :: CashFlowFrame -> [Date]
 getDatesCashFlowFrame (CashFlowFrame _ ts) = getDates ts
 
@@ -256,6 +264,19 @@ splitCashFlowFrameByDate (CashFlowFrame status txns) d st
                     (r:_) -> (mflowBegBalance r, d, Nothing)
     in 
       (CashFlowFrame status ls,CashFlowFrame newStatus rs)
+
+splitPoolCashflowByDate :: PoolCashflow -> Date -> SplitType -> (PoolCashflow,PoolCashflow)
+splitPoolCashflowByDate (poolCF, mAssetCfs) d st
+  = let 
+      (lPoolCF,rPoolCF) = splitCashFlowFrameByDate poolCF d st
+      mAssetSplited = (\xs -> [ splitCashFlowFrameByDate x d st | x <- xs ]) <$> mAssetCfs
+      assetCfs = (\xs -> [ (lCf, rCf) | (lCf,rCf) <- xs ]) <$> mAssetSplited 
+      lAssetCfs = (\xs -> fst <$> xs ) <$> assetCfs
+      rAssetCfs = (\xs -> snd <$> xs ) <$> assetCfs
+    in 
+      ((lPoolCF, lAssetCfs) , (rPoolCF, rAssetCfs))
+
+
 
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
 getTxnLatestAsOf (CashFlowFrame _ txn) d = L.find (\x -> getDate x <= d) $ reverse txn
@@ -1074,6 +1095,19 @@ cutoffTrs d trs
     in
       (patchCumulative (0.0,0.0,0.0,0.0,0.0,0.0) [] afterTrs, m)
 
+-- TODO need to fix accrue interest & cutoff stat
+cutoffCashflow :: Date -> Dates -> CashFlowFrame -> CashFlowFrame
+cutoffCashflow sd ds (CashFlowFrame st []) = CashFlowFrame st []
+cutoffCashflow sd ds (CashFlowFrame st txns) 
+  = let 
+      futureTxns = cutBy Inc Future sd txns
+      withBegTs [] =  []
+      withBegTs (tr:trs) = buildBegTsRow sd tr: tr :trs 
+      aggTxns = aggTsByDates (withBegTs futureTxns) ds
+    in 
+      CashFlowFrame (buildBegBal aggTxns, sd, Nothing) aggTxns 
+
+
 extendTxns :: TsRow -> [Date] -> [TsRow]      
 extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
 
@@ -1104,6 +1138,7 @@ dropTailEmptyTxns :: [TsRow] -> [TsRow]
 dropTailEmptyTxns trs 
   = reverse $ dropWhile isEmptyRow (reverse trs)
 
+
 cashflowTxn :: Lens' CashFlowFrame [TsRow]
 cashflowTxn = lens getter setter
   where 
@@ -1129,9 +1164,6 @@ txnCumulativeStats = lens getter setter
     setter (ReceivableFlow d bal p i ppy def recovery loss _) mStat
       = ReceivableFlow d bal p i ppy def recovery loss mStat
     setter x _ = x
-
-
-
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

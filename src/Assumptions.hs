@@ -83,8 +83,8 @@ data ObligorStrategy = ObligorById [String] AssetPerf
 data ApplyAssumptionType = PoolLevel AssetPerf               -- ^ assumption apply to all assets in the pool
                          | ByIndex [StratPerfByIdx]          -- ^ assumption which only apply to a set of assets in the pool
                          | ByName (Map.Map PoolId AssetPerf) -- ^ assumption for a named pool
-                         | ByObligor [ObligorStrategy]
                          | ByPoolId (Map.Map PoolId ApplyAssumptionType) -- ^ assumption for a pool
+                         | ByObligor [ObligorStrategy]       -- ^ assumption for a set of obligors
                          | ByDealName (Map.Map DealName (ApplyAssumptionType, NonPerfAssumption)) -- ^ assumption for a named deal 
                          deriving (Show, Generic)
 

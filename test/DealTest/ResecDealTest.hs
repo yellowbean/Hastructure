@@ -78,7 +78,7 @@ baseCase = D.TestDeal {
                                          60
                                          Nothing
                                          AB.Current]
-                               ,P.futureCf=Just (CF.CashFlowFrame dummySt [])
+                               ,P.futureCf=(CF.CashFlowFrame dummySt [],Nothing)
                                ,P.asOfDate = T.fromGregorian 2022 1 1
                                ,P.issuanceStat = Nothing
                                ,P.extendPeriods = Nothing}))])
@@ -121,7 +121,7 @@ resecDeal = D.TestDeal {
                          ]
            )
   ,D.pool = D.ResecDeal (Map.fromList [(DealBondFlow "base case" "A" (toDate "20200101") 0.25
-                                        , D.UnderlyingDeal baseCase Nothing Nothing Nothing)])
+                                        , D.UnderlyingDeal baseCase CF.emptyCashflow CF.emptyCashflow Nothing)])
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)

@@ -32,6 +32,7 @@ import Data.Attoparsec.ByteString
 import Data.ByteString (ByteString)
 import Data.List
 import Data.Map
+import qualified Data.Set as S
 import Data.Proxy
 import qualified Data.Text as T
 import Data.Maybe
@@ -103,75 +104,74 @@ version1 :: Version
 version1 = Version "0.46.4"
 
 
-wrapRun :: DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
-wrapRun (MDeal d) mAssump mNonPerfAssump 
+wrapRun :: [D.ExpectReturn] -> DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
+wrapRun fs (MDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump 
+      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs)  mAssump mNonPerfAssump 
       return (MDeal _d,_pflow,_rs,_p) -- `debug` ("Run Done with deal->"++ show _d)
-wrapRun (RDeal d) mAssump mNonPerfAssump 
+wrapRun fs (RDeal d) mAssump mNonPerfAssump 
   = do 
-      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
       return (RDeal _d,_pflow,_rs,_p)
-wrapRun (IDeal d) mAssump mNonPerfAssump 
+wrapRun fs (IDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
       return (IDeal _d,_pflow,_rs,_p)
-wrapRun (LDeal d) mAssump mNonPerfAssump 
+wrapRun fs (LDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
       return (LDeal _d,_pflow,_rs,_p)
-wrapRun (FDeal d) mAssump mNonPerfAssump 
+wrapRun fs (FDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
       return (FDeal _d,_pflow,_rs,_p)
-wrapRun (UDeal d) mAssump mNonPerfAssump 
+wrapRun fs (UDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump 
+      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump 
       return (UDeal _d,_pflow,_rs,_p)                                       
-wrapRun (VDeal d) mAssump mNonPerfAssump 
+wrapRun fs (VDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
       return (VDeal _d,_pflow,_rs,_p)                                       
-wrapRun (PDeal d) mAssump mNonPerfAssump 
+wrapRun fs (PDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d D.DealPoolFlowPricing mAssump mNonPerfAssump
+      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
       return (PDeal _d,_pflow,_rs,_p)
 
-wrapRun x _ _ = Left $ "RunDeal Failed ,due to unsupport deal type "++ show x
+wrapRun _ x _ _ = Left $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
 patchCumulativeToPoolRun :: RunPoolTypeRtn_ -> RunPoolTypeRtn_
 patchCumulativeToPoolRun
   = Map.map
-          (\(CF.CashFlowFrame _ txns,stats) -> 
-            (CF.CashFlowFrame (0,Lib.toDate "19000101",Nothing) (CF.patchCumulative (0,0,0,0,0,0) [] txns),stats))
+          (\(CF.CashFlowFrame _ txns,mAssetFlow) -> 
+            (CF.CashFlowFrame (0,Lib.toDate "19000101",Nothing) (CF.patchCumulative (0,0,0,0,0,0) [] txns),mAssetFlow))
 
-wrapRunPoolType :: PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> RunPoolTypeRtn
-wrapRunPoolType (MPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType (LPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType (IPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType (RPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType (FPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType (VPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType (PPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType (UPool pt) assump mRates = D.runPoolType pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType x _ _ = Left $ "RunPool Failed ,due to unsupport pool type "++ show x
+wrapRunPoolType :: Bool -> PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> RunPoolTypeRtn
+wrapRunPoolType flag (MPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag (LPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag (IPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag (RPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag (FPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag (VPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag (PPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag (UPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag x _ _ = Left $ "RunPool Failed ,due to unsupport pool type "++ show x
 
 
 wrapRunAsset :: RunAssetReq -> RunAssetResp
 wrapRunAsset (RunAssetReq d assets Nothing mRates Nothing) 
   = do 
       cfs <- sequenceA $ (\a -> MA.calcAssetUnion a d mRates) <$> assets
-      return (P.aggPool Nothing [(cf,Map.empty) | cf <- cfs], Nothing) 
+      return (fst (P.aggPool Nothing [(cf,Map.empty) | cf <- cfs]), Nothing) 
 wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates Nothing) 
   = do 
       cfs <- sequenceA $ (\a -> MA.projAssetUnion a d assumps mRates) <$> assets
-      return (P.aggPool Nothing [(cf,Map.empty) | (cf,_) <- cfs] , Nothing) 
+      return (fst (P.aggPool Nothing [(cf,Map.empty) | (cf,_) <- cfs])  , Nothing) 
 wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates (Just pm)) 
-  = 
-    do 
+  = do 
       cfs <- sequenceA $ (\a -> MA.projAssetUnion a d assumps mRates) <$> assets
       pricingResult <- sequenceA $ (\a -> D.priceAssetUnion a d pm assumps mRates) <$> assets
-      let assetCf = P.aggPool Nothing cfs
+      let (assetCf,_) = P.aggPool Nothing cfs
       return (assetCf , Just pricingResult)
 
 -- Swagger API
@@ -208,19 +208,18 @@ runAsset :: RunAssetReq -> Handler RunAssetResp
 runAsset req = return $ wrapRunAsset req
 
 runPool :: RunPoolReq -> Handler PoolRunResp
-runPool (SingleRunPoolReq pt passumption mRates) 
+runPool (SingleRunPoolReq f pt passumption mRates) 
   = return $
-      patchCumulativeToPoolRun <$> (wrapRunPoolType pt passumption mRates)
+      patchCumulativeToPoolRun <$> (wrapRunPoolType f pt passumption mRates)
 
 runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
-runPoolScenarios (MultiScenarioRunPoolReq pt mAssumps mRates) 
+runPoolScenarios (MultiScenarioRunPoolReq f pt mAssumps mRates) 
   = return $ Map.map (\assump -> 
-                        patchCumulativeToPoolRun <$> (wrapRunPoolType pt (Just assump) mRates)) 
+                        patchCumulativeToPoolRun <$> (wrapRunPoolType f pt (Just assump) mRates)) 
                       mAssumps
 
 runDeal :: RunDealReq -> Handler RunResp
-runDeal (SingleRunReq dt assump nonPerfAssump) 
-  = return $ wrapRun dt assump nonPerfAssump
+runDeal (SingleRunReq f dt assump nonPerfAssump) = return $ wrapRun f dt assump nonPerfAssump
 
 
 -- Stressing default assumption from AssetPerfAssumption
@@ -292,6 +291,16 @@ queryDealTypeBool (UDeal _d) d s = Q.queryDealBool _d s d
 queryDealTypeBool (VDeal _d) d s = Q.queryDealBool _d s d
 queryDealTypeBool (PDeal _d) d s = Q.queryDealBool _d s d
 
+testDealTypeBool :: DealType -> Date -> Pre -> Either String Bool
+testDealTypeBool (MDeal _d) d p = Q.testPre d _d p 
+testDealTypeBool (RDeal _d) d p = Q.testPre d _d p 
+testDealTypeBool (IDeal _d) d p = Q.testPre d _d p 
+testDealTypeBool (LDeal _d) d p = Q.testPre d _d p 
+testDealTypeBool (FDeal _d) d p = Q.testPre d _d p 
+testDealTypeBool (UDeal _d) d p = Q.testPre d _d p 
+testDealTypeBool (VDeal _d) d p = Q.testPre d _d p 
+testDealTypeBool (PDeal _d) d p = Q.testPre d _d p 
+
 getDealBondMap :: DealType -> Map.Map BondName L.Bond
 getDealBondMap (MDeal d) = DB.bonds d
 getDealBondMap (RDeal d) = DB.bonds d
@@ -313,25 +322,25 @@ getDealFeeMap (VDeal d) = DB.fees d
 getDealFeeMap (PDeal d) = DB.fees d
 
 doTweak :: Double -> RootFindTweak -> DealRunInput -> DealRunInput
-doTweak r StressPoolDefault (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) 
+doTweak r StressPoolDefault (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}, f) 
   = let
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressDefaultAssetPerf (toRational r)) assumps
       stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (stressDefaultAssetPerf (toRational r)) mRevolving }
     in
-      (dt ,Just stressed, stressedNonPerf)
+      (dt ,Just stressed, stressedNonPerf, f)
 
-doTweak r StressPoolPrepayment (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) 
+doTweak r StressPoolPrepayment (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}, f) 
   = let
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressPrepayAssetPerf (toRational r)) assumps
       stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (stressPrepayAssetPerf (toRational r)) mRevolving }
     in
-      (dt ,Just stressed, stressedNonPerf)
+      (dt ,Just stressed, stressedNonPerf, f)
 
-doTweak r (MaxSpreadTo bn) (dt , mAssump, rAssump)
-  = (modifyDealType (DM.AddSpreadToBonds bn) r dt , mAssump, rAssump)
+doTweak r (MaxSpreadTo bn) (dt , mAssump, rAssump, f)
+  = (modifyDealType (DM.AddSpreadToBonds bn) r dt , mAssump, rAssump, f)
 
-doTweak r (SplitFixedBalance bn1 bn2) (dt , mAssump, rAssump)
-  = (modifyDealType (DM.SlideBalances bn1 bn2) r dt , mAssump, rAssump)
+doTweak r (SplitFixedBalance bn1 bn2) (dt , mAssump, rAssump, f)
+  = (modifyDealType (DM.SlideBalances bn1 bn2) r dt , mAssump, rAssump, f)
 
 
 evalRootFindStop :: RootFindStop -> RunRespRight -> Double
@@ -352,7 +361,6 @@ evalRootFindStop (BondIncurPrinLoss bn threshold) (dt,_,_,_)
       duePrinAmt = L.getCurBalance $ getDealBondMap dt Map.! bn
     in
       (fromRational . toRational) $ threshold - (duePrinAmt-0.01)
-
 
 evalRootFindStop (BondPricingEqOriginBal bn otherBondFlag otherFeeFlag) (dt,_,_,pResult) 
   = let 
@@ -379,17 +387,18 @@ evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult)
         Nothing -> -1  -- `debug` ("No IRR found for bond:"++ show bn)
         Just irr -> (fromRational . toRational) $ irr - target -- `debug` ("IRR for bond:"++ show target ++" is "++ show irr)
 
+
 rootFindAlgo :: DealRunInput -> RootFindTweak -> RootFindStop -> Double -> Double
-rootFindAlgo (dt ,poolAssumps, runAssumps) tweak stop r 
+rootFindAlgo (dt ,poolAssumps, runAssumps, f) tweak stop r 
   = let 
-      (dt' ,poolAssumps', runAssumps') = doTweak r tweak (dt ,poolAssumps, runAssumps)
+      (dt' ,poolAssumps', runAssumps', f) = doTweak r tweak (dt ,poolAssumps, runAssumps, f)
     in 
-      case wrapRun dt' poolAssumps' runAssumps' of
+      case wrapRun f dt' poolAssumps' runAssumps' of
         Right runRespRight -> evalRootFindStop stop runRespRight -- `debug` ("Begin pool"++ show poolAssumps')
         Left errorMsg -> -1
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
-runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}) tweak stop)
+runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving},f) tweak stop)
   = return $
       let 
         itertimes = 500
@@ -404,30 +413,31 @@ runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssu
           SearchFailed -> Left "Not able to find the root"
 
 runDealScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
-runDealScenarios (MultiScenarioRunReq dt mAssumps nonPerfAssump) 
-  = return $ Map.map (\singleAssump -> wrapRun dt (Just singleAssump) nonPerfAssump) mAssumps
+runDealScenarios (MultiScenarioRunReq f dt mAssumps nonPerfAssump) 
+  = return $ Map.map (\singleAssump -> wrapRun f dt (Just singleAssump) nonPerfAssump) mAssumps
 
 runMultiDeals :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
-runMultiDeals (MultiDealRunReq mDts assump nonPerfAssump) 
-  = return $ Map.map (\singleDealType -> wrapRun singleDealType assump nonPerfAssump) mDts
+runMultiDeals (MultiDealRunReq f mDts assump nonPerfAssump) 
+  = return $ Map.map (\singleDealType -> wrapRun f singleDealType assump nonPerfAssump) mDts
 
 runDate :: RunDateReq -> Handler [Date]
-runDate (RunDateReq sd dp md) = return $ 
-                                    case md of
-                                      Nothing -> DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
-                                      Just d -> DU.genSerialDatesTill2 IE sd dp d
+runDate (RunDateReq sd dp md)
+  = return $ 
+      case md of
+        Nothing -> DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
+        Just d -> DU.genSerialDatesTill2 IE sd dp d
 
 runDealByRunScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
-runDealByRunScenarios (MultiRunAssumpReq dt mAssump nonPerfAssumpMap)
-  = return $ Map.map (wrapRun dt mAssump) nonPerfAssumpMap
+runDealByRunScenarios (MultiRunAssumpReq f dt mAssump nonPerfAssumpMap)
+  = return $ Map.map (wrapRun f dt mAssump) nonPerfAssumpMap
 
 runDealByCombo :: RunDealReq -> Handler (Map.Map String RunResp)
-runDealByCombo (MultiComboReq dMap assumpMap nonPerfAssumpMap)
+runDealByCombo (MultiComboReq f dMap assumpMap nonPerfAssumpMap)
   = let 
       dList = Map.toList dMap
       aList = Map.toList assumpMap
       nList = Map.toList nonPerfAssumpMap
-      r = [ (intercalate "^" [dk,ak,nk], wrapRun d a n) | (dk,d) <- dList, (ak,a) <- aList, (nk,n) <- nList ]
+      r = [ (intercalate "^" [dk,ak,nk], wrapRun f d a n) | (dk,d) <- dList, (ak,a) <- aList, (nk,n) <- nList ]
       rMap = Map.fromList r
     in 
       return rMap

@@ -12,6 +12,7 @@ module Deal.DealQuery (queryDealBool ,patchDateToStats,patchDatesToStats,testPre
 import Deal.DealBase
 import Types
 import qualified Asset as P
+import qualified AssetClass.AssetBase as AB 
 import Data.List
 import Data.Fixed
 import Data.Maybe
@@ -33,6 +34,7 @@ import qualified CreditEnhancement as CE
 import qualified Hedge as H
 import qualified Analytics as A
 import qualified Pool as Pl
+import qualified InterestRate as IR
 import Stmt
 import Util
 import Errors
@@ -269,6 +271,21 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       in 
         Right $ sum rates
 
+    --TODO need to use projected current balance instead of current balance 
+    PoolWaSpread mPns -> 
+      let 
+	assets = getAllAsset t mPns
+	bals = P.getCurrentBal <$> concat (Map.elems assets)
+	spreads = map 
+	            (\x -> 
+		      case x of
+		        AB.MortgageOriginalInfo { AB.originRate = r } -> fromMaybe 0.0 $ IR._getSpread r
+                        AB.LoanOriginalInfo { AB.originRate = r } -> fromMaybe 0.0 $ IR._getSpread r
+                        _ -> 0.0)
+		    (P.getOriginInfo <$> concat (Map.elems assets))
+      in 
+	Right $ weightedBy (toRational <$> bals) (toRational <$> spreads)
+
     DealStatRate s -> 
       case stats t of 
         (_,m,_,_) -> case Map.lookup s m of
@@ -283,6 +300,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
         poolBn =  maybe 0 (fromMaybe 0 . CF.mflowBorrowerNum) <$> poolCfs
       in 
         Right . toRational $ sum poolBn
+
     CurrentPoolBorrowerNum mPns ->
       let 
         assetM = concat $ Map.elems $ getAllAsset t mPns
@@ -296,7 +314,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           Nothing -> Left $ "Date:"++show d++"There is maturity date for bond " ++ bn
           Just md -> Right . toRational $ T.cdMonths $ T.diffGregorianDurationClip md d
 
-    ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map (maybe 0 CF.sizeCashFlowFrame) $ getAllCollectedFrame t Nothing
+    ProjCollectPeriodNum -> Right . toRational $ maximum' $ Map.elems $ Map.map CF.sizeCashFlowFrame $ getAllCollectedFrame t Nothing
 
     DealStatInt s -> 
       case stats t of 
@@ -406,17 +424,17 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             Left $ "Date:"++show d++"Failed to find pool balance" ++ show pids ++ " from deal "++ show (Map.keys pm)
         _ -> Left $ "Date:"++show d++"Failed to find pool" ++ show mPns ++","++ show pt
 
-    FutureCurrentSchedulePoolBalance mPns ->
-      let 
-        scheduleFlowM = Map.elems $ view dealScheduledCashflow t
-      in 
-        Right . toRational $ sum $ maybe 0 ((view CF.tsRowBalance) . head . view CF.cashflowTxn) <$> scheduleFlowM
-    
-    FutureCurrentSchedulePoolBegBalance mPns ->
-      let 
-        scheduleFlowM = Map.elems $ view dealScheduledCashflow t
-      in 
-        Right . toRational $ sum $ maybe 0 (CF.mflowBegBalance . head . view CF.cashflowTxn) <$> scheduleFlowM
+--     FutureCurrentSchedulePoolBalance mPns ->
+--       let 
+--         scheduleFlowM = Map.elems $ view dealScheduledCashflow t
+--       in 
+--         Right . toRational $ sum $ ((view CF.tsRowBalance) . head . view CF.cashflowTxn) <$> scheduleFlowM
+--     
+--     FutureCurrentSchedulePoolBegBalance mPns ->
+--       let 
+--         scheduleFlowM = Map.elems $ view dealScheduledCashflow t
+--       in 
+--         Right . toRational $ sum $ (CF.mflowBegBalance . head . view CF.cashflowTxn) <$> scheduleFlowM
     
     FutureCurrentPoolBegBalance mPns ->
       let 
@@ -428,7 +446,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       Right . toRational $ sum fieldAmts
         where
           mTxns = Map.elems $ getAllCollectedTxns t mPns
-          subflow = sliceBy EI fromDay asOfDay $ concat $ fromMaybe [] <$> mTxns
+          subflow = sliceBy EI fromDay asOfDay $ concat mTxns
           fieldAmts = map (`CF.lookupSource` incomeType) subflow  
 
     CumulativePoolDefaultedBalance mPns ->
@@ -453,7 +471,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     
     PoolCumCollection ps mPns ->
       let 
-        collectedTxns = concat . Map.elems $ Map.map (fromMaybe []) $ getAllCollectedTxns t mPns
+        collectedTxns = concat . Map.elems $ getAllCollectedTxns t mPns
         futureVals = sum $ (CF.lookupSource <$> collectedTxns) <*> ps
         
         poolStats = Map.elems $ getIssuanceStats t mPns
@@ -463,7 +481,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     
     PoolCumCollectionTill idx ps mPns -> 
       let 
-        txnMap = Map.map (dropLastN (negate idx) . fromMaybe []) $ getAllCollectedTxns t mPns 
+        txnMap = Map.map (dropLastN (negate idx)) $ getAllCollectedTxns t mPns 
         txnList = concat $ Map.elems txnMap
         lookupList = CF.lookupSource <$> txnList
         futureVals = sum $ lookupList <*> ps
@@ -483,10 +501,9 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
       let 
         pCollectedTxns = getAllCollectedTxns t mPns 
         pStat = Map.map
-                  (\_x -> 
+                  (\x -> 
                     let
                       lookupIndx = length x + idx - 1
-                      x = fromMaybe [] _x
                     in
                       if (( lookupIndx >= length x ) ||  (lookupIndx <0)) then 
                         Nothing
@@ -509,8 +526,10 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
-        pScheduleFlow = view dealScheduledCashflow t
-        pCfTxns = Map.map (maybe [] (view CF.cashflowTxn)) $
+        pScheduleFlow::(Map.Map PoolId CF.CashFlowFrame) = case pt of
+			  MultiPool poolMap -> Map.map (\p -> view (Pl.poolFutureScheduleCf . _1) p) poolMap
+			  -- ResecDeal dealMap -> Map.map (view uDealFutureScheduleCf) dealMap
+        pCfTxns::(Map.Map PoolId [CF.TsRow]) = Map.map (view CF.cashflowTxn) $
                     case mPns of 
                       Nothing -> pScheduleFlow
                       Just pIds -> Map.filterWithKey (\k _ -> S.member k (S.fromList pIds)) pScheduleFlow
@@ -710,11 +729,10 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
 
     WeightedAvgCurrentPoolBalance d1 d2 mPns ->
       let 
-        txnsByPool = getAllCollectedTxns t mPns
-        waBalByPool = Map.map (CF.mflowWeightAverageBalance d1 d2 <$>) txnsByPool
+        txnsByPool::(Map.Map PoolId [CF.TsRow]) = getAllCollectedTxns t mPns
+        waBalByPool::(Map.Map PoolId Balance) = Map.map (CF.mflowWeightAverageBalance d1 d2) txnsByPool
       in 
-        Right . toRational $ 
-          sum $ fromMaybe 0  <$> Map.elems waBalByPool
+        Right . toRational $ sum $ Map.elems waBalByPool
 
     WeightedAvgOriginalBondBalance d1 d2 bns ->
       let 

@@ -541,7 +541,6 @@ data Pre = IfZero DealStats
         deriving (Show,Generic,Eq,Ord,Read)
 
 
-
 data Table a b = ThresholdTable [(a,b)]
                  deriving (Show,Eq,Ord,Read,Generic)
 
@@ -618,6 +617,7 @@ data DealStats = CurrentBondBalance
                | PoolCumCollectionTill Int [PoolSource] (Maybe [PoolId])
                | PoolCurCollection [PoolSource] (Maybe [PoolId])
                | PoolCollectionStats Int [PoolSource] (Maybe [PoolId])
+	       | PoolWaSpread (Maybe [PoolId])
                | AllAccBalance
                | AccBalance [AccName]
                | LedgerBalance [String]
@@ -780,6 +780,7 @@ data CashflowReport = CashflowReport {
                         ,endDate :: Date }
                         deriving (Show,Read,Generic,Eq)
 
+
 data Threshold = Below
                | EqBelow
                | Above
@@ -792,20 +793,21 @@ data SplitType = EqToLeft   -- if equal, the element belongs to left
                | EqToLeftKeepOnes
                deriving (Show, Eq, Generic)
 
-data CutoffFields = IssuanceBalance      -- ^ pool issuance balance
-                  | HistoryRecoveries    -- ^ cumulative recoveries
-                  | HistoryInterest      -- ^ cumulative interest collected
-                  | HistoryPrepayment    -- ^ cumulative prepayment collected
+-- ^ deal level cumulative statistics
+data CutoffFields = IssuanceBalance              -- ^ pool issuance balance
+                  | HistoryRecoveries            -- ^ cumulative recoveries
+                  | HistoryInterest              -- ^ cumulative interest collected
+                  | HistoryPrepayment            -- ^ cumulative prepayment collected
                   | HistoryPrepaymentPentalty    -- ^ cumulative prepayment collected
-                  | HistoryPrincipal     -- ^ cumulative principal collected
-                  | HistoryRental        -- ^ cumulative rental collected
-                  | HistoryDefaults      -- ^ cumulative default balance
-                  | HistoryDelinquency   -- ^ cumulative delinquency balance
-                  | HistoryLoss          -- ^ cumulative loss/write-off balance
-                  | HistoryCash          -- ^ cumulative cash
+                  | HistoryPrincipal             -- ^ cumulative principal collected
+                  | HistoryRental                -- ^ cumulative rental collected
+                  | HistoryDefaults              -- ^ cumulative default balance
+                  | HistoryDelinquency           -- ^ cumulative delinquency balance
+                  | HistoryLoss                  -- ^ cumulative loss/write-off balance
+                  | HistoryCash                  -- ^ cumulative cash
                   | HistoryFeePaid
-                  | AccruedInterest      -- ^ accrued interest at closing
-                  | RuntimeCurrentPoolBalance   -- ^ current pool balance
+                  | AccruedInterest              -- ^ accrued interest at closing
+                  | RuntimeCurrentPoolBalance    -- ^ current pool balance
                   deriving (Show,Ord,Eq,Read,Generic,NFData)
 
 
@@ -900,9 +902,6 @@ data TimeHorizion = ByMonth
 
 instance TimeSeries (TsPoint a) where 
     getDate (TsPoint d a) = d
-
-
-  -- compare (PoolPeriodPoint i1 tv1) (PoolPeriodPoint i2 tv2) = compare i1 i2
 
 
 $(deriveJSON defaultOptions ''DecimalRaw)
@@ -1092,6 +1091,7 @@ getDealStatType (Avg dss) = RtnRate
 getDealStatType (Divide ds1 ds2) = RtnRate
 getDealStatType (Multiply _) = RtnRate
 getDealStatType (Factor _ _) = RtnRate
+getDealStatType (PoolWaSpread _) = RtnRate
 
 getDealStatType (CurrentPoolBorrowerNum _) = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
@@ -1144,13 +1144,9 @@ instance FromJSONKey DateType where
 
 
 $(deriveJSON defaultOptions ''RangeType)
--- $(deriveJSON defaultOptions ''(PerCurve Balance))
--- $(deriveJSON defaultOptions ''(PerCurve Rate))
 $(deriveJSON defaultOptions ''PerCurve)
 $(deriveJSON defaultOptions ''Pre)
-
 $(deriveJSON defaultOptions ''CustomDataType)
-
 $(deriveJSON defaultOptions ''ActionWhen)
 
 instance ToJSONKey ActionWhen where

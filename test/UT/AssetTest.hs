@@ -626,8 +626,8 @@ delinqScheduleCFTest =
           ,CF.MortgageDelinqFlow (L.toDate "20231001") 500 500 0 0 0 0 0 0 0.08 Nothing Nothing Nothing
           ]
     pool = P.Pool ([]::[AB.Mortgage])
-                  (Just (CF.CashFlowFrame dummySt cfs))
-                  (Just (CF.CashFlowFrame dummySt cfs))
+                  ((CF.CashFlowFrame dummySt cfs), Nothing)
+                  ((CF.CashFlowFrame dummySt cfs), Nothing)
                   (L.toDate "20230801")
                   Nothing
                   (Just MonthEnd)

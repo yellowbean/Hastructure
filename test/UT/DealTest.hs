@@ -138,7 +138,7 @@ td2 = D.TestDeal {
                                    Nothing
                                    (AB.Defaulted Nothing)
                                  ]
-                 ,P.futureCf=Nothing
+                 ,P.futureCf=(CF.emptyCashflow, Nothing)
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]}
                 )]
@@ -250,7 +250,7 @@ baseDeal = D.TestDeal {
                                          60
                                          Nothing
                                          AB.Current]
-                 ,P.futureCf=Nothing
+                 ,P.futureCf= (CF.emptyCashflow, Nothing)
                  ,P.extendPeriods = Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70),(IssuanceBalance, 4000)]})]
@@ -269,7 +269,7 @@ baseDeal = D.TestDeal {
 
 poolFlowTest = 
    let 
-     (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal DealPoolFlowPricing Nothing emptyRunAssump) of
+     (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal S.empty Nothing emptyRunAssump) of
                                               (Left er) -> error $ "Deal run failed"++ show er
                                               (Right (a,b,c,d)) -> (a,b,c,d) 
      bndMap = D.viewBondsInMap deal
@@ -279,7 +279,7 @@ poolFlowTest =
       testCase "pool begin flow" $
       assertEqual "pool size should be 60" 
       (Just (Map.fromList [(PoolConsol ,60)]))
-      ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf )  -- `debug` ("pool "++ show (mPoolCf))
+      ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf )  `debug` ("pool from test "++ show (mPoolCf))
       
       ,testCase "total principal bal" $
       assertEqual "pool bal should equal to total collect"
@@ -305,7 +305,7 @@ queryTests =  testGroup "deal stat query Tests"
 triggerTests = testGroup "Trigger Tests"
   [ let 
       setup = 0 
-      poolflows = CF.CashFlowFrame dummySt $
+      poolflows = (CF.CashFlowFrame dummySt $
                      [CF.MortgageDelinqFlow (toDate "20220201") 800 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
                      ,CF.MortgageDelinqFlow (toDate "20220301") 700 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
                      ,CF.MortgageDelinqFlow (toDate "20220401") 600 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
@@ -313,6 +313,7 @@ triggerTests = testGroup "Trigger Tests"
                      ,CF.MortgageDelinqFlow (toDate "20220601") 400 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
                      ,CF.MortgageDelinqFlow (toDate "20220701") 300 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
                      ]
+		   ,Nothing)
       poolflowM = Map.fromList [(PoolConsol, poolflows)]
       ads = [PoolCollection (toDate "20220201") "" 
              ,RunWaterfall  (toDate "20220225") ""

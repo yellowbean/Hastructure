@@ -121,7 +121,7 @@ td = D.TestDeal {
                                    Nothing
                                    (AB.Defaulted Nothing)
                                  ]
-                 ,P.futureCf=Nothing
+                 ,P.futureCf=(CF.CashFlowFrame (0,epocDate,Nothing) [],Nothing)
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Nothing}
                 )]

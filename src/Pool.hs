@@ -4,16 +4,17 @@
 
 module Pool (Pool(..),aggPool
        ,getIssuanceField
-       ,poolFutureCf,poolFutureTxn,poolIssuanceStat
+       ,poolFutureCf,poolIssuanceStat
        ,poolFutureScheduleCf
-       ,poolBegStats,poolFutureCf2,calcLiquidationAmount,pricingPoolFlow
+       ,poolBegStats,calcLiquidationAmount,pricingPoolFlow
+       ,futureScheduleCfLens,futureCfLens, poolFutureCf
 ) where
 
 
 import Lib (Period(..)
            ,Ts(..),periodRateFromAnnualRate,toDate
            ,getIntervalDays,zipWith9,mkTs,periodsBetween
-           ,mkRateTs,daysBetween)
+           ,mkRateTs,daysBetween, )
 
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
@@ -32,7 +33,7 @@ import Data.Aeson.Types
 import Types hiding (Current)
 
 import Data.Maybe
-import Control.Lens hiding (element)
+import Control.Lens
 import Control.Lens.TH
 import Assumptions (ApplyAssumptionType)
 
@@ -40,45 +41,30 @@ import Util
 import Cashflow (CashFlowFrame)
 import qualified Stmt as CF
 import Debug.Trace
-debug = flip trace
+gebug = flip trace
 
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
-                   ,futureCf :: Maybe CF.CashFlowFrame                      -- ^ projected cashflow from the assets in the pool
-                   ,futureScheduleCf :: Maybe CF.CashFlowFrame              -- ^ projected un-stressed cashflow
+                   ,futureCf :: CF.PoolCashflow                       -- ^ collected cashflow from the assets in the pool
+                   ,futureScheduleCf :: CF.PoolCashflow               -- ^ collected un-stressed cashflow
                    ,asOfDate :: Date                                        -- ^ include cashflow after this date 
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
                    } deriving (Show, Generic, Ord, Eq)
 
+makeLensesFor [("futureCf","futureCfLens"),("futureScheduleCf","futureScheduleCfLens")] ''Pool
 
-poolFutureCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
+poolFutureCf :: Asset a => Lens' (Pool a) CF.PoolCashflow
 poolFutureCf = lens getter setter 
   where 
     getter p = futureCf p
     setter p mNewCf = p {futureCf = mNewCf}
 
-poolFutureCf2 :: Asset a => Lens' (Pool a) CF.CashFlowFrame
-poolFutureCf2 = lens getter setter 
-  where 
-    getter p = fromMaybe (CF.CashFlowFrame (0,toDate "19000101",Nothing) []) $ futureCf p
-    setter p newCf = p {futureCf = Just newCf}
-
-poolFutureScheduleCf :: Asset a => Lens' (Pool a) (Maybe CF.CashFlowFrame)
+poolFutureScheduleCf :: Asset a => Lens' (Pool a) CF.PoolCashflow
 poolFutureScheduleCf = lens getter setter
   where 
-    getter p =  futureScheduleCf p
+    getter p = futureScheduleCf p
     setter p mNewCf = p {futureScheduleCf = mNewCf}
-
-poolFutureTxn :: Asset a => Lens' (Pool a) [CF.TsRow]
-poolFutureTxn = lens getter setter
-  where 
-    getter p = case futureCf p of
-                Nothing -> []::[CF.TsRow]
-                Just (CF.CashFlowFrame _ txns) -> txns
-    setter p trs = case futureCf p of
-                    Nothing -> p {futureCf = Just (CF.CashFlowFrame (0,toDate "19000101",Nothing) trs)}  --TODO fix this
-                    Just (CF.CashFlowFrame st _) -> p {futureCf = Just (CF.CashFlowFrame st trs)}
 
 poolIssuanceStat :: Asset a => Lens' (Pool a) (Map.Map CutoffFields Balance)
 poolIssuanceStat = lens getter setter
@@ -146,8 +132,8 @@ aggPool mStat xs
 calcLiquidationAmount :: Asset a => PricingMethod -> Pool a -> Date -> Amount
 calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d 
   = case futureCf pool of 
-      Nothing -> 0  -- `debug` ("No futureCF")
-      Just _futureCf@(CF.CashFlowFrame _ trs) ->
+      (CF.CashFlowFrame _ [],_) -> 0
+      _futureCf@(CF.CashFlowFrame _ trs,_) ->
         let 
           earlierTxns = cutBy Inc Past d trs
           currentCumulativeDefaultBal = sum $ map (\x -> CF.mflowDefault x - CF.mflowRecovery x - CF.mflowLoss x) earlierTxns
@@ -162,10 +148,10 @@ calcLiquidationAmount (BalanceFactor currentFactor defaultFactor ) pool d
 -- | pricing via future scheduled cashflow( zero risk adjust)
 -- | pricing via user define risk adjust cashflow( own assumption)
 -- TODO: in revolving buy future schedule cashflow should be updated as well
-calcLiquidationAmount (PV discountRate recoveryPct) pool d 
+calcLiquidationAmount (PV discountRate  recoveryPct) pool d 
   = case futureCf pool of
-      Nothing -> 0 
-      Just (CF.CashFlowFrame _ trs) ->
+      (CF.CashFlowFrame _ [],_) -> 0 
+      (CF.CashFlowFrame _ trs,_) ->
           let 
             futureTxns = cutBy Inc Future d trs -- `debug` (" pv date"++show d++ " with rate"++show discountRate)
             earlierTxns = cutBy Exc Past d trs -- `debug` ("Total txn"++show trs)
@@ -177,22 +163,16 @@ calcLiquidationAmount (PV discountRate recoveryPct) pool d
             pvCf + mulBR currentDefaulBal recoveryPct
 
 -- ^ price a pool with collected cashflow and future cashflow
-pricingPoolFlow :: Asset a =>  Date -> Pool a -> CashFlowFrame -> PricingMethod -> Amount
-pricingPoolFlow d pool@Pool{ futureCf = mCollectedCf, issuanceStat = mStat } futureCfUncollected pm 
+pricingPoolFlow :: Asset a =>  Date -> Pool a -> CF.PoolCashflow -> PricingMethod -> Amount
+pricingPoolFlow d pool@Pool{ futureCf = (mCollectedCf,_), issuanceStat = mStat } (futureCfUncollected,_) pm 
   = let 
-      currentCumulativeDefaultBal = case mCollectedCf of 
-                                      Nothing -> 0 
-                                      Just collectedCf -> 
-                                        let 
-                                          collectedTxns = view CF.cashflowTxn collectedCf
-                                        in
-                                          if null collectedTxns then 
-                                            0 
-                                          else 
-                                            let 
-                                              lastTxn = last collectedTxns
-                                            in 
-                                              fromMaybe 0 (CF.tsCumDefaultBal lastTxn) - fromMaybe 0 (CF.tsCumRecoveriesBal lastTxn) - fromMaybe 0 (CF.tsCumLossBal lastTxn)
+      currentCumulativeDefaultBal 
+        | CF.emptyCashFlowFrame  mCollectedCf = 0
+        | otherwise = let 
+                        lastTxn = last $ view CF.cashflowTxn  $ mCollectedCf
+                      in 
+                        fromMaybe 0 (CF.tsCumDefaultBal lastTxn) - fromMaybe 0 (CF.tsCumRecoveriesBal lastTxn) - fromMaybe 0 (CF.tsCumLossBal lastTxn)
+
       currentPerformingBal = case mStat of
               Nothing -> 0
               Just stat -> Map.findWithDefault 0 RuntimeCurrentPoolBalance stat
