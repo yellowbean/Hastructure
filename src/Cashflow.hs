@@ -76,6 +76,14 @@ type AssetCashflow = CashFlowFrame
 type PoolCashflow = (AssetCashflow, Maybe [AssetCashflow])
 emptyCashflow = CashFlowFrame (0,epocDate,Nothing) []
 
+
+instance Monoid CashFlowFrame where
+  mempty = emptyCashflow
+
+instance Semigroup CashFlowFrame where
+  CashFlowFrame (begBal1, begDate1, mAccInt1) ts1 <> CashFlowFrame (begBal2, begDate2, mAccInt2) ts2 
+    = CashFlowFrame (begBal1,begDate1,mAccInt1) (ts1 <> ts2)
+
 opStats :: (Balance -> Balance -> Balance) -> Maybe CumulativeStat -> Maybe CumulativeStat -> Maybe CumulativeStat
 opStats op (Just (a1,b1,c1,d1,e1,f1)) (Just (a2,b2,c3,d2,e2,f2)) = Just (op a1 a2,op b1 b2,op c1 c3,op d1 d2,op e1 e2,op f1 f2)
 opStats op Nothing Nothing = Nothing

@@ -46,7 +46,7 @@ gebug = flip trace
 
 data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
                    ,futureCf :: CF.PoolCashflow                       -- ^ collected cashflow from the assets in the pool
-                   ,futureScheduleCf :: CF.PoolCashflow               -- ^ collected un-stressed cashflow
+                   ,futureScheduleCf :: Maybe CF.PoolCashflow               -- ^ collected un-stressed cashflow
                    ,asOfDate :: Date                                        -- ^ include cashflow after this date 
                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
@@ -60,7 +60,7 @@ poolFutureCf = lens getter setter
     getter p = futureCf p
     setter p mNewCf = p {futureCf = mNewCf}
 
-poolFutureScheduleCf :: Asset a => Lens' (Pool a) CF.PoolCashflow
+poolFutureScheduleCf :: Asset a => Lens' (Pool a) (Maybe CF.PoolCashflow)
 poolFutureScheduleCf = lens getter setter
   where 
     getter p = futureScheduleCf p

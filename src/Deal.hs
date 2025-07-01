@@ -403,7 +403,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
     poolFlowMap (Just (ad:ads)) rates calls rAssump log
   | all (== 0) futureCashToCollect && (queryCompound t (getDate ad) AllAccBalance == Right 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
      = do 
-        let runContext = RunContext poolFlowMap rAssump rates `debug` ("ending at date " ++ show (getDate ad))
+        let runContext = RunContext poolFlowMap rAssump rates --- `debug` ("ending at date " ++ show (getDate ad))
         (finalDeal,_,newLogs) <- foldM (performActionWrap (getDate ad)) (t,runContext,log) cleanUpActions 
         return (finalDeal, (DL.snoc newLogs (EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"))) -- `debug` ("End of pool collection with logs with length "++ show (length log))
 
@@ -429,7 +429,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 let newPt = case (pool dAfterDeposit) of 
 	  		      MultiPool pm -> MultiPool $
 				                Map.map 
-	                                          (\p -> over (P.poolFutureScheduleCf . _1 . CF.cashflowTxn) (cutBy Exc Future d) p)
+	                                          (\p -> over (P.poolFutureScheduleCf . _Just . _1 . CF.cashflowTxn) (cutBy Exc Future d) p)
                                                   pm 
 			      ResecDeal dMap ->  ResecDeal dMap
                 let runContext = RunContext outstandingFlow rAssump rates  -- `debug` ("PoolCollection: before rc >>"++ show d++">>>"++ show (pool dAfterDeposit))
@@ -673,7 +673,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         MakeWhole d spd walTbl -> 
             let 
               schedulePoolFlowMap = case pt of 
-				      MultiPool pMap -> Map.map (fst . P.futureScheduleCf) pMap 
+				      MultiPool pMap -> Map.map (view (P.poolFutureScheduleCf._Just._1) ) pMap 
 				      ResecDeal uDealMap -> Map.map (view uDealFutureScheduleCf) uDealMap
             in 
               do 
@@ -1150,10 +1150,10 @@ runPool (P.Pool as _ _ asof _ _) Nothing mRates
       return [ (x, Map.empty) | x <- cf ]
 -- asset cashflow with credit stress
 ---- By pool level
-runPool (P.Pool as (CF.CashFlowFrame _ [],_) (CF.CashFlowFrame _ [],_) asof _ _) (Just (AP.PoolLevel assumps)) mRates 
+runPool (P.Pool as (CF.CashFlowFrame _ [],_) Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates 
   = sequenceA $ parMap rdeepseq (\x -> Ast.projCashflow x asof assumps mRates) as  
 ---- By index
-runPool (P.Pool as (CF.CashFlowFrame _ [],_) (CF.CashFlowFrame _ [],_)  asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
+runPool (P.Pool as (CF.CashFlowFrame _ [],_) Nothing  asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
     numAssets = length as
   in
@@ -1162,7 +1162,7 @@ runPool (P.Pool as (CF.CashFlowFrame _ [],_) (CF.CashFlowFrame _ [],_)  asof _ _
       sequenceA $ parMap rdeepseq (\(x, a) -> Ast.projCashflow x asof a mRates) (zip as _assumps)
 
 ---- By Obligor
-runPool (P.Pool as (CF.CashFlowFrame _ [],_) (CF.CashFlowFrame _ [],_) asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
+runPool (P.Pool as (CF.CashFlowFrame _ [],_) Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
   let
     -- result cf,rules,assets
     -- matchAssets:: Ast.Asset c => [Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> [AP.ObligorStrategy] 
@@ -1265,7 +1265,7 @@ patchIssuanceBalance _ bal p = p -- `debug` ("NO patching ?")
 patchScheduleFlow :: Ast.Asset a => Map.Map PoolId CF.PoolCashflow -> PoolType a -> PoolType a
 patchScheduleFlow flowM pt = 
   case pt of
-    MultiPool pM -> MultiPool $ Map.intersectionWith (set P.poolFutureScheduleCf) flowM pM
+    MultiPool pM -> MultiPool $ Map.intersectionWith (set (P.poolFutureScheduleCf . _Just)) flowM pM
     ResecDeal pM -> ResecDeal pM
 
 patchRuntimeBal :: Ast.Asset a => Map.Map PoolId Balance -> PoolType a -> PoolType a

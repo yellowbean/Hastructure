@@ -527,7 +527,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     FuturePoolScheduleCfPv asOfDay pm mPns -> 
       let 
         pScheduleFlow::(Map.Map PoolId CF.CashFlowFrame) = case pt of
-			  MultiPool poolMap -> Map.map (\p -> view (Pl.poolFutureScheduleCf . _1) p) poolMap
+			  MultiPool poolMap -> Map.map (\p -> view (Pl.poolFutureScheduleCf . _Just . _1) p) poolMap
 			  -- ResecDeal dealMap -> Map.map (view uDealFutureScheduleCf) dealMap
         pCfTxns::(Map.Map PoolId [CF.TsRow]) = Map.map (view CF.cashflowTxn) $
                     case mPns of 

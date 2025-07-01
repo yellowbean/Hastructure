@@ -623,7 +623,7 @@ performActionWrap d
                   (W.LiquidatePool lm an mPid)
  = let
      liqFunction = \(p@P.Pool{ P.issuanceStat = m} ) 
-                     -> over (P.poolFutureScheduleCf . _1) (CF.extendCashFlow d) $ 
+                     -> over (P.poolFutureScheduleCf . _Just . _1) (CF.extendCashFlow d) $ 
                         over (P.poolFutureCf . _1 ) (CF.extendCashFlow d) $ 
                         p { P.issuanceStat = Just (Map.insert RuntimeCurrentPoolBalance 0 (fromMaybe Map.empty m)) }
 
