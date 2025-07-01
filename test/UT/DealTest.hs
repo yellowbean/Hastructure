@@ -138,7 +138,7 @@ td2 = D.TestDeal {
                                    Nothing
                                    (AB.Defaulted Nothing)
                                  ]
-                 ,P.futureCf=(CF.emptyCashflow, Nothing)
+                 ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]}
                 )]
@@ -250,7 +250,7 @@ baseDeal = D.TestDeal {
                                          60
                                          Nothing
                                          AB.Current]
-                 ,P.futureCf= (CF.emptyCashflow, Nothing)
+                 ,P.futureCf= Nothing
                  ,P.extendPeriods = Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
                  ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70),(IssuanceBalance, 4000)]})]
@@ -279,7 +279,7 @@ poolFlowTest =
       testCase "pool begin flow" $
       assertEqual "pool size should be 60" 
       (Just (Map.fromList [(PoolConsol ,60)]))
-      ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf )  `debug` ("pool from test "++ show (mPoolCf))
+      ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf )  -- `debug` ("pool from test "++ show (mPoolCf))
       
       ,testCase "total principal bal" $
       assertEqual "pool bal should equal to total collect"

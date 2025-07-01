@@ -38,7 +38,7 @@ dummySt = (0,Lib.toDate "19000101",Nothing)
 multiPool = Map.fromList [(PoolName "PoolA",P.Pool {P.assets=[AB.Mortgage
                                                                    AB.MortgageOriginalInfo{ AB.originBalance=4000 ,AB.originRate=Fix DC_ACT_365F 0.085 ,AB.originTerm=60 ,AB.period=Monthly ,AB.startDate=T.fromGregorian 2022 1 1 ,AB.prinType= AB.Level ,AB.prepaymentPenalty = Nothing}
                                                                    1000 0.085 60 Nothing AB.Current]
-                                                      ,P.futureCf= (CF.emptyCashflow,Nothing)
+                                                      ,P.futureCf= Nothing
                                                       ,P.asOfDate = T.fromGregorian 2022 1 1
                                                       ,P.issuanceStat = Just $ Map.fromList [(IssuanceBalance,1000)]
                                                       ,P.extendPeriods = Nothing
@@ -46,7 +46,7 @@ multiPool = Map.fromList [(PoolName "PoolA",P.Pool {P.assets=[AB.Mortgage
                          ,(PoolName "PoolB",(P.Pool {P.assets=[AB.Mortgage
                                                                    AB.MortgageOriginalInfo{ AB.originBalance=4000 ,AB.originRate=Fix DC_ACT_365F 0.085 ,AB.originTerm=60 ,AB.period=Monthly ,AB.startDate=T.fromGregorian 2022 1 1 ,AB.prinType= AB.Level ,AB.prepaymentPenalty = Nothing}
                                                                    3000 0.085 60 Nothing AB.Current]
-                                                        ,P.futureCf=(CF.CashFlowFrame dummySt [],Nothing)
+                                                        ,P.futureCf=Nothing
                                                         ,P.asOfDate = T.fromGregorian 2022 1 1
                                                         ,P.issuanceStat = Just $ Map.fromList [(IssuanceBalance,3000)]
                                                         ,P.extendPeriods = Nothing}))]

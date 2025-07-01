@@ -78,7 +78,7 @@ baseCase = D.TestDeal {
                                          60
                                          Nothing
                                          AB.Current]
-                               ,P.futureCf=(CF.CashFlowFrame dummySt [],Nothing)
+                               ,P.futureCf=Nothing
                                ,P.asOfDate = T.fromGregorian 2022 1 1
                                ,P.issuanceStat = Nothing
                                ,P.extendPeriods = Nothing}))])

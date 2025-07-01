@@ -620,7 +620,7 @@ getAllCollectedFrame :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map P
 getAllCollectedFrame t@TestDeal{pool = poolType} mPid = 
   let 
     mCf = case poolType of 
-            MultiPool pm -> Map.map (view (P.poolFutureCf . _1 )) pm -- `debug` ("MultiPool" ++ show pm)
+            MultiPool pm -> Map.map (view (P.poolFutureCf . _Just . _1 )) pm -- `debug` ("MultiPool" ++ show pm)
             ResecDeal uds -> Map.map futureCf uds
   in 
     case mPid of 

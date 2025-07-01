@@ -429,7 +429,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 let newPt = case (pool dAfterDeposit) of 
 	  		      MultiPool pm -> MultiPool $
 				                Map.map 
-	                                          (\p -> over (P.poolFutureScheduleCf . _Just . _1 . CF.cashflowTxn) (cutBy Exc Future d) p)
+	                                          (over (P.poolFutureScheduleCf . _Just . _1 . CF.cashflowTxn) (cutBy Exc Future d)) 
                                                   pm 
 			      ResecDeal dMap ->  ResecDeal dMap
                 let runContext = RunContext outstandingFlow rAssump rates  -- `debug` ("PoolCollection: before rc >>"++ show d++">>>"++ show (pool dAfterDeposit))
@@ -1062,9 +1062,9 @@ prepareDeal er t@TestDeal {bonds = bndMap ,pool = poolType }
 	| otherwise = []
     in 
       t {bonds = Map.map (L.patchBondFactor . L.consolStmt) bndMap
-	 ,pool = poolType & over (_MultiPool . mapped . P.poolFutureCf ._1) consolePoolFlowFn 
+	 ,pool = poolType & over (_MultiPool . mapped . P.poolFutureCf . _Just ._1) consolePoolFlowFn 
 	                  & over (_ResecDeal . mapped . uDealFutureCf) consolePoolFlowFn
-			  & over (_MultiPool . mapped . P.poolFutureCf . _2 . _Just) rmAssetLevelFn 
+			  & over (_MultiPool . mapped . P.poolFutureCf . _Just . _2 . _Just) rmAssetLevelFn 
 	}
 
 
@@ -1076,9 +1076,9 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                 MultiPool poolM -> 
                   MultiPool $
                     Map.foldrWithKey
-                      (\k (CF.CashFlowFrame _ txnCollected, mAssetFlow) acc ->
+                      (\k (CF.CashFlowFrame st txnCollected, mAssetFlow) acc ->
                         let 
-                          currentStats = case view (P.poolFutureCf . _1 .  CF.cashflowTxn) (acc Map.! k) of
+                          currentStats = case view (P.poolFutureCf . _Just . _1 . CF.cashflowTxn) (acc Map.! k) of
                                           [] -> P.poolBegStats (acc Map.! k)
                                           txns -> fromMaybe (0,0,0,0,0,0) $ view CF.txnCumulativeStats (last txns)
                           balInCollected = case length txnCollected of 
@@ -1086,7 +1086,16 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
                                              _ ->  view CF.tsRowBalance $ last txnCollected
                           txnToAppend = CF.patchCumulative currentStats [] txnCollected
 			  -- insert aggregated pool flow
-                          accUpdated =  acc & ix k %~ over (P.poolFutureCf . _1 . CF.cashflowTxn) (++ txnToAppend)
+                          accUpdated =  Map.adjust
+			                  (\_v -> case (P.futureCf _v) of
+					            Nothing -> set P.poolFutureCf (Just (CF.CashFlowFrame st txnCollected , mAssetFlow)) _v
+						    Just _ -> over (P.poolFutureCf . _Just . _1 . CF.cashflowTxn) (++ txnToAppend) _v
+				          )
+					  k
+					  acc 
+			                  -- & ix k %~ over (P.poolFutureCf . _Just . _1 . CF.cashflowTxn) (++ txnToAppend)
+			                  -- & ix k %~ over (P.poolFutureCf . _Nothing) (\ () -> Just (CF.CashFlowFrame st txnCollected , mAssetFlow))
+			                    
 			  -- insert breakdown asset flow
 			  accUpdated' = case mAssetFlow of 
 					  Nothing -> accUpdated
@@ -1102,7 +1111,7 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
 						    Just $ [ origin & over (CF.cashflowTxn) (++ (view CF.cashflowTxn new)) | (origin,new) <- zip (cfs++dummyCashFrames) collectedAssetFlow ]
 						| otherwise = error "incomping cashflow number shall greater than existing cashflow number"
 					    in 
-					      accUpdated & ix k %~ (\p -> over (P.poolFutureCf . _2) appendFn p)
+					      accUpdated & ix k %~ (over (P.poolFutureCf . _Just . _2) appendFn)
                         in 
                           Map.adjust 
                             (over P.poolIssuanceStat (Map.insert RuntimeCurrentPoolBalance balInCollected))
@@ -1124,7 +1133,7 @@ removePoolCf :: Ast.Asset a => TestDeal a -> TestDeal a
 removePoolCf t@TestDeal{pool=pt} =
   let 
     newPt = case pt of 
-              MultiPool pm -> MultiPool $ set (mapped . P.poolFutureCf)  (CF.CashFlowFrame (0,epocDate,Nothing) [], Nothing) pm 
+              MultiPool pm -> MultiPool $ set (mapped . P.poolFutureCf) Nothing pm 
               ResecDeal uds -> ResecDeal uds
               _ -> error $ "not implement:" ++ show pt
   in
@@ -1135,9 +1144,9 @@ removePoolCf t@TestDeal{pool=pt} =
 runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] 
         -> Either String [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]
 -- schedule cashflow just ignores the interest rate assumption
-runPool (P.Pool [] (cf,_) _ asof _ _ ) Nothing _ = Right [(cf, Map.empty)]
+runPool (P.Pool [] (Just (cf,_)) _ asof _ _ ) Nothing _ = Right [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
-runPool (P.Pool []  ((CF.CashFlowFrame _ txn),_) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates 
+runPool (P.Pool []  (Just ((CF.CashFlowFrame _ txn),_)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates 
   = sequenceA [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
 -- project contractual cashflow if nothing found in pool perf assumption
@@ -1150,10 +1159,10 @@ runPool (P.Pool as _ _ asof _ _) Nothing mRates
       return [ (x, Map.empty) | x <- cf ]
 -- asset cashflow with credit stress
 ---- By pool level
-runPool (P.Pool as (CF.CashFlowFrame _ [],_) Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates 
+runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates 
   = sequenceA $ parMap rdeepseq (\x -> Ast.projCashflow x asof assumps mRates) as  
 ---- By index
-runPool (P.Pool as (CF.CashFlowFrame _ [],_) Nothing  asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
+runPool (P.Pool as Nothing Nothing  asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
     numAssets = length as
   in
@@ -1162,7 +1171,7 @@ runPool (P.Pool as (CF.CashFlowFrame _ [],_) Nothing  asof _ _) (Just (AP.ByInde
       sequenceA $ parMap rdeepseq (\(x, a) -> Ast.projCashflow x asof a mRates) (zip as _assumps)
 
 ---- By Obligor
-runPool (P.Pool as (CF.CashFlowFrame _ [],_) Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
+runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
   let
     -- result cf,rules,assets
     -- matchAssets:: Ast.Asset c => [Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> [AP.ObligorStrategy] 
@@ -1238,8 +1247,6 @@ runPool (P.Pool as (CF.CashFlowFrame _ [],_) Nothing asof _ _) (Just (AP.ByOblig
             (cfs ++ (parMap rdeepseq (\x -> Ast.projCashflow x asof assetPerf mRates) astList))
             []
             []
-
-        
   in
     matchAssets [] obligorRules as
 

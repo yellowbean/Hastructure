@@ -87,7 +87,7 @@ reserveAccTest =
                ,CF.MortgageFlow (toDate "20220801") 110 20 10 0 0 0 0 0 Nothing Nothing Nothing
                ,CF.MortgageFlow (toDate "20220901") 90 20 10 0 0 0 0 0 Nothing Nothing Nothing
                ,CF.MortgageFlow (toDate "20221001") 70 20 10 0 0 0 0 0 Nothing Nothing Nothing]
-    ttd = set (dealPool . poolTypePool . (ix PoolConsol) . P.poolFutureCf) (testCFs, Nothing) td2 {accounts = accMap}
+    ttd = set (dealPool . poolTypePool . (ix PoolConsol) . P.poolFutureCf) (Just (testCFs, Nothing)) td2 {accounts = accMap}
   in 
     testGroup "Test On Reserve Acc"
      [
