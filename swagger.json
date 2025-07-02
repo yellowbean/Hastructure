@@ -12910,7 +12910,6 @@
                 },
                 "required": [
                     "assets",
-                    "futureCf",
                     "asOfDate"
                 ],
                 "type": "object"
@@ -12971,7 +12970,6 @@
                 },
                 "required": [
                     "assets",
-                    "futureCf",
                     "asOfDate"
                 ],
                 "type": "object"
@@ -13032,7 +13030,6 @@
                 },
                 "required": [
                     "assets",
-                    "futureCf",
                     "asOfDate"
                 ],
                 "type": "object"
@@ -13093,7 +13090,6 @@
                 },
                 "required": [
                     "assets",
-                    "futureCf",
                     "asOfDate"
                 ],
                 "type": "object"
@@ -13154,7 +13150,6 @@
                 },
                 "required": [
                     "assets",
-                    "futureCf",
                     "asOfDate"
                 ],
                 "type": "object"
@@ -13215,7 +13210,6 @@
                 },
                 "required": [
                     "assets",
-                    "futureCf",
                     "asOfDate"
                 ],
                 "type": "object"
@@ -13276,7 +13270,6 @@
                 },
                 "required": [
                     "assets",
-                    "futureCf",
                     "asOfDate"
                 ],
                 "type": "object"
@@ -13337,7 +13330,6 @@
                 },
                 "required": [
                     "assets",
-                    "futureCf",
                     "asOfDate"
                 ],
                 "type": "object"

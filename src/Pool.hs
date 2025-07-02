@@ -57,13 +57,13 @@ makeLensesFor [("futureCf","futureCfLens"),("futureScheduleCf","futureScheduleCf
 poolFutureCf :: Asset a => Lens' (Pool a) (Maybe CF.PoolCashflow)
 poolFutureCf = lens getter setter 
   where 
-    getter p = futureCf p
+    getter = futureCf
     setter p mNewCf = p {futureCf = mNewCf}
 
 poolFutureScheduleCf :: Asset a => Lens' (Pool a) (Maybe CF.PoolCashflow)
 poolFutureScheduleCf = lens getter setter
   where 
-    getter p = futureScheduleCf p
+    getter = futureScheduleCf
     setter p mNewCf = p {futureScheduleCf = mNewCf}
 
 poolIssuanceStat :: Asset a => Lens' (Pool a) (Map.Map CutoffFields Balance)

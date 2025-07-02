@@ -1159,10 +1159,10 @@ runPool (P.Pool as _ _ asof _ _) Nothing mRates
       return [ (x, Map.empty) | x <- cf ]
 -- asset cashflow with credit stress
 ---- By pool level
-runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates 
+runPool (P.Pool as _ Nothing asof _ _) (Just (AP.PoolLevel assumps)) mRates 
   = sequenceA $ parMap rdeepseq (\x -> Ast.projCashflow x asof assumps mRates) as  
 ---- By index
-runPool (P.Pool as Nothing Nothing  asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
+runPool (P.Pool as _ Nothing  asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
   let
     numAssets = length as
   in
@@ -1171,7 +1171,7 @@ runPool (P.Pool as Nothing Nothing  asof _ _) (Just (AP.ByIndex idxAssumps)) mRa
       sequenceA $ parMap rdeepseq (\(x, a) -> Ast.projCashflow x asof a mRates) (zip as _assumps)
 
 ---- By Obligor
-runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
+runPool (P.Pool as _ Nothing asof _ _) (Just (AP.ByObligor obligorRules)) mRates =
   let
     -- result cf,rules,assets
     -- matchAssets:: Ast.Asset c => [Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)] -> [AP.ObligorStrategy] 
@@ -1253,7 +1253,7 @@ runPool (P.Pool as Nothing Nothing asof _ _) (Just (AP.ByObligor obligorRules)) 
 
 
 -- safe net to catch other cases
-runPool _a _b _c = Left $ "Failed to match" ++ show _a ++ show _b ++ show _c
+runPool _a _b _c = Left $ "[Run Pool]: Failed to match" ++ show _a ++ show _b ++ show _c
 
 
 -- ^ patch issuance balance for PreClosing Deal
