@@ -144,7 +144,7 @@ data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionTyp
                     deriving(Show, Generic)
 
 
-type RunRespRight = (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Map.Map String PriceResult)
+type RunRespRight = (DealType , Map.Map PoolId CF.CashFlowFrame, [ResultComponent],Map.Map String PriceResult, Map.Map PoolId CF.PoolCashflow)
 type RunResp = Either String RunRespRight
 
 data RunPoolReq = SingleRunPoolReq Bool PoolTypeWrap (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])

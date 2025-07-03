@@ -9235,7 +9235,7 @@
                     }
                 ]
             },
-            "Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))": {
+            "Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))": {
                 "oneOf": [
                     {
                         "properties": {
@@ -9273,10 +9273,29 @@
                                             "$ref": "#/components/schemas/PriceResult"
                                         },
                                         "type": "object"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                },
+                                                {
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/CashFlowFrame"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array"
+                                        },
+                                        "type": "object"
                                     }
                                 ],
-                                "maxItems": 4,
-                                "minItems": 4,
+                                "maxItems": 5,
+                                "minItems": 5,
                                 "type": "array"
                             }
                         },
@@ -21113,7 +21132,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                     },
                                     "type": "object"
                                 }
@@ -21202,7 +21221,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                 }
                             }
                         },
@@ -21231,7 +21250,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                     },
                                     "type": "object"
                                 }
@@ -21262,7 +21281,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                     },
                                     "type": "object"
                                 }
@@ -21293,7 +21312,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                     },
                                     "type": "object"
                                 }

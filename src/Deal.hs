@@ -417,8 +417,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             let 
               cutOffPoolFlowMap = Map.map (\(pflow,mAssetFlow) -> 
 		                           (CF.splitCashFlowFrameByDate pflow d EqToLeft
-	                                   ,(\xs -> [ CF.splitCashFlowFrameByDate x d EqToLeft | x <- xs ]) <$> mAssetFlow)
-                                          )
+	                                   ,(\xs -> [ CF.splitCashFlowFrameByDate x d EqToLeft | x <- xs ]) <$> mAssetFlow))
 					  poolFlowMap 
               collectedFlow =  Map.map (\(p,mAstFlow) -> (fst p, (\xs -> [ fst x | x <- xs ]) <$> mAstFlow)) cutOffPoolFlowMap  -- `debug` ("PoolCollection : "++ show d ++  " splited"++ show cutOffPoolFlowMap++"\n input pflow"++ show poolFlowMap)
               -- outstandingFlow = Map.map (CF.insertBegTsRow d . snd) cutOffPoolFlowMap
@@ -1000,17 +999,6 @@ readCallOptions opts =
   in 
     (concat (fst <$> result), concat (snd <$> result))
 
-consoleDeal :: Ast.Asset a => (S.Set ExpectReturn) -> TestDeal a  -> TestDeal a
-consoleDeal rs t = 
-  let 
-    m = S.minView rs
-  in 
-    case m of 
-      Nothing -> t
-      Just (x, _rs) -> 
-	case x of 
-	  DealLogs -> t
-	  AssetLevelFlow -> t
 
 runDeal :: Ast.Asset a => TestDeal a -> S.Set ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
         -> Either String (TestDeal a
@@ -1043,7 +1031,9 @@ runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts 
                  , poolFlowUsedNoEmpty
                  , getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList logs
 		 , bndPricing
-	         , osPoolFlow)
+	         , osPoolFlow & mapped . _1 . CF.cashflowTxn %~ CF.dropTailEmptyTxns
+		              & mapped . _2 . _Just . each . CF.cashflowTxn %~ CF.dropTailEmptyTxns
+	       )
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
       -- getinits() will get (new deal snapshot, actions, pool cashflows, unstressed pool cashflow)

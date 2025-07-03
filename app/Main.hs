@@ -108,36 +108,36 @@ version1 = Version "0.46.4"
 wrapRun :: [D.ExpectReturn] -> DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
 wrapRun fs (MDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs)  mAssump mNonPerfAssump 
-      return (MDeal _d,_pflow,_rs,_p) -- `debug` ("Run Done with deal->"++ show _d)
+      (_d,_pflow,_rs,_p, _osPflow) <- D.runDeal d (S.fromList fs)  mAssump mNonPerfAssump
+      return (MDeal _d,_pflow,_rs,_p,_osPflow) 
 wrapRun fs (RDeal d) mAssump mNonPerfAssump 
   = do 
-      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
-      return (RDeal _d,_pflow,_rs,_p)
+      (_d,_pflow,_rs,_p,_osPflow) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
+      return (RDeal _d,_pflow,_rs,_p,_osPflow)
 wrapRun fs (IDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
-      return (IDeal _d,_pflow,_rs,_p)
+      (_d,_pflow,_rs,_p,_osPflow) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
+      return (IDeal _d,_pflow,_rs,_p,_osPflow)
 wrapRun fs (LDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
-      return (LDeal _d,_pflow,_rs,_p)
+      (_d,_pflow,_rs,_p, _osPflow) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
+      return (LDeal _d,_pflow,_rs,_p,_osPflow)
 wrapRun fs (FDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
-      return (FDeal _d,_pflow,_rs,_p)
+      (_d,_pflow,_rs,_p,  _osPflow) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
+      return (FDeal _d,_pflow,_rs,_p,_osPflow)
 wrapRun fs (UDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump 
-      return (UDeal _d,_pflow,_rs,_p)                                       
+      (_d,_pflow,_rs,_p,  _osPflow) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump 
+      return (UDeal _d,_pflow,_rs,_p,_osPflow)                                       
 wrapRun fs (VDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
-      return (VDeal _d,_pflow,_rs,_p)                                       
+      (_d,_pflow,_rs,_p,  _osPflow) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
+      return (VDeal _d,_pflow,_rs,_p,_osPflow)                                       
 wrapRun fs (PDeal d) mAssump mNonPerfAssump 
   = do
-      (_d,_pflow,_rs,_p) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
-      return (PDeal _d,_pflow,_rs,_p)
+      (_d,_pflow,_rs,_p, _osPflow) <- D.runDeal d (S.fromList fs) mAssump mNonPerfAssump
+      return (PDeal _d,_pflow,_rs,_p,_osPflow)
 
 wrapRun _ x _ _ = Left $ "RunDeal Failed ,due to unsupport deal type "++ show x
 
@@ -345,25 +345,25 @@ doTweak r (SplitFixedBalance bn1 bn2) (dt , mAssump, rAssump, f)
 
 
 evalRootFindStop :: RootFindStop -> RunRespRight -> Double
-evalRootFindStop (BondIncurLoss bn) (dt,_,_,_) 
+evalRootFindStop (BondIncurLoss bn) (dt,_,_,_,osPflow) 
   = let 
       bondBal = L.getOutstandingAmount $ getDealBondMap dt Map.! bn
     in
       (fromRational . toRational) $ bondBal - 0.01
 
-evalRootFindStop (BondIncurIntLoss bn threshold) (dt,_,_,_) 
+evalRootFindStop (BondIncurIntLoss bn threshold) (dt,_,_,_,osPflow) 
   = let 
       dueIntAmt = L.getTotalDueInt $ getDealBondMap dt Map.! bn
     in
       (fromRational . toRational) $ threshold -  (dueIntAmt-0.01)
 
-evalRootFindStop (BondIncurPrinLoss bn threshold) (dt,_,_,_) 
+evalRootFindStop (BondIncurPrinLoss bn threshold) (dt,_,_,_,osPflow) 
   = let 
       duePrinAmt = L.getCurBalance $ getDealBondMap dt Map.! bn
     in
       (fromRational . toRational) $ threshold - (duePrinAmt-0.01)
 
-evalRootFindStop (BondPricingEqOriginBal bn otherBondFlag otherFeeFlag) (dt,_,_,pResult) 
+evalRootFindStop (BondPricingEqOriginBal bn otherBondFlag otherFeeFlag) (dt,_,_,pResult,osPflow) 
   = let 
       -- bnds
       otherBondsName = [] 
@@ -380,7 +380,7 @@ evalRootFindStop (BondPricingEqOriginBal bn otherBondFlag otherFeeFlag) (dt,_,_,
       else
         (fromRational . toRational) $ bondBal - v 
 
-evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult) 
+evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult,osPflow) 
   = let 
       v = L.extractIrrResult $ pResult Map.! bn
     in 
