@@ -118,7 +118,7 @@ baseTests =
                                           ,FutureCurrentPoolBalance (Just [PoolName "PoolB",PoolName "PoolA"])]
                   ]
     nonRunAssump = AP.NonPerfAssumption Nothing Nothing Nothing rAssump Nothing (Just inspectVars) Nothing Nothing Nothing Nothing Nothing Nothing
-    (dealAfterRun,poolCf,_,_) = case DR.runDeal baseCase S.empty Nothing nonRunAssump of
+    (dealAfterRun,poolCf,_,_,_) = case DR.runDeal baseCase S.empty Nothing nonRunAssump of
                                     Right x -> x
                                     Left y -> error ("Error in running deal"++ show y)
   in 

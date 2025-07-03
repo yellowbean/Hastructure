@@ -1013,7 +1013,11 @@ consoleDeal rs t =
 	  AssetLevelFlow -> t
 
 runDeal :: Ast.Asset a => TestDeal a -> S.Set ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
-        -> Either String (TestDeal a, Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent], Map.Map String PriceResult)
+        -> Either String (TestDeal a
+                         , Map.Map PoolId CF.CashFlowFrame
+			 , [ResultComponent]
+                         , Map.Map String PriceResult
+                         , Map.Map PoolId CF.PoolCashflow)
 runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts ,AP.pricing = mPricing ,AP.revolving = mRevolving ,AP.interest = mInterest} 
   | not runFlag = Left $ intercalate ";" $ show <$> valLogs 
   | otherwise 
@@ -1035,7 +1039,11 @@ runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts 
         bndPricing <- case mPricing of 
                         (Just p) -> priceBonds finalDeal p 
                         Nothing -> Right Map.empty
-        return (finalDeal, Just poolFlowUsedNoEmpty, Just (getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList logs), bndPricing) -- `debug` ("Run Deal end with")
+        return (finalDeal
+                 , poolFlowUsedNoEmpty
+                 , getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList logs
+		 , bndPricing
+	         , osPoolFlow)
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
       -- getinits() will get (new deal snapshot, actions, pool cashflows, unstressed pool cashflow)
@@ -1346,7 +1354,7 @@ runPoolType flag (ResecDeal dm) mAssumps mNonPerfAssump
                                                                 Just (_poolAssump, _dealAssump) -> (Just _poolAssump, _dealAssump)
                                   in
                                     do 
-                                      (dealRunned, _, _, _) <- runDeal uDeal (S.fromList []) poolAssump dealAssump
+                                      (dealRunned, _, _, _,_) <- runDeal uDeal (S.fromList []) poolAssump dealAssump
                                       let bondFlow = cutBy Inc Future sd $ concat $ Map.elems $ Map.map (DL.toList . Stmt.getTxns) $ getBondStmtByName dealRunned (Just [bn]) 
                                       let bondFlowRated = (\(BondTxn d b i p r c di dioi f t) -> CF.BondFlow d b p i) <$> Stmt.scaleByFactor pct bondFlow 
                                       return (CF.CashFlowFrame (0,sd,Nothing) bondFlowRated, Nothing))

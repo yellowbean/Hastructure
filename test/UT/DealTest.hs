@@ -269,22 +269,22 @@ baseDeal = D.TestDeal {
 
 poolFlowTest = 
    let 
-     (deal,mPoolCf,mResultComp,mPricing) = case (runDeal baseDeal S.empty Nothing emptyRunAssump) of
+     (deal,mPoolCf,mResultComp,mPricing,oustandingFlow) = case (runDeal baseDeal S.empty Nothing emptyRunAssump) of
                                               (Left er) -> error $ "Deal run failed"++ show er
-                                              (Right (a,b,c,d)) -> (a,b,c,d) 
+                                              (Right (a,b,c,d,e)) -> (a,b,c,d,e) 
      bndMap = D.viewBondsInMap deal
    in 
    testGroup "pool cashflow test" 
     [
       testCase "pool begin flow" $
       assertEqual "pool size should be 60" 
-      (Just (Map.fromList [(PoolConsol ,60)]))
-      ( (\m -> Map.map CF.sizeCashFlowFrame m) <$> mPoolCf )  -- `debug` ("pool from test "++ show (mPoolCf))
+      (Map.fromList [(PoolConsol ,60)])
+      (Map.map CF.sizeCashFlowFrame  mPoolCf )  -- `debug` ("pool from test "++ show (mPoolCf))
       
       ,testCase "total principal bal" $
       assertEqual "pool bal should equal to total collect"
-      (Just (Map.fromList [(PoolConsol ,4000)]))
-      ((\m -> Map.map CF.totalPrincipal m) <$> mPoolCf ) -- `debug` ("pool "++ show (viewBond))
+      (Map.fromList [(PoolConsol ,4000)])
+      (Map.map CF.totalPrincipal mPoolCf) -- `debug` ("pool "++ show (viewBond))
       
       ,testCase "last bond A payment date" $
        assertEqual "pool bal should equal to total collect"
