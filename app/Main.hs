@@ -34,6 +34,7 @@ import Data.List
 import Data.Map
 import qualified Data.Set as S
 import Data.Proxy
+import Data.Time (getCurrentTime)
 import qualified Data.Text as T
 import Data.Maybe
 import Data.Yaml as Y
@@ -473,9 +474,10 @@ main =
   do 
     writeSwaggerJSON
     config <- BS.readFile "config.yml"
+    curTime <- getCurrentTime
     let mc = Y.decodeEither' config :: Either ParseException Config
     let (Config _p) = case mc of
                         Left exp -> Config 8081
                         Right c -> c
-    print ("Engine start with version:"++ _version version1++";running at Port:"++ show _p)
+    print (show curTime ++ ">> Engine start with version:"++ _version version1++";running at Port:"++ show _p)
     run _p app

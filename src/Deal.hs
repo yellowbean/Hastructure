@@ -1088,34 +1088,32 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
 			  -- insert aggregated pool flow
                           accUpdated =  Map.adjust
 			                  (\_v -> case (P.futureCf _v) of
-					            Nothing -> set P.poolFutureCf (Just (CF.CashFlowFrame st txnCollected , mAssetFlow)) _v
+					            Nothing -> set P.poolFutureCf (Just (CF.CashFlowFrame st txnCollected , Nothing)) _v
 						    Just _ -> over (P.poolFutureCf . _Just . _1 . CF.cashflowTxn) (++ txnToAppend) _v
 				          )
 					  k
 					  acc 
-			                  -- & ix k %~ over (P.poolFutureCf . _Just . _1 . CF.cashflowTxn) (++ txnToAppend)
-			                  -- & ix k %~ over (P.poolFutureCf . _Nothing) (\ () -> Just (CF.CashFlowFrame st txnCollected , mAssetFlow))
-			                    
 			  -- insert breakdown asset flow
 			  accUpdated' = case mAssetFlow of 
 					  Nothing -> accUpdated
 					  Just collectedAssetFlow -> 
 					    let 
-					      appendFn Nothing = Just collectedAssetFlow
+					      appendFn Nothing = Just collectedAssetFlow   `debug` ("Hit Nothing for collectedAssetFlow at date:" ++ show d)
 					      appendFn (Just cfs) 
-					        | length cfs == length collectedAssetFlow = Just $ [ origin & over (CF.cashflowTxn) (++ (view CF.cashflowTxn new)) | (origin,new) <- zip cfs  collectedAssetFlow ]
-						| length collectedAssetFlow  > length cfs = 
-						  let 
-                                                    dummyCashFrames = replicate (length collectedAssetFlow - length cfs) CF.emptyCashflow
-						  in 
-						    Just $ [ origin & over (CF.cashflowTxn) (++ (view CF.cashflowTxn new)) | (origin,new) <- zip (cfs++dummyCashFrames) collectedAssetFlow ]
+					        | length cfs == length collectedAssetFlow 
+	                                            = Just $ [ origin & over CF.cashflowTxn (++ (view CF.cashflowTxn new)) | (origin,new) <- zip cfs  collectedAssetFlow ] `debug` ("hit appending collectedAssetFlow at date:" ++ show d ++ " origin:" ++ show cfs ++ " new:" ++ show collectedAssetFlow)
+						| length collectedAssetFlow  > length cfs 
+                                                    = let 
+                                                        dummyCashFrames = replicate (length collectedAssetFlow - length cfs) CF.emptyCashflow `debug` ("hit creating dummy cashflow for collectedAssetFlow at date:" ++ show d)
+						      in 
+						        Just $ [ origin & over (CF.cashflowTxn) (++ (view CF.cashflowTxn new)) | (origin,new) <- zip (cfs++dummyCashFrames) collectedAssetFlow ]
 						| otherwise = error "incomping cashflow number shall greater than existing cashflow number"
 					    in 
-					      accUpdated & ix k %~ (over (P.poolFutureCf . _Just . _2) appendFn)
+					      accUpdated & ix k %~ (over (P.poolFutureCf . _Just . _2) appendFn) `debug` ("inserting breakdown flow"++ show collectedAssetFlow++ "at date:" ++ show d ++ "accUpdated:" ++ show accUpdated)
                         in 
                           Map.adjust 
                             (over P.poolIssuanceStat (Map.insert RuntimeCurrentPoolBalance balInCollected))
-                            k accUpdated') 
+                            k accUpdated' `debug` ("after acc updated " ++ show accUpdated') ) 
                       poolM 
                       poolInflowMap
                 ResecDeal uds -> 
