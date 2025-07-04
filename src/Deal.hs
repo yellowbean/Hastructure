@@ -402,7 +402,7 @@ run t pCfM (Just (StopRunFlag d:_)) _ _ _ log  = Right (t, (DL.snoc log (EndRun 
 run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=dStatus
               ,waterfall=waterfallM,name=dealName,pool=pt,stats=_stat}
     poolFlowMap (Just (ad:ads)) rates calls rAssump log
-  | all (== 0) futureCashToCollect && (queryCompound t (getDate ad) AllAccBalance == Right 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
+  | futureCashToCollectFlag && (queryCompound t (getDate ad) AllAccBalance == Right 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
      = do 
         let runContext = RunContext poolFlowMap rAssump rates --- `debug` ("ending at date " ++ show (getDate ad))
         (finalDeal,_,newLogs) <- foldM (performActionWrap (getDate ad)) (t,runContext,log) cleanUpActions 
@@ -830,7 +830,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
        where
          cleanUpActions = Map.findWithDefault [] W.CleanUp (waterfall t) -- `debug` ("Running AD"++show(ad))
          remainCollectionNum = Map.elems $ Map.map (\(x,_) -> CF.sizeCashFlowFrame x ) poolFlowMap
-         futureCashToCollect = Map.elems $ Map.map (\(pcf,_) -> sum (CF.tsTotalCash <$> view CF.cashflowTxn pcf)) poolFlowMap
+         -- futureCashToCollectFlag = all (== 0) $ Map.elems $ Map.map (\(pcf,_) -> sum (CF.tsTotalCash <$> view CF.cashflowTxn pcf)) poolFlowMap
+         futureCashToCollectFlag = and $ Map.elems $ Map.map (\(pcf,_) -> all CF.isEmptyRow2 (view CF.cashflowTxn pcf)) poolFlowMap
 
 
 run t empty Nothing Nothing Nothing Nothing log

@@ -28,7 +28,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
 		,splitPoolCashflowByDate
                 ,getAllDatesCashFlowFrame,splitCf, cutoffCashflow
 		,AssetCashflow,PoolCashflow
-		,emptyCashflow
+		,emptyCashflow,isEmptyRow2
                 ) where
 
 import Data.Time (Day)
@@ -1119,6 +1119,7 @@ cutoffCashflow sd ds (CashFlowFrame st txns)
 extendTxns :: TsRow -> [Date] -> [TsRow]      
 extendTxns tr ds = [ emptyTsRow d tr | d <- ds ]
 
+-- test emtpy cashflow row
 isEmptyRow :: TsRow -> Bool 
 isEmptyRow (MortgageDelinqFlow _ 0 0 0 0 0 0 0 0 _ _ _ _) = True
 isEmptyRow (MortgageFlow _ 0 0 0 0 0 0 0 _ _ _ _) = True
@@ -1130,6 +1131,7 @@ isEmptyRow (CashFlow _ 0) = True
 isEmptyRow (ReceivableFlow _ 0 0 0 0 0 0 0 _ ) = True
 isEmptyRow _ = False
 
+-- test emtpy cashflow row (ignore balance)
 isEmptyRow2 :: TsRow -> Bool 
 isEmptyRow2 (MortgageDelinqFlow _ _ 0 0 0 0 0 0 0 _ _ _ _) = True
 isEmptyRow2 (MortgageFlow _ _ 0 0 0 0 0 0 _ _ _ _) = True
