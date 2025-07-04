@@ -323,24 +323,24 @@ getDealFeeMap (VDeal d) = DB.fees d
 getDealFeeMap (PDeal d) = DB.fees d
 
 doTweak :: Double -> RootFindTweak -> DealRunInput -> DealRunInput
-doTweak r StressPoolDefault (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}, f) 
+doTweak r (StressPoolDefault _) (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}, f) 
   = let
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressDefaultAssetPerf (toRational r)) assumps
       stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (stressDefaultAssetPerf (toRational r)) mRevolving }
     in
       (dt ,Just stressed, stressedNonPerf, f)
 
-doTweak r StressPoolPrepayment (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}, f) 
+doTweak r (StressPoolPrepayment _) (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}, f) 
   = let
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressPrepayAssetPerf (toRational r)) assumps
       stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (stressPrepayAssetPerf (toRational r)) mRevolving }
     in
       (dt ,Just stressed, stressedNonPerf, f)
 
-doTweak r (MaxSpreadTo bn) (dt , mAssump, rAssump, f)
+doTweak r (MaxSpreadTo bn _) (dt , mAssump, rAssump, f)
   = (modifyDealType (DM.AddSpreadToBonds bn) r dt , mAssump, rAssump, f)
 
-doTweak r (SplitFixedBalance bn1 bn2) (dt , mAssump, rAssump, f)
+doTweak r (SplitFixedBalance bn1 bn2 _) (dt , mAssump, rAssump, f)
   = (modifyDealType (DM.SlideBalances bn1 bn2) r dt , mAssump, rAssump, f)
 
 
@@ -405,8 +405,11 @@ runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssu
         itertimes = 500
         def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
         riddersFn = case tweak of
-                      SplitFixedBalance _ _ -> ridders def (0.99,0.01)
-                      _ -> ridders def (500.0,0.00) -- default to 500.0,0.00
+                      SplitFixedBalance _ _ (l,h) -> ridders def (min h 0.99,max l 0.00001)
+		      StressPoolDefault (l,h)  -> ridders def (h ,max l 0.00)
+		      StressPoolPrepayment (l,h) -> ridders def (h ,max l 0.00)
+		      MaxSpreadTo _ (l,h) -> ridders def (h ,max l 0.00)
+                      _ -> error ("Unsupported tweak for root finder" ++ show tweak)
       in
         case riddersFn (rootFindAlgo req tweak stop) of
           Root r -> Right $ RFResult r (doTweak r tweak req)
