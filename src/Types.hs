@@ -487,7 +487,7 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
                 | PreClosing DealStatus             -- ^ Deal is not closed, but has a closing date
                 | Warehousing (Maybe DealStatus)    -- ^ Deal is not closed, but closing date is not determined yet
                 | Called                            -- ^ Deal is called
-                | Ended                             -- ^ Deal is marked as closed
+                | Ended Date                        -- ^ Deal is marked as closed
                 deriving (Show,Ord,Eq,Read, Generic)
 
 -- ^ pricing methods for assets
