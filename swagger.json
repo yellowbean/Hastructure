@@ -9016,6 +9016,9 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
                             "tag": {
                                 "enum": [
                                     "Ended"
@@ -9024,7 +9027,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "Ended",
                         "type": "object"
@@ -16649,6 +16653,36 @@
                         ],
                         "title": "BondMetTargetIrr",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BalanceFormula"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BalanceFormula",
+                        "type": "object"
                     }
                 ]
             },
@@ -16656,6 +16690,21 @@
                 "oneOf": [
                     {
                         "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
                             "tag": {
                                 "enum": [
                                     "StressPoolDefault"
@@ -16664,13 +16713,29 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "StressPoolDefault",
                         "type": "object"
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    },
+                                    {
+                                        "format": "double",
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
                             "tag": {
                                 "enum": [
                                     "StressPoolPrepayment"
@@ -16679,7 +16744,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "StressPoolPrepayment",
                         "type": "object"
@@ -16687,7 +16753,29 @@
                     {
                         "properties": {
                             "contents": {
-                                "type": "string"
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            },
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
                             },
                             "tag": {
                                 "enum": [
@@ -16712,10 +16800,25 @@
                                     },
                                     {
                                         "type": "string"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            },
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 3,
+                                "minItems": 3,
                                 "type": "array"
                             },
                             "tag": {

@@ -32,6 +32,7 @@ import Data.Attoparsec.ByteString
 import Data.ByteString (ByteString)
 import Data.List
 import Data.Map
+import Data.Either (fromLeft)
 import qualified Data.Set as S
 import Data.Proxy
 import Data.Time (getCurrentTime)
@@ -61,6 +62,7 @@ import Types
 import MainBase
 import qualified Deal as D
 import qualified Deal.DealBase as DB
+import qualified Deal.DealDate as DD
 import qualified Deal.DealMod as DM
 import qualified Deal.DealQuery as Q
 import qualified Asset as Ast
@@ -282,6 +284,17 @@ queryDealType (UDeal _d) = Q.queryCompound _d
 queryDealType (VDeal _d) = Q.queryCompound _d
 queryDealType (PDeal _d) = Q.queryCompound _d
 
+queryClosingDate :: DealType -> Either String Date
+queryClosingDate (MDeal _d) = DD.getClosingDate (DB.dates _d) 
+queryClosingDate (RDeal _d) = DD.getClosingDate (DB.dates _d) 
+queryClosingDate (IDeal _d) = DD.getClosingDate (DB.dates _d) 
+queryClosingDate (LDeal _d) = DD.getClosingDate (DB.dates _d) 
+queryClosingDate (FDeal _d) = DD.getClosingDate (DB.dates _d) 
+queryClosingDate (UDeal _d) = DD.getClosingDate (DB.dates _d) 
+queryClosingDate (VDeal _d) = DD.getClosingDate (DB.dates _d) 
+queryClosingDate (PDeal _d) = DD.getClosingDate (DB.dates _d) 
+
+
 queryDealTypeBool :: DealType -> Date -> DealStats -> Either String Bool
 queryDealTypeBool (MDeal _d) d s = Q.queryDealBool _d s d
 queryDealTypeBool (RDeal _d) d s = Q.queryDealBool _d s d
@@ -388,6 +401,20 @@ evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult,osPflow)
         Nothing -> -1  -- `debug` ("No IRR found for bond:"++ show bn)
         Just irr -> (fromRational . toRational) $ irr - target -- `debug` ("IRR for bond:"++ show target ++" is "++ show irr)
 
+evalRootFindStop (BalanceFormula ds targetBal) (dt,collectedFlow,logs,_,osPflow) 
+  = let 
+      _date = case find (\(EndRun d msg) -> True) (reverse logs) of
+                Just (EndRun (Just d) _ ) -> d
+                Nothing -> case queryClosingDate dt of
+                             Right d' -> d'
+			     Left err -> error $ "Error in BalanceFormula: " ++ err
+      v = case queryDealType dt _date (Q.patchDateToStats _date ds)  of
+            Right v' -> fromRational v'
+            Left err -> error $ "Error in BalanceFormula: " ++ err
+    in
+      (fromRational . toRational) $ v - targetBal `debug` ("querydate" ++ show _date++"iteration" ++ show v ++ " target:" ++ show targetBal ++ ">> " ++ show ( v- targetBal))
+
+
 
 rootFindAlgo :: DealRunInput -> RootFindTweak -> RootFindStop -> Double -> Double
 rootFindAlgo (dt ,poolAssumps, runAssumps, f) tweak stop r 
@@ -395,17 +422,17 @@ rootFindAlgo (dt ,poolAssumps, runAssumps, f) tweak stop r
       (dt' ,poolAssumps', runAssumps', f) = doTweak r tweak (dt ,poolAssumps, runAssumps, f)
     in 
       case wrapRun f dt' poolAssumps' runAssumps' of
-        Right runRespRight -> evalRootFindStop stop runRespRight -- `debug` ("Begin pool"++ show poolAssumps')
+        Right runRespRight -> evalRootFindStop stop runRespRight `debug` ("RootFinder with f" ++ show r++ "with assumpt" ++ show poolAssumps')
         Left errorMsg -> -1
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
 runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving},f) tweak stop)
   = return $
       let 
-        itertimes = 500
-        def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.0001}
+        itertimes = 1000
+        def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.000001}
         riddersFn = case tweak of
-                      SplitFixedBalance _ _ (l,h) -> ridders def (min h 0.99,max l 0.00001)
+                      SplitFixedBalance _ _ (l,h) -> ridders def (min h 0.99, max l 0.00001)
 		      StressPoolDefault (l,h)  -> ridders def (h ,max l 0.00)
 		      StressPoolPrepayment (l,h) -> ridders def (h ,max l 0.00)
 		      MaxSpreadTo _ (l,h) -> ridders def (h ,max l 0.00)

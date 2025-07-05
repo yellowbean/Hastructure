@@ -173,7 +173,7 @@ type RangeInput = (Double, Double) -- (min, max)
 data RootFindTweak = StressPoolDefault RangeInput                      -- stressed pool perf 
                    | StressPoolPrepayment RangeInput                   -- stressed pool prepayment
                    | MaxSpreadTo BondName RangeInput                   -- bond component
-                   | SplitFixedBalance  BondName BondName RangeInput   -- bond component
+                   | SplitFixedBalance BondName BondName RangeInput    -- bond component
                    deriving(Show, Generic)
 
 data RootFindStop = BondIncurLoss BondName
@@ -181,6 +181,7 @@ data RootFindStop = BondIncurLoss BondName
                   | BondIncurIntLoss BondName Balance
                   | BondPricingEqOriginBal BondName Bool Bool
                   | BondMetTargetIrr BondName IRR
+                  | BalanceFormula DealStats Balance
                   deriving(Show, Generic)
 
 data RootFindResp = RFResult Double DealRunInput
