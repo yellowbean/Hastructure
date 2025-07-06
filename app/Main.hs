@@ -412,7 +412,7 @@ evalRootFindStop (BalanceFormula ds targetBal) (dt,collectedFlow,logs,_,osPflow)
             Right v' -> fromRational v'
             Left err -> error $ "Error in BalanceFormula: " ++ err
     in
-      (fromRational . toRational) $ v - targetBal `debug` ("querydate" ++ show _date++"iteration" ++ show v ++ " target:" ++ show targetBal ++ ">> " ++ show ( v- targetBal))
+      (fromRational . toRational) $ v - targetBal -- `debug` ("querydate" ++ show _date++"iteration" ++ show v ++ " target:" ++ show targetBal ++ ">> " ++ show ( v- targetBal))
 
 
 
@@ -422,7 +422,7 @@ rootFindAlgo (dt ,poolAssumps, runAssumps, f) tweak stop r
       (dt' ,poolAssumps', runAssumps', f) = doTweak r tweak (dt ,poolAssumps, runAssumps, f)
     in 
       case wrapRun f dt' poolAssumps' runAssumps' of
-        Right runRespRight -> evalRootFindStop stop runRespRight `debug` ("RootFinder with f" ++ show r++ "with assumpt" ++ show poolAssumps')
+        Right runRespRight -> evalRootFindStop stop runRespRight -- `debug` ("RootFinder with f" ++ show r++ "with assumpt" ++ show poolAssumps')
         Left errorMsg -> -1
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
