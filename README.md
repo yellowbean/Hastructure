@@ -82,10 +82,6 @@
 * Misc
   * Support user define pay dates & pool collection dates 
 
-### Premium Support
-
-  slack -> https://absboxhastructure.slack.com 
-
 
 ### Online Demo
 

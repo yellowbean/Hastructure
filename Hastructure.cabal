@@ -158,7 +158,6 @@ executable Hastructure-exe
     , regex-tdfa
     , scientific
     , servant
-    , servant-checked-exceptions
     , servant-openapi3
     , servant-server
     , split
