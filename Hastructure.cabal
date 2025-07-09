@@ -19,8 +19,8 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
+extra-doc-files:
     CHANGELOG.md
-
 source-repository head
   type: git
   location: https://github.com/yellowbean/Hastructure
@@ -75,50 +75,51 @@ library
   hs-source-dirs:
       src
   build-depends:
-      Decimal
-    , base-compat
-    , attoparsec
-    , string-conversions
-    , warp
-    , wai-cors
-    , http-types
-    , exceptions
-    , aeson
-    , attoparsec-aeson
-    , aeson-pretty
-    , base  >= 4.5 && < 4.20
-    , bytestring
-    , containers
-    , deepseq
-    , generic-lens
-    , hashable
-    , ieee754
-    , lens
-    , math-functions
-    , monad-loops
-    , mtl
-    , numeric-limits
-    , openapi3
-    , parallel
-    , regex-base
-    , regex-pcre-builtin
-    , regex-tdfa
-    , scientific
-    , servant
-    , servant-openapi3
-    , servant-server
-    , split
-    , swagger2
-    , tabular
-    , template-haskell
-    , text
-    , time
-    , wai
-    , yaml
-    , vector
-    , MissingH
-    , dlist
---    , proto3-wire
+    Decimal >= 0.5.2 && < 0.6,
+    base >= 4.19.2 && < 4.20,
+    deepseq >= 1.5.1 && < 1.6,
+    MissingH >= 1.6.0 && < 1.7,
+    containers >= 0.6.8 && < 0.7,
+    template-haskell >= 2.21.0 && < 2.22,
+    bytestring >= 0.12.1 && < 0.13,
+    exceptions >= 0.10.7 && < 0.11,
+    mtl >= 2.3.1 && < 2.4,
+    time >= 1.12.2 && < 1.13,
+    text >= 2.1.1 && < 2.2,
+    regex-base >= 0.94.0 && < 0.95,
+    aeson >= 2.2.3 && < 2.3,
+    hashable >= 1.4.7 && < 1.5,
+    dlist >= 1.0 && < 1.1,
+    scientific >= 0.3.8 && < 0.4,
+    vector >= 0.13.2 && < 0.14,
+    aeson-pretty >= 0.8.10 && < 0.9,
+    base-compat >= 0.14.1 && < 0.15,
+    attoparsec >= 0.14.4 && < 0.15,
+    attoparsec-aeson >= 2.2.2 && < 2.3,
+    generic-lens >= 2.2.2 && < 2.3,
+    http-types >= 0.12.4 && < 0.13,
+    ieee754 >= 0.8.0 && < 0.9,
+    lens >= 5.2.3 && < 5.3,
+    parallel >= 3.2.2 && < 3.3,
+    math-functions >= 0.3.4 && < 0.4,
+    monad-loops >= 0.4.3 && < 0.5,
+    numeric-limits >= 0.1.0 && < 0.2,
+    openapi3 >= 3.2.4 && < 3.3,
+    regex-pcre-builtin >= 0.95.2 && < 0.96,
+    regex-tdfa >= 1.3.2 && < 1.4,
+    servant >= 0.20.3 && < 0.21,
+    servant-openapi3 >= 2.0.1 && < 2.1,
+    servant-server >= 0.20.3 && < 0.21,
+    wai >= 3.2.4 && < 3.3,
+    warp >= 3.4.8 && < 3.5,
+    split >= 0.2.5 && < 0.3,
+    string-conversions >= 0.4.0 && < 0.5,
+    swagger2 >= 2.8.10 && < 2.9,
+    tabular >= 0.2.2 && < 0.3,
+    wai-cors >= 0.2.7 && < 0.3,
+    yaml >= 0.11.11 && < 0.12,
+
+
   default-language: Haskell2010
 
 executable Hastructure-exe
@@ -132,50 +133,50 @@ executable Hastructure-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Decimal
-    , Hastructure
-    , aeson
-    , aeson-pretty
-    , attoparsec
-    , attoparsec-aeson
-    , base
-    , base-compat
-    , bytestring
-    , containers
-    , deepseq
-    , exceptions
-    , generic-lens
-    , hashable
-    , http-types
-    , ieee754
-    , lens
-    , math-functions
-    , monad-loops
-    , mtl
-    , numeric-limits
-    , openapi3
-    , parallel
-    , regex-base
-    , regex-pcre-builtin
-    , regex-tdfa
-    , scientific
-    , servant
-    , servant-openapi3
-    , servant-server
-    , split
-    , string-conversions
-    , swagger2
-    , tabular
-    , template-haskell
-    , text
-    , time
-    , unordered-containers >= 0.2 && < 0.2.20
-    , wai
-    , wai-cors
-    , warp
-    , yaml
-    , dlist
---    , proto3-suite
+    Decimal >= 0.5.2 && < 0.6,
+    base >= 4.19.2 && < 4.20,
+    deepseq >= 1.5.1 && < 1.6,
+    MissingH >= 1.6.0 && < 1.7,
+    containers >= 0.6.8 && < 0.7,
+    template-haskell >= 2.21.0 && < 2.22,
+    bytestring >= 0.12.1 && < 0.13,
+    exceptions >= 0.10.7 && < 0.11,
+    mtl >= 2.3.1 && < 2.4,
+    time >= 1.12.2 && < 1.13,
+    text >= 2.1.1 && < 2.2,
+    regex-base >= 0.94.0 && < 0.95,
+    aeson >= 2.2.3 && < 2.3,
+    hashable >= 1.4.7 && < 1.5,
+    dlist >= 1.0 && < 1.1,
+    scientific >= 0.3.8 && < 0.4,
+    vector >= 0.13.2 && < 0.14,
+    aeson-pretty >= 0.8.10 && < 0.9,
+    base-compat >= 0.14.1 && < 0.15,
+    attoparsec >= 0.14.4 && < 0.15,
+    attoparsec-aeson >= 2.2.2 && < 2.3,
+    generic-lens >= 2.2.2 && < 2.3,
+    http-types >= 0.12.4 && < 0.13,
+    ieee754 >= 0.8.0 && < 0.9,
+    lens >= 5.2.3 && < 5.3,
+    parallel >= 3.2.2 && < 3.3,
+    math-functions >= 0.3.4 && < 0.4,
+    monad-loops >= 0.4.3 && < 0.5,
+    numeric-limits >= 0.1.0 && < 0.2,
+    openapi3 >= 3.2.4 && < 3.3,
+    regex-pcre-builtin >= 0.95.2 && < 0.96,
+    regex-tdfa >= 1.3.2 && < 1.4,
+    servant >= 0.20.3 && < 0.21,
+    servant-openapi3 >= 2.0.1 && < 2.1,
+    servant-server >= 0.20.3 && < 0.21,
+    wai >= 3.2.4 && < 3.3,
+    warp >= 3.4.8 && < 3.5,
+    split >= 0.2.5 && < 0.3,
+    string-conversions >= 0.4.0 && < 0.5,
+    swagger2 >= 2.8.10 && < 2.9,
+    tabular >= 0.2.2 && < 0.3,
+    wai-cors >= 0.2.7 && < 0.3,
+    yaml >= 0.11.11 && < 0.12,
+
   default-language: Haskell2010
 
 test-suite Hastructure-test
@@ -208,44 +209,47 @@ test-suite Hastructure-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Decimal
-    , Hastructure
-    , aeson
-    , aeson-pretty
-    , base
-    , bytestring
-    , containers
-    , deepseq
-    , generic-lens
-    , hashable
-    , ieee754
-    , lens
-    , math-functions
-    , monad-loops
-    , mtl
-    , numeric-limits
-    , openapi3
-    , parallel
-    , regex-base
-    , regex-pcre-builtin
-    , regex-tdfa
-    , scientific
-    , servant
-    , servant-openapi3
-    , servant-server
-    , split
-    , swagger2
-    , tabular
-    , tasty
-    , tasty-golden
-    , tasty-hspec
-    , tasty-hunit
-    , template-haskell
-    , text
-    , time
-    , wai
-    , yaml
-    , vector
-    , MissingH
-    , dlist
+    Decimal >= 0.5.2 && < 0.6,
+    base >= 4.19.2 && < 4.20,
+    deepseq >= 1.5.1 && < 1.6,
+    MissingH >= 1.6.0 && < 1.7,
+    containers >= 0.6.8 && < 0.7,
+    template-haskell >= 2.21.0 && < 2.22,
+    bytestring >= 0.12.1 && < 0.13,
+    exceptions >= 0.10.7 && < 0.11,
+    mtl >= 2.3.1 && < 2.4,
+    time >= 1.12.2 && < 1.13,
+    text >= 2.1.1 && < 2.2,
+    regex-base >= 0.94.0 && < 0.95,
+    aeson >= 2.2.3 && < 2.3,
+    hashable >= 1.4.7 && < 1.5,
+    dlist >= 1.0 && < 1.1,
+    scientific >= 0.3.8 && < 0.4,
+    vector >= 0.13.2 && < 0.14,
+    aeson-pretty >= 0.8.10 && < 0.9,
+    base-compat >= 0.14.1 && < 0.15,
+    attoparsec >= 0.14.4 && < 0.15,
+    attoparsec-aeson >= 2.2.2 && < 2.3,
+    generic-lens >= 2.2.2 && < 2.3,
+    http-types >= 0.12.4 && < 0.13,
+    ieee754 >= 0.8.0 && < 0.9,
+    lens >= 5.2.3 && < 5.3,
+    parallel >= 3.2.2 && < 3.3,
+    math-functions >= 0.3.4 && < 0.4,
+    monad-loops >= 0.4.3 && < 0.5,
+    numeric-limits >= 0.1.0 && < 0.2,
+    openapi3 >= 3.2.4 && < 3.3,
+    regex-pcre-builtin >= 0.95.2 && < 0.96,
+    regex-tdfa >= 1.3.2 && < 1.4,
+    servant >= 0.20.3 && < 0.21,
+    servant-openapi3 >= 2.0.1 && < 2.1,
+    servant-server >= 0.20.3 && < 0.21,
+    wai >= 3.2.4 && < 3.3,
+    warp >= 3.4.8 && < 3.5,
+    split >= 0.2.5 && < 0.3,
+    string-conversions >= 0.4.0 && < 0.5,
+    swagger2 >= 2.8.10 && < 2.9,
+    tabular >= 0.2.2 && < 0.3,
+    wai-cors >= 0.2.7 && < 0.3,
+    yaml >= 0.11.11 && < 0.12,
   default-language: Haskell2010
