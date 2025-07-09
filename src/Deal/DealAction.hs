@@ -280,7 +280,6 @@ calcDueInt t d b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntInfo) _ bond_bal bond
       ioiRate = case ioiIntInfo of 
                   L.OverCurrRateBy factor -> bond_rate * fromRational (1+factor)
                   L.OverFixSpread spd -> bond_rate + spd
-                  _ -> error "failed to match ioi rate type"
       newIoiInt = IR.calcInt intDue int_due_date d ioiRate DC_ACT_365F
       ioiInt = newIoiInt + ioiIntDue -- add ioi int due with new accrued ioi int
       newBond = b { L.bndDueIntOverInt = ioiInt, L.bndInterestInfo = intInfo }
@@ -297,7 +296,6 @@ calcDueInt t d b@(L.MultiIntBond {})
 calcDueInt t d b@(L.Bond {})
   = Right $ L.accrueInt d b -- `debug` ("Hit to defualt accru"++ show (L.bndName b)) 
 
-calcDueInt t d b = error $ "Not implemented for calcDueInt for bond type" ++ show b
 
 -- ^ modify due principal for bond
 calcDuePrin :: Ast.Asset a => TestDeal a -> Date -> L.Bond -> Either String L.Bond

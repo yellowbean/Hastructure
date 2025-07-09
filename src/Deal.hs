@@ -5,6 +5,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Deal (run,runPool,getInits,runDeal,ExpectReturn(..)
             ,performAction
@@ -125,7 +126,6 @@ setBondNewRate t d ras b@(L.MultiIntBond bn _ _ iis _ bal currentRates _ dueInts
     in
       Right $ b' { L.bndRates = newRates } 
 
-setBondNewRate t d ras b = Left $ "set bond new rate: "++ show d ++"Failed to set bond rate: "++show b++"from rate assumption" ++ show ras
 
 
 setBondStepUpRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> Either String L.Bond
@@ -166,7 +166,6 @@ accrueSrt t d srt@HE.SRT{ HE.srtDuePremium = duePrem, HE.srtRefBalance = bal, HE
   = do 
       newBal <- case st of
                   HE.SrtByEndDay ds dp -> queryCompound t d (patchDateToStats d ds)
-                  _ -> Left "not support new bal type for Srt"
       let newPremium = duePrem +  calcInt (fromRational newBal) (fromMaybe sd mDueDate) d rate DC_ACT_365F
       let accrueInt = calcInt (HE.srtRefBalance srt + duePrem) (fromMaybe d (HE.srtDuePremiumDate srt)) d (HE.srtPremiumRate srt) DC_ACT_365F
       return srt { HE.srtRefBalance = fromRational newBal, HE.srtDuePremium = newPremium, HE.srtDuePremiumDate = Just d}
@@ -182,7 +181,6 @@ updateLiqProviderRate t d ras liq@CE.LiqFacility{CE.liqRateType = mRt, CE.liqPre
     in 
       liq {CE.liqRate = newMr, CE.liqPremiumRate = newMpr }
 
-updateLiqProviderRate t d ras liq = liq 
 
 evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
 evalFloaterRate _ _ (IR.Fix _ r) = r 
@@ -302,8 +300,8 @@ accrueRC t d rs rc@RateCap{rcNetCash = amt, rcStrikeRate = strike,rcIndex = inde
 testCall :: Ast.Asset a => TestDeal a -> Date -> C.CallOption -> Either String Bool 
 testCall t d opt = 
     case opt of 
-       C.PoolBalance x -> (< x) <$> fromRational <$> queryCompound t d (FutureCurrentPoolBalance Nothing)
-       C.BondBalance x -> (< x) <$> fromRational <$> queryCompound t d CurrentBondBalance
+       C.PoolBalance x -> (< x) . fromRational <$> queryCompound t d (FutureCurrentPoolBalance Nothing)
+       C.BondBalance x -> (< x) . fromRational <$> queryCompound t d CurrentBondBalance
        C.PoolFactor x ->  (< x) <$> queryCompound t d (FutureCurrentPoolFactor d Nothing)  -- `debug` ("D "++show d++ "Pool Factor query ->" ++ show (queryDealRate t (FutureCurrentPoolFactor d)))
        C.BondFactor x ->  (< x) <$> queryCompound t d BondFactor
        C.OnDate x -> Right $ x == d 
@@ -408,7 +406,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         (finalDeal,_,newLogs) <- foldM (performActionWrap (getDate ad)) (t,runContext,log) cleanUpActions 
         return (finalDeal
                 , DL.snoc newLogs (EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving")
-	        , poolFlowMap)
+                , poolFlowMap)
 
   | otherwise
     = case ad of 
@@ -416,9 +414,9 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
           if any (> 0) remainCollectionNum then
             let 
               cutOffPoolFlowMap = Map.map (\(pflow,mAssetFlow) -> 
-		                           (CF.splitCashFlowFrameByDate pflow d EqToLeft
-	                                   ,(\xs -> [ CF.splitCashFlowFrameByDate x d EqToLeft | x <- xs ]) <$> mAssetFlow))
-					  poolFlowMap 
+                                            (CF.splitCashFlowFrameByDate pflow d EqToLeft
+                                              ,(\xs -> [ CF.splitCashFlowFrameByDate x d EqToLeft | x <- xs ]) <$> mAssetFlow))
+                                          poolFlowMap 
               collectedFlow =  Map.map (\(p,mAstFlow) -> (fst p, (\xs -> [ fst x | x <- xs ]) <$> mAstFlow)) cutOffPoolFlowMap  -- `debug` ("PoolCollection : "++ show d ++  " splited"++ show cutOffPoolFlowMap++"\n input pflow"++ show poolFlowMap)
               -- outstandingFlow = Map.map (CF.insertBegTsRow d . snd) cutOffPoolFlowMap
               outstandingFlow = Map.map (\(p,mAstFlow) -> (snd p, (\xs -> [ snd x | x <- xs ]) <$> mAstFlow)) cutOffPoolFlowMap  
@@ -789,8 +787,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                -- TODO tobe fix
                let bResetActions = []
                let newAccMap = Map.insert accName newAcc accMap
-               let newBndMap = Map.insert bName (newBnd {L.bndRate = newRate, L.bndDueIntDate = Just d 
-                                                        ,L.bndLastIntPay = Just d}) bndMap
+               let newBndMap = Map.insert bName (newBnd {L.bndRate = newRate, L.bndDueIntDate = Just d ,L.bndLastIntPay = Just d}) bndMap
                let newAds = sortBy sortActionOnDate $ filteredAds ++ bResetActions
                run t{bonds = newBndMap, accounts = newAccMap} poolFlowMap (Just newAds) rates calls rAssump log
            
@@ -931,7 +928,7 @@ priceBondIrr (AP.BuyBond dateToBuy bPricingMethod (AP.ByCash cash) Nothing) txns
       (ds2, vs2) = (getDate <$> futureFlow', getTxnAmt <$> boughtTxns)
     in 
       do 
-        irr <- Analytics.calcIRR ([ds1]++ds2) ([vs1]++vs2)
+        irr <- Analytics.calcIRR (ds1:ds2) (vs1:vs2)
         return (irr, (BondTxn dateToBuy 0 (negate accuredInt) (negate buyPaidOut) 0 vs1 0 0 Nothing Types.Empty):boughtTxns)
   where 
     -- assume cashflow of buy date belongs to seller(owner)
@@ -945,7 +942,7 @@ priceBonds t (AP.DiscountCurve d dc) = Right $ Map.map (L.priceBond d dc) (viewB
 priceBonds t@TestDeal {bonds = bndMap} (AP.RunZSpread curve bondPrices) 
   = sequenceA $ 
       Map.mapWithKey 
-        (\bn (pd,price)-> ZSpread <$> (L.calcZspread (price,pd) (bndMap Map.! bn) curve))
+        (\bn (pd,price)-> ZSpread <$> L.calcZspread (price,pd) (bndMap Map.! bn) curve)
         bondPrices
 -- Calc Irr of bonds 
 priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput) 
@@ -987,7 +984,6 @@ splitCallOpts (AP.LegacyOpts copts) =
       ([ cFn copt | copt <- copts ],[])
 -- legacyCallOptConvert (AP.CallOptions opts) = concat [ legacyCallOptConvert o | o <- opts ]
 splitCallOpts (AP.CallOnDates dp ps) = ([],ps)
-splitCallOpts x = error $ "Failed to find call option types but got"++ show x
 
 
 -- <Legacy Test>, <Test on dates>
@@ -1029,7 +1025,7 @@ runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts 
                         Nothing -> Right Map.empty
         return (finalDeal
                  , poolFlowUsedNoEmpty
-                 , getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList logs
+                 , getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList (DL.append logs (unCollectedPoolFlowWarning osPoolFlow))
 		 , bndPricing
 	         , osPoolFlow & mapped . _1 . CF.cashflowTxn %~ CF.dropTailEmptyTxns
 		              & mapped . _2 . _Just . each . CF.cashflowTxn %~ CF.dropTailEmptyTxns
@@ -1042,7 +1038,12 @@ runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts 
                         Nothing -> Nothing
                         Just (AP.AvailableAssets rp rperf) -> Just (Map.fromList [("Consol", (rp, rperf))])
                         Just (AP.AvailableAssetsBy rMap) -> Just rMap
-                        Just _ -> error ("Failed to match revolving assumption"++show mRevolving)
+      -- TODO: need to add warning if uncollected pool flow is not empty
+      unCollectedPoolFlowWarning pMap = if sum (Map.elems (Map.map (CF.sizeCashFlowFrame . view _1) pMap)) > 0 then 
+                                          DL.singleton $ WarningMsg "Oustanding pool cashflow hasn't been collected yet"
+                                        else
+					  DL.empty
+
       -- run() is a recusive function loop over all actions till deal end conditions are met
       
 -- | get bond principal and interest shortfalls from a deal
@@ -1136,7 +1137,6 @@ removePoolCf t@TestDeal{pool=pt} =
     newPt = case pt of 
               MultiPool pm -> MultiPool $ set (mapped . P.poolFutureCf) Nothing pm 
               ResecDeal uds -> ResecDeal uds
-              _ -> error $ "not implement:" ++ show pt
   in
     t {pool = newPt}
 
@@ -1147,7 +1147,7 @@ runPool :: Ast.Asset a => P.Pool a -> Maybe AP.ApplyAssumptionType -> Maybe [Rat
 -- schedule cashflow just ignores the interest rate assumption
 runPool (P.Pool [] (Just (cf,_)) _ asof _ _ ) Nothing _ = Right [(cf, Map.empty)]
 -- schedule cashflow with stress assumption
-runPool (P.Pool []  (Just ((CF.CashFlowFrame _ txn),_)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates 
+runPool (P.Pool []  (Just (CF.CashFlowFrame _ txn,_)) _ asof _ (Just dp)) (Just (AP.PoolLevel assumps)) mRates 
   = sequenceA [ Ast.projCashflow (ACM.ScheduleMortgageFlow asof txn dp) asof assumps mRates ] -- `debug` ("PROJ in schedule flow")
 
 -- project contractual cashflow if nothing found in pool perf assumption
@@ -1168,7 +1168,7 @@ runPool (P.Pool as _ Nothing  asof _ _) (Just (AP.ByIndex idxAssumps)) mRates =
     numAssets = length as
   in
     do 
-      _assumps <- sequenceA $ map (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
+      _assumps <- traverse (AP.lookupAssumptionByIdx idxAssumps) [0..(pred numAssets)] -- `debug` ("Num assets"++ show numAssets)
       sequenceA $ parMap rdeepseq (\(x, a) -> Ast.projCashflow x asof a mRates) (zip as _assumps)
 
 ---- By Obligor
@@ -1384,16 +1384,16 @@ getInits er t@TestDeal{fees=feeMap,pool=thePool,status=status,bonds=bndMap,stats
                               [ ResetLiqProviderRate _d _liqName |(_liqName,__liqResetDates) <- _liqRateResetDates , _d <- __liqResetDates ]                            
     --inspect dates 
       let inspectDates = case mNonPerfAssump of
-                          Just AP.NonPerfAssumption{AP.inspectOn = Just inspectList } -> concat $ (expandInspect startDate endDate) <$> inspectList
+                          Just AP.NonPerfAssumption{AP.inspectOn = Just inspectList } -> concatMap  (expandInspect startDate endDate) inspectList
                           _ -> []
     
       let financialRptDates = case mNonPerfAssump of 
                             Just AP.NonPerfAssumption{AP.buildFinancialReport= Just dp } 
                               -> let 
-                                   _ds = genSerialDatesTill2 II startDate dp endDate 
+                                   (s:_ds) = genSerialDatesTill2 II startDate dp endDate 
                                  in 
-                                   [ BuildReport _sd _ed  | (_sd,_ed) <- zip _ds (tail _ds) ] -- `debug` ("ds"++ show _ds)
-                            _ -> []  -- `debug` ("emtpy rpt dates")
+                                   [ BuildReport _sd _ed  | (_sd,_ed) <- zip (s:_ds) _ds ] -- `debug` ("ds"++ show _ds)
+                            _ -> []
 
       let irUpdateSwapDates = case rateSwap t of
                           Nothing -> []
@@ -1593,8 +1593,6 @@ depositInflow d (W.CollectByPct mPids s splitRules) pFlowMap amap    --TODO need
                 amtsToAccs
     where 
       txns =  extractTxnsFromFlowFrameMap mPids pFlowMap 
-
-depositInflow _ a _ _ = Left $ " Failed to match collection rule "++ show a
 
 -- ^ deposit cash to account by pool map CF and rules
 depositPoolFlow :: [W.CollectionRule] -> Date -> Map.Map PoolId CF.PoolCashflow -> Map.Map String A.Account -> Either String (Map.Map String A.Account)

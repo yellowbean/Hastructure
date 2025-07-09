@@ -274,17 +274,16 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
     --TODO need to use projected current balance instead of current balance 
     PoolWaSpread mPns -> 
       let 
-	assets = getAllAsset t mPns
-	bals = P.getCurrentBal <$> concat (Map.elems assets)
-	spreads = map 
-	            (\x -> 
-		      case x of
-		        AB.MortgageOriginalInfo { AB.originRate = r } -> fromMaybe 0.0 $ IR._getSpread r
+        assets = getAllAsset t mPns
+        bals = P.getCurrentBal <$> concat (Map.elems assets)
+        spreads = map 
+                    (\case 
+                        AB.MortgageOriginalInfo { AB.originRate = r } -> fromMaybe 0.0 $ IR._getSpread r
                         AB.LoanOriginalInfo { AB.originRate = r } -> fromMaybe 0.0 $ IR._getSpread r
                         _ -> 0.0)
-		    (P.getOriginInfo <$> concat (Map.elems assets))
+                    (P.getOriginInfo <$> concat (Map.elems assets))
       in 
-	Right $ weightedBy (toRational <$> bals) (toRational <$> spreads)
+        Right $ weightedBy (toRational <$> bals) (toRational <$> spreads)
 
     DealStatRate s -> 
       case stats t of 

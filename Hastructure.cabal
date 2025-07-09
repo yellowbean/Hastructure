@@ -25,8 +25,6 @@ source-repository head
   type: git
   location: https://github.com/yellowbean/Hastructure
 
-with-compiler: ghc-9.8.2
-
 library
   exposed-modules:
       Accounts
@@ -72,6 +70,8 @@ library
       Waterfall
   other-modules:
       Paths_Hastructure
+  autogen-modules:
+      Paths_Hastructure
   hs-source-dirs:
       src
   build-depends:
@@ -86,7 +86,7 @@ library
     , aeson
     , attoparsec-aeson
     , aeson-pretty
-    , base
+    , base  >= 4.5 && < 4.20
     , bytestring
     , containers
     , deepseq
@@ -125,6 +125,8 @@ executable Hastructure-exe
   main-is: Main.hs
   other-modules:
       MainBase
+      Paths_Hastructure
+  autogen-modules:
       Paths_Hastructure
   hs-source-dirs:
       app
@@ -167,7 +169,7 @@ executable Hastructure-exe
     , template-haskell
     , text
     , time
-    , unordered-containers
+    , unordered-containers >= 0.2 && < 0.2.20
     , wai
     , wai-cors
     , warp
@@ -179,6 +181,8 @@ executable Hastructure-exe
 test-suite Hastructure-test
   type: exitcode-stdio-1.0
   main-is: MainTest.hs
+  autogen-modules:
+      Paths_Hastructure
   other-modules:
       DealTest.DealTest
       DealTest.MultiPoolDealTest
