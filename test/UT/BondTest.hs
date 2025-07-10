@@ -51,7 +51,7 @@ bfloat = B.Bond{B.bndName="A"
             ,B.bndInterestInfo= B.Floater 0.02 LPR5Y 0.015 (MonthDayOfYear 1 1) DC_ACT_365F Nothing Nothing
             ,B.bndBalance=3000
             ,B.bndRate=0.08
-	    ,B.bndStepUp = Nothing
+            ,B.bndStepUp = Nothing
             ,B.bndDuePrin=0.0
             ,B.bndDueInt=0.0
             ,B.bndDueIntDate=Nothing

@@ -134,7 +134,7 @@ executable Hastructure-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
     Decimal,
-    base,
+    base >= 4.19.2 && < 4.20,
     deepseq,
     MissingH,
     containers,
@@ -211,7 +211,7 @@ test-suite Hastructure-test
   build-depends:
     Hastructure,
     Decimal,
-    base,
+    base >= 4.19.2 && < 4.20,
     deepseq,
     MissingH,
     containers,
