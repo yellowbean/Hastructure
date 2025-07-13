@@ -5,7 +5,7 @@ cabal-version: 3.0
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:        0.45.0
+version:        0.45.3
 synopsis:       Cashflow modeling library for structured finance
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance,Securitisation,Cashflow
@@ -93,13 +93,13 @@ library
     scientific >= 0.3.8 && < 0.4,
     vector >= 0.13.2 && < 0.14,
     aeson-pretty >= 0.8.10 && < 0.9,
-    base-compat >= 0.14.1 && < 0.15,
+    base-compat >= 0.13.0 && < 0.15,
     attoparsec >= 0.14.4 && < 0.15,
     attoparsec-aeson >= 2.2.2 && < 2.3,
     generic-lens >= 2.2.2 && < 2.3,
     http-types >= 0.12.4 && < 0.13,
     ieee754 >= 0.8.0 && < 0.9,
-    lens >= 5.2.3 && < 5.3,
+    lens >= 5.2.3 && < 5.3.5,
     parallel >= 3.2.2 && < 3.3,
     math-functions >= 0.3.4 && < 0.4,
     monad-loops >= 0.4.3 && < 0.5,
@@ -107,14 +107,14 @@ library
     openapi3 >= 3.2.4 && < 3.3,
     regex-pcre-builtin >= 0.95.2 && < 0.96,
     regex-tdfa >= 1.3.2 && < 1.4,
-    servant >= 0.20.3 && < 0.21,
+    servant >= 0.20.2 && < 0.21,
     servant-openapi3 >= 2.0.1 && < 2.1,
-    servant-server >= 0.20.3 && < 0.21,
+    servant-server >= 0.20.2 && < 0.21,
     wai >= 3.2.4 && < 3.3,
-    warp >= 3.4.8 && < 3.5,
+    warp >= 3.4.7 && < 3.5,
     split >= 0.2.5 && < 0.3,
     string-conversions >= 0.4.0 && < 0.5,
-    swagger2 >= 2.8.10 && < 2.9,
+    swagger2 >= 2.8.9 && < 2.9,
     tabular >= 0.2.2 && < 0.3,
     wai-cors >= 0.2.7 && < 0.3,
     yaml >= 0.11.11 && < 0.12,
