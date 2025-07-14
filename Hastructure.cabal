@@ -5,7 +5,7 @@ cabal-version: 3.0
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:        0.45.3
+version:        0.50.0
 synopsis:       Cashflow modeling library for structured finance
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
 category:       StructuredFinance,Securitisation,Cashflow
@@ -82,7 +82,7 @@ library
     containers >= 0.6.8 && < 0.7,
     template-haskell >= 2.20.0 && < 2.21.1.0,
     bytestring >= 0.12.1 && < 0.13,
-    exceptions >= 0.10.7 && < 0.11,
+    -- exceptions >= 0.10.7 && < 0.11,
     mtl >= 2.3.1 && < 2.4,
     time >= 1.12.2 && < 1.13,
     text >= 2.1.1 && < 2.2,
@@ -98,7 +98,7 @@ library
     attoparsec-aeson >= 2.2.2 && < 2.3,
     generic-lens >= 2.2.2 && < 2.3,
     http-types >= 0.12.4 && < 0.13,
-    ieee754 >= 0.8.0 && < 0.9,
+    -- ieee754 >= 0.8.0 && < 0.9,
     lens >= 5.2.3 && < 5.3.6,
     parallel >= 3.2.2 && < 3.3,
     math-functions >= 0.3.4 && < 0.4,
@@ -106,7 +106,7 @@ library
     numeric-limits >= 0.1.0 && < 0.2,
     openapi3 >= 3.2.4 && < 3.3,
     regex-pcre-builtin >= 0.95.2 && < 0.96,
-    regex-tdfa >= 1.3.2 && < 1.4,
+    -- regex-tdfa >= 1.3.2 && < 1.4,
     servant >= 0.20.2 && < 0.21,
     servant-openapi3 >= 2.0.1 && < 2.1,
     servant-server >= 0.20.2 && < 0.21,
@@ -157,7 +157,6 @@ executable Hastructure-exe
     attoparsec-aeson,
     generic-lens,
     http-types,
-    ieee754,
     lens,
     parallel,
     math-functions,
@@ -165,7 +164,6 @@ executable Hastructure-exe
     numeric-limits,
     openapi3,
     regex-pcre-builtin,
-    regex-tdfa,
     servant,
     servant-openapi3,
     servant-server,
@@ -216,7 +214,7 @@ test-suite Hastructure-test
   build-depends:
     Hastructure,
     Decimal,
-    base >= 4.18.0 && < 4.20,
+    base >= 4.18.0 && < 4.21,
     deepseq,
     MissingH,
     containers,
@@ -238,7 +236,6 @@ test-suite Hastructure-test
     attoparsec-aeson,
     generic-lens,
     http-types,
-    ieee754,
     lens,
     parallel,
     math-functions,
@@ -246,7 +243,6 @@ test-suite Hastructure-test
     numeric-limits,
     openapi3,
     regex-pcre-builtin,
-    regex-tdfa,
     servant,
     servant-openapi3,
     servant-server,

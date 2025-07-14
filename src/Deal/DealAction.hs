@@ -55,7 +55,7 @@ import Data.Time.Clock
 import Data.Maybe
 import Data.Either
 import Data.Aeson hiding (json)
-import qualified Data.Aeson.Encode.Pretty as Pretty
+-- import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types

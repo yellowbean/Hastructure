@@ -27,7 +27,7 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Aeson hiding (json)
-import Text.Regex.TDFA
+-- import Text.Regex.TDFA
 import Data.Fixed (Fixed(..), HasResolution,Centi, resolution)
 import Data.Ratio
 import Types
