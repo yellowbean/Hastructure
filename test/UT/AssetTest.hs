@@ -626,8 +626,8 @@ delinqScheduleCFTest =
           ,CF.MortgageDelinqFlow (L.toDate "20231001") 500 500 0 0 0 0 0 0 0.08 Nothing Nothing Nothing
           ]
     pool = P.Pool ([]::[AB.Mortgage])
-                  (Just (CF.CashFlowFrame dummySt cfs))
-                  (Just (CF.CashFlowFrame dummySt cfs))
+                  (Just (CF.CashFlowFrame dummySt cfs,Nothing))
+                  Nothing
                   (L.toDate "20230801")
                   Nothing
                   (Just MonthEnd)
@@ -642,8 +642,8 @@ delinqScheduleCFTest =
 
     poolCf = fst . head $ 
                case D.runPool pool assump1 Nothing of
-                 Left _ -> undefined
-                 Right x -> x
+                 Left errorMsg -> undefined `debug` ("Error in pool run"++show errorMsg)
+                 Right x -> x  `debug` ("pool run resp"++show x)
     poolCf2 = fst . head $ 
                 case D.runPool pool assump2 Nothing of
                   Left _ -> undefined

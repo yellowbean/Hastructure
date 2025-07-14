@@ -2478,28 +2478,6 @@
                     {
                         "properties": {
                             "contents": {
-                                "items": {
-                                    "$ref": "#/components/schemas/ObligorStrategy"
-                                },
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "ByObligor"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "ByObligor",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
                                 "additionalProperties": {
                                     "$ref": "#/components/schemas/ApplyAssumptionType"
                                 },
@@ -2517,6 +2495,28 @@
                             "contents"
                         ],
                         "title": "ByPoolId",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ObligorStrategy"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ByObligor"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ByObligor",
                         "type": "object"
                     },
                     {
@@ -6054,6 +6054,28 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PoolWaSpread"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PoolWaSpread",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "tag": {
                                 "enum": [
                                     "AllAccBalance"
@@ -8994,6 +9016,9 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
                             "tag": {
                                 "enum": [
                                     "Ended"
@@ -9002,7 +9027,8 @@
                             }
                         },
                         "required": [
-                            "tag"
+                            "tag",
+                            "contents"
                         ],
                         "title": "Ended",
                         "type": "object"
@@ -9172,7 +9198,7 @@
                 ],
                 "type": "string"
             },
-            "Either_[Char]_((CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))),(Maybe_[PriceResult]))": {
+            "Either_[Char]_(CashFlowFrame,(Maybe_[PriceResult]))": {
                 "oneOf": [
                     {
                         "properties": {
@@ -9191,21 +9217,7 @@
                             "Right": {
                                 "items": [
                                     {
-                                        "items": [
-                                            {
-                                                "$ref": "#/components/schemas/CashFlowFrame"
-                                            },
-                                            {
-                                                "additionalProperties": {
-                                                    "multipleOf": 1.0e-2,
-                                                    "type": "number"
-                                                },
-                                                "type": "object"
-                                            }
-                                        ],
-                                        "maxItems": 2,
-                                        "minItems": 2,
-                                        "type": "array"
+                                        "$ref": "#/components/schemas/CashFlowFrame"
                                     },
                                     {
                                         "items": {
@@ -9227,7 +9239,7 @@
                     }
                 ]
             },
-            "Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))": {
+            "Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))": {
                 "oneOf": [
                     {
                         "properties": {
@@ -9265,10 +9277,29 @@
                                             "$ref": "#/components/schemas/PriceResult"
                                         },
                                         "type": "object"
+                                    },
+                                    {
+                                        "additionalProperties": {
+                                            "items": [
+                                                {
+                                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                                },
+                                                {
+                                                    "items": {
+                                                        "$ref": "#/components/schemas/CashFlowFrame"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            ],
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array"
+                                        },
+                                        "type": "object"
                                     }
                                 ],
-                                "maxItems": 4,
-                                "minItems": 4,
+                                "maxItems": 5,
+                                "minItems": 5,
                                 "type": "array"
                             }
                         },
@@ -9280,7 +9311,7 @@
                     }
                 ]
             },
-            "Either_[Char]_(Map_PoolId_(CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))))": {
+            "Either_[Char]_(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame])))": {
                 "oneOf": [
                     {
                         "properties": {
@@ -9303,11 +9334,10 @@
                                             "$ref": "#/components/schemas/CashFlowFrame"
                                         },
                                         {
-                                            "additionalProperties": {
-                                                "multipleOf": 1.0e-2,
-                                                "type": "number"
+                                            "items": {
+                                                "$ref": "#/components/schemas/CashFlowFrame"
                                             },
-                                            "type": "object"
+                                            "type": "array"
                                         }
                                     ],
                                     "maxItems": 2,
@@ -9381,6 +9411,13 @@
                         "type": "object"
                     }
                 ]
+            },
+            "ExpectReturn": {
+                "enum": [
+                    "DealLogs",
+                    "AssetLevelFlow"
+                ],
+                "type": "string"
             },
             "ExtraStress": {
                 "properties": {
@@ -10189,6 +10226,35 @@
                                         "type": "number"
                                     },
                                     {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BankAccount"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BankAccount",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
                                         "$ref": "#/components/schemas/Index"
                                     },
                                     {
@@ -10199,150 +10265,23 @@
                                         "$ref": "#/components/schemas/DatePattern"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/DayCount"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 7,
-                                "minItems": 7,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "Floater"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "Floater",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DayCount"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "Fix"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "Fix",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/InterestInfo"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "RefBal"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "RefBal",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealStats"
-                                    },
-                                    {
-                                        "format": "float",
-                                        "type": "number"
-                                    },
-                                    {
                                         "$ref": "#/components/schemas/DatePattern"
-                                    }
-                                ],
-                                "maxItems": 4,
-                                "minItems": 4,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "RefRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "RefRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
+                                    },
                                     {
-                                        "$ref": "#/components/schemas/InterestInfo"
+                                        "$ref": "#/components/schemas/Day"
                                     },
                                     {
                                         "multipleOf": 1.0e-6,
                                         "type": "number"
                                     }
                                 ],
-                                "maxItems": 2,
-                                "minItems": 2,
+                                "maxItems": 6,
+                                "minItems": 6,
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "CapRate"
+                                    "InvestmentAccount"
                                 ],
                                 "type": "string"
                             }
@@ -10351,66 +10290,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "CapRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/InterestInfo"
-                                    },
-                                    {
-                                        "multipleOf": 1.0e-6,
-                                        "type": "number"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FloorRate"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "FloorRate",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/InterestInfo"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/InterestOverInterestType"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "WithIoI"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "WithIoI",
+                        "title": "InvestmentAccount",
                         "type": "object"
                     }
                 ]
@@ -10923,6 +10803,68 @@
                             "contents"
                         ],
                         "title": "StopByExtTimes",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "EarlierOf"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "EarlierOf",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "maximum": 9223372036854775807,
+                                        "minimum": -9223372036854775808,
+                                        "type": "integer"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "LaterOf"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "LaterOf",
                         "type": "object"
                     }
                 ]
@@ -11834,7 +11776,7 @@
                         "$ref": "#/components/schemas/RevolvingAssumption"
                     },
                     "stopRunBy": {
-                        "$ref": "#/components/schemas/Day"
+                        "$ref": "#/components/schemas/StopBy"
                     }
                 },
                 "type": "object"
@@ -12039,219 +11981,28 @@
                 ]
             },
             "OriginalInfo": {
-                "oneOf": [
-                    {
-                        "properties": {
-                            "obligor": {
-                                "$ref": "#/components/schemas/Obligor"
-                            },
-                            "originBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "originRate": {
-                                "$ref": "#/components/schemas/RateType"
-                            },
-                            "originTerm": {
-                                "maximum": 9223372036854775807,
-                                "minimum": -9223372036854775808,
-                                "type": "integer"
-                            },
-                            "period": {
-                                "$ref": "#/components/schemas/Period"
-                            },
-                            "prepaymentPenalty": {
-                                "$ref": "#/components/schemas/PrepayPenaltyType"
-                            },
-                            "prinType": {
-                                "$ref": "#/components/schemas/AmortPlan"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "MortgageOriginalInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "originBalance",
-                            "originRate",
-                            "originTerm",
-                            "period",
-                            "startDate",
-                            "prinType",
-                            "tag"
-                        ],
-                        "title": "MortgageOriginalInfo",
-                        "type": "object"
+                "properties": {
+                    "maturityDate": {
+                        "$ref": "#/components/schemas/Day"
                     },
-                    {
-                        "properties": {
-                            "obligor": {
-                                "$ref": "#/components/schemas/Obligor"
-                            },
-                            "originBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "originRate": {
-                                "$ref": "#/components/schemas/RateType"
-                            },
-                            "originTerm": {
-                                "maximum": 9223372036854775807,
-                                "minimum": -9223372036854775808,
-                                "type": "integer"
-                            },
-                            "period": {
-                                "$ref": "#/components/schemas/Period"
-                            },
-                            "prinType": {
-                                "$ref": "#/components/schemas/AmortPlan"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "LoanOriginalInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "originBalance",
-                            "originRate",
-                            "originTerm",
-                            "period",
-                            "startDate",
-                            "prinType",
-                            "tag"
-                        ],
-                        "title": "LoanOriginalInfo",
-                        "type": "object"
+                    "originBalance": {
+                        "multipleOf": 1.0e-2,
+                        "type": "number"
                     },
-                    {
-                        "properties": {
-                            "obligor": {
-                                "$ref": "#/components/schemas/Obligor"
-                            },
-                            "originRental": {
-                                "$ref": "#/components/schemas/LeaseRateCalc"
-                            },
-                            "originTerm": {
-                                "maximum": 9223372036854775807,
-                                "minimum": -9223372036854775808,
-                                "type": "integer"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "LeaseInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "startDate",
-                            "originTerm",
-                            "originRental",
-                            "tag"
-                        ],
-                        "title": "LeaseInfo",
-                        "type": "object"
+                    "originDate": {
+                        "$ref": "#/components/schemas/Day"
                     },
-                    {
-                        "properties": {
-                            "accRule": {
-                                "$ref": "#/components/schemas/AmortRule"
-                            },
-                            "capacity": {
-                                "$ref": "#/components/schemas/Capacity"
-                            },
-                            "originBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "originTerm": {
-                                "maximum": 9223372036854775807,
-                                "minimum": -9223372036854775808,
-                                "type": "integer"
-                            },
-                            "period": {
-                                "$ref": "#/components/schemas/Period"
-                            },
-                            "residualBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "FixedAssetInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "startDate",
-                            "originBalance",
-                            "residualBalance",
-                            "originTerm",
-                            "period",
-                            "accRule",
-                            "capacity",
-                            "tag"
-                        ],
-                        "title": "FixedAssetInfo",
-                        "type": "object"
-                    },
-                    {
-                        "properties": {
-                            "dueDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "feeType": {
-                                "$ref": "#/components/schemas/ReceivableFeeType"
-                            },
-                            "obligor": {
-                                "$ref": "#/components/schemas/Obligor"
-                            },
-                            "originAdvance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "originBalance": {
-                                "multipleOf": 1.0e-2,
-                                "type": "number"
-                            },
-                            "startDate": {
-                                "$ref": "#/components/schemas/Day"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "ReceivableInfo"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "startDate",
-                            "originBalance",
-                            "originAdvance",
-                            "dueDate",
-                            "tag"
-                        ],
-                        "title": "ReceivableInfo",
-                        "type": "object"
+                    "originRate": {
+                        "format": "double",
+                        "type": "number"
                     }
-                ]
+                },
+                "required": [
+                    "originBalance",
+                    "originDate",
+                    "originRate"
+                ],
+                "type": "object"
             },
             "PayOrderBy": {
                 "oneOf": [
@@ -13141,10 +12892,36 @@
                         "$ref": "#/components/schemas/DatePattern"
                     },
                     "futureCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "futureScheduleCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "issuanceStat": {
                         "additionalProperties": {
@@ -13175,10 +12952,36 @@
                         "$ref": "#/components/schemas/DatePattern"
                     },
                     "futureCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "futureScheduleCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "issuanceStat": {
                         "additionalProperties": {
@@ -13209,10 +13012,36 @@
                         "$ref": "#/components/schemas/DatePattern"
                     },
                     "futureCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "futureScheduleCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "issuanceStat": {
                         "additionalProperties": {
@@ -13243,10 +13072,36 @@
                         "$ref": "#/components/schemas/DatePattern"
                     },
                     "futureCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "futureScheduleCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "issuanceStat": {
                         "additionalProperties": {
@@ -13277,10 +13132,36 @@
                         "$ref": "#/components/schemas/DatePattern"
                     },
                     "futureCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "futureScheduleCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "issuanceStat": {
                         "additionalProperties": {
@@ -13311,10 +13192,36 @@
                         "$ref": "#/components/schemas/DatePattern"
                     },
                     "futureCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "futureScheduleCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "issuanceStat": {
                         "additionalProperties": {
@@ -13345,10 +13252,36 @@
                         "$ref": "#/components/schemas/DatePattern"
                     },
                     "futureCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "futureScheduleCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "issuanceStat": {
                         "additionalProperties": {
@@ -13379,10 +13312,36 @@
                         "$ref": "#/components/schemas/DatePattern"
                     },
                     "futureCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "futureScheduleCf": {
-                        "$ref": "#/components/schemas/CashFlowFrame"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/CashFlowFrame"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/CashFlowFrame"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "issuanceStat": {
                         "additionalProperties": {
@@ -16378,10 +16337,16 @@
                                             },
                                             {
                                                 "$ref": "#/components/schemas/NonPerfAssumption"
+                                            },
+                                            {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/ExpectReturn"
+                                                },
+                                                "type": "array"
                                             }
                                         ],
-                                        "maxItems": 3,
-                                        "minItems": 3,
+                                        "maxItems": 4,
+                                        "minItems": 4,
                                         "type": "array"
                                     },
                                     {
@@ -16420,10 +16385,16 @@
                                             },
                                             {
                                                 "$ref": "#/components/schemas/NonPerfAssumption"
+                                            },
+                                            {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/ExpectReturn"
+                                                },
+                                                "type": "array"
                                             }
                                         ],
-                                        "maxItems": 3,
-                                        "minItems": 3,
+                                        "maxItems": 4,
+                                        "minItems": 4,
                                         "type": "array"
                                     },
                                     {
@@ -16453,10 +16424,269 @@
                         ],
                         "title": "MaxSpreadToFaceReq",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/DealType"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/ApplyAssumptionType"
+                                            },
+                                            {
+                                                "$ref": "#/components/schemas/NonPerfAssumption"
+                                            },
+                                            {
+                                                "items": {
+                                                    "$ref": "#/components/schemas/ExpectReturn"
+                                                },
+                                                "type": "array"
+                                            }
+                                        ],
+                                        "maxItems": 4,
+                                        "minItems": 4,
+                                        "type": "array"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RootFindTweak"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/RootFindStop"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "RootFinderReq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "RootFinderReq",
+                        "type": "object"
                     }
                 ]
             },
             "RootFindResp": {
+                "items": [
+                    {
+                        "format": "double",
+                        "type": "number"
+                    },
+                    {
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/DealType"
+                            },
+                            {
+                                "$ref": "#/components/schemas/ApplyAssumptionType"
+                            },
+                            {
+                                "$ref": "#/components/schemas/NonPerfAssumption"
+                            },
+                            {
+                                "items": {
+                                    "$ref": "#/components/schemas/ExpectReturn"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 4,
+                        "minItems": 4,
+                        "type": "array"
+                    }
+                ],
+                "maxItems": 2,
+                "minItems": 2,
+                "type": "array"
+            },
+            "RootFindStop": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondIncurLoss"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondIncurLoss",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondIncurPrinLoss"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondIncurPrinLoss",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondIncurIntLoss"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondIncurIntLoss",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondPricingEqOriginBal"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondPricingEqOriginBal",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BondMetTargetIrr"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BondMetTargetIrr",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DealStats"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-2,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "BalanceFormula"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "BalanceFormula",
+                        "type": "object"
+                    }
+                ]
+            },
+            "RootFindTweak": {
                 "oneOf": [
                     {
                         "properties": {
@@ -16467,19 +16697,17 @@
                                         "type": "number"
                                     },
                                     {
-                                        "$ref": "#/components/schemas/ApplyAssumptionType"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/RevolvingAssumption"
+                                        "format": "double",
+                                        "type": "number"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 2,
+                                "minItems": 2,
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "FirstLossResult"
+                                    "StressPoolDefault"
                                 ],
                                 "type": "string"
                             }
@@ -16488,7 +16716,7 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "FirstLossResult",
+                        "title": "StressPoolDefault",
                         "type": "object"
                     },
                     {
@@ -16500,22 +16728,17 @@
                                         "type": "number"
                                     },
                                     {
-                                        "additionalProperties": {
-                                            "$ref": "#/components/schemas/Bond"
-                                        },
-                                        "type": "object"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DealType"
+                                        "format": "double",
+                                        "type": "number"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 2,
+                                "minItems": 2,
                                 "type": "array"
                             },
                             "tag": {
                                 "enum": [
-                                    "BestSpreadResult"
+                                    "StressPoolPrepayment"
                                 ],
                                 "type": "string"
                             }
@@ -16524,7 +16747,92 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "BestSpreadResult",
+                        "title": "StressPoolPrepayment",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            },
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "MaxSpreadTo"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "MaxSpreadTo",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": [
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            },
+                                            {
+                                                "format": "double",
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "SplitFixedBalance"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "SplitFixedBalance",
                         "type": "object"
                     }
                 ]
@@ -16668,6 +16976,12 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ExpectReturn"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealType"
                                     },
                                     {
@@ -16677,8 +16991,8 @@
                                         "$ref": "#/components/schemas/NonPerfAssumption"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -16700,6 +17014,12 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ExpectReturn"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealType"
                                     },
                                     {
@@ -16712,8 +17032,8 @@
                                         "$ref": "#/components/schemas/NonPerfAssumption"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -16735,6 +17055,12 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ExpectReturn"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
                                         "additionalProperties": {
                                             "$ref": "#/components/schemas/DealType"
                                         },
@@ -16747,8 +17073,8 @@
                                         "$ref": "#/components/schemas/NonPerfAssumption"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -16770,6 +17096,12 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ExpectReturn"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/DealType"
                                     },
                                     {
@@ -16782,8 +17114,8 @@
                                         "type": "object"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -16805,6 +17137,12 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ExpectReturn"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
                                         "additionalProperties": {
                                             "$ref": "#/components/schemas/DealType"
                                         },
@@ -16823,8 +17161,8 @@
                                         "type": "object"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -16850,6 +17188,9 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "type": "boolean"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/PoolTypeWrap"
                                     },
                                     {
@@ -16862,8 +17203,8 @@
                                         "type": "array"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -16885,6 +17226,9 @@
                             "contents": {
                                 "items": [
                                     {
+                                        "type": "boolean"
+                                    },
+                                    {
                                         "$ref": "#/components/schemas/PoolTypeWrap"
                                     },
                                     {
@@ -16900,8 +17244,8 @@
                                         "type": "array"
                                     }
                                 ],
-                                "maxItems": 3,
-                                "minItems": 3,
+                                "maxItems": 4,
+                                "minItems": 4,
                                 "type": "array"
                             },
                             "tag": {
@@ -17027,6 +17371,61 @@
                             "contents"
                         ],
                         "title": "PassDateLadderSpread",
+                        "type": "object"
+                    }
+                ]
+            },
+            "StopBy": {
+                "oneOf": [
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/Day"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "StopByDate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "StopByDate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/DatePattern"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/Pre"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "StopByPre"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "StopByPre",
                         "type": "object"
                     }
                 ]
@@ -18549,6 +18948,39 @@
                             "contents"
                         ],
                         "title": "BuyAsset",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/InterestInfo"
+                                    },
+                                    {
+                                        "multipleOf": 1.0e-6,
+                                        "type": "number"
+                                    }
+                                ],
+                                "maxItems": 3,
+                                "minItems": 3,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ChangeBondRate"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ChangeBondRate",
                         "type": "object"
                     },
                     {
@@ -20547,7 +20979,9 @@
                     }
                 },
                 "required": [
-                    "deal"
+                    "deal",
+                    "futureCf",
+                    "futureScheduleCf"
                 ],
                 "type": "object"
             },
@@ -20571,7 +21005,9 @@
                     }
                 },
                 "required": [
-                    "deal"
+                    "deal",
+                    "futureCf",
+                    "futureScheduleCf"
                 ],
                 "type": "object"
             },
@@ -20595,7 +21031,9 @@
                     }
                 },
                 "required": [
-                    "deal"
+                    "deal",
+                    "futureCf",
+                    "futureScheduleCf"
                 ],
                 "type": "object"
             },
@@ -20619,7 +21057,9 @@
                     }
                 },
                 "required": [
-                    "deal"
+                    "deal",
+                    "futureCf",
+                    "futureScheduleCf"
                 ],
                 "type": "object"
             },
@@ -20643,7 +21083,9 @@
                     }
                 },
                 "required": [
-                    "deal"
+                    "deal",
+                    "futureCf",
+                    "futureScheduleCf"
                 ],
                 "type": "object"
             },
@@ -20667,7 +21109,9 @@
                     }
                 },
                 "required": [
-                    "deal"
+                    "deal",
+                    "futureCf",
+                    "futureScheduleCf"
                 ],
                 "type": "object"
             },
@@ -20691,7 +21135,9 @@
                     }
                 },
                 "required": [
-                    "deal"
+                    "deal",
+                    "futureCf",
+                    "futureScheduleCf"
                 ],
                 "type": "object"
             },
@@ -20715,7 +21161,9 @@
                     }
                 },
                 "required": [
-                    "deal"
+                    "deal",
+                    "futureCf",
+                    "futureScheduleCf"
                 ],
                 "type": "object"
             },
@@ -20738,7 +21186,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.45.6"
+        "version": "0.46.4"
     },
     "openapi": "3.0.0",
     "paths": {
@@ -20758,7 +21206,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Either_[Char]_((CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))),(Maybe_[PriceResult]))"
+                                    "$ref": "#/components/schemas/Either_[Char]_(CashFlowFrame,(Maybe_[PriceResult]))"
                                 }
                             }
                         },
@@ -20787,7 +21235,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                     },
                                     "type": "object"
                                 }
@@ -20876,7 +21324,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                    "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                 }
                             }
                         },
@@ -20905,7 +21353,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                     },
                                     "type": "object"
                                 }
@@ -20936,7 +21384,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                     },
                                     "type": "object"
                                 }
@@ -20967,7 +21415,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Maybe_(Map_PoolId_CashFlowFrame)),(Maybe_[ResultComponent]),(Map_[Char]_PriceResult))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(DealType,(Map_PoolId_CashFlowFrame),[ResultComponent],(Map_[Char]_PriceResult),(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame]))))"
                                     },
                                     "type": "object"
                                 }
@@ -20997,7 +21445,7 @@
                         "content": {
                             "application/json;charset=utf-8": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/Either_[Char]_(Map_PoolId_(CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))))"
+                                    "$ref": "#/components/schemas/Either_[Char]_(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame])))"
                                 }
                             }
                         },
@@ -21026,7 +21474,7 @@
                             "application/json;charset=utf-8": {
                                 "schema": {
                                     "additionalProperties": {
-                                        "$ref": "#/components/schemas/Either_[Char]_(Map_PoolId_(CashFlowFrame,(Map_CutoffFields_(Fixed_*_E2))))"
+                                        "$ref": "#/components/schemas/Either_[Char]_(Map_PoolId_(CashFlowFrame,(Maybe_[CashFlowFrame])))"
                                     },
                                     "type": "object"
                                 }

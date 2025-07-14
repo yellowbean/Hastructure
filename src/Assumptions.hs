@@ -15,13 +15,13 @@ module Assumptions (BondPricingInput(..),IrrType(..)
                     ,NonPerfAssumption(..),AssetPerf
                     ,AssetDelinquencyAssumption(..)
                     ,AssetDelinqPerfAssumption(..),AssetDefaultedPerfAssumption(..)
-                    ,calcResetDates,IssueBondEvent(..)
+                    ,IssueBondEvent(..)
                     ,TagMatchRule(..),ObligorStrategy(..),RefiEvent(..),InspectType(..)
                     ,FieldMatchRule(..),CallOpt(..)
                     ,_MortgageAssump,_MortgageDeqAssump,_LeaseAssump,_LoanAssump,_InstallmentAssump
                     ,_ReceivableAssump,_FixedAssetAssump  
                     ,stressDefaultAssump,applyAssumptionTypeAssetPerf,TradeType(..)
-                    ,LeaseEndType(..),LeaseDefaultType(..)
+                    ,LeaseEndType(..),LeaseDefaultType(..),stressPrepaymentAssump,StopBy(..)
                     )
 where
 
@@ -83,8 +83,8 @@ data ObligorStrategy = ObligorById [String] AssetPerf
 data ApplyAssumptionType = PoolLevel AssetPerf               -- ^ assumption apply to all assets in the pool
                          | ByIndex [StratPerfByIdx]          -- ^ assumption which only apply to a set of assets in the pool
                          | ByName (Map.Map PoolId AssetPerf) -- ^ assumption for a named pool
-                         | ByObligor [ObligorStrategy]
                          | ByPoolId (Map.Map PoolId ApplyAssumptionType) -- ^ assumption for a pool
+                         | ByObligor [ObligorStrategy]       -- ^ assumption for a set of obligors
                          | ByDealName (Map.Map DealName (ApplyAssumptionType, NonPerfAssumption)) -- ^ assumption for a named deal 
                          deriving (Show, Generic)
 
@@ -126,8 +126,14 @@ data CallOpt = LegacyOpts [C.CallOption]                 -- ^ legacy support
              | CallOnDates DatePattern [Pre]             -- ^ test call at end of day
              deriving (Show, Generic, Read, Ord, Eq)
 
+data StopBy = StopByDate Date		     -- ^ stop by date
+	    | StopByPre DatePattern [Pre]    -- ^ stop by precondition
+	    deriving (Show, Generic, Read)
+
+
 data NonPerfAssumption = NonPerfAssumption {
-  stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
+  -- stopRunBy :: Maybe Date                                    -- ^ optional stop day,which will stop cashflow projection
+  stopRunBy :: Maybe StopBy                                    -- ^ optional stop day,which will stop cashflow projection
   ,projectedExpense :: Maybe [(FeeName,Ts)]                  -- ^ optional expense projection
   ,callWhen :: Maybe [CallOpt]                               -- ^ optional call options set, once any of these were satisfied, then clean up waterfall is triggered
   ,revolving :: Maybe RevolvingAssumption                    -- ^ optional revolving assumption with revoving assets
@@ -164,8 +170,18 @@ stressDefaultAssump x (DefaultVec rs) = DefaultVec $ capWith 1.0 ((x*) <$> rs)
 stressDefaultAssump x (DefaultVecPadding rs) = DefaultVecPadding $ capWith 1.0 ((x*) <$> rs)
 stressDefaultAssump x (DefaultByAmt (b,rs)) = DefaultByAmt (mulBR b x, rs)
 stressDefaultAssump x (DefaultAtEndByRate r1 r2) = DefaultAtEndByRate (min 1.0 (r1*x)) (min 1.0 (r2*x))
-stressDefaultAssump x (DefaultByTerm rss) = DefaultByTerm $ ((capWith 1.0) <$> (map (map (* x)) rss))
 stressDefaultAssump x (DefaultStressByTs ts a) = DefaultStressByTs ts (stressDefaultAssump x a)
+stressDefaultAssump x (DefaultByTerm rss) = DefaultByTerm $ ((capWith 1.0) <$> (map (map (* x)) rss))
+
+stressPrepaymentAssump :: Rate -> AssetPrepayAssumption -> AssetPrepayAssumption
+stressPrepaymentAssump x (PrepaymentConstant r) = PrepaymentConstant $ min 1.0 (r*x)
+stressPrepaymentAssump x (PrepaymentCPR r) = PrepaymentCPR $ min 1.0 (r*x)
+stressPrepaymentAssump x (PrepaymentVec rs) = PrepaymentVec $ capWith 1.0 ((x*) <$> rs)
+stressPrepaymentAssump x (PrepaymentVecPadding rs) = PrepaymentVecPadding $ capWith 1.0 ((x*) <$> rs)
+stressPrepaymentAssump x (PrepayByAmt (b,rs)) = PrepayByAmt (mulBR b x, rs)
+stressPrepaymentAssump x (PrepayStressByTs ts a) = PrepayStressByTs ts (stressPrepaymentAssump x a)
+stressPrepaymentAssump x (PrepaymentPSA r) = PrepaymentPSA $ min 1.0 (r*x)
+stressPrepaymentAssump x (PrepaymentByTerm rss) = PrepaymentByTerm $ (capWith 1.0 <$> (map (map (* x)) rss))
 
 
 data AssetPrepayAssumption = PrepaymentConstant Rate
@@ -204,6 +220,8 @@ data LeaseDefaultType = DefaultByContinuation Rate
 
 data LeaseEndType = CutByDate Date 
                   | StopByExtTimes Int 
+                  | EarlierOf Date Int
+                  | LaterOf Date Int
                   deriving (Show,Generic,Read)
 
 data ExtraStress = ExtraStress {
@@ -244,8 +262,8 @@ type AmountToBuy = Balance
 
 
 data TradeType = ByCash Balance 
-              | ByBalance Balance
-              deriving (Show,Generic)
+               | ByBalance Balance
+               deriving (Show,Generic)
 
 data IrrType = HoldingBond HistoryCash CurrentHolding (Maybe (Date, BondPricingMethod))
               | BuyBond Date BondPricingMethod TradeType (Maybe (Date, BondPricingMethod))
@@ -294,6 +312,7 @@ getRateAssumption assumps idx
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
 projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> Either String [IRate]
+projRates sr _ _ [] = Left "No dates provided for rate projection"
 projRates sr (Fix _ r) _ ds = Right $ replicate (length ds) sr 
 projRates sr (Floater _ idx spd r dp rfloor rcap mr) Nothing ds = Left $ "Looking up rate error: No rate assumption found for index "++ show idx
 projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
@@ -321,12 +340,6 @@ projRates _ rt rassump ds = Left ("Invalid rate type: "++ show rt++" assump: "++
 
 
 -- ^ Given a list of rates, calcualte whether rates was reset
-calcResetDates :: [IRate] -> [Bool] -> [Bool]
-calcResetDates [] bs = bs
-calcResetDates (r:rs) bs 
-  | null rs = calcResetDates [] (False:bs)
-  | r == head rs = calcResetDates rs (bs++[False])
-  | otherwise = calcResetDates rs (bs++[True])
 
 makePrisms ''AssetPerfAssumption 
 makePrisms ''AssetDefaultAssumption
@@ -340,7 +353,7 @@ $(deriveJSON defaultOptions ''RefiEvent)
 
 
 
-$(concat <$> traverse (deriveJSON defaultOptions) [''LeaseDefaultType, ''LeaseEndType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption
+$(concat <$> traverse (deriveJSON defaultOptions) [''LeaseDefaultType, ''LeaseEndType,''FieldMatchRule,''TagMatchRule, ''ObligorStrategy,''ApplyAssumptionType, ''AssetPerfAssumption, ''StopBy
   , ''AssetDefaultedPerfAssumption, ''AssetDelinqPerfAssumption, ''NonPerfAssumption, ''AssetDefaultAssumption
   , ''AssetPrepayAssumption, ''RecoveryAssumption, ''ExtraStress
   , ''LeaseAssetGapAssump, ''LeaseAssetRentAssump, ''RevolvingAssumption, ''AssetDelinquencyAssumption,''InspectType])

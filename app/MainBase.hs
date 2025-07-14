@@ -15,8 +15,8 @@
 
 module MainBase(DealType(..),RunResp,PoolTypeWrap(..),RunPoolTypeRtn,RunPoolTypeRtn_
                 ,RunAssetReq(..),RunAssetResp,ScenarioName,DealRunInput,RunDealReq(..),RunSimDealReq(..),RunPoolReq(..)
-                ,RunDateReq(..),Version(..)
-                ,RootFindReq(..),RootFindResp(..),TargetBonds,PoolRunResp
+                ,RunDateReq(..),Version(..),RunRespRight
+                ,RootFindReq(..),RootFindResp(..),TargetBonds,PoolRunResp,RootFindTweak(..),RootFindStop(..)
                 )
 
 where
@@ -121,7 +121,7 @@ data PoolTypeWrap = LPool (DB.PoolType AB.Loan)
                   deriving(Show, Generic)
 
 
-type RunPoolTypeRtn_ = Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance)
+type RunPoolTypeRtn_ = Map.Map PoolId CF.PoolCashflow
 type RunPoolTypeRtn = Either String RunPoolTypeRtn_
 
 
@@ -129,26 +129,26 @@ type RunPoolTypeRtn = Either String RunPoolTypeRtn_
 data RunAssetReq = RunAssetReq Date [AB.AssetUnion] (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption]) (Maybe PricingMethod)
                    deriving(Show, Generic)
 
-type RunAssetResp = Either String ((CF.CashFlowFrame, Map.Map CutoffFields Balance), Maybe [PriceResult])
+type RunAssetResp = Either String (CF.AssetCashflow, Maybe [PriceResult])
 
 type ScenarioName = String
-type DealRunInput = (DealType, Maybe AP.ApplyAssumptionType, AP.NonPerfAssumption)
-data RunDealReq = SingleRunReq DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
-                | MultiScenarioRunReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption --- multi pool perf
-                | MultiDealRunReq (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption  -- multi deal struct
-                | MultiRunAssumpReq DealType (Maybe AP.ApplyAssumptionType) (Map.Map ScenarioName AP.NonPerfAssumption) -- multi run assump 
-                | MultiComboReq (Map.Map ScenarioName DealType)  (Map.Map ScenarioName (Maybe AP.ApplyAssumptionType))  (Map.Map ScenarioName AP.NonPerfAssumption)
+type DealRunInput = (DealType, Maybe AP.ApplyAssumptionType, AP.NonPerfAssumption, [D.ExpectReturn])
+data RunDealReq = SingleRunReq [D.ExpectReturn] DealType (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption
+                | MultiScenarioRunReq [D.ExpectReturn] DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption --- multi pool perf
+                | MultiDealRunReq [D.ExpectReturn] (Map.Map ScenarioName DealType) (Maybe AP.ApplyAssumptionType) AP.NonPerfAssumption  -- multi deal struct
+                | MultiRunAssumpReq [D.ExpectReturn] DealType (Maybe AP.ApplyAssumptionType) (Map.Map ScenarioName AP.NonPerfAssumption) -- multi run assump 
+                | MultiComboReq [D.ExpectReturn] (Map.Map ScenarioName DealType)  (Map.Map ScenarioName (Maybe AP.ApplyAssumptionType))  (Map.Map ScenarioName AP.NonPerfAssumption)
                 deriving(Show, Generic)
 
 data RunSimDealReq = OASReq DealType (Map.Map ScenarioName AP.ApplyAssumptionType) AP.NonPerfAssumption
                     deriving(Show, Generic)
 
-type RunResp = Either String (DealType , Maybe (Map.Map PoolId CF.CashFlowFrame), Maybe [ResultComponent],Map.Map String PriceResult)
 
+type RunRespRight = (DealType , Map.Map PoolId CF.CashFlowFrame, [ResultComponent],Map.Map String PriceResult, Map.Map PoolId CF.PoolCashflow)
+type RunResp = Either String RunRespRight
 
-
-data RunPoolReq = SingleRunPoolReq PoolTypeWrap (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
-                | MultiScenarioRunPoolReq PoolTypeWrap (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe [RateAssumption])
+data RunPoolReq = SingleRunPoolReq Bool PoolTypeWrap (Maybe AP.ApplyAssumptionType) (Maybe [RateAssumption])
+                | MultiScenarioRunPoolReq Bool PoolTypeWrap (Map.Map ScenarioName AP.ApplyAssumptionType) (Maybe [RateAssumption])
                 deriving(Show, Generic)
 
 
@@ -156,11 +156,7 @@ data RunDateReq = RunDateReq Date DatePattern (Maybe Date)
                 deriving(Show, Generic)
 instance ToSchema RunDateReq
 
-type PoolRunResp = Either String (Map.Map PoolId (CF.CashFlowFrame, Map.Map CutoffFields Balance))
-
-data RootFindResp = FirstLossResult Double AP.ApplyAssumptionType (Maybe AP.RevolvingAssumption)
-                  | BestSpreadResult Double (Map.Map BondName L.Bond) DealType
-                  deriving(Show, Generic)
+type PoolRunResp = Either String (Map.Map PoolId CF.PoolCashflow)
 
 
 type TargetBonds = [BondName]
@@ -169,11 +165,37 @@ type TargetBonds = [BondName]
 --- 2. make sure WAC cap is met
 data RootFindReq = FirstLossReq DealRunInput BondName
                  | MaxSpreadToFaceReq DealRunInput BondName Bool Bool
+                 | RootFinderReq DealRunInput RootFindTweak RootFindStop
                  deriving(Show, Generic)
 
+type RangeInput = (Double, Double) -- (min, max)
+
+data RootFindTweak = StressPoolDefault RangeInput                      -- stressed pool perf 
+                   | StressPoolPrepayment RangeInput                   -- stressed pool prepayment
+                   | MaxSpreadTo BondName RangeInput                   -- bond component
+                   | SplitFixedBalance BondName BondName RangeInput    -- bond component
+                   deriving(Show, Generic)
+
+data RootFindStop = BondIncurLoss BondName
+                  | BondIncurPrinLoss BondName Balance
+                  | BondIncurIntLoss BondName Balance
+                  | BondPricingEqOriginBal BondName Bool Bool
+                  | BondMetTargetIrr BondName IRR
+                  | BalanceFormula DealStats Balance
+                  deriving(Show, Generic)
+
+data RootFindResp = RFResult Double DealRunInput
+                  -- | BestSpreadResult Double (Map.Map BondName L.Bond) DealType
+                  -- | FirstLossResult Double AP.ApplyAssumptionType (Maybe AP.RevolvingAssumption)
+                  deriving(Show, Generic)
+
+$(deriveJSON defaultOptions ''RootFindTweak)
+$(deriveJSON defaultOptions ''RootFindStop)
+
+instance ToSchema D.ExpectReturn
 instance ToSchema RootFindReq
-
-
+instance ToSchema RootFindTweak
+instance ToSchema RootFindStop
 instance ToSchema CF.CashFlowFrame
 instance ToSchema AB.Loan
 instance ToSchema AB.Installment
@@ -271,6 +293,7 @@ instance ToSchema (TsPoint AP.RefiEvent)
 instance ToSchema AP.RefiEvent
 instance ToSchema AP.InspectType
 instance ToSchema AP.CallOpt
+instance ToSchema AP.StopBy
 instance ToSchema AP.NonPerfAssumption
 instance ToSchema BondPricingMethod
 instance ToSchema AP.TradeType

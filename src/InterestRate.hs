@@ -5,7 +5,8 @@
 
 module InterestRate
   (ARM(..),RateType(..),runInterestRate2,runInterestRate,UseRate(..)
-  ,getRateResetDates,getDayCount,calcInt, calcIntRate,calcIntRateCurve)
+  ,getRateResetDates,getDayCount,calcInt, calcIntRate,calcIntRateCurve
+  ,getSpread,_getSpread)
   
   where
 
@@ -43,6 +44,9 @@ getDayCount :: RateType -> DayCount
 getDayCount (Fix dc _) = dc
 getDayCount (Floater dc _ _ _ _ _ _ _ ) = dc
 
+_getSpread :: RateType -> Maybe Spread
+_getSpread (Fix _ _) = Nothing
+_getSpread (Floater _ _ spd _ _ _ _ _) = Just spd
 
 data ARM = ARM InitPeriod InitCap PeriodicCap LifetimeCap RateFloor
          | OtherARM
@@ -108,6 +112,7 @@ class UseRate x where
   getIndex :: x -> Maybe Index
   getIndexes :: x -> Maybe [Index]
   getResetDates :: x -> Dates
+  getSpread :: x -> Maybe Spread
 
 
 $(deriveJSON defaultOptions ''ARM)

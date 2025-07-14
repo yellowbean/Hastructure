@@ -485,6 +485,7 @@ validatePreRun t@TestDeal{waterfall=waterfallM
     in 
       (warnings,allErrors) -- Valiation Pass
 
+-- validate deal object after run
 validateRun :: TestDeal a -> [ResultComponent]
 validateRun t@TestDeal{waterfall=waterfallM
                       ,accounts =accM 

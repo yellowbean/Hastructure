@@ -48,7 +48,7 @@ import Data.Fixed
 import Data.Maybe
 import Data.Ratio
 import Data.Aeson hiding (json)
-import qualified Data.Aeson.Encode.Pretty as Pretty
+-- import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -71,7 +71,7 @@ data AdjStrategy = ScaleBySpread
                  deriving (Show,Generic)
 
 data ModifyType = AddSpreadToBonds BondName
-                | ScaleBondBalByRate
+                | SlideBalances BondName BondName
                 deriving (Show,Generic)
 
 -- ^ Modify a deal by various type of recipes
@@ -87,6 +87,17 @@ modDeal (AddSpreadToBonds bnd) sprd d
                   bndMap
     in 
       d {DB.bonds = bndMap'}
+
+modDeal (SlideBalances bn1 bn2) r d@DB.TestDeal {DB.bonds = bndMap}
+  = let 
+      totalBalance = sum $ L.originBalance . L.bndOriginInfo <$> DB.viewDealBondsByNames d [bn1, bn2]
+      leftBal = mulBR totalBalance (toRational r) -- `debug` ("split ratio" ++ show r)
+      rightBal = totalBalance - leftBal 
+      bndMap' = DB.updateBondInMap bn1 (L.adjustBalance leftBal) $
+                 DB.updateBondInMap bn2 (L.adjustBalance rightBal) bndMap -- `debug` ("leftBal: " ++ show leftBal ++ ", rightBal: " ++ show rightBal )
+    in 
+      d {DB.bonds = bndMap'}
+
 modDeal x _ _ = error $ "modify deal: not implemented"++ show x
 
 

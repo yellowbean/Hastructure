@@ -123,14 +123,6 @@ tsSplitTests =
           assertEqual "Keep previous one"
           ([],[cf1,cf2, cf3,cf4]) $
           splitByDate ts1 (L.toDate "20230201") EqToLeftKeepOne
-        -- ,testCase "CashflowFrame" $ 
-        --   assertEqual "Slice on Cashflow Frame"
-        --   (CF.CashFlowFrame [cf1,cf2],CF.CashFlowFrame [cf3,cf4]) $
-        --   CF.splitCashFlowFrameByDate cff (L.toDate "20230215") EqToLeft
-        -- ,testCase "CashflowFrame" $ 
-        --   assertEqual "Slice on Cashflow Frame"
-        --   (CF.CashFlowFrame [cf1,cf2,cf3],CF.CashFlowFrame [cf4]) $
-        --   CF.splitCashFlowFrameByDate cff (L.toDate "20230301") EqToLeft
         ,testCase "Range of Ts" $
           assertEqual "get subset of Ts between two dates"
           [cf2, cf3,cf4] $

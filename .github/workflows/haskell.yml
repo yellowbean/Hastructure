@@ -16,9 +16,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - uses: haskell/actions/setup@v2
+    - uses: haskell-actions/setup@v2.8.0
       with:
-        ghc-version: 'latest'
+        ghc-version: '9.8.4'
         cabal-version: 'latest'
 
     - name: Cache
@@ -33,7 +33,7 @@ jobs:
           ${{ runner.os }}-build-
           ${{ runner.os }}-
 
-    - name: Install dependencies
+    - name: Install depndencies
       run: |
         cabal update
     - name: Build

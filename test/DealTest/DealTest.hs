@@ -96,7 +96,7 @@ baseCase = D.TestDeal {
                                          60
                                          Nothing
                                          AB.Current]
-                               ,P.futureCf=Just (CF.CashFlowFrame dummySt [])
+                               ,P.futureCf=Nothing
                                ,P.asOfDate = T.fromGregorian 2022 1 1
                                ,P.issuanceStat = Just $ Map.fromList [(IssuanceBalance, 4000)]
                                ,P.extendPeriods = Nothing}))])
@@ -116,7 +116,7 @@ baseCase = D.TestDeal {
 baseTests = 
   let 
     nonRunAssump = (AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing (Just [AP.InspectPt MonthEnd (FutureCurrentPoolBalance Nothing)]) Nothing Nothing Nothing Nothing Nothing Nothing)
-    (dealAfterRun,poolCf,Just rcs,_) = case DR.runDeal baseCase DealPoolFlowPricing Nothing nonRunAssump of
+    (dealAfterRun,poolCf,rcs,_,_) = case DR.runDeal baseCase S.empty Nothing nonRunAssump of
                                          Left e -> error $ "Deal run failed"++ show e
                                          Right x -> x
     inspects = [ rc | rc@(InspectBal {}) <- rcs ] 

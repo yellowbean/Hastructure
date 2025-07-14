@@ -158,3 +158,11 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max       
           
+  publish:
+
+    - uses: haskell-actions/hackage-publish@v1
+      with:
+        hackageToken: ${{ secrets.HACKAGE_KEY }}
+        packagesPath: ${{ runner.temp }}/packages
+        docsPath: ${{ runner.temp }}/docs
+        publish: false

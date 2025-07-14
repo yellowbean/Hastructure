@@ -2,6 +2,33 @@
 
 <!-- towncrier release notes start -->
 
+## 0.50.0
+### 2025-07-14
+* NEW: add `stopBy` in run assumption ,which stop deal run by a list of `Condition`
+* NEW: expose `asset level` cashflow ,with a toggle
+* NEW: expose `Un-Used Pool cashflow`
+* ENHANCE: parameterized the `tweaks`
+* ENHANCE: update dependency to accomodate publishment to `Hackage`
+* FIX: enable `Lease` deal for `Financial reports`
+
+
+## 0.46.4
+### 2025-06-10
+* ENHANCE: add error message when calculation IRR for bond with non cashflow
+* ENHANCE: add `tweak`: `Stress Prepayment` 
+* ENHANCE: add `stop`: `Bond Principal Loss` `Bond Interest Loss`
+
+
+## 0.46.2
+### 2025-06-08
+* ENHANCE: add `tweak`: `Balance Split` and `stop`: `Bond Met Target IRR`
+
+## 0.46.1
+### 2025-06-07
+* ENHANCE: add 2 more `leaseEndType` assumptions: `Earlier` `Later` which will end the lease projection base on two input `End date` and `extention times`.
+* ENHANCE: expose `new bond rate type` in `trigger effects`. Now bond rate type can be changed during the projection.
+* REFACTOR: with new refactor `root finder` endpoint and signature. In the long term, the refactor of signature lays down fundation for `deal structuring` domain, now it would be easy to implement all kinds of structuring features.
+
 ## 0.45.7
 ### 2025-05-26
 * ENHANCE: add `BaseByVec` for vector-based rental change

@@ -1,6 +1,7 @@
 [![Actions Status](https://github.com/yellowbean/Hastructure/workflows/Haskell%20CI/badge.svg)](https://github.com/yellowbean/Hastructure/actions)
 [![Docker Build](https://img.shields.io/docker/v/yellowbean/hastructure?color=green&label=docker)](https://hub.docker.com/r/yellowbean/hastructure)
 [![Pulls from DockerHub](https://img.shields.io/docker/pulls/yellowbean/hastructure.svg)](https://hub.docker.com/r/yellowbean/hastructure)
+![Hackage Version](https://img.shields.io/hackage/v/Hastructure)
 
 
 # What is Hastructure ?
@@ -81,10 +82,6 @@
   * User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc.
 * Misc
   * Support user define pay dates & pool collection dates 
-
-### Premium Support
-
-  slack -> https://absboxhastructure.slack.com 
 
 
 ### Online Demo

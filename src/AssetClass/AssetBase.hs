@@ -54,16 +54,6 @@ data AmortPlan = Level                    -- ^ for mortgage / french system  -> 
 
 -- | calculate period payment (Annuity/Level mortgage)
 calcPmt :: Balance -> IRate -> Int -> Amount
--- calcPmt bal 0.0 periods = divideBI bal periods
--- calcPmt bal periodRate periods =
---   let
---     periodRate1 = toRational periodRate
---     r1 =  ((1+periodRate1)^^periods) / ((1+periodRate1)^^periods-1) -- `debug` ("PR>>"++show periodRate)
---     pmtFactor = periodRate1 * r1 -- `debug` ("R1>>"++ show r1)
---   in
---     mulBR bal pmtFactor -- `debug` ("Factor"++ show pmtFactor)
-
--- Generate by gork
 calcPmt bal rate periods | rate == 0.0 = divideBI bal periods
                          | otherwise = 
   let rate' = realToFrac rate :: Double

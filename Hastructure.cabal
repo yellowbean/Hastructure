@@ -5,9 +5,10 @@ cabal-version: 3.0
 -- see: https://github.com/sol/hpack
 
 name:           Hastructure
-version:        0.45.0
+version: 0.50.1
+synopsis:       Cashflow modeling library for structured finance
 description:    Please see the README on GitHub at <https://github.com/yellowbean/Hastructure#readme>
-category:       StructuredFinance;Securitisation;Cashflow
+category:       StructuredFinance,Securitisation,Cashflow
 homepage:       https://github.com/yellowbean/Hastructure#readme
 bug-reports:    https://github.com/yellowbean/Hastructure/issues
 author:         Xiaoyu
@@ -18,13 +19,11 @@ license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     README.md
+extra-doc-files:
     CHANGELOG.md
-
 source-repository head
   type: git
   location: https://github.com/yellowbean/Hastructure
-
-with-compiler: ghc-9.8.2
 
 library
   exposed-modules:
@@ -71,53 +70,56 @@ library
       Waterfall
   other-modules:
       Paths_Hastructure
+  autogen-modules:
+      Paths_Hastructure
   hs-source-dirs:
       src
   build-depends:
-      Decimal
-    , base-compat
-    , attoparsec
-    , string-conversions
-    , warp
-    , wai-cors
-    , http-types
-    , exceptions
-    , aeson
-    , attoparsec-aeson
-    , aeson-pretty
-    , base
-    , bytestring
-    , containers
-    , deepseq
-    , generic-lens
-    , hashable
-    , ieee754
-    , lens
-    , math-functions
-    , monad-loops
-    , mtl
-    , numeric-limits
-    , openapi3
-    , parallel
-    , regex-base
-    , regex-pcre-builtin
-    , regex-tdfa
-    , scientific
-    , servant
-    , servant-openapi3
-    , servant-server
-    , split
-    , swagger2
-    , tabular
-    , template-haskell
-    , text
-    , time
-    , wai
-    , yaml
-    , vector
-    , MissingH
-    , dlist
---    , proto3-wire
+    Decimal >= 0.5.2 && < 0.6,
+    base >= 4.18.0 && < 4.21,
+    deepseq >= 1.5.1 && < 1.6,
+    MissingH >= 1.6.0 && < 1.7,
+    containers >= 0.6.8 && < 0.7,
+    template-haskell >= 2.20.0 && < 2.21.1.0,
+    bytestring >= 0.12.1 && < 0.13,
+    -- exceptions >= 0.10.7 && < 0.11,
+    mtl >= 2.3.1 && < 2.4,
+    time >= 1.12.2 && < 1.13,
+    text >= 2.1.1 && < 2.2,
+    regex-base >= 0.94.0 && < 0.95,
+    aeson >= 2.2.3 && < 2.3,
+    hashable >= 1.4.7 && < 1.5,
+    dlist >= 1.0 && < 1.1,
+    scientific >= 0.3.8 && < 0.4,
+    vector >= 0.13.2 && < 0.14,
+    aeson-pretty >= 0.8.10 && < 0.9,
+    base-compat >= 0.13.0 && < 0.15,
+    attoparsec >= 0.14.4 && < 0.15,
+    attoparsec-aeson >= 2.2.2 && < 2.3,
+    generic-lens >= 2.2.2 && < 2.3,
+    http-types >= 0.12.4 && < 0.13,
+    -- ieee754 >= 0.8.0 && < 0.9,
+    lens >= 5.2.3 && < 5.3.6,
+    parallel >= 3.2.2 && < 3.3,
+    math-functions >= 0.3.4 && < 0.4,
+    monad-loops >= 0.4.3 && < 0.5,
+    numeric-limits >= 0.1.0 && < 0.2,
+    openapi3 >= 3.2.4 && < 3.3,
+    regex-pcre-builtin >= 0.95.2 && < 0.96,
+    -- regex-tdfa >= 1.3.2 && < 1.4,
+    servant >= 0.20.2 && < 0.21,
+    servant-openapi3 >= 2.0.1 && < 2.1,
+    servant-server >= 0.20.2 && < 0.21,
+    wai >= 3.2.4 && < 3.3,
+    warp >= 3.4.7 && < 3.5,
+    split >= 0.2.5 && < 0.3,
+    string-conversions >= 0.4.0 && < 0.5,
+    swagger2 >= 2.8.9 && < 2.9,
+    tabular >= 0.2.2 && < 0.3,
+    wai-cors >= 0.2.7 && < 0.3,
+    yaml >= 0.11.11 && < 0.12,
+
+
   default-language: Haskell2010
 
 executable Hastructure-exe
@@ -125,60 +127,66 @@ executable Hastructure-exe
   other-modules:
       MainBase
       Paths_Hastructure
+  autogen-modules:
+      Paths_Hastructure
   hs-source-dirs:
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Decimal
-    , Hastructure
-    , aeson
-    , aeson-pretty
-    , attoparsec
-    , attoparsec-aeson
-    , base
-    , base-compat
-    , bytestring
-    , containers
-    , deepseq
-    , exceptions
-    , generic-lens
-    , hashable
-    , http-types
-    , ieee754
-    , lens
-    , math-functions
-    , monad-loops
-    , mtl
-    , numeric-limits
-    , openapi3
-    , parallel
-    , regex-base
-    , regex-pcre-builtin
-    , regex-tdfa
-    , scientific
-    , servant
-    , servant-checked-exceptions
-    , servant-openapi3
-    , servant-server
-    , split
-    , string-conversions
-    , swagger2
-    , tabular
-    , template-haskell
-    , text
-    , time
-    , unordered-containers
-    , wai
-    , wai-cors
-    , warp
-    , yaml
-    , dlist
---    , proto3-suite
+    Hastructure,
+    Decimal,
+    base >= 4.18.0 && < 4.20,
+    deepseq,
+    MissingH,
+    containers,
+    template-haskell,
+    bytestring,
+    exceptions,
+    mtl,
+    time,
+    text,
+    regex-base,
+    aeson,
+    hashable,
+    dlist,
+    scientific,
+    vector,
+    aeson-pretty,
+    base-compat,
+    attoparsec,
+    attoparsec-aeson,
+    generic-lens,
+    http-types,
+    lens,
+    parallel,
+    math-functions,
+    monad-loops,
+    numeric-limits,
+    openapi3,
+    regex-pcre-builtin,
+    servant,
+    servant-openapi3,
+    servant-server,
+    wai,
+    warp,
+    split,
+    string-conversions,
+    swagger2,
+    tabular,
+    wai-cors,
+    yaml,
+    tasty >= 1.5.3 && < 1.6,
+    tasty-golden >= 2.3.5 && < 2.4,
+    tasty-hspec >= 1.2.0 && < 1.3,
+    tasty-hunit >= 0.10.2 && < 0.11,
+
   default-language: Haskell2010
 
 test-suite Hastructure-test
   type: exitcode-stdio-1.0
   main-is: MainTest.hs
+  autogen-modules:
+      Paths_Hastructure
   other-modules:
       DealTest.DealTest
       DealTest.MultiPoolDealTest
@@ -204,44 +212,50 @@ test-suite Hastructure-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      Decimal
-    , Hastructure
-    , aeson
-    , aeson-pretty
-    , base
-    , bytestring
-    , containers
-    , deepseq
-    , generic-lens
-    , hashable
-    , ieee754
-    , lens
-    , math-functions
-    , monad-loops
-    , mtl
-    , numeric-limits
-    , openapi3
-    , parallel
-    , regex-base
-    , regex-pcre-builtin
-    , regex-tdfa
-    , scientific
-    , servant
-    , servant-openapi3
-    , servant-server
-    , split
-    , swagger2
-    , tabular
-    , tasty
-    , tasty-golden
-    , tasty-hspec
-    , tasty-hunit
-    , template-haskell
-    , text
-    , time
-    , wai
-    , yaml
-    , vector
-    , MissingH
-    , dlist
+    Hastructure,
+    Decimal,
+    base >= 4.18.0 && < 4.21,
+    deepseq,
+    MissingH,
+    containers,
+    template-haskell,
+    bytestring,
+    exceptions,
+    mtl,
+    time,
+    text,
+    regex-base,
+    aeson,
+    hashable,
+    dlist,
+    scientific,
+    vector,
+    aeson-pretty,
+    base-compat,
+    attoparsec,
+    attoparsec-aeson,
+    generic-lens,
+    http-types,
+    lens,
+    parallel,
+    math-functions,
+    monad-loops,
+    numeric-limits,
+    openapi3,
+    regex-pcre-builtin,
+    servant,
+    servant-openapi3,
+    servant-server,
+    wai,
+    warp,
+    split,
+    string-conversions,
+    swagger2,
+    tabular,
+    wai-cors,
+    yaml,
+    tasty,
+    tasty-golden,
+    tasty-hspec,
+    tasty-hunit   
   default-language: Haskell2010

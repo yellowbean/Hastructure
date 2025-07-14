@@ -8,9 +8,9 @@
 
 module Asset ( Asset(..),
        buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
-       ,calcRecoveriesFromDefault
+       ,calcRecoveriesFromDefault,getCurBalance
        ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
-       ,getObligorTags,getObligorId,getRecoveryLagAndRate,getDefaultDelinqAssump 
+       ,getObligorTags,getObligorId,getRecoveryLagAndRate,getDefaultDelinqAssump,getOriginInfo
 ) where
 
 import qualified Data.Time as T
@@ -215,6 +215,7 @@ buildPrepayRates a ds mPa =
 
 buildDefaultRates :: Asset b => b -> [Date] -> Maybe A.AssetDefaultAssumption -> Either String [Rate]
 buildDefaultRates _ ds Nothing = Right $ replicate (pred (length ds)) 0.0
+buildDefaultRates a [] mDa = Left "buildDefaultRates: empty date list" 
 buildDefaultRates a ds mDa = 
   normalPerfVector <$>
     case mDa of

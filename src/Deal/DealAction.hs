@@ -55,7 +55,7 @@ import Data.Time.Clock
 import Data.Maybe
 import Data.Either
 import Data.Aeson hiding (json)
-import qualified Data.Aeson.Encode.Pretty as Pretty
+-- import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -280,7 +280,6 @@ calcDueInt t d b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntInfo) _ bond_bal bond
       ioiRate = case ioiIntInfo of 
                   L.OverCurrRateBy factor -> bond_rate * fromRational (1+factor)
                   L.OverFixSpread spd -> bond_rate + spd
-                  _ -> error "failed to match ioi rate type"
       newIoiInt = IR.calcInt intDue int_due_date d ioiRate DC_ACT_365F
       ioiInt = newIoiInt + ioiIntDue -- add ioi int due with new accrued ioi int
       newBond = b { L.bndDueIntOverInt = ioiInt, L.bndInterestInfo = intInfo }
@@ -297,7 +296,6 @@ calcDueInt t d b@(L.MultiIntBond {})
 calcDueInt t d b@(L.Bond {})
   = Right $ L.accrueInt d b -- `debug` ("Hit to defualt accru"++ show (L.bndName b)) 
 
-calcDueInt t d b = error $ "Not implemented for calcDueInt for bond type" ++ show b
 
 -- ^ modify due principal for bond
 calcDuePrin :: Ast.Asset a => TestDeal a -> Date -> L.Bond -> Either String L.Bond
@@ -375,7 +373,7 @@ buyRevolvingPool d r rp@(AssetCurve aus)
 
 
 data RunContext a = RunContext{
-                  runPoolFlow:: Map.Map PoolId CF.CashFlowFrame
+                  runPoolFlow:: Map.Map PoolId CF.PoolCashflow
                   ,revolvingAssump:: Maybe (Map.Map String (RevolvingPool ,AP.ApplyAssumptionType))
                   ,revolvingInterestRateAssump:: Maybe [RateAssumption]
                   }
@@ -568,16 +566,14 @@ performActionWrap d
                       ResecDeal _ -> error "Not implement on buy resec deal"
 
         let newAccMap = Map.adjust (A.draw purchaseAmt d (PurchaseAsset revolvingPoolName boughtAssetBal)) accName accsMap -- `debug` ("Asset bought total bal"++ show boughtAssetBal)
-        cfFrameBought <- projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Date: " ++ show d ++ "Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
-        let cfBought = fst cfFrameBought -- `debug` ("In Buy>>>"++ show d ++"Cf bought"++ show (fst cfFrameBought))
-        let newPcf = Map.adjust (\cfOrigin@(CF.CashFlowFrame st trs) -> 
+        (cfBought ,_)<- projAssetUnionList [updateOriginDate2 d ast | ast <- assetBought ] d perfAssumps mRates  -- `debug` ("Date: " ++ show d ++ "Asset bought"++ show [updateOriginDate2 d ast | ast <- assetBought ])
+        let newPcf = Map.adjust (\(cfOrigin@(CF.CashFlowFrame st trs), mAflow) -> 
                                 let 
-                                  dsInterval = getDate <$> trs  --  `debug` ("Date"++ show d ++ "origin cf \n"++ show cfOrigin)
-                                  boughtCfDates = getDate <$> view CF.cashflowTxn cfBought -- `debug` ("In Buy>>>"++"Date"++ show d++ "Cf bought 0\n"++ show cfBought)
-
+                                  dsInterval = getDate <$> trs 
+                                  boughtCfDates = getDate <$> view CF.cashflowTxn cfBought 
                                   newAggDates = case (dsInterval,boughtCfDates) of 
                                                   ([],[]) -> []
-                                                  (_,[]) -> [] -- `debug` ("hit with non cash date from bought"++ show dsInterval) 
+                                                  (_,[]) -> []
                                                   ([],_) -> boughtCfDates
                                                   (oDs,bDs) -> 
                                                     let 
@@ -588,12 +584,13 @@ performActionWrap d
                                                         []
                                                       else 
                                                         sliceDates (SliceAfter lastOdate) bDs
-
-                                  mergedCf = CF.mergePoolCf2 cfOrigin cfBought -- `debug` ("Buy Date : "++show d ++ "CF bought \n"++ show (over CF.cashflowTxn (slice 0 30) cfBought) )
+                                  -- TODO: the cfOrigin may not have correct beg balance ,which doesn't match all the amortization of cashflow txn
+                                  mergedCf = CF.mergePoolCf2 cfOrigin cfBought 
                                 in 
-                                  over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf )-- `debug` ("In Buy>>>"++"Date "++show d++" Merged CF\n"++ show mergedCf))
+                                  ((over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf), (++ [cfBought]) <$> mAflow)
+				) 
                             pIdToChange
-                            pFlowMap --  `debug` ("pid To change"++ show pIdToChange++ "P flow map"++ show pFlowMap)
+                            pFlowMap
 
         let newRc = rc {runPoolFlow = newPcf  -- `debug` ("In Buy>>>"++show d ++ "New run pool >> \n"++ show newPcf)
                         ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
@@ -624,8 +621,8 @@ performActionWrap d
                   (W.LiquidatePool lm an mPid)
  = let
      liqFunction = \(p@P.Pool{ P.issuanceStat = m} ) 
-                     -> over (P.poolFutureScheduleCf . _Just) (CF.extendCashFlow d) $ 
-                        over (P.poolFutureCf . _Just) (CF.extendCashFlow d) $ 
+                     -> over (P.poolFutureScheduleCf . _Just . _1) (CF.extendCashFlow d) $ 
+                        over (P.poolFutureCf . _Just . _1 ) (CF.extendCashFlow d) $ 
                         p { P.issuanceStat = Just (Map.insert RuntimeCurrentPoolBalance 0 (fromMaybe Map.empty m)) }
 
      poolMapToLiq = case (pt, mPid) of 
@@ -655,7 +652,7 @@ performActionWrap d
      liqComment = LiquidationProceeds (fromMaybe [] mPid)
      accMapAfterLiq = Map.adjust (A.deposit liqAmt d liqComment) an accMap
      -- REMOVE future cf
-     newPfInRc = foldr (Map.adjust (set CF.cashflowTxn [])) pcf  (Map.keys poolMapToLiq)
+     newPfInRc = foldr (Map.adjust (set (_1 . CF.cashflowTxn) [])) pcf  (Map.keys poolMapToLiq)
      -- Update current balance to zero 
    in
      Right (t {accounts = accMapAfterLiq , pool = newPt} , rc {runPoolFlow = newPfInRc}, logs)
