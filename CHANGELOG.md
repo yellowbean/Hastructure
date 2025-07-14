@@ -2,6 +2,16 @@
 
 <!-- towncrier release notes start -->
 
+## 0.50.0
+### 2025-07-14
+* NEW: add `stopBy` in run assumption ,which stop deal run by a list of `Condition`
+* NEW: expose `asset level` cashflow ,with a toggle
+* NEW: expose `Un-Used Pool cashflow`
+* ENHANCE: parameterized the `tweaks`
+* ENHANCE: update dependency to accomodate publishment to `Hackage`
+* FIX: enable `Lease` deal for `Financial reports`
+
+
 ## 0.46.4
 ### 2025-06-10
 * ENHANCE: add error message when calculation IRR for bond with non cashflow
