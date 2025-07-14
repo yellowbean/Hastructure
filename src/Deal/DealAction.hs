@@ -573,7 +573,7 @@ performActionWrap d
                                   boughtCfDates = getDate <$> view CF.cashflowTxn cfBought 
                                   newAggDates = case (dsInterval,boughtCfDates) of 
                                                   ([],[]) -> []
-                                                  (_,[]) -> [] -- `debug` ("hit with non cash date from bought"++ show dsInterval) 
+                                                  (_,[]) -> []
                                                   ([],_) -> boughtCfDates
                                                   (oDs,bDs) -> 
                                                     let 
@@ -584,7 +584,7 @@ performActionWrap d
                                                         []
                                                       else 
                                                         sliceDates (SliceAfter lastOdate) bDs
-
+                                  -- TODO: the cfOrigin may not have correct beg balance ,which doesn't match all the amortization of cashflow txn
                                   mergedCf = CF.mergePoolCf2 cfOrigin cfBought 
                                 in 
                                   ((over CF.cashflowTxn (`CF.aggTsByDates` (dsInterval ++ newAggDates)) mergedCf), (++ [cfBought]) <$> mAflow)

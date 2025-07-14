@@ -25,10 +25,10 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,mergeCf,buildStartTsRow
                 ,txnCumulativeStats,consolidateCashFlow, cfBeginStatus, getBegBalCashFlowFrame
                 ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance
-		,splitPoolCashflowByDate
+                ,splitPoolCashflowByDate
                 ,getAllDatesCashFlowFrame,splitCf, cutoffCashflow
-		,AssetCashflow,PoolCashflow
-		,emptyCashflow,isEmptyRow2
+                ,AssetCashflow,PoolCashflow
+                ,emptyCashflow,isEmptyRow2
                 ) where
 
 import Data.Time (Day)
@@ -269,9 +269,10 @@ splitCashFlowFrameByDate (CashFlowFrame status txns) d st
       (ls,rs) = splitByDate txns d st
       newStatus = case rs of 
                     [] -> (0, d, Nothing)
-                    (r:_) -> (mflowBegBalance r, d, Nothing)
+                    (r:_) -> (buildBegBal rs, d, Nothing)
     in 
       (CashFlowFrame status ls,CashFlowFrame newStatus rs)
+
 
 splitPoolCashflowByDate :: PoolCashflow -> Date -> SplitType -> (PoolCashflow,PoolCashflow)
 splitPoolCashflowByDate (poolCF, mAssetCfs) d st
@@ -279,11 +280,10 @@ splitPoolCashflowByDate (poolCF, mAssetCfs) d st
       (lPoolCF,rPoolCF) = splitCashFlowFrameByDate poolCF d st
       mAssetSplited = (\xs -> [ splitCashFlowFrameByDate x d st | x <- xs ]) <$> mAssetCfs
       assetCfs = (\xs -> [ (lCf, rCf) | (lCf,rCf) <- xs ]) <$> mAssetSplited 
-      lAssetCfs = (\xs -> fst <$> xs ) <$> assetCfs
-      rAssetCfs = (\xs -> snd <$> xs ) <$> assetCfs
+      lAssetCfs = (fst <$>) <$> assetCfs
+      rAssetCfs = (snd <$>) <$> assetCfs
     in 
       ((lPoolCF, lAssetCfs) , (rPoolCF, rAssetCfs))
-
 
 
 getTxnLatestAsOf :: CashFlowFrame -> Date -> Maybe TsRow
@@ -425,7 +425,7 @@ addTsCF (ReceivableFlow d1 b1 af1 p1 fp1 def1 rec1 los1 st1) (ReceivableFlow d2 
 
 buildBegBal :: [TsRow] -> Balance
 buildBegBal [] = 0
-buildBegBal (x:_) = mflowBegBalance x
+buildBegBal (x:xs) = mflowBegBalance x
 
 
 sumTs :: [TsRow] -> Date -> TsRow

@@ -1020,15 +1020,16 @@ runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts 
         let poolFlowUsedNoEmpty = Map.map 
 	                            (over CF.cashflowTxn CF.dropTailEmptyTxns) 
 	                            (getAllCollectedFrame finalDeal Nothing)
+        let poolFlowUnUsed = osPoolFlow & mapped . _1 . CF.cashflowTxn %~ CF.dropTailEmptyTxns
+		                        & mapped . _2 . _Just . each . CF.cashflowTxn %~ CF.dropTailEmptyTxns
         bndPricing <- case mPricing of 
                         (Just p) -> priceBonds finalDeal p 
                         Nothing -> Right Map.empty
         return (finalDeal
                  , poolFlowUsedNoEmpty
-                 , getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList (DL.append logs (unCollectedPoolFlowWarning osPoolFlow))
+                 , getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList (DL.append logs (unCollectedPoolFlowWarning poolFlowUnUsed))
 		 , bndPricing
-	         , osPoolFlow & mapped . _1 . CF.cashflowTxn %~ CF.dropTailEmptyTxns
-		              & mapped . _2 . _Just . each . CF.cashflowTxn %~ CF.dropTailEmptyTxns
+	         , poolFlowUnUsed
 	       ) -- `debug` ("run deal done with pool" ++ show poolFlowUsedNoEmpty)
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
@@ -1038,9 +1039,11 @@ runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts 
                         Nothing -> Nothing
                         Just (AP.AvailableAssets rp rperf) -> Just (Map.fromList [("Consol", (rp, rperf))])
                         Just (AP.AvailableAssetsBy rMap) -> Just rMap
-      -- TODO: need to add warning if uncollected pool flow is not empty
-      unCollectedPoolFlowWarning pMap = if sum (Map.elems (Map.map (CF.sizeCashFlowFrame . view _1) pMap)) > 0 then 
-                                          DL.singleton $ WarningMsg "Oustanding pool cashflow hasn't been collected yet"
+      unCollectedPoolFlowWarning pMap = let
+                                           countMap = Map.map (CF.sizeCashFlowFrame . view _1) pMap 
+                                        in 
+					  if sum (Map.elems countMap) > 0 then 
+                                          DL.singleton $ WarningMsg $ "Oustanding pool cashflow hasn't been collected yet"++ show countMap
                                         else
 					  DL.empty
 
