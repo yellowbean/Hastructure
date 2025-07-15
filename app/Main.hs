@@ -18,7 +18,6 @@ module Main
 import Prelude ()
 import Prelude.Compat
 import System.Environment
-import Control.Monad.Catch       (MonadCatch, MonadThrow (..))
 import Control.Monad.IO.Class    (liftIO)
 import Control.Monad (mapM)
 import Control.Exception (Exception,throwIO,throw)
