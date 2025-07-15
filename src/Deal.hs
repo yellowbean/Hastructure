@@ -393,7 +393,7 @@ changeDealStatus (d,why) newSt t@TestDeal{status=oldSt} = (Just (DealStatusChang
 run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.PoolCashflow -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([Pre],[Pre])
         -> Maybe (Map.Map String (RevolvingPool,AP.ApplyAssumptionType)) -> DL.DList ResultComponent 
         -> Either String (TestDeal a,DL.DList ResultComponent, Map.Map PoolId CF.PoolCashflow)
-run t@TestDeal{status=(Ended endedDate)} pCfM ads _ _ _ log  = return (t,DL.snoc log (EndRun (Just endedDate) "By Status:Ended"), pCfM)
+run t@TestDeal{status=(Ended endedDate)} pCfM ads _ _ _ log  = return (t,DL.snoc log (EndRun endedDate "By Status:Ended"), pCfM)
 run t pCfM (Just []) _ _ _ log  = return (t,DL.snoc log (EndRun Nothing "No Actions"), pCfM)
 run t pCfM (Just [HitStatedMaturity d]) _ _ _ log  = return (t, DL.snoc log (EndRun (Just d) "Stop: Stated Maturity"), pCfM)
 run t pCfM (Just (StopRunFlag d:_)) _ _ _ log  = return (t, DL.snoc log (EndRun (Just d) "Stop Run Flag"), pCfM)
@@ -702,7 +702,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                             L.payYield d intToPay bnd1)
                                         (bonds t)
                                         bondPricingResult
-                run t {bonds = depositBondFlow, status = Ended d} Map.empty (Just []) rates calls rAssump $ DL.snoc log (EndRun (Just d) "MakeWhole call")
+                run t {bonds = depositBondFlow, status = Ended (Just d)} Map.empty (Just []) rates calls rAssump $ DL.snoc log (EndRun (Just d) "MakeWhole call")
         
         FundBond d Nothing bName accName fundAmt ->
           let 
