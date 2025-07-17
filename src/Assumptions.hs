@@ -22,12 +22,14 @@ module Assumptions (BondPricingInput(..),IrrType(..)
                     ,_ReceivableAssump,_FixedAssetAssump  
                     ,stressDefaultAssump,applyAssumptionTypeAssetPerf,TradeType(..)
                     ,LeaseEndType(..),LeaseDefaultType(..),stressPrepaymentAssump,StopBy(..)
+                    ,readCallOptions
+                    ,evalFloaterRate,applyFloatRate ,applyFloatRate2
                     )
 where
 
 import Call as C
 import Lib (Ts(..),TsPoint(..),toDate,mkRateTs)
-import Liability (Bond,InterestInfo)
+import Liability (Bond,InterestInfo(..))
 import Util
 import DateUtil
 import qualified Data.Map as Map 
@@ -45,7 +47,7 @@ import Revolving
 import GHC.Generics
 import AssetClass.AssetBase
 import Debug.Trace
-import InterestRate
+import qualified InterestRate as IR
 import Control.Lens hiding (Index) 
 
 debug = flip trace
@@ -311,11 +313,11 @@ getRateAssumption assumps idx
          assumps
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
-projRates :: IRate -> RateType -> Maybe [RateAssumption] -> [Date] -> Either String [IRate]
+projRates :: IRate ->IR.RateType -> Maybe [RateAssumption] -> [Date] -> Either String [IRate]
 projRates sr _ _ [] = Left "No dates provided for rate projection"
-projRates sr (Fix _ r) _ ds = Right $ replicate (length ds) sr 
-projRates sr (Floater _ idx spd r dp rfloor rcap mr) Nothing ds = Left $ "Looking up rate error: No rate assumption found for index "++ show idx
-projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
+projRates sr (IR.Fix _ r) _ ds = Right $ replicate (length ds) sr 
+projRates sr (IR.Floater _ idx spd r dp rfloor rcap mr) Nothing ds = Left $ "Looking up rate error: No rate assumption found for index "++ show idx
+projRates sr (IR.Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds 
   = case getRateAssumption assumps idx of
       Nothing -> Left ("Failed to find index rate " ++ show idx ++ " from "++ show assumps)
       Just _rateAssumption -> 
@@ -337,6 +339,84 @@ projRates sr (Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
               (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
 
 projRates _ rt rassump ds = Left ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
+
+-- ^ split call option assumption , 
+-- lefts are for waterfall payment days
+-- rights are for date-based calls
+splitCallOpts :: CallOpt -> ([Pre],[Pre])
+splitCallOpts (CallPredicate ps) = (ps,[])
+splitCallOpts (LegacyOpts copts) = 
+    let 
+      cFn (C.PoolBalance bal) = If L (CurrentPoolBalance Nothing) bal
+      cFn (C.BondBalance bal) = If L CurrentBondBalance bal
+      cFn (C.PoolFactor r) = IfRate L (Types.PoolFactor Nothing) (fromRational r)
+      cFn (C.BondFactor r) = IfRate L Types.BondFactor (fromRational r)
+      cFn (C.OnDate d) = IfDate E d
+      cFn (C.AfterDate d) = IfDate G d
+      cFn (C.And _opts) = Types.All [ cFn o | o <- _opts  ]
+      cFn (C.Or _opts) = Types.Any [ cFn o | o <- _opts  ]
+      cFn (C.Pre p) = p
+    in 
+      ([ cFn copt | copt <- copts ],[])
+-- legacyCallOptConvert (AP.CallOptions opts) = concat [ legacyCallOptConvert o | o <- opts ]
+splitCallOpts (CallOnDates dp ps) = ([],ps)
+
+
+readCallOptions :: [CallOpt] -> ([Pre],[Pre])
+readCallOptions [] = ([],[])
+readCallOptions opts = 
+  let 
+    result = splitCallOpts <$> opts
+  in 
+    (concat (fst <$> result), concat (snd <$> result))
+
+evalFloaterRate :: Date -> [RateAssumption] -> IR.RateType -> IRate 
+evalFloaterRate _ _ (IR.Fix _ r) = r 
+evalFloaterRate d ras (IR.Floater _ idx spd _r _ mFloor mCap mRounding)
+  = let 
+      ra = getRateAssumption ras idx 
+      flooring (Just f) v = max f v 
+      flooring Nothing v = v 
+      capping (Just f) v = min f v 
+      capping Nothing  v = v 
+    in 
+      case ra of 
+        Nothing -> error "Failed to find index rate in assumption"
+        Just (RateFlat _ v) -> capping mCap $ flooring mFloor $ v + spd 
+        Just (RateCurve _ curve) -> capping mCap $ flooring mFloor $ fromRational $ getValByDate curve Inc d + toRational spd
+
+applyFloatRate :: InterestInfo -> Date -> [RateAssumption] -> IRate
+applyFloatRate (Liability.Floater _ idx spd p dc mf mc) d ras
+  = case (mf,mc) of
+      (Nothing,Nothing) -> _rate
+      (Just f,Nothing) -> max f _rate
+      (Just f,Just c) -> min c $ max f _rate
+      (Nothing,Just c) -> min c _rate
+    where
+      idx_rate = case ra of 
+        Just (RateCurve _idx _ts) -> fromRational $ getValByDate _ts Exc d
+        Just (RateFlat _idx _r) ->   _r
+        Nothing -> 0.0
+      ra = getRateAssumption ras idx
+      _rate = idx_rate + spd -- `debug` ("idx"++show idx_rate++"spd"++show spd)
+
+applyFloatRate (Liability.CapRate ii _rate) d ras = min _rate (applyFloatRate ii d ras)
+applyFloatRate (Liability.FloorRate ii _rate) d ras = max _rate (applyFloatRate ii d ras)
+applyFloatRate (Liability.Fix r _ ) d ras = r
+applyFloatRate (Liability.WithIoI ii _) d ras = applyFloatRate ii d ras
+
+applyFloatRate2 :: IR.RateType -> Date -> [RateAssumption] -> Either String IRate
+applyFloatRate2 (IR.Fix _ r) _ _ = Right r
+applyFloatRate2 (IR.Floater _ idx spd _r _ mFloor mCap mRounding) d ras
+  = let 
+      flooring (Just f) v = max f v 
+      flooring Nothing v = v 
+      capping (Just f) v = min f v 
+      capping Nothing  v = v 
+    in 
+      do 
+        rateAtDate <- lookupRate0 ras idx d 
+        return $ flooring mFloor $ capping mCap $ rateAtDate + spd
 
 
 -- ^ Given a list of rates, calcualte whether rates was reset

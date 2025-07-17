@@ -33,7 +33,7 @@ data TriggerEffect = DealStatusTo DealStatus                           -- ^ chan
                    | ChangeReserveBalance String ReserveAmount         -- ^ update reserve target balance  
                    | CloseDeal (Int, DatePattern) (Int, DatePattern)
                                (PricingMethod, AccountName, Maybe DealStats)   
-                               (Maybe [CollectionRule])                --  ^ close the deal
+                               (Maybe [CollectionRule])                -- ^ close the deal
                    | BuyAsset AccountName PricingMethod                -- ^ buy asset from the assumption using funds from account
                    | ChangeBondRate BondName L.InterestInfo IRate      -- ^ change bond rate
                    | TriggerEffects [TriggerEffect]                    -- ^ a combination of effects above

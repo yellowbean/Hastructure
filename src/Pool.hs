@@ -292,7 +292,7 @@ runPool (Pool as _ Nothing asof _ _) (Just (A.ByObligor obligorRules)) mRates =
 
             (matchedAsts,unMatchedAsts) = partition (matchRulesFn fieldRules . getObligorFields) astList            
             matchedCfs = parMap rdeepseq (\x -> projCashflow x asof assetPerf mRates) matchedAsts 
-          in 
+         in 
             matchAssets (cfs ++ matchedCfs) rules unMatchedAsts
         A.ObligorByDefault assetPerf ->
           matchAssets 
