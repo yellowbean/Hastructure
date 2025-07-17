@@ -14,7 +14,7 @@ import Text.Read (readMaybe)
 import Lib 
 import Types
 import Accounts (ReserveAmount)
-import Waterfall (Action,CollectionRule)
+import Waterfall (Action)
 import Data.Aeson ( defaultOptions )
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -24,6 +24,7 @@ import Data.Maybe
 import Data.Map
 import GHC.Generics
 import Control.Lens
+import Deal.DealCollection (CollectionRule(..))
 
 type TriggerName = String
 

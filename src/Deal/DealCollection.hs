@@ -1,9 +1,18 @@
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DeriveGeneric #-}
+
 module Deal.DealCollection
   ( depositInflow
   , depositPoolFlow
   , readProceeds
   , extractTxnsFromFlowFrameMap
+  , CollectionRule(..)
   ) where
+
+import GHC.Generics
+
+import Data.Aeson.TH
+import Data.Aeson.Types
 
 import qualified Accounts as A
 import qualified Waterfall as W
@@ -16,6 +25,12 @@ import Types
 import Util
 import Lib
 import Control.Lens hiding (element)
+
+data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName                   -- ^ collect a pool source from pool collection and deposit to an account
+                    | CollectByPct (Maybe [PoolId]) PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
+                    deriving (Show,Generic,Eq,Ord)
+
+
 
 
 -- ^ UI translation : to read pool cash
@@ -42,19 +57,19 @@ extractTxnsFromFlowFrameMap mPids pflowMap =
       Just pids -> extractTxns $ Map.filterWithKey (\k _ -> k `elem` pids) pflowMap
 
 -- ^ deposit cash to account by collection rule
-depositInflow :: Date -> W.CollectionRule -> Map.Map PoolId CF.PoolCashflow -> Map.Map AccountName A.Account -> Either String (Map.Map AccountName A.Account)
-depositInflow d (W.Collect mPids s an) pFlowMap amap 
+depositInflow :: Date -> CollectionRule -> Map.Map PoolId CF.PoolCashflow -> Map.Map AccountName A.Account -> Either String (Map.Map AccountName A.Account)
+depositInflow d (Collect mPids s an) pFlowMap amap 
   = do 
-      amts <- sequenceA $ readProceeds s <$> txns
+      amts <- traverse (readProceeds s) txns
       let amt = sum amts
       return $ Map.adjust (A.deposit amt d (PoolInflow mPids s)) an amap
     where 
       txns =  extractTxnsFromFlowFrameMap mPids pFlowMap
 
 
-depositInflow d (W.CollectByPct mPids s splitRules) pFlowMap amap    --TODO need to check 100%
+depositInflow d (CollectByPct mPids s splitRules) pFlowMap amap    --TODO need to check 100%
   = do 
-      amts <- sequenceA $ readProceeds s <$> txns
+      amts <- traverse (readProceeds s) txns
       let amt = sum amts
       let amtsToAccs = [ (an, mulBR amt splitRate) | (splitRate, an) <- splitRules]
       return $ 
@@ -67,8 +82,9 @@ depositInflow d (W.CollectByPct mPids s splitRules) pFlowMap amap    --TODO need
       txns =  extractTxnsFromFlowFrameMap mPids pFlowMap 
 
 -- ^ deposit cash to account by pool map CF and rules
-depositPoolFlow :: [W.CollectionRule] -> Date -> Map.Map PoolId CF.PoolCashflow -> Map.Map String A.Account -> Either String (Map.Map String A.Account)
+depositPoolFlow :: [CollectionRule] -> Date -> Map.Map PoolId CF.PoolCashflow -> Map.Map String A.Account -> Either String (Map.Map String A.Account)
 depositPoolFlow rules d pFlowMap amap 
   = foldM (\acc rule -> depositInflow d rule pFlowMap acc) amap rules
 
 
+$(deriveJSON defaultOptions ''CollectionRule)

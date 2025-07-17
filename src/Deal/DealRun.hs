@@ -83,8 +83,8 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
       DoNothing -> return (t, rc, actions, DL.empty)
       _ -> Left $ "Date:"++ show d++" Failed to match trigger effects: "++show te
 
-setBondStepUpRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> Either String L.Bond
-setBondStepUpRate t d ras b@(L.Bond _ _ _ ii (Just sp) _ _ _ _ _ _ _ _ _)
+setBondStepUpRate :: Date -> [RateAssumption] -> L.Bond -> Either String L.Bond
+setBondStepUpRate d ras b@(L.Bond _ _ _ ii (Just sp) _ _ _ _ _ _ _ _ _)
   = return $ 
       let 
         newII = L.stepUpInterestInfo sp ii
@@ -92,7 +92,7 @@ setBondStepUpRate t d ras b@(L.Bond _ _ _ ii (Just sp) _ _ _ _ _ _ _ _ _)
       in 
         (L.accrueInt d b) { L.bndInterestInfo = newII, L.bndRate = newRate }
 
-setBondStepUpRate t d ras b@(L.MultiIntBond bn _ _ iis (Just sps) _ _ _ _ _ _ _ _ _)
+setBondStepUpRate d ras b@(L.MultiIntBond bn _ _ iis (Just sps) _ _ _ _ _ _ _ _ _)
   = return $ 
       let 
         newIIs = zipWith L.stepUpInterestInfo sps iis
@@ -100,9 +100,9 @@ setBondStepUpRate t d ras b@(L.MultiIntBond bn _ _ iis (Just sps) _ _ _ _ _ _ _ 
       in 
         (L.accrueInt d b) { L.bndInterestInfos = newIIs, L.bndRates = newRates }  -- `debug` (show d ++ ">> accure due to step up rate "++ bn)
 
-setBondStepUpRate t d ras bg@(L.BondGroup bMap pt)
+setBondStepUpRate d ras bg@(L.BondGroup bMap pt)
   = do 
-      m <- mapM (setBondStepUpRate t d ras) bMap
+      m <- mapM (setBondStepUpRate d ras) bMap
       return $ L.BondGroup m pt
 
 -- ^ update bond interest rate from rate assumption
@@ -529,8 +529,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             bnd = bndMap Map.! bn -- `debug` ("StepUpBondRate--------------"++ show bn)
           in 
             do 
-              -- newBnd <- setBondStepUpRate t d bnd `debug` ("StepUpBondRate"++ show d++ show bn)
-              newBndMap <- adjustM (setBondStepUpRate t d (fromMaybe [] rates)) bn bndMap
+              newBndMap <- adjustM (setBondStepUpRate d (fromMaybe [] rates)) bn bndMap
               run t{bonds = newBndMap } poolFlowMap (Just ads) rates calls rAssump log
         
         ResetAccRate d accName -> 

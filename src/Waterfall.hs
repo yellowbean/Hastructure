@@ -4,7 +4,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 module Waterfall
-  (PoolSource(..),Action(..),DistributionSeq(..),CollectionRule(..)
+  (PoolSource(..),Action(..),DistributionSeq(..)
   ,ActionWhen(..),BookType(..),ExtraSupport(..),PayOrderBy(..))
   where
 
@@ -127,12 +127,7 @@ data Action =
 
 type DistributionSeq = [Action]
 
-data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName                   -- ^ collect a pool source from pool collection and deposit to an account
-                    | CollectByPct (Maybe [PoolId]) PoolSource [(Rate,AccountName)]     -- ^ collect a pool source from pool collection and deposit to multiple accounts with percentages
-                    deriving (Show,Generic,Eq,Ord)
-
 $(deriveJSON defaultOptions ''BookType)
 $(deriveJSON defaultOptions ''ExtraSupport)
 $(deriveJSON defaultOptions ''PayOrderBy)
 $(deriveJSON defaultOptions ''Action)
-$(deriveJSON defaultOptions ''CollectionRule)

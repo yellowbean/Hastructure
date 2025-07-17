@@ -25,6 +25,8 @@ import qualified Asset as P
 import qualified Assumptions as AP
 import qualified InterestRate as IR
 
+import Deal.DealCollection (CollectionRule(..))
+
 import Control.Lens hiding (element)
 import Control.Lens.TH
 
@@ -301,23 +303,23 @@ extractRequiredRates t@TestDeal{accounts = accM
                   Nothing -> []
         
       -- note fee is not tested
-validateAggRule :: [W.CollectionRule] -> [PoolId] -> [ResultComponent]
+validateAggRule :: [CollectionRule] -> [PoolId] -> [ResultComponent]
 validateAggRule rules validPids =
     [ ErrorMsg ("Pool source "++show ps++" has a weight of "++show r)   | ((pid,ps),r) <- Map.toList oustandingPs ] ++
     [ ErrorMsg ("Pool Id not found "++show ospid++" in "++ show validPids) | ospid <- osPid ]
   where 
-    countWeight (W.Collect (Just pids) ps _) =  Map.fromList [((pid,ps),1.0) | pid <- pids]
-    countWeight (W.Collect Nothing ps _) =  Map.fromList [((PoolConsol,ps),1.0)]
-    countWeight (W.CollectByPct (Just pids) ps lst) = Map.fromList [((pid,ps), pct) | pid <- pids, pct <- fst <$> lst]
-    countWeight (W.CollectByPct Nothing ps lst) = Map.fromList [((PoolConsol, ps),pct)| pct <- fst <$> lst]
+    countWeight (Collect (Just pids) ps _) =  Map.fromList [((pid,ps),1.0) | pid <- pids]
+    countWeight (Collect Nothing ps _) =  Map.fromList [((PoolConsol,ps),1.0)]
+    countWeight (CollectByPct (Just pids) ps lst) = Map.fromList [((pid,ps), pct) | pid <- pids, pct <- fst <$> lst]
+    countWeight (CollectByPct Nothing ps lst) = Map.fromList [((PoolConsol, ps),pct)| pct <- fst <$> lst]
     
     sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules  
     oustandingPs = Map.filter (> 1.0) sumMap
 
-    getPids (W.Collect (Just pids) _ _) = pids  
-    getPids (W.Collect Nothing ps _) = [PoolConsol]
-    getPids (W.CollectByPct (Just pids) _ _) = pids
-    getPids (W.CollectByPct Nothing _ _ ) = [PoolConsol]
+    getPids (Collect (Just pids) _ _) = pids  
+    getPids (Collect Nothing ps _) = [PoolConsol]
+    getPids (CollectByPct (Just pids) _ _) = pids
+    getPids (CollectByPct Nothing _ _ ) = [PoolConsol]
     osPid = Set.elems $ Set.difference (Set.fromList (concat (getPids <$> rules))) (Set.fromList validPids)
 
 

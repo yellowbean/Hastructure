@@ -39,6 +39,8 @@ import Types
 import Revolving
 import Triggers
 
+import Deal.DealCollection (CollectionRule(..))
+
 import qualified Data.Map as Map
 import qualified Data.Time as T
 import qualified Data.Set as S
@@ -284,7 +286,7 @@ data TestDeal a = TestDeal { name :: DealName
                             ,bonds :: Map.Map BondName L.Bond
                             ,pool ::  PoolType a 
                             ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
-                            ,collects :: [W.CollectionRule]
+                            ,collects :: [CollectionRule]
                             ,stats :: (BalDealStatMap,RDealStatMap,BDealStatMap,IDealStatMap)
                             ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
                             ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
