@@ -2,6 +2,7 @@
 
 module Deal.DealRun (
    run
+   ,accrueRC
 ) where
 
 import qualified Data.Set as S
@@ -294,8 +295,6 @@ appendCollectedCF d t@TestDeal { pool = pt } poolInflowMap
 		      poolInflowMap
     in 
       t {pool = newPt}  --  `debug` ("after insert bal"++ show newPt)
-
-
 
 
 run :: Ast.Asset a => TestDeal a -> Map.Map PoolId CF.PoolCashflow -> Maybe [ActionOnDate] -> Maybe [RateAssumption] -> Maybe ([Pre],[Pre])

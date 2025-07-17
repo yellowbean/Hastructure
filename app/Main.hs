@@ -426,9 +426,9 @@ runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssu
         def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.000001}
         riddersFn = case tweak of
                       SplitFixedBalance _ _ (l,h) -> ridders def (min h 0.99, max l 0.00001)
-		      StressPoolDefault (l,h)  -> ridders def (h ,max l 0.00)
-		      StressPoolPrepayment (l,h) -> ridders def (h ,max l 0.00)
-		      MaxSpreadTo _ (l,h) -> ridders def (h ,max l 0.00)
+                      StressPoolDefault (l,h)  -> ridders def (h ,max l 0.00)
+                      StressPoolPrepayment (l,h) -> ridders def (h ,max l 0.00)
+                      MaxSpreadTo _ (l,h) -> ridders def (h ,max l 0.00)
       in
         case riddersFn (rootFindAlgo req tweak stop) of
           Root r -> return $ RFResult r (doTweak r tweak req)
