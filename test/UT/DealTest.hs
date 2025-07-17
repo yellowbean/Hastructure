@@ -9,6 +9,7 @@ import Deal.DealQuery (queryCompound)
 
 import qualified Accounts as A
 import qualified Stmt as Stmt
+import Deal.DealCollection (CollectionRule(..))
 import qualified Pool as P
 import qualified Asset as Ast
 import qualified AssetClass.Mortgage as ACM
@@ -147,8 +148,8 @@ td2 = D.TestDeal {
                                  ,(W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
    ])]
- ,D.collects = [W.Collect Nothing W.CollectedInterest "General"
-             ,W.Collect Nothing W.CollectedPrincipal "General"]
+ ,D.collects = [Collect Nothing W.CollectedInterest "General"
+             ,Collect Nothing W.CollectedPrincipal "General"]
  ,D.custom = Nothing
  ,D.liqProvider = Just $ Map.fromList $
                     [("Liq1",CE.LiqFacility 
@@ -259,7 +260,7 @@ baseDeal = D.TestDeal {
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["B"] Nothing)
    ])]
- ,D.collects = [W.Collect Nothing W.CollectedCash "General"]
+ ,D.collects = [Collect Nothing W.CollectedCash "General"]
  ,D.custom = Nothing
  ,D.liqProvider = Nothing 
  ,D.triggers = Nothing 
