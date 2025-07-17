@@ -31,9 +31,6 @@ data CollectionRule = Collect (Maybe [PoolId]) PoolSource AccountName           
                     deriving (Show,Generic,Eq,Ord)
 
 
-
-
--- ^ UI translation : to read pool cash
 readProceeds :: PoolSource -> CF.TsRow -> Either String Balance
 readProceeds CollectedInterest x = return $ CF.mflowInterest x
 readProceeds CollectedPrincipal x = return $ CF.mflowPrincipal x
@@ -50,11 +47,12 @@ extractTxnsFromFlowFrameMap :: Maybe [PoolId] -> Map.Map PoolId CF.PoolCashflow 
 extractTxnsFromFlowFrameMap mPids pflowMap = 
   let 
     extractTxns :: Map.Map PoolId CF.PoolCashflow -> [CF.TsRow]
-    extractTxns m = concat $ (view (_1 . CF.cashflowTxn)) <$> Map.elems m
+    extractTxns m = concatMap (view (_1 . CF.cashflowTxn)) $ Map.elems m
   in 
     case mPids of 
       Nothing -> extractTxns pflowMap
       Just pids -> extractTxns $ Map.filterWithKey (\k _ -> k `elem` pids) pflowMap
+
 
 -- ^ deposit cash to account by collection rule
 depositInflow :: Date -> CollectionRule -> Map.Map PoolId CF.PoolCashflow -> Map.Map AccountName A.Account -> Either String (Map.Map AccountName A.Account)
@@ -80,6 +78,7 @@ depositInflow d (CollectByPct mPids s splitRules) pFlowMap amap    --TODO need t
                 amtsToAccs
     where 
       txns =  extractTxnsFromFlowFrameMap mPids pFlowMap 
+
 
 -- ^ deposit cash to account by pool map CF and rules
 depositPoolFlow :: [CollectionRule] -> Date -> Map.Map PoolId CF.PoolCashflow -> Map.Map String A.Account -> Either String (Map.Map String A.Account)

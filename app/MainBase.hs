@@ -64,6 +64,7 @@ import Servant.API.ContentTypes (contentType)
 import Types
 import qualified Deal as D
 import qualified Deal.DealBase as DB
+import qualified Deal.DealCollection as DC
 import qualified Deal.DealQuery as Q
 import qualified Asset as Ast
 import qualified Pool as P
@@ -253,7 +254,7 @@ instance ToSchema W.ActionWhen
 instance ToSchema W.ExtraSupport
 instance ToSchema W.Action
 instance ToSchema W.BookType
-instance ToSchema W.CollectionRule
+instance ToSchema DC.CollectionRule
 instance ToSchema C.CallOption
 instance ToSchema CE.LiqCreditCalc
 instance ToSchema CE.LiqFacility
