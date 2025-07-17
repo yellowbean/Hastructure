@@ -45,7 +45,7 @@ data PayOrderBy = ByName
                 | ByMaturity
                 | ByStartDate
                 | ByCustomNames [String]
-                -- | InverseSeq PayOrderBy
+                | ReverseSeq PayOrderBy
                 deriving (Show,Generic,Eq,Ord)
 
 type BookLedger = (BookDirection, LedgerName) 

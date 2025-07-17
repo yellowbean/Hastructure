@@ -24,10 +24,8 @@ import Data.Maybe
 import Data.Map
 import GHC.Generics
 import Control.Lens
--- import qualified Liability as L
 
 type TriggerName = String
-
 
 data TriggerEffect = DealStatusTo DealStatus                           -- ^ change deal status
                    | DoAccrueFee FeeNames                              -- ^ accure fee
@@ -35,8 +33,7 @@ data TriggerEffect = DealStatusTo DealStatus                           -- ^ chan
                    | ChangeReserveBalance String ReserveAmount         -- ^ update reserve target balance  
                    | CloseDeal (Int, DatePattern) (Int, DatePattern)
                                (PricingMethod, AccountName, Maybe DealStats)   
-                               (Maybe [CollectionRule])
-                               -- ^ close the deal
+                               (Maybe [CollectionRule])                --  ^ close the deal
                    | BuyAsset AccountName PricingMethod                -- ^ buy asset from the assumption using funds from account
                    | ChangeBondRate BondName L.InterestInfo IRate      -- ^ change bond rate
                    | TriggerEffects [TriggerEffect]                    -- ^ a combination of effects above

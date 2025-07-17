@@ -12102,6 +12102,25 @@
                         ],
                         "title": "ByCustomNames",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "$ref": "#/components/schemas/PayOrderBy"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "ReverseSeq"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "ReverseSeq",
+                        "type": "object"
                     }
                 ]
             },
@@ -20979,9 +20998,7 @@
                     }
                 },
                 "required": [
-                    "deal",
-                    "futureCf",
-                    "futureScheduleCf"
+                    "deal"
                 ],
                 "type": "object"
             },
@@ -21005,9 +21022,7 @@
                     }
                 },
                 "required": [
-                    "deal",
-                    "futureCf",
-                    "futureScheduleCf"
+                    "deal"
                 ],
                 "type": "object"
             },
@@ -21031,9 +21046,7 @@
                     }
                 },
                 "required": [
-                    "deal",
-                    "futureCf",
-                    "futureScheduleCf"
+                    "deal"
                 ],
                 "type": "object"
             },
@@ -21057,9 +21070,7 @@
                     }
                 },
                 "required": [
-                    "deal",
-                    "futureCf",
-                    "futureScheduleCf"
+                    "deal"
                 ],
                 "type": "object"
             },
@@ -21083,9 +21094,7 @@
                     }
                 },
                 "required": [
-                    "deal",
-                    "futureCf",
-                    "futureScheduleCf"
+                    "deal"
                 ],
                 "type": "object"
             },
@@ -21109,9 +21118,7 @@
                     }
                 },
                 "required": [
-                    "deal",
-                    "futureCf",
-                    "futureScheduleCf"
+                    "deal"
                 ],
                 "type": "object"
             },
@@ -21135,9 +21142,7 @@
                     }
                 },
                 "required": [
-                    "deal",
-                    "futureCf",
-                    "futureScheduleCf"
+                    "deal"
                 ],
                 "type": "object"
             },
@@ -21161,9 +21166,7 @@
                     }
                 },
                 "required": [
-                    "deal",
-                    "futureCf",
-                    "futureScheduleCf"
+                    "deal"
                 ],
                 "type": "object"
             },

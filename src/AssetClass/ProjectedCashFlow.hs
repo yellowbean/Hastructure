@@ -184,7 +184,7 @@ instance Ast.Asset ProjectedCashflow where
     getOriginBal x = getCurrentBal x
     getOriginRate x = 0.0
 
-    isDefaulted f = error ""
+    isDefaulted f = False
     getOriginDate f = error ""
     getOriginInfo f = error ""
 
@@ -208,16 +208,10 @@ instance Ast.Asset ProjectedCashflow where
     projCashflow f asOfDay (pAssump, _, _) mRates
       = do
           (fixedCashFlow, floatedCashFlow) <- seperateCashflows f (Just pAssump) mRates
-          return $ (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
-          --(fixedCashFlow, Map.empty)
+          return (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
 
     projCashflow a b c d = Left $ "Failed to match when proj projected flow with assumption >>" ++ show a ++ show b ++ show c ++ show d
     
     getBorrowerNum f = 0
 
     splitWith f rs = [f]
-
--- instance IR.UseRate ProjectedCashflow where 
---       isAdjustbleRate _ = False
---       getIndex _ = Nothing
---       getIndexes _ = Nothing

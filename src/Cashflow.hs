@@ -28,7 +28,7 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,splitPoolCashflowByDate
                 ,getAllDatesCashFlowFrame,splitCf, cutoffCashflow
                 ,AssetCashflow,PoolCashflow
-                ,emptyCashflow,isEmptyRow2
+                ,emptyCashflow,isEmptyRow2,appendMCashFlow
                 ) where
 
 import Data.Time (Day)
@@ -1155,6 +1155,13 @@ cashflowTxn = lens getter setter
     getter (CashFlowFrame _ txns) = txns
     setter (CashFlowFrame st txns) newTxns = CashFlowFrame st newTxns
 
+appendMCashFlow :: Maybe CashFlowFrame -> [TsRow] -> Maybe CashFlowFrame
+appendMCashFlow Nothing [] = Nothing
+appendMCashFlow (Just cf) [] = Just cf
+appendMCashFlow Nothing txns 
+  = Just $ CashFlowFrame (0, epocDate, Nothing) txns
+appendMCashFlow (Just (CashFlowFrame st txns)) newTxns 
+  = Just $ CashFlowFrame st (txns ++ newTxns)
 
 txnCumulativeStats :: Lens' TsRow (Maybe CumulativeStat)
 txnCumulativeStats = lens getter setter

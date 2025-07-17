@@ -198,7 +198,7 @@ buildPrepayRates a ds mPa =
           vectorUsed = take remainingTerm $ drop agedTerm ppyVectorInCPR
         in 
           case period (getOriginInfo a) of
-            Monthly -> Right $ cpr2smm <$> vectorUsed
+            Monthly -> return $ cpr2smm <$> vectorUsed
             _ -> Left $ "PSA is only supported for monthly payment but got "++ show (period (getOriginInfo a))
       Just (A.PrepaymentByTerm rs) -> 
         let 
@@ -206,7 +206,7 @@ buildPrepayRates a ds mPa =
           oTerm = originTerm (getOriginInfo a)
         in 
           case find (\x -> oTerm == length x) rs of 
-            Just v -> Right $ drop agedTerm v
+            Just v -> return $ drop agedTerm v
             Nothing -> Left "Prepayment by term doesn't match the origin term"
 
       _ -> Left ("failed to find prepayment type"++ show mPa)

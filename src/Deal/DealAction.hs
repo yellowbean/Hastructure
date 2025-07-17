@@ -1,7 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Deal.DealAction (performActionWrap,performAction,calcDueFee
@@ -100,15 +97,14 @@ allocAmtToBonds W.ByProRataCurBal amt bndsWithDue
   = zip (fst <$> bndsWithDue) $ prorataFactors (snd <$> bndsWithDue) amt 
 allocAmtToBonds theOrder amt bndsWithDue =
   let 
-    sortFn = case theOrder of 
-                      W.ByName -> (\(b1,_) (b2,_) -> compare (L.bndName b1) (L.bndName b2)) 
-                      W.ByCurrentRate -> (\(b1,_) (b2,_) -> compare (L.bndRate b2) (L.bndRate b1)) 
-                      W.ByMaturity -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.maturityDate bo1) (L.maturityDate bo2))
-                      W.ByStartDate -> (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.originDate bo1) (L.originDate bo2))
-                      -- TODO: how to handle if now names found in the bonds
-                      -- W.ByCustomNames names -> (\(b1,_) (b2,_) -> compare (findIndex (== (L.bndName b1)) names) (findIndex (== (L.bndName b2)) names))
-                      W.ByCustomNames names -> (\(b1,_) (b2,_) -> compare (elemIndex (L.bndName b1) names) (elemIndex (L.bndName b2) names))
-    orderedBonds = sortBy sortFn bndsWithDue
+    sortFn W.ByName = (\(b1,_) (b2,_) -> compare (L.bndName b1) (L.bndName b2)) 
+    sortFn W.ByCurrentRate = (\(b1,_) (b2,_) -> compare (L.bndRate b2) (L.bndRate b1)) 
+    sortFn W.ByMaturity = (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.maturityDate bo1) (L.maturityDate bo2))
+    sortFn W.ByStartDate = (\(b1@L.Bond{L.bndOriginInfo=bo1},_) (b2@L.Bond{L.bndOriginInfo=bo2},_) -> compare (L.originDate bo1) (L.originDate bo2))
+               -- TODO: how to handle if now names found in the bonds
+    sortFn (W.ByCustomNames names) = (\(b1,_) (b2,_) -> compare (elemIndex (L.bndName b1) names) (elemIndex (L.bndName b2) names))
+    sortFn (W.ReverseSeq orderBy) = flip (sortFn orderBy)
+    orderedBonds = sortBy (sortFn theOrder) bndsWithDue
     orderedAmt = snd <$> orderedBonds
   in 
     zip 
