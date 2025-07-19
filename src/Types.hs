@@ -855,9 +855,29 @@ class Liable lb where
   -- getTotalDue lbs =  sum $ getDue <$> lbs
 
 
+data DueType = DueInterest
+             | DuePrincipal
+	     | DueFee
+	     | DuePremium
+	     | DueFine
+             | DueTotalOf [DueType]
+	     deriving (Show, Eq, Generic)
+
+
 class Accruable ac where 
-  accrue :: Date -> ac -> ac
   calcAccrual :: Date -> ac -> Balance
+  bookAccrual :: Date -> ac -> ac
+  getAccrualDates :: Date -> ac -> [Date]
+
+
+class Payable pa where
+  pay :: Date -> Maybe Balance -> pa -> pa
+  getDueBal :: Date -> pa -> Maybe DueType -> Balance
+
+
+class RateResettable rs where
+  getResetDates :: Date -> rs -> [Dates]
+  reset :: Date -> rs -> rs
 
   -- buildAccrualAction :: ac -> Date -> Date -> [ActionOnDate]
 

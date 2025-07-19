@@ -3,6 +3,9 @@ pkgs.mkShell {
   buildInputs = with pkgs ; [
     cabal-install
     cabal2nix
+    haskell.compiler.ghc912
+    haskell-language-server
+    ghciwatch
   ];
   LANG = "en_US.UTF-8";
   LC_ALL = "en_US.UTF-8";

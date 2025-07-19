@@ -51,8 +51,6 @@ import Assumptions (ExtraStress(ExtraStress))
 
 import Control.Lens hiding (element)
 import Control.Lens.TH
-import Data.Generics.Product.Fields
-import Data.Generics.Product.Any
 import DateUtil (yearCountFraction)
 
 

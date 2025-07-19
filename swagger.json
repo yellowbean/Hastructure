@@ -3524,7 +3524,7 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/ProjectedCashflow"
+                                "$ref": "#/components/schemas/ProjectedCashFlow"
                             },
                             "tag": {
                                 "enum": [
@@ -4686,27 +4686,17 @@
                     },
                     {
                         "properties": {
-                            "contents": {
-                                "additionalProperties": {
-                                    "items": {
-                                        "$ref": "#/components/schemas/CashFlowFrame"
-                                    },
-                                    "type": "array"
-                                },
-                                "type": "object"
-                            },
                             "tag": {
                                 "enum": [
-                                    "MultiCashFlowFrame"
+                                    "DummyCF"
                                 ],
                                 "type": "string"
                             }
                         },
                         "required": [
-                            "tag",
-                            "contents"
+                            "tag"
                         ],
-                        "title": "MultiCashFlowFrame",
+                        "title": "DummyCF",
                         "type": "object"
                     }
                 ]
@@ -9154,7 +9144,7 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/TestDeal_ProjectedCashflow"
+                                "$ref": "#/components/schemas/TestDeal_ProjectedCashFlow"
                             },
                             "tag": {
                                 "enum": [
@@ -12475,7 +12465,7 @@
                     {
                         "properties": {
                             "contents": {
-                                "$ref": "#/components/schemas/PoolType_ProjectedCashflow"
+                                "$ref": "#/components/schemas/PoolType_ProjectedCashFlow"
                             },
                             "tag": {
                                 "enum": [
@@ -12800,13 +12790,13 @@
                     }
                 ]
             },
-            "PoolType_ProjectedCashflow": {
+            "PoolType_ProjectedCashFlow": {
                 "oneOf": [
                     {
                         "properties": {
                             "contents": {
                                 "additionalProperties": {
-                                    "$ref": "#/components/schemas/Pool_ProjectedCashflow"
+                                    "$ref": "#/components/schemas/Pool_ProjectedCashFlow"
                                 },
                                 "type": "object"
                             },
@@ -12828,7 +12818,7 @@
                         "properties": {
                             "contents": {
                                 "additionalProperties": {
-                                    "$ref": "#/components/schemas/UnderlyingDeal_ProjectedCashflow"
+                                    "$ref": "#/components/schemas/UnderlyingDeal_ProjectedCashFlow"
                                 },
                                 "type": "object"
                             },
@@ -13256,14 +13246,14 @@
                 ],
                 "type": "object"
             },
-            "Pool_ProjectedCashflow": {
+            "Pool_ProjectedCashFlow": {
                 "properties": {
                     "asOfDate": {
                         "$ref": "#/components/schemas/Day"
                     },
                     "assets": {
                         "items": {
-                            "$ref": "#/components/schemas/ProjectedCashflow"
+                            "$ref": "#/components/schemas/ProjectedCashFlow"
                         },
                         "type": "array"
                     },
@@ -14625,37 +14615,8 @@
                     }
                 ]
             },
-            "ProjectedCashflow": {
+            "ProjectedCashFlow": {
                 "oneOf": [
-                    {
-                        "properties": {
-                            "contents": {
-                                "items": [
-                                    {
-                                        "$ref": "#/components/schemas/CashFlowFrame"
-                                    },
-                                    {
-                                        "$ref": "#/components/schemas/DatePattern"
-                                    }
-                                ],
-                                "maxItems": 2,
-                                "minItems": 2,
-                                "type": "array"
-                            },
-                            "tag": {
-                                "enum": [
-                                    "ProjectedFlowFixed"
-                                ],
-                                "type": "string"
-                            }
-                        },
-                        "required": [
-                            "tag",
-                            "contents"
-                        ],
-                        "title": "ProjectedFlowFixed",
-                        "type": "object"
-                    },
                     {
                         "properties": {
                             "contents": {
@@ -14693,11 +14654,15 @@
                                                     "type": "number"
                                                 },
                                                 {
+                                                    "multipleOf": 1.0e-6,
+                                                    "type": "number"
+                                                },
+                                                {
                                                     "$ref": "#/components/schemas/Index"
                                                 }
                                             ],
-                                            "maxItems": 3,
-                                            "minItems": 3,
+                                            "maxItems": 4,
+                                            "minItems": 4,
                                             "type": "array"
                                         },
                                         "type": "array"
@@ -14709,7 +14674,7 @@
                             },
                             "tag": {
                                 "enum": [
-                                    "ProjectedFlowMixFloater"
+                                    "ProjectedCashflow"
                                 ],
                                 "type": "string"
                             }
@@ -14718,7 +14683,22 @@
                             "tag",
                             "contents"
                         ],
-                        "title": "ProjectedFlowMixFloater",
+                        "title": "ProjectedCashflow",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "DUMMY3"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "DUMMY3",
                         "type": "object"
                     }
                 ]
@@ -18420,7 +18400,7 @@
                 ],
                 "type": "object"
             },
-            "TestDeal_ProjectedCashflow": {
+            "TestDeal_ProjectedCashFlow": {
                 "properties": {
                     "accounts": {
                         "additionalProperties": {
@@ -18477,7 +18457,7 @@
                         "type": "string"
                     },
                     "pool": {
-                        "$ref": "#/components/schemas/PoolType_ProjectedCashflow"
+                        "$ref": "#/components/schemas/PoolType_ProjectedCashFlow"
                     },
                     "rateCap": {
                         "additionalProperties": {
@@ -21122,10 +21102,10 @@
                 ],
                 "type": "object"
             },
-            "UnderlyingDeal_ProjectedCashflow": {
+            "UnderlyingDeal_ProjectedCashFlow": {
                 "properties": {
                     "deal": {
-                        "$ref": "#/components/schemas/TestDeal_ProjectedCashflow"
+                        "$ref": "#/components/schemas/TestDeal_ProjectedCashFlow"
                     },
                     "futureCf": {
                         "$ref": "#/components/schemas/CashFlowFrame"
@@ -21189,7 +21169,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.50.2"
+        "version": "0.50.4"
     },
     "openapi": "3.0.0",
     "paths": {

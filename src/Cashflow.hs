@@ -120,6 +120,7 @@ data TsRow = CashFlow Date Amount
            | LeaseFlow Date Balance Rental Default
            | FixedFlow Date Balance NewDepreciation Depreciation Balance Balance -- unit cash 
            | ReceivableFlow Date Balance AccuredFee Principal FeePaid Default Recovery Loss (Maybe CumulativeStat) 
+	   -- | MixedCashflow Date Balance Principal Interest Prepayment 
            deriving(Show,Eq,Ord,Generic,NFData)
 
 instance Semigroup TsRow where 
@@ -194,7 +195,7 @@ type BeginDate = Date
 type BeginStatus = (BeginBalance, BeginDate, AccuredInterest)
 
 data CashFlowFrame = CashFlowFrame BeginStatus [TsRow]
-                   | MultiCashFlowFrame (Map.Map String [CashFlowFrame])
+                   | DummyCF
                    deriving (Eq,Generic,Ord)
 
 cfBeginStatus :: Lens' CashFlowFrame BeginStatus
@@ -235,7 +236,6 @@ instance Show CashFlowFrame where
 
 instance NFData CashFlowFrame where 
   rnf (CashFlowFrame st txns) = rnf st `seq` rnf txns
-  rnf (MultiCashFlowFrame m) = rnf m
 
 sizeCashFlowFrame :: CashFlowFrame -> Int
 sizeCashFlowFrame (CashFlowFrame _ ts) = length ts

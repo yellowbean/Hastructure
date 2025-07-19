@@ -346,15 +346,14 @@ instance SPV (TestDeal a) where
         Left _ -> error "Failed to populate dates"
 
   getBondBegBal t bn 
-    = 
-      case b of 
+    = case b of 
         Nothing -> 0
         Just bnd ->
           case L.bndStmt bnd of
-            Nothing -> L.getCurBalance bnd  -- `debug` ("Getting beg bal nothing"++bn)
+            Nothing -> L.getCurBalance bnd  
             Just (Statement txns) 
               | DL.empty == txns  -> L.getCurBalance bnd  
-              | otherwise -> getTxnBegBalance $ head (DL.toList txns) -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
+              | otherwise -> getTxnBegBalance $ head (DL.toList txns)
       where
           b = find (\x -> ((L.bndName x) == bn)) (viewDealAllBonds t) 
 
@@ -511,7 +510,6 @@ getPoolIds t@TestDeal{pool = pt}
   = case pt of
       MultiPool pm -> Map.keys pm
       ResecDeal pm -> Map.keys pm
-      _ -> error "failed to match pool type in pool ids"
 
 -- ^ to handle with bond group, with flag to good deep if it is a bond group
 getBondByName :: Ast.Asset a => TestDeal a -> Bool -> BondName -> Maybe L.Bond

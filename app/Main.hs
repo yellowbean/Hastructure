@@ -24,7 +24,7 @@ import Data.Aeson
 import Data.Aeson.Types
 import Data.Aeson.TH
 import Data.Aeson.Encode.Pretty (encodePretty)
-import Data.Attoparsec.ByteString
+-- import Data.Attoparsec.ByteString
 import Data.ByteString (ByteString)
 import Data.List
 import Data.Map
@@ -46,9 +46,9 @@ import qualified Data.ByteString.Char8 as BS
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Network.Wai.Middleware.Cors
-import qualified Data.Aeson.Parser
+-- import qualified Data.Aeson.Parser
 import Language.Haskell.TH
-import Network.HTTP.Types.Status
+--import Network.HTTP.Types.Status
 import Servant.OpenApi
 import Servant
 import Servant.Types.SourceT (source)
@@ -100,7 +100,7 @@ debug = flip Debug.Trace.trace
 
 
 version1 :: Version 
-version1 = Version "0.50.2"
+version1 = Version "0.50.4"
 
 
 wrapRun :: [D.ExpectReturn] -> DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
