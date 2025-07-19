@@ -14,7 +14,7 @@ module Util
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,adjustM,lookupAndApply,lookupAndUpdate,lookupAndApplies
     ,lookupInMap,selectInMap,scaleByFstElement
-    ,lookupTuple6 ,lookupTuple7,diffNum
+    ,lookupTuple6 ,lookupTuple7,diffNum,splitBal
     -- for debug
     ,debugOnDate,paySeqM,splitByLengths
     )
@@ -48,6 +48,9 @@ mulBIR b r = fromRational $ toRational b * toRational r
 
 mulIR :: Int -> Rational -> Rational
 mulIR i r = toRational i * r 
+
+splitBal :: Rate -> Balance -> (Balance,Balance)
+splitBal r b = (mulBR b r, mulBR b (1-r))
 
 mulIntegerR :: Integer -> Rational -> Rational
 mulIntegerR i r = toRational i * r

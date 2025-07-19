@@ -641,11 +641,11 @@ delinqScheduleCFTest =
                       ,A.DummyDefaultAssump))
 
     poolCf = fst . head $ 
-               case D.runPool pool assump1 Nothing of
+               case P.runPool pool assump1 Nothing of
                  Left errorMsg -> undefined `debug` ("Error in pool run"++show errorMsg)
                  Right x -> x  `debug` ("pool run resp"++show x)
     poolCf2 = fst . head $ 
-                case D.runPool pool assump2 Nothing of
+                case P.runPool pool assump2 Nothing of
                   Left _ -> undefined
                   Right x -> x
   in 

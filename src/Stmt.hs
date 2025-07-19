@@ -13,7 +13,6 @@ module Stmt
   ,getFlow,FlowDirection(..), aggByTxnComment,scaleByFactor
   ,scaleTxn,isEmptyTxn, statementTxns, viewBalanceAsOf,filterTxn
   ,HasStmt(..),Txn(..)
-  ,getAllTxns,hasEmptyTxn
   )
   where
 

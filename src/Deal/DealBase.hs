@@ -9,13 +9,13 @@
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
                      ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
                      ,getIssuanceStatsConsol,getAllCollectedTxnsList
-                     ,getPoolIds,getBondByName, UnderlyingDeal(..), uDealFutureTxn,viewDealAllBonds,DateDesp(..),ActionOnDate(..)
+                     ,getPoolIds,getBondByName, UnderlyingDeal(..),viewDealAllBonds,DateDesp(..),ActionOnDate(..)
                      ,sortActionOnDate,dealBondGroups
                      ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
                      ,increaseBondPaidPeriod,increasePoolCollectedPeriod
                      ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
                      ,bondTraversal,findBondByNames,updateBondInMap
-		     ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
+                     ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
                      )                      
   where
 import qualified Accounts as A
@@ -38,6 +38,8 @@ import DateUtil
 import Types
 import Revolving
 import Triggers
+
+import Deal.DealCollection (CollectionRule(..))
 
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -284,7 +286,7 @@ data TestDeal a = TestDeal { name :: DealName
                             ,bonds :: Map.Map BondName L.Bond
                             ,pool ::  PoolType a 
                             ,waterfall :: Map.Map W.ActionWhen W.DistributionSeq
-                            ,collects :: [W.CollectionRule]
+                            ,collects :: [CollectionRule]
                             ,stats :: (BalDealStatMap,RDealStatMap,BDealStatMap,IDealStatMap)
                             ,liqProvider :: Maybe (Map.Map String CE.LiqFacility)
                             ,rateSwap :: Maybe (Map.Map String HE.RateSwap)
@@ -297,35 +299,22 @@ data TestDeal a = TestDeal { name :: DealName
 
 data UnderlyingDeal a = UnderlyingDeal {
   deal :: TestDeal a
-  ,futureCf :: CF.CashFlowFrame
-  ,futureScheduleCf :: CF.CashFlowFrame
+  ,futureCf :: Maybe CF.CashFlowFrame
+  ,futureScheduleCf :: Maybe CF.CashFlowFrame
   ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)
 } deriving (Generic,Eq,Ord,Show)
 
-uDealFutureScheduleCf :: Ast.Asset a => Lens' (UnderlyingDeal a) CF.CashFlowFrame
+uDealFutureScheduleCf :: Ast.Asset a => Lens' (UnderlyingDeal a) (Maybe CF.CashFlowFrame)
 uDealFutureScheduleCf = lens getter setter
   where 
     getter = futureScheduleCf
     setter ud newCf = ud {futureScheduleCf = newCf}
 
-uDealFutureCf :: Ast.Asset a => Lens' (UnderlyingDeal a) CF.CashFlowFrame
+uDealFutureCf :: Ast.Asset a => Lens' (UnderlyingDeal a) (Maybe CF.CashFlowFrame)
 uDealFutureCf = lens getter setter
   where 
     getter = futureCf
     setter ud newCf = ud {futureCf = newCf}
-
-uDealFutureTxn :: Ast.Asset a => Lens' (UnderlyingDeal a) [CF.TsRow]
-uDealFutureTxn = lens getter setter
-  where 
-    getter ud = view CF.cashflowTxn $ futureCf ud
-    setter ud newTxn = ud {futureCf = CF.CashFlowFrame (0,toDate "19000101",Nothing) newTxn}
-        -- let 
-        --    mOriginalCfFrame = futureCf ud 
-        -- in 
-        --    case mOriginalCfFrame of 
-        --      
-        --      (CF.CashFlowFrame (begBal,begDate,mInt) txns) -> ud {futureCf = CF.CashFlowFrame (0,toDate "19000101",Nothing) newTxn }
-
 
 data PoolType a = MultiPool (Map.Map PoolId (P.Pool a))
                 | ResecDeal (Map.Map PoolId (UnderlyingDeal a))
@@ -357,15 +346,14 @@ instance SPV (TestDeal a) where
         Left _ -> error "Failed to populate dates"
 
   getBondBegBal t bn 
-    = 
-      case b of 
+    = case b of 
         Nothing -> 0
         Just bnd ->
           case L.bndStmt bnd of
-            Nothing -> L.getCurBalance bnd  -- `debug` ("Getting beg bal nothing"++bn)
+            Nothing -> L.getCurBalance bnd  
             Just (Statement txns) 
               | DL.empty == txns  -> L.getCurBalance bnd  
-              | otherwise -> getTxnBegBalance $ head (DL.toList txns) -- `debug` ("Getting beg bal"++bn++"Last smt"++show (head stmts))
+              | otherwise -> getTxnBegBalance $ head (DL.toList txns)
       where
           b = find (\x -> ((L.bndName x) == bn)) (viewDealAllBonds t) 
 
@@ -517,54 +505,11 @@ poolTypeUnderDeal = lens getter setter
     getter = \case ResecDeal dm -> dm
     setter (ResecDeal dm) newDm = ResecDeal newDm
 
--- schedulePoolFlowLens = poolTypePool . mapped . P.futureScheduleCfLens 
--- schedulePoolFlowAggLens = schedulePoolFlowLens . _1 . _1
--- scheduleBondFlowLens = poolTypeUnderDeal . mapped . uDealFutureScheduleCf
-
-
--- dealInputCashflow :: Ast.Asset a => Lens' (TestDeal a) (Map.Map PoolId CF.PoolCashflow)
--- dealInputCashflow = lens getter setter
---   where
---     getter d = case pool d of
---                 MultiPool pm -> Map.map (P.futureScheduleCf) pm
---                 ResecDeal uds -> Map.map futureScheduleCf uds
---     setter d newCfMap = case pool d of
---                           MultiPool pm -> 
--- 			    let 
---                               newPm = Map.mapWithKey (\k p -> set (P.poolFutureScheduleCf) (newCfMap Map.! k) p) pm
---                             in
---                               set dealPool (MultiPool newPm) d
---                           ResecDeal pm -> 
---                             let 
---                               newPm = Map.mapWithKey (\k ud ->gset uDealFutureScheduleCf (newCfMap Map.! k) ud) pm
---                             in
---                               set dealPool (ResecDeal newPm) d
-
--- dealCashflow :: Ast.Asset a => Lens' (TestDeal a) (Map.Map PoolId (Maybe CF.CashFlowFrame))
--- dealCashflow = lens getter setter
---   where 
---     getter d = case pool d of
---                 MultiPool pm -> Map.map P.futureCf pm
---                 ResecDeal uds -> Map.map futureCf uds
---     setter d newCfMap = case pool d of 
---                           MultiPool pm -> let 
---                                             newPm = Map.mapWithKey (\k p -> set P.poolFutureCf (newCfMap Map.! k) p) pm
---                                           in 
---                                             set dealPool (MultiPool newPm) d
---                           ResecDeal pm ->
---                             let 
---                               newPm = Map.mapWithKey 
--- 			                (\k ud -> set uDealFutureCf (newCfMap Map.! k) ud)
--- 					pm
---                             in
---                               set dealPool (ResecDeal newPm) d
-
 getPoolIds :: Ast.Asset a => TestDeal a -> [PoolId]
 getPoolIds t@TestDeal{pool = pt} 
   = case pt of
       MultiPool pm -> Map.keys pm
       ResecDeal pm -> Map.keys pm
-      _ -> error "failed to match pool type in pool ids"
 
 -- ^ to handle with bond group, with flag to good deep if it is a bond group
 getBondByName :: Ast.Asset a => TestDeal a -> Bool -> BondName -> Maybe L.Bond
@@ -620,7 +565,7 @@ getAllCollectedFrame t@TestDeal{pool = poolType} mPid =
   let 
     mCf = case poolType of 
             MultiPool pm -> Map.map (view (P.poolFutureCf . _Just . _1 )) pm -- `debug` ("MultiPool" ++ show pm)
-            ResecDeal uds -> Map.map futureCf uds
+            ResecDeal uds -> Map.map (fromMaybe CF.emptyCashflow . futureCf) uds
   in 
     case mPid of 
       Nothing -> mCf  -- `debug` ("Nothing when collecting cfs"++show mCf)

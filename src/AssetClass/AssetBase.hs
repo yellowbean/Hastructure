@@ -10,7 +10,7 @@ module AssetClass.AssetBase
   ,LeaseStepUp(..),AccrualPeriod(..),PrepayPenaltyType(..)
   ,AmortPlan(..),Loan(..),Mortgage(..),AssetUnion(..),MixedAsset(..),FixedAsset(..)
   ,AmortRule(..),Capacity(..),AssociateExp(..),AssociateIncome(..),ReceivableFeeType(..),Receivable(..)
-  ,ProjectedCashflow(..),Obligor(..),LeaseRateCalc(..)
+  ,ProjectedCashFlow(..),Obligor(..),LeaseRateCalc(..)
   ,calcAssetPrinInt, calcPmt
   )
   where
@@ -200,13 +200,11 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic,Eq,Ord)
 
-
 type FixRatePortion   = (Rate, IRate)
-type FloatRatePortion = (Rate, Spread, Index)
+type FloatRatePortion = (Rate, IRate, Spread, Index)
 
-
-data ProjectedCashflow = ProjectedFlowFixed CF.CashFlowFrame DatePattern
-                       | ProjectedFlowMixFloater CF.CashFlowFrame DatePattern FixRatePortion [FloatRatePortion]
+data ProjectedCashFlow = ProjectedCashflow CF.CashFlowFrame DatePattern FixRatePortion [FloatRatePortion]
+                       | DUMMY3
                        deriving (Show,Generic,Eq,Ord)
 
 
@@ -249,7 +247,7 @@ data AssetUnion = MO Mortgage
                 | LS Lease
                 | FA FixedAsset
                 | RE Receivable
-                | PF ProjectedCashflow
+                | PF ProjectedCashFlow
                 deriving (Show, Generic,Ord,Eq)
 
 
@@ -287,12 +285,10 @@ instance IR.UseRate FixedAsset where
 instance IR.UseRate Receivable where
   getIndex _ = Nothing
 
-instance IR.UseRate ProjectedCashflow where 
-  getIndex (ProjectedFlowFixed cf _) = Nothing  
-
-  getIndex (ProjectedFlowMixFloater cf _ _ (f:fs)) = Just $ (\(a,b,c) -> c) f 
-  getIndexes (ProjectedFlowMixFloater cf _ _ fs ) 
-    = Just $ (\(a,b,c) -> c) <$> fs
+instance IR.UseRate ProjectedCashFlow where 
+  getIndex (ProjectedCashflow cf _ _ (f:fs)) = Just $ (\(_,a,b,c) -> c) f 
+  getIndexes (ProjectedCashflow cf _ _ fs ) 
+    = Just $ (\(a,_,b,c) -> c) <$> fs
 
 
 $(concat <$> traverse (deriveJSON defaultOptions) [''Obligor, ''OriginalInfo, ''FixedAsset, ''AmortPlan, ''PrepayPenaltyType
@@ -310,7 +306,7 @@ $(deriveJSON defaultOptions ''Mortgage)
 $(deriveJSON defaultOptions ''Loan)
 $(deriveJSON defaultOptions ''Lease)
 $(deriveJSON defaultOptions ''Receivable)
-$(deriveJSON defaultOptions ''ProjectedCashflow)
+$(deriveJSON defaultOptions ''ProjectedCashFlow)
 $(deriveJSON defaultOptions ''AssetUnion)
 instance ToSchema Capacity
 instance ToSchema AmortRule
