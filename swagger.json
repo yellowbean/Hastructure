@@ -11031,8 +11031,18 @@
             "Ledger": {
                 "properties": {
                     "ledgBalance": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/BookDirection"
+                            },
+                            {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "ledgName": {
                         "type": "string"
@@ -20301,12 +20311,32 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
                                     },
                                     {
                                         "$ref": "#/components/schemas/TxnComment"
