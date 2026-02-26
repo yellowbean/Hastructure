@@ -432,18 +432,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             Left $ "Date:"++show d++"Failed to find pool balance" ++ show pids ++ " from deal "++ show (Map.keys pm)
         _ -> Left $ "Date:"++show d++"Failed to find pool" ++ show mPns ++","++ show pt
 
---     FutureCurrentSchedulePoolBalance mPns ->
---       let 
---         scheduleFlowM = Map.elems $ view dealScheduledCashflow t
---       in 
---         Right . toRational $ sum $ ((view CF.tsRowBalance) . head . view CF.cashflowTxn) <$> scheduleFlowM
---     
---     FutureCurrentSchedulePoolBegBalance mPns ->
---       let 
---         scheduleFlowM = Map.elems $ view dealScheduledCashflow t
---       in 
---         Right . toRational $ sum $ (CF.mflowBegBalance . head . view CF.cashflowTxn) <$> scheduleFlowM
-    
+
     FutureCurrentPoolBegBalance mPns ->
       let 
         ltc = getLatestCollectFrame t mPns

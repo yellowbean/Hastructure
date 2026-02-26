@@ -255,9 +255,9 @@ calcRequiredAmtForIrrAtDate irr ds vs d =
     itertimes = 500
     def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.00000001}
   in 
-    case ridders def (0.0001,100000000000000) (calcPvFromIRR irr ds vs d) of
+    case ridders def (-100000000000.0,100000000000000) (calcPvFromIRR irr ds vs d) of
       Root finalAmt -> Just (fromRational (toRational finalAmt))
-      _ -> Nothing
+      error -> Nothing `debug` ("calcRequiredAmtForIrrAtDate: error"++ show error)
 
 -- ^ calc IRR from a cashflow 
 calcIRR :: [Date] -> [Amount] -> Either String Rate

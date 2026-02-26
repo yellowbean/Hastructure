@@ -460,7 +460,7 @@ evalExtraSupportBalance d t (W.MultiSupport supports)
 
 
 -- ^ draw support from a deal , return updated deal,and remaining oustanding amount
-drawExtraSupport :: Date -> Amount -> W.ExtraSupport -> TestDeal a -> Either ErrorRep (TestDeal a, Amount)
+drawExtraSupport :: Ast.Asset a => Date -> Amount -> W.ExtraSupport -> TestDeal a -> Either ErrorRep (TestDeal a, Amount)
 -- ^ draw account support and book ledger
 drawExtraSupport d amt (W.SupportAccount an (Just (dr, ln))) t@TestDeal{accounts=accMap, ledgers= Just ledgerMap}
   = do 
@@ -498,6 +498,15 @@ drawExtraSupport d amt (W.MultiSupport supports) t
       (\(deal,remainAmt) support -> drawExtraSupport d remainAmt support deal) 
       (t, amt) 
       supports
+
+drawExtraSupport d amt (W.WithCondition pre s) t
+  = do
+      flag <- testPre d t pre
+      if flag then 
+        drawExtraSupport d amt s t
+      else
+        return (t, amt)
+
 
 inspectListVars :: Ast.Asset a => TestDeal a -> Date -> [DealStats] -> Either ErrorRep [ResultComponent]
 inspectListVars t d dss = sequenceA [ inspectVars t d ds | ds <- dss]                     
