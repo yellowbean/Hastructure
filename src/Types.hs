@@ -741,6 +741,7 @@ data DealStats = CurrentBondBalance
                | PoolFactor (Maybe [PoolId])
                | BondWaRate [BondName]
                | DealStatRate DealStatFields
+               | IrrOfBond BondName
                -- Compond type
                | Factor DealStats Rational
                | Multiply [DealStats]

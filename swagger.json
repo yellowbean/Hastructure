@@ -8434,6 +8434,25 @@
                     {
                         "properties": {
                             "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IrrOfBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IrrOfBond",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
                                 "items": [
                                     {
                                         "$ref": "#/components/schemas/DealStats"
@@ -21312,7 +21331,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.52.1"
+        "version": "0.52.3"
     },
     "openapi": "3.0.0",
     "paths": {

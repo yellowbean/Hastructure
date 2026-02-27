@@ -769,6 +769,14 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
                                 toRational amt
                               else
                                 0.0
+    IrrOfBond bondName -> 
+      case getBondByName t True bondName of
+        Nothing -> Left $ "[query Irr of bond]Failed to find bond by name"++ bondName
+        Just bnd ->
+          let 
+            (ds,vs) = L.bondCashflow bnd
+          in
+            A.calcIRR ds vs
 
     CustomData s d ->
         case custom t of 
