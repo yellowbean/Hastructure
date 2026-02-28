@@ -834,6 +834,11 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap,fees= feeMap
         vs <- lookupAndApplies (not . isPaidOff) "Is Outstanding" bns bndMap
         return $ and vs 
 
+    IsAnyOutstanding bns -> 
+      do 
+        vs <- lookupAndApplies (not . isPaidOff) "Is Any Outstanding" bns bndMap
+        return $ or vs
+
     IsFeePaidOff fns ->
       do 
         vs <- lookupAndApplies isPaidOff "Is Fee Paid Off" fns feeMap

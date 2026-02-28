@@ -635,6 +635,7 @@ data DealStats = CurrentBondBalance
                | CumulativePoolDefaultedBalance (Maybe [PoolId])  -- ^ Depreciated, use PoolCumCollection
                | CumulativePoolRecoveriesBalance (Maybe [PoolId]) -- ^ Depreciated, use PoolCumCollection
                | CumulativeNetLoss (Maybe [PoolId])
+               | PoolAccruedInterest Date (Maybe [PoolId])
                | OriginalBondBalance
                | OriginalBondBalanceOf [BondName]
                | BondTotalFunding [BondName]
@@ -659,6 +660,7 @@ data DealStats = CurrentBondBalance
                | FutureCurrentSchedulePoolBalance (Maybe [PoolId])
                | FutureCurrentSchedulePoolBegBalance (Maybe [PoolId])
                | PoolScheduleCfPv PricingMethod (Maybe [PoolId])
+               | FuturePoolAccruedInterest Date (Maybe [PoolId])
                | FuturePoolScheduleCfPv Date PricingMethod (Maybe [PoolId])
                | FutureWaCurrentPoolBalance Date Date (Maybe [PoolId])
                | FutureCurrentPoolBegBalance (Maybe [PoolId])
@@ -725,6 +727,7 @@ data DealStats = CurrentBondBalance
                | IsLiqSupportPaidOff [String]
                | IsRateSwapPaidOff [String]
                | IsOutstanding [BondName]
+               | IsAnyOutstanding [BondName]
                | HasPassedMaturity [BondName]
                | TriggersStatus DealCycle String
                | DealStatBool DealStatFields
@@ -1178,6 +1181,7 @@ type family DealStatRtn ds where
   DealStatRtn (Multiply _) = RtnRate
   DealStatRtn (Factor _ _) = RtnRate
   DealStatRtn (PoolWaSpread _) = RtnRate
+  DealStatRtn (IrrOfBond _) = RtnRate
 
   DealStatRtn (IsMostSenior _ _) = RtnBool
   DealStatRtn (IsPaidOff _) = RtnBool
@@ -1189,6 +1193,7 @@ type family DealStatRtn ds where
   DealStatRtn (TestAny _ _) = RtnBool
   DealStatRtn (TestAll _ _) = RtnBool
   DealStatRtn (DealStatBool _) = RtnBool
+  DealStatRtn (IsAnyOutstanding _) = RtnBool
   
   DealStatRtn  (Max (s:dss)) = DealStatRtn s
   DealStatRtn (Min (s:dss)) = DealStatRtn s
@@ -1217,6 +1222,7 @@ getDealStatType (Divide ds1 ds2) = RtnRate
 getDealStatType (Multiply _) = RtnRate
 getDealStatType (Factor _ _) = RtnRate
 getDealStatType (PoolWaSpread _) = RtnRate
+getDealStatType (IrrOfBond _) = RtnRate
 
 getDealStatType (CurrentPoolBorrowerNum _) = RtnInt
 getDealStatType (MonthsTillMaturity _) = RtnInt
@@ -1226,6 +1232,7 @@ getDealStatType (DealStatInt _) = RtnInt
 getDealStatType (IsMostSenior _ _) = RtnBool
 getDealStatType IsPaidOff {} = RtnBool
 getDealStatType IsOutstanding {} = RtnBool
+getDealStatType (IsAnyOutstanding _) = RtnBool
 getDealStatType HasPassedMaturity {} = RtnBool
 getDealStatType (TriggersStatus _ _)= RtnBool
 getDealStatType (IsDealStatus _)= RtnBool
