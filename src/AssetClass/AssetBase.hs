@@ -200,6 +200,11 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic,Eq,Ord)
 
+data StudentLoan = StudentLoan OriginalInfo Balance IRate RemainTerms Status
+                 | DUMMY3
+                 deriving (Show,Generic,Eq,Ord)
+
+
 type FixRatePortion   = (Rate, IRate)
 type FloatRatePortion = (Rate, IRate, Spread, Index)
 type ScheduleBalance = (Date, Balance)

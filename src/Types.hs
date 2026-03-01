@@ -218,28 +218,28 @@ data DateType = ClosingDate             -- ^ deal closing day
 
 
 data DatePattern = MonthEnd
-                 | QuarterEnd
-                 | YearEnd 
-                 | MonthFirst
-                 | QuarterFirst
-                 | MidYear
-                 | YearFirst
-                 | MonthDayOfYear Int Int  -- T.MonthOfYear T.DayOfMonth
-                 | DayOfMonth Int -- T.DayOfMonth 
-                 | SemiAnnual (Int, Int) (Int, Int)
-                 | CustomDate [Date]
-                 | SingletonDate Date
-                 | DaysInYear [(Int, Int)] -- MM/DD
-                 | EveryNMonth Date Int
-                 | Weekday Int 
-                 | AllDatePattern [DatePattern]
-                 | StartsExclusive Date DatePattern -- TODO depricated
-                 | StartsAt CutoffType Date DatePattern
-                 | EndsAt CutoffType Date DatePattern
-                 | Exclude DatePattern [DatePattern]
-                 | OffsetBy DatePattern Int
-                 -- | DayOfWeek Int -- T.DayOfWeek
-                 deriving (Show, Eq, Generic, Ord, Read)
+                  | QuarterEnd
+                  | YearEnd 
+                  | MonthFirst
+                  | QuarterFirst
+                  | MidYear
+                  | YearFirst
+                  | MonthDayOfYear Int Int  -- T.MonthOfYear T.DayOfMonth
+                  | DayOfMonth Int -- T.DayOfMonth 
+                  | SemiAnnual (Int, Int) (Int, Int)
+                  | CustomDate [Date]
+                  | SingletonDate Date
+                  | DaysInYear [(Int, Int)] -- MM/DD
+                  | EveryNMonth Date Int
+                  | Weekday Int 
+                  | AllDatePattern [DatePattern]
+                  | StartsExclusive Date DatePattern -- TODO depricated
+                  | StartsAt CutoffType Date DatePattern
+                  | EndsAt CutoffType Date DatePattern
+                  | Exclude DatePattern [DatePattern]
+                  | OffsetBy DatePattern Int
+                  -- | DayOfWeek Int -- T.DayOfWeek
+                  deriving (Show, Eq, Generic, Ord, Read)
 
 
 data Period = Daily 
@@ -289,11 +289,11 @@ instance (Read PoolId) where
 
 
 data Cmp = G      -- ^ Greater than 
-         | GE     -- ^ Greater Equal than
-         | L      -- ^ Less than
-         | LE     -- ^ Less Equal than
-         | E      -- ^ Equals to
-         deriving (Generic,Eq,Ord,Read)
+          | GE     -- ^ Greater Equal than
+          | L      -- ^ Less than
+          | LE     -- ^ Less Equal than
+          | E      -- ^ Equals to
+          deriving (Generic,Eq,Ord,Read)
 
 instance Show Cmp where
   show :: Cmp -> String
@@ -383,19 +383,19 @@ instance Ord a => Ord (PerPoint a) where
   compare (PerPoint i _) (PerPoint j _) = compare i j
 
 data RangeType = II     -- ^ include both start and end date
-               | IE     -- ^ include start date ,but not end date
-               | EI     -- ^ exclude start date but include end date
-               | EE     -- ^ exclude either start date and end date 
-               | NO_IE  -- ^ no handling on start date and end date
-               deriving (Show,Eq,Read,Generic,Ord)
+                | IE     -- ^ include start date ,but not end date
+                | EI     -- ^ exclude start date but include end date
+                | EE     -- ^ exclude either start date and end date 
+                | NO_IE  -- ^ no handling on start date and end date
+                deriving (Show,Eq,Read,Generic,Ord)
 
 data CutoffType = Inc 
                 | Exc
                 deriving (Show,Ord,Read,Generic,Eq)
 
 data DateDirection = Future 
-                   | Past
-                   deriving (Show,Read,Generic)
+                    | Past
+                    deriving (Show,Read,Generic)
 
 data InvestorAction = Buy 
                     | Sell
@@ -484,13 +484,13 @@ data Ts = FloatCurve [TsPoint Rational]
 
 
 data Direction = Up 
-               | Down
-               deriving (Show,Read,Generic,Eq,Ord)
+                | Down
+                deriving (Show,Read,Generic,Eq,Ord)
 
 -- ^ direction of the transaction, in terms of the book keeping
 data BookDirection = Credit
-                   | Debit
-                   deriving (Show,Ord, Eq,Read, Generic)
+                    | Debit
+                    deriving (Show,Ord, Eq,Read, Generic)
 
 
 type DueInt = Balance
@@ -498,11 +498,11 @@ type DuePremium = Balance
 type DueIoI = Balance
 
 data DealCycle = EndCollection         -- ^ | collection period <HERE> collection action , waterfall action
-               | EndCollectionWF       -- ^ | collection period  collection action <HERE>, waterfall action
-               | BeginDistributionWF   -- ^ | collection period  collection action , <HERE>waterfall action
-               | EndDistributionWF     -- ^ | collection period  collection action , waterfall action<HERE>
-               | InWF                  -- ^ | collection period  collection action , waterfall <HERE> action
-               deriving (Show, Ord, Eq, Read, Generic)
+                | EndCollectionWF       -- ^ | collection period  collection action <HERE>, waterfall action
+                | BeginDistributionWF   -- ^ | collection period  collection action , <HERE>waterfall action
+                | EndDistributionWF     -- ^ | collection period  collection action , waterfall action<HERE>
+                | InWF                  -- ^ | collection period  collection action , waterfall <HERE> action
+                deriving (Show, Ord, Eq, Read, Generic)
 
 -- ^ different status of the deal
 data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated status with optinal accerlerated date
@@ -517,15 +517,15 @@ data DealStatus = DealAccelerated (Maybe Date)      -- ^ Deal is accelerated sta
 
 -- ^ pricing methods for assets
 data PricingMethod = BalanceFactor Rate Rate          -- ^ [balance] to be multiply with rate1 and rate2 if status of asset is "performing" or "defaulted"
-                   | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
-                   | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
-                   | PV IRate Rate                    -- ^ discount factor, recovery pct on default
-                   | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
-                   | PvRate IRate                     -- ^ [CF] Pricing cashflow with a constant rate
-                   | PvWal Ts
-                   | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
-                   | Custom Rate                      -- ^ custom amount
-                   deriving (Show, Eq ,Generic, Read, Ord)
+                    | BalanceFactor2 Rate Rate Rate    -- ^ [balance] by performing/delinq/default factor
+                    | DefaultedBalance Rate            -- ^ [balance] only liquidate defaulted balance
+                    | PV IRate Rate                    -- ^ discount factor, recovery pct on default
+                    | PVCurve Ts                       -- ^ [CF] Pricing cashflow with a Curve
+                    | PvRate IRate                     -- ^ [CF] Pricing cashflow with a constant rate
+                    | PvWal Ts
+                    | PvByRef DealStats                -- ^ [CF] Pricing cashflow with a ref rate
+                    | Custom Rate                      -- ^ custom amount
+                    deriving (Show, Eq ,Generic, Read, Ord)
 
 -- ^ pricing methods for bonds
 data BondPricingMethod = BondBalanceFactor Rate 
@@ -536,43 +536,43 @@ data BondPricingMethod = BondBalanceFactor Rate
 
 -- ^ condition which can be evaluated to a boolean value
 data Pre = IfZero DealStats
-         | If Cmp DealStats Balance
-         | IfRate Cmp DealStats Micro
-         | IfCurve Cmp DealStats Ts
-         | IfByPeriodCurve Cmp DealStats DealStats (PerCurve Balance)
-         | IfRateCurve Cmp DealStats Ts
-         | IfRateByPeriodCurve Cmp DealStats DealStats (PerCurve Rate)
-         | IfIntCurve Cmp DealStats Ts
-         -- Integer
-         | IfInt Cmp DealStats Int
-         | IfIntBetween DealStats RangeType Int Int
-         | IfIntIn DealStats [Int]
-         -- Dates
-         | IfDate Cmp Date
-         | IfDateBetween RangeType Date Date
-         | IfDateIn Dates
-         -- Bool
-         | IfBool DealStats Bool
-         -- compare deal status 
-         | If2 Cmp DealStats DealStats
-         | IfRate2 Cmp DealStats DealStats
-         | IfInt2 Cmp DealStats DealStats
-         -- | IfRateCurve DealStats Cmp Ts
-         | IfDealStatus DealStatus
-         | Always Bool
-         | IfNot Pre
-         | Any [Pre]
-         | All [Pre]                            -- ^ 
-         deriving (Show,Generic,Eq,Ord,Read)
+          | If Cmp DealStats Balance
+          | IfRate Cmp DealStats Micro
+          | IfCurve Cmp DealStats Ts
+          | IfByPeriodCurve Cmp DealStats DealStats (PerCurve Balance)
+          | IfRateCurve Cmp DealStats Ts
+          | IfRateByPeriodCurve Cmp DealStats DealStats (PerCurve Rate)
+          | IfIntCurve Cmp DealStats Ts
+          -- Integer
+          | IfInt Cmp DealStats Int
+          | IfIntBetween DealStats RangeType Int Int
+          | IfIntIn DealStats [Int]
+          -- Dates
+          | IfDate Cmp Date
+          | IfDateBetween RangeType Date Date
+          | IfDateIn Dates
+          -- Bool
+          | IfBool DealStats Bool
+          -- compare deal status 
+          | If2 Cmp DealStats DealStats
+          | IfRate2 Cmp DealStats DealStats
+          | IfInt2 Cmp DealStats DealStats
+          -- | IfRateCurve DealStats Cmp Ts
+          | IfDealStatus DealStatus
+          | Always Bool
+          | IfNot Pre
+          | Any [Pre]
+          | All [Pre]                            -- ^ 
+          deriving (Show,Generic,Eq,Ord,Read)
 
 
 data Table a b = ThresholdTable [(a,b)]
-                 deriving (Show,Eq,Ord,Read,Generic)
+                  deriving (Show,Eq,Ord,Read,Generic)
 
 
 data ActionType = ActionResetRate  -- ^ reset interest rate from curve
                 | ActionAccrue     -- ^ accrue liablity
-                 deriving (Show,Eq,Ord,Read,Generic)
+                  deriving (Show,Eq,Ord,Read,Generic)
 
 -- ^ comment of the transaction in the accounts
 data TxnComment = PayInt [BondName]
@@ -614,13 +614,13 @@ type FeeArrears = Balance
 
 -- ^ transaction record in each entity
 data Txn = BondTxn Date Balance Interest Principal IRate Cash DueInt DueIoI (Maybe Float) TxnComment     -- ^ bond transaction record for interest and principal 
-         | AccTxn Date Balance Amount TxnComment                                                         -- ^ account transaction record 
-         | ExpTxn Date FeeDue Amount FeeArrears TxnComment                                                 -- ^ expense transaction record
-         | SupportTxn Date SupportAvailType Balance DueInt DuePremium Cash TxnComment                     -- ^ liquidity provider transaction record
-         | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                                     -- ^ interest swap transaction record
-         | EntryTxn Date (BookDirection,Balance) (BookDirection,Amount) TxnComment                                                       -- ^ ledger book entry
-         | TrgTxn Date Bool TxnComment
-         deriving (Show, Generic, Eq, Read)
+          | AccTxn Date Balance Amount TxnComment                                                         -- ^ account transaction record 
+          | ExpTxn Date FeeDue Amount FeeArrears TxnComment                                                 -- ^ expense transaction record
+          | SupportTxn Date SupportAvailType Balance DueInt DuePremium Cash TxnComment                     -- ^ liquidity provider transaction record
+          | IrsTxn Date Balance Amount IRate IRate Balance TxnComment                                     -- ^ interest swap transaction record
+          | EntryTxn Date (BookDirection,Balance) (BookDirection,Amount) TxnComment                                                       -- ^ ledger book entry
+          | TrgTxn Date Bool TxnComment
+          deriving (Show, Generic, Eq, Read)
 
 
 data DealStatFields = PoolCollectedPeriod
@@ -629,143 +629,143 @@ data DealStatFields = PoolCollectedPeriod
 
 -- ^ different types of deal stats
 data DealStats = CurrentBondBalance
-               | CurrentPoolBalance (Maybe [PoolId])
-               | CurrentPoolBegBalance (Maybe [PoolId])
-               | CurrentPoolDefaultedBalance
-               | CumulativePoolDefaultedBalance (Maybe [PoolId])  -- ^ Depreciated, use PoolCumCollection
-               | CumulativePoolRecoveriesBalance (Maybe [PoolId]) -- ^ Depreciated, use PoolCumCollection
-               | CumulativeNetLoss (Maybe [PoolId])
-               | PoolAccruedInterest Date (Maybe [PoolId])
-               | OriginalBondBalance
-               | OriginalBondBalanceOf [BondName]
-               | BondTotalFunding [BondName]
-               | OriginalPoolBalance (Maybe [PoolId])
-               | UseCustomData String
-               | PoolCumCollection [PoolSource] (Maybe [PoolId])
-               | PoolCumCollectionTill Int [PoolSource] (Maybe [PoolId])
-               | PoolCurCollection [PoolSource] (Maybe [PoolId])
-               | PoolCollectionStats Int [PoolSource] (Maybe [PoolId])
-               | PoolWaSpread (Maybe [PoolId])
-               | AllAccBalance
-               | AccBalance [AccName]
-               | LedgerBalance [String]
-               | LedgerBalanceBy BookDirection [String]
-               | LedgerTxnAmt [String] (Maybe TxnComment)
-               | ReserveBalance [AccName] 
-               | ReserveGap [AccName]
-               | ReserveExcess [AccName] 
-               | ReserveGapAt Date [AccName] 
-               | ReserveExcessAt Date [AccName] 
-               | FutureCurrentPoolBalance (Maybe [PoolId])
-               | FutureCurrentSchedulePoolBalance (Maybe [PoolId])
-               | FutureCurrentSchedulePoolBegBalance (Maybe [PoolId])
-               | PoolScheduleCfPv PricingMethod (Maybe [PoolId])
-               | FuturePoolAccruedInterest Date (Maybe [PoolId])
-               | FuturePoolScheduleCfPv Date PricingMethod (Maybe [PoolId])
-               | FutureWaCurrentPoolBalance Date Date (Maybe [PoolId])
-               | FutureCurrentPoolBegBalance (Maybe [PoolId])
-               | FutureCurrentBondBalance Date
-               | CurrentBondBalanceOf [BondName]
-               | BondIntPaidAt Date BondName
-               | BondsIntPaidAt Date [BondName]
-               | BondPrinPaidAt Date BondName
-               | BondsPrinPaidAt Date [BondName]
-               | BondBalanceTarget [BondName]
-               | BondBalanceGap BondName
-               | BondBalanceGapAt Date BondName
-               | BondDuePrin [BondName]
-               | BondReturn BondName Balance [TsPoint Amount]
-               | FeePaidAmt [FeeName]
-               | FeeTxnAmt [FeeName] (Maybe TxnComment)
-               | BondTxnAmt [BondName] (Maybe TxnComment)
-               | AccTxnAmt  [AccName] (Maybe TxnComment)
-               | FeeTxnAmtBy Date [FeeName] (Maybe TxnComment)
-               | BondTxnAmtBy Date [BondName] (Maybe TxnComment)
-               | AccTxnAmtBy Date [AccName] (Maybe TxnComment)
-               | FeesPaidAt Date [FeeName] 
-               | CurrentDueBondInt [BondName]
-               | CurrentDueBondIntAt Int [BondName]
-               | CurrentDueBondIntOverInt [BondName]
-               | CurrentDueBondIntOverIntAt Int [BondName]
-               | CurrentDueBondIntTotal [BondName]
-               | CurrentDueBondIntTotalAt Int [BondName]
-               | CurrentDueFee [FeeName]
-               | LastBondIntPaid [BondName]
-               | LastBondPrinPaid [BondName]
-               | LastFeePaid [FeeName]
-               | LiqCredit [String]
-               | LiqBalance [String]
-               | RateCapNet String
-               | RateSwapNet String
-               | BondBalanceHistory Date Date
-               | PoolCollectionHistory PoolSource Date Date (Maybe [PoolId])
-               | UnderlyingBondBalance (Maybe [BondName])
-               | WeightedAvgCurrentPoolBalance Date Date (Maybe [PoolId])
-               | WeightedAvgCurrentBondBalance Date Date [BondName]
-               | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
-               | WeightedAvgOriginalBondBalance Date Date [BondName]
-               | CustomData String Date
-               | DealStatBalance DealStatFields
-               -- analytical query
-               | AmountRequiredForTargetIRR Double BondName 
-               -- integer type
-               | CurrentPoolBorrowerNum (Maybe [PoolId])
-               | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
-               | ProjCollectPeriodNum
-               | MonthsTillMaturity BondName
-               | DealStatInt DealStatFields
-               | ActiveBondNum
-               -- boolean type
-               | TestRate DealStats Cmp Micro
-               | TestAny Bool [DealStats]
-               | TestAll Bool [DealStats]
-               | TestNot DealStats
-               | IsDealStatus DealStatus
-               | IsMostSenior BondName [BondName]
-               | IsPaidOff [BondName]
-               | IsFeePaidOff [String]
-               | IsLiqSupportPaidOff [String]
-               | IsRateSwapPaidOff [String]
-               | IsOutstanding [BondName]
-               | IsAnyOutstanding [BondName]
-               | HasPassedMaturity [BondName]
-               | TriggersStatus DealCycle String
-               | DealStatBool DealStatFields
-               -- rate type
-               | PoolWaRate (Maybe PoolId)
-               | BondRate BondName
-               | CumulativeNetLossRatio (Maybe [PoolId])
-               | FutureCurrentBondFactor Date
-               | FutureCurrentPoolFactor Date (Maybe [PoolId])
-               | BondFactor
-               | BondFactorOf BondName
-               | CumulativePoolDefaultedRate (Maybe [PoolId])
-               | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
-               | PoolFactor (Maybe [PoolId])
-               | BondWaRate [BondName]
-               | DealStatRate DealStatFields
-               | IrrOfBond BondName
-               -- Compond type
-               | Factor DealStats Rational
-               | Multiply [DealStats]
-               | Max [DealStats]
-               | Min [DealStats]
-               | Sum [DealStats]
-               | Substract [DealStats]
-               | Subtract [DealStats]
-               | Excess [DealStats]
-               | Avg [DealStats]
-               | AvgRatio [DealStats]
-               | Divide DealStats DealStats
-               | DivideRatio DealStats DealStats
-               | Constant Rational
-               | FloorAndCap DealStats DealStats DealStats
-               | FloorWith DealStats DealStats
-               | FloorWithZero DealStats
-               | CapWith DealStats DealStats
-               | Abs DealStats
-               | Round DealStats (RoundingBy Rational)
-               deriving (Show,Eq,Ord,Read,Generic)
+                | CurrentPoolBalance (Maybe [PoolId])
+                | CurrentPoolBegBalance (Maybe [PoolId])
+                | CurrentPoolDefaultedBalance
+                | CumulativePoolDefaultedBalance (Maybe [PoolId])  -- ^ Depreciated, use PoolCumCollection
+                | CumulativePoolRecoveriesBalance (Maybe [PoolId]) -- ^ Depreciated, use PoolCumCollection
+                | CumulativeNetLoss (Maybe [PoolId])
+                | PoolAccruedInterest (Maybe [PoolId])
+                | OriginalBondBalance
+                | OriginalBondBalanceOf [BondName]
+                | BondTotalFunding [BondName]
+                | OriginalPoolBalance (Maybe [PoolId])
+                | UseCustomData String
+                | PoolCumCollection [PoolSource] (Maybe [PoolId])
+                | PoolCumCollectionTill Int [PoolSource] (Maybe [PoolId])
+                | PoolCurCollection [PoolSource] (Maybe [PoolId])
+                | PoolCollectionStats Int [PoolSource] (Maybe [PoolId])
+                | PoolWaSpread (Maybe [PoolId])
+                | AllAccBalance
+                | AccBalance [AccName]
+                | LedgerBalance [String]
+                | LedgerBalanceBy BookDirection [String]
+                | LedgerTxnAmt [String] (Maybe TxnComment)
+                | ReserveBalance [AccName] 
+                | ReserveGap [AccName]
+                | ReserveExcess [AccName] 
+                | ReserveGapAt Date [AccName] 
+                | ReserveExcessAt Date [AccName] 
+                | FutureCurrentPoolBalance (Maybe [PoolId])
+                | FutureCurrentSchedulePoolBalance (Maybe [PoolId])
+                | FutureCurrentSchedulePoolBegBalance (Maybe [PoolId])
+                | PoolScheduleCfPv PricingMethod (Maybe [PoolId])
+                | FuturePoolAccruedInterest Date (Maybe [PoolId])
+                | FuturePoolScheduleCfPv Date PricingMethod (Maybe [PoolId])
+                | FutureWaCurrentPoolBalance Date Date (Maybe [PoolId])
+                | FutureCurrentPoolBegBalance (Maybe [PoolId])
+                | FutureCurrentBondBalance Date
+                | CurrentBondBalanceOf [BondName]
+                | BondIntPaidAt Date BondName
+                | BondsIntPaidAt Date [BondName]
+                | BondPrinPaidAt Date BondName
+                | BondsPrinPaidAt Date [BondName]
+                | BondBalanceTarget [BondName]
+                | BondBalanceGap BondName
+                | BondBalanceGapAt Date BondName
+                | BondDuePrin [BondName]
+                | BondReturn BondName Balance [TsPoint Amount]
+                | FeePaidAmt [FeeName]
+                | FeeTxnAmt [FeeName] (Maybe TxnComment)
+                | BondTxnAmt [BondName] (Maybe TxnComment)
+                | AccTxnAmt  [AccName] (Maybe TxnComment)
+                | FeeTxnAmtBy Date [FeeName] (Maybe TxnComment)
+                | BondTxnAmtBy Date [BondName] (Maybe TxnComment)
+                | AccTxnAmtBy Date [AccName] (Maybe TxnComment)
+                | FeesPaidAt Date [FeeName] 
+                | CurrentDueBondInt [BondName]
+                | CurrentDueBondIntAt Int [BondName]
+                | CurrentDueBondIntOverInt [BondName]
+                | CurrentDueBondIntOverIntAt Int [BondName]
+                | CurrentDueBondIntTotal [BondName]
+                | CurrentDueBondIntTotalAt Int [BondName]
+                | CurrentDueFee [FeeName]
+                | LastBondIntPaid [BondName]
+                | LastBondPrinPaid [BondName]
+                | LastFeePaid [FeeName]
+                | LiqCredit [String]
+                | LiqBalance [String]
+                | RateCapNet String
+                | RateSwapNet String
+                | BondBalanceHistory Date Date
+                | PoolCollectionHistory PoolSource Date Date (Maybe [PoolId])
+                | UnderlyingBondBalance (Maybe [BondName])
+                | WeightedAvgCurrentPoolBalance Date Date (Maybe [PoolId])
+                | WeightedAvgCurrentBondBalance Date Date [BondName]
+                | WeightedAvgOriginalPoolBalance Date Date (Maybe [PoolId])
+                | WeightedAvgOriginalBondBalance Date Date [BondName]
+                | CustomData String Date
+                | DealStatBalance DealStatFields
+                -- analytical query
+                | AmountRequiredForTargetIRR Double BondName 
+                -- integer type
+                | CurrentPoolBorrowerNum (Maybe [PoolId])
+                | FutureCurrentPoolBorrowerNum Date (Maybe [PoolId])
+                | ProjCollectPeriodNum
+                | MonthsTillMaturity BondName
+                | DealStatInt DealStatFields
+                | ActiveBondNum
+                -- boolean type
+                | TestRate DealStats Cmp Micro
+                | TestAny Bool [DealStats]
+                | TestAll Bool [DealStats]
+                | TestNot DealStats
+                | IsDealStatus DealStatus
+                | IsMostSenior BondName [BondName]
+                | IsPaidOff [BondName]
+                | IsFeePaidOff [String]
+                | IsLiqSupportPaidOff [String]
+                | IsRateSwapPaidOff [String]
+                | IsOutstanding [BondName]
+                | IsAnyOutstanding [BondName]
+                | HasPassedMaturity [BondName]
+                | TriggersStatus DealCycle String
+                | DealStatBool DealStatFields
+                -- rate type
+                | PoolWaRate (Maybe PoolId)
+                | BondRate BondName
+                | CumulativeNetLossRatio (Maybe [PoolId])
+                | FutureCurrentBondFactor Date
+                | FutureCurrentPoolFactor Date (Maybe [PoolId])
+                | BondFactor
+                | BondFactorOf BondName
+                | CumulativePoolDefaultedRate (Maybe [PoolId])
+                | CumulativePoolDefaultedRateTill Int (Maybe [PoolId])
+                | PoolFactor (Maybe [PoolId])
+                | BondWaRate [BondName]
+                | DealStatRate DealStatFields
+                | IrrOfBond BondName
+                -- Compond type
+                | Factor DealStats Rational
+                | Multiply [DealStats]
+                | Max [DealStats]
+                | Min [DealStats]
+                | Sum [DealStats]
+                | Substract [DealStats]
+                | Subtract [DealStats]
+                | Excess [DealStats]
+                | Avg [DealStats]
+                | AvgRatio [DealStats]
+                | Divide DealStats DealStats
+                | DivideRatio DealStats DealStats
+                | Constant Rational
+                | FloorAndCap DealStats DealStats DealStats
+                | FloorWith DealStats DealStats
+                | FloorWithZero DealStats
+                | CapWith DealStats DealStats
+                | Abs DealStats
+                | Round DealStats (RoundingBy Rational)
+                deriving (Show,Eq,Ord,Read,Generic)
 
 
 data EvalExpr a where
@@ -798,7 +798,7 @@ data EvalExpr a where
 --   readsPrec _ "EvalSum" = [(EvalSum [],"")]
 --   readsPrec _ "CurrentBondBalance'" = [(CurrentBondBalance', "")]
 --   readsPrec _ _ = error "EvalExpr: not implemented for other constructors"
-     
+
 preHasTrigger :: Pre -> [(DealCycle,String)]
 preHasTrigger (IfBool (TriggersStatus dc tName) _) = [(dc,tName)]
 preHasTrigger (Any ps) = concatMap preHasTrigger ps
@@ -807,14 +807,14 @@ preHasTrigger _ = []
 
 
 data Limit = DuePct Rate            -- ^ up to % of total amount due
-           | DueCapAmt Balance      -- ^ up to $ amount 
-           | KeepBalAmt DealStats   -- ^ pay till a certain amount remains in an account
-           | DS DealStats           -- ^ transfer with limit described by a `DealStats`
-           | RemainBalPct Rate      -- ^ pay till remain balance equals to a percentage of `stats`
-           | TillTarget             -- ^ transfer amount which make target account up reach reserve balanace
-           | TillSource             -- ^ transfer amount out till source account down back to reserve balance
-           | Multiple Limit Float   -- ^ factor of a limit
-           deriving (Show,Ord,Eq,Read,Generic)
+            | DueCapAmt Balance      -- ^ up to $ amount 
+            | KeepBalAmt DealStats   -- ^ pay till a certain amount remains in an account
+            | DS DealStats           -- ^ transfer with limit described by a `DealStats`
+            | RemainBalPct Rate      -- ^ pay till remain balance equals to a percentage of `stats`
+            | TillTarget             -- ^ transfer amount which make target account up reach reserve balanace
+            | TillSource             -- ^ transfer amount out till source account down back to reserve balance
+            | Multiple Limit Float   -- ^ factor of a limit
+            deriving (Show,Ord,Eq,Read,Generic)
 
 data HowToPay = ByProRata
               | BySequential
@@ -843,16 +843,16 @@ data CashflowReport = CashflowReport {
 
 
 data Threshold = Below
-               | EqBelow
-               | Above
-               | EqAbove
-               deriving (Show,Eq,Ord,Read,Generic)
+                | EqBelow
+                | Above
+                | EqAbove
+                deriving (Show,Eq,Ord,Read,Generic)
 
 data SplitType = EqToLeft   -- if equal, the element belongs to left
-               | EqToRight  -- if equal, the element belongs to right
-               | EqToLeftKeepOne
-               | EqToLeftKeepOnes
-               deriving (Show, Eq, Generic)
+                | EqToRight  -- if equal, the element belongs to right
+                | EqToLeftKeepOne
+                | EqToLeftKeepOnes
+                deriving (Show, Eq, Generic)
 
 -- ^ deal level cumulative statistics
 data CutoffFields = IssuanceBalance              -- ^ pool issuance balance
@@ -873,11 +873,11 @@ data CutoffFields = IssuanceBalance              -- ^ pool issuance balance
 
 
 data PriceResult = PriceResult Valuation PerFace WAL Duration Convexity AccruedInterest [Txn]
-                 | AssetPrice Valuation WAL Duration Convexity AccruedInterest
-                 | OASResult PriceResult [Valuation] Spread  
-                 | ZSpread Spread 
-                 | IrrResult IRR [Txn]
-                 deriving (Show, Eq, Generic)
+                  | AssetPrice Valuation WAL Duration Convexity AccruedInterest
+                  | OASResult PriceResult [Valuation] Spread  
+                  | ZSpread Spread 
+                  | IrrResult IRR [Txn]
+                  deriving (Show, Eq, Generic)
 
 makePrisms ''PriceResult
 
@@ -912,12 +912,12 @@ class Liable lb where
 
 
 data DueType = DueInterest (Maybe Int) -- ^ interest due
-             | DuePrincipal              -- ^ principal due
-             | DueFee                    -- ^ fee due
-             | DueResidual               -- ^ residual 
-             | DueArrears                -- ^ something that is not paid in the past
-             | DueTotalOf [DueType]      -- ^ a combination of above with sequence
-             deriving (Show, Eq, Generic)
+              | DuePrincipal              -- ^ principal due
+              | DueFee                    -- ^ fee due
+              | DueResidual               -- ^ residual 
+              | DueArrears                -- ^ something that is not paid in the past
+              | DueTotalOf [DueType]      -- ^ a combination of above with sequence
+              deriving (Show, Eq, Generic)
 
 
 class Accruable ac where 
@@ -1023,20 +1023,20 @@ data ActionWhen = EndOfPoolCollection             -- ^ waterfall executed at the
 
 
 data ResultComponent = CallAt Date                                          -- ^ the date when deal called
-                     | DealStatusChangeTo Date DealStatus DealStatus String -- ^ record when & why status changed
-                     | BondOutstanding String Balance Balance               -- ^ when deal ends,calculate oustanding principal balance 
-                     | BondOutstandingInt String Balance Balance            -- ^ when deal ends,calculate oustanding interest due 
-                     | InspectBal Date DealStats Balance                    -- ^ A bal value from inspection
-                     | InspectInt Date DealStats Int                        -- ^ A int value from inspection
-                     | InspectRate Date DealStats Micro                     -- ^ A rate value from inspection
-                     | InspectBool Date DealStats Bool                      -- ^ A bool value from inspection
-                     | RunningWaterfall Date ActionWhen                     -- ^ running waterfall at a date 
-                     | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
-                     | InspectWaterfall Date (Maybe String) [DealStats] [String]
-                     | ErrorMsg String
-                     | WarningMsg String
-                     | EndRun (Maybe Date) String                             -- ^ end of run with a message
-                     deriving (Show, Generic,Eq)
+                      | DealStatusChangeTo Date DealStatus DealStatus String -- ^ record when & why status changed
+                      | BondOutstanding String Balance Balance               -- ^ when deal ends,calculate oustanding principal balance 
+                      | BondOutstandingInt String Balance Balance            -- ^ when deal ends,calculate oustanding interest due 
+                      | InspectBal Date DealStats Balance                    -- ^ A bal value from inspection
+                      | InspectInt Date DealStats Int                        -- ^ A int value from inspection
+                      | InspectRate Date DealStats Micro                     -- ^ A rate value from inspection
+                      | InspectBool Date DealStats Bool                      -- ^ A bool value from inspection
+                      | RunningWaterfall Date ActionWhen                     -- ^ running waterfall at a date 
+                      | FinancialReport StartDate EndDate BalanceSheetReport CashflowReport
+                      | InspectWaterfall Date (Maybe String) [DealStats] [String]
+                      | ErrorMsg String
+                      | WarningMsg String
+                      | EndRun (Maybe Date) String                             -- ^ end of run with a message
+                      deriving (Show, Generic,Eq)
 
 makePrisms ''ResultComponent
 
@@ -1133,7 +1133,7 @@ parseTxn t = case tagName of
   "SettleOut" -> return $ SwapOutSettle contents
   "PurchaseAsset" -> let 
                       sv = T.splitOn (T.pack ",") $ T.pack contents
-                     in 
+                      in 
                       return $ PurchaseAsset (read (T.unpack (sv!!0))::String)  (read (T.unpack (sv!!1))::Balance)
 
   "TxnDirection" -> return $ TxnDirection (read contents::BookDirection)

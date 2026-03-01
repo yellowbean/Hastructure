@@ -67,8 +67,8 @@ debug = flip trace
 
 
 data AdjStrategy = ScaleBySpread
-                 | ScaleByFactor
-                 deriving (Show,Generic)
+                  | ScaleByFactor
+                  deriving (Show,Generic)
 
 data ModifyType = AddSpreadToBonds BondName
                 | SlideBalances BondName BondName
@@ -94,7 +94,7 @@ modDeal (SlideBalances bn1 bn2) r d@DB.TestDeal {DB.bonds = bndMap}
       leftBal = mulBR totalBalance (toRational r) -- `debug` ("split ratio" ++ show r)
       rightBal = totalBalance - leftBal 
       bndMap' = DB.updateBondInMap bn1 (L.adjustBalance leftBal) $
-                 DB.updateBondInMap bn2 (L.adjustBalance rightBal) bndMap -- `debug` ("leftBal: " ++ show leftBal ++ ", rightBal: " ++ show rightBal )
+                DB.updateBondInMap bn2 (L.adjustBalance rightBal) bndMap -- `debug` ("leftBal: " ++ show leftBal ++ ", rightBal: " ++ show rightBal )
     in 
       d {DB.bonds = bndMap'}
 

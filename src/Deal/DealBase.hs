@@ -7,16 +7,16 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
-                     ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
-                     ,getIssuanceStatsConsol,getAllCollectedTxnsList
-                     ,getPoolIds,getBondByName, UnderlyingDeal(..),viewDealAllBonds,DateDesp(..),ActionOnDate(..)
-                     ,sortActionOnDate,dealBondGroups
-                     ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
-                     ,increaseBondPaidPeriod,increasePoolCollectedPeriod
-                     ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
-                     ,bondTraversal,findBondByNames,updateBondInMap,traverseBondMap,traverseBondMapByFn
-                     ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
-                     )                      
+                    ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
+                    ,getIssuanceStatsConsol,getAllCollectedTxnsList
+                    ,getPoolIds,getBondByName, UnderlyingDeal(..),viewDealAllBonds,DateDesp(..),ActionOnDate(..)
+                    ,sortActionOnDate,dealBondGroups
+                    ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
+                    ,increaseBondPaidPeriod,increasePoolCollectedPeriod
+                    ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
+                    ,bondTraversal,findBondByNames,updateBondInMap,traverseBondMap,traverseBondMapByFn
+                    ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
+                    )                      
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -366,30 +366,30 @@ instance SPV (TestDeal a) where
 
   getFeeByName t fns
     = case fns of
-         Nothing -> fees t
-         Just _fns -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _fns)) (fees t)
+        Nothing -> fees t
+        Just _fns -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _fns)) (fees t)
   
   getAccountByName t ans
     = case ans of
-         Nothing -> accounts t
-         Just _ans -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _ans)) (accounts t)
+        Nothing -> accounts t
+        Just _ans -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _ans)) (accounts t)
   
   isResec t = case pool t of
-                 ResecDeal _ -> True
-                 _ -> False
+                ResecDeal _ -> True
+                _ -> False
 
   getOustandingBal t@TestDeal{ bonds = bndMap, fees= feeMap, liqProvider = mliqMap, rateSwap = rsMap}
-   = let 
-      bndBal = sum $ getOutstandingAmount <$> Map.elems bndMap
-      feeBal = sum $ getOutstandingAmount <$> Map.elems feeMap
-      lqBalace m
-        | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
-        | otherwise = 0
-      rsBalance m
-        | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
-        | otherwise = 0
-     in 
-      bndBal + feeBal + lqBalace (fromMaybe Map.empty mliqMap) + rsBalance (fromMaybe Map.empty rsMap)
+    = let 
+        bndBal = sum $ getOutstandingAmount <$> Map.elems bndMap
+        feeBal = sum $ getOutstandingAmount <$> Map.elems feeMap
+        lqBalace m
+          | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
+          | otherwise = 0
+        rsBalance m
+          | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
+          | otherwise = 0
+      in 
+        bndBal + feeBal + lqBalace (fromMaybe Map.empty mliqMap) + rsBalance (fromMaybe Map.empty rsMap)
   
 isPreClosing :: TestDeal a -> Bool
 isPreClosing t@TestDeal{ status = PreClosing _ } = True
@@ -400,12 +400,12 @@ isPreClosing _ = False
 viewDealAllBonds :: TestDeal a -> [L.Bond]
 viewDealAllBonds d = 
     let 
-       bs = Map.elems (bonds d)
-       view a@(L.Bond {} ) = [a]
-       view a@(L.BondGroup bMap _) = Map.elems bMap
-       view a@(L.MultiIntBond {}) = [a]
+      bs = Map.elems (bonds d)
+      view a@(L.Bond {} ) = [a]
+      view a@(L.BondGroup bMap _) = Map.elems bMap
+      view a@(L.MultiIntBond {}) = [a]
     in 
-       concat $ view <$> bs
+      concat $ view <$> bs
 
 -- ^ flatten all bonds/bond groups in a map
 viewBondsInMap :: TestDeal a -> Map.Map String L.Bond
