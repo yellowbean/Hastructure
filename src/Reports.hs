@@ -21,7 +21,7 @@ import qualified Liability as L
 import Control.Applicative (liftA3)
 import Types
 import Deal.DealBase
-    ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap), getIssuanceStatsConsol, getAllCollectedFrame ,poolTypePool, dealPool)
+    ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap), getIssuanceStatsConsol ,poolTypePool, dealPool)
 import Deal.DealQuery ( queryCompound )
 import Deal.DealAction ( calcDueFee, calcDueInt )
 import Data.Maybe (fromMaybe)

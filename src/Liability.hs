@@ -320,60 +320,6 @@ patchBondFactor bnd
       in 
         newBnd
 
--- payInt :: Date -> Amount -> Bond -> Bond
--- pay 0 interest, do nothing
--- payInt d 0 b = b
--- 
--- -- pay interest
--- payInt d amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
---   = bnd {bndDueInt=newDue, bndStmt=newStmt, bndLastIntPay = Just d, bndDueIntOverInt = newDueIoI}
---   where
---     rs = Lib.paySeqLiabilitiesAmt amt [dueIoI, dueInt] -- `debug` ("date"++ show d++"due "++show dueIoI++">>"++show dueInt)
---     newDueIoI = dueIoI - head rs
---     newDue = dueInt - rs !! 1 -- `debug` ("Avail fund"++ show amt ++" int paid out plan"++ show rs)
---     newStmt = case bt of 
---                 Equity -> S.appendStmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayYield bn)) stmt 
---                 _ -> S.appendStmt (BondTxn d bal amt 0 r amt newDue newDueIoI Nothing (S.PayInt [bn])) stmt  -- `debug` ("date after"++ show d++"due "++show newDueIoI++">>"++show newDue)
--- 
--- -- pay multi-int bond ,IOI first and then interest due, sequentially
--- payInt d amt bnd@(MultiIntBond bn bt oi iinfo _ bal rs duePrin dueInts dueIoIs dueIntDate lpayInt lpayPrin stmt)
---   = bnd {bndDueInts=newDues, bndStmt=newStmt , bndLastIntPays = Just (replicate l d), bndDueIntOverInts = newDueIoIs}
---   where
---     l = length iinfo
---     ioiPaid = Lib.paySeqLiabilitiesAmt amt dueIoIs
---     afterIoI = amt - sum ioiPaid
---     duePaid = Lib.paySeqLiabilitiesAmt afterIoI dueInts
---     newDueIoIs = zipWith (-) dueIoIs ioiPaid
---     newDues = zipWith (-) dueInts duePaid
---     newDueIoI = sum newDueIoIs
---     newDue = sum newDues
---     newStmt = S.appendStmt (BondTxn d bal amt 0 (sum rs) amt newDue newDueIoI Nothing (S.PayInt [bn])) stmt
--- 
--- payIntByIndex :: Date -> Int -> Amount -> Bond -> Bond
--- -- pay 0 interest, do nothing
--- payIntByIndex d _ 0 b = b
--- payIntByIndex d idx amt bnd@(MultiIntBond bn bt oi iinfo _ bal rs duePrin dueInts dueIoIs dueIntDate lpayInt lpayPrin stmt) 
---   = let
---       dueIoI = dueIoIs !! idx 
---       dueInt = dueInts !! idx -- `debug` ("date"++ show d++"in pay index fun"++ show amt)
---       [newDueIoI,newDue] = Lib.paySeqLiabResi amt [dueIoI, dueInt] -- `debug` ("date"++ show d++" before pay due "++show dueIoI++">>"++show dueInt)
---       newStmt = S.appendStmt (BondTxn d bal amt 0 (sum rs) amt newDue newDueIoI Nothing (S.PayInt [bn])) stmt -- `debug` ("date after"++ show d++"due(ioi) "++show newDueIoI++">> due "++show newDue)
---       od = getOriginDate bnd
---       ods = replicate (length iinfo) od
---     in 
---       bnd {bndDueInts = dueInts & ix idx .~ newDue
---           ,bndDueIntOverInts = dueIoIs & ix idx .~ newDueIoI
---           ,bndStmt = newStmt
---           ,bndLastIntPays = case lpayInt of 
---                               Nothing -> Just $ ods & ix idx .~ d
---                               Just ds -> Just $ ds & ix idx .~ d}
-
-
--- ^ pay interest to single bond regardless any interest due, for equity tranche
-
--- AllInterest = DueTotalOf [DueInterest Nothing, DueArrears]
-
-
 instance Payable Bond where
 
 

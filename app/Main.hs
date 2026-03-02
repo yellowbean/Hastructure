@@ -400,8 +400,8 @@ evalRootFindStop (BalanceFormula ds targetBal) (dt,collectedFlow,logs,_,osPflow)
       _date = case find (\(EndRun d msg) -> True) (reverse logs) of
                 Just (EndRun (Just d) _ ) -> d
                 Nothing -> case queryClosingDate dt of
-                             Right d' -> d'
-                             Left err -> error $ "Error in BalanceFormula: " ++ err
+                            Right d' -> d'
+                            Left err -> error $ "Error in BalanceFormula: " ++ err
       v = case queryDealType dt _date (Q.patchDateToStats _date ds)  of
             Right v' -> fromRational v'
             Left err -> error $ "Error in BalanceFormula: " ++ err

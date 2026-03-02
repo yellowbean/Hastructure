@@ -728,13 +728,12 @@ emptyTsRow _d (BondFlow a x c d) = BondFlow _d 0 0 0
 emptyTsRow _d (ReceivableFlow a x c d e f g h i) = ReceivableFlow _d 0 0 0 0 0 0 0 Nothing
 
 extendCashFlow :: Date -> CashFlowFrame -> CashFlowFrame
-extendCashFlow d (CashFlowFrame st []) = CashFlowFrame st []
-extendCashFlow d (CashFlowFrame st txns) 
-    = let 
-        lastRow = last txns
-        newTxn = emptyTsRow d lastRow
-      in 
-        CashFlowFrame st (txns++[newTxn])
+extendCashFlow d (CashFlowFrame st txns)
+  = case unsnoc txns of
+      Nothing -> CashFlowFrame st []
+      Just (initTxns, lastRow) ->
+        let newTxn = emptyTsRow d lastRow
+        in CashFlowFrame st (txns ++ [newTxn])
 
 
 viewTsRow :: Date -> TsRow -> TsRow 

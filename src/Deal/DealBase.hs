@@ -103,7 +103,6 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | StepUpBondRate Date String           -- ^ reset bond interest rate per bond's interest rate info
                   | ResetSrtRate Date String 
                   | ResetAccRate Date String 
-                  | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
                   | FundBond Date (Maybe Pre) String AccName Amount
@@ -630,8 +629,8 @@ getAllAsset :: TestDeal a -> Maybe [PoolId] -> Map.Map PoolId [a]
 getAllAsset t@TestDeal{pool = pt} mPns = 
   let 
     assetMap = case pt of 
-                 MultiPool pm -> Map.map P.assets pm
-                 ResecDeal _ -> Map.empty
+                MultiPool pm -> Map.map P.assets pm
+                ResecDeal _ -> Map.empty
                  -- ResecDeal pm -> Map.mapWithKey (\(UnderlyingBond (bn,hpct,sd), d) -> getAllAsset d Nothing) pm
   in
     case mPns of 
@@ -655,7 +654,7 @@ getAllCollectedFrame t@TestDeal{pool = poolType} mPid =
 getLatestCollectFrame :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.TsRow)
 getLatestCollectFrame t mPns = Map.map (\case
                                           (CF.CashFlowFrame (_,_,_) []) -> Nothing
-                                          (CF.CashFlowFrame (_,_,_) txns) -> Just $ last txns
+                                          (CF.CashFlowFrame (_,_,_) txns) -> snd <$> Data.List.unsnoc txns
                                           )
                                         (getAllCollectedFrame t mPns)
 

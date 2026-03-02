@@ -156,7 +156,7 @@ data AssumptionInput = Single ApplyAssumptionType  NonPerfAssumption            
 data AssetDefaultAssumption = DefaultConstant Rate              -- ^ using constant default rate
                             | DefaultCDR Rate                   -- ^ using annualized default rate
                             | DefaultVec [Rate]                 -- ^ using default rate vector
-                            | DefaultVecPadding [Rate]          -- ^ using default rate vector, but padding with last rate till end
+                            | DefaultVecPadding [Rate]          -- ^ using default rate vector, but padding with Last rate till end
                             | DefaultByAmt (Balance,[Rate])
                             | DefaultAtEnd                      -- ^ default 100% at end
                             | DefaultAtEndByRate Rate Rate      -- ^ life time default rate and default rate at end

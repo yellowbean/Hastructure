@@ -17,7 +17,7 @@ import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
 import Data.Ord (comparing)
-import Data.List (sortBy)
+import Data.List (sortBy, uncons)
 import GHC.Generics
 import Data.Ratio
 import Numeric.RootFinding
@@ -61,8 +61,8 @@ initialSlopes points@((t0, y0):rest) =
     let deltas = secantSlopes points
         n = length points
         slopes = [head deltas] ++ -- First slope: use first secant slope
-                 [ (d1 + d2) / 2 | (d1, d2) <- zip deltas (tail deltas) ] ++ -- Interior slopes
-                 [last deltas] -- Last slope: use last secant slope
+                  [ (d1 + d2) / 2 | (d1, d2) <- zip deltas (tail deltas) ] ++ -- Interior slopes
+                  [last deltas] -- Last slope: use last secant slope
     in slopes
 
 fritschCarlsonSlopes :: [TimeYield] -> [Double]
@@ -239,9 +239,9 @@ fv2 discount_rate today futureDay amt
 
 calcPvFromIRR :: Double -> [Date] -> [Amount] -> Date -> Double -> Double
 calcPvFromIRR irr [] _ d amt = 0
-calcPvFromIRR irr ds vs d amt = 
+calcPvFromIRR irr ds@(sd:_) vs d amt = 
   let 
-    begDate = head ds
+    begDate = sd
     vs' = fromRational . toRational <$> vs
     pv = pv22 irr begDate (ds++[d]) (vs'++[amt])
   in 
@@ -260,9 +260,8 @@ calcRequiredAmtForIrrAtDate irr ds vs d =
       error -> Nothing -- `debug` ("calcRequiredAmtForIrrAtDate: error"++ show error)
 
 -- ^ calc IRR from a cashflow 
-calcIRR :: [Date] -> [Amount] -> Either String Rate
+calcIRR :: [Date] -> [Amount] -> Either ErrorRep Rate
 calcIRR  _ [] = Left "No cashflow amount"
-calcIRR [] _ = Left "No cashflow date"
 calcIRR ds vs
   | all (>= 0) vs = Left $ "All cashflow can't be all positive:"++ show vs
   | all (<= 0) vs = return $ -1.0
@@ -271,11 +270,15 @@ calcIRR ds vs
     let 
       itertimes = 1000
       def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.000001}
-      beginDate = head ds
       vs' = fromRational . toRational <$> vs
-      sumOfPv irr = pv22 irr beginDate ds vs'
-    in 
-      case ridders def (-1,1000) sumOfPv of
-        Root irrRate -> return $ toRational irrRate
-        NotBracketed -> Left $ "IRR: not bracketed" ++ show vs' ++ " and dates"++ show ds
-        SearchFailed -> Left $ "IRR: search failed:  can't be calculated with input "++ show vs++" and dates"++ show ds
+    in
+      case uncons ds of
+        Nothing -> Left "calcIRR: empty dates"
+        Just (beginDate, _) -> 
+          let 
+            sumOfPv irr = pv22 irr beginDate ds vs'
+          in 
+            case ridders def (-1,1000) sumOfPv of
+              Root irrRate -> return $ toRational irrRate
+              NotBracketed -> Left $ "IRR: not bracketed" ++ show vs' ++ " and dates"++ show ds
+              SearchFailed -> Left $ "IRR: search failed:  can't be calculated with input "++ show vs++" and dates"++ show ds
