@@ -211,26 +211,32 @@ tdBondGroup = td { D.bonds = bondGroups,
                 ])]
    }
 
-queryTests =  testGroup "Deal Group Test"
-  [
-    let
-     currBndGrpBal = queryCompound tdBondGroup epocDate (CurrentBondBalanceOf ["A"])
-    in
-     testCase "group bond balance" $
-     assertEqual "should be 2500" (Right 2500) currBndGrpBal
-    ,let 
-        bndsFound = D.viewDealAllBonds tdBondGroup
-     in 
-        testCase "view viewDealAllBonds " $
-        assertEqual "should be 3" 3 (length bndsFound)
-    ,let 
-        totalBndBal = queryCompound tdBondGroup epocDate CurrentBondBalance 
-    in 
-        testCase "total bond balance" $
-        assertEqual "should be 3000" (Right 3000) totalBndBal
-    ,let
-        originBndbal = queryCompound tdBondGroup epocDate (OriginalBondBalanceOf ["A"])
-    in
-        testCase "original bond balance" $
-        assertEqual "should be 5000" (Right 5000) originBndbal
-  ]
+queryTests =  
+  let 
+    
+    ctx = D.RunContext {}
+  in
+    testGroup "Deal Group Test"
+    [
+      let
+        
+        currBndGrpBal = queryCompound tdBondGroup ctx epocDate (CurrentBondBalanceOf ["A"])
+      in
+        testCase "group bond balance" $
+        assertEqual "should be 2500" (Right 2500) currBndGrpBal
+      ,let 
+          bndsFound = D.viewDealAllBonds tdBondGroup
+        in 
+          testCase "view viewDealAllBonds " $
+          assertEqual "should be 3" 3 (length bndsFound)
+      ,let 
+          totalBndBal = queryCompound tdBondGroup ctx epocDate CurrentBondBalance 
+      in 
+          testCase "total bond balance" $
+          assertEqual "should be 3000" (Right 3000) totalBndBal
+      ,let
+          originBndbal = queryCompound tdBondGroup ctx epocDate (OriginalBondBalanceOf ["A"])
+      in
+          testCase "original bond balance" $
+          assertEqual "should be 5000" (Right 5000) originBndbal
+    ]

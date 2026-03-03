@@ -52,7 +52,7 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
   = case te of 
       DealStatusTo _ds -> return (t {status = _ds}, rc, actions, logs)
       DoAccrueFee fns -> do
-                            newFeeList <- traverse (calcDueFee t d)  $ (feeMap Map.!) <$> fns
+                            newFeeList <- traverse (calcDueFee t rc d)  $ (feeMap Map.!) <$> fns
                             let newFeeMap = Map.fromList (zip fns newFeeList) <> feeMap
                             return (t {fees = newFeeMap}, rc, actions, logs)
 
@@ -86,7 +86,7 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
       DoNothing -> return (t, rc, actions, DL.empty)
       _ -> Left $ "Date:"++ show d++" Failed to match trigger effects: "++show te
 
-setBondStepUpRate :: Date -> [RateAssumption] -> L.Bond -> Either String L.Bond
+setBondStepUpRate :: Date -> [RateAssumption] -> L.Bond -> Either ErrorRep L.Bond
 setBondStepUpRate d ras b@(L.Bond _ _ _ ii (Just sp) _ _ _ _ _ _ _ _ _)
   = return $ 
       let 
@@ -109,56 +109,56 @@ setBondStepUpRate d ras bg@(L.BondGroup bMap pt)
       return $ L.BondGroup m pt
 
 -- ^ update bond interest rate from rate assumption
-setBondNewRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> L.Bond -> Either String L.Bond
-setBondNewRate t d ras b@(L.Bond _ _ L.OriginalInfo{ L.originDate = od} ii _ bal currentRate _ dueInt _ Nothing _ _ _)
-  = setBondNewRate t d ras b {L.bndDueIntDate = Just od}
+setBondNewRate :: Ast.Asset a => TestDeal a -> RunContext -> Date -> [RateAssumption] -> L.Bond -> Either ErrorRep L.Bond
+setBondNewRate t rc d ras b@(L.Bond _ _ L.OriginalInfo{ L.originDate = od} ii _ bal currentRate _ dueInt _ Nothing _ _ _)
+  = setBondNewRate t rc d ras b {L.bndDueIntDate = Just od}
 
 -- ^ Floater rate
-setBondNewRate t d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+setBondNewRate t rc d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
   = return $ (L.accrueInt d b){ L.bndRate = AP.applyFloatRate ii d ras }
 
 -- ^ Fix rate, do nothing
-setBondNewRate t d ras b@(L.Bond _ _ _ L.Fix {} _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
+setBondNewRate t rc d ras b@(L.Bond _ _ _ L.Fix {} _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
   = return b
 
 -- ^ Ref rate
-setBondNewRate t d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
+setBondNewRate t rc d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
   = do
       let b' = L.accrueInt d b
-      rate <- queryCompound t d (patchDateToStats d ds)
+      rate <- queryCompound t rc d (patchDateToStats d ds)
       return b' {L.bndRate = fromRational (rate * toRational factor) }
 
 -- ^ cap & floor & IoI
-setBondNewRate t d ras b@(L.Bond _ _ _ ii _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
+setBondNewRate t rc d ras b@(L.Bond _ _ _ ii _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
   = return $ (L.accrueInt d b) { L.bndRate = AP.applyFloatRate ii d ras}
 
 -- ^ bond group
-setBondNewRate t d ras bg@(L.BondGroup bMap pt)
+setBondNewRate t rc d ras bg@(L.BondGroup bMap pt)
   = do 
-      m <- mapM (setBondNewRate t d ras) bMap
+      m <- mapM (setBondNewRate t rc d ras) bMap
       return $ L.BondGroup m pt
 
 -- ^ apply all rates for multi-int bond
-setBondNewRate t d ras b@(L.MultiIntBond bn _ _ iis _ bal currentRates _ dueInts dueIoIs _ _ _ _)
+setBondNewRate t rc d ras b@(L.MultiIntBond bn _ _ iis _ bal currentRates _ dueInts dueIoIs _ _ _ _)
   = let 
       newRates = AP.applyFloatRate <$> iis <*> pure d <*> pure ras
       b' = L.accrueInt d b -- `debug` ("accrue due to new rate "++ bn)
     in
       return $ b' { L.bndRates = newRates } 
 
-updateRateSwapBal :: Ast.Asset a => TestDeal a -> Date -> HE.RateSwap -> Either String HE.RateSwap
-updateRateSwapBal t d rs@HE.RateSwap{ HE.rsNotional = base }
+updateRateSwapBal :: Ast.Asset a => TestDeal a -> RunContext -> Date -> HE.RateSwap -> Either String HE.RateSwap
+updateRateSwapBal t rc d rs@HE.RateSwap{ HE.rsNotional = base }
   =  case base of 
         HE.Fixed _ -> return rs  
         HE.Schedule ts -> return $ rs { HE.rsRefBalance = fromRational (getValByDate ts Inc d) }
         HE.Base ds -> 
             do 
-              v <- queryCompound t d (patchDateToStats d ds) 
+              v <- queryCompound t rc d (patchDateToStats d ds) 
               return rs { HE.rsRefBalance = fromRational v} -- `debug` ("query Result"++ show (patchDateToStats d ds) )
 
-updateRateSwapRate :: Ast.Asset a => TestDeal a -> Maybe [RateAssumption] -> Date -> HE.RateSwap -> Either String HE.RateSwap
-updateRateSwapRate t Nothing _ _ = Left "Failed to update rate swap: No rate input assumption"
-updateRateSwapRate t (Just rAssumps) d rs@HE.RateSwap{ HE.rsType = rt } 
+updateRateSwapRate :: Ast.Asset a => TestDeal a -> RunContext -> Maybe [RateAssumption] -> Date -> HE.RateSwap -> Either String HE.RateSwap
+updateRateSwapRate t _ Nothing _ _ = Left "Failed to update rate swap: No rate input assumption"
+updateRateSwapRate t rc (Just rAssumps) d rs@HE.RateSwap{ HE.rsType = rt } 
   = let 
       getRate x = AP.lookupRate rAssumps x d
     in
@@ -179,13 +179,13 @@ updateRateSwapRate t (Just rAssumps) d rs@HE.RateSwap{ HE.rsType = rt }
                               return (r, _r)
                           HE.FormulaToFloating ds flter -> 
                             do 
-                              _r <- queryCompound t d (patchDateToStats d ds)
+                              _r <- queryCompound t rc d (patchDateToStats d ds)
                               r <- getRate flter
                               return (fromRational _r, r)
                           HE.FloatingToFormula flter ds -> 
                             do 
                               r <- getRate flter
-                              _r <- queryCompound t d (patchDateToStats d ds)
+                              _r <- queryCompound t rc d (patchDateToStats d ds)
                               return (r, fromRational _r)
         return rs {HE.rsPayingRate = pRate, HE.rsReceivingRate = rRate }
 
@@ -207,7 +207,7 @@ runTriggers (t@TestDeal{status=oldStatus, triggers = Just trgM},rc, actions) d d
     let trgsToTest = Map.filter   
                           (\trg -> (not (trgStatus trg) || trgStatus trg && trgCurable trg))
                           trgsMap
-    triggeredTrgs <- mapM (testTrigger t d) trgsToTest
+    triggeredTrgs <- mapM (testTrigger t rc d) trgsToTest
     let triggeredEffects = [ trgEffects _trg | _trg <- Map.elems triggeredTrgs, (trgStatus _trg) ] 
     (newDeal, newRc, newActions, logsFromTrigger) <- foldM (`runEffects` d) (t,rc,actions, DL.empty) triggeredEffects
     let newStatus = status newDeal 
@@ -296,7 +296,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               ,waterfall=waterfallM,name=dealName,pool=pt,stats=_stat}
     rc@(RunContext poolFlowMap rAssump rates) 
     (Just (ad:ads)) calls log
-  | futureCashToCollectFlag && (queryCompound t (getDate ad) AllAccBalance == Right 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
+  | futureCashToCollectFlag && (queryCompound t rc (getDate ad) AllAccBalance == Right 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
     = let 
           endingLog = EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"
           endingDate = getDate ad
@@ -348,12 +348,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
 
         AccruePoolCollection d x -> 
           do 
-            t' <- (accrueDeal d (fromMaybe [] rates) t)
+            t' <- (accrueDeal d (fromMaybe [] rates) t rc)
             run t' rc (Just (PoolCollection d x:ads)) calls log
 
         AccrueRunWaterfall d x -> 
           do 
-            t' <- (accrueDeal d (fromMaybe [] rates) t)
+            t' <- (accrueDeal d (fromMaybe [] rates) t rc)
             run t' rc (Just (RunWaterfall d x:ads)) calls log
 
         RunWaterfall d "" -> 
@@ -373,7 +373,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                         = DL.snoc newLogs0 
                                   (WarningMsg (" No waterfall distribution found on date "++show d++" with waterfall key "++show waterfallKey++"from"++ (show (Map.keys waterfallM))))
                     | otherwise = newLogs0
-              flag <- anyM (testPre d dRunWithTrigger0) callTest 
+              flag <- anyM (testPre d dRunWithTrigger0 rc1) callTest 
               if flag then
                 -- Clean Up Waterfall Actions
                 do
@@ -381,7 +381,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                         | null cleanUpActions = [DealStatusChangeTo d dStatus Called "Call by triggers before waterfall distribution"]
                         | otherwise = [DealStatusChangeTo d dStatus Called "Call by triggers before waterfall distribution", RunningWaterfall d W.CleanUp] 
                   (dealAfterCleanUp, rc_, newLogWaterfall_) <- foldM (performActionWrap d) (dRunWithTrigger0, rc1,log) cleanUpActions 
-                  endingLogs <- Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
+                  endingLogs <- Rpt.patchFinancialReports dealAfterCleanUp rc_ d newLogWaterfall_
                   return (dealAfterCleanUp
                           , DL.concat [logsBeforeDist,endingLogs,DL.fromList (newStLogs++[EndRun (Just d) "Clean Up"])]
                           , runPoolFlow rc_
@@ -419,7 +419,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         AccrueFee d feeName -> 
           do 
             fToAcc <- maybeToEither ("Failed to find fee "++feeName) (Map.lookup feeName feeMap)
-            newF <- calcDueFee t d fToAcc
+            newF <- calcDueFee t rc d fToAcc
             let newFeeMap = Map.fromList [(feeName,newF)] <> feeMap
             run (t{fees=newFeeMap}) rc (Just ads) calls log
 
@@ -428,7 +428,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             Nothing -> run t rc (Just ads) calls log
             (Just mLiqProvider) 
               -> let -- update credit 
-                    newLiqMap = Map.adjust (updateLiqProvider t d) liqName mLiqProvider
+                    newLiqMap = Map.adjust (updateLiqProvider t rc d) liqName mLiqProvider
                   in
                     run (t{liqProvider = Just newLiqMap}) rc (Just ads) calls log
         ResetLiqProviderRate d liqName -> 
@@ -461,8 +461,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             Nothing -> Left $ " No rate swaps modeled when looking for "++ sn
             Just rSwap ->
               do
-                newRateSwap_rate <- adjustM (updateRateSwapRate t rates d) sn rSwap
-                newRateSwap_bal <- adjustM (updateRateSwapBal t d) sn newRateSwap_rate 
+                newRateSwap_rate <- adjustM (updateRateSwapRate t rc rates d) sn rSwap
+                newRateSwap_bal <- adjustM (updateRateSwapBal t rc d) sn newRateSwap_rate 
                 let newRateSwap_acc = Map.adjust (HE.accrueIRS d) sn newRateSwap_bal
                 run (t{rateSwap = Just newRateSwap_acc}) rc (Just ads) calls log
 
@@ -506,13 +506,13 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 _rates = fromMaybe [] rates
               in 
                 do 
-                  newRateCap <- adjustM (accrueRC t d _rates) cn rCap
+                  newRateCap <- adjustM (accrueRC t rc d _rates) cn rCap
                   run (t{rateCap = Just newRateCap}) rc (Just ads) calls log
 
         InspectDS d dss -> 
           do
-            newlog <- inspectListVars t d dss 
-            run t rc (Just ads) calls log
+            newlog <- inspectListVars t rc d dss 
+            run t rc (Just ads) calls $ DL.append log (DL.fromList newlog)
         
         ResetBondRate d bn  -> 
           let 
@@ -520,7 +520,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             bnd = bndMap Map.! bn
           in 
             do 
-              newBnd <- setBondNewRate t d rateList bnd 
+              newBnd <- setBondNewRate t rc d rateList bnd 
               run t{bonds = Map.fromList [(bn,newBnd)] <> bndMap} rc (Just ads) calls log
         
         StepUpBondRate d bn -> 
@@ -547,7 +547,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             cashReport = Rpt.buildCashReport t sd ed 
           in 
             do 
-              bsReport <- Rpt.buildBalanceSheet t ed
+              bsReport <- Rpt.buildBalanceSheet t rc ed
               let newlog = FinancialReport sd ed bsReport cashReport
               run t rc (Just ads) calls log -- `debug` ("new log"++ show ed++ show newlog)
         FireTrigger d cyc n ->  
@@ -573,8 +573,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               do 
                 factor <- liftA2
                             (/)
-                            (queryCompound t d (FutureCurrentPoolBegBalance Nothing)) 
-                            (queryCompound t d (FutureCurrentSchedulePoolBegBalance Nothing))
+                            (queryCompound t rc d (FutureCurrentPoolBegBalance Nothing)) 
+                            (queryCompound t rc d (FutureCurrentSchedulePoolBegBalance Nothing))
                 let reduceCfs = Map.map (\f -> (over CF.cashflowTxn (\xs -> CF.scaleTsRow factor <$> xs) f, Nothing ) ) schedulePoolFlowMap -- need to apply with factor and trucate with date
                 (runDealWithSchedule,_,_) <- run t (RunContext reduceCfs rAssump rates) (Just ads) calls log
                 let bondWal = Map.map (L.calcWalBond d) (bonds runDealWithSchedule) -- `debug` ("Bond schedule flow"++ show (bonds runDealWithSchedule))
@@ -612,7 +612,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             newAcc = Map.adjust (A.deposit fundAmt d (FundWith bName fundAmt)) accName accMap
           in 
             do
-              flag <- testPre d t p
+              flag <- testPre d t rc p
               case flag of
                 False -> run t rc (Just ads) calls log
                 True -> 
@@ -627,7 +627,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
         
         IssueBond d (Just p) bGroupName accName bnd mBal mRate ->
             do 
-              flag <- testPre d t p
+              flag <- testPre d t rc p
               case flag of
                 False -> run t rc (Just ads) calls log
                 True -> let 
@@ -635,10 +635,10 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                         in
                           do
                             newBalance <- case mBal of
-                                            Just _q -> queryCompound t d (patchDateToStats d _q)  
+                                            Just _q -> queryCompound t rc d (patchDateToStats d _q)  
                                             Nothing -> Right . toRational $ L.originBalance (L.bndOriginInfo bnd)
                             newRate <- case mRate of 
-                                        Just _q -> queryCompound t d (patchDateToStats d _q)
+                                        Just _q -> queryCompound t rc d (patchDateToStats d _q)
                                         Nothing -> return $ L.originRate (L.bndOriginInfo bnd)
                             let newBonds = case Map.lookup bGroupName bndMap of
                                             Nothing -> bndMap
@@ -671,7 +671,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               newRate = L.getBeginRate iInfo
           in 
               do 
-                nBnd <- calcDueInt t d $ bndMap Map.! bName
+                nBnd <- calcDueInt t rc d $ bndMap Map.! bName
                 let dueIntToPay = L.getTotalDueInt nBnd
                 let acc = accMap Map.! accName
                 let actualPayout = min (A.accBalance acc) dueIntToPay
@@ -691,7 +691,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             timeBasedTests::[Pre] = snd (fromMaybe ([],[]) calls)
           in
             do 
-              flags::[Bool] <- traverse (testPre d t) timeBasedTests
+              flags::[Bool] <- traverse (testPre d t rc) timeBasedTests
               case any id flags of
                 True -> 
                   let 
@@ -701,7 +701,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                   in  
                     do 
                       (dealAfterCleanUp, rc_, newLogWaterfall_ ) <- foldM (performActionWrap d) (t, rc, log) cleanUpActions
-                      endingLogs <- Rpt.patchFinancialReports dealAfterCleanUp d newLogWaterfall_
+                      endingLogs <- Rpt.patchFinancialReports dealAfterCleanUp rc_ d newLogWaterfall_
                       return (dealAfterCleanUp
                               , DL.snoc (endingLogs `DL.append` newStLogs) (EndRun (Just d) "Clean Up")
                               , (runPoolFlow rc_))
@@ -709,7 +709,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
 
         StopRunTest d pres -> 
           do
-              flags::[Bool] <- sequenceA $ [ (testPre d t pre) | pre <- pres ]
+              flags::[Bool] <- sequenceA $ [ (testPre d t rc pre) | pre <- pres ]
               case all id flags of
                 True -> return (t, DL.snoc log (EndRun (Just d) ("Stop Run Test by:"++ show (zip pres flags))), poolFlowMap)
                 _ -> run t rc (Just ads) calls log

@@ -237,7 +237,7 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput)
 
 -- <Legacy Test>, <Test on dates>
 runDeal :: Ast.Asset a => TestDeal a -> S.Set ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
-        -> Either String (TestDeal a
+        -> Either ErrorRep (TestDeal a
                           , Map.Map PoolId CF.CashFlowFrame
                           , [ResultComponent]
                           , Map.Map String PriceResult

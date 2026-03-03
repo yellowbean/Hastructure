@@ -16,6 +16,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                     ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
                     ,bondTraversal,findBondByNames,updateBondInMap,traverseBondMap,traverseBondMapByFn
                     ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
+                    ,RunContext(..)
                     )                      
   where
 import qualified Accounts as A
@@ -205,6 +206,15 @@ data DateDesp = PreClosingDates CutoffDate ClosingDate (Maybe RevolvingDate) Sta
 type PoolCollectionActions = [ActionOnDate]
 type BondDistributionActions = [ActionOnDate]
 type CustomActions = [ActionOnDate]
+
+data RunContext = RunContext{
+                  runPoolFlow:: Map.Map PoolId CF.PoolCashflow
+                  ,revolvingAssump:: Maybe (Map.Map String (RevolvingPool ,AP.ApplyAssumptionType))
+                  ,revolvingInterestRateAssump:: Maybe [RateAssumption]
+                  }
+                  deriving (Show)
+
+
 
 populateDealDates :: DateDesp -> DealStatus -> Either ErrorRep (Date,Date,Date,PoolCollectionActions,BondDistributionActions,Date,CustomActions)
 populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp)) _
