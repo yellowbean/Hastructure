@@ -248,11 +248,9 @@ runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts 
     = do 
         (newT, ads, pcf, unStressPcf) <- getInits er t perfAssumps (Just nonPerfAssumps)  
         (_finalDeal, logs, osPoolFlow) <- run newT 
-                                              pcf
+                                              (RunContext pcf mRevolvingCtx mInterest)
                                               (Just ads) 
-                                              mInterest
                                               (AP.readCallOptions <$> opts)
-                                              mRevolvingCtx
                                               DL.empty
     -- prepare deal with expected return
         let finalDeal = prepareDeal er _finalDeal

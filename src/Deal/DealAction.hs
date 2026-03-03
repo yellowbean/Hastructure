@@ -412,7 +412,7 @@ buyRevolvingPool d r rp@(AssetCurve aus)
       (assetBought, rp)
 
 
-data RunContext a = RunContext{
+data RunContext = RunContext{
                   runPoolFlow:: Map.Map PoolId CF.PoolCashflow
                   ,revolvingAssump:: Maybe (Map.Map String (RevolvingPool ,AP.ApplyAssumptionType))
                   ,revolvingInterestRateAssump:: Maybe [RateAssumption]
@@ -600,8 +600,8 @@ updateSupport d (Just support) bal t =
     (deal,amt) <- drawExtraSupport d bal support t
     return deal
 
-performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext a, DL.DList ResultComponent) 
-                  -> W.Action -> Either ErrorRep (TestDeal a, RunContext a, DL.DList ResultComponent)
+performActionWrap :: Ast.Asset a => Date -> (TestDeal a, RunContext, DL.DList ResultComponent) 
+                  -> W.Action -> Either ErrorRep (TestDeal a, RunContext, DL.DList ResultComponent)
 
 
 performActionWrap d (t, rc, logs) (W.BuyAsset ml pricingMethod accName pId) 
