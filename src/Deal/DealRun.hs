@@ -296,6 +296,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               ,waterfall=waterfallM,name=dealName,pool=pt,stats=_stat}
     rc@(RunContext poolFlowMap rAssump rates) 
     (Just (ad:ads)) calls log
+    -- Ended by No Pool Cashflow/All Account is zero/Not revolving
   | futureCashToCollectFlag && (queryCompound t rc (getDate ad) AllAccBalance == Right 0) && (dStatus /= Revolving) && (dStatus /= Warehousing Nothing) --TODO need to use prsim here to cover all warehouse status
     = let 
           endingLog = EndRun (Just (getDate ad)) "No Pool Cashflow/All Account is zero/Not revolving"

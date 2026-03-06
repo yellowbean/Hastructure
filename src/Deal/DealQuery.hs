@@ -780,34 +780,22 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
             A.calcIRR ds vs
 
     FuturePoolAccruedInterest d mPns ->
-      -- TODO https://github.com/absbox/Hastructure/issues/316
-      -- TODO it won't work for bonds as underlying assets(resec deals)
+      -- outstandingFlow
       let 
-        pCf::(Map.Map PoolId (Maybe CF.TsRow)) = getLatestCollectFrame t mPns -- `debug` ("mPns"++ show mPns)
-        
-        accrueIntFn :: PoolId -> Maybe CF.TsRow -> Balance
-        accrueIntFn pid Nothing =
-          case pt of
-            MultiPool poolMap ->
-              case Map.lookup pid poolMap of
-                Just pool -> case Pl.getIssuanceField pool RuntimeCurrentPoolBalance of
-                              Right bal -> 
-                                let 
-                                  accrueRate = 0.0
-                                  sd = getCutoffDate (dates t)
-                                in 
-                                  mulBR bal ((yearCountFraction DC_ACT_365F sd d) * accrueRate)
-                              Left _ -> 0.0
-                Nothing -> 0.0
-            -- TODO add support for resec deal
-            _ -> 0.0
-        accrueIntFn _ (Just (CF.MortgageFlow sd bal _ _ _ _ _ _ r _ _ _)) = mulBR bal (yearCountFraction DC_ACT_365F sd d * (toRational r))  
-        accrueIntFn _ (Just (CF.MortgageDelinqFlow sd bal _ _ _ _ _ _ _ r _ _ _)) = mulBR bal (yearCountFraction DC_ACT_365F sd d * (toRational r))  
-        accrueIntFn _ (Just (CF.LoanFlow sd bal _ _ _ _ _ _ r _)) = mulBR bal (yearCountFraction DC_ACT_365F sd d * (toRational r))  
-        accrueIntFn _ (Just r) = 0.0
+        pCf::(Map.Map PoolId CF.CashFlowFrame) = Map.map fst outstandingFlow
+
+        accrueIntFn (CF.CashFlowFrame _ []) = 0.0
+        accrueIntFn (CF.CashFlowFrame (begBal, sd, mAccAmt) (r:_)) 
+          | d <= sd = 0.0
+          | otherwise = CF.calcAccrueIntByNextTxn DC_ACT_365F d r
+        -- accrueIntFn _ (Just (CF.MortgageFlow sd bal _ int _ _ _ _ r _ _ _)) = int
+        -- accrueIntFn _ (Just (CF.MortgageDelinqFlow sd bal _ int _ _ _ _ _ r _ _ _)) = int
+        -- accrueIntFn _ (Just (CF.LoanFlow sd bal _ int _ _ _ _ r _)) = int
+        -- accrueIntFn _ (Just r) = 0.0
+        -- accrueIntFn _ _ = 0.0
 
       in 
-        Right . toRational $ sum $ Map.elems $ Map.mapWithKey accrueIntFn pCf
+        Right . toRational $ sum $ Map.elems $ Map.map accrueIntFn pCf
 
 
     CustomData s d ->

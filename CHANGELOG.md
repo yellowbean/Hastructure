@@ -2,6 +2,13 @@
 
 <!-- towncrier release notes start -->
 
+## 0.52.3
+* NEW: add `IrrOfBond` as a formula, which return the irr of the bond
+* NEW: add `IsAnyOutstanding` as formula: return `True` if any of the bond is outstanding
+* NEW: add `PoolAccruedInterest` as a formula: return the accural amount of the pool
+
+* ENHANCEMENT: allow `negative amount` when calculating `AmountRequiredForIRR`
+
 ## 0.51.6
 ### 2025-09-05
 * NEW: add new integer formula `activeBondNumber`

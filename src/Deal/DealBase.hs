@@ -16,7 +16,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                     ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
                     ,bondTraversal,findBondByNames,updateBondInMap,traverseBondMap,traverseBondMapByFn
                     ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
-                    ,RunContext(..)
+                    ,RunContext(..),getNextPoolCfTxn
                     )                      
   where
 import qualified Accounts as A
@@ -214,7 +214,12 @@ data RunContext = RunContext{
                   }
                   deriving (Show)
 
-
+getNextPoolCfTxn :: Map.Map PoolId CF.PoolCashflow ->  Map.Map PoolId (Maybe CF.TsRow)
+getNextPoolCfTxn poolCfMap = Map.map (\case
+                                          ((CF.CashFlowFrame (_,_,_) []),_) -> Nothing --TODO it looks can be deleted
+                                          ((CF.CashFlowFrame (_,_,_) txns),_) -> fst <$> Data.List.uncons txns
+                                          )
+                                        poolCfMap
 
 populateDealDates :: DateDesp -> DealStatus -> Either ErrorRep (Date,Date,Date,PoolCollectionActions,BondDistributionActions,Date,CustomActions)
 populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp)) _

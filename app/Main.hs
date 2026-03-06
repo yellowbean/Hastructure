@@ -268,15 +268,6 @@ modifyDealType dm f (UDeal d) = UDeal $ DM.modDeal dm f d
 modifyDealType dm f (VDeal d) = VDeal $ DM.modDeal dm f d
 modifyDealType dm f (PDeal d) = PDeal $ DM.modDeal dm f d
 
-queryDealType :: DealType -> Date -> DealStats -> Either String Rational
-queryDealType (MDeal _d) = Q.queryCompound _d 
-queryDealType (RDeal _d) = Q.queryCompound _d 
-queryDealType (IDeal _d) = Q.queryCompound _d
-queryDealType (LDeal _d) = Q.queryCompound _d
-queryDealType (FDeal _d) = Q.queryCompound _d
-queryDealType (UDeal _d) = Q.queryCompound _d
-queryDealType (VDeal _d) = Q.queryCompound _d
-queryDealType (PDeal _d) = Q.queryCompound _d
 
 queryClosingDate :: DealType -> Either String Date
 queryClosingDate (MDeal _d) = DD.getClosingDate (DB.dates _d) 
@@ -289,25 +280,7 @@ queryClosingDate (VDeal _d) = DD.getClosingDate (DB.dates _d)
 queryClosingDate (PDeal _d) = DD.getClosingDate (DB.dates _d) 
 
 
-queryDealTypeBool :: DealType -> Date -> DealStats -> Either String Bool
-queryDealTypeBool (MDeal _d) d s = Q.queryDealBool _d s d
-queryDealTypeBool (RDeal _d) d s = Q.queryDealBool _d s d
-queryDealTypeBool (IDeal _d) d s = Q.queryDealBool _d s d
-queryDealTypeBool (LDeal _d) d s = Q.queryDealBool _d s d
-queryDealTypeBool (FDeal _d) d s = Q.queryDealBool _d s d
-queryDealTypeBool (UDeal _d) d s = Q.queryDealBool _d s d
-queryDealTypeBool (VDeal _d) d s = Q.queryDealBool _d s d
-queryDealTypeBool (PDeal _d) d s = Q.queryDealBool _d s d
 
-testDealTypeBool :: DealType -> Date -> Pre -> Either String Bool
-testDealTypeBool (MDeal _d) d p = Q.testPre d _d p 
-testDealTypeBool (RDeal _d) d p = Q.testPre d _d p 
-testDealTypeBool (IDeal _d) d p = Q.testPre d _d p 
-testDealTypeBool (LDeal _d) d p = Q.testPre d _d p 
-testDealTypeBool (FDeal _d) d p = Q.testPre d _d p 
-testDealTypeBool (UDeal _d) d p = Q.testPre d _d p 
-testDealTypeBool (VDeal _d) d p = Q.testPre d _d p 
-testDealTypeBool (PDeal _d) d p = Q.testPre d _d p 
 
 getDealBondMap :: DealType -> Map.Map BondName L.Bond
 getDealBondMap (MDeal d) = DB.bonds d
@@ -395,18 +368,6 @@ evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult,osPflow)
         Nothing -> -1  -- `debug` ("No IRR found for bond:"++ show bn)
         Just irr -> (fromRational . toRational) $ irr - target -- `debug` ("IRR for bond:"++ show target ++" is "++ show irr)
 
-evalRootFindStop (BalanceFormula ds targetBal) (dt,collectedFlow,logs,_,osPflow) 
-  = let 
-      _date = case find (\(EndRun d msg) -> True) (reverse logs) of
-                Just (EndRun (Just d) _ ) -> d
-                Nothing -> case queryClosingDate dt of
-                            Right d' -> d'
-                            Left err -> error $ "Error in BalanceFormula: " ++ err
-      v = case queryDealType dt _date (Q.patchDateToStats _date ds)  of
-            Right v' -> fromRational v'
-            Left err -> error $ "Error in BalanceFormula: " ++ err
-    in
-      (fromRational . toRational) $ v - targetBal -- `debug` ("querydate" ++ show _date++"iteration" ++ show v ++ " target:" ++ show targetBal ++ ">> " ++ show ( v- targetBal))
 
 
 
