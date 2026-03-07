@@ -39,6 +39,7 @@ import Analytics
 import Data.Ratio 
 import Data.Maybe
 import Data.List
+import Interface
 import qualified Data.Set as Set
 import qualified Data.DList as DL
 import qualified Stmt as S 

@@ -8,7 +8,7 @@
 
 module Asset ( Asset(..),
       buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
-      ,calcRecoveriesFromDefault,getCurBalance
+      ,calcRecoveriesFromDefault
       ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
       ,getObligorTags,getObligorId,getRecoveryLagAndRate,getDefaultDelinqAssump,getOriginInfo
 ) where

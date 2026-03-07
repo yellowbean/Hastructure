@@ -58,6 +58,7 @@ library
       Expense
       Hedge
       InterestRate
+      Interface
       Ledger
       Liability
       Lib

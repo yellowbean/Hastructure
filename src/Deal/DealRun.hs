@@ -27,6 +27,7 @@ import qualified Hedge as HE
 import qualified CreditEnhancement as CE
 import qualified InterestRate as IR
 import Triggers
+import Interface
 
 import Deal.DealBase
 import Deal.DealAction

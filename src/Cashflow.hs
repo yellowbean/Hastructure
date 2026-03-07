@@ -266,7 +266,7 @@ cfInsertHead tr (CashFlowFrame st trs) = CashFlowFrame st $ tr:trs
 
 
 calcAccrueIntByNextTxn :: DayCount -> Date -> TsRow -> Balance 
-calcAccrueIntByNextTxn dc sd tr@(MortgageFlow d bal _ int _ _ _ _ r _ _ _) = int - mulBR (mflowBegBalance tr) (yearCountFraction dc sd d * (toRational r))
+calcAccrueIntByNextTxn dc sd tr@(MortgageFlow d bal _ int _ _ _ _ r _ _ _) = int - mulBR (mflowBegBalance tr) (yearCountFraction dc sd d * (toRational r)) -- `debug` ("calcAccrueIntByNextTxn: "++ show (int,mflowBegBalance tr ,sd,d,yearCountFraction dc sd d,r))
 calcAccrueIntByNextTxn dc sd tr@(LoanFlow d bal _ int _ _ _ _ r _) = int - mulBR (mflowBegBalance tr) (yearCountFraction dc sd d * (toRational r))
 calcAccrueIntByNextTxn dc sd tr@(MortgageDelinqFlow d bal _ int _ _ _ _ _ r _ _ _) = int - mulBR (mflowBegBalance tr) (yearCountFraction dc sd d * (toRational r))
 calcAccrueIntByNextTxn _ _ _ = 0

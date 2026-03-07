@@ -207,10 +207,10 @@ combineTxn (SupportTxn d1 b1 b0 i1 p1 c1 m1) (SupportTxn d2 b2 b02 i2 p2 c2 m2)
 
 
 data FlowDirection = Inflow -- cash flow into the SPV
-                   | Outflow -- cash flow out of the SPV
-                   | Interflow -- cash flow within the SPV
-                   | Noneflow -- no cash flow
-                   deriving (Eq,Show,Generic)
+                  | Outflow -- cash flow out of the SPV
+                  | Interflow -- cash flow within the SPV
+                  | Noneflow -- no cash flow
+                  deriving (Eq,Show,Generic)
 
 getFlow :: TxnComment -> FlowDirection
 getFlow comment =
@@ -227,8 +227,10 @@ getFlow comment =
       LiquidationRepay _ -> Outflow
       SwapOutSettle _ -> Outflow
       PurchaseAsset _ _-> Outflow
+
       Transfer _ _ -> Interflow 
       TransferBy {} -> Interflow 
+
       FundWith _ _ -> Inflow
       PoolInflow _ _ -> Inflow
       LiquidationProceeds _ -> Inflow
@@ -236,16 +238,19 @@ getFlow comment =
       BankInt -> Inflow
       SwapInSettle _ -> Inflow
       IssuanceProceeds _ -> Inflow
+
       LiquidationDraw -> Noneflow
       LiquidationSupportInt _ _ -> Noneflow
       WriteOff _ _ -> Noneflow
       SupportDraw -> Noneflow
+      
       Empty -> Noneflow 
       Tag _ -> Noneflow
       UsingDS _ -> Noneflow
       SwapAccrue  -> Noneflow
       TxnDirection _ -> Noneflow
       BookLedgerBy _ _ -> Noneflow
+
       TxnComments cmts ->  --TODO the direction of combine txns
         let 
           directionList = getFlow <$> cmts 

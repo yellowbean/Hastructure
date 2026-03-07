@@ -16,6 +16,7 @@ import qualified Data.Time as Time
 import qualified Data.Map as Map
 import qualified Data.DList as DL
 import GHC.Generics
+import Interface
 import Language.Haskell.TH
 import Data.Aeson hiding (json)
 import Data.Aeson.TH

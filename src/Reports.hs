@@ -83,14 +83,14 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
         mapPoolKey PoolConsol = Nothing 
         mapPoolKey (PoolName x) = Just [PoolName x]
         poolAstBalMap_ = Map.mapWithKey 
-                           (\k _ -> getPoolBalanceStats t rc d (mapPoolKey k)) $
-                           view (dealPool . poolTypePool) t
+                            (\k _ -> getPoolBalanceStats t rc d (mapPoolKey k)) $
+                            view (dealPool . poolTypePool) t
         
         ---- swaps
         swapToCollect = ParentItem "Swap" [ ParentItem rsName [ Item "To Receive" rsNet ] | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
                                             , rsNet > 0 ]
         
-       -- liquidity provider 
+        -- liquidity provider 
         liqProviderAccrued = Map.map (CE.accrueLiqProvider d) (fromMaybe Map.empty liqMap)
         liqProviderOs = [ ParentItem liqName [Item "Balance" liqBal,Item "Accrue Int" liqDueInt, Item "Due Fee" liqDueFee ]  | (liqName,[liqBal,liqDueInt,liqDueFee]) <- Map.toList (Map.map (\liq -> [CE.liqBalance,CE.liqDueInt,CE.liqDuePremium]<*> [liq]) liqProviderAccrued)] 
         -- rate swap
@@ -127,14 +127,13 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
 buildCashReport :: P.Asset a => TestDeal a -> Date -> Date -> CashflowReport
 buildCashReport t@TestDeal{accounts = accs} sd ed 
   = CashflowReport { inflow = inflowItems
-                   , outflow = outflowItems
-                   , net = cashChange
-                   , startDate = sd
-                   , endDate = ed }
+                    , outflow = outflowItems
+                    , net = cashChange
+                    , startDate = sd
+                    , endDate = ed }
       where 
         _txns = concat $ Map.elems $ Map.map (DL.toList . getTxns) $ Map.map A.accStmt accs
         txns = sliceBy EI sd ed _txns
-   
         inflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Inflow)  txns
         outflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Outflow) txns
         

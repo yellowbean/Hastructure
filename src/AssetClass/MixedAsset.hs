@@ -12,6 +12,7 @@ import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as A
 import qualified AssetClass.AssetBase as ACM
 import InterestRate
+import Interface
 import qualified Asset as P
 import Lib
 import Util
@@ -31,7 +32,6 @@ import AssetClass.Mortgage
 import AssetClass.Lease
 import AssetClass.Loan
 import AssetClass.Installment
-
 import AssetClass.Receivable
 import AssetClass.AssetCashflow
 import AssetClass.FixedAsset

@@ -25,6 +25,7 @@ import Data.Fixed
 import Types
 import Util
 import DateUtil
+import Interface
 import qualified Stmt as S
 import qualified InterestRate as IR
 

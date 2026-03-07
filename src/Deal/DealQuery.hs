@@ -41,6 +41,7 @@ import qualified InterestRate as IR
 import Stmt
 import Util
 import Errors
+import Interface
 import DateUtil
 import Control.Lens hiding (element)
 import Control.Lens.Extras (is)

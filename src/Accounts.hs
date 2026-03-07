@@ -15,6 +15,7 @@ import Types
 import Lib
 import Util
 import DateUtil
+import Interface
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH

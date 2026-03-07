@@ -32,6 +32,7 @@ import qualified Assumptions as AP
 import qualified AssetClass.AssetBase as ACM
 import qualified Call as C
 import qualified InterestRate as IR
+import Interface
 import Stmt
 import Lib
 import Util

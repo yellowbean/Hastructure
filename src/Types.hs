@@ -36,7 +36,7 @@ module Types
   ,Txn(..),TxnComment(..)
   ,RoundingBy(..),DateDirection(..)
   ,BookDirection(..),IRR(..),DealCycle(..),Limit(..),Pre(..)
-  ,Liable(..),CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
+  ,CumPrepay,CumDefault,CumDelinq,CumPrincipal,CumLoss,CumRecovery,PoolId(..)
   ,DealName,lookupIntervalTable,CutoffFields(..),PriceResult(..)
   ,DueInt,DuePremium, DueIoI,DateVector,DealStats(..)
   ,PricingMethod(..),CustomDataType(..),ResultComponent(..),DealStatType(..)
@@ -45,7 +45,7 @@ module Types
   ,DealStatRtn,Queryable(..) 
   ,MyRatio,HowToPay(..),BondPricingMethod(..),InvestorAction(..)
   ,_BondTxn ,_InspectBal, _IrrResult,DueType(..)
-  ,EvalExpr(..),ErrorRep,Accruable(..),Payable(..),Drawable(..)
+  ,EvalExpr(..),ErrorRep
   ,SupportAvailType(..),updateSupportAvailType
   ,JRational)
   where
@@ -893,25 +893,9 @@ getPriceValue x = error  $ "failed to match with type when geting price value" +
 -- getValuation pr =  error $ "not support for pricing result"++ show pr
 
 
-class Liable lb where 
-
-  -- must implement
-  isPaidOff :: lb -> Bool
-  getCurBalance :: lb -> Balance
-  getCurRate :: lb -> IRate
-  getOriginBalance :: lb -> Balance
-  getOriginDate :: lb -> Date
-  getAccrueBegDate :: lb -> Date
-  getDueInt :: lb -> Balance
-  getDueIntAt :: lb -> Int -> Balance
-  getDueIntOverInt :: lb -> Balance
-  getDueIntOverIntAt :: lb -> Int -> Balance
-  getTotalDueInt :: lb -> Balance
-  getTotalDueIntAt :: lb -> Int -> Balance
-  getOutstandingAmount :: lb -> Balance
 
 
-data DueType = DueInterest (Maybe Int) -- ^ interest due
+data DueType = DueInterest (Maybe Int)    -- ^ interest due
               | DuePrincipal              -- ^ principal due
               | DueFee                    -- ^ fee due
               | DueResidual               -- ^ residual 
@@ -919,35 +903,6 @@ data DueType = DueInterest (Maybe Int) -- ^ interest due
               | DueTotalOf [DueType]      -- ^ a combination of above with sequence
               deriving (Show, Eq, Generic)
 
-
-class Accruable ac where 
-  bookAccrual :: Date -> Balance -> ac -> ac
-  getAccrualDates :: Date -> ac -> [Date]
-  accrueTo :: Date -> ac -> ac
-  -- accrueWithDeal :: Date -> deal -> ac -> ac
-
-class Payable pa where
-  pay :: Date -> DueType -> Balance -> pa -> Either ErrorRep pa
-  getDueBal :: Date -> Maybe DueType -> pa -> Balance
-  writeOff :: Date -> DueType -> Amount -> pa -> Either ErrorRep pa
-
-class RateResettable rs where
-  getResetDates :: Date -> rs -> [Dates]
-  reset :: Date -> rs -> rs
-
-class Drawable dr where
-  draw :: Date -> Balance -> TxnComment -> dr -> Either ErrorRep dr
-  availForDraw :: Date -> dr -> SupportAvailType
-
-  -- buildAccrualAction :: ac -> Date -> Date -> [ActionOnDate]
-
--- class Resettable rs where 
---   reset :: Date -> rs -> rs
---   buildResetAction :: rs -> Date -> Date -> [Txn]
-
-class Collectable cl where 
-  collect :: Date -> cl -> Either ErrorRep cl
-  availForCollect :: Date -> cl -> Either ErrorRep Balance
 
 
 

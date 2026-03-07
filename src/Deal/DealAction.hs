@@ -40,6 +40,7 @@ import DateUtil
 import Types
 import Revolving
 import Triggers
+import Interface
 
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -239,7 +240,6 @@ updateLiqProvider t rc d liq@CE.LiqFacility{CE.liqType = liqType, CE.liqCredit =
                                           Right x -> updateSupportAvailType (min (fromRational x)) curCredit
                     _ -> curCredit
 
--- ^TODO : to be replace from L.accrueInt
 -- Not possible to use L.accrueInt, since the interest may use formula to query on deal's stats
 calcDueInt :: Ast.Asset a => TestDeal a -> RunContext -> Date -> L.Bond -> Either ErrorRep L.Bond
 calcDueInt t rc d b@(L.BondGroup bMap pt) 
@@ -931,8 +931,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} rc
       do
         acc <- lookupM an accMap
         bndsList <- lookupVs bnds bndMap
-        let dueAmts = qFn <$> bndsList
-        let totalDue = sum dueAmts
+        let totalDue = sum $ qFn <$> bndsList 
         (paidOutAmt,accPaidOut,supportPaidOut) <- calcAvailAfterLimit t rc d acc mSupport totalDue mLimit
         (bondsPaid,_) <- payProM d paidOutAmt qFn (pay d q) bndsList
         newAccMap <- adjustM (A.draw d accPaidOut (PayInt bnds)) an accMap
@@ -950,8 +949,7 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} rc
       do
         acc <- lookupM an accMap
         bndsList <- lookupVs bnds bndMap
-        let dueAmts = qFn <$> bndsList
-        let totalDue = sum dueAmts
+        let totalDue = sum $ qFn <$> bndsList
         (paidOutAmt,accPaidOut,supportPaidOut) <- calcAvailAfterLimit t rc d acc mSupport totalDue mLimit
         (bondsPaid,_) <- payProM d paidOutAmt qFn (pay d q) bndsList
         newAccMap <- adjustM (A.draw d accPaidOut (PayInt bnds)) an accMap    
@@ -1138,8 +1136,8 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} rc (W.PayPrinWithDue an
         acc <- lookupM an accMap
         let actualPaidOut = min (A.accBalance acc) $ sum bndsDueAmts
         (bndsPaid, remainAmt) <- payProM d actualPaidOut L.bndDuePrin (pay d DuePrincipal) bndsToPay
+        accMapAfterPay <- adjustM (A.draw d actualPaidOut (PayPrin bnds)) an accMap
         let bndMapUpdated = (Map.fromList $ zip bndsToPayNames bndsPaid) <> bndMap
-    	accMapAfterPay <- adjustM (A.draw d actualPaidOut (PayPrin bnds)) an accMap
         return $ t {accounts = accMapAfterPay, bonds = bndMapUpdated}
 
 
@@ -1248,8 +1246,12 @@ performAction d t@TestDeal{fees=feeMap} rc (W.CalcFee fns)
 -- TODO wont' persert the bond shape for a bond group
 performAction d t@TestDeal{bonds=bndMap} rc (W.CalcBondInt bns) 
   = do 
-      newBondMap <- mapM (calcDueInt t rc d) $ getBondsByName t (Just bns)
+      -- newBondMap <- mapM (calcDueInt t rc d) $ getBondsByName t (Just bns)
+      -- return t {bonds = newBondMap <> bndMap}
+      newBondMap <- traverseBondMap bns (calcDueInt t rc d) bndMap
       return t {bonds = newBondMap <> bndMap}
+
+
 
 -- ^ set due prin mannually
 performAction d t@TestDeal{bonds=bndMap} rc (W.CalcBondPrin2 mLimit bnds) 
