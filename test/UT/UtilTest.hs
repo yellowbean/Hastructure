@@ -16,6 +16,7 @@ import Util
 import DateUtil
 import Lib
 import Types
+import Interface
 import Stmt
 import Data.Fixed
 import qualified Data.DList as DL

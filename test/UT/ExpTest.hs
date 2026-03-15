@@ -14,6 +14,7 @@ import qualified Deal.DealAction as DA
 import qualified UT.DealTest as DT
 import Expense
 import Types
+import Interface
 import Deal.DealBase
 import qualified Cashflow as CF
 
