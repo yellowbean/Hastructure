@@ -902,7 +902,9 @@ queryDealBool t@TestDeal{triggers= trgs,bonds = bndMap,fees= feeMap
                       Nothing -> Left $ "Date:"++show d++"Failed to query bool deal stat of -> "++ show s
 
 
-
+    ConstTrue -> return True
+    ConstFalse -> return False
+    
     TestNot ds -> do not <$> (queryDealBool t rc ds d)
     TestAny b dss -> anyM (\ x -> (== b) <$> queryDealBool t rc x d ) dss
     TestAll b dss -> allM (\ x -> (== b) <$> queryDealBool t rc x d ) dss

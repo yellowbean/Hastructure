@@ -730,6 +730,8 @@ data DealStats = CurrentBondBalance
                 | IsAnyOutstanding [BondName]
                 | HasPassedMaturity [BondName]
                 | TriggersStatus DealCycle String
+                | ConstTrue
+                | ConstFalse
                 | DealStatBool DealStatFields
                 -- rate type
                 | PoolWaRate (Maybe PoolId)
@@ -1195,6 +1197,8 @@ getDealStatType TestRate {} = RtnBool
 getDealStatType (TestAny _ _) = RtnBool
 getDealStatType (TestAll _ _) = RtnBool
 getDealStatType (DealStatBool _) = RtnBool
+getDealStatType (ConstTrue) = RtnBool
+getDealStatType (ConstFalse) = RtnBool
 
 getDealStatType (Max dss) = getDealStatType (head dss)
 getDealStatType (Min dss) = getDealStatType (head dss)
