@@ -2,7 +2,14 @@
 
 <!-- towncrier release notes start -->
 
+## 0.52.4
+### 2026-03-16
+* NEW: add `ConstTrue` / `ConstFalse` for bool type formula
+
+
+
 ## 0.52.3
+### 2026-03-05
 * NEW: add `IrrOfBond` as a formula, which return the irr of the bond
 * NEW: add `IsAnyOutstanding` as formula: return `True` if any of the bond is outstanding
 * NEW: add `PoolAccruedInterest` as a formula: return the accural amount of the pool

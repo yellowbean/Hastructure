@@ -8258,6 +8258,36 @@
                     },
                     {
                         "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ConstTrue"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ConstTrue",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ConstFalse"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ConstFalse",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "contents": {
                                 "$ref": "#/components/schemas/DealStatFields"
                             },
