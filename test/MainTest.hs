@@ -19,7 +19,7 @@ import qualified UT.AnalyticsTest as AnalyticsT
 import qualified UT.InterestRateTest as IRT
 import qualified UT.RateHedgeTest as RHT
 import qualified UT.CeTest as CET
-
+import qualified UT.PoolTest as PT
 
 import qualified DealTest.DealTest as DealTest
 import qualified DealTest.RevolvingTest as RevolvingTest
@@ -117,4 +117,5 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,DealMultiTest.mPoolbaseTests
                            ,RHT.capRateTests
                            ,CET.liqTest
+                           ,PT.poolTest
                            ]
