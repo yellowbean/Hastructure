@@ -1,11 +1,15 @@
 # Changelog for Hastructure
 
 <!-- towncrier release notes start -->
+## 0.52.5
+### 2026-08-23
+
+* FIX: 
+  * Fixed ARM / adjustable-rate mortgage cashflow calculation by replacing the previous “not implemented” path with projCashflow.
 
 ## 0.52.4
 ### 2026-03-16
 * NEW: add `ConstTrue` / `ConstFalse` for bool type formula
-
 
 
 ## 0.52.3
