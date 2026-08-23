@@ -26,6 +26,7 @@ import Types
 import Util
 import Stmt
 import DateUtil
+import Interface
 
 import qualified Assumptions as A
 import qualified InterestRate as IR

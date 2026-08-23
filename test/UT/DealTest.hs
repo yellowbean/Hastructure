@@ -297,10 +297,11 @@ poolFlowTest =
 queryTests =  testGroup "deal stat query Tests"
   [
     let
-     currentDefBal = queryCompound td2 epocDate CurrentPoolDefaultedBalance
+      ctx = D.RunContext {}
+      currentDefBal = queryCompound td2 ctx epocDate CurrentPoolDefaultedBalance
     in
-     testCase "query current assets in defaulted status" $
-     assertEqual "should be 200" (Right 200) currentDefBal
+      testCase "query current assets in defaulted status" $
+      assertEqual "should be 200" (Right 200) currentDefBal
   ]
 
 triggerTests = testGroup "Trigger Tests"
@@ -316,6 +317,7 @@ triggerTests = testGroup "Trigger Tests"
                      ]
 		   ,Nothing)
       poolflowM = Map.fromList [(PoolConsol, poolflows)]
+      ctx = D.RunContext poolflowM Nothing Nothing
       ads = [PoolCollection (toDate "20220201") "" 
              ,RunWaterfall  (toDate "20220225") ""
              ,PoolCollection (toDate "20220301")""
@@ -328,7 +330,7 @@ triggerTests = testGroup "Trigger Tests"
              ,RunWaterfall  (toDate "20220625") ""
              ,PoolCollection (toDate "20220701")""
              ,RunWaterfall  (toDate "20220725") ""  ]
-      (fdeal,_,_) = case run td2 poolflowM (Just ads) Nothing Nothing Nothing DL.empty of 
+      (fdeal,_,_) = case run td2 ctx (Just ads) Nothing DL.empty of 
                     Left _ -> error ""
                     Right x -> x
     in 

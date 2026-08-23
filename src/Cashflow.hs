@@ -27,15 +27,15 @@ module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,splitCashFlowFrameByDate, mergePoolCf2, buildBegBal, extendCashFlow, patchBalance
                 ,splitPoolCashflowByDate
                 ,getAllDatesCashFlowFrame,splitCf, cutoffCashflow
-                ,AssetCashflow,PoolCashflow
-                ,emptyCashflow,isEmptyRow2,appendMCashFlow
+                ,AssetCashflow,PoolCashflow,calcAccrueIntByNextTxn
+                ,emptyCashflow,isEmptyRow2,appendMCashFlow,getIntFlow
                 ) where
 
 import Data.Time (Day)
 import Data.Fixed
 import Lib (weightedBy,toDate,getIntervalFactors,daysBetween,paySeqLiabilitiesAmt)
 import Util (mulBR,mulBInt,mulIR,lastOf)
-import DateUtil ( splitByDate )
+import DateUtil ( splitByDate ,yearCountFraction )
 import Types
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -60,7 +60,7 @@ import qualified Text.Tabular as TT
 import qualified Text.Tabular.AsciiArt as A
 import Control.Lens hiding (element)
 import Control.Lens.TH
-
+import Control.Monad 
 debug = flip trace
 
 type Delinquent = Balance
@@ -83,6 +83,8 @@ instance Monoid CashFlowFrame where
 instance Semigroup CashFlowFrame where
   CashFlowFrame (begBal1, begDate1, mAccInt1) ts1 <> CashFlowFrame (begBal2, begDate2, mAccInt2) ts2 
     = CashFlowFrame (begBal1,begDate1,mAccInt1) (ts1 <> ts2)
+
+
 
 opStats :: (Balance -> Balance -> Balance) -> Maybe CumulativeStat -> Maybe CumulativeStat -> Maybe CumulativeStat
 opStats op (Just (a1,b1,c1,d1,e1,f1)) (Just (a2,b2,c3,d2,e2,f2)) = Just (op a1 a2,op b1 b2,op c1 c3,op d1 d2,op e1 e2,op f1 f2)
@@ -110,18 +112,18 @@ type NewDepreciation = Balance
 type AccuredFee = Balance
 type FeePaid = Balance
 
-startOfTime = T.fromGregorian 1900 1 1
 
 data TsRow = CashFlow Date Amount
-           | BondFlow Date Balance Principal Interest
-           | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
-           | MortgageDelinqFlow Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
-           | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe CumulativeStat)
-           | LeaseFlow Date Balance Rental Default
-           | FixedFlow Date Balance NewDepreciation Depreciation Balance Balance -- unit cash 
-           | ReceivableFlow Date Balance AccuredFee Principal FeePaid Default Recovery Loss (Maybe CumulativeStat) 
-	   -- | MixedCashflow Date Balance Principal Interest Prepayment 
-           deriving(Show,Eq,Ord,Generic,NFData)
+            | BondFlow Date Balance Principal Interest
+            | MortgageFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
+            | MortgageDelinqFlow Date Balance Principal Interest Prepayment Delinquent Default Recovery Loss IRate (Maybe BorrowerNum) (Maybe PrepaymentPenalty) (Maybe CumulativeStat)
+            | LoanFlow Date Balance Principal Interest Prepayment Default Recovery Loss IRate (Maybe CumulativeStat)
+            | LeaseFlow Date Balance Rental Default
+            | FixedFlow Date Balance NewDepreciation Depreciation Balance Balance -- unit cash 
+            | ReceivableFlow Date Balance AccuredFee Principal FeePaid Default Recovery Loss (Maybe CumulativeStat) 
+            deriving(Show,Eq,Ord,Generic,NFData)
+
+
 
 instance Semigroup TsRow where 
   CashFlow d1 a1 <> (CashFlow d2 a2) = CashFlow (max d1 d2) (a1 + a2)
@@ -157,17 +159,17 @@ scaleTsRow r (CashFlow d a) = CashFlow d (fromRational r * a)
 scaleTsRow r (BondFlow d b p i) = BondFlow d (fromRational r * b) (fromRational r * p) (fromRational r * i)
 scaleTsRow r (MortgageFlow d b p i prep def rec los rat mbn pp st) 
   = MortgageFlow d 
-     (fromRational r * b) 
-     (fromRational r * p) 
-     (fromRational r * i) 
-     (fromRational r * prep) 
-     (fromRational r * def) 
-     (fromRational r * rec) 
-     (fromRational r * los) 
-     rat 
-     mbn 
-     pp 
-     (splitStats r <$> st)
+      (fromRational r * b) 
+      (fromRational r * p) 
+      (fromRational r * i) 
+      (fromRational r * prep) 
+      (fromRational r * def) 
+      (fromRational r * rec) 
+      (fromRational r * los) 
+      rat 
+      mbn 
+      pp 
+      (splitStats r <$> st)
 scaleTsRow r (MortgageDelinqFlow d b p i prep delinq def rec los rat mbn pp st) 
   = MortgageDelinqFlow d 
       (fromRational r * b)
@@ -195,8 +197,8 @@ type BeginDate = Date
 type BeginStatus = (BeginBalance, BeginDate, AccuredInterest)
 
 data CashFlowFrame = CashFlowFrame BeginStatus [TsRow]
-                   | DummyCF
-                   deriving (Eq,Generic,Ord)
+                  | DummyCF
+                  deriving (Eq,Generic,Ord)
 
 cfBeginStatus :: Lens' CashFlowFrame BeginStatus
 cfBeginStatus = lens getter setter
@@ -263,13 +265,33 @@ cfInsertHead :: TsRow -> CashFlowFrame -> CashFlowFrame
 cfInsertHead tr (CashFlowFrame st trs) = CashFlowFrame st $ tr:trs
 
 
+calcAccrueIntByNextTxn :: DayCount -> Date -> TsRow -> Balance 
+calcAccrueIntByNextTxn dc sd tr@(MortgageFlow d bal _ int _ _ _ _ r _ _ _) = int - mulBR (mflowBegBalance tr) (yearCountFraction dc sd d * (toRational r)) -- `debug` ("calcAccrueIntByNextTxn: "++ show (int,mflowBegBalance tr ,sd,d,yearCountFraction dc sd d,r))
+calcAccrueIntByNextTxn dc sd tr@(LoanFlow d bal _ int _ _ _ _ r _) = int - mulBR (mflowBegBalance tr) (yearCountFraction dc sd d * (toRational r))
+calcAccrueIntByNextTxn dc sd tr@(MortgageDelinqFlow d bal _ int _ _ _ _ _ r _ _ _) = int - mulBR (mflowBegBalance tr) (yearCountFraction dc sd d * (toRational r))
+calcAccrueIntByNextTxn _ _ _ = 0
+
+-- getIntFlow
+
+-- ^ split cashflow by date, update the status of right cashflow frame
 splitCashFlowFrameByDate :: CashFlowFrame -> Date -> SplitType  -> (CashFlowFrame,CashFlowFrame)
-splitCashFlowFrameByDate (CashFlowFrame status txns) d st
+splitCashFlowFrameByDate (CashFlowFrame status@(begBal, begDate, begInt) txns) d st
   = let 
       (ls,rs) = splitByDate txns d st
+      dc = DC_ACT_365F
+      mAccruedInt = case (ls , rs) of 
+                    ([], []) -> Nothing
+                    ([], r:_) -> 
+                      if d <= begDate then 
+                        begInt
+                      else
+                        Just (calcAccrueIntByNextTxn dc d r)
+                    (previosRs, []) -> Nothing
+                    (previousRs, r:futureRs) -> Just (calcAccrueIntByNextTxn dc d r)
+
       newStatus = case rs of 
-                    [] -> (0, d, Nothing)
-                    (r:_) -> (buildBegBal rs, d, Nothing)
+                    [] -> (0, d, mAccruedInt)
+                    (r:_) -> (buildBegBal rs, d, mAccruedInt)
     in 
       (CashFlowFrame status ls,CashFlowFrame newStatus rs)
 
@@ -606,6 +628,28 @@ mflowInterest (MortgageFlow _ _ _ x _ _ _ _ _ _ _ _) = x
 mflowInterest (LoanFlow _ _ _ x _ _ _ _ _ _) = x
 mflowInterest x  = error $ "not supported: getting interest from row" ++ show x
 
+
+viewTsRow :: Date -> TsRow -> TsRow 
+-- ^ take a snapshot of a record from record balance/stats and a new date
+viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 j k l m
+viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 i j k l
+viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
+viewTsRow _d (LeaseFlow a b c d) = LeaseFlow _d b 0 0
+viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
+viewTsRow _d (BondFlow a b c d) = BondFlow _d b 0 0
+viewTsRow _d (ReceivableFlow a b c d e f g h i) = ReceivableFlow _d b 0 0 0 0 0 0 i
+
+mflowBegBalance :: TsRow -> Balance
+mflowBegBalance (BondFlow _ x p _) = x + p
+mflowBegBalance (MortgageDelinqFlow _ x p _ ppy delinq def _ _ _ _ _ _) = x + p + ppy + delinq
+mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _ _ _ _) = x + p + ppy + def
+mflowBegBalance (LoanFlow _ x p _ ppy def _ _ _ _) = x + p + ppy + def
+mflowBegBalance (LeaseFlow _ b r def ) = b + r + def 
+mflowBegBalance (FixedFlow a b c d e f ) = b + c
+mflowBegBalance (ReceivableFlow _ x _ b f def _ _ _) = x + b + def + f
+
+
+
 mflowPrepayment :: TsRow -> Balance
 mflowPrepayment (MortgageFlow _ _ _ _ x _ _ _ _ _ _ _) = x
 mflowPrepayment (MortgageDelinqFlow _ _ _ _ x _ _ _ _ _ _ _ _) = x
@@ -649,14 +693,6 @@ tsRowBalance = lens getter setter
     setter (ReceivableFlow a _ b c d e f g h) x = ReceivableFlow a x b c d e f g h
 
 
-mflowBegBalance :: TsRow -> Balance
-mflowBegBalance (BondFlow _ x p _) = x + p
-mflowBegBalance (MortgageDelinqFlow _ x p _ ppy delinq def _ _ _ _ _ _) = x + p + ppy + delinq
-mflowBegBalance (MortgageFlow _ x p _ ppy def _ _ _ _ _ _) = x + p + ppy + def
-mflowBegBalance (LoanFlow _ x p _ ppy def _ _ _ _) = x + p + ppy + def
-mflowBegBalance (LeaseFlow _ b r def ) = b + r + def 
-mflowBegBalance (FixedFlow a b c d e f ) = b + c
-mflowBegBalance (ReceivableFlow _ x _ b f def _ _ _) = x + b + def + f
 
 mflowLoss :: TsRow -> Balance
 mflowLoss (MortgageFlow _ _ _ _ _ _ _ x _ _ _ _) = x
@@ -714,10 +750,10 @@ mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
 mflowWeightAverageBalance sd ed trs
   = sum $ zipWith mulBR _bals _dfs  -- `debug` ("CalcingAvgBal=>"++show sd++show ed++show txns  )
     where
-     txns = filter (\x -> (view tsDate x >=sd)&& (view tsDate x)<=ed) trs
-     _ds = view tsDate <$> txns -- `debug` ("fee base txns"++show txns)
-     _bals = map mflowBegBalance txns
-     _dfs =  getIntervalFactors $ sd:_ds
+      txns = filter (\x -> (view tsDate x >=sd)&& (view tsDate x)<=ed) trs
+      _ds = view tsDate <$> txns -- `debug` ("fee base txns"++show txns)
+      _bals = map mflowBegBalance txns
+      _dfs =  getIntervalFactors $ sd:_ds
 
 emptyTsRow :: Date -> TsRow -> TsRow 
 -- ^ reset all cashflow fields to zero and init with a date
@@ -730,24 +766,13 @@ emptyTsRow _d (BondFlow a x c d) = BondFlow _d 0 0 0
 emptyTsRow _d (ReceivableFlow a x c d e f g h i) = ReceivableFlow _d 0 0 0 0 0 0 0 Nothing
 
 extendCashFlow :: Date -> CashFlowFrame -> CashFlowFrame
-extendCashFlow d (CashFlowFrame st []) = CashFlowFrame st []
-extendCashFlow d (CashFlowFrame st txns) 
-    = let 
-        lastRow = last txns
-        newTxn = emptyTsRow d lastRow
-      in 
-        CashFlowFrame st (txns++[newTxn])
+extendCashFlow d (CashFlowFrame st txns)
+  = case unsnoc txns of
+      Nothing -> CashFlowFrame st []
+      Just (initTxns, lastRow) ->
+        let newTxn = emptyTsRow d lastRow
+        in CashFlowFrame st (txns ++ [newTxn])
 
-
-viewTsRow :: Date -> TsRow -> TsRow 
--- ^ take a snapshot of a record from record balance/stats and a new date
-viewTsRow _d (MortgageDelinqFlow a b c d e f g h i j k l m) = MortgageDelinqFlow _d b 0 0 0 0 0 0 0 j k l m
-viewTsRow _d (MortgageFlow a b c d e f g h i j k l) = MortgageFlow _d b 0 0 0 0 0 0 i j k l
-viewTsRow _d (LoanFlow a b c d e f g i j k) = LoanFlow _d b 0 0 0 0 0 0 j k
-viewTsRow _d (LeaseFlow a b c d) = LeaseFlow _d b 0 0
-viewTsRow _d (FixedFlow a b c d e f ) = FixedFlow _d b 0 0 0 0
-viewTsRow _d (BondFlow a b c d) = BondFlow _d b 0 0
-viewTsRow _d (ReceivableFlow a b c d e f g h i) = ReceivableFlow _d b 0 0 0 0 0 0 i
 
 -- ^ given a cashflow,build a new cf row with begin balance
 buildBegTsRow :: Date -> TsRow -> TsRow
@@ -1181,6 +1206,13 @@ txnCumulativeStats = lens getter setter
     setter (ReceivableFlow d bal p i ppy def recovery loss _) mStat
       = ReceivableFlow d bal p i ppy def recovery loss mStat
     setter x _ = x
+
+getIntFlow :: TsRow -> Maybe Balance
+getIntFlow (MortgageDelinqFlow _ _ _ i _ _ _ _ _ _ _ _ _) = Just i
+getIntFlow (MortgageFlow _ _ _ i _ _ _ _ _ _ _ _) = Just i
+getIntFlow (LoanFlow _ _ _ i _ _ _ _ _ _) = Just i
+getIntFlow _ = Nothing
+
 
 $(deriveJSON defaultOptions ''TsRow)
 $(deriveJSON defaultOptions ''CashFlowFrame)

@@ -2035,6 +2035,38 @@
                         ],
                         "title": "AccrueDeal",
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/ExtraSupport"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "WithPay"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "WithPay",
+                        "type": "object"
                     }
                 ]
             },
@@ -5794,6 +5826,28 @@
                     },
                     {
                         "properties": {
+                            "contents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/PoolId"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "PoolAccruedInterest"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "PoolAccruedInterest",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
                             "tag": {
                                 "enum": [
                                     "OriginalBondBalance"
@@ -6413,6 +6467,38 @@
                             "contents"
                         ],
                         "title": "PoolScheduleCfPv",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": [
+                                    {
+                                        "$ref": "#/components/schemas/Day"
+                                    },
+                                    {
+                                        "items": {
+                                            "$ref": "#/components/schemas/PoolId"
+                                        },
+                                        "type": "array"
+                                    }
+                                ],
+                                "maxItems": 2,
+                                "minItems": 2,
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "FuturePoolAccruedInterest"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "FuturePoolAccruedInterest",
                         "type": "object"
                     },
                     {
@@ -8107,6 +8193,28 @@
                             },
                             "tag": {
                                 "enum": [
+                                    "IsAnyOutstanding"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IsAnyOutstanding",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "tag": {
+                                "enum": [
                                     "HasPassedMaturity"
                                 ],
                                 "type": "string"
@@ -8146,6 +8254,36 @@
                             "contents"
                         ],
                         "title": "TriggersStatus",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ConstTrue"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ConstTrue",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "tag": {
+                                "enum": [
+                                    "ConstFalse"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag"
+                        ],
+                        "title": "ConstFalse",
                         "type": "object"
                     },
                     {
@@ -8429,6 +8567,25 @@
                             "contents"
                         ],
                         "title": "DealStatRate",
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "contents": {
+                                "type": "string"
+                            },
+                            "tag": {
+                                "enum": [
+                                    "IrrOfBond"
+                                ],
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tag",
+                            "contents"
+                        ],
+                        "title": "IrrOfBond",
                         "type": "object"
                     },
                     {
@@ -11031,8 +11188,18 @@
             "Ledger": {
                 "properties": {
                     "ledgBalance": {
-                        "multipleOf": 1.0e-2,
-                        "type": "number"
+                        "items": [
+                            {
+                                "$ref": "#/components/schemas/BookDirection"
+                            },
+                            {
+                                "multipleOf": 1.0e-2,
+                                "type": "number"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
                     },
                     "ledgName": {
                         "type": "string"
@@ -20301,12 +20468,32 @@
                                         "$ref": "#/components/schemas/Day"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
                                     },
                                     {
-                                        "multipleOf": 1.0e-2,
-                                        "type": "number"
+                                        "items": [
+                                            {
+                                                "$ref": "#/components/schemas/BookDirection"
+                                            },
+                                            {
+                                                "multipleOf": 1.0e-2,
+                                                "type": "number"
+                                            }
+                                        ],
+                                        "maxItems": 2,
+                                        "minItems": 2,
+                                        "type": "array"
                                     },
                                     {
                                         "$ref": "#/components/schemas/TxnComment"
@@ -21282,7 +21469,7 @@
             "name": "BSD 3"
         },
         "title": "Hastructure API",
-        "version": "0.52.0"
+        "version": "0.52.4"
     },
     "openapi": "3.0.0",
     "paths": {

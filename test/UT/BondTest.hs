@@ -19,6 +19,7 @@ import Data.Either
 import Util
 import Types
 import Data.Ratio
+import Interface
 
 import Debug.Trace
 debug = flip trace

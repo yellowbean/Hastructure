@@ -31,7 +31,6 @@ import Util
 import qualified Data.Map as Map
 import qualified InterestRate as IR
 import qualified Cashflow as CF
--- import Assumptions (RevolvingAssumption(Dummy4))
 import Control.Lens hiding (element,Index)
 import Control.Lens.TH
 
@@ -54,14 +53,15 @@ data AmortPlan = Level                    -- ^ for mortgage / french system  -> 
 
 -- | calculate period payment (Annuity/Level mortgage)
 calcPmt :: Balance -> IRate -> Int -> Amount
-calcPmt bal rate periods | rate == 0.0 = divideBI bal periods
-                         | otherwise = 
-  let rate' = realToFrac rate :: Double
-      logBase = log (1 + rate')
-      num = exp (logBase * fromIntegral periods)
-      den = num - 1
-      r1 = num / den
-  in mulBR (realToFrac bal) (toRational (rate' * r1))
+calcPmt bal rate periods 
+  | rate == 0.0 = divideBI bal periods
+  | otherwise = 
+    let rate' = realToFrac rate :: Double
+        logBase = log (1 + rate')
+        num = exp (logBase * fromIntegral periods)
+        den = num - 1
+        r1 = num / den
+    in mulBR (realToFrac bal) (toRational (rate' * r1))
 
 type InterestAmount = Balance
 type PrincipalAmount = Balance
@@ -199,6 +199,11 @@ data Mortgage = Mortgage OriginalInfo Balance IRate RemainTerms (Maybe BorrowerN
               | AdjustRateMortgage OriginalInfo IR.ARM Balance IRate RemainTerms (Maybe BorrowerNum) Status
               | ScheduleMortgageFlow Date [CF.TsRow] DatePattern
               deriving (Show,Generic,Eq,Ord)
+
+data StudentLoan = StudentLoan OriginalInfo Balance IRate RemainTerms Status
+                 | DUMMY3
+                 deriving (Show,Generic,Eq,Ord)
+
 
 type FixRatePortion   = (Rate, IRate)
 type FloatRatePortion = (Rate, IRate, Spread, Index)

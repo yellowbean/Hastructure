@@ -7,16 +7,17 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealPool,PoolType(..),getIssuanceStats
-                     ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
-                     ,getIssuanceStatsConsol,getAllCollectedTxnsList
-                     ,getPoolIds,getBondByName, UnderlyingDeal(..),viewDealAllBonds,DateDesp(..),ActionOnDate(..)
-                     ,sortActionOnDate,dealBondGroups
-                     ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
-                     ,increaseBondPaidPeriod,increasePoolCollectedPeriod
-                     ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
-                     ,bondTraversal,findBondByNames,updateBondInMap,traverseBondMap,traverseBondMapByFn
-                     ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
-                     )                      
+                    ,getAllAsset,getAllAssetList,getAllCollectedFrame,getLatestCollectFrame,getAllCollectedTxns
+                    ,getIssuanceStatsConsol,getAllCollectedTxnsList
+                    ,getPoolIds,getBondByName, UnderlyingDeal(..),viewDealAllBonds,DateDesp(..),ActionOnDate(..)
+                    ,sortActionOnDate,dealBondGroups
+                    ,viewDealBondsByNames,poolTypePool,viewBondsInMap,bondGroupsBonds
+                    ,increaseBondPaidPeriod,increasePoolCollectedPeriod
+                    ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
+                    ,bondTraversal,findBondByNames,updateBondInMap,traverseBondMap,traverseBondMapByFn
+                    ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
+                    ,RunContext(..),getNextPoolCfTxn
+                    )                      
   where
 import qualified Accounts as A
 import qualified Ledger as LD
@@ -31,6 +32,7 @@ import qualified Assumptions as AP
 import qualified AssetClass.AssetBase as ACM
 import qualified Call as C
 import qualified InterestRate as IR
+import Interface
 import Stmt
 import Lib
 import Util
@@ -103,7 +105,6 @@ data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account
                   | StepUpBondRate Date String           -- ^ reset bond interest rate per bond's interest rate info
                   | ResetSrtRate Date String 
                   | ResetAccRate Date String 
-                  | AccrueSrt Date String 
                   | MakeWhole Date Spread (Table Float Spread)
                   | IssueBond Date (Maybe Pre) String AccName L.Bond (Maybe DealStats) (Maybe DealStats)
                   | FundBond Date (Maybe Pre) String AccName Amount
@@ -206,6 +207,20 @@ data DateDesp = PreClosingDates CutoffDate ClosingDate (Maybe RevolvingDate) Sta
 type PoolCollectionActions = [ActionOnDate]
 type BondDistributionActions = [ActionOnDate]
 type CustomActions = [ActionOnDate]
+
+data RunContext = RunContext{
+                  runPoolFlow:: Map.Map PoolId CF.PoolCashflow
+                  ,revolvingAssump:: Maybe (Map.Map String (RevolvingPool ,AP.ApplyAssumptionType))
+                  ,revolvingInterestRateAssump:: Maybe [RateAssumption]
+                  }
+                  deriving (Show)
+
+getNextPoolCfTxn :: Map.Map PoolId CF.PoolCashflow ->  Map.Map PoolId (Maybe CF.TsRow)
+getNextPoolCfTxn poolCfMap = Map.map (\case
+                                          ((CF.CashFlowFrame (_,_,_) []),_) -> Nothing --TODO it looks can be deleted
+                                          ((CF.CashFlowFrame (_,_,_) txns),_) -> fst <$> Data.List.uncons txns
+                                          )
+                                        poolCfMap
 
 populateDealDates :: DateDesp -> DealStatus -> Either ErrorRep (Date,Date,Date,PoolCollectionActions,BondDistributionActions,Date,CustomActions)
 populateDealDates (PreClosingDates cutoff closing mRevolving end (firstCollect,poolDp) (firstPay,bondDp)) _
@@ -366,30 +381,30 @@ instance SPV (TestDeal a) where
 
   getFeeByName t fns
     = case fns of
-         Nothing -> fees t
-         Just _fns -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _fns)) (fees t)
+        Nothing -> fees t
+        Just _fns -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _fns)) (fees t)
   
   getAccountByName t ans
     = case ans of
-         Nothing -> accounts t
-         Just _ans -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _ans)) (accounts t)
+        Nothing -> accounts t
+        Just _ans -> Map.filterWithKey (\k _ ->  S.member k (S.fromList _ans)) (accounts t)
   
   isResec t = case pool t of
-                 ResecDeal _ -> True
-                 _ -> False
+                ResecDeal _ -> True
+                _ -> False
 
   getOustandingBal t@TestDeal{ bonds = bndMap, fees= feeMap, liqProvider = mliqMap, rateSwap = rsMap}
-   = let 
-      bndBal = sum $ getOutstandingAmount <$> Map.elems bndMap
-      feeBal = sum $ getOutstandingAmount <$> Map.elems feeMap
-      lqBalace m
-        | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
-        | otherwise = 0
-      rsBalance m
-        | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
-        | otherwise = 0
-     in 
-      bndBal + feeBal + lqBalace (fromMaybe Map.empty mliqMap) + rsBalance (fromMaybe Map.empty rsMap)
+    = let 
+        bndBal = sum $ getOutstandingAmount <$> Map.elems bndMap
+        feeBal = sum $ getOutstandingAmount <$> Map.elems feeMap
+        lqBalace m
+          | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
+          | otherwise = 0
+        rsBalance m
+          | not (Map.null m) = sum $ getOutstandingAmount <$> Map.elems m
+          | otherwise = 0
+      in 
+        bndBal + feeBal + lqBalace (fromMaybe Map.empty mliqMap) + rsBalance (fromMaybe Map.empty rsMap)
   
 isPreClosing :: TestDeal a -> Bool
 isPreClosing t@TestDeal{ status = PreClosing _ } = True
@@ -400,12 +415,12 @@ isPreClosing _ = False
 viewDealAllBonds :: TestDeal a -> [L.Bond]
 viewDealAllBonds d = 
     let 
-       bs = Map.elems (bonds d)
-       view a@(L.Bond {} ) = [a]
-       view a@(L.BondGroup bMap _) = Map.elems bMap
-       view a@(L.MultiIntBond {}) = [a]
+      bs = Map.elems (bonds d)
+      view a@(L.Bond {} ) = [a]
+      view a@(L.BondGroup bMap _) = Map.elems bMap
+      view a@(L.MultiIntBond {}) = [a]
     in 
-       concat $ view <$> bs
+      concat $ view <$> bs
 
 -- ^ flatten all bonds/bond groups in a map
 viewBondsInMap :: TestDeal a -> Map.Map String L.Bond
@@ -630,8 +645,8 @@ getAllAsset :: TestDeal a -> Maybe [PoolId] -> Map.Map PoolId [a]
 getAllAsset t@TestDeal{pool = pt} mPns = 
   let 
     assetMap = case pt of 
-                 MultiPool pm -> Map.map P.assets pm
-                 ResecDeal _ -> Map.empty
+                MultiPool pm -> Map.map P.assets pm
+                ResecDeal _ -> Map.empty
                  -- ResecDeal pm -> Map.mapWithKey (\(UnderlyingBond (bn,hpct,sd), d) -> getAllAsset d Nothing) pm
   in
     case mPns of 
@@ -655,7 +670,7 @@ getAllCollectedFrame t@TestDeal{pool = poolType} mPid =
 getLatestCollectFrame :: Ast.Asset a => TestDeal a -> Maybe [PoolId] -> Map.Map PoolId (Maybe CF.TsRow)
 getLatestCollectFrame t mPns = Map.map (\case
                                           (CF.CashFlowFrame (_,_,_) []) -> Nothing
-                                          (CF.CashFlowFrame (_,_,_) txns) -> Just $ last txns
+                                          (CF.CashFlowFrame (_,_,_) txns) -> snd <$> Data.List.unsnoc txns
                                           )
                                         (getAllCollectedFrame t mPns)
 

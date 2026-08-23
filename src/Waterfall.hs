@@ -81,7 +81,7 @@ data Action
   | PayFeeResidual (Maybe Limit) AccountName FeeName                             -- ^ pay fee regardless fee due amount
   -- Bond - Interest
   | CalcBondInt [BondName]
-  | CalcBondIntBy BondName DealStats DealStats                   -- ^ calculate interest due amount in the bond names,with optional balance and rate
+  | CalcBondIntBy BondName DealStats DealStats                                   -- ^ calculate interest due amount in the bond names,with optional balance and rate
   | PayIntOverInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)      -- ^ pay interest over interest only  
   | PayInt (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport)             -- ^ pay interest with cash from the account with optional limit or extra support
   | PayIntAndBook (Maybe Limit) AccountName [BondName] (Maybe ExtraSupport) BookLedger -- ^ pay interest with cash from the account with optional limit or extra support
@@ -142,6 +142,8 @@ data Action
   | ChangeStatus (Maybe Pre) DealStatus  -- ^ change deal status
   -- Accrue Deal
   | AccrueDeal [String]
+  -- With Pay Group
+  | WithPay AccountName [ExtraSupport]
   deriving (Show,Generic,Eq,Ord)
 
 type DistributionSeq = [Action]

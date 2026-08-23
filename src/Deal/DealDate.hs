@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Deal.DealDate (DealDates,getClosingDate,getFirstPayDate,getLastPayDate) 
+module Deal.DealDate (DealDates,getClosingDate,getFirstPayDate,getLastPayDate,getCutoffDate) 
   where
 
 import qualified Data.Map as Map
@@ -15,11 +15,13 @@ class DealDates a where
   getClosingDate :: a -> Either String Date
   getFirstPayDate :: a -> Date
   getLastPayDate :: a -> Either String Date
+  getCutoffDate :: a -> Date
 
 instance DealDates DateDesp where 
   getClosingDate (GenericDates m) = case Map.lookup ClosingDate m of 
                                       Just (SingletonDate x) -> Right x
                                       Nothing -> Left $ "ClosingDate not found in GenericDates"++show m
+  
   getClosingDate (PreClosingDates _ x _ _ _ _) = Right x
   getClosingDate (CurrentDates (_,cd) _ _ _ _ ) = Right cd
   -- getClosingDate (AccruedGenericDates m) = getClosingDate (GenericDates m)
@@ -37,5 +39,14 @@ instance DealDates DateDesp where
   getFirstPayDate (GenericDates m) = case Map.lookup FirstPayDate m of
                                         Just (SingletonDate x) -> x
                                         Nothing -> error "FirstPayDate not found in GenericDates"            
+  
+  getCutoffDate (GenericDates m) = case Map.lookup CutoffDate m of
+                                      Just (SingletonDate x) -> x
+                                      Nothing -> error "CutoffDate not found in GenericDates"
+  getCutoffDate (PreClosingDates cutoff _ _ _ _ _ ) = cutoff
+  getCutoffDate (CurrentDates (cutoff,_) _ _ _ _ ) = cutoff
+  -- getCutoffDate (AccruedGenericDates m) = getCutoff
+
+
   -- getFirstPayDate (AccruedGenericDates m) = getFirstPayDate (GenericDates m)
 

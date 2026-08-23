@@ -24,6 +24,7 @@ import qualified Expense as F
 import qualified Asset as P
 import qualified Assumptions as AP
 import qualified InterestRate as IR
+import Interface
 
 import Deal.DealCollection (CollectionRule(..))
 

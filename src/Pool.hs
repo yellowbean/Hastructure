@@ -49,13 +49,13 @@ import Debug.Trace
 debug = flip trace
 
 
-data Pool a = Pool {assets :: [a]                                           -- ^ a list of assets in the pool
-                   ,futureCf :: Maybe CF.PoolCashflow                       -- ^ collected cashflow from the assets in the pool
-                   ,futureScheduleCf :: Maybe CF.PoolCashflow               -- ^ collected un-stressed cashflow
-                   ,asOfDate :: Date                                        -- ^ include cashflow after this date 
-                   ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
-                   ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
-                   } deriving (Show, Generic, Ord, Eq)
+data Pool a = Pool {assets :: [a]                                            -- ^ a list of assets in the pool
+                    ,futureCf :: Maybe CF.PoolCashflow                       -- ^ collected cashflow from the assets in the pool
+                    ,futureScheduleCf :: Maybe CF.PoolCashflow               -- ^ collected un-stressed cashflow
+                    ,asOfDate :: Date                                        -- ^ include cashflow after this date 
+                    ,issuanceStat :: Maybe (Map.Map CutoffFields Balance)    -- ^ cutoff balance of pool
+                    ,extendPeriods :: Maybe DatePattern                      -- ^ dates for extend pool collection
+                  } deriving (Show, Generic, Ord, Eq)
 
 makeLensesFor [("futureCf","futureCfLens"),("futureScheduleCf","futureScheduleCfLens")] ''Pool
 
@@ -81,11 +81,11 @@ poolIssuanceStat = lens getter setter
 
 
 -- | get stats of pool 
-getIssuanceField :: Pool a -> CutoffFields -> Either String Balance
+getIssuanceField :: Pool a -> CutoffFields -> Either ErrorRep Balance
 getIssuanceField p@Pool{issuanceStat = Just m} s
   = case Map.lookup s m of
       Just r -> Right r
-      Nothing -> Left $ "Faile dto find field "++ show s ++ "in pool issuance " ++ show m
+      Nothing -> Left $ "Failed to find field "++ show s ++ "in pool issuance " ++ show m
 getIssuanceField Pool{issuanceStat = Nothing} s 
   = Left $ "There is no pool stats to lookup:" ++ show s
 
@@ -178,9 +178,10 @@ pricingPoolFlow d pool@Pool{ futureCf = Just (mCollectedCf,_), issuanceStat = mS
                       in 
                         fromMaybe 0 (CF.tsCumDefaultBal lastTxn) - fromMaybe 0 (CF.tsCumRecoveriesBal lastTxn) - fromMaybe 0 (CF.tsCumLossBal lastTxn)
 
-      currentPerformingBal = case mStat of
-              Nothing -> 0
-              Just stat -> Map.findWithDefault 0 RuntimeCurrentPoolBalance stat
+      currentPerformingBal = 
+        case mStat of
+          Nothing -> 0
+          Just stat -> Map.findWithDefault 0 RuntimeCurrentPoolBalance stat
 
     in 
       case pm of
@@ -195,9 +196,9 @@ pricingPoolFlow d pool@Pool{ futureCf = Just (mCollectedCf,_), issuanceStat = mS
           in 
             AN.pv21 discountRate d futureDates futureCfCash
 
- -- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
+-- | run a pool of assets ,use asOfDate of Pool to cutoff cashflow yields from assets with assumptions supplied
 runPool :: Asset a => Pool a -> Maybe A.ApplyAssumptionType -> Maybe [RateAssumption] 
-        -> Either String [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]
+        -> Either ErrorRep [(CF.CashFlowFrame, Map.Map CutoffFields Balance)]
 -- use interest rate assumption
 runPool (Pool as _ _ asof _ _) Nothing mRates 
   = do 
@@ -259,15 +260,16 @@ runPool (Pool as _ Nothing asof _ _) (Just (A.ByObligor obligorRules)) mRates =
           let 
             matchRuleFn (A.FieldIn fv fvals) Nothing = False
             matchRuleFn (A.FieldIn fv fvals) (Just fm) = case Map.lookup fv fm of
-                                                    Just (Left v) -> v `elem` fvals
-                                                    Nothing -> False
+                                                            Just (Left v) -> v `elem` fvals
+                                                            Nothing -> False
             matchRuleFn (A.FieldCmp fv cmp dv) (Just fm) = case Map.lookup fv fm of
-                                                        Just (Right v) -> case cmp of 
+                                                              Just (Right v) 
+                                                                -> case cmp of 
                                                                     G -> v > dv
                                                                     L -> v < dv
                                                                     GE -> v >= dv
                                                                     LE -> v <= dv
-                                                        Nothing -> False
+                                                              Nothing -> False
             matchRuleFn (A.FieldInRange fv rt dv1 dv2) (Just fm) = 
               case Map.lookup fv fm of
                 Just (Right v) -> case rt of 

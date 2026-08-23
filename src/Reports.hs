@@ -21,7 +21,7 @@ import qualified Liability as L
 import Control.Applicative (liftA3)
 import Types
 import Deal.DealBase
-    ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap), getIssuanceStatsConsol, getAllCollectedFrame ,poolTypePool, dealPool)
+    ( TestDeal(TestDeal, pool, fees, bonds, accounts,liqProvider,rateSwap), getIssuanceStatsConsol ,poolTypePool, dealPool,RunContext)
 import Deal.DealQuery ( queryCompound )
 import Deal.DealAction ( calcDueFee, calcDueInt )
 import Data.Maybe (fromMaybe)
@@ -37,9 +37,9 @@ import Stmt
       FlowDirection(Outflow, Inflow) )
 
 -- ^ add financial report to the logs
-patchFinancialReports :: P.Asset a => TestDeal a -> Date -> DL.DList ResultComponent -> Either String (DL.DList ResultComponent)
+patchFinancialReports :: P.Asset a => TestDeal a -> RunContext-> Date -> DL.DList ResultComponent -> Either String (DL.DList ResultComponent)
 -- patchFinancialReports t d DL.empty = return (DL.empty)
-patchFinancialReports t d logs 
+patchFinancialReports t rc d logs 
   = case (find pickReportLog (reverse (DL.toList logs))) of 
       Nothing -> Right logs
       Just (FinancialReport sd ed bs cash) 
@@ -47,7 +47,7 @@ patchFinancialReports t d logs
              cashReport = buildCashReport t ed d
            in
              do 
-               bsReport <- buildBalanceSheet t d
+               bsReport <- buildBalanceSheet t rc d
                let newlog = FinancialReport ed d bsReport cashReport
                return (DL.snoc logs newlog)
       where 
@@ -58,12 +58,12 @@ getItemBalance :: BookItem -> Balance
 getItemBalance (Item _ bal) = bal
 getItemBalance (ParentItem _ items) = sum $ getItemBalance <$> items
 
-getPoolBalanceStats :: P.Asset a => TestDeal a -> Date -> Maybe [PoolId] -> Either String [Balance]
-getPoolBalanceStats t d mPid 
+getPoolBalanceStats :: P.Asset a => TestDeal a -> RunContext -> Date -> Maybe [PoolId] -> Either String [Balance]
+getPoolBalanceStats t rc d mPid 
   = let 
-      poolStats = [queryCompound t d (FutureCurrentPoolBalance mPid)
-                  ,(queryCompound t d (PoolCumCollection [NewDefaults] mPid))
-                  ,negate <$> (queryCompound t d (PoolCumCollection [CollectedRecoveries] mPid))]
+      poolStats = [queryCompound t rc d (FutureCurrentPoolBalance mPid)
+                  ,(queryCompound t rc d (PoolCumCollection [NewDefaults] mPid))
+                  ,negate <$> (queryCompound t rc d (PoolCumCollection [CollectedRecoveries] mPid))]
     in 
       do 
         poolStats2::[Rational] <- sequenceA poolStats
@@ -71,8 +71,9 @@ getPoolBalanceStats t d mPid
 
 type PoolBalanceSnapshot = (Balance, Balance, Balance)
 
-buildBalanceSheet :: P.Asset a => TestDeal a -> Date -> Either String BalanceSheetReport
+buildBalanceSheet :: P.Asset a => TestDeal a -> RunContext-> Date -> Either String BalanceSheetReport
 buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqProvider = liqMap, rateSwap = rsMap ,accounts = accMap} 
+                  rc
                   d 
     = let  
         --- accounts
@@ -82,14 +83,14 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
         mapPoolKey PoolConsol = Nothing 
         mapPoolKey (PoolName x) = Just [PoolName x]
         poolAstBalMap_ = Map.mapWithKey 
-                           (\k _ -> getPoolBalanceStats t d (mapPoolKey k)) $
-                           view (dealPool . poolTypePool) t
+                            (\k _ -> getPoolBalanceStats t rc d (mapPoolKey k)) $
+                            view (dealPool . poolTypePool) t
         
         ---- swaps
         swapToCollect = ParentItem "Swap" [ ParentItem rsName [ Item "To Receive" rsNet ] | (rsName,rsNet) <- Map.toList (Map.map (HE.rsNetCash . (HE.accrueIRS d)) (fromMaybe Map.empty rsMap))
                                             , rsNet > 0 ]
         
-       -- liquidity provider 
+        -- liquidity provider 
         liqProviderAccrued = Map.map (CE.accrueLiqProvider d) (fromMaybe Map.empty liqMap)
         liqProviderOs = [ ParentItem liqName [Item "Balance" liqBal,Item "Accrue Int" liqDueInt, Item "Due Fee" liqDueFee ]  | (liqName,[liqBal,liqDueInt,liqDueFee]) <- Map.toList (Map.map (\liq -> [CE.liqBalance,CE.liqDueInt,CE.liqDuePremium]<*> [liq]) liqProviderAccrued)] 
         -- rate swap
@@ -108,10 +109,10 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
           let poolAst = ParentItem "Pool" $ Map.elems poolAstMap
           -- Asset : Account, pool, swap to collect
           let ast = ParentItem "Asset" [ParentItem "Account" accM , poolAst , swapToCollect]
-          feeWithDueAmount <- (F.feeDue <$>) <$>  mapM ((calcDueFee t d)) feeMap
+          feeWithDueAmount <- (F.feeDue <$>) <$>  mapM ((calcDueFee t rc d)) feeMap
           let feeToPay = ParentItem "Fee" [ ParentItem feeName [Item "Due" feeDueBal] 
                                            | (feeName,feeDueBal) <- Map.toList feeWithDueAmount ]
-          bndWithDueAmount <- mapM (calcDueInt t d) bndMap
+          bndWithDueAmount <- mapM (calcDueInt t rc d) bndMap
           let bndToShow = Map.map (\bnd -> (L.getCurBalance bnd, L.getTotalDueInt bnd)) bndWithDueAmount 
           let bndM = [ ParentItem bndName [Item "Balance" bndBal,Item "Due Int" bndDueAmt ] 
                                         | (bndName,(bndBal,bndDueAmt)) <- Map.toList bndToShow]
@@ -126,14 +127,13 @@ buildBalanceSheet t@TestDeal{ pool = pool, bonds = bndMap , fees = feeMap , liqP
 buildCashReport :: P.Asset a => TestDeal a -> Date -> Date -> CashflowReport
 buildCashReport t@TestDeal{accounts = accs} sd ed 
   = CashflowReport { inflow = inflowItems
-                   , outflow = outflowItems
-                   , net = cashChange
-                   , startDate = sd
-                   , endDate = ed }
+                    , outflow = outflowItems
+                    , net = cashChange
+                    , startDate = sd
+                    , endDate = ed }
       where 
         _txns = concat $ Map.elems $ Map.map (DL.toList . getTxns) $ Map.map A.accStmt accs
         txns = sliceBy EI sd ed _txns
-   
         inflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Inflow)  txns
         outflowTxn = sort $ filter (\x -> (getFlow . getTxnComment) x == Outflow) txns
         

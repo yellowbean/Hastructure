@@ -8,7 +8,7 @@
 
 module Asset ( Asset(..),
       buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
-      ,calcRecoveriesFromDefault,getCurBalance
+      ,calcRecoveriesFromDefault
       ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
       ,getObligorTags,getObligorId,getRecoveryLagAndRate,getDefaultDelinqAssump,getOriginInfo
 ) where
@@ -157,11 +157,15 @@ applyExtraStress Nothing _ ppy def = (ppy,def)
 applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
                                   ,A.prepaymentFactors = mPrepayFactor}) ds ppy def =
   case (mPrepayFactor,mDefFactor) of
-    (Nothing,Nothing) -> (ppy,def)
-    (Nothing,Just defFactor) -> (ppy ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
-    (Just ppyFactor,Nothing) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor, def)
-    (Just ppyFactor,Just defFactor) -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor
-                                       ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
+    (Nothing,Nothing) 
+      -> (ppy,def)
+    (Nothing,Just defFactor) 
+      -> (ppy ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
+    (Just ppyFactor,Nothing) 
+      -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor, def)
+    (Just ppyFactor,Just defFactor) 
+      -> (getTsVals $ multiplyTs Exc (zipTs ds ppy) ppyFactor
+          ,getTsVals $ multiplyTs Exc (zipTs ds def) defFactor)
 
 -- ^ convert annual CPR to single month mortality
 cpr2smm :: Rate -> Rate
@@ -183,13 +187,13 @@ buildPrepayRates a ds (Just (A.PrepaymentCPR r))
 buildPrepayRates a ds (Just (A.PrepaymentVec vs))
   | any (> 1.0) vs || any (< 0.0) vs = Left $ "buildPrepayRates: prepayment vector should be between 0 and 1, got " ++ show vs
   | otherwise = return $ zipWith Util.toPeriodRateByInterval
-                                 (paddingDefault 0.0 vs (pred (length ds)))
-                                 (getIntervalDays ds)
+                                (paddingDefault 0.0 vs (pred (length ds)))
+                                (getIntervalDays ds)
 buildPrepayRates a ds (Just (A.PrepaymentVecPadding vs))
   | any (> 1.0) vs || any (< 0.0) vs = Left $ "buildPrepayRates: prepayment vector should be between 0 and 1, got " ++ show vs
   | otherwise = return $ zipWith Util.toPeriodRateByInterval
-                                 (paddingDefault (last vs) vs (pred (length ds)))
-                                 (getIntervalDays ds)
+                                (paddingDefault (last vs) vs (pred (length ds)))
+                                (getIntervalDays ds)
 buildPrepayRates a ds (Just (A.PrepayStressByTs ts x)) 
   | any (< 0.0) (getTsVals ts) = Left $ "buildPrepayRates: prepayment vector by ts should be non-negative, got " ++ show (getTsVals ts)
   | otherwise = do
@@ -229,13 +233,13 @@ buildDefaultRates a ds (Just (A.DefaultCDR r))
 buildDefaultRates a ds (Just (A.DefaultVec vs))
   | any (> 1.0) vs || any (< 0.0) vs = Left $ "buildDefaultRates: default vector should be between 0 and 1, got " ++ show vs
   | otherwise = return $ zipWith Util.toPeriodRateByInterval
-                                 (paddingDefault 0.0 vs (pred (length ds)))
-                                 (getIntervalDays ds)
+                                (paddingDefault 0.0 vs (pred (length ds)))
+                                (getIntervalDays ds)
 buildDefaultRates a ds (Just (A.DefaultVecPadding vs))
   | any (> 1.0) vs || any (< 0.0) vs = Left $ "buildDefaultRates: default vector should be between 0 and 1, got " ++ show vs
   | otherwise = return $ zipWith Util.toPeriodRateByInterval
-                                 (paddingDefault (last vs) vs (pred (length ds)))
-                                 (getIntervalDays ds)
+                                (paddingDefault (last vs) vs (pred (length ds)))
+                                (getIntervalDays ds)
 buildDefaultRates a ds (Just (A.DefaultAtEndByRate r rAtEnd))
   | r > 1.0 || r < 0.0 = Left $ "buildDefaultRates: default at end rate should be between 0 and 1, got " ++ show r
   | rAtEnd > 1.0 || rAtEnd < 0.0 = Left $ "buildDefaultRates: default at end rate should be between 0 and 1, got " ++ show rAtEnd

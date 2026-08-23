@@ -98,33 +98,6 @@ updateSrtRate t d ras srt@HE.SRT{HE.srtPremiumType = rt}
         return srt { HE.srtPremiumRate = r }
 
 
-accrueSrt :: Ast.Asset a => TestDeal a -> Date -> HE.SRT -> Either String HE.SRT
-accrueSrt t d srt@HE.SRT{ HE.srtDuePremium = duePrem, HE.srtRefBalance = bal, HE.srtPremiumRate = rate
-                        , HE.srtDuePremiumDate = mDueDate,  HE.srtType = st
-                        , HE.srtStart = sd } 
-  = do 
-      newBal <- case st of
-                  HE.SrtByEndDay ds dp -> queryCompound t d (patchDateToStats d ds)
-      let newPremium = duePrem +  calcInt (fromRational newBal) (fromMaybe sd mDueDate) d rate DC_ACT_365F
-      let accrueInt = calcInt (HE.srtRefBalance srt + duePrem) (fromMaybe d (HE.srtDuePremiumDate srt)) d (HE.srtPremiumRate srt) DC_ACT_365F
-      return srt { HE.srtRefBalance = fromRational newBal, HE.srtDuePremium = newPremium, HE.srtDuePremiumDate = Just d}
-
-
--- ^ test if a clean up call should be fired
-testCall :: Ast.Asset a => TestDeal a -> Date -> C.CallOption -> Either ErrorRep Bool 
-testCall t d opt = 
-    case opt of 
-       C.PoolBalance x -> (< x) . fromRational <$> queryCompound t d (FutureCurrentPoolBalance Nothing)
-       C.BondBalance x -> (< x) . fromRational <$> queryCompound t d CurrentBondBalance
-       C.PoolFactor x ->  (< x) <$> queryCompound t d (FutureCurrentPoolFactor d Nothing)
-       C.BondFactor x ->  (< x) <$> queryCompound t d BondFactor
-       C.OnDate x -> return $ x == d 
-       C.AfterDate x -> return $ d > x
-       C.And xs -> allM (testCall t d) xs
-       C.Or xs -> anyM (testCall t d) xs
-       C.Pre pre -> testPre d t pre
-       _ -> Left ("failed to find call options"++ show opt)
-
 
 queryTrigger :: Ast.Asset a => TestDeal a -> DealCycle -> [Trigger]
 queryTrigger t@TestDeal{ triggers = trgs } wt 
@@ -264,22 +237,20 @@ priceBonds t@TestDeal {bonds = bndMap} (AP.IrrInput bMapInput)
 
 -- <Legacy Test>, <Test on dates>
 runDeal :: Ast.Asset a => TestDeal a -> S.Set ExpectReturn -> Maybe AP.ApplyAssumptionType-> AP.NonPerfAssumption
-        -> Either String (TestDeal a
-                         , Map.Map PoolId CF.CashFlowFrame
-                         , [ResultComponent]
-                         , Map.Map String PriceResult
-                         , Map.Map PoolId CF.PoolCashflow)
+        -> Either ErrorRep (TestDeal a
+                          , Map.Map PoolId CF.CashFlowFrame
+                          , [ResultComponent]
+                          , Map.Map String PriceResult
+                          , Map.Map PoolId CF.PoolCashflow)
 runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts ,AP.pricing = mPricing ,AP.revolving = mRevolving ,AP.interest = mInterest} 
   | not runFlag = Left $ intercalate ";" $ show <$> valLogs 
   | otherwise 
     = do 
         (newT, ads, pcf, unStressPcf) <- getInits er t perfAssumps (Just nonPerfAssumps)  
         (_finalDeal, logs, osPoolFlow) <- run newT 
-                                              pcf
+                                              (RunContext pcf mRevolvingCtx mInterest)
                                               (Just ads) 
-                                              mInterest
                                               (AP.readCallOptions <$> opts)
-                                              mRevolvingCtx
                                               DL.empty
     -- prepare deal with expected return
         let finalDeal = prepareDeal er _finalDeal
@@ -293,11 +264,11 @@ runDeal t er perfAssumps nonPerfAssumps@AP.NonPerfAssumption{AP.callWhen = opts 
                         (Just p) -> priceBonds finalDeal p 
                         Nothing -> Right Map.empty
         return (finalDeal
-                 , poolFlowUsedNoEmpty
-                 , getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList (DL.append logs (unCollectedPoolFlowWarning poolFlowUnUsed))
-                 , bndPricing
-                 , poolFlowUnUsed
-               )
+                , poolFlowUsedNoEmpty
+                , getRunResult finalDeal ++ V.validateRun finalDeal ++ DL.toList (DL.append logs (unCollectedPoolFlowWarning poolFlowUnUsed))
+                , bndPricing
+                , poolFlowUnUsed
+              )
     where
       (runFlag, valLogs) = V.validateReq t nonPerfAssumps 
       -- getinits() will get (new deal snapshot, actions, pool cashflows, unstressed pool cashflow)
@@ -437,7 +408,7 @@ patchRuntimeBal balMap pt = pt
 
 
 getInits :: Ast.Asset a => S.Set ExpectReturn -> TestDeal a -> Maybe AP.ApplyAssumptionType -> Maybe AP.NonPerfAssumption 
-         -> Either String (TestDeal a,[ActionOnDate], Map.Map PoolId CF.PoolCashflow, Map.Map PoolId CF.PoolCashflow)
+          -> Either String (TestDeal a,[ActionOnDate], Map.Map PoolId CF.PoolCashflow, Map.Map PoolId CF.PoolCashflow)
 getInits er t@TestDeal{accounts = accMap, fees=feeMap,pool=thePool,status=status,bonds=bndMap,stats=_stats,dates=dealDates} mAssumps mNonPerfAssump =
   let 
     expandInspect sd ed (AP.InspectPt dp ds) = [ InspectDS _d [ds] | _d <- genSerialDatesTill2 II sd dp ed ]
