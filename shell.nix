@@ -8,6 +8,8 @@ pkgs.mkShell {
     python313Packages.towncrier
     ghciwatch
     just
+    zlib
+    pkg-config
   ];
   LANG = "en_US.UTF-8";
   LC_ALL = "en_US.UTF-8";

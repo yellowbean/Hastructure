@@ -316,7 +316,12 @@ instance Ast.Asset Mortgage where
   calcCashflow s@(ScheduleMortgageFlow beg_date flows _)  d _ 
     = Right $ CF.CashFlowFrame ( ((view CF.tsRowBalance) . head) flows, beg_date, Nothing ) flows
 
-  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates = Left $ "to be implement on adjust rate mortgage"
+  calcCashflow m@(AdjustRateMortgage _origin _arm  _bal _rate _term _mbn _status) d mRates 
+    = fst <$> (projCashflow m d (MortgageAssump Nothing Nothing Nothing Nothing
+                                 ,A.DummyDelinqAssump
+                                 ,A.DummyDefaultAssump) mRates)
+
+
   
   getCurrentBal (Mortgage _ _bal _ _ _ _) = _bal
   getCurrentBal (AdjustRateMortgage _ _ _bal _ _ _ _) = _bal
