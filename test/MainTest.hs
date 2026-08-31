@@ -74,6 +74,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,LT.tsOperationTests
                            ,ET.expTests
                            ,ET.expPayTest
+                           ,ET.expFlowByPeriodTest
                            ,DT.queryTests
                            ,DT.triggerTests
                            ,DT.dateTests
