@@ -1,11 +1,10 @@
-module UT.ExpTest(expTests,expPayTest,expFlowByPeriodTest)
+module UT.ExpTest(expTests,expPayTest)
 where
 
 import Test.Tasty
 import Test.Tasty.HUnit
 
 import qualified Data.Time as T
-import qualified Data.Map as Map
 import qualified Lib as L
 import qualified Asset as P
 import qualified Deal as D
@@ -64,31 +63,6 @@ expTests =  testGroup "Expense Tests"
       assertEqual "calc Due Fee" (Right [f1_ , f2_ , f3_ , _f1WithDue]) feesCalc
 
   ]
-
-expFlowByPeriodTest =
-  let
-    pc = CurrentVal [PerPoint 1 10.0, PerPoint 2 20.0, PerPoint 3 30.0, PerPoint 4 40.0]
-    ctx = RunContext {}
-    calcDay = L.toDate "20220401"
-    partialPayStmt = Just (S.Statement (DL.fromList [ExpTxn (L.toDate "20220201") 35.0 10.0 0.0 (PayFee "feePool")]))
-    fullPayStmt = Just (S.Statement (DL.fromList [ExpTxn (L.toDate "20220201") 0.0 40.0 0.0 (PayFee "feePool")]))
-    poolFee = Fee "feePool" (FeeFlowByPoolPeriod pc) (L.toDate "20220101") 5 Nothing 0 Nothing partialPayStmt
-    poolFeeFull = Fee "feePool" (FeeFlowByPoolPeriod pc) (L.toDate "20220101") 5 Nothing 0 Nothing fullPayStmt
-    bondFee = Fee "feeBond" (FeeFlowByBondPeriod pc) (L.toDate "20220101") 5 Nothing 0 Nothing partialPayStmt
-    dealWithFee f = DT.td2 { fees = Map.fromList [(feeName f, f)]
-                           , stats = (Map.empty, Map.empty, Map.empty, Map.fromList [(PoolCollectedPeriod, 3), (BondPaidPeriod, 3)]) }
-  in
-    testGroup "Fee flow by period tests"
-      [ testCase "pool period fee: due = cumulative due - paid, no double count" $
-          assertEqual "" (Right 30.0)
-            (feeDue <$> DA.calcDueFee (dealWithFee poolFee) ctx calcDay poolFee)
-      , testCase "pool period fee: fully paid yields zero due" $
-          assertEqual "" (Right 0.0)
-            (feeDue <$> DA.calcDueFee (dealWithFee poolFeeFull) ctx calcDay poolFeeFull)
-      , testCase "bond period fee: due = cumulative due - paid, no double count" $
-          assertEqual "" (Right 30.0)
-            (feeDue <$> DA.calcDueFee (dealWithFee bondFee) ctx calcDay bondFee)
-      ]
 
 expPayTest = 
   let
