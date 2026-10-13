@@ -1,4 +1,4 @@
-module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest,poolFlowTest)
+module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest,poolFlowTest,priceBondsIrrTest)
 
 where
 
@@ -31,6 +31,7 @@ import Control.Lens hiding (Index,Empty)
 import Control.Lens.TH
 import Data.Maybe
 import Data.Either
+import Data.List (isInfixOf)
 
 import qualified Data.Map as Map
 import qualified Data.Time as T
@@ -389,4 +390,21 @@ liqProviderTest =
           assertEqual ""
            (ByAvailAmount 100)
            (CE.liqCredit $ CE.accrueLiqProvider (toDate "20221101") liq1)
+      ]
+
+priceBondsIrrTest = 
+  let 
+    historyCash = [(toDate "20220101", -1000.0),(toDate "20230101", 1100.0)]
+    holding = AP.HoldingBond historyCash 0 Nothing
+  in 
+    testGroup "priceBonds IrrInput Tests"
+      [ testCase "unknown bond name returns Left instead of crashing" $
+          case priceBonds baseDeal (AP.IrrInput (Map.fromList [("NONEXISTENT", holding)])) of
+            Left er -> assertBool ("error message should mention the missing bond, got: " ++ er)
+                                    ("NONEXISTENT" `isInfixOf` er)
+            Right _ -> assertFailure "expected Left when pricing an unknown bond name"
+      , testCase "known bond name still prices successfully" $
+          case priceBonds baseDeal (AP.IrrInput (Map.fromList [("A", holding)])) of
+            Left er -> assertFailure ("expected Right for known bond \"A\" but got: " ++ er)
+            Right m  -> assertEqual "should return a result for bond A" ["A"] (Map.keys m)
       ]
