@@ -42,6 +42,7 @@ periodRateFromAnnualRate Quarterly annual_rate  = annual_rate / 4
 periodRateFromAnnualRate SemiAnnually annual_rate  = annual_rate / 2
 periodRateFromAnnualRate Daily annual_rate  = annual_rate / 365
 periodRateFromAnnualRate Weekly annual_rate  = annual_rate / 52.143
+periodRateFromAnnualRate BiWeekly annual_rate  = annual_rate / 26.0715
 
 addD :: Date -> T.CalendarDiffDays -> Date
 addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
@@ -104,14 +105,19 @@ paySeqLiabResi startAmt funds
     allocatedAmts = paySeqLiabilitiesAmt startAmt funds
 
 afterNPeriod :: T.Day -> Integer -> Period -> T.Day
-afterNPeriod d i p =
-  T.addGregorianMonthsClip ( months * i)  d
-  where
-    months = case p of
-      Monthly -> 1
-      Quarterly -> 3
-      SemiAnnually -> 6
-      Annually -> 12
+afterNPeriod d i p = advancePeriod i p d
+
+-- | Advance a date by @i@ whole periods. Total over every 'Period'
+-- constructor: day-based periods advance by a fixed number of days,
+-- month-based periods by a clipped number of calendar months.
+advancePeriod :: Integer -> Period -> Date -> Date
+advancePeriod i Daily        = T.addGregorianDurationClip (T.CalendarDiffDays 0 i)
+advancePeriod i Weekly       = T.addGregorianDurationClip (T.CalendarDiffDays 0 (7 * i))
+advancePeriod i BiWeekly     = T.addGregorianDurationClip (T.CalendarDiffDays 0 (14 * i))
+advancePeriod i Monthly      = T.addGregorianMonthsClip i
+advancePeriod i Quarterly    = T.addGregorianMonthsClip (3 * i)
+advancePeriod i SemiAnnually = T.addGregorianMonthsClip (6 * i)
+advancePeriod i Annually     = T.addGregorianMonthsClip (12 * i)
 
 -- | Number of whole calendar months between two dates, i.e. how many complete
 -- months have elapsed from @t1@ to @t2@. Partial months are clipped, so e.g.
@@ -217,27 +223,7 @@ daysBetweenI :: Date -> Date -> Int
 daysBetweenI sd ed = fromInteger $ T.diffDays ed sd
 
 genDates :: Date -> Period -> Int -> [Date]
-genDates start_day BiWeekly n = 
-  [ T.addGregorianDurationClip (T.CalendarDiffDays 0 (toInteger i * 14)) start_day | i <- [1..n]] --`debug` ("Hit weekly")
-genDates start_day Weekly n = 
-  [ T.addGregorianDurationClip (T.CalendarDiffDays 0 (toInteger i * 7)) start_day | i <- [1..n]] --`debug` ("Hit weekly")
-genDates start_day p n =
-  [ T.addGregorianDurationClip (T.CalendarDiffDays (toInteger i*mul) 0) start_day | i <- [1..n]]
-   where
-     mul = case p of
-       Monthly -> 1
-       Quarterly -> 3
-       SemiAnnually -> 6
-       Annually -> 12
-       _ -> error $ "Invalid period" ++ show p
+genDates start_day p n = [ advancePeriod (toInteger i) p start_day | i <- [1..n] ]
 
 nextDate :: Date -> Period -> Date
-nextDate d p
-  = T.addGregorianMonthsClip m d
-    where
-      m = case p of
-        Monthly -> 1
-        Quarterly -> 3
-        SemiAnnually -> 6
-        Annually -> 12
-        _ -> 0
+nextDate d p = advancePeriod 1 p d

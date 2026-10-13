@@ -115,6 +115,32 @@ datesTests = testGroup "date related "
      testCase "zero extra" $
      assertEqual "1 Month" [] d2
 
+   ,testCase "Weekly dates" $
+     assertEqual "weekly schedule"
+       (toDates ["20220808","20220815","20220822"])
+       (genDates (toDate "20220801") Weekly 3)
+   ,testCase "BiWeekly dates" $
+     assertEqual "biweekly schedule"
+       (toDates ["20220815","20220829","20220912"])
+       (genDates (toDate "20220801") BiWeekly 3)
+   ,testCase "Daily dates" $
+     assertEqual "daily schedule"
+       (toDates ["20220802","20220803","20220804"])
+       (genDates (toDate "20220801") Daily 3)
+   ,testCase "nextDate weekly is total" $
+     assertEqual "next weekly" (toDate "20220808") (nextDate (toDate "20220801") Weekly)
+   ,testCase "nextDate biweekly is total" $
+     assertEqual "next biweekly" (toDate "20220815") (nextDate (toDate "20220801") BiWeekly)
+   ,testCase "afterNPeriod weekly" $
+     assertEqual "3 weekly" (toDate "20220822") (afterNPeriod (toDate "20220801") 3 Weekly)
+   ,testCase "afterNPeriod biweekly" $
+     assertEqual "2 biweekly" (toDate "20220829") (afterNPeriod (toDate "20220801") 2 BiWeekly)
+   ,testCase "afterNPeriod daily" $
+     assertEqual "5 daily" (toDate "20220806") (afterNPeriod (toDate "20220801") 5 Daily)
+   ,testCase "period rate BiWeekly" $
+     assertEqual "annual->biweekly" 1 (periodRateFromAnnualRate BiWeekly 26.0715)
+   ,testCase "period rate Weekly" $
+     assertEqual "annual->weekly" 1 (periodRateFromAnnualRate Weekly 52.143)
   ]
 
 prorataTests = testGroup "prorata Test"
