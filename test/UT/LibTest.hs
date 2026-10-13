@@ -1,19 +1,23 @@
+{-# LANGUAGE OverloadedStrings #-}
 module UT.LibTest(curveTests
                  --,queryStmtTests
                  ,datesTests
                  ,prorataTests
                  ,tsOperationTests
-                 ,pvTests,seqFunTest,periodCurveTest)
+                 ,pvTests,seqFunTest,periodCurveTest
+                 ,libSafetyTests)
 where
 
 import Test.Tasty
 import Test.Tasty.HUnit
 
 import qualified Data.Time as T
+import qualified Data.Aeson as A
 import Lib
 import Types
 import Util
 import Stmt
+import DateUtil
 import Data.Ratio
 
 curveTests =
@@ -248,3 +252,33 @@ seqFunTest =
       [100,10,0]
       (paySeqLiabilitiesAmt 120 [100,10,0])
     ]
+
+libSafetyTests =
+  let 
+    d = toDate "20220101"
+  in 
+  testGroup "library safety (total head/last)"
+  [
+    testCase "getValByDate on empty ThresholdCurve returns 0" $
+      assertEqual "0" (0::Rational) (getValByDate (ThresholdCurve []) Inc d)
+  , testCase "getValByDate on empty PricingCurve returns 0" $
+      assertEqual "0" (0::Rational) (getValByDate (PricingCurve []) Inc d)
+  , testCase "getDealStatType (Max []) returns RtnBalance" $
+      assertEqual "RtnBalance" RtnBalance (getDealStatType (Max []))
+  , testCase "getDealStatType (Min []) returns RtnBalance" $
+      assertEqual "RtnBalance" RtnBalance (getDealStatType (Min []))
+  , testCase "genSerialDatesTill2 with empty generated dates does not crash" $
+      assertEqual "sd and ed included for II"
+        [toDate "20220101", toDate "20221231"]
+        (genSerialDatesTill2 II (toDate "20220101") (SingletonDate (toDate "20500101")) (toDate "20221231"))
+  , testCase "parseTxn on invalid string fails instead of crashing" $
+      assertBool "should be a parse error" $
+        case (A.fromJSON (A.String "garbage") :: A.Result TxnComment) of
+          A.Error _ -> True
+          A.Success _ -> False
+  , testCase "parseTxn on valid tag string still parses" $
+      assertBool "should parse Tag" $
+        case (A.fromJSON (A.String "<Tag:hello>") :: A.Result TxnComment) of
+          A.Success (Tag t) -> t == "hello"
+          _ -> False
+  ]

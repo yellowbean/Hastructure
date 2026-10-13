@@ -237,7 +237,9 @@ populateDealDates (CurrentDates (lastCollect,lastPay) mRevolving end (nextCollec
       futureCollectDates = genSerialDatesTill2 IE nextCollect poolDp end 
       pa = [ PoolCollection _d "" | _d <- futureCollectDates]
     in 
-      return (lastCollect, lastPay,head futurePayDates, pa, ba, end, []) 
+      case futurePayDates of 
+        [] -> Left $ "populateDealDates: no payment dates between "++ show nextPay ++ " and "++ show end
+        (firstFuturePay:_) -> return (lastCollect, lastPay, firstFuturePay, pa, ba, end, []) 
 
 populateDealDates (GenericDates m) st 
   = let 

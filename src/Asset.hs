@@ -209,6 +209,7 @@ buildPrepayRates a ds (Just (A.PrepaymentVec vs))
                                 (getIntervalDays ds)
 
 buildPrepayRates a ds (Just (A.PrepaymentVecPadding vs))
+  | null vs = Left "buildPrepayRates: prepayment vector padding is empty"
   | any (> 1.0) vs || any (< 0.0) vs = Left $ "buildPrepayRates: prepayment vector should be between 0 and 1, got " ++ show vs
   | otherwise = return $ zipWith Util.toPeriodRateByInterval
                                 (paddingDefault (last vs) vs (pred (length ds)))
@@ -258,6 +259,7 @@ buildDefaultRates a ds (Just (A.DefaultVec vs))
                                 (paddingDefault 0.0 vs (pred (length ds)))
                                 (getIntervalDays ds)
 buildDefaultRates a ds (Just (A.DefaultVecPadding vs))
+  | null vs = Left "buildDefaultRates: default vector padding is empty"
   | any (> 1.0) vs || any (< 0.0) vs = Left $ "buildDefaultRates: default vector should be between 0 and 1, got " ++ show vs
   | otherwise = return $ zipWith Util.toPeriodRateByInterval
                                 (paddingDefault (last vs) vs (pred (length ds)))
@@ -364,7 +366,9 @@ priceAsset m d (PVCurve curve) assumps mRates cType
                   [] -> 0 
                   (fstTxnDate:_) -> 
                     let 
-                      accStartDate = last $ takeWhile (< fstTxnDate) pDays 
+                      accStartDate = case takeWhile (< fstTxnDate) pDays of 
+                                       [] -> getOriginDate m 
+                                       pds -> last pds 
                     in 
                       mulBR (mulBIR cb cr) (yearCountFraction DC_ACT_365F accStartDate d) 
             amts = CF.tsTotalCash <$> (case cType of 
@@ -408,7 +412,9 @@ priceAsset m d (PvRate r) assumps mRates cType
                               [] -> 0 
                               (fstTxnDate:_) -> 
                                 let 
-                                  accStartDate = last $ takeWhile (< fstTxnDate) pDays 
+                                  accStartDate = case takeWhile (< fstTxnDate) pDays of 
+                                                   [] -> getOriginDate m 
+                                                   pds -> last pds 
                                 in 
                                   mulBR (mulBIR cb cr) (yearCountFraction DC_ACT_365F accStartDate d)  
                 amts = CF.tsTotalCash <$> (case cType of 

@@ -79,7 +79,7 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
           t' = t {bonds = updateBondInMap bName updateFn bondMap}
           -- build bond rate reset actions
           newActions = case getBondByName t' True bName of 
-                        Just bnd -> [ ResetBondRate _d bName | _d <- L.buildRateResetDates bnd d (getDate (last actions))]
+                        Just bnd -> [ ResetBondRate _d bName | _d <- L.buildRateResetDates bnd d (case actions of [] -> d; as -> getDate (last as))]
                         Nothing -> []
         in 
           return (t' , rc, sortBy sortActionOnDate (newActions++actions), logs) 
@@ -584,7 +584,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                                 (\x -> (spd + (fromMaybe 0 (lookupTable walTbl Up (fromRational x >)))))
                                 bondWal 
                 let bondPricingCurve = Map.map 
-                                        (\x -> IRateCurve [ TsPoint d x,TsPoint (getDate (last ads)) x])
+                                        (\x -> IRateCurve [ TsPoint d x,TsPoint (case ads of [] -> d; as -> getDate (last as)) x])
                                         bondSprd 
                 bondPricingResult <- sequenceA $ Map.intersectionWith (flip (L.priceBond d)) (bonds runDealWithSchedule) bondPricingCurve 
                 depositBondFlow <- sequenceA $ 
@@ -666,7 +666,7 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                             run t{bonds = newBonds, accounts = newAcc} rc (Just ads) calls log
         RefiBondRate d accName bName iInfo ->
           let
-              lstDate = getDate (last ads)
+              lstDate = case ads of [] -> d; as -> getDate (last as)
               isResetActionEvent (ResetBondRate _ bName ) = False 
               isResetActionEvent _ = True
               filteredAds = filter isResetActionEvent ads

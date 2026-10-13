@@ -1,6 +1,6 @@
 module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest,testHaircut
                       ,testMergeTsRowsFromTwoEntities,testCumStat,testClawIntTest,testPoolAggTest
-                      ,testMflowAccessors)
+                      ,testMflowAccessors,testCollectedCfSafety)
 where
 
 import Test.Tasty
@@ -473,4 +473,18 @@ testMflowAccessors =
         assertEqual "lease flow has no penalty field" 0 (CF.mflowPrepaymentPenalty leaseRow)
       ,testCase "prepayment penalty on mortgage row still works" $
         assertEqual "mortgage penalty" 5 (CF.mflowPrepaymentPenalty mtgRow)
+    ]
+
+testCollectedCfSafety = 
+  let 
+    row1 = CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing Nothing
+    d = L.toDate "20220301"
+  in 
+    testGroup "buildCollectedCF safety"
+    [ testCase "does not crash when last accumulated row is empty" $
+        let r = CF.buildCollectedCF [[row1],[]] [d] []
+        in assertEqual "last row balance comes from the last non-empty accumulated row" 100
+                      (CF.mflowBegBalance (last (concat r)))
+      ,testCase "empty trs with dates returns empty rows instead of crashing" $
+        assertEqual "two empty rows" [[],[]] (CF.buildCollectedCF [] [L.toDate "20220101",L.toDate "20220201"] [])
     ]

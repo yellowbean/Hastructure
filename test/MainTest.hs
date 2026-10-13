@@ -51,6 +51,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AT.nonPayMortgageTest
                            ,AT.receivableTest
                            ,AT.fixedAssetTest
+                           ,AT.buildRateSafetyTest
                            ,CFT.cfTests
                            ,CFT.tsSplitTests
                            ,CFT.testMergePoolCf
@@ -61,11 +62,13 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,CFT.testClawIntTest
                            ,CFT.testPoolAggTest
                            ,CFT.testMflowAccessors
+                           ,CFT.testCollectedCfSafety
                            ,BT.pricingTests
                            ,BT.bndConsolTest
                            ,BT.writeOffTest
                            ,BT.accrueTest
                            ,BT.selectorTest
+                           ,BT.walSafetyTest
                            ,LT.curveTests
                            ,LT.periodCurveTest
                            ,LT.pvTests
@@ -74,6 +77,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,LT.datesTests
                            ,LT.prorataTests
                            ,LT.tsOperationTests
+                           ,LT.libSafetyTests
                            ,ET.expTests
                            ,ET.expPayTest
                            ,DT.queryTests
@@ -116,6 +120,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,AnalyticsT.assetPricingTest
                            ,AnalyticsT.irrTest
                            ,AnalyticsT.survivorTest
+                           ,AnalyticsT.hermiteTest
                            ,DealTest.baseTests
                            ,RevolvingTest.baseTests
                            ,DealMultiTest.mPoolbaseTests

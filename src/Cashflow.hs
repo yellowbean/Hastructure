@@ -5,7 +5,7 @@
 
 module Cashflow (CashFlowFrame(..),Principals,Interests,Amount
                 ,combine,mergePoolCf,sumTsCF,tsSetLoss,tsSetRecovery
-                ,sizeCashFlowFrame,aggTsByDates,emptyCashFlowFrame
+                ,sizeCashFlowFrame,aggTsByDates,emptyCashFlowFrame,buildCollectedCF
                 ,mflowInterest,mflowPrincipal,mflowRecovery,mflowPrepayment
                 ,mflowRental,mflowRate,sumPoolFlow,splitTrs,aggregateTsByDate
                 ,mflowDefault,mflowLoss
@@ -596,7 +596,10 @@ combine cf1@(CashFlowFrame st1@(begBal1,begDate1,acc1) txn1) cf2@(CashFlowFrame 
 buildCollectedCF :: [[TsRow]] -> [Date] -> [TsRow] -> [[TsRow]]
 buildCollectedCF [] [] [] = []
 buildCollectedCF trs [] _trs = trs
-buildCollectedCF trs ds [] = trs ++ [ [viewTsRow _d ((last . last) trs)] | _d <- ds ]
+buildCollectedCF trs ds [] = 
+  case Util.lastOf trs (not . null) of
+    Just lastTr -> trs ++ [ [viewTsRow _d (last lastTr)] | _d <- ds ]
+    Nothing -> trs ++ replicate (length ds) []
 buildCollectedCF trs (d:ds) _trs =
   case newFlow of
     [] -> case Util.lastOf trs (not . null) of

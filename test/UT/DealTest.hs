@@ -360,8 +360,11 @@ dateTests =
         ,[RunWaterfall (toDate "20220715") "",RunWaterfall (toDate "20220810") ""]
         ,(toDate "20220901")
         ,[]))
-     (populateDealDates a Amortizing)
-   ]
+      (populateDealDates a Amortizing)
+    ,testCase "populateDealDates with no future pay date returns Left instead of crashing" $
+     assertBool "should be Left"
+       (isLeft (populateDealDates (CurrentDates (toDate "20211201",toDate "20220101") Nothing (toDate "20220101") (toDate "20220101", MonthFirst) (toDate "20220101", MonthFirst)) Amortizing))
+    ]
   
 liqProviderTest = 
   let 

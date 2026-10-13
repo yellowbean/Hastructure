@@ -1101,11 +1101,16 @@ parseTxn t = case tagName of
 --   toJSON (IssuanceProceeds nb) = String $ T.pack $ "<IssuanceProceeds:"++nb++">"
   "IssuanceProceeds" -> return $ IssuanceProceeds contents                  
   "Tag" -> return $ Tag contents                  
+  _ -> fail ("parseTxn: invalid or unsupported txn comment: " ++ show t)
   where 
       pat = "<(\\S+):(\\S+)>"::String
       sr = (T.unpack t =~ pat)::[[String]]
-      tagName =  head sr!!1::String
-      contents = head sr!!2::String
+      tagName = case sr of 
+                  ((_:x:_):_) -> x::String
+                  _ -> ""
+      contents = case sr of 
+                   (([_,_,x]):_) -> x::String
+                   _ -> ""
 
 
 mapKVTraversal :: Traversal' (Map.Map k a) (k, a)
@@ -1200,8 +1205,10 @@ getDealStatType (DealStatBool _) = RtnBool
 getDealStatType (ConstTrue) = RtnBool
 getDealStatType (ConstFalse) = RtnBool
 
-getDealStatType (Max dss) = getDealStatType (head dss)
-getDealStatType (Min dss) = getDealStatType (head dss)
+getDealStatType (Max (d:_)) = getDealStatType d
+getDealStatType (Max []) = RtnBalance
+getDealStatType (Min (d:_)) = getDealStatType d
+getDealStatType (Min []) = RtnBalance
 getDealStatType _ = RtnBalance
 
 dealStatType _ = RtnBalance

@@ -1,5 +1,6 @@
 module UT.AssetTest(mortgageTests,mortgageCalcTests,loanTests,leaseTests,installmentTest,armTest,ppyTest,ppyVectorTest
-                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest,nonPayMortgageTest,receivableTest,fixedAssetTest)
+                   ,delinqScheduleCFTest,delinqMortgageTest,btlMortgageTest,nonPayMortgageTest,receivableTest,fixedAssetTest
+                   ,buildRateSafetyTest)
 where
 
 import Test.Tasty
@@ -15,6 +16,7 @@ import qualified AssetClass.Loan as ACL
 import qualified AssetClass.Lease as ACR
 import qualified AssetClass.Installment as ACI
 import qualified AssetClass.Receivable as AR
+import qualified AssetClass.ProjectedCashFlow as ACPF
 import qualified Assumptions as A
 import qualified Cashflow as CF
 import qualified Deal as D
@@ -971,3 +973,22 @@ fixedAssetTest =
       --       ((`CF.cfAt` 9) <$> (fst <$> (Ast.projCashflow asset2 (L.toDate "20240101") 
       --                             ((A.FixedAssetAssump utilCurve priceCurve Nothing) ,A.DummyDelinqAssump ,A.DummyDefaultAssump) Nothing))))
     ]
+
+buildRateSafetyTest =
+  let ds = L.toDates ["20210101","20210201","20210301"]
+  in
+  testGroup "asset head/last safety"
+  [
+    testCase "empty prepayment padding vector returns Left" $
+      assertBool "should be Left" (isLeft (Ast.buildPrepayRates tm ds (Just (A.PrepaymentVecPadding []))))
+  , testCase "empty default padding vector returns Left" $
+      assertBool "should be Left" (isLeft (Ast.buildDefaultRates tm ds (Just (A.DefaultVecPadding []))))
+  , testCase "empty ScheduleMortgageFlow cashflow does not crash" $
+      case Ast.calcCashflow (AB.ScheduleMortgageFlow (L.toDate "20220101") [] MonthFirst) (L.toDate "20220101") Nothing of
+        Right (CF.CashFlowFrame (b,_,_) _) -> assertEqual "begin balance" 0 b
+        Left e -> assertFailure ("unexpected Left: " ++ e)
+  , testCase "calcEndDate with zero periods returns start date" $
+      assertEqual "start date" (L.toDate "20220101") (ACR.calcEndDate (L.toDate "20220101") 0 (AB.ByPeriodRental 0 L.Monthly))
+  , testCase "projFixCfwithAssumption with empty dates returns Left" $
+      assertBool "should be Left" (isLeft (ACPF.projFixCfwithAssumption ([1.0],[],[],[],MonthFirst) ([],[],0,0) (L.toDate "20220101")))
+  ]

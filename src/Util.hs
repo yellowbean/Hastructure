@@ -142,6 +142,7 @@ getValByDate (RatioCurve dps) Inc d
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
       Nothing -> 0              -- `debug` ("Getting 0 ")
 
+getValByDate (ThresholdCurve []) _ _ = 0
 getValByDate (ThresholdCurve dps) Inc d
   = case find (\(TsPoint _d _) -> d <= _d) dps  of
       Just (TsPoint _d v) -> toRational v  -- `debug` ("Getting rate "++show(_d)++show(v))
@@ -161,6 +162,7 @@ getValByDate (FactorCurveClosed dps ed) Exc d
           _found_v
       Nothing -> 1.0
 
+getValByDate (PricingCurve []) _ _ = 0
 getValByDate (PricingCurve dps) _ d
   = case (d>=lday,d<=fday) of 
       (True,_) -> tsPointVal $ last dps
