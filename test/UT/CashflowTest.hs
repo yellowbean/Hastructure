@@ -1,5 +1,6 @@
 module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest,testHaircut
-                      ,testMergeTsRowsFromTwoEntities,testCumStat,testClawIntTest,testPoolAggTest)
+                      ,testMergeTsRowsFromTwoEntities,testCumStat,testClawIntTest,testPoolAggTest
+                      ,testMflowAccessors)
 where
 
 import Test.Tasty
@@ -446,10 +447,30 @@ testPoolAggTest =
         (snd (Pool.aggPool (Just (Map.fromList [(HistoryDefaults,100)])) 
                             [(cf, (Map.fromList [(HistoryDefaults,100)])),(cf1,Map.empty)]
                             ))
-      ,testCase "pool agg with init default=100 and projected cf default2" $
-        assertEqual "cum stats with default=100, projected default on cfs"
-        (Map.fromList [(HistoryDefaults,200)])
-        (snd (Pool.aggPool (Just (Map.fromList [(HistoryDefaults,100)])) 
-                            [(cf, (Map.fromList [(HistoryDefaults,100)])),(cf2, Map.empty)]
-                            ))                            
+          ,testCase "pool agg with init default=100 and projected cf default2" $
+            assertEqual "cum stats with default=100, projected default on cfs"
+            (Map.fromList [(HistoryDefaults,200)])
+            (snd (Pool.aggPool (Just (Map.fromList [(HistoryDefaults,100)])) 
+                                [(cf, (Map.fromList [(HistoryDefaults,100)])),(cf2, Map.empty)]
+                                ))                            
+    ]
+
+testMflowAccessors = 
+  let 
+    loanRow = CF.LoanFlow (L.toDate "20220101") 100 10 5 0 0 0 0 0.0 Nothing
+    leaseRow = CF.LeaseFlow (L.toDate "20220101") 100 5 0
+    mtgRow = CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 (Just 3) (Just 5) Nothing
+    mtgRowNoB = CF.MortgageFlow (L.toDate "20220101") 100 10 10 0 0 0 0 0 Nothing Nothing Nothing
+  in 
+    testGroup "mflow accessor totality"
+    [ testCase "borrower num on non-mortgage row returns Nothing instead of undefined" $
+        assertEqual "loan flow has no borrower field" Nothing (CF.mflowBorrowerNum loanRow)
+      ,testCase "borrower num on mortgage row still works" $
+        assertEqual "mortgage borrower num" (Just 3) (CF.mflowBorrowerNum mtgRow)
+      ,testCase "borrower num on mortgage row without info is Nothing" $
+        assertEqual "mortgage borrower num" Nothing (CF.mflowBorrowerNum mtgRowNoB)
+      ,testCase "prepayment penalty on non-mortgage row returns 0 instead of undefined" $
+        assertEqual "lease flow has no penalty field" 0 (CF.mflowPrepaymentPenalty leaseRow)
+      ,testCase "prepayment penalty on mortgage row still works" $
+        assertEqual "mortgage penalty" 5 (CF.mflowPrepaymentPenalty mtgRow)
     ]

@@ -735,7 +735,7 @@ mflowBorrowerNum :: TsRow -> Maybe BorrowerNum
 -- ^ get borrower numfer for Mortgage Flow
 mflowBorrowerNum (MortgageFlow _ _ _ _ _ _ _ _ _ x _ _) = x
 mflowBorrowerNum (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ x _ _) = x
-mflowBorrowerNum _ = undefined
+mflowBorrowerNum _ = Nothing
 
 mflowPrepaymentPenalty :: TsRow -> Balance
 -- ^ get prepayment penalty for a cashflow record
@@ -743,7 +743,7 @@ mflowPrepaymentPenalty (MortgageFlow _ _ _ _ _ _ _ _ _ _ (Just x) _) = x
 mflowPrepaymentPenalty (MortgageFlow _ _ _ _ _ _ _ _ _ _ Nothing _) = 0
 mflowPrepaymentPenalty (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ (Just x) _) = x
 mflowPrepaymentPenalty (MortgageDelinqFlow _ _ _ _ _ _ _ _ _ _ _ Nothing _) = 0
-mflowPrepaymentPenalty _ = undefined
+mflowPrepaymentPenalty _ = 0
 
 -- tobe factor out alongside with similar funciton in bond cashflow
 mflowWeightAverageBalance :: Date -> Date -> [TsRow] -> Balance
