@@ -63,6 +63,60 @@ poolTest =
               "each asset defaults its full current balance"
               [100, 300]
               (totalDefaults <$> proj)
+    , testCase "pool DefaultByAmt with a zero-balance asset allocates nothing to it" $
+        case P.runPool zeroBalPool (Just (assumpWith 80 [1])) Nothing of
+          Left err -> assertFailure err
+          Right proj ->
+            assertEqual
+              "pro-rata over balances [0,100,300] for a total default of 80"
+              [0, 20, 60]
+              (totalDefaults <$> proj)
+    , testCase "pool DefaultByAmt rounding residual goes to the first asset and preserves the total" $
+        case P.runPool tiePool (Just (assumpWith 100 [1])) Nothing of
+          Left err -> assertFailure err
+          Right proj ->
+            let ds = totalDefaults <$> proj
+            in do
+              assertEqual
+                "largest-remainder tie breaks by asset index (first asset gets the extra cent)"
+                [33.34, 33.33, 33.33]
+                ds
+              assertEqual "allocations sum to the requested total" 100 (sum ds)
+    , testCase "pool DefaultByAmt across a single asset allocates the full amount" $
+        case P.runPool singlePool (Just (assumpWith 40 [1])) Nothing of
+          Left err -> assertFailure err
+          Right proj ->
+            assertEqual "one asset gets the whole default" [40] (totalDefaults <$> proj)
+    , testCase "pool DefaultByAmt with an empty pool and positive total fails with Left" $
+        case P.runPool emptyPool (Just (assumpWith 40 [1])) Nothing of
+          Left err ->
+            assertBool
+              ("error should mention the pool total: " ++ err)
+              ("exceeds total current balance" `isInfixOf` err)
+          Right _ ->
+            assertFailure "expected Left for an empty pool with a positive default"
+    , testCase "pool DefaultByAmt with an empty pool and zero total returns no projections" $
+        case P.runPool emptyPool (Just (assumpWith 0 [1])) Nothing of
+          Left err -> assertFailure err
+          Right proj -> assertEqual "no assets to project" [] proj
+    , testCase "pool DefaultByAmt of zero allocates zero to every asset" $
+        case P.runPool pool (Just (assumpWith 0 [1])) Nothing of
+          Left err -> assertFailure err
+          Right proj -> assertEqual "no defaults" [0, 0] (totalDefaults <$> proj)
+    , testCase "pool DefaultByAmt applies multi-period weights per asset" $
+        case P.runPool pool (Just (assumpWith 40 [0.5, 0.5])) Nothing of
+          Left err -> assertFailure err
+          Right proj -> do
+            assertEqual
+              "positive per-period defaults follow the weights of each allocated amount"
+              [[5, 5], [15, 15]]
+              (positiveDefaults <$> proj)
+            assertEqual "per-asset totals" [10, 30] (totalDefaults <$> proj)
+    , testCase "pool DefaultByAmt with a negative total currently clamps to zero allocations" $
+        case P.runPool pool (Just (assumpWith (-5) [1])) Nothing of
+          Left err -> assertFailure err
+          Right proj ->
+            assertEqual "negative total is clamped to no defaults" [0, 0] (totalDefaults <$> proj)
     ]
   where
     pool =
@@ -77,49 +131,32 @@ poolTest =
 
     smallPool = pool {P.assets = replicate 12 (mortgage 0.01)}
 
+    zeroBalPool = pool {P.assets = [mortgage 0, mortgage 100, mortgage 300]}
+
+    tiePool = pool {P.assets = [mortgage 100, mortgage 100, mortgage 100]}
+
+    singlePool = pool {P.assets = [mortgage 100]}
+
+    emptyPool = pool {P.assets = ([] :: [AB.Mortgage])}
+
     schedulePool =
       pool
         { P.assets = [scheduleMortgage 100, scheduleMortgage 300]
         , P.asOfDate = L.toDate "20240101"
         }
 
-    defaultAss =
-      A.PoolLevel
-        ( A.MortgageAssump
-            (Just (A.DefaultByAmt (40, [1])))
-            Nothing
-            Nothing
-            Nothing
-        , A.DummyDelinqAssump
-        , A.DummyDefaultAssump
-        )
+    defaultAss = assumpWith 40 [1]
 
-    smallDefaultAss =
-      A.PoolLevel
-        ( A.MortgageAssump
-            (Just (A.DefaultByAmt (0.10, [1])))
-            Nothing
-            Nothing
-            Nothing
-        , A.DummyDelinqAssump
-        , A.DummyDefaultAssump
-        )
+    smallDefaultAss = assumpWith 0.10 [1]
 
-    overDefaultAss =
-      A.PoolLevel
-        ( A.MortgageAssump
-            (Just (A.DefaultByAmt (500, [1])))
-            Nothing
-            Nothing
-            Nothing
-        , A.DummyDelinqAssump
-        , A.DummyDefaultAssump
-        )
+    overDefaultAss = assumpWith 500 [1]
 
-    exactDefaultAss =
+    exactDefaultAss = assumpWith 400 [1]
+
+    assumpWith total vs =
       A.PoolLevel
         ( A.MortgageAssump
-            (Just (A.DefaultByAmt (400, [1])))
+            (Just (A.DefaultByAmt (total, vs)))
             Nothing
             Nothing
             Nothing
@@ -155,3 +192,6 @@ poolTest =
 
     totalDefaults (CF.CashFlowFrame _ txns, _) =
       sum (CF.mflowDefault <$> txns)
+
+    positiveDefaults (CF.CashFlowFrame _ txns, _) =
+      filter (> 0) (CF.mflowDefault <$> txns)
