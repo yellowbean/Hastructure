@@ -1,4 +1,5 @@
-module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest,poolFlowTest,priceBondsIrrTest)
+module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest,poolFlowTest,priceBondsIrrTest
+                  ,mapLookupSafetyTest,validationNameTest)
 
 where
 
@@ -6,6 +7,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Deal
 import Deal.DealQuery (queryCompound)
+import Deal.DealValidation (validatePreRun)
 
 import qualified Accounts as A
 import qualified Stmt as Stmt
@@ -24,6 +26,7 @@ import qualified Call as C
 import InterestRate
 import qualified CreditEnhancement as CE
 import qualified Triggers as Trg
+import qualified Ledger as LD
 import Lib
 import Types
 
@@ -411,3 +414,83 @@ priceBondsIrrTest =
             Left er -> assertFailure ("expected Right for known bond \"A\" but got: " ++ er)
             Right m  -> assertEqual "should return a result for bond A" ["A"] (Map.keys m)
       ]
+
+mapLookupSafetyTest = 
+  let 
+    ctx = D.RunContext Map.empty Nothing Nothing
+    d0 = toDate "20220101"
+    dealWithLedger = baseDeal { D.ledgers = Just (Map.fromList [("L1", LD.Ledger "L1" (Debit, 0) Nothing)]) }
+    badTrg = Trg.Trigger (IfDate G (toDate "20220501")) (Trg.DoAccrueFee ["NONEXISTENTFEE"]) False False Nothing
+    tBadTrg = td2 { D.triggers = Just $ Map.fromList [(BeginDistributionWF, Map.fromList [("bad fee trigger", badTrg)])] }
+    poolflows = (CF.CashFlowFrame dummySt $
+                   [CF.MortgageDelinqFlow (toDate "20220201") 800 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
+                   ,CF.MortgageDelinqFlow (toDate "20220301") 700 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
+                   ,CF.MortgageDelinqFlow (toDate "20220401") 600 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing 
+                   ,CF.MortgageDelinqFlow (toDate "20220501") 500 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
+                   ,CF.MortgageDelinqFlow (toDate "20220601") 400 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
+                   ,CF.MortgageDelinqFlow (toDate "20220701") 300 100 20 0 0 0 0 0 0.08 Nothing Nothing Nothing
+                   ]
+                 ,Nothing)
+    poolflowM = Map.fromList [(PoolConsol, poolflows)]
+    ctxPool = D.RunContext poolflowM Nothing Nothing
+    ads = [PoolCollection (toDate "20220201") "" 
+           ,RunWaterfall  (toDate "20220225") ""
+           ,PoolCollection (toDate "20220301")""
+           ,RunWaterfall  (toDate "20220325") ""
+           ,PoolCollection (toDate "20220401")""
+           ,RunWaterfall  (toDate "20220425") ""
+           ,PoolCollection (toDate "20220501")""
+           ,RunWaterfall  (toDate "20220525") ""  ]
+  in 
+    testGroup "map lookup safety (missing names return Left)"
+    [
+      testCase "ResetBondRate with missing bond returns Left" $
+        assertBool "Left" (isLeft (run baseDeal ctx (Just [ResetBondRate d0 "NONEXISTENT"]) Nothing DL.empty))
+    , testCase "StepUpBondRate with missing bond returns Left" $
+        assertBool "Left" (isLeft (run baseDeal ctx (Just [StepUpBondRate d0 "NONEXISTENT"]) Nothing DL.empty))
+    , testCase "FundBond with missing bond returns Left" $
+        assertBool "Left" (isLeft (run baseDeal ctx (Just [FundBond d0 Nothing "NONEXISTENT" "General" 100]) Nothing DL.empty))
+    , testCase "RefiBondRate with missing bond returns Left" $
+        assertBool "Left" (isLeft (run baseDeal ctx (Just [RefiBondRate d0 "General" "NONEXISTENT" (L.Fix 0.08 DC_ACT_365F)]) Nothing DL.empty))
+    , testCase "RefiBondRate with missing account returns Left" $
+        assertBool "Left" (isLeft (run baseDeal ctx (Just [RefiBondRate d0 "NONEXISTENTACC" "A" (L.Fix 0.08 DC_ACT_365F)]) Nothing DL.empty))
+    , testCase "DoAccrueFee trigger effect with missing fee returns Left" $
+        assertBool "Left" (isLeft (run tBadTrg ctxPool (Just ads) Nothing DL.empty))
+    , testCase "FeePaidAmt query with missing fee returns Left" $
+        assertBool "Left" (isLeft (queryCompound baseDeal ctx d0 (FeePaidAmt ["NONEXISTENT"])))
+    , testCase "FeeTxnAmtBy query with missing fee returns Left" $
+        assertBool "Left" (isLeft (queryCompound baseDeal ctx d0 (FeeTxnAmtBy d0 ["NONEXISTENT"] Nothing)))
+    , testCase "AccTxnAmtBy query with missing account returns Left" $
+        assertBool "Left" (isLeft (queryCompound baseDeal ctx d0 (AccTxnAmtBy d0 ["NONEXISTENT"] Nothing)))
+    , testCase "LedgerTxnAmt query with missing ledger returns Left" $
+        assertBool "Left" (isLeft (queryCompound dealWithLedger ctx d0 (LedgerTxnAmt ["NONEXISTENT"] Nothing)))
+    , testCase "FeePaidAmt query with existing fee still works" $
+        assertEqual "0" (Right 0 :: Either String Rational) (queryCompound td2 ctx d0 (FeePaidAmt ["Service-Fee"]))
+    , testCase "AccTxnAmtBy query with existing account still works" $
+        assertEqual "0" (Right 0 :: Either String Rational) (queryCompound td2 ctx d0 (AccTxnAmtBy d0 ["General"] Nothing))
+    , testCase "LedgerTxnAmt query with existing ledger still works" $
+        assertEqual "0" (Right 0 :: Either String Rational) (queryCompound dealWithLedger ctx d0 (LedgerTxnAmt ["L1"] Nothing))
+    ]
+
+validationNameTest = 
+  let 
+    errMsgs deal = let (_,errs) = validatePreRun deal in [ m | ErrorMsg m <- errs ]
+    nameErrs deal = [ m | m <- errMsgs deal, "not found in deal" `isInfixOf` m ]
+    badWaterfall = td2 { D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [ W.PayInt Nothing "General" ["NONEXISTENTBOND"] Nothing ])] }
+    badTrigger = td2 { D.triggers = Just (Map.fromList [(BeginDistributionWF, Map.fromList [("t", Trg.Trigger (IfDate G (toDate "20220501")) (Trg.DoAccrueFee ["NONEXISTENTFEE"]) False False Nothing)])]) }
+    badCollect = td2 { D.collects = [ Collect Nothing W.CollectedInterest "NONEXISTENTACC" ] }
+  in 
+    testGroup "pre-run name validation"
+    [
+      testCase "waterfall referencing a missing bond is flagged" $
+        assertBool ("expected a bond error, got: " ++ show (nameErrs badWaterfall))
+          ("Bond/BondGroup not found in deal: NONEXISTENTBOND" `elem` nameErrs badWaterfall)
+    , testCase "trigger effect referencing a missing fee is flagged" $
+        assertBool ("expected a fee error, got: " ++ show (nameErrs badTrigger))
+          ("Fee not found in deal: NONEXISTENTFEE" `elem` nameErrs badTrigger)
+    , testCase "collect rule referencing a missing account is flagged" $
+        assertBool ("expected an account error, got: " ++ show (nameErrs badCollect))
+          ("Account not found in deal: NONEXISTENTACC" `elem` nameErrs badCollect)
+    , testCase "a valid deal has no name reference errors" $
+        assertBool ("unexpected name errors: " ++ show (nameErrs td2)) (null (nameErrs td2))
+    ]

@@ -53,7 +53,8 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
   = case te of 
       DealStatusTo _ds -> return (t {status = _ds}, rc, actions, logs)
       DoAccrueFee fns -> do
-                            newFeeList <- traverse (calcDueFee t rc d)  $ (feeMap Map.!) <$> fns
+                            fees <- lookupVs fns feeMap
+                            newFeeList <- traverse (calcDueFee t rc d) fees
                             let newFeeMap = Map.fromList (zip fns newFeeList) <> feeMap
                             return (t {fees = newFeeMap}, rc, actions, logs)
 
@@ -473,11 +474,12 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             Nothing -> Left $ " No rate swaps modeled when looking for "++ sn
             Just rSwap ->
               do
-                acc <- case HE.rsSettleDates (rSwap Map.! sn) of 
+                rs0 <- lookupM sn rSwap
+                acc <- case HE.rsSettleDates rs0 of 
                           Nothing -> Left $ "No settle date found for "++ sn
-                          Just (_, _accName) -> return $ accMap Map.! _accName
+                          Just (_, _accName) -> lookupM _accName accMap
                 let accBal = A.accBalance acc
-                let rs = rSwap Map.! sn
+                let rs = rs0
                 let settleAmt = HE.rsNetCash rs
                 let accName = A.accName acc
                 case (settleAmt <0, accBal < abs settleAmt) of 
@@ -517,21 +519,16 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             run t rc (Just ads) calls $ DL.append log (DL.fromList newlog)
         
         ResetBondRate d bn  -> 
-          let 
-            rateList = fromMaybe [] rates
-            bnd = bndMap Map.! bn
-          in 
-            do 
-              newBnd <- setBondNewRate t rc d rateList bnd 
-              run t{bonds = Map.fromList [(bn,newBnd)] <> bndMap} rc (Just ads) calls log
+          do 
+            bnd <- lookupM bn bndMap
+            newBnd <- setBondNewRate t rc d (fromMaybe [] rates) bnd 
+            run t{bonds = Map.fromList [(bn,newBnd)] <> bndMap} rc (Just ads) calls log
         
         StepUpBondRate d bn -> 
-          let 
-            bnd = bndMap Map.! bn
-          in 
-            do 
-              newBndMap <- adjustM (setBondStepUpRate d (fromMaybe [] rates)) bn bndMap
-              run t{bonds = newBndMap } rc (Just ads) calls log
+          do 
+            _ <- lookupM bn bndMap
+            newBndMap <- adjustM (setBondStepUpRate d (fromMaybe [] rates)) bn bndMap
+            run t{bonds = newBndMap } rc (Just ads) calls log
         
         ResetAccRate d accName -> 
           do
@@ -605,7 +602,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
             newAcc = Map.adjust (A.deposit fundAmt d (FundWith bName fundAmt)) accName accMap
           in 
             do
-              bndFunded <- draw d fundAmt (FundWith bName fundAmt) $ bndMap Map.! bName
+              bnd0 <- lookupM bName bndMap
+              bndFunded <- draw d fundAmt (FundWith bName fundAmt) bnd0
               run t{accounts = newAcc, bonds = Map.insert bName bndFunded bndMap}
                   rc (Just ads) calls log
 
@@ -619,7 +617,8 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 False -> run t rc (Just ads) calls log
                 True -> 
                   do
-                    bndFunded <- draw d fundAmt (FundWith bName fundAmt) $ bndMap Map.! bName
+                    bnd0 <- lookupM bName bndMap
+                    bndFunded <- draw d fundAmt (FundWith bName fundAmt) bnd0
                     run t{accounts = newAcc, bonds = Map.insert bName bndFunded bndMap}
                         rc (Just ads) calls log
           
@@ -673,9 +672,10 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               newRate = L.getBeginRate iInfo
           in 
               do 
-                nBnd <- calcDueInt t rc d $ bndMap Map.! bName
+                bnd0 <- lookupM bName bndMap
+                nBnd <- calcDueInt t rc d bnd0
                 let dueIntToPay = L.getTotalDueInt nBnd
-                let acc = accMap Map.! accName
+                acc <- lookupM accName accMap
                 let actualPayout = min (A.accBalance acc) dueIntToPay
                 bnd1 <- pay d (DueTotalOf [DueInterest Nothing, DueArrears]) actualPayout nBnd
                 let newBnd = set L.bndIntLens iInfo bnd1 
