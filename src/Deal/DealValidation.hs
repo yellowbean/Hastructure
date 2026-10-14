@@ -3,9 +3,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE TemplateHaskell #-}
 
 module Deal.DealValidation (validateRun,validatePreRun,validateReq)
   where 
@@ -31,13 +28,6 @@ import Deal.DealCollection (CollectionRule(..))
 
 import Control.Lens hiding (element)
 import Control.Lens.TH
-
-import Data.Maybe
-import qualified Assumptions as A
-
-
-import Debug.Trace
-debug = flip trace
 
 extractRequiredRates :: (P.Asset a,IR.UseRate a) => TestDeal a -> Set.Set Types.Index
 extractRequiredRates t@TestDeal{accounts = accM 
@@ -260,7 +250,7 @@ validateNameReferences t@TestDeal{waterfall = waterfallM
 
 validateReq :: (IR.UseRate a,P.Asset a) => TestDeal a -> AP.NonPerfAssumption -> (Bool,[ResultComponent])
 validateReq t@TestDeal{accounts = accMap, fees = feeMap} 
-            assump@A.NonPerfAssumption{A.interest = intM, A.issueBondSchedule = mIssuePlan, A.revolving = mRevolvingAssump} 
+            assump@AP.NonPerfAssumption{AP.interest = intM, AP.issueBondSchedule = mIssuePlan, AP.revolving = mRevolvingAssump} 
   = let 
       ratesRequired = extractRequiredRates t
       ratesSupplied = case intM of 
@@ -280,18 +270,18 @@ validateReq t@TestDeal{accounts = accMap, fees = feeMap}
                         Nothing -> []
                         Just issueBndEventlist
                           -> let 
-                              bgNamesInAssump = Set.fromList $ [ bgName | TsPoint d (A.IssueBondEvent _ bgName _ bnd _ _) <- issueBndEventlist ]
+                              bgNamesInAssump = Set.fromList $ [ bgName | TsPoint d (AP.IssueBondEvent _ bgName _ bnd _ _) <- issueBndEventlist ]
                               bgNameErrors = [ ErrorMsg ("issueBond:Missing Bond Group Name in Deal:"++ missingBgName ) | missingBgName <- Set.elems (Set.difference bgNamesInAssump bgNamesInDeal)]
 
-                              newBndNames = Set.fromList $ [ L.bndName bnd | TsPoint d (A.IssueBondEvent _ _ _ bnd _ _) <- issueBndEventlist ]
+                              newBndNames = Set.fromList $ [ L.bndName bnd | TsPoint d (AP.IssueBondEvent _ _ _ bnd _ _) <- issueBndEventlist ]
                               existingBndNames = Set.fromList $ L.bndName <$> viewDealAllBonds t
                               bndNameErrors = [ ErrorMsg ("issueBond:Existing Bond Name in Deal:"++ existsBndName ) | existsBndName <- Set.elems (Set.intersection newBndNames existingBndNames)]
 
-                              acNamesInAssump = Set.fromList $ [ acName | TsPoint d (A.IssueBondEvent _ _ acName _ _ _) <- issueBndEventlist ]
+                              acNamesInAssump = Set.fromList $ [ acName | TsPoint d (AP.IssueBondEvent _ _ acName _ _ _) <- issueBndEventlist ]
                               existingAccNames = Map.keysSet accMap
                               accNameErrors = [ ErrorMsg ("issueBond:Missing Account Name in Deal:"++ missingAccName ) | missingAccName <- Set.elems (Set.difference acNamesInAssump existingAccNames)]
                               
-                              bndNamesInAssump = [ L.bndName bnd | TsPoint d (A.IssueBondEvent _ bgName _ bnd _ _) <- issueBndEventlist ]
+                              bndNamesInAssump = [ L.bndName bnd | TsPoint d (AP.IssueBondEvent _ bgName _ bnd _ _) <- issueBndEventlist ]
                               bndUniqNames = Set.fromList bndNamesInAssump
                               dupNamesErrors = [ ErrorMsg("Duplicate Bond Names in Funding Plan") | length bndUniqNames /= length bndNamesInAssump]
                              in 
@@ -304,8 +294,8 @@ validateReq t@TestDeal{accounts = accMap, fees = feeMap}
                           in 
                             case mRevolvingAssump of 
                               Nothing -> []
-                              Just (A.AvailableAssets _ _ ) -> [ ErrorMsg ("BuyAsset: Missing Pool Id in assumption" ++ show x)  | x <- Set.toList (requiredPoolIds Set.\\ Set.fromList (getPoolIds t))]
-                              Just (A.AvailableAssetsBy rMap ) -> [ ErrorMsg ("BuyAsset: Missing Revolving Pool in assumption" ++ show x)  | x <- Set.toList (requiredRPoolNames Set.\\ Set.fromList (Map.keys rMap))] -- `debug` ("requiredRPoolNames 0> "++ show requiredRPoolNames)
+                              Just (AP.AvailableAssets _ _ ) -> [ ErrorMsg ("BuyAsset: Missing Pool Id in assumption" ++ show x)  | x <- Set.toList (requiredPoolIds Set.\\ Set.fromList (getPoolIds t))]
+                              Just (AP.AvailableAssetsBy rMap ) -> [ ErrorMsg ("BuyAsset: Missing Revolving Pool in assumption" ++ show x)  | x <- Set.toList (requiredRPoolNames Set.\\ Set.fromList (Map.keys rMap))] -- `debug` ("requiredRPoolNames 0> "++ show requiredRPoolNames)
 
 
       (dealWarnings,dealErrors) = validatePreRunWith t planBondNames
@@ -313,7 +303,7 @@ validateReq t@TestDeal{accounts = accMap, fees = feeMap}
       finalWarnings = dealWarnings
       planBondNames = case mIssuePlan of 
                         Nothing -> Set.empty
-                        Just evs -> Set.fromList [ L.bndName bnd | TsPoint _ (A.IssueBondEvent _ _ _ bnd _ _) <- evs ]
+                        Just evs -> Set.fromList [ L.bndName bnd | TsPoint _ (AP.IssueBondEvent _ _ _ bnd _ _) <- evs ]
     in 
       (null finalErrors,finalErrors++finalWarnings)
 
