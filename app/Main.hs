@@ -56,6 +56,7 @@ import Servant.API.ContentTypes (contentType)
 
 import Types
 import MainBase
+import Util (boundedParMap)
 import qualified Deal as D
 import qualified Deal.DealBase as DB
 import qualified Deal.DealDate as DD
@@ -202,6 +203,14 @@ engineSwagger = toOpenApi engineAPI
 showVersion :: Handler Version
 showVersion = return version1
 
+-- | Upper bound on the number of scenarios/deals evaluated concurrently, i.e.
+-- on in-flight sparks. The RTS itself limits real concurrency to @-N@
+-- capabilities; this cap is what prevents unbounded spark creation for large
+-- grids (e.g. 'runDealByCombo's cartesian product). Raise/lower here to tune
+-- memory vs throughput.
+maxParallelWorkers :: Int
+maxParallelWorkers = 8
+
 runAsset :: RunAssetReq -> Handler RunAssetResp
 runAsset req = return $ wrapRunAsset req
 
@@ -212,8 +221,9 @@ runPool (SingleRunPoolReq f pt passumption mRates)
 
 runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
 runPoolScenarios (MultiScenarioRunPoolReq f pt mAssumps mRates) 
-  = return $ Map.map (\assump -> patchCumulativeToPoolRun <$> wrapRunPoolType f pt (Just assump) mRates) 
-                      mAssumps
+  = return $ boundedParMap maxParallelWorkers 
+                           (\assump -> patchCumulativeToPoolRun <$> wrapRunPoolType f pt (Just assump) mRates) 
+                           mAssumps
 
 runDeal :: RunDealReq -> Handler RunResp
 runDeal (SingleRunReq f dt assump nonPerfAssump) = return $ wrapRun f dt assump nonPerfAssump
@@ -399,11 +409,11 @@ runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssu
 
 runDealScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runDealScenarios (MultiScenarioRunReq f dt mAssumps nonPerfAssump) 
-  = return $ Map.map (\singleAssump -> wrapRun f dt (Just singleAssump) nonPerfAssump) mAssumps
+  = return $ boundedParMap maxParallelWorkers (\singleAssump -> wrapRun f dt (Just singleAssump) nonPerfAssump) mAssumps
 
 runMultiDeals :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runMultiDeals (MultiDealRunReq f mDts assump nonPerfAssump) 
-  = return $ Map.map (\singleDealType -> wrapRun f singleDealType assump nonPerfAssump) mDts
+  = return $ boundedParMap maxParallelWorkers (\singleDealType -> wrapRun f singleDealType assump nonPerfAssump) mDts
 
 runDate :: RunDateReq -> Handler [Date]
 runDate (RunDateReq sd dp md)
@@ -414,18 +424,17 @@ runDate (RunDateReq sd dp md)
 
 runDealByRunScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runDealByRunScenarios (MultiRunAssumpReq f dt mAssump nonPerfAssumpMap)
-  = return $ Map.map (wrapRun f dt mAssump) nonPerfAssumpMap
+  = return $ boundedParMap maxParallelWorkers (wrapRun f dt mAssump) nonPerfAssumpMap
 
 runDealByCombo :: RunDealReq -> Handler (Map.Map String RunResp)
 runDealByCombo (MultiComboReq f dMap assumpMap nonPerfAssumpMap)
   = let 
-      dList = Map.toList dMap
-      aList = Map.toList assumpMap
-      nList = Map.toList nonPerfAssumpMap
-      r = [ (intercalate "^" [dk,ak,nk], wrapRun f d a n) | (dk,d) <- dList, (ak,a) <- aList, (nk,n) <- nList ]
-      rMap = Map.fromList r
+      inputs = Map.fromList [ (intercalate "^" [dk,ak,nk], (d,a,n)) 
+                            | (dk,d) <- Map.toList dMap
+                            , (ak,a) <- Map.toList assumpMap
+                            , (nk,n) <- Map.toList nonPerfAssumpMap ]
     in 
-      return rMap
+      return $ boundedParMap maxParallelWorkers (\(d,a,n) -> wrapRun f d a n) inputs
 
 myServer :: ServerT API Handler
 myServer =  return engineSwagger

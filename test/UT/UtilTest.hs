@@ -3,7 +3,7 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
                   ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
-                  ,scaleListTest,mapUpdateTest)--,daycountTests3,daycountTests4)
+                  ,scaleListTest,mapUpdateTest,boundedParMapTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -695,4 +695,22 @@ mapUpdateTest =
         assertEqual "mapInMapM - Test - 3"
         True
         (isLeft (mapInMapM fn' [3] m))
+    ]
+
+boundedParMapTest = 
+  let 
+    m = Map.fromList [(1::Int,10::Int),(2,20),(3,30),(4,40),(5,50)]
+    f x = x * x
+  in 
+    testGroup "boundedParMap"
+    [ testCase "matches Map.map for a normal bound" $
+        assertEqual "same result" (Map.map f m) (boundedParMap 4 f m)
+    , testCase "matches Map.map with bound 1 (serial)" $
+        assertEqual "same result" (Map.map f m) (boundedParMap 1 f m)
+    , testCase "matches Map.map with bound larger than the map" $
+        assertEqual "same result" (Map.map f m) (boundedParMap 100 f m)
+    , testCase "empty map yields empty map" $
+        assertEqual "empty" (Map.empty :: Map.Map Int Int) (boundedParMap 4 f (Map.empty :: Map.Map Int Int))
+    , testCase "preserves keys order-independently" $
+        assertEqual "keys" (Map.keys m) (Map.keys (boundedParMap 3 f m))
     ]

@@ -13,7 +13,7 @@ module Util
     ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,payInMapM,adjustM,adjustMs,mapInMapM,lookupAndApply,lookupAndUpdate,lookupAndApplies
-    ,lookupInMap,selectInMap,scaleByFstElement
+    ,lookupInMap,selectInMap,scaleByFstElement,boundedParMap
     ,lookupTuple6 ,lookupTuple7,diffNum,splitBal,lookupM,lookupVs
     ,lookupMM
     -- for debug
@@ -37,6 +37,7 @@ import Numeric.Limits (infinity)
 import Text.Printf
 import Control.Exception
 
+import Control.Parallel.Strategies (parBuffer, rseq, using)
 import Data.Time (addDays)
 import Debug.Trace
 debug = flip trace
@@ -260,6 +261,21 @@ scaleByFstElement y (b:xs) =
 
 debugLine :: Show a => [a] -> String 
 debugLine xs = ""
+
+-- | Like 'Map.map' but evaluates the mapped values in parallel, keeping at most
+-- @n@ computations in flight at once. Bounding the in-flight work avoids spark
+-- explosion when mapping over large scenario/deal grids (e.g. cartesian products).
+--
+-- The bound is on in-flight *sparks*, not on OS threads: real concurrency is
+-- still limited by the RTS capabilities (@-N@). Values are forced only to WHNF,
+-- which is enough for computations expressed in a strict monad such as 'Either'
+-- (e.g. 'runDeal'), where reducing the result to a constructor runs the work;
+-- deeply-lazy results would need an 'NFData'-based variant instead.
+boundedParMap :: Ord k => Int -> (a -> b) -> Map.Map k a -> Map.Map k b
+boundedParMap n f m =
+  let (ks, vs)  = unzip (Map.toList m)
+      vs'       = (map f vs) `using` parBuffer (max 1 n) rseq
+  in Map.fromList (zip ks vs')
 
 lastOf:: [a] -> (a->Bool) -> Maybe a
 lastOf [] fn = Nothing
