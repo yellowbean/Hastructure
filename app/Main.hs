@@ -96,12 +96,14 @@ import Cashflow (patchCumulative)
 
 import Numeric.RootFinding
 
+import qualified Data.Version as DV
+import qualified Paths_Hastructure as Paths
+
 import Debug.Trace
 debug = flip Debug.Trace.trace
 
-
 version1 :: Version 
-version1 = Version "0.52.7"
+version1 = Version (DV.showVersion Paths.version)
 
 
 wrapRun :: [D.ExpectReturn] -> DealType -> Maybe AP.ApplyAssumptionType -> AP.NonPerfAssumption -> RunResp
