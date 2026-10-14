@@ -69,7 +69,6 @@ library
       Triggers
       Types
       Util
-      Validation
       Waterfall
   other-modules:
       Paths_Hastructure
