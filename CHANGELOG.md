@@ -1,6 +1,21 @@
 # Changelog for Hastructure
 
 <!-- towncrier release notes start -->
+## 0.52.7
+### 2026-10-17
+* ENHANCE: #346 enable parallel compute on multi-deals and multi-scenarios
+* ENHANCE: #333 validate bond / account / fee / ledger / swap names referenced by waterfall actions, collect rules, trigger effects and formulas before the run, reporting every missing name up-front
+* ENHANCE: #348 source the engine version from the package (`Paths_Hastructure`) instead of a hardcoded string, so `/version` and the OpenAPI schema always match the built package
+* ENHANCE: #352 remove the empty `Validation` module and de-duplicate pragmas / imports in `Deal.DealValidation`
+* FIX: #327 IRR bond pricing (`priceBonds`) no longer crashes when a requested bond name does not exist; it returns a descriptive error
+* FIX: #331 `mflowBorrowerNum` / `mflowPrepaymentPenalty` no longer fail with `undefined` on non-mortgage cashflow rows
+* FIX: #325 `Weekly` / `BiWeekly` / `Daily` periods are now handled by `periodRateFromAnnualRate`, `afterNPeriod`, `genDates` and `nextDate` (previously a pattern-match failure or a silently non-advancing schedule)
+* FIX: #333 missing bond / account / fee / ledger / swap names used by waterfall actions, trigger effects and formulas now return a descriptive error instead of crashing with `Map.!: not found`
+* FIX: #335 deal validation no longer crashes with `foldl1: empty list` when a deal has no collection rules
+* FIX: harden `head` / `last` usages across the engine (curves, statements, date generation, asset projections, bond WAL, deal dates and cashflow aggregation) so empty input yields a defined result or a typed error instead of a runtime exception
+* FIX: extend pool-level `DefaultByAmt` pro-rata allocation coverage with edge-case unit tests (cent rounding, zero-balance assets, empty pool, multi-period weights, negative totals) (#321)
+
+
 ## 0.52.6
 ### 2026-09-27
 * NEW: add new prepayment assumption `PrepaymentABS`, an ABS / absolute prepayment model driven by the asset's seasoning (months elapsed since origin). Supported for `Monthly` assets only.
