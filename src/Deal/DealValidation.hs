@@ -75,7 +75,7 @@ validateAggRule rules validPids =
     countWeight (CollectByPct (Just pids) ps lst) = Map.fromList [((pid,ps), pct) | pid <- pids, pct <- fst <$> lst]
     countWeight (CollectByPct Nothing ps lst) = Map.fromList [((PoolConsol, ps),pct)| pct <- fst <$> lst]
     
-    sumMap = foldl1 (Map.unionWith (+)) $ countWeight <$> rules  
+    sumMap = foldl (Map.unionWith (+)) Map.empty $ countWeight <$> rules  
     oustandingPs = Map.filter (> 1.0) sumMap
 
     getPids (Collect (Just pids) _ _) = pids  

@@ -1,5 +1,5 @@
 module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest,poolFlowTest,priceBondsIrrTest
-                  ,mapLookupSafetyTest,validationNameTest)
+                  ,mapLookupSafetyTest,validationNameTest,aggRuleValidationTest)
 
 where
 
@@ -493,4 +493,27 @@ validationNameTest =
           ("Account not found in deal: NONEXISTENTACC" `elem` nameErrs badCollect)
     , testCase "a valid deal has no name reference errors" $
         assertBool ("unexpected name errors: " ++ show (nameErrs td2)) (null (nameErrs td2))
+    ]
+
+aggRuleValidationTest = 
+  let 
+    errMsgs deal = let (_,errs) = validatePreRun deal in [ m | ErrorMsg m <- errs ]
+    aggErrs deal = [ m | m <- errMsgs deal, "Pool source" `isInfixOf` m || "Pool Id not found" `isInfixOf` m ]
+  in 
+    testGroup "collection rule validation"
+    [
+      testCase "normal collect rules validate with no errors" $
+        assertBool ("unexpected errors: " ++ show (aggErrs baseDeal)) (null (aggErrs baseDeal))
+    , testCase "a deal with empty collects does not crash and reports no errors" $
+        let deal = baseDeal { D.collects = [] }
+        in assertBool ("unexpected errors: " ++ show (aggErrs deal)) (null (aggErrs deal))
+    , testCase "over-weighted collect source is flagged" $
+        let deal = baseDeal { D.collects = [ Collect Nothing W.CollectedInterest "General"
+                                           , Collect Nothing W.CollectedInterest "General" ] }
+        in assertBool ("expected a weight error, got: " ++ show (aggErrs deal))
+                      (any ("has a weight of" `isInfixOf`) (aggErrs deal))
+    , testCase "unknown pool id in a collect rule is flagged" $
+        let deal = baseDeal { D.collects = [ Collect (Just [PoolName "NOPE"]) W.CollectedInterest "General" ] }
+        in assertBool ("expected a pool id error, got: " ++ show (aggErrs deal))
+                      (any ("Pool Id not found" `isInfixOf`) (aggErrs deal))
     ]
