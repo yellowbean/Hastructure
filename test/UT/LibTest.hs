@@ -254,9 +254,27 @@ seqFunTest =
     ]
 
 libSafetyTests =
-  let 
+  let
     d = toDate "20220101"
-  in 
+    -- one witness per TxnComment constructor, incl. edge shapes
+    -- (empty lists, multi-element lists, colon-bearing content, nested comments)
+    txnWitnesses =
+      [ PayInt [], PayInt ["B1","B2"], PayYield "B1", PayPrin ["B1","B2"]
+      , PayGroupPrin ["B1"], PayGroupInt ["B1","B2"]
+      , WriteOff "B1" 10.5, FundWith "B1" 20, PayPrinResidual ["B1","B2"]
+      , PayFee "F1", SeqPayFee [], SeqPayFee ["F1","F2"], PayFeeYield "F1"
+      , Transfer "A1" "A2", TransferBy "A1" "A2" (DueCapAmt 30)
+      , BookLedgerBy Credit "L1", BookLedgerBy Debit "L2"
+      , PoolInflow Nothing CollectedInterest
+      , PoolInflow (Just [PoolName "p1", PoolConsol]) CollectedCash
+      , LiquidationProceeds [PoolName "p1", PoolConsol]
+      , LiquidationSupport "src", LiquidationDraw, LiquidationRepay "r"
+      , LiquidationSupportInt 1.5 2.5, BankInt, SupportDraw, Empty, Tag "a:b,c"
+      , UsingDS CurrentBondBalance, SwapAccrue, SwapInSettle "s1", SwapOutSettle "s2"
+      , PurchaseAsset "P1" 5, IssuanceProceeds "nb"
+      , TxnDirection Credit, TxnDirection Debit
+      , TxnComments [BankInt, Transfer "a" "b"] ]
+  in
   testGroup "library safety (total head/last)"
   [
     testCase "getValByDate on empty ThresholdCurve returns 0" $
@@ -281,4 +299,24 @@ libSafetyTests =
         case (A.fromJSON (A.String "<Tag:hello>") :: A.Result TxnComment) of
           A.Success (Tag t) -> t == "hello"
           _ -> False
+  , testCase "TxnComment codec roundtrips every constructor" $
+      mapM_ (\v -> assertEqual ("roundtrip of " ++ show v) (A.Success v)
+                    (A.fromJSON (A.toJSON v) :: A.Result TxnComment))
+            txnWitnesses
+  , testCase "TxnComment codec rejects legacy and malformed forms cleanly" $
+      mapM_ (\s -> assertBool ("should reject " ++ show s)
+                    (case (A.fromJSON (A.String s) :: A.Result TxnComment) of
+                       A.Error _ -> True
+                       A.Success _ -> False))
+            [ "<BankInt>"                                -- legacy literal, no colon
+            , "<BankInterest:>"                          -- pre-0.52.8 encoder output
+            , "<SupportExp:(Int:1.50,Fee:2.50)>"         -- legacy embedded-colon form
+            , "<Pool:PoolName \"p1\":CollectedInterest>" -- legacy colon-separated ids/source
+            , "<BookLedger:L1>"                          -- bare ledger name (no direction)
+            , "<SupportDraw:x>"                          -- payload on a no-payload tag
+            , "<Transfer:one>"                           -- wrong arity
+            , "<WriteOff:a,zz>"                          -- malformed Balance
+            , "<DS:not-a-stat>"                          -- malformed DealStats
+            , "<NoSuchTag:x>"                            -- unknown tag
+            ]
   ]
