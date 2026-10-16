@@ -16,7 +16,7 @@ module Deal.DealBase (TestDeal(..),SPV(..),dealBonds,dealFees,dealAccounts,dealP
                     ,DealStatFields(..),getDealStatInt,isPreClosing,populateDealDates
                     ,bondTraversal,findBondByNames,updateBondInMap,traverseBondMap,traverseBondMapByFn
                     ,_MultiPool,_ResecDeal,uDealFutureCf,uDealFutureScheduleCf
-                    ,RunContext(..),getNextPoolCfTxn
+                    ,RunContext(..),defaultRunContext,getNextPoolCfTxn
                     )                      
   where
 import qualified Accounts as A
@@ -214,6 +214,10 @@ data RunContext = RunContext{
                   ,revolvingInterestRateAssump:: Maybe [RateAssumption]
                   }
                   deriving (Show)
+
+-- | Total default: an empty pool flow and no revolving assumptions/rates.
+defaultRunContext :: RunContext
+defaultRunContext = RunContext Map.empty Nothing Nothing
 
 getNextPoolCfTxn :: Map.Map PoolId CF.PoolCashflow ->  Map.Map PoolId (Maybe CF.TsRow)
 getNextPoolCfTxn poolCfMap = Map.map (\case

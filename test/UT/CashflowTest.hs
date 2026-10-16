@@ -296,29 +296,29 @@ testHaircut =
     ,testCase "Haircut on principal" $
         assertEqual "" 
         (Just (CF.MortgageDelinqFlow (L.toDate "20230101") 100 10 10 20 0 0 5  0 0.0 Nothing (Just 10) Nothing ))
-        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrincipal,0.5)]}) cflow) 0)
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrincipal,0.5)], A.defaultFactors = Nothing, A.prepaymentFactors = Nothing }) cflow) 0)
     ,testCase "Haircut on interest" $
         assertEqual "" 
         (Just (CF.MortgageDelinqFlow (L.toDate "20230101") 100 20 7 20 0 0 5  0 0.0 Nothing (Just 10) Nothing))
-        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedInterest,0.3)]}) cflow) 0)
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedInterest,0.3)], A.defaultFactors = Nothing, A.prepaymentFactors = Nothing }) cflow) 0)
     ,testCase "Haircut on prepayment" $
         assertEqual "" 
         (Just (CF.MortgageDelinqFlow (L.toDate "20230101") 100 20 10 12 0 0 5  0 0.0 Nothing (Just 10) Nothing))
-        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrepayment,0.4)]}) cflow) 0)
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrepayment,0.4)], A.defaultFactors = Nothing, A.prepaymentFactors = Nothing }) cflow) 0)
     ,testCase "Haircut on recoveries" $
         assertEqual "" 
         (Just (CF.MortgageDelinqFlow (L.toDate "20230101") 100 20 10 20 0 0 4.5  0 0.0 Nothing (Just 10) Nothing))
-        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedRecoveries,0.1)]}) cflow) 0)
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedRecoveries,0.1)], A.defaultFactors = Nothing, A.prepaymentFactors = Nothing }) cflow) 0)
     ,testCase "Haircut on prepay penalty" $
         assertEqual "" 
         (Just (CF.MortgageDelinqFlow (L.toDate "20230101") 100 20 10 20 0 0 5  0 0.0 Nothing (Just 8) Nothing))
-        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrepaymentPenalty,0.2)]}) cflow) 0)
+        (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrepaymentPenalty,0.2)], A.defaultFactors = Nothing, A.prepaymentFactors = Nothing }) cflow) 0)
     ,testCase "Haircut on mix" $
         assertEqual "" 
         (Just (CF.MortgageDelinqFlow (L.toDate "20230101") 100 10 7 20 0 0 5  0 0.0 Nothing (Just 8) Nothing))
         (CF.cfAt (P.applyHaircut (Just A.ExtraStress{A.poolHairCut = Just [(CollectedPrepaymentPenalty,0.2)
                                                                           ,(CollectedPrincipal,0.5)
-                                                                          ,(CollectedInterest,0.3)]}) cflow) 0)
+                                                                          ,(CollectedInterest,0.3)], A.defaultFactors = Nothing, A.prepaymentFactors = Nothing }) cflow) 0)
     ]
 
 testCumStat = 

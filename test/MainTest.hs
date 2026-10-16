@@ -89,6 +89,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,DT.mapLookupSafetyTest
                            ,DT.validationNameTest
                            ,DT.aggRuleValidationTest
+                           ,DT.nonPerfAssumptionTest
                            ,DT2.queryTests
                            ,UtilT.daycountTests1
                            ,UtilT.daycountTests2

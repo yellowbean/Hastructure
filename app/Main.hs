@@ -149,14 +149,14 @@ patchCumulativeToPoolRun
 
 -- flag -> breakdown flag
 wrapRunPoolType :: Bool -> PoolTypeWrap -> Maybe AP.ApplyAssumptionType -> Maybe [RateAssumption] -> RunPoolTypeRtn
-wrapRunPoolType flag (MPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType flag (LPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType flag (IPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType flag (RPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType flag (FPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType flag (VPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType flag (PPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
-wrapRunPoolType flag (UPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.NonPerfAssumption{AP.interest = mRates})
+wrapRunPoolType flag (MPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.nonPerfWithRates mRates)
+wrapRunPoolType flag (LPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.nonPerfWithRates mRates)
+wrapRunPoolType flag (IPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.nonPerfWithRates mRates)
+wrapRunPoolType flag (RPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.nonPerfWithRates mRates)
+wrapRunPoolType flag (FPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.nonPerfWithRates mRates)
+wrapRunPoolType flag (VPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.nonPerfWithRates mRates)
+wrapRunPoolType flag (PPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.nonPerfWithRates mRates)
+wrapRunPoolType flag (UPool pt) assump mRates = D.runPoolType flag pt assump $ Just (AP.nonPerfWithRates mRates)
 
 
 wrapRunAsset :: RunAssetReq -> RunAssetResp

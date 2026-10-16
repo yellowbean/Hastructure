@@ -1,5 +1,5 @@
 module UT.DealTest(td2,queryTests,triggerTests,dateTests,liqProviderTest,poolFlowTest,priceBondsIrrTest
-                  ,mapLookupSafetyTest,validationNameTest,aggRuleValidationTest)
+                  ,mapLookupSafetyTest,validationNameTest,aggRuleValidationTest,nonPerfAssumptionTest)
 
 where
 
@@ -47,7 +47,7 @@ debug = flip Debug.Trace.trace
 dummySt = (0,toDate "19000101",Nothing)
 
 
-emptyRunAssump = AP.NonPerfAssumption Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing Nothing 
+
 
 
 td2 = D.TestDeal {
@@ -90,7 +90,7 @@ td2 = D.TestDeal {
                              ,L.bndDueIntDate=Nothing
                              ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                              ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                             ,L.bndStmt=Nothing})
+                             ,L.bndStmt=Nothing, L.bndStepUp = Nothing })
                              ,("B"
                                ,L.Bond{
                                 L.bndName="B"
@@ -108,7 +108,7 @@ td2 = D.TestDeal {
                                ,L.bndDueIntDate=Nothing
                                ,L.bndLastIntPay = Just (T.fromGregorian 2022 1 1)
                                ,L.bndLastPrinPay = Just (T.fromGregorian 2022 1 1)
-                               ,L.bndStmt=Nothing})
+                               ,L.bndStmt=Nothing, L.bndStepUp = Nothing, L.bndDueIntOverInt = 0.0 })
                          ]
            )
   ,D.pool = D.MultiPool $
@@ -122,7 +122,7 @@ td2 = D.TestDeal {
                                            ,AB.period=Monthly
                                            ,AB.startDate=(T.fromGregorian 2022 1 1)
                                            ,AB.prinType= AB.Level
-                                           ,AB.prepaymentPenalty = Nothing}
+                                           ,AB.prepaymentPenalty = Nothing, AB.obligor = Nothing }
                                          4000
                                          0.085
                                          60
@@ -136,7 +136,7 @@ td2 = D.TestDeal {
                                      ,AB.period=Monthly
                                      ,AB.startDate=(T.fromGregorian 2022 1 1)
                                      ,AB.prinType= AB.Level
-                                     ,AB.prepaymentPenalty = Nothing}
+                                     ,AB.prepaymentPenalty = Nothing, AB.obligor = Nothing }
                                    200
                                    0.085
                                    60
@@ -145,7 +145,7 @@ td2 = D.TestDeal {
                                  ]
                  ,P.futureCf=Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
-                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)]}
+                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70)], P.futureScheduleCf = Nothing, P.extendPeriods = Nothing }
                 )]
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                   (W.PayFee Nothing "General" ["Service-Fee"] Nothing)
@@ -179,11 +179,11 @@ td2 = D.TestDeal {
                     Map.fromList [ ("revolving trigger",Trg.Trigger{Trg.trgCondition = IfDate G (toDate "20220501")
                                                                     ,Trg.trgEffects = Trg.DealStatusTo Revolving
                                                                     ,Trg.trgStatus = False 
-                                                                    ,Trg.trgCurable = False })]
+                                                                    ,Trg.trgCurable = False , Trg.trgStmt = Nothing })]
                                                                     )]
  ,D.ledgers = Nothing
  ,D.stats = (Map.empty,Map.empty,Map.empty,Map.empty)
-}
+, D.rateCap = Nothing }
 
 baseDeal = D.TestDeal {
   D.name = "base deal"
@@ -258,7 +258,7 @@ baseDeal = D.TestDeal {
                  ,P.futureCf= Nothing
                  ,P.extendPeriods = Nothing
                  ,P.asOfDate = T.fromGregorian 2022 1 1
-                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70),(IssuanceBalance, 4000)]})]
+                 ,P.issuanceStat = Just $ Map.fromList [(RuntimeCurrentPoolBalance, 70),(IssuanceBalance, 4000)], P.futureScheduleCf = Nothing })]
    ,D.waterfall = Map.fromList [(W.DistributionDay Amortizing, [
                                  (W.PayInt Nothing "General" ["A"] Nothing)
                                  ,(W.PayPrin Nothing "General" ["A"] Nothing)
@@ -274,7 +274,7 @@ baseDeal = D.TestDeal {
 
 poolFlowTest = 
    let 
-     (deal,mPoolCf,mResultComp,mPricing,oustandingFlow) = case (runDeal baseDeal S.empty Nothing emptyRunAssump) of
+     (deal,mPoolCf,mResultComp,mPricing,oustandingFlow) = case (runDeal baseDeal S.empty Nothing AP.defaultNonPerfAssumption) of
                                               (Left er) -> error $ "Deal run failed"++ show er
                                               (Right (a,b,c,d,e)) -> (a,b,c,d,e) 
      bndMap = D.viewBondsInMap deal
@@ -301,7 +301,7 @@ poolFlowTest =
 queryTests =  testGroup "deal stat query Tests"
   [
     let
-      ctx = D.RunContext {}
+      ctx = D.defaultRunContext
       currentDefBal = queryCompound td2 ctx epocDate CurrentPoolDefaultedBalance
     in
       testCase "query current assets in defaulted status" $
@@ -517,3 +517,24 @@ aggRuleValidationTest =
         in assertBool ("expected a pool id error, got: " ++ show (aggErrs deal))
                       (any ("Pool Id not found" `isInfixOf`) (aggErrs deal))
     ]
+
+nonPerfAssumptionTest = 
+  testGroup "NonPerfAssumption / RunContext defaults"
+  [
+    testCase "default NonPerfAssumption is fully defined and shows without throwing" $
+      assertBool "show forces every field" (not (null (show AP.defaultNonPerfAssumption)))
+  , testCase "default NonPerfAssumption has no interest assumption" $
+      assertBool "interest is Nothing"
+        (case AP.interest AP.defaultNonPerfAssumption of Nothing -> True; _ -> False)
+  , testCase "nonPerfWithRates sets interest and leaves other fields untouched" $
+      let a = AP.nonPerfWithRates (Just [])
+      in do
+        assertBool "interest set" (case AP.interest a of Just [] -> True; _ -> False)
+        assertBool "show forces every field" (not (null (show a)))
+        assertBool "revolving stays Nothing" (case AP.revolving a of Nothing -> True; _ -> False)
+        assertBool "pricing stays Nothing"   (case AP.pricing a of Nothing -> True; _ -> False)
+  , testCase "default RunContext is fully defined" $
+      assertBool "show forces every field" (not (null (show D.defaultRunContext)))
+  , testCase "default RunContext has an empty pool flow" $
+      assertEqual "empty pool flow" Map.empty (D.runPoolFlow D.defaultRunContext)
+  ]
