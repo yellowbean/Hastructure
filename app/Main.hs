@@ -15,6 +15,8 @@ module Main
 import Prelude ()
 import Prelude.Compat
 import System.Environment
+import System.IO.Unsafe (unsafePerformIO)
+import GHC.Conc (getNumCapabilities)
 import Control.Monad.IO.Class    (liftIO)
 import Control.Monad (mapM)
 import Control.Exception (Exception,throwIO,throw)
@@ -56,7 +58,7 @@ import Servant.API.ContentTypes (contentType)
 
 import Types
 import MainBase
-import Util (boundedParMap)
+import Util (boundedParMap,resolveWorkerCap)
 import qualified Deal as D
 import qualified Deal.DealBase as DB
 import qualified Deal.DealDate as DD
@@ -206,12 +208,24 @@ showVersion :: Handler Version
 showVersion = return version1
 
 -- | Upper bound on the number of scenarios/deals evaluated concurrently, i.e.
--- on in-flight sparks. The RTS itself limits real concurrency to @-N@
--- capabilities; this cap is what prevents unbounded spark creation for large
--- grids (e.g. 'runDealByCombo's cartesian product). Raise/lower here to tune
--- memory vs throughput.
+-- on in-flight sparks. This is a bound on in-flight *evaluation* rather than on
+-- threads: the RTS limits real concurrency to @-N@ capabilities and nested
+-- asset-level 'parMap' inside each run self-throttles via work-stealing
+-- (unevaluated sparks simply wait, or fall back to sequential evaluation when
+-- demanded — see the @SPARKS@ counters printed by @+RTS -s@). The bound
+-- therefore controls peak heap from concurrent deal states on large grids
+-- (e.g. 'runDealByCombo's cartesian product), not parallelism.
+--
+-- Resolution order: the @HASTRUCTURE_WORKERS@ environment variable when it
+-- parses to a positive integer — it may exceed @-N@, acting as evaluation
+-- lookahead — otherwise the RTS capability count (@-N@). See
+-- 'resolveWorkerCap' (unit-tested) for the pure decision logic.
+{-# NOINLINE maxParallelWorkers #-}
 maxParallelWorkers :: Int
-maxParallelWorkers = 8
+maxParallelWorkers = unsafePerformIO $ do
+  caps <- getNumCapabilities
+  env  <- lookupEnv "HASTRUCTURE_WORKERS"
+  pure $ resolveWorkerCap caps env
 
 runAsset :: RunAssetReq -> Handler RunAssetResp
 runAsset req = return $ wrapRunAsset req

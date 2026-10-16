@@ -111,6 +111,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.scaleListTest
                            ,UtilT.mapUpdateTest
                            ,UtilT.boundedParMapTest
+                           ,UtilT.resolveWorkerCapTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest

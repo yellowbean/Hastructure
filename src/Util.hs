@@ -13,7 +13,7 @@ module Util
     ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,payInMapM,adjustM,adjustMs,mapInMapM,lookupAndApply,lookupAndUpdate,lookupAndApplies
-    ,lookupInMap,selectInMap,scaleByFstElement,boundedParMap
+    ,lookupInMap,selectInMap,scaleByFstElement,boundedParMap,resolveWorkerCap
     ,lookupTuple6 ,lookupTuple7,diffNum,splitBal,lookupM,lookupVs
     ,lookupMM
     -- for debug
@@ -38,6 +38,7 @@ import Text.Printf
 import Control.Exception
 
 import Control.Parallel.Strategies (parBuffer, rseq, using)
+import Text.Read (readMaybe)
 import Data.Time (addDays)
 import Debug.Trace
 debug = flip trace
@@ -276,6 +277,19 @@ boundedParMap n f m =
   let (ks, vs)  = unzip (Map.toList m)
       vs'       = (map f vs) `using` parBuffer (max 1 n) rseq
   in Map.fromList (zip ks vs')
+
+-- | Resolve the parallel-worker cap used by the multi-scenario\/multi-deal
+-- endpoints (see 'boundedParMap'). @caps@ is the RTS capability count (@-N@)
+-- and @mEnv@ is the value of the @HASTRUCTURE_WORKERS@ environment variable.
+-- An explicit override wins when it parses to a positive 'Int' — it may exceed
+-- @caps@, because the bound caps in-flight evaluation (peak heap) rather than
+-- real concurrency. Missing, unparsable, zero or negative values fall back to
+-- @caps@.
+resolveWorkerCap :: Int -> Maybe String -> Int
+resolveWorkerCap caps mEnv =
+  case mEnv >>= readMaybe of
+    Just n | n > 0 -> n
+    _              -> caps
 
 lastOf:: [a] -> (a->Bool) -> Maybe a
 lastOf [] fn = Nothing

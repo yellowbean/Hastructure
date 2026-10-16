@@ -3,7 +3,7 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
                   ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
-                  ,scaleListTest,mapUpdateTest,boundedParMapTest)--,daycountTests3,daycountTests4)
+                  ,scaleListTest,mapUpdateTest,boundedParMapTest,resolveWorkerCapTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -714,3 +714,20 @@ boundedParMapTest =
     , testCase "preserves keys order-independently" $
         assertEqual "keys" (Map.keys m) (Map.keys (boundedParMap 3 f m))
     ]
+
+resolveWorkerCapTest :: TestTree
+resolveWorkerCapTest =
+  testGroup "resolveWorkerCap"
+  [ testCase "missing env falls back to capability count" $
+      assertEqual "fallback" 4 (resolveWorkerCap 4 Nothing)
+  , testCase "valid override wins (may exceed capability count)" $
+      assertEqual "override" 16 (resolveWorkerCap 4 (Just "16"))
+  , testCase "override of 1 is the minimum usable bound" $
+      assertEqual "one" 1 (resolveWorkerCap 4 (Just "1"))
+  , testCase "zero override falls back" $
+      assertEqual "zero" 4 (resolveWorkerCap 4 (Just "0"))
+  , testCase "negative override falls back" $
+      assertEqual "negative" 4 (resolveWorkerCap 4 (Just "-3"))
+  , testCase "unparsable override falls back" $
+      assertEqual "garbage" 4 (resolveWorkerCap 4 (Just "garbage"))
+  ]
