@@ -1,12 +1,4 @@
-FROM --platform=$BUILDPLATFORM haskell:9.8.4-slim-bullseye AS build
-
-ARG TARGETPLATFORM
-RUN case "$TARGETPLATFORM" in \
-      linux/arm64) \
-        export CFLAGS="-march=armv8-a" \
-        export CPPFLAGS="-march=armv8-a" ;; \
-      *) ;; \
-    esac
+FROM haskell:9.8.4-slim-bullseye AS build
 
 WORKDIR /opt/build
 COPY . /opt/build
