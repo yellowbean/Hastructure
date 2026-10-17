@@ -64,12 +64,14 @@ centiToDecimal c = Decimal 2 (round c * 100)
 -- method: every allocation is non-negative and allocations sum exactly to
 -- min (sum of balances) amt (to the cent). Residual cents go to the elements
 -- with the largest fractional remainders, ties broken by index order.
+-- Negative balances carry no weight (treated as zero) instead of producing
+-- negative allocations (#322 review L3).
 prorataFactors :: [Balance] -> Balance -> [Balance]
 prorataFactors bals amt
   | totalCents <= 0 = replicate (length bals) 0
   | otherwise = map (toEnum . fromInteger) $ zipWith (+) baseAdds extraCents
   where
-    centList = toInteger . fromEnum <$> bals
+    centList = max 0 . toInteger . fromEnum <$> bals
     totalCents = sum centList
     payCents = max 0 $ min totalCents (toInteger $ fromEnum amt)
     baseAdds = [ b * payCents `div` totalCents | b <- centList ]

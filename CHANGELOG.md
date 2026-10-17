@@ -36,6 +36,7 @@
 ### 2026-09-27
 * NEW: add new prepayment assumption `PrepaymentABS`, an ABS / absolute prepayment model driven by the asset's seasoning (months elapsed since origin). Supported for `Monthly` assets only.
 * FIX: pool-level `DefaultByAmt` is now allocated across multiple assets proportionally to their current balance.
+* BREAKING (library API): `Lib.periodsBetween` is removed in favor of `Lib.monthsBetween :: Date -> Date -> Integer` (whole calendar months between two dates; partial months clipped, so 2021-01-31 -> 2021-02-01 is 0 months; negative when the second date is earlier).
 
 ## 0.52.5
 ### 2026-08-23

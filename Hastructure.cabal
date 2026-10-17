@@ -197,6 +197,7 @@ test-suite Hastructure-test
       UT.ExpTest
       UT.InterestRateTest
       UT.LibTest
+      UT.LedgerTest
       UT.PoolTest
       UT.QueryTest
       UT.RateHedgeTest

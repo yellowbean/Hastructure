@@ -190,6 +190,16 @@ prorataTests = testGroup "prorata Test"
       assertEqual ""
         [0,0]
         (prorataFactors [0,0] 40)
+    ,
+    testCase "negative balance carries no weight" $
+      assertEqual ""
+        [50,0,50]
+        (prorataFactors [100, -50, 100] 100)
+    ,
+    testCase "all-negative balances give zeros" $
+      assertEqual ""
+        [0,0]
+        (prorataFactors [-10, -20] 30)
   ]
 
 tsOperationTests =
