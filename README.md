@@ -35,53 +35,124 @@
   * [Where is `Hastructure` doc ? ](https://github.com/absbox/Hastructure/wiki/Where-is-documentation-of-Hastructure-%3F)
 
 ### Features
-* Integration
-  * Built-in REST API services
-    * Language independent, integration friendly.
-    * Swagger -> [here](https://github.com/absbox/Hastructure/blob/master/swagger.json)
-    * Public server status -> [here](https://absbox.org)
-  * Docker Support 
-* Asset class coverage (Mortgage/Student Loan/Auto Loan/Rentals/Corp Loan/Consumer Installment)
-* Pool Assumptions
-  * Mortgage (Prepay, Prepay Penalty, Deliquency, Default,Recovery Lag/Rate)
-  * Installment (Prepay Default Recovery Lag/Rate) 
-  * Corp Loan (Prepay Default Recovery Lag/Rate)
-  * Receivable (Default Recovery Lag/Rate)
-  * Rentals (Gaps between leases,Rental Curve Assumption) 
-  * Fixed Asset ( Uitility Rate)
-* Multiple Waterfalls
-  * Clean up waterfall/ Pre,Post Enforcement waterfall
-  * Pool collection waterfall
-* Accounts
-  * Reserve Account/Bank Account (with interest)/Cash Account/ Ledger(PDL)
-* Bonds/Tranches
-  * Float Index rate / Step Up coupon type / Fix Rate
-  * Sequential / Prepay Lockout /PAC Bond Support /Z Bond Support 
-  * Bond Pricing (IRR /WAL /Duration /Accrual Int)
-* Call
-  * call by Pool/Bond Balance amount;Bond/Pool Factor;On Date/or after
-* Fees
-  * Pool / Bond balanced based fees 
-  * Fix Amount Fees / Custom Fee Flow / Number Type Fee of a deal / Formula based fee rate 
-* Liquidity Provider 
-  * line of credit/ Unlimit support 
-  * interest charge or fee charge on the credit used & unused
-* Trigger 
-  * Base on Date 
-  * Base on Free Formula, Bond /Pool metrics
-  * Base on Pool performance, like Cumulative Default Rate, last 3 periods delinquency rates.
-  * Base on any combination above
-* Interest Swap
-  * Float to Float/ Fix to Float
-  * formula based notional balance
-* Scenario Analysis
-  * Running multiple scenarios on single deal
-  * Pricing on single asset 
-  * Revoving Buy Analysis 
-* Free Formula Support 
-  * User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc.
-* Misc
-  * Support user define pay dates & pool collection dates 
+
+<details>
+<summary><b>Integration</b></summary>
+
+* Built-in REST API services
+  * Language independent, integration friendly.
+  * Swagger -> [here](https://github.com/absbox/Hastructure/blob/master/swagger.json)
+  * Public server status -> [here](https://absbox.org)
+* Docker Support 
+
+</details>
+
+<details>
+<summary><b>Asset class coverage</b></summary>
+
+* Mortgage/Student Loan/Auto Loan/Rentals/Corp Loan/Consumer Installment
+
+</details>
+
+<details>
+<summary><b>Pool Assumptions</b></summary>
+
+* Mortgage (Prepay, Prepay Penalty, Deliquency, Default,Recovery Lag/Rate)
+* Installment (Prepay Default Recovery Lag/Rate) 
+* Corp Loan (Prepay Default Recovery Lag/Rate)
+* Receivable (Default Recovery Lag/Rate)
+* Rentals (Gaps between leases,Rental Curve Assumption) 
+* Fixed Asset ( Uitility Rate)
+
+</details>
+
+<details>
+<summary><b>Multiple Waterfalls</b></summary>
+
+* Clean up waterfall/ Pre,Post Enforcement waterfall
+* Pool collection waterfall
+
+</details>
+
+<details>
+<summary><b>Accounts</b></summary>
+
+* Reserve Account/Bank Account (with interest)/Cash Account/ Ledger(PDL)
+
+</details>
+
+<details>
+<summary><b>Bonds/Tranches</b></summary>
+
+* Float Index rate / Step Up coupon type / Fix Rate
+* Sequential / Prepay Lockout /PAC Bond Support /Z Bond Support 
+* Bond Pricing (IRR /WAL /Duration /Accrual Int)
+
+</details>
+
+<details>
+<summary><b>Call</b></summary>
+
+* call by Pool/Bond Balance amount;Bond/Pool Factor;On Date/or after
+
+</details>
+
+<details>
+<summary><b>Fees</b></summary>
+
+* Pool / Bond balanced based fees 
+* Fix Amount Fees / Custom Fee Flow / Number Type Fee of a deal / Formula based fee rate 
+
+</details>
+
+<details>
+<summary><b>Liquidity Provider</b></summary>
+
+* line of credit/ Unlimit support 
+* interest charge or fee charge on the credit used & unused
+
+</details>
+
+<details>
+<summary><b>Trigger</b></summary>
+
+* Base on Date 
+* Base on Free Formula, Bond /Pool metrics
+* Base on Pool performance, like Cumulative Default Rate, last 3 periods delinquency rates.
+* Base on any combination above
+
+</details>
+
+<details>
+<summary><b>Interest Swap</b></summary>
+
+* Float to Float/ Fix to Float
+* formula based notional balance
+
+</details>
+
+<details>
+<summary><b>Scenario Analysis</b></summary>
+
+* Running multiple scenarios on single deal
+* Pricing on single asset 
+* Revoving Buy Analysis 
+
+</details>
+
+<details>
+<summary><b>Free Formula Support</b></summary>
+
+* User is able to using statistics of deal ( Pool Balance,Account balance ,total Bond Balance of , A factor of .. ) to construct formula which used to specify the amount of cash to transfer , pay out to fee or liabilities etc.
+
+</details>
+
+<details>
+<summary><b>Misc</b></summary>
+
+* Support user define pay dates & pool collection dates 
+
+</details>
 
 
 ### Online Demo
