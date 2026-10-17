@@ -160,6 +160,8 @@ executable Hastructure-exe
     servant-openapi3,
     servant-server,
     wai,
+    http-types,
+    case-insensitive,
     warp,
     split,
     string-conversions,

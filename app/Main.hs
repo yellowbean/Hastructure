@@ -18,7 +18,7 @@ import System.Environment
 import GHC.Conc (getNumCapabilities)
 import Control.Monad.IO.Class    (liftIO)
 import Control.Monad (mapM)
-import Control.Exception (Exception,throwIO,throw)
+import Control.Exception (Exception,throwIO,throw,SomeException,displayException)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Data.Aeson
@@ -50,6 +50,12 @@ import Network.Wai.Middleware.Cors
 -- import qualified Data.Aeson.Parser
 import Language.Haskell.TH
 --import Network.HTTP.Types.Status
+import Network.HTTP.Types (status500,hContentType)
+import Data.CaseInsensitive (mk)
+import qualified Network.Wai as Wai
+import qualified Data.Aeson as Aeson
+import Network.HTTP.Types (status500,hContentType)
+import Data.CaseInsensitive (mk)
 import Servant.OpenApi
 import Servant
 import Servant.Types.SourceT (source)
@@ -498,6 +504,24 @@ instance FromJSON Config
 app :: ResolvedConfig -> Application
 app rc = simpleCors $ serve (Proxy :: Proxy API) (myServer rc)
 
+-- | Render any exception escaping the request pipeline in the SAME JSON
+-- envelope that in-band 'Either ErrorRep' responses use (@{"Left":"…"}@), plus
+-- the CORS header so browser clients can read it. Logging stays on Warp's
+-- default logger — this only changes the rendering. Connection-level failures
+-- (resets\/timeouts) keep Warp's default rendering behavior: they should not
+-- receive an HTTP response at all.
+errorBoundary :: SomeException -> Wai.Response
+errorBoundary e =
+  responseLBS status500
+    [ (hContentType, "application/json")
+    , (mk "Access-Control-Allow-Origin", "*")
+    ]
+    (Aeson.encode (Left (T.pack ("engine error: " ++ displayException e)) :: Either T.Text Value))
+
+-- | Server settings: port from @config.yml@ plus the JSON error boundary.
+warpSettings :: Int -> Settings
+warpSettings p = setPort p $ setOnExceptionResponse errorBoundary defaultSettings
+
 main :: IO ()
 main =
   do
@@ -515,7 +539,7 @@ main =
            ++ ";running at Port:" ++ show (rcPort rc)
            ++ ";workers:" ++ show (rcWorkers rc)
            ++ ";maxRunNum:" ++ show (rcLimits rc))
-    run (rcPort rc) (app rc)
+    runSettings (warpSettings (rcPort rc)) (app rc)
   where
     failConfig :: String -> IO a
     failConfig msg = throwIO (userError ("invalid config.yml: " ++ msg))
