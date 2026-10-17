@@ -630,6 +630,14 @@ ppyVectorTest =
     absDs = L.toDate <$> ["20210701","20210801","20210901","20211001"]
     absRatesFirst r = Ast.buildPrepayRates tm absDsFirst (Just (A.PrepaymentABS r))
     absRates r = Ast.buildPrepayRates tm absDs (Just (A.PrepaymentABS r))
+    -- month ages 49,50,51,52,53 relative to tm's 2021-01-01 origin;
+    -- a 2% ABS rate is exhausted at month 1 + 1/0.02 = 51.
+    exhaustionDs = L.toDate <$> ["20250201","20250301","20250401","20250501","20250601"]
+    -- month ages 17,18; a 6% ABS rate's implied balance is exhausted at 17.67,
+    -- so month 18 previously produced a negative SMM.
+    pastExhaustionDs = L.toDate <$> ["20220601","20220701"]
+    -- month ages 1,2; a 100% ABS rate exhausts the implied balance at month 2.
+    fullRateDs = L.toDate <$> ["20210201","20210301"]
   in
     testGroup "Prepayment vector tests" [
       testCase "PrepaymentABS 2% => SMM by month age | fisth 4 months" $
@@ -648,6 +656,18 @@ ppyVectorTest =
         assertBool "rate > 1 should be Left" (isLeft (absRates 1.5))
       ,testCase "PrepaymentABS rejects negative rate" $
         assertBool "negative rate should be Left" (isLeft (absRates (-0.1)))
+      ,testCase "PrepaymentABS 2% => SMM is 0 at and after the exhaustion month" $
+        assertEqual "exhaustion month and beyond"
+          (Right [1/2, 1, 0, 0, 0])
+          (Ast.buildPrepayRates tm exhaustionDs (Just (A.PrepaymentABS 0.02)))
+      ,testCase "PrepaymentABS 6% => no negative SMM past exhaustion" $
+        assertEqual "past exhaustion"
+          (Right [3/2, 0])
+          (Ast.buildPrepayRates tm pastExhaustionDs (Just (A.PrepaymentABS 0.06)))
+      ,testCase "PrepaymentABS 100% => SMM is 1 in month 1 and 0 afterwards" $
+        assertEqual "100% rate"
+          (Right [1, 0])
+          (Ast.buildPrepayRates tm fullRateDs (Just (A.PrepaymentABS 1.0)))
       ]
 
 delinqScheduleCFTest = 

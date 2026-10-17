@@ -194,7 +194,12 @@ buildPrepayRates a ds (Just (A.PrepaymentABS r))
     = let 
         originDate = getOriginDate a
         pojectedMonthAges = (monthsBetween originDate) <$> ds
-        smm m = r / (1 - r * fromIntegral (pred m))
+        -- r is a monthly prepayment on the ORIGINAL balance, so the implied
+        -- outstanding fraction at month m is 1 - r*(m-1). Once it reaches zero
+        -- (m >= 1 + 1/r) there is no balance left to prepay: SMM = 0.
+        smm m = 
+          let denom = 1 - r * fromIntegral (pred m)
+          in if denom <= 0 then 0 else r / denom
         smmVector = smm <$> pojectedMonthAges
       in 
         case period (getOriginInfo a) of
