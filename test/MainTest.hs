@@ -116,6 +116,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.forceMapValuesTest
                            ,UtilT.workerNumTest
                            ,UtilT.serverConfigLimitTest
+                           ,UtilT.badRequestJSONTest
                            ,AccT.intTests
                            ,AccT.investTests
                            ,AccT.reserveAccTest

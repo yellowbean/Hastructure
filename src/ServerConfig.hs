@@ -20,12 +20,24 @@ module ServerConfig
     , checkRunNumLimit
     , resolveWorkerNum
     , resolveWorkerCap
+    , badRequestJSON
     )
     where
 
-import Data.Aeson (FromJSON(..), withObject, (.:?))
+import Data.Aeson (FromJSON(..), withObject, (.:?), encode, Value)
 import GHC.Generics (Generic)
+import Network.HTTP.Types (hContentType)
+import Servant.Server (ServerError(..), err400)
 import Text.Read (readMaybe)
+
+-- | A 400 rejection rendered in the standard JSON error envelope used by the
+-- in-band 'Either' errors and the #344 exception boundary: @{"Left":"…"}@ with
+-- an @application\/json@ content type (#322 review M1).
+badRequestJSON :: String -> ServerError
+badRequestJSON msg = err400
+  { errHeaders = [(hContentType, "application/json")]
+  , errBody = encode (Left msg :: Either String Value)
+  }
 
 -- | Default total-run cap per multi-run request.
 defaultRunNum :: Int

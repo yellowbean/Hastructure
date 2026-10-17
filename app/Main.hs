@@ -38,7 +38,6 @@ import Data.Maybe
 import Data.Yaml as Y
 import Data.OpenApi hiding (Server,contentType)
 import qualified Data.Map as Map
-import Data.String.Conversions
 import Data.Time.Calendar
 import GHC.Generics
 import GHC.Real
@@ -244,15 +243,16 @@ mkRunCap rc getLim = MultiRunCap (rcWorkers rc) (getLim (rcLimits rc))
 enforceRunCap :: String -> MultiRunCap -> Int -> Handler ()
 enforceRunCap ep cap n
   = case checkRunNumLimit ep (mcMaxRuns cap) n of
-      Left msg -> throwError (err400 { errBody = cs msg })
+      Left msg -> throwError (badRequestJSON msg)
       Right () -> return ()
 
 -- | Reject a request routed to an endpoint whose payload shape it does not
 -- match (#329). Map-valued multi-run responses have no error slot, so the
 -- rejection rides the HTTP status code instead; single-run endpoints return
 -- the message as 'Left' in-band, matching the existing run-error convention.
+-- The body uses the standard JSON error envelope (#'badRequestJSON').
 badRequest :: String -> Handler a
-badRequest msg = throwError (err400 { errBody = cs msg })
+badRequest msg = throwError (badRequestJSON msg)
 
 runPoolScenarios :: MultiRunCap -> RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
 runPoolScenarios cap (MultiScenarioRunPoolReq f pt mAssumps mRates)

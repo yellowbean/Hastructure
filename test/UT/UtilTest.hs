@@ -4,7 +4,7 @@ module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
                   ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
                   ,scaleListTest,mapUpdateTest,boundedParMapTest,resolveWorkerCapTest,forceMapValuesTest
-                  ,workerNumTest,serverConfigLimitTest)--,daycountTests3,daycountTests4)
+                  ,workerNumTest,serverConfigLimitTest,badRequestJSONTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -23,6 +23,10 @@ import Data.Fixed
 import qualified Data.DList as DL
 import Data.Ratio ((%))
 import Control.Exception (ErrorCall(..), evaluate, try)
+import Network.HTTP.Types (hContentType)
+import Servant.Server (ServerError(..))
+import qualified Data.ByteString.Lazy.Char8 as BL8
+import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Map as Map
 import Data.Either
 import Data.List (isInfixOf)
@@ -803,3 +807,20 @@ serverConfigLimitTest =
         Left msg -> assertBool "names the offending key" ("maxRunNum.runDealByRunScenarios" `isInfixOf` msg)
         Right _ -> assertFailure "expected Left"
   ]
+
+
+-- | #322 review M1: HTTP 400 request rejections must use the standard JSON
+-- error envelope, not a plain-text body without a content type.
+badRequestJSONTest :: TestTree
+badRequestJSONTest =
+  let e = badRequestJSON "boom"
+  in
+    testGroup "badRequestJSON (HTTP 400 envelope)"
+    [ testCase "status is 400" $
+        assertEqual "400" 400 (errHTTPCode e)
+    , testCase "content type is application/json" $
+        assertEqual "json" (Just "application/json")
+          (fmap BS8.unpack (lookup hContentType (errHeaders e)))
+    , testCase "body is the standard Left envelope" $
+        assertEqual "envelope" "{\"Left\":\"boom\"}" (BL8.unpack (errBody e))
+    ]
