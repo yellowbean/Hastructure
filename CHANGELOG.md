@@ -1,6 +1,13 @@
 # Changelog for Hastructure
 
 <!-- towncrier release notes start -->
+## 0.52.9
+### 2026-10-17
+* FIX: #345 the `maxScenario` / `maxDealNum` limits declared in `config.yml` were dead configuration: the engine never read them and scenario/deal grids were unbounded (DoS via large `runByCombo` cartesian products). Each multi-run endpoint (`runPoolByScenarios`, `runDealByScenarios`, `runMultiDeals`, `runDealByRunScenarios`, `runByCombo`) now enforces a per-request total-run cap, default 1000, configurable per endpoint via the new `maxRunNum.<endpoint>` keys in `config.yml`; `runByCombo` sizes the cartesian product before materialising it, so oversized grids are rejected without allocation. Oversized requests are rejected with HTTP 400 naming the endpoint, the configured limit and the key to raise. The in-flight worker cap is now configurable via `workerNum` in `config.yml` (precedence: `HASTRUCTURE_WORKERS` env > `workerNum` > RTS `-N`); the internal `unsafePerformIO` global is gone.
+* FIX: BEHAVIOR CHANGE: a malformed `config.yml`, a missing `port` or a non-positive `maxRunNum.*` value now aborts startup with a descriptive error instead of silently falling back to defaults; the startup log prints the effective port, worker count and per-endpoint limits. The unused `maxScenario`/`maxDealNum` keys are removed from `config.yml`.
+## 0.52.8
+### 2026-10-17
+* FIX: #328 the `TxnComment` JSON codec is now total and self-consistent: malformed, legacy or wrong-arity comment strings fail with a descriptive Aeson parse error instead of throwing (`head`/`!!`/`read` and the greedy regex are gone); the encoder emits canonical forms for `BankInt` (`<BankInt:>`), `PoolInflow` (`<Pool:ids,Source>`), `LiquidationSupportInt` (`<SupportExp:b1,b2>`) and `BookLedgerBy` (`<BookLedger:dir,name>`), all of which now round-trip; multi-bond list comments decode to their elements; `TxnComments` arrays can be decoded; `Read PoolId` no longer throws and accepts what `Show PoolId` produces
 ## 0.52.7
 ### 2026-10-17
 * ENHANCE: #346 enable parallel compute on multi-deals and multi-scenarios

@@ -15,7 +15,6 @@ module Main
 import Prelude ()
 import Prelude.Compat
 import System.Environment
-import System.IO.Unsafe (unsafePerformIO)
 import GHC.Conc (getNumCapabilities)
 import Control.Monad.IO.Class    (liftIO)
 import Control.Monad (mapM)
@@ -58,7 +57,8 @@ import Servant.API.ContentTypes (contentType)
 
 import Types
 import MainBase
-import Util (boundedParMap,resolveWorkerCap)
+import Util (boundedParMap)
+import ServerConfig
 import qualified Deal as D
 import qualified Deal.DealBase as DB
 import qualified Deal.DealDate as DD
@@ -200,32 +200,14 @@ engineSwagger:: OpenApi
 engineSwagger = toOpenApi engineAPI
                     & info.title .~ "Hastructure API"
                     & info.version .~  T.pack (_version version1)
-                    & info.description ?~ "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs"
+                    & info.description ?~ (T.pack
+                      "Hastructure is a white-label friendly Cashflow & Analytics Engine for MBS/ABS and REITs.\
+                      \ Multi-run endpoints (runPoolByScenarios, runDealByScenarios, runMultiDeals, runDealByRunScenarios, runByCombo) are capped per request by the maxRunNum.<endpoint> keys in config.yml (default 1000); oversized requests are rejected with HTTP 400.")
                     & info.license ?~ "BSD 3"
 
 -- showVersion :: Handler (Envelope '[] Version)
 showVersion :: Handler Version
 showVersion = return version1
-
--- | Upper bound on the number of scenarios/deals evaluated concurrently, i.e.
--- on in-flight sparks. This is a bound on in-flight *evaluation* rather than on
--- threads: the RTS limits real concurrency to @-N@ capabilities and nested
--- asset-level 'parMap' inside each run self-throttles via work-stealing
--- (unevaluated sparks simply wait, or fall back to sequential evaluation when
--- demanded — see the @SPARKS@ counters printed by @+RTS -s@). The bound
--- therefore controls peak heap from concurrent deal states on large grids
--- (e.g. 'runDealByCombo's cartesian product), not parallelism.
---
--- Resolution order: the @HASTRUCTURE_WORKERS@ environment variable when it
--- parses to a positive integer — it may exceed @-N@, acting as evaluation
--- lookahead — otherwise the RTS capability count (@-N@). See
--- 'resolveWorkerCap' (unit-tested) for the pure decision logic.
-{-# NOINLINE maxParallelWorkers #-}
-maxParallelWorkers :: Int
-maxParallelWorkers = unsafePerformIO $ do
-  caps <- getNumCapabilities
-  env  <- lookupEnv "HASTRUCTURE_WORKERS"
-  pure $ resolveWorkerCap caps env
 
 runAsset :: RunAssetReq -> Handler RunAssetResp
 runAsset req = return $ wrapRunAsset req
@@ -235,10 +217,34 @@ runPool (SingleRunPoolReq f pt passumption mRates)
   = return $
       patchCumulativeToPoolRun <$> wrapRunPoolType f pt passumption mRates
 
-runPoolScenarios :: RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
-runPoolScenarios (MultiScenarioRunPoolReq f pt mAssumps mRates) 
-  = return $ boundedParMap maxParallelWorkers 
-                           (\assump -> patchCumulativeToPoolRun <$> wrapRunPoolType f pt (Just assump) mRates) 
+-- | Per-request run bounding for a multi-run endpoint: the resolved worker
+-- cap ('boundedParMap') plus the endpoint's total-run limit (#345).
+data MultiRunCap = MultiRunCap { mcWorkers :: Int, mcMaxRuns :: Int }
+
+data ResolvedConfig = ResolvedConfig
+  { rcPort    :: Int
+  , rcWorkers :: Int
+  , rcLimits  :: RunLimits
+  }
+
+mkRunCap :: ResolvedConfig -> (RunLimits -> Int) -> MultiRunCap
+mkRunCap rc getLim = MultiRunCap (rcWorkers rc) (getLim (rcLimits rc))
+
+-- | Reject the request with HTTP 400 when its total run count exceeds the
+-- endpoint's configured cap; the message names the endpoint, the limit and
+-- the `maxRunNum.<endpoint>` config key to raise.
+enforceRunCap :: String -> MultiRunCap -> Int -> Handler ()
+enforceRunCap ep cap n
+  = case checkRunNumLimit ep (mcMaxRuns cap) n of
+      Left msg -> throwError (err400 { errBody = cs msg })
+      Right () -> return ()
+
+runPoolScenarios :: MultiRunCap -> RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
+runPoolScenarios cap (MultiScenarioRunPoolReq f pt mAssumps mRates)
+  = do
+      enforceRunCap "runPoolByScenarios" cap (Map.size mAssumps)
+      return $ boundedParMap (mcWorkers cap)
+                           (\assump -> patchCumulativeToPoolRun <$> wrapRunPoolType f pt (Just assump) mRates)
                            mAssumps
 
 runDeal :: RunDealReq -> Handler RunResp
@@ -423,13 +429,17 @@ runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssu
           NotBracketed -> Left "Not able to bracket the root"
           SearchFailed -> Left "Not able to find the root"
 
-runDealScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
-runDealScenarios (MultiScenarioRunReq f dt mAssumps nonPerfAssump) 
-  = return $ boundedParMap maxParallelWorkers (\singleAssump -> wrapRun f dt (Just singleAssump) nonPerfAssump) mAssumps
+runDealScenarios :: MultiRunCap -> RunDealReq -> Handler (Map.Map ScenarioName RunResp)
+runDealScenarios cap (MultiScenarioRunReq f dt mAssumps nonPerfAssump) 
+  = do
+      enforceRunCap "runDealByScenarios" cap (Map.size mAssumps)
+      return $ boundedParMap (mcWorkers cap) (\singleAssump -> wrapRun f dt (Just singleAssump) nonPerfAssump) mAssumps
 
-runMultiDeals :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
-runMultiDeals (MultiDealRunReq f mDts assump nonPerfAssump) 
-  = return $ boundedParMap maxParallelWorkers (\singleDealType -> wrapRun f singleDealType assump nonPerfAssump) mDts
+runMultiDeals :: MultiRunCap -> RunDealReq -> Handler (Map.Map ScenarioName RunResp)
+runMultiDeals cap (MultiDealRunReq f mDts assump nonPerfAssump) 
+  = do
+      enforceRunCap "runMultiDeals" cap (Map.size mDts)
+      return $ boundedParMap (mcWorkers cap) (\singleDealType -> wrapRun f singleDealType assump nonPerfAssump) mDts
 
 runDate :: RunDateReq -> Handler [Date]
 runDate (RunDateReq sd dp md)
@@ -438,31 +448,38 @@ runDate (RunDateReq sd dp md)
         Nothing -> DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
         Just d -> DU.genSerialDatesTill2 IE sd dp d
 
-runDealByRunScenarios :: RunDealReq -> Handler (Map.Map ScenarioName RunResp)
-runDealByRunScenarios (MultiRunAssumpReq f dt mAssump nonPerfAssumpMap)
-  = return $ boundedParMap maxParallelWorkers (wrapRun f dt mAssump) nonPerfAssumpMap
+runDealByRunScenarios :: MultiRunCap -> RunDealReq -> Handler (Map.Map ScenarioName RunResp)
+runDealByRunScenarios cap (MultiRunAssumpReq f dt mAssump nonPerfAssumpMap)
+  = do
+      enforceRunCap "runDealByRunScenarios" cap (Map.size nonPerfAssumpMap)
+      return $ boundedParMap (mcWorkers cap) (wrapRun f dt mAssump) nonPerfAssumpMap
 
-runDealByCombo :: RunDealReq -> Handler (Map.Map String RunResp)
-runDealByCombo (MultiComboReq f dMap assumpMap nonPerfAssumpMap)
-  = let 
-      inputs = Map.fromList [ (intercalate "^" [dk,ak,nk], (d,a,n)) 
+runDealByCombo :: MultiRunCap -> RunDealReq -> Handler (Map.Map String RunResp)
+runDealByCombo cap (MultiComboReq f dMap assumpMap nonPerfAssumpMap)
+  = do
+      -- Size the cartesian product before materialising it: `Map.fromList`
+      -- below only shrinks (duplicate ^-joined keys), so the product is an
+      -- upper bound on the actual run count and an oversized request is
+      -- rejected without allocating it.
+      enforceRunCap "runByCombo" cap (Map.size dMap * Map.size assumpMap * Map.size nonPerfAssumpMap)
+      let inputs = Map.fromList [ (intercalate "^" [dk,ak,nk], (d,a,n)) 
                             | (dk,d) <- Map.toList dMap
                             , (ak,a) <- Map.toList assumpMap
                             , (nk,n) <- Map.toList nonPerfAssumpMap ]
-    in 
-      return $ boundedParMap maxParallelWorkers (\(d,a,n) -> wrapRun f d a n) inputs
+      return $ boundedParMap (mcWorkers cap) (\(d,a,n) -> wrapRun f d a n) inputs
 
-myServer :: ServerT API Handler
-myServer =  return engineSwagger
-      :<|> showVersion 
+myServer :: ResolvedConfig -> ServerT API Handler
+myServer rc =
+    return engineSwagger
+      :<|> showVersion
       :<|> runAsset
       :<|> runPool
-      :<|> runPoolScenarios
+      :<|> runPoolScenarios (mkRunCap rc maxRunPoolByScenarios)
       :<|> runDeal
-      :<|> runDealScenarios
-      :<|> runMultiDeals
-      :<|> runDealByRunScenarios
-      :<|> runDealByCombo
+      :<|> runDealScenarios (mkRunCap rc maxRunDealByScenarios)
+      :<|> runMultiDeals (mkRunCap rc maxRunMultiDeals)
+      :<|> runDealByRunScenarios (mkRunCap rc maxRunDealByRunScenarios)
+      :<|> runDealByCombo (mkRunCap rc maxRunByCombo)
       :<|> runRootFinderBy
       :<|> runDate
 
@@ -470,23 +487,35 @@ myServer =  return engineSwagger
 writeSwaggerJSON :: IO ()
 writeSwaggerJSON = BL8.writeFile "swagger.json" (encodePretty engineSwagger)
 
-data Config = Config { port :: Int} 
-            deriving (Show,Generic)
+data Config = Config
+  { port      :: Int
+  , workerNum :: Maybe Int
+  , maxRunNum :: Maybe RunLimitsRaw
+  } deriving (Show,Generic)
 
 instance FromJSON Config
 
-app :: Application
-app = simpleCors $ serve (Proxy :: Proxy API) myServer
+app :: ResolvedConfig -> Application
+app rc = simpleCors $ serve (Proxy :: Proxy API) (myServer rc)
 
 main :: IO ()
-main = 
-  do 
+main =
+  do
     writeSwaggerJSON
-    config <- BS.readFile "config.yml"
+    raw <- BS.readFile "config.yml"
     curTime <- getCurrentTime
-    let mc = Y.decodeEither' config :: Either ParseException Config
-    let (Config _p) = case mc of
-                        Left exp -> Config 8081
-                        Right c -> c
-    print (show curTime ++ ">> Engine start with version:"++ _version version1++";running at Port:"++ show _p)
-    run _p app
+    cfg <- either (failConfig . show) pure (Y.decodeEither' raw :: Either ParseException Config)
+    limits <- either failConfig pure (resolveRunLimits (fromMaybe emptyRunLimitsRaw (maxRunNum cfg)))
+    caps <- getNumCapabilities
+    mWorkers <- lookupEnv "HASTRUCTURE_WORKERS"
+    let rc = ResolvedConfig (port cfg)
+                            (resolveWorkerNum caps (workerNum cfg) mWorkers)
+                            limits
+    print (show curTime ++ ">> Engine start with version:"++ _version version1
+           ++ ";running at Port:" ++ show (rcPort rc)
+           ++ ";workers:" ++ show (rcWorkers rc)
+           ++ ";maxRunNum:" ++ show (rcLimits rc))
+    run (rcPort rc) (app rc)
+  where
+    failConfig :: String -> IO a
+    failConfig msg = throwIO (userError ("invalid config.yml: " ++ msg))

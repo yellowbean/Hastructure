@@ -3,7 +3,8 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
                   ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
-                  ,scaleListTest,mapUpdateTest,boundedParMapTest,resolveWorkerCapTest)--,daycountTests3,daycountTests4)
+                  ,scaleListTest,mapUpdateTest,boundedParMapTest,resolveWorkerCapTest
+                  ,workerNumTest,serverConfigLimitTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -23,7 +24,9 @@ import qualified Data.DList as DL
 import Data.Ratio ((%))
 import qualified Data.Map as Map
 import Data.Either
+import Data.List (isInfixOf)
 
+import ServerConfig
 import Debug.Trace
 debug = flip trace
 
@@ -730,4 +733,55 @@ resolveWorkerCapTest =
       assertEqual "negative" 4 (resolveWorkerCap 4 (Just "-3"))
   , testCase "unparsable override falls back" $
       assertEqual "garbage" 4 (resolveWorkerCap 4 (Just "garbage"))
+  ]
+
+workerNumTest :: TestTree
+workerNumTest =
+  testGroup "resolveWorkerNum"
+  [ testCase "config wins over capability count" $
+      assertEqual "config" 8 (resolveWorkerNum 4 (Just 8) Nothing)
+  , testCase "env wins over config and capability count" $
+      assertEqual "env" 16 (resolveWorkerNum 4 (Just 8) (Just "16"))
+  , testCase "unparsable env falls back to config" $
+      assertEqual "garbage-env" 8 (resolveWorkerNum 4 (Just 8) (Just "garbage"))
+  , testCase "negative env falls back to config" $
+      assertEqual "neg-env" 8 (resolveWorkerNum 4 (Just 8) (Just "-3"))
+  , testCase "invalid config falls back to capability count" $
+      assertEqual "bad-config" 4 (resolveWorkerNum 4 (Just 0) Nothing)
+  , testCase "nothing set falls back to capability count" $
+      assertEqual "caps" 4 (resolveWorkerNum 4 Nothing Nothing)
+  ]
+
+serverConfigLimitTest :: TestTree
+serverConfigLimitTest =
+  testGroup "ServerConfig run limits"
+  [ testCase "resolveRunNum defaults when key is missing" $
+      assertEqual "default" (Right 1000) (resolveRunNum Nothing)
+  , testCase "resolveRunNum accepts a positive value" $
+      assertEqual "positive" (Right 1) (resolveRunNum (Just 1))
+  , testCase "resolveRunNum rejects zero" $
+      assertBool "zero" (isLeft (resolveRunNum (Just 0)))
+  , testCase "resolveRunNum rejects a negative value" $
+      assertBool "negative" (isLeft (resolveRunNum (Just (-3))))
+  , testCase "checkRunNumLimit passes at the limit" $
+      assertEqual "at-limit" (Right ()) (checkRunNumLimit "runByCombo" 100 100)
+  , testCase "checkRunNumLimit passes with zero runs" $
+      assertEqual "zero" (Right ()) (checkRunNumLimit "runByCombo" 100 0)
+  , testCase "checkRunNumLimit rejects over the limit with endpoint, key, limit and config suggestion" $
+      case checkRunNumLimit "runByCombo" 100 150 of
+        Left msg -> do
+          assertBool "mentions endpoint and actual" ("runByCombo would run 150" `isInfixOf` msg)
+          assertBool "mentions key path" ("exceeding maxRunNum.runByCombo 100" `isInfixOf` msg)
+          assertBool "suggests config change" ("raise maxRunNum.runByCombo in config.yml" `isInfixOf` msg)
+        Right () -> assertFailure "expected Left"
+  , testCase "resolveRunLimits fills defaults for missing keys" $
+      assertEqual "defaults" (Right (RunLimits 1000 1000 1000 1000 1000))
+                             (resolveRunLimits (RunLimitsRaw Nothing Nothing Nothing Nothing Nothing))
+  , testCase "resolveRunLimits keeps explicit values" $
+      assertEqual "explicit" (Right (RunLimits 1 2 3 4 5))
+                             (resolveRunLimits (RunLimitsRaw (Just 1) (Just 2) (Just 3) (Just 4) (Just 5)))
+  , testCase "resolveRunLimits rejects a bad key naming it" $
+      case resolveRunLimits (RunLimitsRaw Nothing Nothing Nothing (Just 0) Nothing) of
+        Left msg -> assertBool "names the offending key" ("maxRunNum.runDealByRunScenarios" `isInfixOf` msg)
+        Right _ -> assertFailure "expected Left"
   ]
