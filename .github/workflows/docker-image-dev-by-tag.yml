@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'a*'
+  workflow_dispatch:
 
 # Multi-arch strategy: each platform is built natively on a runner of the same
 # architecture (no QEMU, no cross-compilation), pushed by digest, and the
@@ -125,7 +126,7 @@ jobs:
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            $(jq -r '.tags | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_TAGS") \
+            $(jq -r '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.IMAGE }}@sha256:%s ' *)
 
       - name: Inspect manifest
