@@ -1,6 +1,10 @@
 # Changelog for Hastructure
 
 <!-- towncrier release notes start -->
+## 0.52.10
+### 2026-10-17
+* FIX: #329 the multi-run / single-run request handlers were non-exhaustive over `RunDealReq` / `RunPoolReq` / `RunAssetReq` / `RootFindReq`: a request decoded with the wrong constructor for the routed endpoint crashed with a pattern-match failure (now rendered as an opaque `engine error:` 500 by the #344 boundary). Every handler is now total. A misrouted request to a single-run endpoint (`runDeal`, `runPool`, `runAsset`) returns the reason in-band as `Left "<endpoint>: expected <Constructor>"`; map-valued multi-run endpoints (whose response type has no error slot) answer HTTP 400 with the same message, uniform with the #345 run-cap rejections. `wrapRunAsset` rejects non-`PoolLevel` assumption shapes (per-pool / per-index / obligor strategies and pricing without assumptions) in-band.
+* FIX: #329 `runByRootFinder` no longer crashes on the legacy `FirstLossReq` / `MaxSpreadToFaceReq` request shapes (kept on the wire but unsupported; absbox composes `RootFinderReq` for both `runFirstLoss` and `runRootFinder`); a stress tweak (`stressDefault` / `stressPrepayment`) without pool assumptions is rejected with a descriptive error instead of crashing; the `BalanceFormula` stop condition is rejected as not implemented yet. The executable now compiles with `-Wincomplete-patterns -Werror=incomplete-patterns`, so any future non-exhaustive match in the API layer fails the build (the library is unchanged); note locally cabal needs one clean rebuild to pick up the new flags.
 ## 0.52.9
 ### 2026-10-17
 * FIX: #344 add a JSON error boundary at the Warp level: exceptions escaping the request pipeline (pure `error` calls, partial accessors, pattern failures) now answer 500 with the same envelope as in-band failures (`{"Left":"engine error: …"}`) and the CORS header, instead of Warp's opaque plain-text 500; server-side exception logging is unchanged

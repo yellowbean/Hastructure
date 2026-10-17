@@ -54,8 +54,6 @@ import Network.HTTP.Types (status500,hContentType)
 import Data.CaseInsensitive (mk)
 import qualified Network.Wai as Wai
 import qualified Data.Aeson as Aeson
-import Network.HTTP.Types (status500,hContentType)
-import Data.CaseInsensitive (mk)
 import Servant.OpenApi
 import Servant
 import Servant.Types.SourceT (source)
@@ -182,6 +180,9 @@ wrapRunAsset (RunAssetReq d assets (Just (AP.PoolLevel assumps)) mRates (Just pm
       pricingResult <- traverse (\a -> D.priceAssetUnion a d pm assumps mRates) assets
       let (assetCf,_) = P.aggPool Nothing cfs
       return (assetCf , Just pricingResult)
+-- asset projection supports pool-level assumptions only; anything else (per-pool/per-index/
+-- obligor strategies, or pricing without assumptions) is rejected without a run
+wrapRunAsset _ = Left "runAsset: unsupported pool assumption shape"
 
 -- Swagger API
 type SwaggerAPI = "swagger.json" :> Get '[JSON] OpenApi
@@ -222,6 +223,7 @@ runPool :: RunPoolReq -> Handler PoolRunResp
 runPool (SingleRunPoolReq f pt passumption mRates) 
   = return $
       patchCumulativeToPoolRun <$> wrapRunPoolType f pt passumption mRates
+runPool (MultiScenarioRunPoolReq _ _ _ _) = return $ Left "runPool: expected SingleRunPoolReq"
 
 -- | Per-request run bounding for a multi-run endpoint: the resolved worker
 -- cap ('boundedParMap') plus the endpoint's total-run limit (#345).
@@ -245,6 +247,13 @@ enforceRunCap ep cap n
       Left msg -> throwError (err400 { errBody = cs msg })
       Right () -> return ()
 
+-- | Reject a request routed to an endpoint whose payload shape it does not
+-- match (#329). Map-valued multi-run responses have no error slot, so the
+-- rejection rides the HTTP status code instead; single-run endpoints return
+-- the message as 'Left' in-band, matching the existing run-error convention.
+badRequest :: String -> Handler a
+badRequest msg = throwError (err400 { errBody = cs msg })
+
 runPoolScenarios :: MultiRunCap -> RunPoolReq -> Handler (Map.Map ScenarioName PoolRunResp)
 runPoolScenarios cap (MultiScenarioRunPoolReq f pt mAssumps mRates)
   = do
@@ -252,9 +261,12 @@ runPoolScenarios cap (MultiScenarioRunPoolReq f pt mAssumps mRates)
       return $ boundedParMap (mcWorkers cap)
                            (\assump -> patchCumulativeToPoolRun <$> wrapRunPoolType f pt (Just assump) mRates)
                            mAssumps
+runPoolScenarios _ _
+  = badRequest "runPoolByScenarios: expected MultiScenarioRunPoolReq"
 
 runDeal :: RunDealReq -> Handler RunResp
 runDeal (SingleRunReq f dt assump nonPerfAssump) = return $ wrapRun f dt assump nonPerfAssump
+runDeal _ = return $ Left "runDeal: expected SingleRunReq"
 
 
 -- Stressing default assumption from AssetPerfAssumption
@@ -341,12 +353,18 @@ getDealFeeMap (VDeal d) = DB.fees d
 getDealFeeMap (PDeal d) = DB.fees d
 
 doTweak :: Double -> RootFindTweak -> DealRunInput -> DealRunInput
+-- unreachable: 'runRootFinderBy' rejects stress tweaks when pool assumptions are absent
+doTweak _ (StressPoolDefault _) inp@(_, Nothing, _, _) = inp
+
 doTweak r (StressPoolDefault _) (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}, f) 
   = let
       stressed = over (AP.applyAssumptionTypeAssetPerf . _1 ) (stressDefaultAssetPerf (toRational r)) assumps
       stressedNonPerf = nonPerfAssump {AP.revolving = stressRevovlingPerf (stressDefaultAssetPerf (toRational r)) mRevolving }
     in
       (dt ,Just stressed, stressedNonPerf, f)
+
+-- unreachable: 'runRootFinderBy' rejects stress tweaks when pool assumptions are absent
+doTweak _ (StressPoolPrepayment _) inp@(_, Nothing, _, _) = inp
 
 doTweak r (StressPoolPrepayment _) (dt , Just assumps, nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving}, f) 
   = let
@@ -406,6 +424,9 @@ evalRootFindStop (BondMetTargetIrr bn target) (dt,_,_,pResult,osPflow)
         Nothing -> -1  -- `debug` ("No IRR found for bond:"++ show bn)
         Just irr -> (fromRational . toRational) $ irr - target -- `debug` ("IRR for bond:"++ show target ++" is "++ show irr)
 
+-- unreachable: 'runRootFinderBy' rejects BalanceFormula stops before the search
+evalRootFindStop (BalanceFormula _ _) _ = -1
+
 
 
 
@@ -419,33 +440,58 @@ rootFindAlgo (dt ,poolAssumps, runAssumps, f) tweak stop r
         Left errorMsg -> -1
 
 runRootFinderBy :: RootFindReq -> Handler (Either String RootFindResp)
-runRootFinderBy (RootFinderReq req@(dt,Just assumps,nonPerfAssump@AP.NonPerfAssumption{AP.revolving = mRevolving},f) tweak stop)
-  = return $
-      let 
-        itertimes = 1000
-        def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.000001}
-        riddersFn = case tweak of
-                      SplitFixedBalance _ _ (l,h) -> ridders def (min h 0.99, max l 0.00001)
-                      StressPoolDefault (l,h)  -> ridders def (h ,max l 0.00)
-                      StressPoolPrepayment (l,h) -> ridders def (h ,max l 0.00)
-                      MaxSpreadTo _ (l,h) -> ridders def (h ,max l 0.00)
-      in
-        case riddersFn (rootFindAlgo req tweak stop) of
-          Root r -> return $ RFResult r (doTweak r tweak req)
-          NotBracketed -> Left "Not able to bracket the root"
-          SearchFailed -> Left "Not able to find the root"
+runRootFinderBy (FirstLossReq _ _)
+  = return $ Left "rootFinder: FirstLossReq is a legacy request type; compose RootFinderReq (absbox runFirstLoss does)"
+runRootFinderBy (MaxSpreadToFaceReq _ _ _ _)
+  = return $ Left "rootFinder: MaxSpreadToFaceReq is a legacy request type; compose RootFinderReq (absbox runRootFinder does)"
+runRootFinderBy req@(RootFinderReq runInput@(_,mAssumps,_,_) tweak stop)
+  | tweakNeedsPoolAssump tweak && isNothing mAssumps
+  = return $ Left "rootFinder: stressDefault/stressPrepayment requires pool assumptions"
+  | BalanceFormula{} <- stop
+  = return $ Left "rootFinder: BalanceFormula stop is not implemented yet"
+  | otherwise
+  = return $ runRidders runInput tweak stop
+
+-- | Bond-only tweaks modify the deal structure and need no pool assumptions;
+-- the stress tweaks vary pool performance, so they do.
+tweakNeedsPoolAssump :: RootFindTweak -> Bool
+tweakNeedsPoolAssump (StressPoolDefault _)    = True
+tweakNeedsPoolAssump (StressPoolPrepayment _) = True
+tweakNeedsPoolAssump _                        = False
+
+-- | The ridders search itself; reached only after the guards in
+-- 'runRootFinderBy' (legacy shapes, missing assumptions, unimplemented stops).
+runRidders :: DealRunInput -> RootFindTweak -> RootFindStop -> Either String RootFindResp
+runRidders runInput tweak stop
+  = let
+      itertimes = 1000
+      def = RiddersParam { riddersMaxIter = itertimes, riddersTol = RelTol 0.000001}
+      riddersFn = case tweak of
+                    SplitFixedBalance _ _ (l,h) -> ridders def (min h 0.99, max l 0.00001)
+                    StressPoolDefault (l,h)  -> ridders def (h ,max l 0.00)
+                    StressPoolPrepayment (l,h) -> ridders def (h ,max l 0.00)
+                    MaxSpreadTo _ (l,h) -> ridders def (h ,max l 0.00)
+    in
+      case riddersFn (rootFindAlgo runInput tweak stop) of
+        Root r -> return $ RFResult r (doTweak r tweak runInput)
+        NotBracketed -> Left "Not able to bracket the root"
+        SearchFailed -> Left "Not able to find the root"
 
 runDealScenarios :: MultiRunCap -> RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runDealScenarios cap (MultiScenarioRunReq f dt mAssumps nonPerfAssump) 
   = do
       enforceRunCap "runDealByScenarios" cap (Map.size mAssumps)
       return $ boundedParMap (mcWorkers cap) (\singleAssump -> wrapRun f dt (Just singleAssump) nonPerfAssump) mAssumps
+runDealScenarios _ _
+  = badRequest "runDealByScenarios: expected MultiScenarioRunReq"
 
 runMultiDeals :: MultiRunCap -> RunDealReq -> Handler (Map.Map ScenarioName RunResp)
 runMultiDeals cap (MultiDealRunReq f mDts assump nonPerfAssump) 
   = do
       enforceRunCap "runMultiDeals" cap (Map.size mDts)
       return $ boundedParMap (mcWorkers cap) (\singleDealType -> wrapRun f singleDealType assump nonPerfAssump) mDts
+runMultiDeals _ _
+  = badRequest "runMultiDeals: expected MultiDealRunReq"
 
 runDate :: RunDateReq -> Handler [Date]
 runDate (RunDateReq sd dp md)
@@ -459,6 +505,8 @@ runDealByRunScenarios cap (MultiRunAssumpReq f dt mAssump nonPerfAssumpMap)
   = do
       enforceRunCap "runDealByRunScenarios" cap (Map.size nonPerfAssumpMap)
       return $ boundedParMap (mcWorkers cap) (wrapRun f dt mAssump) nonPerfAssumpMap
+runDealByRunScenarios _ _
+  = badRequest "runDealByRunScenarios: expected MultiRunAssumpReq"
 
 runDealByCombo :: MultiRunCap -> RunDealReq -> Handler (Map.Map String RunResp)
 runDealByCombo cap (MultiComboReq f dMap assumpMap nonPerfAssumpMap)
@@ -473,6 +521,8 @@ runDealByCombo cap (MultiComboReq f dMap assumpMap nonPerfAssumpMap)
                             , (ak,a) <- Map.toList assumpMap
                             , (nk,n) <- Map.toList nonPerfAssumpMap ]
       return $ boundedParMap (mcWorkers cap) (\(d,a,n) -> wrapRun f d a n) inputs
+runDealByCombo _ _
+  = badRequest "runByCombo: expected MultiComboReq"
 
 myServer :: ResolvedConfig -> ServerT API Handler
 myServer rc =
