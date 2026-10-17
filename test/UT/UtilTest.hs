@@ -3,7 +3,7 @@
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
                   ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
-                  ,scaleListTest,mapUpdateTest,boundedParMapTest,resolveWorkerCapTest
+                  ,scaleListTest,mapUpdateTest,boundedParMapTest,resolveWorkerCapTest,forceMapValuesTest
                   ,workerNumTest,serverConfigLimitTest)--,daycountTests3,daycountTests4)
 where
 
@@ -22,6 +22,7 @@ import Stmt
 import Data.Fixed
 import qualified Data.DList as DL
 import Data.Ratio ((%))
+import Control.Exception (ErrorCall(..), evaluate, try)
 import qualified Data.Map as Map
 import Data.Either
 import Data.List (isInfixOf)
@@ -734,6 +735,23 @@ resolveWorkerCapTest =
   , testCase "unparsable override falls back" $
       assertEqual "garbage" 4 (resolveWorkerCap 4 (Just "garbage"))
   ]
+
+forceMapValuesTest :: TestTree
+forceMapValuesTest =
+  let m = Map.fromList [(1::Int,10::Int),(2,20),(3,30)]
+  in
+    testGroup "forceMapValues"
+    [ testCase "preserves the map" $
+        assertEqual "same map" m (forceMapValues m)
+    , testCase "empty map stays empty" $
+        assertEqual "empty" (Map.empty :: Map.Map Int Int) (forceMapValues Map.empty)
+    , testCase "forces every value so exceptions surface eagerly" $ do
+        r <- (try (evaluate (forceMapValues (Map.fromList [(1::Int, error "boom" :: Int)])))
+              :: IO (Either ErrorCall (Map.Map Int Int)))
+        case r of
+          Left (ErrorCall msg) -> assertEqual "message" "boom" msg
+          Right _ -> assertFailure "expected the forced value to throw"
+    ]
 
 workerNumTest :: TestTree
 workerNumTest =

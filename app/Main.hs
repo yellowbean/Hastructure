@@ -61,7 +61,7 @@ import Servant.API.ContentTypes (contentType)
 
 import Types
 import MainBase
-import Util (boundedParMap)
+import Util (boundedParMap,forceMapValues)
 import ServerConfig
 import qualified Deal as D
 import qualified Deal.DealBase as DB
@@ -214,14 +214,14 @@ engineSwagger = toOpenApi engineAPI
 
 -- showVersion :: Handler (Envelope '[] Version)
 showVersion :: Handler Version
-showVersion = return version1
+showVersion = return $! version1
 
 runAsset :: RunAssetReq -> Handler RunAssetResp
-runAsset req = return $ wrapRunAsset req
+runAsset req = return $! wrapRunAsset req
 
 runPool :: RunPoolReq -> Handler PoolRunResp
 runPool (SingleRunPoolReq f pt passumption mRates) 
-  = return $
+  = return $!
       patchCumulativeToPoolRun <$> wrapRunPoolType f pt passumption mRates
 runPool (MultiScenarioRunPoolReq _ _ _ _) = return $ Left "runPool: expected SingleRunPoolReq"
 
@@ -258,14 +258,14 @@ runPoolScenarios :: MultiRunCap -> RunPoolReq -> Handler (Map.Map ScenarioName P
 runPoolScenarios cap (MultiScenarioRunPoolReq f pt mAssumps mRates)
   = do
       enforceRunCap "runPoolByScenarios" cap (Map.size mAssumps)
-      return $ boundedParMap (mcWorkers cap)
+      return $! forceMapValues $ boundedParMap (mcWorkers cap)
                            (\assump -> patchCumulativeToPoolRun <$> wrapRunPoolType f pt (Just assump) mRates)
                            mAssumps
 runPoolScenarios _ _
   = badRequest "runPoolByScenarios: expected MultiScenarioRunPoolReq"
 
 runDeal :: RunDealReq -> Handler RunResp
-runDeal (SingleRunReq f dt assump nonPerfAssump) = return $ wrapRun f dt assump nonPerfAssump
+runDeal (SingleRunReq f dt assump nonPerfAssump) = return $! wrapRun f dt assump nonPerfAssump
 runDeal _ = return $ Left "runDeal: expected SingleRunReq"
 
 
@@ -450,7 +450,7 @@ runRootFinderBy req@(RootFinderReq runInput@(_,mAssumps,_,_) tweak stop)
   | BalanceFormula{} <- stop
   = return $ Left "rootFinder: BalanceFormula stop is not implemented yet"
   | otherwise
-  = return $ runRidders runInput tweak stop
+  = return $! runRidders runInput tweak stop
 
 -- | Bond-only tweaks modify the deal structure and need no pool assumptions;
 -- the stress tweaks vary pool performance, so they do.
@@ -481,7 +481,7 @@ runDealScenarios :: MultiRunCap -> RunDealReq -> Handler (Map.Map ScenarioName R
 runDealScenarios cap (MultiScenarioRunReq f dt mAssumps nonPerfAssump) 
   = do
       enforceRunCap "runDealByScenarios" cap (Map.size mAssumps)
-      return $ boundedParMap (mcWorkers cap) (\singleAssump -> wrapRun f dt (Just singleAssump) nonPerfAssump) mAssumps
+      return $! forceMapValues $ boundedParMap (mcWorkers cap) (\singleAssump -> wrapRun f dt (Just singleAssump) nonPerfAssump) mAssumps
 runDealScenarios _ _
   = badRequest "runDealByScenarios: expected MultiScenarioRunReq"
 
@@ -489,13 +489,13 @@ runMultiDeals :: MultiRunCap -> RunDealReq -> Handler (Map.Map ScenarioName RunR
 runMultiDeals cap (MultiDealRunReq f mDts assump nonPerfAssump) 
   = do
       enforceRunCap "runMultiDeals" cap (Map.size mDts)
-      return $ boundedParMap (mcWorkers cap) (\singleDealType -> wrapRun f singleDealType assump nonPerfAssump) mDts
+      return $! forceMapValues $ boundedParMap (mcWorkers cap) (\singleDealType -> wrapRun f singleDealType assump nonPerfAssump) mDts
 runMultiDeals _ _
   = badRequest "runMultiDeals: expected MultiDealRunReq"
 
 runDate :: RunDateReq -> Handler [Date]
 runDate (RunDateReq sd dp md)
-  = return $ 
+  = return $!
       case md of
         Nothing -> DU.genSerialDatesTill2 IE sd dp (Lib.toDate "20990101")
         Just d -> DU.genSerialDatesTill2 IE sd dp d
@@ -504,7 +504,7 @@ runDealByRunScenarios :: MultiRunCap -> RunDealReq -> Handler (Map.Map ScenarioN
 runDealByRunScenarios cap (MultiRunAssumpReq f dt mAssump nonPerfAssumpMap)
   = do
       enforceRunCap "runDealByRunScenarios" cap (Map.size nonPerfAssumpMap)
-      return $ boundedParMap (mcWorkers cap) (wrapRun f dt mAssump) nonPerfAssumpMap
+      return $! forceMapValues $ boundedParMap (mcWorkers cap) (wrapRun f dt mAssump) nonPerfAssumpMap
 runDealByRunScenarios _ _
   = badRequest "runDealByRunScenarios: expected MultiRunAssumpReq"
 
@@ -520,7 +520,7 @@ runDealByCombo cap (MultiComboReq f dMap assumpMap nonPerfAssumpMap)
                             | (dk,d) <- Map.toList dMap
                             , (ak,a) <- Map.toList assumpMap
                             , (nk,n) <- Map.toList nonPerfAssumpMap ]
-      return $ boundedParMap (mcWorkers cap) (\(d,a,n) -> wrapRun f d a n) inputs
+      return $! forceMapValues $ boundedParMap (mcWorkers cap) (\(d,a,n) -> wrapRun f d a n) inputs
 runDealByCombo _ _
   = badRequest "runByCombo: expected MultiComboReq"
 

@@ -113,6 +113,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.mapUpdateTest
                            ,UtilT.boundedParMapTest
                            ,UtilT.resolveWorkerCapTest
+                           ,UtilT.forceMapValuesTest
                            ,UtilT.workerNumTest
                            ,UtilT.serverConfigLimitTest
                            ,AccT.intTests

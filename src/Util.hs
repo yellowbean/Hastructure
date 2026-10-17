@@ -13,7 +13,7 @@ module Util
     ,lastOf,findBox,safeDivide', safeDiv
     ,safeDivide,lstToMapByFn,paySequentially,payProRata,mapWithinMap
     ,payInMap,payInMapM,adjustM,adjustMs,mapInMapM,lookupAndApply,lookupAndUpdate,lookupAndApplies
-    ,lookupInMap,selectInMap,scaleByFstElement,boundedParMap
+    ,lookupInMap,selectInMap,scaleByFstElement,boundedParMap,forceMapValues
     ,lookupTuple6 ,lookupTuple7,diffNum,splitBal,lookupM,lookupVs
     ,lookupMM
     -- for debug
@@ -270,12 +270,22 @@ debugLine xs = ""
 -- still limited by the RTS capabilities (@-N@). Values are forced only to WHNF,
 -- which is enough for computations expressed in a strict monad such as 'Either'
 -- (e.g. 'runDeal'), where reducing the result to a constructor runs the work;
--- deeply-lazy results would need an 'NFData'-based variant instead.
+-- deeply-lazy results would need an 'NFData'-based variant instead. Note the
+-- values stay lazy until demanded — the HTTP handlers apply 'forceMapValues' so
+-- engine failures surface while the error boundary can still respond (#344).
 boundedParMap :: Ord k => Int -> (a -> b) -> Map.Map k a -> Map.Map k b
 boundedParMap n f m =
   let (ks, vs)  = unzip (Map.toList m)
       vs'       = (map f vs) `using` parBuffer (max 1 n) rseq
   in Map.fromList (zip ks vs')
+
+-- | Force every Map value to WHNF, then return the map. 'Map.fromList' keeps
+-- the values lazy, so without this the response body would only be forced
+-- while Warp is already streaming it — too late for the JSON error boundary to
+-- render an engine failure (#344). A 'BondGroup'-style deep thunk inside a
+-- value is not forced by this; use an 'NFData'-based variant if ever needed.
+forceMapValues :: Map.Map k a -> Map.Map k a
+forceMapValues m = Map.foldrWithKey (\_ v acc -> v `seq` acc) () m `seq` m
 
 lastOf:: [a] -> (a->Bool) -> Maybe a
 lastOf [] fn = Nothing
