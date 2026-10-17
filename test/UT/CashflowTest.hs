@@ -1,6 +1,6 @@
 module UT.CashflowTest(cfTests,tsSplitTests,testMergePoolCf,combineTest,testHaircut
                       ,testMergeTsRowsFromTwoEntities,testCumStat,testClawIntTest,testPoolAggTest
-                      ,testMflowAccessors,testCollectedCfSafety)
+                      ,testMflowAccessors,testCollectedCfSafety,testEmptyInputSafety)
 where
 
 import Test.Tasty
@@ -16,6 +16,7 @@ import qualified Cashflow as CF
 import Types
 import Util
 import DateUtil
+import Data.List.NonEmpty (NonEmpty(..))
 
 import Debug.Trace
 debug = flip trace
@@ -488,3 +489,41 @@ testCollectedCfSafety =
       ,testCase "empty trs with dates returns empty rows instead of crashing" $
         assertEqual "two empty rows" [[],[]] (CF.buildCollectedCF [] [L.toDate "20220101",L.toDate "20220201"] [])
     ]
+
+-- | #332: empty-input and CashFlow-row safety for the cashflow aggregation
+testEmptyInputSafety = testGroup "Cashflow empty-input safety"
+  [
+    testCase "firstDate of an empty frame returns its begin date" $
+      assertEqual "begin date" (L.toDate "20200101")
+        (CF.firstDate (CF.CashFlowFrame (0, L.toDate "20200101", Nothing) []))
+
+   ,testCase "firstDate of emptyCashflow returns epocDate" $
+      assertEqual "epocDate" epocDate (CF.firstDate CF.emptyCashflow)
+
+   ,testCase "firstDate of DummyCF returns epocDate" $
+      assertEqual "epocDate" epocDate (CF.firstDate CF.DummyCF)
+
+   ,testCase "aggTsByDates over an empty pool returns []" $
+      assertEqual "empty" ([] :: [CF.TsRow]) (CF.aggTsByDates [] [L.toDate "20220101"])
+
+   ,testCase "aggTsByDates drops groups with no rows (rows after the cutoffs)" $
+      assertEqual "no groups" ([] :: [CF.TsRow])
+        (CF.aggTsByDates [CF.MortgageFlow (L.toDate "20220211") 80 10 10 0 0 0 0 0 Nothing Nothing Nothing]
+                         [L.toDate "20220101"])
+
+   ,testCase "sumTsCF sums a NonEmpty group" $
+      assertEqual "summed" (CF.CashFlow (L.toDate "20220103") 15)
+        (CF.sumTsCF (CF.CashFlow (L.toDate "20220101") 10 :| [CF.CashFlow (L.toDate "20220102") 5])
+                    (L.toDate "20220103"))
+
+   ,testCase "aggTsByDates handles CashFlow-shaped rows (zero-row synthesis)" $
+      assertEqual "cashflow rows"
+        [CF.CashFlow (L.toDate "20220101") 100, CF.CashFlow (L.toDate "20220201") 0]
+        (CF.aggTsByDates [CF.CashFlow (L.toDate "20220101") 100]
+                         [L.toDate "20220101", L.toDate "20220201"])
+
+   ,testCase "extendCashFlow appends a zeroed CashFlow row" $
+      assertEqual "extended"
+        (CF.CashFlowFrame dummySt [CF.CashFlow (L.toDate "20220101") 100, CF.CashFlow (L.toDate "20220201") 0])
+        (CF.extendCashFlow (L.toDate "20220201") (CF.CashFlowFrame dummySt [CF.CashFlow (L.toDate "20220101") 100]))
+  ]

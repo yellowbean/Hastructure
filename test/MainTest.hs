@@ -63,6 +63,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,CFT.testPoolAggTest
                            ,CFT.testMflowAccessors
                            ,CFT.testCollectedCfSafety
+                           ,CFT.testEmptyInputSafety
                            ,BT.pricingTests
                            ,BT.bndConsolTest
                            ,BT.writeOffTest
