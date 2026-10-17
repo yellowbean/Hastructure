@@ -29,6 +29,62 @@
 * :coffee: Easy integration with ``Java/C#/C++/JavaScript/Python`` with ``RESTful`` interface and Docker image are ready. 
   * C/Java : [here](https://github.com/absbox/Hastructure/issues/106)
 
+### Installation
+
+#### From Docker
+
+Pull from [Docker Hub](https://hub.docker.com/r/yellowbean/hastructure) using the image path `yellowbean/hastructure` (full registry path `docker.io/yellowbean/hastructure`; `latest` follows the `v*` release tags, `dev` the `a*` dev tags):
+
+```bash
+docker pull yellowbean/hastructure:latest
+docker run -p 8081:8081 yellowbean/hastructure:latest
+```
+
+Or build the checkout with compose:
+
+```bash
+docker compose up --build
+```
+
+The image ships `config.yml` and `swagger.json` in `/opt/myapp`; mount your own config over it to change the server settings:
+
+```bash
+docker run -p 9090:9090 -v "$PWD/config.yml:/opt/myapp/config.yml" yellowbean/hastructure:latest
+```
+
+#### From nixpkgs
+
+```bash
+nix-shell shell.nix                     # dev shell: GHC, HLS, cabal
+nix-build release.nix -A hastructure    # build the engine -> result/bin/Hastructure-exe
+```
+
+#### From release executables
+
+Prebuilt executables for Linux/macOS/Windows are attached to [GitHub releases](https://github.com/absbox/Hastructure/releases) as `Hastructure-<version>-<OS>-ghc-<ghc-version>`. Download one, then:
+
+```bash
+chmod +x Hastructure-<version>-Linux-ghc-9.10.2
+./Hastructure-<version>-Linux-ghc-9.10.2
+```
+
+Run it from a directory containing `config.yml`: the engine reads the file at startup and refuses to start when it is missing, malformed or contains an invalid value.
+
+#### Configuration (`config.yml`)
+
+See the sample [`config.yml`](https://github.com/absbox/Hastructure/blob/master/config.yml) in the repository. The engine reads it from the working directory once at startup (restart to apply changes); it holds the following fields:
+
+* `port` (required) — HTTP listen port; a missing `port` aborts startup.
+* `workerNum` (optional) — in-flight evaluation cap applied to every multi-run request. Precedence: `HASTRUCTURE_WORKERS` environment variable (when it parses to a positive integer), then `workerNum`, then the RTS capability count (`+RTS -N`). A present-but-unusable value falls back to the next layer, since this is only a performance knob.
+* `maxRunNum` (optional) — per-endpoint total-run caps configured as `maxRunNum.<endpoint>`, default `1000` each; a non-positive value aborts startup:
+  * `runPoolByScenarios` — number of pool scenarios
+  * `runDealByScenarios` — number of deal scenarios
+  * `runMultiDeals` — number of deals
+  * `runDealByRunScenarios` — number of non-performance assumption scenarios
+  * `runByCombo` — size of the deals × assumptions × non-performance assumptions cartesian product (sized before materialising, so oversized grids are rejected without allocation)
+* Exceeding a cap — rejected with HTTP 400 in the standard JSON error envelope (`{"Left":"..."}`), naming the endpoint, the configured limit and the `maxRunNum.<endpoint>` key to raise. Invalid config values abort startup with an `invalid config.yml: ...` error naming the offending key.
+
+
 ### Documentation
 
 * see what `Hastructure` is capable of -> [Here](https://absbox-doc.readthedocs.io/en/latest/)
@@ -153,15 +209,6 @@
 * Support user define pay dates & pool collection dates 
 
 </details>
-
-
-### Online Demo
-
-The demo only cover very limit features of this engine and subject to UI performance issue due to rapid prototype design of web component
-
-**Pls noted that the web demo is far behind latest development/stable version**
-
-* [Here](https://deal-bench.xyz)
 
 
 ### Others
