@@ -6,7 +6,8 @@ name: Docker Image CI
 #     Windows/amd64 and publishes them automatically to the GitHub "Releases"
 #     page for that tag (the release is created non-draft, with generated notes)
 #   * builds and pushes the amd64 image to Docker Hub (:latest + semver tags)
-#   * performs the Hackage release in dry-run mode
+#   * publishes the tagged version to Hackage (the tag must match the cabal
+#     version, e.g. `v0.53.0` <-> `version: 0.53.0`)
 #
 # NOTE: tags starting with `a` follow the dev track instead
 # (.github/workflows/docker-image-dev-by-tag.yml -> Docker Hub :dev, multi-arch,
@@ -22,7 +23,7 @@ permissions:
   contents: read
 
 env:
-  GHC_VERSION: "9.8.4"
+  GHC_VERSION: "9.12.4"
 
 jobs:
   build_artifact:
@@ -148,8 +149,8 @@ jobs:
           cache-from: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache
           cache-to: type=registry,ref=${{ secrets.DOCKER_HUB_USERNAME }}/hastructure:buildcache,mode=max
 
-  hackage_dry_run:
-    name: Hackage dry-run
+  hackage_publish:
+    name: Publish to Hackage
     needs: release
     runs-on: ubuntu-latest
     steps:
@@ -158,4 +159,4 @@ jobs:
       - uses: haskell-actions/hackage-publish@v1
         with:
           hackageToken: ${{ secrets.HACKAGE_KEY }}
-          publish: false
+          publish: true

@@ -35,10 +35,19 @@
 
 Pull from [Docker Hub](https://hub.docker.com/r/yellowbean/hastructure) using the image path `yellowbean/hastructure` (full registry path `docker.io/yellowbean/hastructure`; `latest` follows the `v*` release tags, `dev` the `a*` dev tags):
 
+##### PRODUCTION
+
 ```bash
 docker pull yellowbean/hastructure:latest
 docker run -p 8081:8081 yellowbean/hastructure:latest
 ```
+##### DEVELOPMENT
+
+```bash
+docker pull yellowbean/hastructure:dev
+docker run -p 8081:8081 yellowbean/hastructure:dev
+```
+
 
 Or build the checkout with compose:
 
@@ -46,7 +55,7 @@ Or build the checkout with compose:
 docker compose up --build
 ```
 
-The image ships `config.yml` and `swagger.json` in `/opt/myapp`; mount your own config over it to change the server settings:
+The image ships `config.yml` and `swagger.json` in `/opt/myapp` (the engine reads `config.yml` from its working directory at startup); mount your own config over it to change the server settings. The mounted config must set `port` to the same value as the host-side port mapping, e.g. `port: 9090` in the file for the mapping below:
 
 ```bash
 docker run -p 9090:9090 -v "$PWD/config.yml:/opt/myapp/config.yml" yellowbean/hastructure:latest

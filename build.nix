@@ -1,6 +1,6 @@
 { nixpkgs ? import (fetchTarball {
-    url = "https://github.com/NixOS/nixpkgs/archive/refs/tags/25.05.tar.gz";
-    sha256 = "1915r28xc4znrh2vf4rrjnxldw2imysz819gzhk9qlrkqanmfsxd"; # Replace with actual hash
+    url = "https://github.com/NixOS/nixpkgs/archive/4c7870105e7f1fdf9c48688c8d7efc21abf0688a.tar.gz";
+    sha256 = "sha256-ajQuqcxnj6RYnwCjA/9FTCnrdR2+BDzstE8UembXf60=";
   }) {}
 }:
 let

@@ -1,6 +1,22 @@
 # Changelog for Hastructure
 
 <!-- towncrier release notes start -->
+## 0.52.13
+### 2026-10-19
+* ENHANCE: dependency modernization for GHC 9.10.3 / 9.12.4: the unused `aeson-gadt-th` dependency is gone, upper bounds widened (`aeson <2.4`, `time <1.17`, `containers <0.9`, `base-compat <0.16`, `hashable <1.6`, `parallel <3.4`, `servant-openapi3 <2.2`) and unused dependencies pruned from every component (library, executable, test suite); verified with all 531 tests on GHC 9.10.3 and 9.12.3
+* ENHANCE: tooling refresh: CI builds on GHC 9.10.3 and 9.12.4 (was 9.8.4), the Docker image uses `haskell:9.12.4-slim-bookworm`, Stack moves to LTS 24.63, and `build.nix` / `release.nix` pin nixos-26.05 (stale generated nix files removed)
+* ENHANCE: pushing a `v*` tag now publishes the release to Hackage automatically (previously dry-run only)
+
+## 0.52.12
+### 2026-10-18
+* FIX: multi-arch Docker merge passes the metadata tags with `-t` flags; "Publish Multi-Arch Manifest" recovery workflow added (PR #322 H2)
+* DOCS: Installation section with `config.yml` field documentation; Features section made collapsible
+
+## 0.52.11
+### 2026-10-18
+* FIX: `Lib.prorataFactors` clamps negative balances (treated as zero) instead of producing negative allocations (PR #322 L3)
+* ENHANCE: `UT.LedgerTest` tracked in the cabal file; `Lib.periodsBetween` removal documented (PR #322 L2/L3)
+
 ## 0.52.10
 ### 2026-10-17
 * FIX: #332 `sumTsCF` now takes `NonEmpty TsRow` (source-level breaking for library consumers) instead of throwing on an empty group; the dead, unexported partial `sumTs` (`foldr1`) is removed; `firstDate` returns the frame's begin date for an empty frame (`epocDate` for `DummyCF`) instead of failing; `emptyTsRow` and `viewTsRow` gained the missing `CashFlow` clause so `extendCashFlow` / `buildCollectedCF` zero-row synthesis no longer crash on generic rows; `buildCollectedCF` lost its unreachable `error` clause. `aggTsByDates` keeps its signature and behavior (empty groups are skipped via `NE.nonEmpty`).

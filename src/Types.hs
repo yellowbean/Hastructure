@@ -65,7 +65,6 @@ import Control.Lens.TH
 
 import Text.Read (readMaybe, get)
 import Data.Aeson (ToJSON, toJSON, Value(String))
-import Data.Aeson.GADT.TH
 
 import Data.Ratio (Ratio, numerator, denominator)
 import Data.Text (pack)

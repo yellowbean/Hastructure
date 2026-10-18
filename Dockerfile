@@ -1,4 +1,4 @@
-FROM haskell:9.8.4-slim-bullseye AS build
+FROM haskell:9.12.4-slim-bookworm AS build
 
 WORKDIR /opt/build
 COPY . /opt/build
