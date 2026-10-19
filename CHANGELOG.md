@@ -1,6 +1,10 @@
 # Changelog for Hastructure
 
 <!-- towncrier release notes start -->
+## 0.52.14
+### 2026-10-19
+* FIX: macOS release builds select the Command Line Tools toolchain (`sudo xcode-select -s /Library/Developer/CommandLineTools`) before building, working around the `ld`/SDK mismatch (`tapi error: malformed file`, `arm64e.x1-macos`) that broke linking on the `macos-26-arm64` image 20261013.0424.1 (actions/runner-images#14940). 0.52.13 was not published because of this CI failure.
+
 ## 0.52.13
 ### 2026-10-19
 * ENHANCE: dependency modernization for GHC 9.10.3 / 9.12.4: the unused `aeson-gadt-th` dependency is gone, upper bounds widened (`aeson <2.4`, `time <1.17`, `containers <0.9`, `base-compat <0.16`, `hashable <1.6`, `parallel <3.4`, `servant-openapi3 <2.2`) and unused dependencies pruned from every component (library, executable, test suite); verified with all 531 tests on GHC 9.10.3 and 9.12.3
