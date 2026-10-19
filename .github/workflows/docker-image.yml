@@ -44,6 +44,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Runner image macos-26-arm64 20261013.0424.1 ships CLT with SDK 27.0
+      # .tbd files (arm64e.x1-* arch entries) while the selected Xcode
+      # toolchain's ld cannot parse them ("tapi error: malformed file").
+      # Selecting the CLT toolchain aligns clang/ld/SDK. See
+      # actions/runner-images#14940 and discourse.haskell.org/t/14675.
+      - name: Align macOS toolchain (ld/SDK mismatch)
+        if: runner.os == 'macOS'
+        run: |
+          sudo xcode-select -s /Library/Developer/CommandLineTools
+          xcode-select -p && clang --version && ld -v
+
       - name: Setup Haskell
         id: setup-haskell-cabal
         uses: haskell-actions/setup@v2
