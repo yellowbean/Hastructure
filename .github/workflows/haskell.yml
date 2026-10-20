@@ -19,14 +19,14 @@ jobs:
         ghc: [ "9.10.3", "9.12.4" ]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     - uses: haskell-actions/setup@v2
       with:
         ghc-version: ${{ matrix.ghc }}
         cabal-version: 'latest'
 
     - name: Cache
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       env:
         cache-name: cache-cabal
       with:
@@ -47,4 +47,4 @@ jobs:
 
     - name: Badge Action
       if: matrix.ghc == '9.12.4'
-      uses: emibcn/badge-action@v1.2.4
+      uses: emibcn/badge-action@v2

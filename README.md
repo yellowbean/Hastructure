@@ -31,6 +31,8 @@
 
 ### Installation
 
+Detailed setup guide (docker/compose/nix/executables, `config.yml` field reference, REST endpoints and client compatibility): [Installation and Configuration (wiki)](https://github.com/absbox/Hastructure/wiki/Installation-and-Configuration)
+
 #### From Docker
 
 Pull from [Docker Hub](https://hub.docker.com/r/yellowbean/hastructure) using the image path `yellowbean/hastructure` (full registry path `docker.io/yellowbean/hastructure`; `latest` follows the `v*` release tags, `dev` the `a*` dev tags):
@@ -97,6 +99,7 @@ See the sample [`config.yml`](https://github.com/absbox/Hastructure/blob/master/
 ### Documentation
 
 * see what `Hastructure` is capable of -> [Here](https://absbox-doc.readthedocs.io/en/latest/)
+* how releases/dev tags are published (`v`/`a` tag tracks, GitHub Releases, Docker Hub, Hackage, nixpkgs) -> [Release Management (wiki)](https://github.com/absbox/Hastructure/wiki/Release-Management)
   * [Where is `Hastructure` doc ? ](https://github.com/absbox/Hastructure/wiki/Where-is-documentation-of-Hastructure-%3F)
 
 ### Features
