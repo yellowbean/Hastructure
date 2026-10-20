@@ -104,6 +104,10 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     steps:
+      # `gh` resolves the repository from the git checkout; without it
+      # `gh release create` fails with "not a git repository".
+      - uses: actions/checkout@v4
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
@@ -162,10 +166,23 @@ jobs:
 
   hackage_publish:
     name: Publish to Hackage
-    needs: release
+    # Independent of the GitHub release so a release-upload hiccup cannot block
+    # the (immutable) Hackage publication.
+    needs: build_artifact
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ env.GHC_VERSION }}
+          cabal-version: "latest"
+
+      # haskell-actions/hackage-publish only uploads tarballs found in
+      # packagesPath (default dist-newstyle/sdist/); it does not run cabal sdist.
+      - name: Build sdist
+        run: cabal sdist
 
       - uses: haskell-actions/hackage-publish@v1
         with:
