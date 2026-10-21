@@ -53,6 +53,7 @@ import Data.Time.Clock
 import Data.Maybe
 import Data.Either
 import Data.Either.Utils
+import Data.Bifunctor (first)
 import Data.Aeson hiding (json)
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -136,11 +137,10 @@ calcDueFee t rc calcDay f@(F.Fee fn (F.PctFee ds _r ) fs fd fdDay fa lpd _)
 
 -- ^ time series based fee, can be accrued multiple times
 calcDueFee t rc calcDay f@(F.Fee fn (F.FeeFlow ts)  fs fd _ fa mflpd _)
-  = let 
-      (currentNewDue,futureDue) = splitTsByDate ts calcDay 
-      cumulativeDue = sumValTs currentNewDue
-      newFeeDue =  cumulativeDue + fd  
-    in 
+  = do
+      (currentNewDue,futureDue) <- first (("Fee " ++ fn ++ " FeeFlow: ") ++) (trySplitTsByDate ts calcDay)
+      cumulativeDue <- first (("Fee " ++ fn ++ " FeeFlow: ") ++) (trySumValTs currentNewDue)
+      let newFeeDue =  cumulativeDue + fd
       return f{ F.feeDue = newFeeDue ,F.feeDueDate = Just calcDay ,F.feeType = F.FeeFlow futureDue}
 
 -- ^ fee based on a recurring date pattern, exempt by reAccruableFeeType check

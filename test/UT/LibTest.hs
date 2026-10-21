@@ -19,6 +19,7 @@ import Util
 import Stmt
 import DateUtil
 import Data.Ratio
+import Data.List (isInfixOf)
 
 curveTests =
     let
@@ -224,11 +225,41 @@ tsOperationTests =
        (BalanceCurve [TsPoint (toDate "20221101") 100,TsPoint (toDate "20221201") 50] 
        ,(BalanceCurve [])) $ 
        splitTsByDate bcurve (toDate "20221202")
-    ,testCase "split ts by date on left 3" $ 
+    ,testCase "split ts by date on left 3" $
        assertEqual " split on out of scope"
        (BalanceCurve [TsPoint (toDate "20221101") 100]
        ,BalanceCurve [TsPoint (toDate "20221201") 50]) $
        splitTsByDate bcurve (toDate "20221101")
+    ,testCase "getValOnByDate keeps working for a balance curve" $
+       assertEqual "value on date" 100 (getValOnByDate bcurve (toDate "20221115"))
+    ,testCase "tryGetValOnByDate rejects a non-balance curve" $
+        assertBool "error names both curves" $
+          case tryGetValOnByDate (IRateCurve [TsPoint (toDate "20221101") 0.05]) (toDate "20221115") of
+            Left e -> "BalanceCurve" `isInfixOf` e && "IRateCurve" `isInfixOf` e
+            Right _ -> False
+    ,testCase "tryGetIntValOnByDate reads an int curve" $
+       assertEqual "int value" (Right 7) $
+          tryGetIntValOnByDate (IntCurve [TsPoint (toDate "20221101") 7]) (toDate "20221115")
+    ,testCase "tryGetIntValOnByDate rejects a balance curve" $
+        assertBool "error mentions IntCurve" $
+          either (isInfixOf "IntCurve") (const False) (tryGetIntValOnByDate bcurve (toDate "20221115"))
+    ,testCase "trySplitTsByDate rejects a non-balance curve" $
+        assertBool "error mentions BalanceCurve" $
+          either (isInfixOf "BalanceCurve") (const False) (trySplitTsByDate (FloatCurve []) (toDate "20221115"))
+    ,testCase "trySumValTs sums a balance curve" $
+       assertEqual "sum" (Right 150) (trySumValTs bcurve)
+    ,testCase "trySumValTs rejects a non-balance curve" $
+        assertBool "error mentions BalanceCurve" $
+          either (isInfixOf "BalanceCurve") (const False) (trySumValTs (IRateCurve []))
+    ,testCase "subTsBetweenDates with no bounds returns the curve" $
+       assertEqual "unchanged" bcurve (subTsBetweenDates bcurve Nothing Nothing)
+    ,testCase "subTsBetweenDates filters both bounds" $
+       assertEqual "only middle point"
+          (BalanceCurve [TsPoint (toDate "20221201") 50])
+          (subTsBetweenDates bcurve (Just (toDate "20221110")) (Just (toDate "20221202")))
+    ,testCase "trySubTsBetweenDates rejects a non-balance curve" $
+        assertBool "error mentions BalanceCurve" $
+          either (isInfixOf "BalanceCurve") (const False) (trySubTsBetweenDates (BoolCurve []) Nothing Nothing)
    ]
 
 pvTests = 
