@@ -98,8 +98,6 @@ modDeal (SlideBalances bn1 bn2) r d@DB.TestDeal {DB.bonds = bndMap}
     in 
       d {DB.bonds = bndMap'}
 
-modDeal x _ _ = error $ "modify deal: not implemented"++ show x
-
 
 $(deriveJSON defaultOptions ''AdjStrategy)
 instance ToSchema AdjStrategy

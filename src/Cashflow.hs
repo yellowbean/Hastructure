@@ -981,7 +981,6 @@ lookupSource tr NewDefaults = mflowDefault tr
 lookupSource tr NewLosses = mflowLoss tr
 lookupSource tr CurBalance = view tsRowBalance tr
 lookupSource tr CurBegBalance = mflowBegBalance tr
-lookupSource tr x = error ("Failed to lookup source"++ show x)
 
 lookupSourceM :: Balance -> Maybe TsRow -> PoolSource -> Balance
 lookupSourceM bal Nothing CurBegBalance = bal

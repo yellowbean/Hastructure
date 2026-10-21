@@ -92,7 +92,6 @@ getDayCountFromInfo (RefBal ds info) = getDayCountFromInfo info
 getDayCountFromInfo (CapRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (FloorRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (WithIoI info _) = getDayCountFromInfo info
-getDayCountFromInfo _ = Nothing
 
 type RateReset = DatePattern 
 
@@ -296,7 +295,6 @@ instance S.HasStmt Bond where
   hasEmptyTxn MultiIntBond{bndStmt = Nothing} = True
   hasEmptyTxn MultiIntBond{bndStmt = Just (S.Statement txn)} = txn == DL.empty
   hasEmptyTxn (BondGroup bMap _) = all S.hasEmptyTxn $ Map.elems bMap
-  hasEmptyTxn _ = False
 
 
 setBondOrigDate :: Date -> Bond -> Bond

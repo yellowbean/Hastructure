@@ -263,7 +263,6 @@ getFlow comment =
             Inflow
           else
             Noneflow
-      _ -> error ("Missing in GetFlow >> "++ show comment)
 
 -- ^ filter transaction by apply a filter function on txn comment
 filterTxn :: (TxnComment -> Bool) -> [Txn] -> [Txn]

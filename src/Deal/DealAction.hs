@@ -685,23 +685,6 @@ performActionWrap d
                         ,revolvingAssump = Just (Map.insert revolvingPoolName (poolAfterBought, perfAssumps) rMap)} 
         return (t { accounts = newAccMap , pool = newPt}, newRc, logs)
 
-performActionWrap d 
-                  (t
-                  ,rc@RunContext{runPoolFlow=pcf
-                                ,revolvingAssump=Nothing
-                                ,revolvingInterestRateAssump=mRates}
-                  ,logs)
-                  (W.BuyAsset ml pricingMethod accName _)
-  = Left $ "Date:"++ show d ++"Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
-
-performActionWrap d 
-                  (t
-                  ,rc@RunContext{runPoolFlow=pcf
-                                ,revolvingAssump=Nothing
-                                ,revolvingInterestRateAssump=mRates}
-                  ,logs)
-                  (W.BuyAssetFrom {})
-  = Left $ "Date:"++ show d ++"Missing revolving Assumption(asset assumption & asset to buy)" ++ name t
 -- TODO need to set a limit to sell
 performActionWrap d 
                   (t@TestDeal{accounts = accMap, pool = pt}  

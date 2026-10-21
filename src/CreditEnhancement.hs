@@ -144,7 +144,6 @@ buildLiqRateResetAction (liq:liqProviders) ed r =
         liqProviders 
         ed 
         [(ln,IR.getRateResetDates sd ed rt ++ IR.getRateResetDates sd ed prt)]++r
-    _ -> buildLiqRateResetAction liqProviders ed r
 
 
 instance Drawable LiqFacility where

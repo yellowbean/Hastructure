@@ -211,7 +211,6 @@ buildSrtAccrueAction (srt:srts) ed r =
            srts
            ed
            [(srtName, projDatesByPattern dp ss ed)]++r
-    _ -> buildSrtAccrueAction srts ed r
 
 buildSrtResetAction :: [SRT] -> Date -> [(String, Dates)] -> [(String, Dates)]
 buildSrtResetAction [] ed r = r
@@ -222,7 +221,6 @@ buildSrtResetAction (srt:srts) ed r =
         srts 
         ed 
         [(ln,IR.getRateResetDates sd ed (Just rt))]++r
-    _ -> buildSrtResetAction srts ed r
 
 
 

@@ -117,7 +117,6 @@ calcBondTargetBalance t rc d b =
     L.AmtByPeriod pc -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
                           Just v -> return v
                           Nothing -> Left "Failed to find value in calcTargetBalance"
-    _ -> Left $ "Bond "++ L.bndName b ++" is not a bond with target balance setting"
 
 
 patchDateToStats :: Date -> DealStats -> DealStats
