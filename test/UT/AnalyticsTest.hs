@@ -37,17 +37,42 @@ hermiteTest =
     testCase "single yield point does not crash" $
         assertEqual "one point returns that yield"
             [1.0]
-            (interpolateWithHermite (L.toDate "20230101", [(L.toDate "20230101", 1.0)]) [L.toDate "20230101"])
+            (interpolateWithHermite (d0, [(d0, 1.0)]) [d0])
     ,testCase "empty yield curve does not crash" $
         assertEqual "no points returns zeros"
             [0.0]
-            (interpolateWithHermite (L.toDate "20230101", []) [L.toDate "20230101"])
+            (interpolateWithHermite (d0, []) [d0])
+    ,testCase "short curves work across multiple query dates" $
+        assertEqual "singleton is constant and empty is zero"
+            ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0])
+            ( interpolateWithHermite (d0, [(d0, 1.0)]) queryDates
+            , interpolateWithHermite (d0, []) queryDates )
     ,testCase "two yield points still interpolate" $
         assertBool "interior point yields a value between the two yields" $
-          case interpolateWithHermite (L.toDate "20230101", [(L.toDate "20230101", 1.0),(L.toDate "20240101", 2.0)]) [L.toDate "20230701"] of
+          case interpolateWithHermite (d0, [(d0, 1.0),(d1, 2.0)]) [L.toDate "20230701"] of
             [v] -> v > 1.0 && v < 2.0
             _ -> False
+    ,testCase "multi-point curve reproduces non-terminal node values" $
+        let ds = [d0, d1, d2, L.toDate "20260101"]
+            ys = [1.0, 2.0, 4.0, 8.0]
+            got = interpolateWithHermite (d0, zip ds ys) [d0, d1, d2]
+        in assertBool "each non-terminal node returns its input yield" $
+             length got == 3 && and (zipWith (\a b -> abs (a - b) < 1e-9) got [1.0, 2.0, 4.0])
+    ,testCase "three yield points interpolate between adjacent nodes" $
+        assertBool "interior point stays between adjacent yields" $
+          case interpolateWithHermite (d0, [(d0, 1.0), (d1, 2.0), (d2, 4.0)]) [L.toDate "20230701"] of
+            [v] -> v > 1.0 && v < 2.0
+            _ -> False
+    ,testCase "pv4 supports a single-point pricing curve" $
+        assertEqual "single point behaves like a flat 5% curve"
+            (Right (pv2 0.05 d0 d1 100))
+            (pv4 (d0, L.mkRateTs [(d0, 0.05)]) [(d1, 100)])
   ]
+  where
+    d0 = L.toDate "20230101"
+    d1 = L.toDate "20240101"
+    d2 = L.toDate "20250101"
+    queryDates = L.toDates ["20230101", "20230701", "20240101"]
 
 durationTest = 
   testGroup "Duration Test" 
