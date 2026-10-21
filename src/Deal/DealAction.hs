@@ -286,7 +286,9 @@ calcDueInt t rc d b@(L.Bond bn bt bo (L.WithIoI intInfo ioiIntInfo) _ bond_bal b
     in 
       do 
         newBondWithIntInfo <- calcDueInt t rc d newBond
-        return newBondWithIntInfo { L.bndInterestInfo = L.WithIoI intInfo ioiIntInfo}
+        case newBondWithIntInfo of
+          b'@(L.Bond {}) -> return b' { L.bndInterestInfo = L.WithIoI intInfo ioiIntInfo}
+          _ -> Left "calcDueInt: WithIoI bond accrued to an unexpected constructor"
 
 -- TODO: to enable override rate & balance
 -- accure interest by rate
@@ -786,6 +788,19 @@ performActionWrap d (t, rc, logs) a
       dealAfterExe <- performAction d t rc a 
       return (dealAfterExe, rc, logs)
 
+-- | Reject a 'BondGroup' where a single bond is required. Group-level
+-- principal is handled by the group-specific waterfall actions.
+requireSingleBond :: L.Bond -> Either ErrorRep L.Bond
+requireSingleBond b@(L.Bond {}) = Right b
+requireSingleBond b@(L.MultiIntBond {}) = Right b
+requireSingleBond (L.BondGroup {}) = Left "Bond group is not supported by this action; use the group-specific waterfall action"
+
+-- | Set the due principal on a single bond, rejecting bond groups.
+setBondDuePrin :: Balance -> L.Bond -> Either ErrorRep L.Bond
+setBondDuePrin amt b@(L.Bond {}) = Right b { L.bndDuePrin = amt }
+setBondDuePrin amt b@(L.MultiIntBond {}) = Right b { L.bndDuePrin = amt }
+setBondDuePrin _ (L.BondGroup {}) = Left "Cannot set due principal on a bond group"
+
 performAction :: Ast.Asset a => Date -> TestDeal a -> RunContext -> W.Action -> Either ErrorRep (TestDeal a)
 performAction d t@TestDeal{accounts=accMap, ledgers = Nothing} _ (W.TransferAndBook _ _ _ _ _) 
   = Left $ "Date:"++ show d ++" Missing ledger map to book " ++ name t 
@@ -1163,20 +1178,22 @@ performAction d t@TestDeal{bonds=bndMap,accounts=accMap} rc (W.PayPrin mLimit an
 
 -- ^ pay principal without any limit
 performAction d t@TestDeal{accounts=accMap, bonds=bndMap} rc (W.PayPrinResidual an bnds) = 
-  let
-    bndsToPay = [ b { L.bndDuePrin = L.bndBalance b}  | b <- getActiveBonds t bnds ]
-    bndsToPayNames = L.bndName <$> bndsToPay
-    bndsDueAmts = map L.getCurBalance bndsToPay
-  in 
-    do 
-      acc <- lookupM an accMap
-      let availBal = A.accBalance acc
-      let actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
-      let bndsAmountToBePaid = zip bndsToPay (prorataFactors bndsDueAmts actualPaidOut)
-      bndsPaid <- sequenceA $ map (\(l,amt) -> pay d DuePrincipal amt l) bndsAmountToBePaid  
-      let bndMapUpdated =  (Map.fromList $ zip bndsToPayNames bndsPaid) <> bndMap
-      accMapAfterPay <- adjustM (A.draw d actualPaidOut (PayPrin bnds)) an accMap
-      return $ t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
+  do
+    bndsToPay <- traverse duePrinToCurBal (getActiveBonds t bnds)
+    acc <- lookupM an accMap
+    let bndsToPayNames = L.bndName <$> bndsToPay
+    let bndsDueAmts = map L.getCurBalance bndsToPay
+    let availBal = A.accBalance acc
+    let actualPaidOut = min availBal $ sum bndsDueAmts -- `debug` ("bonds totoal due ->"++show(bndsDueAmts))
+    let bndsAmountToBePaid = zip bndsToPay (prorataFactors bndsDueAmts actualPaidOut)
+    bndsPaid <- sequenceA $ map (\(l,amt) -> pay d DuePrincipal amt l) bndsAmountToBePaid
+    let bndMapUpdated =  (Map.fromList $ zip bndsToPayNames bndsPaid) <> bndMap
+    accMapAfterPay <- adjustM (A.draw d actualPaidOut (PayPrin bnds)) an accMap
+    return $ t {accounts = accMapAfterPay, bonds = bndMapUpdated} -- `debug` ("Bond Prin Pay Result"++show(bndMapUpdated))
+  where
+    duePrinToCurBal b = do
+      b' <- requireSingleBond b
+      setBondDuePrin (L.bndBalance b') b'
 
 performAction d t@TestDeal{accounts=accMap, bonds=bndMap} rc (W.FundWith mlimit an bnd) = 
   do
@@ -1256,31 +1273,37 @@ performAction d t@TestDeal{bonds=bndMap} rc (W.CalcBondInt bns)
 -- ^ set due prin mannually
 performAction d t@TestDeal{bonds=bndMap} rc (W.CalcBondPrin2 mLimit bnds) 
   = do 
-      bndsToPay <- lookupVs bnds bndMap
+      bndsToPay <- traverse requireSingleBond =<< lookupVs bnds bndMap
       let bndsToPayNames = L.bndName <$> bndsToPay
       bndsDueAmts <- traverse (L.bndDuePrin <$>) $ (calcDuePrin t rc d) <$> bndsToPay
       let totalDue = sum bndsDueAmts
       bookCap <- applyLimit t rc d totalDue totalDue mLimit
       let bndsAmountToBook = zip bndsToPayNames $ prorataFactors bndsDueAmts bookCap
-      let newBndMap = foldr 
-                        (\(bn,amt) acc -> Map.adjust (\b -> b {L.bndDuePrin = amt})  bn acc) 
-                        bndMap 
-                        bndsAmountToBook -- `debug` ("Calc Bond Prin"++ show bndsAmountToBePaid)
+      newBndMap <- foldM
+                     (\acc (bn,amt) -> do
+                         b <- lookupM bn acc
+                         b' <- setBondDuePrin amt b
+                         return (Map.insert bn b' acc))
+                     bndMap
+                     bndsAmountToBook -- `debug` ("Calc Bond Prin"++ show bndsAmountToBePaid)
       return $ t {bonds = newBndMap} 
 
 performAction d t@TestDeal{bonds=bndMap, accounts = accMap} rc (W.CalcBondPrin mLimit accName bnds mSupport) 
   = do 
-      bndsToPay <- lookupVs bnds bndMap
+      bndsToPay <- traverse requireSingleBond =<< lookupVs bnds bndMap
       let bndsToPayNames = L.bndName <$> bndsToPay
       acc <- lookupM accName accMap 
       let accBal = A.accBalance acc
       bndsDueAmts <- traverse (L.bndDuePrin <$>) $ (calcDuePrin t rc d) <$> bndsToPay
       (payAmount,_,_) <- calcAvailAfterLimit t rc d acc mSupport (sum bndsDueAmts) mLimit 
       let bndsAmountToBePaid = zip bndsToPayNames $ prorataFactors bndsDueAmts payAmount
-      let newBndMap = foldr 
-                        (\(bn,amt) acc -> Map.adjust (\b -> b {L.bndDuePrin = amt}) bn acc) 
-                        bndMap 
-                        bndsAmountToBePaid
+      newBndMap <- foldM
+                     (\acc (bn,amt) -> do
+                         b <- lookupM bn acc
+                         b' <- setBondDuePrin amt b
+                         return (Map.insert bn b' acc))
+                     bndMap
+                     bndsAmountToBePaid
       return $ t {bonds = newBndMap}
 
       

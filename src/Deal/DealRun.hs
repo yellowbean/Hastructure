@@ -90,20 +90,22 @@ runEffects (t@TestDeal{accounts = accMap, fees = feeMap ,status=st, bonds = bond
 
 setBondStepUpRate :: Date -> [RateAssumption] -> L.Bond -> Either ErrorRep L.Bond
 setBondStepUpRate d ras b@(L.Bond _ _ _ ii (Just sp) _ _ _ _ _ _ _ _ _)
-  = return $ 
-      let 
-        newII = L.stepUpInterestInfo sp ii
-        newRate = AP.applyFloatRate ii d ras
-      in 
-        (L.accrueInt d b) { L.bndInterestInfo = newII, L.bndRate = newRate }
+  = let
+      newII = L.stepUpInterestInfo sp ii
+      newRate = AP.applyFloatRate ii d ras
+    in
+      case L.accrueInt d b of
+        b'@(L.Bond {}) -> return $ b' { L.bndInterestInfo = newII, L.bndRate = newRate }
+        _ -> Left "setBondStepUpRate: accrueInt changed the bond constructor"
 
 setBondStepUpRate d ras b@(L.MultiIntBond bn _ _ iis (Just sps) _ _ _ _ _ _ _ _ _)
-  = return $ 
-      let 
-        newIIs = zipWith L.stepUpInterestInfo sps iis
-        newRates = (\x -> AP.applyFloatRate x d ras) <$> newIIs
-      in 
-        (L.accrueInt d b) { L.bndInterestInfos = newIIs, L.bndRates = newRates }  -- `debug` (show d ++ ">> accure due to step up rate "++ bn)
+  = let
+      newIIs = zipWith L.stepUpInterestInfo sps iis
+      newRates = (\x -> AP.applyFloatRate x d ras) <$> newIIs
+    in
+      case L.accrueInt d b of
+        b'@(L.MultiIntBond {}) -> return $ b' { L.bndInterestInfos = newIIs, L.bndRates = newRates }  -- `debug` (show d ++ ">> accure due to step up rate "++ bn)
+        _ -> Left "setBondStepUpRate: accrueInt changed the bond constructor"
 
 setBondStepUpRate d ras bg@(L.BondGroup bMap pt)
   = do 
@@ -117,7 +119,9 @@ setBondNewRate t rc d ras b@(L.Bond _ _ L.OriginalInfo{ L.originDate = od} ii _ 
 
 -- ^ Floater rate
 setBondNewRate t rc d ras b@(L.Bond _ _ _ ii@(L.Floater br idx _spd rset dc mf mc) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
-  = return $ (L.accrueInt d b){ L.bndRate = AP.applyFloatRate ii d ras }
+  = case L.accrueInt d b of
+      b'@(L.Bond {}) -> return $ b' { L.bndRate = AP.applyFloatRate ii d ras }
+      _ -> Left "setBondNewRate: accrueInt changed the bond constructor"
 
 -- ^ Fix rate, do nothing
 setBondNewRate t rc d ras b@(L.Bond _ _ _ L.Fix {} _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _)
@@ -126,13 +130,16 @@ setBondNewRate t rc d ras b@(L.Bond _ _ _ L.Fix {} _ bal currentRate _ dueInt _ 
 -- ^ Ref rate
 setBondNewRate t rc d ras b@(L.Bond _ _ _ (L.RefRate sr ds factor _) _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
   = do
-      let b' = L.accrueInt d b
       rate <- queryCompound t rc d (patchDateToStats d ds)
-      return b' {L.bndRate = fromRational (rate * toRational factor) }
+      case L.accrueInt d b of
+        b'@(L.Bond {}) -> return b' {L.bndRate = fromRational (rate * toRational factor) }
+        _ -> Left "setBondNewRate: accrueInt changed the bond constructor"
 
 -- ^ cap & floor & IoI
 setBondNewRate t rc d ras b@(L.Bond _ _ _ ii _ bal currentRate _ dueInt _ (Just dueIntDate) _ _ _) 
-  = return $ (L.accrueInt d b) { L.bndRate = AP.applyFloatRate ii d ras}
+  = case L.accrueInt d b of
+      b'@(L.Bond {}) -> return $ b' { L.bndRate = AP.applyFloatRate ii d ras}
+      _ -> Left "setBondNewRate: accrueInt changed the bond constructor"
 
 -- ^ bond group
 setBondNewRate t rc d ras bg@(L.BondGroup bMap pt)
@@ -144,9 +151,10 @@ setBondNewRate t rc d ras bg@(L.BondGroup bMap pt)
 setBondNewRate t rc d ras b@(L.MultiIntBond bn _ _ iis _ bal currentRates _ dueInts dueIoIs _ _ _ _)
   = let 
       newRates = AP.applyFloatRate <$> iis <*> pure d <*> pure ras
-      b' = L.accrueInt d b -- `debug` ("accrue due to new rate "++ bn)
     in
-      return $ b' { L.bndRates = newRates } 
+      case L.accrueInt d b of
+        b'@(L.MultiIntBond {}) -> return $ b' { L.bndRates = newRates }
+        _ -> Left "setBondNewRate: accrueInt changed the bond constructor"
 
 updateRateSwapBal :: Ast.Asset a => TestDeal a -> RunContext -> Date -> HE.RateSwap -> Either String HE.RateSwap
 updateRateSwapBal t rc d rs@HE.RateSwap{ HE.rsNotional = base }
@@ -631,38 +639,44 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
               flag <- testPre d t rc p
               case flag of
                 False -> run t rc (Just ads) calls log
-                True -> let 
-                          newBndName = L.bndName bnd
-                        in
-                          do
-                            newBalance <- case mBal of
-                                            Just _q -> queryCompound t rc d (patchDateToStats d _q)  
-                                            Nothing -> Right . toRational $ L.originBalance (L.bndOriginInfo bnd)
-                            newRate <- case mRate of 
-                                        Just _q -> queryCompound t rc d (patchDateToStats d _q)
-                                        Nothing -> return $ L.originRate (L.bndOriginInfo bnd)
-                            let newBonds = case Map.lookup bGroupName bndMap of
-                                            Nothing -> bndMap
-                                            Just L.Bond {} -> bndMap
-                                            Just (L.BondGroup bndGrpMap pt) -> let
-                                                                              bndOInfo = (L.bndOriginInfo bnd) {L.originDate = d, L.originRate = newRate, L.originBalance = fromRational newBalance }
-                                                                              bndToInsert = bnd {L.bndOriginInfo = bndOInfo,
-                                                                                                  L.bndDueIntDate = Just d,
-                                                                                                  L.bndLastIntPay = Just d, 
-                                                                                                  L.bndLastPrinPay = Just d,
-                                                                                                  L.bndRate = fromRational newRate,
-                                                                                                  L.bndBalance = fromRational newBalance}
-                                                                            in 
-                                                                              Map.insert bGroupName 
-                                                                                          (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap) pt)
-                                                                                          bndMap
+                True -> case bnd of
+                          L.BondGroup {} -> Left "IssueBond: cannot issue a bond group"
+                          _ -> let
+                                 newBndName = L.bndName bnd
+                               in
+                                 do
+                                   newBalance <- case mBal of
+                                                   Just _q -> queryCompound t rc d (patchDateToStats d _q)
+                                                   Nothing -> Right . toRational $ L.originBalance (L.bndOriginInfo bnd)
+                                   newRate <- case mRate of
+                                               Just _q -> queryCompound t rc d (patchDateToStats d _q)
+                                               Nothing -> return $ L.originRate (L.bndOriginInfo bnd)
+                                   newBonds <- case Map.lookup bGroupName bndMap of
+                                                   Nothing -> Right bndMap
+                                                   Just L.Bond {} -> Right bndMap
+                                                   Just (L.MultiIntBond {}) -> Right bndMap
+                                                   Just (L.BondGroup bndGrpMap pt) ->
+                                                     case bnd of
+                                                       bnd'@(L.Bond {}) ->
+                                                         let bndOInfo = (L.bndOriginInfo bnd') {L.originDate = d, L.originRate = newRate, L.originBalance = fromRational newBalance }
+                                                             bndToInsert = bnd' {L.bndOriginInfo = bndOInfo,
+                                                                                 L.bndDueIntDate = Just d,
+                                                                                 L.bndLastIntPay = Just d,
+                                                                                 L.bndLastPrinPay = Just d,
+                                                                                 L.bndRate = fromRational newRate,
+                                                                                 L.bndBalance = fromRational newBalance}
+                                                         in
+                                                           Right $ Map.insert bGroupName
+                                                                       (L.BondGroup (Map.insert newBndName bndToInsert bndGrpMap) pt)
+                                                                       bndMap
+                                                       _ -> Left $ "IssueBond: only plain bonds can be issued into a bond group: " ++ newBndName
 
-                            let issuanceProceeds = fromRational newBalance
-                            let newAcc = Map.adjust 
-                                          (A.deposit issuanceProceeds d (IssuanceProceeds newBndName))
-                                          accName
-                                          accMap
-                            run t{bonds = newBonds, accounts = newAcc} rc (Just ads) calls log
+                                   let issuanceProceeds = fromRational newBalance
+                                   let newAcc = Map.adjust
+                                                 (A.deposit issuanceProceeds d (IssuanceProceeds newBndName))
+                                                 accName
+                                                 accMap
+                                   run t{bonds = newBonds, accounts = newAcc} rc (Just ads) calls log
         RefiBondRate d accName bName iInfo ->
           let
               lstDate = case ads of [] -> d; as -> getDate (last as)
@@ -678,11 +692,14 @@ run t@TestDeal{accounts=accMap,fees=feeMap,triggers=mTrgMap,bonds=bndMap,status=
                 acc <- lookupM accName accMap
                 let actualPayout = min (A.accBalance acc) dueIntToPay
                 bnd1 <- pay d (DueTotalOf [DueInterest Nothing, DueArrears]) actualPayout nBnd
-                let newBnd = set L.bndIntLens iInfo bnd1 
-                let resetDates = L.buildRateResetDates newBnd d lstDate 
-                let bResetActions = [ ResetBondRate d' bName | d' <- resetDates ]
+                (newBndMap, bResetActions) <- case bnd1 of
+                  b@(L.Bond {}) ->
+                    let newBnd = set L.bndIntLens iInfo
+                                      (b {L.bndRate = newRate, L.bndDueIntDate = Just d ,L.bndLastIntPay = Just d})
+                        resetDates = L.buildRateResetDates newBnd d lstDate
+                    in return (Map.insert bName newBnd bndMap, [ ResetBondRate d' bName | d' <- resetDates ])
+                  _ -> Left $ "RefiBondRate: only plain bonds are supported: " ++ bName
                 newAccMap <- adjustM (draw d actualPayout (PayInt [bName])) accName accMap
-                let newBndMap = Map.insert bName (newBnd {L.bndRate = newRate, L.bndDueIntDate = Just d ,L.bndLastIntPay = Just d}) bndMap
                 let newAds = sortBy sortActionOnDate $ filteredAds ++ bResetActions
                 run t{bonds = newBndMap, accounts = newAccMap} rc (Just newAds) calls log
             
