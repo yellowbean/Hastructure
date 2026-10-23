@@ -22,6 +22,7 @@ import qualified Cashflow as CF
 import qualified Deal as D
 import Types
 import Data.Either
+import Data.List (isInfixOf)
 import InterestRate
 
 import Debug.Trace
@@ -362,6 +363,17 @@ leaseTests =
         --     assertEqual "Month Gap by Table : New Lease at period 1"
         --     (CF.LeaseFlow (L.toDate "20240229") 306 29)
         --     ((cf5 ^. CF.cashflowTxn)!!8)
+        ,testCase "GapDaysByCurve with a non-int curve returns Left" $
+            assertBool "error mentions IntCurve" $
+              case Ast.projCashflow lease1 asofDate
+                     (A.LeaseAssump Nothing
+                        (A.GapDaysByCurve (L.BalanceCurve [L.TsPoint asofDate 10]))
+                        (A.BaseAnnualRate 0.0)
+                        (A.CutByDate (L.toDate "20240601"))
+                      , A.DummyDelinqAssump, A.DummyDefaultAssump)
+                     Nothing of
+                Left e -> "IntCurve" `isInfixOf` e
+                Right _ -> False
       ]
 
 installmentTest = 

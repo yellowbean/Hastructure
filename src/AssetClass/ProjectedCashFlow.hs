@@ -231,10 +231,7 @@ instance Ast.Asset ProjectedCashFlow where
       = do
           (fixedCashFlow, floatedCashFlow) <- seperateCashflows f (Just pAssump) mRates
           return (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
-    
 
-    projCashflow a b c d = Left $ "Failed to match when proj projected flow with assumption >>" ++ show a ++ show b ++ show c ++ show d
-    
     getBorrowerNum f = 0
 
     splitWith f rs = [f]

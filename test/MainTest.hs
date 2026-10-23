@@ -70,6 +70,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,BT.accrueTest
                            ,BT.selectorTest
                            ,BT.walSafetyTest
+                           ,BT.bondGroupSafetyTest
                            ,LT.curveTests
                            ,LT.periodCurveTest
                            ,LT.pvTests

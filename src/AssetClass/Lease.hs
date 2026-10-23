@@ -26,6 +26,7 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 import Data.Maybe
+import Data.Bifunctor (first)
 import AssetClass.AssetBase
 import qualified Analytics as AN
 
@@ -294,28 +295,25 @@ instance Asset Lease where
     --   = fst . patchBalance $ RegularLease (LeaseInfo sd ot dp dr ob) bal ot st
 
     projCashflow l asOfDay (AP.LeaseAssump mDefault gapAssump rentAssump endType,_,_) mRates
-      = let 
-          pdates = getPaymentDates l 0  -- `debug` ("8")-- `debug` ("RCURVE"++show rcCurve)
-          -- get the gap days between leases
-          pickGapDays (AP.GapDays days) = days
-          pickGapDays (AP.GapDaysByCurve cv) = getIntValOnByDate cv asOfDay 
-        
-          newLeases = nextLeaseTill 
-                        l
-                        (rentAssump , 0.0 , pickGapDays gapAssump) 
-                        (case pdates of [] -> getOriginDate l; _ -> last pdates) 
-                        endType
-                        []
-          stressRentals  = 0
-        in
-          do
-            currentCf <- calcCashflow l asOfDay mRates
-            newCfs <- sequenceA [ calcCashflow l asOfDay mRates | l <- newLeases ] --  `debug` ("Current CF\n "++ show currentCf)
-            let (curCf,newTxns) = applyDefaults mDefault (currentCf, newCfs)
-            -- let allTxns = view CF.cashflowTxn currentCf ++ (concat $ (view CF.cashflowTxn) <$> newCfs)
-            let allTxns = curCf ++ concat newTxns
-            let begBal = CF.buildBegBal allTxns
-            return $ (CF.CashFlowFrame (begBal,max asOfDay (getOriginDate l),Nothing) allTxns, Map.empty)  
+      = do
+          gapDays <- case gapAssump of
+                       AP.GapDays days -> Right days
+                       AP.GapDaysByCurve cv -> first ("GapDaysByCurve: " ++) (tryGetIntValOnByDate cv asOfDay)
+          let pdates = getPaymentDates l 0  -- `debug` ("8")-- `debug` ("RCURVE"++show rcCurve)
+              newLeases = nextLeaseTill
+                            l
+                            (rentAssump , 0.0 , gapDays)
+                            (case pdates of [] -> getOriginDate l; _ -> last pdates)
+                            endType
+                            []
+              stressRentals  = 0
+          currentCf <- calcCashflow l asOfDay mRates
+          newCfs <- sequenceA [ calcCashflow l asOfDay mRates | l <- newLeases ] --  `debug` ("Current CF\n "++ show currentCf)
+          let (curCf,newTxns) = applyDefaults mDefault (currentCf, newCfs)
+          -- let allTxns = view CF.cashflowTxn currentCf ++ (concat $ (view CF.cashflowTxn) <$> newCfs)
+          let allTxns = curCf ++ concat newTxns
+          let begBal = CF.buildBegBal allTxns
+          return $ (CF.CashFlowFrame (begBal,max asOfDay (getOriginDate l),Nothing) allTxns, Map.empty)
         
 
     projCashflow a b c d = Left $ "Failed to match when proj lease with assumption >>" ++ show a ++ show b ++ show c ++ show d

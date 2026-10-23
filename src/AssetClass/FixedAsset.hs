@@ -57,8 +57,6 @@ calcAmortAmt fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, ori
         in 
           Right (diffNum futureBals'')
 
-      _ -> Left ("Not implemented for depreciation rule"++show ar)
- 
 calcAmortBals ::FixedAsset -> Either String [Balance]
 calcAmortBals fa@(FixedAsset fai@FixedAssetInfo{originBalance=ob, accRule=ar, originTerm=ot
                                                ,residualBalance=rb ,capacity=cap} b rt)
