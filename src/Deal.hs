@@ -52,7 +52,7 @@ import Util
 import DateUtil
 import Types
 import Revolving
-import Triggers
+import Triggers ()
 
 import qualified Data.Map as Map hiding (mapEither)
 import qualified Data.Time as T
@@ -65,7 +65,7 @@ import Data.Time.Clock
 import Data.Maybe
 import Data.Either
 import Data.Bifunctor (bimap)
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -89,20 +89,6 @@ import Hedge (RateCap(..),RateSwapBase(..),RateSwap(rsRefBalance))
 import qualified Hedge as HE
 
 
-
-updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> Either String HE.SRT
-updateSrtRate t d ras srt@HE.SRT{HE.srtPremiumType = rt} 
-    = do 
-        r <- AP.applyFloatRate2 rt d ras 
-        return srt { HE.srtPremiumRate = r }
-
-
-
-queryTrigger :: Ast.Asset a => TestDeal a -> DealCycle -> [Trigger]
-queryTrigger t@TestDeal{ triggers = trgs } wt 
-  = case trgs of 
-      Nothing -> []
-      Just _trgs -> maybe [] Map.elems $ Map.lookup wt _trgs
 
 -- ^ test triggers in the deal and add a log if deal status changed
 changeDealStatus:: Ast.Asset a => (Date,String)-> DealStatus -> TestDeal a -> (Maybe ResultComponent, TestDeal a)

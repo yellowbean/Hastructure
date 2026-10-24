@@ -51,7 +51,7 @@ import Data.List
 import Data.Fixed
 import Data.Maybe
 import Data.Ratio
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -80,9 +80,6 @@ data DealComp = CompBond
               | CompLiqProvider 
               deriving (Show,Eq,Ord,Generic,Read)
 
-data ActionTypeOnDate = DoSettle
-                      | DoAccrue
-                      | DoUpdateRate
 
 data ActionOnDate = EarnAccInt Date AccName              -- ^ sweep bank account interest
                   | ChangeDealStatusTo Date DealStatus   -- ^ change deal status
@@ -709,7 +706,6 @@ bondTraversal :: Traversal' (TestDeal a) L.Bond
 bondTraversal f t@TestDeal{bonds = bndMap} =
   (\newBndMap -> t {bonds = newBndMap}) <$> traverse f bndMap
 
-data UnderBond b = UnderBond BondName Rate (TestDeal b)
 
 opts :: JSONKeyOptions
 opts = defaultJSONKeyOptions

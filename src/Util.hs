@@ -65,8 +65,6 @@ mulIR i r = toRational i * r
 splitBal :: Rate -> Balance -> (Balance,Balance)
 splitBal r b = (mulBR b r, mulBR b (1-r))
 
-mulIntegerR :: Integer -> Rational -> Rational
-mulIntegerR i r = toRational i * r
 
 mulBInt :: Balance -> Int -> Rational 
 mulBInt (MkFixed b) i = (b * toInteger i) % balanceScale
@@ -182,7 +180,7 @@ getValByDate (PricingCurve dps) _ d
       (True,_) -> tsPointVal $ last dps
       (_,True) -> tsPointVal $ head dps
       _  -> let 
-              rindex = fromMaybe 0 $findIndex (\(TsPoint _dl _) -> ( _dl > d )) dps
+              rindex = fromMaybe 0 $ findIndex (\(TsPoint _dl _) -> ( _dl > d )) dps
               rdp@(TsPoint _dr _rv) = dps!!rindex 
               ldp@(TsPoint _dl _lv) = dps!!(pred rindex)
               leftDistance = toRational $ daysBetween _dl d  -- `debug` ("LEFT"++show d)
@@ -334,8 +332,6 @@ scaleByFstElement y (b:xs) =
     y:[ x * s | x <- xs ]
 
 
-debugLine :: Show a => [a] -> String 
-debugLine xs = ""
 
 -- | Like 'Map.map' but evaluates the mapped values in parallel, keeping at most
 -- @n@ computations in flight at once. Bounding the in-flight work avoids spark
@@ -396,8 +392,6 @@ calcWeightBalanceByDates dc bals ds
         ds_length = length ds
         weights = getIntervalFactorsDc dc ds
 
-testSumToOne :: [Rate] -> Bool
-testSumToOne rs = sum rs == 1.0
 
 maximum' :: Ord a => [a] -> a
 maximum' = foldr1 (\x y ->if x >= y then x else y)

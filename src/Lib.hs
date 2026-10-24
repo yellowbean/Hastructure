@@ -27,9 +27,9 @@ import qualified Data.IntSet as IntSet
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 -- import Text.Regex.TDFA
-import Data.Fixed (Fixed(..), HasResolution,Centi, resolution)
+import Data.Fixed (Centi)
 import Data.Ratio
 import Types
 import Data.Decimal
@@ -44,8 +44,6 @@ periodRateFromAnnualRate Daily annual_rate  = annual_rate / 365
 periodRateFromAnnualRate Weekly annual_rate  = annual_rate / 52.143
 periodRateFromAnnualRate BiWeekly annual_rate  = annual_rate / 26.0715
 
-addD :: Date -> T.CalendarDiffDays -> Date
-addD d calendarMonth = T.addGregorianDurationClip T.calendarMonth d
 
 getIntervalDays :: [Date] -> [Int]
 getIntervalDays [] = []
@@ -237,9 +235,6 @@ zipWith12 z (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (j:js) (k:ks
 zipWith12 _ _ _ _ _ _ _ _ _ _ _ _ _ = []
 
 
-floatToFixed :: HasResolution a => Float -> Fixed a
-floatToFixed x = y where
-  y = MkFixed (round (fromInteger (resolution y) * x))
 
 -- | given balances and weight, get sum weighted balance
 weightedBy :: [Rational] -> [Rational] -> Rational

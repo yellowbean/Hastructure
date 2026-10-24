@@ -29,12 +29,12 @@ import qualified Data.Map as Map
 import Data.Ratio
 import qualified Data.Set as S
 import Data.List
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Language.Haskell.TH
 import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Types hiding (Current)
+import Types
 
 import Data.Maybe
 import Control.Lens

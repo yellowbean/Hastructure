@@ -18,7 +18,7 @@ import Types
 import qualified Data.Map as Map
 import Data.List
 import Data.Maybe
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types

@@ -11,7 +11,7 @@ module InterestRate
   where
 
 import Language.Haskell.TH
-import Data.Aeson       hiding (json)
+import Data.Aeson
 import Data.Aeson.TH
 import Data.Maybe
 import Data.Fixed

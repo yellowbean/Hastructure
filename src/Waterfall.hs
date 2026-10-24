@@ -9,7 +9,7 @@ module Waterfall
   where
 
 import Language.Haskell.TH
-import Data.Aeson hiding (json)
+import Data.Aeson
 import qualified Data.Text as T
 import Text.Read (readMaybe)
 import Data.Aeson.TH

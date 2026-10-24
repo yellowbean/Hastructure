@@ -12,7 +12,7 @@ import qualified Data.Time as T
 import qualified Cashflow as CF -- (Cashflow,Amount,Interests,Principals)
 import qualified Assumptions as AP
 import Asset
-import Types hiding (getOriginDate)
+import Types
 import Lib
 import Util
 import DateUtil
@@ -20,7 +20,7 @@ import DateUtil
 import qualified Data.Map as Map
 import qualified Data.DList as DL
 import Data.List
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Data.Decimal
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -86,9 +86,6 @@ calcEndDate sd periods (ByPeriodRental _ per) = case genDates sd per periods of
                                                   [] -> sd 
                                                   ds -> last ds
 
-calcGapDays :: AP.LeaseAssetGapAssump -> Date -> Int
-calcGapDays (AP.GapDays days) _ = days
-calcGapDays (AP.GapDaysByCurve ts) d = round $ fromRational $ getValByDate ts Exc d 
 
 -- ^ Generate next lease with new rental / term changes/ day gap
 nextLease :: Lease -> (AP.LeaseAssetRentAssump, TermChangeRate, DayGap) -> (Lease, Date ,(AP.LeaseAssetRentAssump, TermChangeRate, DayGap))

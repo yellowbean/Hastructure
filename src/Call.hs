@@ -8,7 +8,7 @@ module Call(CallOption(..))
 import qualified Data.Time as T
 import Lib
 import Types
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types

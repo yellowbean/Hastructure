@@ -20,7 +20,7 @@ import Data.List
 import Data.Ratio
 import Data.Maybe
 import GHC.Generics
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types

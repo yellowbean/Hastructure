@@ -44,7 +44,7 @@ import qualified Data.List as L
 import Data.Maybe 
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
 
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Language.Haskell.TH
 import GHC.Generics
 import Data.Aeson.TH

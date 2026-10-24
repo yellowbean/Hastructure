@@ -9,7 +9,7 @@ module AssetClass.Installment
 import qualified Data.Time as T
 import Data.Ratio
 
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Language.Haskell.TH
 import Data.Maybe
 import Data.List

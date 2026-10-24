@@ -47,7 +47,7 @@ import Data.List
 import Data.Fixed
 import Data.Maybe
 import Data.Ratio
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 -- import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
 import Data.Aeson.TH

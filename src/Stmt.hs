@@ -22,7 +22,7 @@ import Types
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Text.Regex.Base
 import Text.Regex.PCRE
 import Data.Fixed

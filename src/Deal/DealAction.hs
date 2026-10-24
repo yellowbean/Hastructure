@@ -54,7 +54,7 @@ import Data.Maybe
 import Data.Either
 import Data.Either.Utils
 import Data.Bifunctor (first)
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
