@@ -6,7 +6,7 @@
 module InterestRate
   (ARM(..),RateType(..),runInterestRate2,runInterestRate,UseRate(..)
   ,getRateResetDates,getDayCount,calcInt, calcIntRate,calcIntRateCurve
-  ,getSpread,_getSpread,calcIntRates)
+  ,_getSpread,calcIntRates)
   
   where
 

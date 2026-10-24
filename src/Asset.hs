@@ -9,8 +9,8 @@
 module Asset ( Asset(..),
       buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
       ,calcRecoveriesFromDefault
-      ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
-      ,getObligorTags,getObligorId,getRecoveryLagAndRate,getDefaultDelinqAssump,getOriginInfo
+      ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
+      ,getRecoveryLagAndRate,getDefaultDelinqAssump
 ) where
 
 import qualified Data.Time as T
