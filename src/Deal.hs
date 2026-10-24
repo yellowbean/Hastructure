@@ -75,7 +75,6 @@ import Control.Monad.Writer
 import Control.Monad.Loops (allM,anyM)
 import Control.Applicative (liftA2)
 
-import Debug.Trace
 import Cashflow (buildBegTsRow)
 import Assumptions (NonPerfAssumption(NonPerfAssumption),lookupRate0)
 import Asset ()
@@ -89,7 +88,6 @@ import Liability (getDayCountFromInfo,getTxnRate)
 import Hedge (RateCap(..),RateSwapBase(..),RateSwap(rsRefBalance))
 import qualified Hedge as HE
 
-debug = flip trace
 
 
 updateSrtRate :: Ast.Asset a => TestDeal a -> Date -> [RateAssumption] -> HE.SRT -> Either String HE.SRT

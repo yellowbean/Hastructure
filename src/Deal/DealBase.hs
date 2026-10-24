@@ -65,9 +65,7 @@ import Text.Read (readMaybe)
 import qualified Pool as P
 import qualified Types as CF
 
-import Debug.Trace
 import qualified Control.Lens as P
-debug = flip trace
 
 
 data DealComp = CompBond 

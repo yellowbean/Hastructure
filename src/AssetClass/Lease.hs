@@ -34,9 +34,7 @@ import qualified Analytics as AN
 import Control.Lens hiding (element)
 import Control.Lens.TH
 
-import Debug.Trace
 import qualified Assumptions as A
-debug = flip trace
 
 type PeriodAmount = Balance
 type CapRate = Rate

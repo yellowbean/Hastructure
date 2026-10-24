@@ -47,11 +47,9 @@ import Data.Ratio
 import Revolving
 import GHC.Generics
 import AssetClass.AssetBase
-import Debug.Trace
 import qualified InterestRate as IR
 import Control.Lens hiding (Index) 
 
-debug = flip trace
 
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
 type StratPerfByIdx = ([Int],AssetPerf)

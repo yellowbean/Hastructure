@@ -30,7 +30,6 @@ import Data.Aeson.Types
 
 import AssetClass.AssetBase
 import AssetClass.AssetCashflow
-import Debug.Trace
 import Assumptions (AssetPerfAssumption(MortgageAssump))
 import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (extendTxns)
@@ -38,7 +37,6 @@ import Control.Lens hiding (element)
 import Control.Lens.TH
 import qualified Data.DList as DL
 
-debug = flip trace
 
 projectMortgageFlow :: (Balance, Balance, Date, Maybe BorrowerNum, AmortPlan, DayCount, IRate, Period, Int) -> (Dates, [DefaultRate],[PrepaymentRate],[IRate],[Int]) -> (DL.DList CF.TsRow, Balance, Balance)
 projectMortgageFlow (originBal, startBal, lastPayDate, mbn, pt, dc, startRate, p, oTerms) (cfDates, defRates, ppyRates, rateVector, remainTerms) = 

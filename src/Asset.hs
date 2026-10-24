@@ -46,7 +46,6 @@ import Util
 
 import AssetClass.AssetBase ( OriginalInfo(..), calcPmt, AssetUnion, Obligor(..) )
 
-import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
 
 import Control.Lens hiding (element)
@@ -54,7 +53,6 @@ import Control.Lens.TH
 import DateUtil (yearCountFraction)
 
 
-debug = flip trace
 
 class (Show a,IR.UseRate a) => Asset a where
   -- | project contractual cashflow of an asset with interest assumptions

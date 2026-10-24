@@ -39,8 +39,6 @@ import Control.Applicative (liftA2)
 import Control.Lens hiding (element,Empty)
 import Control.Lens.TH
 
-import Debug.Trace
-debug = flip trace
 
 
 aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance

@@ -60,14 +60,12 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import GHC.Generics
 import Control.Applicative
-import Debug.Trace
 import Cashflow (CashFlowFrame(CashFlowFrame))
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import Control.Lens.Extras (is)
 import Control.Monad
 
-debug = flip trace
 
 -- ^ Test triggers
 testTrigger :: Ast.Asset a => TestDeal a -> RunContext -> Date -> Trigger -> Either ErrorRep Trigger

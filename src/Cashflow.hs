@@ -51,7 +51,6 @@ import Data.Aeson.TH
 import Data.Aeson.Types
 import Text.Printf
 
-import Debug.Trace
 import qualified Control.Lens as Map
 import Control.Applicative (liftA2)
 import Data.OpenApi (HasPatch(patch), HasXml (xml))
@@ -63,7 +62,6 @@ import qualified Text.Tabular.AsciiArt as A
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import Control.Monad 
-debug = flip trace
 
 type Delinquent = Balance
 type Amounts = [Float]

@@ -30,12 +30,10 @@ import qualified Cashflow as CF
 
 import AssetClass.AssetBase
 
-import Debug.Trace
 import AssetClass.AssetCashflow
 import qualified Asset as Ast
 import Control.Lens hiding (element)
 import Control.Lens.TH
-debug = flip trace
 
 
 projectInstallmentFlow :: (Balance,Date,(Balance,Balance),IRate,Rational,AmortPlan,Int) -> (Dates, [DefaultRate], [PrepaymentRate], [Int]) -> (DL.DList CF.TsRow, Balance ,Rational)

@@ -27,11 +27,9 @@ import Data.Aeson.Types
 
 import AssetClass.AssetBase
 
-import Debug.Trace
 import qualified Assumptions as A 
 import GHC.Float.RealFracMethods (truncateFloatInteger)
 import Cashflow (mflowDefault)
-debug = flip trace
 
 -- This module is a collection of common cashflow functions to project cashflow for different asset types.
 

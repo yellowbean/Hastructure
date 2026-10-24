@@ -32,10 +32,8 @@ import AssetClass.AssetCashflow
 
 import Cashflow (extendTxns,TsRow(..))
 
-import Debug.Trace
 import Control.Lens hiding (element,Index)
 import Control.Lens.TH
-debug = flip trace
 
 
 data IntCalcType = ByRate IRate

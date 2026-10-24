@@ -23,8 +23,6 @@ import Types
 import Util
 import Lib
 
-import Debug.Trace
-debug = flip trace
 
 type InitPeriod = Int 
 type PeriodicCap = Maybe Spread

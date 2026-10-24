@@ -40,8 +40,6 @@ import Control.Exception
 
 import Control.Parallel.Strategies (parBuffer, rseq, using)
 import Data.Time (addDays)
-import Debug.Trace
-debug = flip trace
 
 -- | Resolution of 'IRate'/'Balance'. Kept internal: 'Micro' is 1,000,000 and
 -- 'Centi' is 100. Using 'resolution' keeps this correct if the aliases change.

@@ -20,8 +20,6 @@ import GHC.Generics
 import Control.Lens hiding (element)
 
 import Control.Lens.TH
-import Debug.Trace
-debug = flip trace
 
 
 type LedgerName = String

@@ -37,7 +37,6 @@ import AssetClass.AssetCashflow
 import AssetClass.FixedAsset
 import AssetClass.ProjectedCashFlow
 
-import Debug.Trace
 import Assumptions (AssetDefaultAssumption(DefaultCDR))
 import qualified Asset as Ast
 

@@ -33,8 +33,6 @@ import Data.Fixed (Fixed(..), HasResolution,Centi, resolution)
 import Data.Ratio
 import Types
 import Data.Decimal
-import Debug.Trace
-debug = flip trace
 
 
 periodRateFromAnnualRate :: Period -> IRate -> IRate

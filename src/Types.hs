@@ -80,10 +80,8 @@ import Data.Fixed hiding (Ratio)
 import Data.Decimal
 import Data.Ix
 import Data.List (intercalate, findIndex, find)
-import Debug.Trace
 import Data.Scientific (scientific)
 import Data.Text (unpack)
-debug = flip trace
 
 
 

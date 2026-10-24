@@ -41,8 +41,6 @@ import Types
 import Util
 import Lib
 
-import Debug.Trace
-debug = flip trace
 
 -- ^ execute effects of trigger: making changes to deal
 -- TODO seems position of arugments can be changed : f :: a -> b -> m a  => f:: b -> a -> m a

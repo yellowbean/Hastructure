@@ -50,10 +50,8 @@ import Control.Lens.TH
 import Control.Applicative
 import Data.Map.Lens
 import Data.List.Lens
-import Debug.Trace
 import Lib
 import qualified Cashflow as P
-debug = flip trace
 
 -- | calcuate target balance for a reserve account, 0 for a non-reserve account
 calcTargetAmount :: P.Asset a => TestDeal a -> RunContext -> Date -> A.Account -> Either ErrorRep Balance

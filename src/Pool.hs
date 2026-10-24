@@ -45,8 +45,6 @@ import Util
 import Cashflow (CashFlowFrame)
 import qualified Stmt as CF
 import Stmt
-import Debug.Trace
-debug = flip trace
 
 
 data Pool a = Pool {assets :: [a]                                            -- ^ a list of assets in the pool
