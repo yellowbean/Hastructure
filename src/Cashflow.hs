@@ -38,6 +38,7 @@ import Util (mulBR,mulBInt,mulIR,lastOf)
 import DateUtil ( splitByDate ,yearCountFraction )
 import Types
 import qualified Data.Map as Map
+import qualified Data.DList as DL
 import qualified Data.Time as T
 import qualified Data.List as L
 import Data.Maybe 
@@ -592,21 +593,20 @@ combine cf1@(CashFlowFrame st1@(begBal1,begDate1,acc1) txn1) cf2@(CashFlowFrame 
       CashFlowFrame (begBal1,begDate1,acc1) txns 
 
 buildCollectedCF :: [[TsRow]] -> [Date] -> [TsRow] -> [[TsRow]]
-buildCollectedCF [] [] [] = []
-buildCollectedCF trs [] _trs = trs
-buildCollectedCF trs ds [] = 
-  case Util.lastOf trs (not . null) of
-    Just lastTr -> trs ++ [ [viewTsRow _d (last lastTr)] | _d <- ds ]
-    Nothing -> trs ++ replicate (length ds) []
-buildCollectedCF trs (d:ds) _trs =
-  case newFlow of
-    [] -> case Util.lastOf trs (not . null) of
-            Nothing -> buildCollectedCF (trs++[[]]) ds _trs  -- `debug` ("empty trs"++ show d)
-            Just lastTr ->  buildCollectedCF (trs++[[viewTsRow d (last lastTr)]]) ds _trs -- `debug` ("non empty last tr "++ show lastTr ++ "for date"++ show d++"insert with "++show (viewTsRow d (last lastTr)))
-    newFlow -> buildCollectedCF (trs++[newFlow]) ds remains
-  where 
-    (newFlow, remains) = splitBy d Inc _trs
-
+buildCollectedCF trs ds rows =
+  DL.toList (go (DL.fromList trs) (Util.lastOf trs (not . null)) ds rows)
+  where
+    go acc _ [] _ = acc
+    go acc mLast (d:ds) rows =
+      case newFlow of
+        [] -> case mLast of
+                Nothing -> go (DL.snoc acc []) Nothing ds rows
+                Just lastTr ->
+                  let g = [viewTsRow d (last lastTr)]
+                  in go (DL.snoc acc g) (Just g) ds rows
+        newFlow -> go (DL.snoc acc newFlow) (Just newFlow) ds remains
+      where
+        (newFlow, remains) = splitBy d Inc rows
 
 aggTsByDates :: [TsRow] -> [Date] -> [TsRow]
 aggTsByDates [] ds = []

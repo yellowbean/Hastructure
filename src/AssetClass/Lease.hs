@@ -18,6 +18,7 @@ import Util
 import DateUtil
 
 import qualified Data.Map as Map
+import qualified Data.DList as DL
 import Data.List
 import Data.Aeson hiding (json)
 import Data.Decimal
@@ -126,30 +127,33 @@ nextLease l@(StepUpLease (LeaseInfo sd ot rental ob) lsteupInfo bal rt _) (rAssu
 
 -- | create a new lease base on the lease in 1st argument, with new rental/term, a gap days, till the end date
 nextLeaseTill :: Lease -> (AP.LeaseAssetRentAssump, TermChangeRate, DayGap) -> Date -> AP.LeaseEndType -> [Lease] -> [Lease]
-nextLeaseTill l (rsc,tc,mg) lastDate (AP.CutByDate ed) accum 
-  | lastDate >= ed = accum 
-  | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.CutByDate ed) (accum++[new_lease])
-                where 
-                 (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg)
+nextLeaseTill l assump lastDate endType accum =
+  DL.toList (go l assump lastDate endType (DL.fromList accum))
+  where
+    go l (rsc,tc,mg) lastDate (AP.CutByDate ed) accum
+      | lastDate >= ed = accum
+      | otherwise =
+          let (new_lease,new_lastDate,newAssump) = nextLease l (rsc,tc,mg)
+          in go new_lease newAssump new_lastDate (AP.CutByDate ed) (DL.snoc accum new_lease)
 
-nextLeaseTill l (rsc,tc,mg) lastDate (AP.StopByExtTimes n) accum 
-  | n == 0 = accum 
-  | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.StopByExtTimes (pred n)) (accum++[new_lease])
-                where 
-                 (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg) 
+    go l (rsc,tc,mg) lastDate (AP.StopByExtTimes n) accum
+      | n == 0 = accum
+      | otherwise =
+          let (new_lease,new_lastDate,newAssump) = nextLease l (rsc,tc,mg)
+          in go new_lease newAssump new_lastDate (AP.StopByExtTimes (pred n)) (DL.snoc accum new_lease)
 
-nextLeaseTill l (rsc,tc,mg) lastDate (AP.EarlierOf ed n) accum 
-  | lastDate >= ed = accum 
-  | n == 0 = accum
-  | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.EarlierOf ed (pred n)) (accum++[new_lease])
-                where 
-                 (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg)
+    go l (rsc,tc,mg) lastDate (AP.EarlierOf ed n) accum
+      | lastDate >= ed = accum
+      | n == 0 = accum
+      | otherwise =
+          let (new_lease,new_lastDate,newAssump) = nextLease l (rsc,tc,mg)
+          in go new_lease newAssump new_lastDate (AP.EarlierOf ed (pred n)) (DL.snoc accum new_lease)
 
-nextLeaseTill l (rsc,tc,mg) lastDate (AP.LaterOf ed n) accum 
-  | lastDate >= ed && n == 0 = accum 
-  | otherwise = nextLeaseTill new_lease newAssump new_lastDate (AP.LaterOf ed (pred n)) (accum++[new_lease])
-                where 
-                 (new_lease,new_lastDate, newAssump) = nextLease l (rsc,tc,mg)
+    go l (rsc,tc,mg) lastDate (AP.LaterOf ed n) accum
+      | lastDate >= ed && n == 0 = accum
+      | otherwise =
+          let (new_lease,new_lastDate,newAssump) = nextLease l (rsc,tc,mg)
+          in go new_lease newAssump new_lastDate (AP.LaterOf ed (pred n)) (DL.snoc accum new_lease)
 
 -- ^ calculate the daily rate for a step up lease
 calcPmts :: LeaseStepUp -> [Rate] -> Amount -> Either String [Amount] 
