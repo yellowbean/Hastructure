@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Util
     (mulBR,mulBIR,mulBI,mulBInt,mulBInteger,lastN
@@ -203,8 +204,70 @@ getIndexRateByDates :: RateAssumption  -> [Date] -> [IRate]
 getIndexRateByDates (RateCurve idx rc) ds = fromRational <$> getValByDates rc Inc ds
 getIndexRateByDates (RateFlat idx r) ds = replicate (length ds) r 
 
+-- | Curve points are traversed with a single forward cursor when the input
+-- dates are ascending. This avoids reversing the curve for every date, which
+-- is what the per-date 'getValByDate' path does. Unsorted dates (or unsorted
+-- points) fall back to the legacy implementation, so results are unchanged.
 getValByDates :: Ts -> CutoffType -> [Date] -> [Rational]
-getValByDates rc ct = map (getValByDate rc ct)
+getValByDates _ _ [] = []
+getValByDates rc@(LeftBalanceCurve pts) ct ds
+  | isAscendingPoints pts = mergeLastBy toRational (getValByDate rc ct) ct pts ds
+getValByDates rc@(BalanceCurve pts) ct ds
+  | isAscendingPoints pts = mergeLastBy toRational (getValByDate rc ct) ct pts ds
+getValByDates rc@(FloatCurve pts) ct ds
+  | isAscendingPoints pts = mergeLastBy id (getValByDate rc ct) ct pts ds
+getValByDates rc@(IRateCurve pts) ct ds
+  | isAscendingPoints pts = mergeLastBy toRational (getValByDate rc ct) ct pts ds
+getValByDates rc@(RatioCurve pts) ct ds
+  | isAscendingPoints pts = mergeLastBy id (getValByDate rc ct) ct pts ds
+getValByDates rc@(FactorCurveClosed pts ed) Exc ds
+  | isAscendingPoints pts = mergeFactorClosed ed (getValByDate rc Exc) pts ds
+getValByDates rc ct ds = map (getValByDate rc ct) ds
+
+isAscendingPoints :: [TsPoint a] -> Bool
+isAscendingPoints (TsPoint d1 _ : rest@(TsPoint d2 _ : _)) = d1 <= d2 && isAscendingPoints rest
+isAscendingPoints _ = True
+
+mergeLastBy :: (a -> Rational) -> (Date -> Rational) -> CutoffType
+            -> [TsPoint a] -> [Date] -> [Rational]
+mergeLastBy valOf fallback ct pts0 ds = go pts0 0 ds
+  where
+    go _ !prev [] = []
+    go pts !prev (d:ds) =
+      let (pts', prev') = advance pts prev d
+          rest = case ds of
+                   (d2:_) | d2 < d -> map fallback ds
+                   _               -> go pts' prev' ds
+      in prev' : rest
+
+    advance [] prev _ = ([], prev)
+    advance allPts@(TsPoint pd pv : rest) prev d
+      | within pd d = advance rest (valOf pv) d
+      | otherwise   = (allPts, prev)
+
+    within pd d = case ct of
+                    Inc -> pd <= d
+                    Exc -> pd < d
+
+mergeFactorClosed :: Date -> (Date -> Rational) -> [TsPoint Rational]
+                  -> [Date] -> [Rational]
+mergeFactorClosed ed fallback pts0 ds = go pts0 Nothing ds
+  where
+    go _ _ [] = []
+    go pts !prevM (d:ds) =
+      let (pts', prevM') = advance pts prevM d
+          value = case prevM' of
+                    Nothing -> 1.0
+                    Just v  -> if d >= ed then 1.0 else v
+          rest = case ds of
+                   (d2:_) | d2 < d -> map fallback ds
+                   _               -> go pts' prevM' ds
+      in value : rest
+
+    advance [] prev _ = ([], prev)
+    advance allPts@(TsPoint pd pv : rest) prev d
+      | pd < d    = advance rest (Just (toRational pv)) d
+      | otherwise = (allPts, prev)
 
 getTsVals :: Ts -> [Rational]
 getTsVals (FloatCurve ts) = [ v | (TsPoint d v) <- ts ]

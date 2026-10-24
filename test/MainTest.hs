@@ -100,6 +100,7 @@ tests = testGroup "Tests" [AT.mortgageTests
                            ,UtilT.tsTest
                            ,UtilT.ts2Test
                            ,UtilT.ts3Test
+                           ,UtilT.curveLookupLegacyTest
                            ,UtilT.dateVectorPatternTest
                            ,UtilT.paddingTest
                            ,UtilT.dateSliceTest

@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
-                  ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
+                  ,tsTest,ts2Test,ts3Test,curveLookupLegacyTest,dateVectorPatternTest,paddingTest,dateSliceTest
                   ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
                   ,scaleListTest,mapUpdateTest,boundedParMapTest,resolveWorkerCapTest,forceMapValuesTest
                   ,workerNumTest,serverConfigLimitTest,badRequestJSONTest
@@ -340,6 +340,121 @@ ts2Test =
         (3 % 100) $
         getValByDate testThresholdCurve Inc (toDate "20220310")
   ]
+
+-- | Legacy reference for the plural lookup. The fast path must match this
+-- exactly, including for descending/unsorted dates and unsorted curve points.
+legacyGetValByDates :: Ts -> CutoffType -> [Date] -> [Rational]
+legacyGetValByDates rc ct = map (getValByDate rc ct)
+
+assertCurveLookup :: String -> Ts -> CutoffType -> [[Date]] -> IO ()
+assertCurveLookup label curve ct dss =
+  mapM_ (\ds -> assertEqual (label ++ " / " ++ show ct ++ " / n=" ++ show (length ds))
+                   (legacyGetValByDates curve ct ds)
+                   (getValByDates curve ct ds)) dss
+
+curveLookupLegacyTest :: TestTree
+curveLookupLegacyTest =
+  let
+    d0 = toDate "20220101"
+    d1 = T.addDays 30 d0
+    d2 = T.addDays 60 d0
+    d3 = T.addDays 90 d0
+    dBefore = T.addDays (-10) d0
+    dAfter = T.addDays 200 d0
+
+    ratePts :: [TsPoint Rational]
+    ratePts = [ TsPoint d0 (1 % 100)
+              , TsPoint d1 (2 % 100)
+              , TsPoint d1 (25 % 1000)
+              , TsPoint d2 (3 % 100)
+              , TsPoint d3 (4 % 100) ]
+
+    iratePts :: [TsPoint IRate]
+    iratePts = [ TsPoint d0 0.01
+               , TsPoint d1 0.02
+               , TsPoint d1 0.025
+               , TsPoint d2 0.03
+               , TsPoint d3 0.04 ]
+
+    balPts :: [TsPoint Balance]
+    balPts = [ TsPoint d0 100
+             , TsPoint d1 200
+             , TsPoint d2 300
+             , TsPoint d3 400 ]
+
+    unsortedRatePts :: [TsPoint Rational]
+    unsortedRatePts = [TsPoint d2 (3 % 100), TsPoint d0 (1 % 100), TsPoint d1 (2 % 100)]
+
+    unsortedIratePts :: [TsPoint IRate]
+    unsortedIratePts = [TsPoint d2 0.03, TsPoint d0 0.01, TsPoint d1 0.02]
+
+    dateSets :: [[Date]]
+    dateSets = [ []
+               , [d0]
+               , [dBefore]
+               , [dAfter]
+               , [d0, d1, d2, d3]
+               , [d0, d0, d1, d1, d2, d3, d3]
+               , [d1]
+               , [d1, d2]
+               , [d3, d2, d1, d0]
+               , [d1, d0, d2, d3]
+               , [dBefore, d0, d1, dAfter]
+               , [T.addDays (toInteger i) d0 | i <- [0..999]]
+               ]
+
+    simpleCurves :: [(String, Ts)]
+    simpleCurves =
+      [ ("IRateCurve", IRateCurve iratePts)
+      , ("FloatCurve", FloatCurve ratePts)
+      , ("RatioCurve", RatioCurve ratePts)
+      , ("BalanceCurve", BalanceCurve balPts)
+      , ("LeftBalanceCurve", LeftBalanceCurve balPts)
+      ]
+
+    emptyCurves :: [Ts]
+    emptyCurves =
+      [ IRateCurve []
+      , FloatCurve []
+      , RatioCurve []
+      , BalanceCurve []
+      , LeftBalanceCurve []
+      , ThresholdCurve []
+      ]
+  in
+    testGroup "getValByDates legacy compatibility"
+    [ testCase "ascending, duplicate, descending and unsorted dates" $
+        mapM_ (\(name, c) -> do
+          assertCurveLookup name c Inc dateSets
+          assertCurveLookup name c Exc dateSets) simpleCurves
+    , testCase "unsorted curve points fall back exactly" $
+        mapM_ (\(name, c) -> do
+          assertCurveLookup name c Inc dateSets
+          assertCurveLookup name c Exc dateSets)
+          [ ("IRateCurve-unsorted", IRateCurve unsortedIratePts)
+          , ("FloatCurve-unsorted", FloatCurve unsortedRatePts)
+          ]
+    , testCase "FactorCurveClosed matches the legacy lookup" $ do
+        assertCurveLookup "factor" (FactorCurveClosed ratePts d2) Exc dateSets
+        assertCurveLookup "factor-unsorted" (FactorCurveClosed unsortedRatePts d2) Exc dateSets
+    , testCase "ThresholdCurve falls back exactly" $ do
+        assertCurveLookup "threshold" (ThresholdCurve ratePts) Inc dateSets
+        assertCurveLookup "threshold" (ThresholdCurve ratePts) Exc dateSets
+    , testCase "PricingCurve falls back exactly" $ do
+        assertCurveLookup "pricing" (PricingCurve ratePts) Inc dateSets
+        assertCurveLookup "pricing" (PricingCurve ratePts) Exc dateSets
+    , testCase "empty curves" $ do
+        mapM_ (\c -> do
+          assertCurveLookup "empty" c Inc dateSets
+          assertCurveLookup "empty" c Exc dateSets) emptyCurves
+        assertCurveLookup "empty-factor" (FactorCurveClosed [] d2) Exc dateSets
+        assertCurveLookup "empty-pricing" (PricingCurve []) Inc dateSets
+    , testCase "empty dates always return []" $ do
+        mapM_ (\(name, c) -> do
+          assertEqual (name ++ " Inc") [] (getValByDates c Inc [])
+          assertEqual (name ++ " Exc") [] (getValByDates c Exc [])) simpleCurves
+        assertEqual "factor" [] (getValByDates (FactorCurveClosed ratePts d2) Exc [])
+    ]
 
 -- ^ date pattern test
 dateVectorPatternTest = 
