@@ -24,7 +24,7 @@ import qualified Data.Time as T
 import qualified Data.Map as Map
 import Data.List
 import Data.Fixed
-import Data.Ratio ((%))
+import Data.Ratio ((%), numerator, denominator)
 import Data.Ix
 import Data.Maybe
 import qualified Data.Map as M
@@ -42,11 +42,23 @@ import Data.Time (addDays)
 import Debug.Trace
 debug = flip trace
 
+-- | Resolution of 'IRate'/'Balance'. Kept internal: 'Micro' is 1,000,000 and
+-- 'Centi' is 100. Using 'resolution' keeps this correct if the aliases change.
+-- NB: the fast paths below pattern-match on 'Data.Fixed.MkFixed'; if
+-- 'Balance'/'IRate' ever move away from 'Data.Fixed', update them together.
+microScale, balanceScale :: Integer
+microScale = resolution (0 :: IRate)
+balanceScale = resolution (0 :: Balance)
+
+-- | The old implementation went through 'Rational' and 'fromRational'.
+-- 'Data.Fixed''s 'fromRational' rounds down (floor, including for negatives),
+-- so for a rate @n/d@ the result is exactly @(cents * n) `div` d@. 'div'
+-- (not 'quot') preserves that behaviour for negative balances as well.
 mulBR :: Balance -> Rate -> Balance
-mulBR b r = fromRational $ toRational b * r 
+mulBR (MkFixed b) r = MkFixed ((b * numerator r) `div` denominator r)
 
 mulBIR :: Balance -> IRate -> Balance
-mulBIR b r = fromRational $ toRational b * toRational r
+mulBIR (MkFixed b) (MkFixed r) = MkFixed ((b * r) `div` microScale)
 
 mulIR :: Int -> Rational -> Rational
 mulIR i r = toRational i * r 
@@ -58,19 +70,21 @@ mulIntegerR :: Integer -> Rational -> Rational
 mulIntegerR i r = toRational i * r
 
 mulBInt :: Balance -> Int -> Rational 
-mulBInt b i = toRational b * toRational i
+mulBInt (MkFixed b) i = (b * toInteger i) % balanceScale
 
 mulBInteger :: Balance -> Integer -> Rational 
 mulBInteger b i = mulBInt b (fromInteger i)
 
 mulBI :: Balance -> IRate -> Amount
-mulBI bal r = fromRational  $ toRational bal * toRational r
+mulBI = mulBIR
 
 divideBI :: Balance -> Int -> Balance
-divideBI b i = fromRational $ toRational b / toRational i
+divideBI (MkFixed b) i
+  | i == 0    = throw RatioZeroDenominator
+  | otherwise = MkFixed (b `div` toInteger i)
 
 divideBB :: Balance -> Balance -> Rational
-divideBB b1 b2 = toRational b1 / toRational b2
+divideBB (MkFixed b1) (MkFixed b2) = b1 % b2
 
 safeDivide :: RealFloat a => a -> a -> a
 safeDivide _ 0 = Numeric.Limits.infinity

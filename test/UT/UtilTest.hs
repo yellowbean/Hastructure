@@ -4,7 +4,8 @@ module UT.UtilTest(daycountTests1,daycountTests2,daycountTests3,daycountTests4
                   ,tsTest,ts2Test,ts3Test,dateVectorPatternTest,paddingTest,dateSliceTest
                   ,capTest,roundingTest,sliceTest,splitTsTest,tableTest,lastOftest,paySeqTest
                   ,scaleListTest,mapUpdateTest,boundedParMapTest,resolveWorkerCapTest,forceMapValuesTest
-                  ,workerNumTest,serverConfigLimitTest,badRequestJSONTest)--,daycountTests3,daycountTests4)
+                  ,workerNumTest,serverConfigLimitTest,badRequestJSONTest
+                  ,moneyMathLegacyTest)--,daycountTests3,daycountTests4)
 where
 
 import Test.Tasty
@@ -22,7 +23,7 @@ import Stmt
 import Data.Fixed
 import qualified Data.DList as DL
 import Data.Ratio ((%))
-import Control.Exception (ErrorCall(..), evaluate, try)
+import Control.Exception (ArithException(..), ErrorCall(..), evaluate, try)
 import Network.HTTP.Types (hContentType)
 import Servant.Server (ServerError(..))
 import qualified Data.ByteString.Lazy.Char8 as BL8
@@ -522,6 +523,158 @@ roundingTest =
       assertEqual "Rounding Equal"
       100
       (roundingBy (RoundFloor 5) 100)
+    ]
+
+-- | Pre-optimization reference implementations. The optimized helpers must
+-- stay bit-for-bit identical to these, including the rounding direction of
+-- 'Data.Fixed.fromRational' (floor, including for negatives).
+legacyMulBR :: Balance -> Rate -> Balance
+legacyMulBR b r = fromRational (toRational b * r)
+
+legacyMulBIR :: Balance -> IRate -> Balance
+legacyMulBIR b r = fromRational (toRational b * toRational r)
+
+legacyDivideBI :: Balance -> Int -> Balance
+legacyDivideBI b i = fromRational (toRational b / toRational i)
+
+legacyDivideBB :: Balance -> Balance -> Rational
+legacyDivideBB b1 b2 = toRational b1 / toRational b2
+
+legacyMulBInt :: Balance -> Int -> Rational
+legacyMulBInt b i = toRational b * toRational i
+
+assertMoneyGrid :: (Show a, Show b, Eq c, Show c)
+                => String -> (a -> b -> c) -> (a -> b -> c) -> [a] -> [b] -> IO ()
+assertMoneyGrid label optimized legacy as bs =
+  mapM_ (\a -> mapM_ (\b ->
+           assertEqual (label ++ ": (" ++ show a ++ ", " ++ show b ++ ")")
+                       (legacy a b) (optimized a b)) bs) as
+
+assertMoneyPairs :: (Show a, Show b, Eq c, Show c)
+                 => String -> (a -> b -> c) -> (a -> b -> c) -> [(a,b)] -> IO ()
+assertMoneyPairs label optimized legacy pairs =
+  mapM_ (\(a,b) ->
+    assertEqual (label ++ ": " ++ show a ++ " / " ++ show b)
+                (legacy a b) (optimized a b)) pairs
+
+moneyMathLegacyTest :: TestTree
+moneyMathLegacyTest =
+  let
+    balances :: [Balance]
+    balances = [0, 0.01, -0.01, 1, -1, 100, -100, 123.45, -123.45
+               ,999999999.99, -999999999.99]
+
+    rates :: [Rate]
+    rates = [0, 1, -1, 1 % 2, 1 % 3, 2 % 3, 1 % 7
+            ,1 % 200, 3 % 200, -1 % 200, -3 % 200
+            ,5 % 1000, 15 % 1000, 199 % 200, 17 % 200
+            ,1 % 1000000, 123 % 1000, 1000000 % 3
+            ,(10 ^ 18 + 1) % 10 ^ 18]
+
+    iRates :: [IRate]
+    iRates = [0, 0.000001, -0.000001, 0.085, -0.085
+             ,1, 1.5, 12.345678]
+
+    divisors :: [Int]
+    divisors = [1, 2, 3, 7, 12, 365, 1000, -1, -3]
+
+    intFactors :: [Int]
+    intFactors = [0, 1, -1, 2, 3, 7, 12, 365, -3]
+
+    -- Deterministic sweep over many cents/rate/divisor combinations. This is
+    -- deliberately larger than the hand-picked edge cases above.
+    sweepBalances :: [Balance]
+    sweepBalances = [MkFixed (toInteger i * 37 - 5000) | i <- [0..100]]
+
+    sweepRates :: [Rate]
+    sweepRates = [(toInteger i * 13 - 50) % (toInteger i * 7 + 1) | i <- [1..50]]
+
+    sweepIRates :: [IRate]
+    sweepIRates = [MkFixed (toInteger i * 7919 - 100000) | i <- [0..50]]
+
+    sweepDivisors :: [Int]
+    sweepDivisors = [i | i <- [-50..50], i /= 0]
+  in
+    testGroup "Money math legacy compatibility"
+    [ testGroup "mulBR"
+      [ testCase "matches the legacy fromRational oracle on a grid" $
+          assertMoneyGrid "mulBR" mulBR legacyMulBR balances rates
+      , testCase "matches the legacy oracle over a deterministic sweep" $
+          assertMoneyGrid "mulBR-sweep" mulBR legacyMulBR sweepBalances sweepRates
+      , testCase "floors half cents for both signs" $ do
+          assertEqual "positive half cent" 0.00 (mulBR 1.00 (1 % 200))
+          assertEqual "positive 1.5 cents" 0.01 (mulBR 1.00 (3 % 200))
+          assertEqual "negative half cent" (-0.01) (mulBR (-1.00) (1 % 200))
+          assertEqual "negative 1.5 cents" (-0.02) (mulBR (-1.00) (3 % 200))
+          assertEqual "positive 99.5 cents" 0.99 (mulBR 1.00 (199 % 200))
+          assertEqual "negative 99.5 cents" (-1.00) (mulBR (-1.00) (199 % 200))
+      , testCase "zero, identity and negation" $ do
+          assertEqual "zero rate" 0 (mulBR 123.45 0)
+          assertEqual "identity rate" 123.45 (mulBR 123.45 1)
+          assertEqual "negative identity" (-123.45) (mulBR 123.45 (-1))
+      ]
+    , testGroup "mulBIR"
+      [ testCase "matches the legacy fromRational oracle on a grid" $
+          assertMoneyGrid "mulBIR" mulBIR legacyMulBIR balances iRates
+      , testCase "matches the legacy oracle over a deterministic sweep" $
+          assertMoneyGrid "mulBIR-sweep" mulBIR legacyMulBIR sweepBalances sweepIRates
+      , testCase "floors half cents for both signs" $ do
+          assertEqual "positive half cent" 0.00 (mulBIR 100.00 0.00005)
+          assertEqual "positive 1.5 cents" 0.01 (mulBIR 100.00 0.00015)
+          assertEqual "negative half cent" (-0.01) (mulBIR (-100.00) 0.00005)
+          assertEqual "negative 1.5 cents" (-0.02) (mulBIR (-100.00) 0.00015)
+      , testCase "zero and identity" $ do
+          assertEqual "zero rate" 0 (mulBIR 123.45 0)
+          assertEqual "identity rate" 123.45 (mulBIR 123.45 1)
+      ]
+    , testGroup "mulBI"
+      [ testCase "is the same operation as mulBIR" $
+          assertMoneyGrid "mulBI" mulBI legacyMulBIR balances iRates
+      ]
+    , testGroup "divideBI"
+      [ testCase "matches the legacy fromRational oracle on a grid" $
+          assertMoneyGrid "divideBI" divideBI legacyDivideBI balances divisors
+      , testCase "matches the legacy oracle over a deterministic sweep" $
+          assertMoneyGrid "divideBI-sweep" divideBI legacyDivideBI sweepBalances sweepDivisors
+      , testCase "floors toward negative infinity" $ do
+          assertEqual "1.00 / 3" 0.33 (divideBI 1.00 3)
+          assertEqual "-1.00 / 3" (-0.34) (divideBI (-1.00) 3)
+          assertEqual "identity" 123.45 (divideBI 123.45 1)
+      , testCase "zero divisor preserves the legacy exception" $ do
+          r <- try (evaluate (divideBI 1.00 0)) :: IO (Either ArithException Balance)
+          case r of
+            Left RatioZeroDenominator -> pure ()
+            Left e -> assertFailure ("unexpected exception: " ++ show e)
+            Right _ -> assertFailure "expected divideBI by zero to throw"
+      ]
+    , testGroup "divideBB"
+      [ testCase "matches the legacy Rational ratio oracle on a grid" $
+          assertMoneyPairs "divideBB" divideBB legacyDivideBB
+            [(b1, b2) | b1 <- balances, b2 <- balances, b2 /= 0]
+      , testCase "matches the legacy oracle over a deterministic sweep" $
+          assertMoneyPairs "divideBB-sweep" divideBB legacyDivideBB
+            [(b1, b2) | b1 <- take 31 sweepBalances, b2 <- take 31 sweepBalances, b2 /= 0]
+      , testCase "exact ratios" $ do
+          assertEqual "1.00 / 0.03" (100 % 3) (divideBB 1.00 0.03)
+          assertEqual "-1.00 / 0.03" (-100 % 3) (divideBB (-1.00) 0.03)
+          assertEqual "same balance" 1 (divideBB 123.45 123.45)
+      , testCase "zero denominator preserves the legacy exception" $ do
+          r <- try (evaluate (divideBB 1.00 0.00)) :: IO (Either ArithException Rational)
+          case r of
+            Left RatioZeroDenominator -> pure ()
+            Left e -> assertFailure ("unexpected exception: " ++ show e)
+            Right _ -> assertFailure "expected divideBB by zero to throw"
+      ]
+    , testGroup "splitBal"
+      [ testCase "uses the legacy mulBR for both legs" $
+          mapM_ (\b -> mapM_ (\r ->
+            assertEqual ("splitBal " ++ show b ++ " " ++ show r)
+              (legacyMulBR b r, legacyMulBR b (1 - r)) (splitBal r b)) rates) balances
+      ]
+    , testGroup "mulBInt"
+      [ testCase "matches the legacy Rational oracle on a grid" $
+          assertMoneyGrid "mulBInt" mulBInt legacyMulBInt balances intFactors
+      ]
     ]
 
 sliceTest = 
