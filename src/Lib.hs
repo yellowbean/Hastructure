@@ -23,6 +23,7 @@ import qualified Data.Time.Format as TF
 import Data.List
 -- import qualified Data.Scientific as SCI
 import qualified Data.Map as M
+import qualified Data.IntSet as IntSet
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -69,17 +70,18 @@ centiToDecimal c = Decimal 2 (round c * 100)
 -- negative allocations (#322 review L3).
 prorataFactors :: [Balance] -> Balance -> [Balance]
 prorataFactors bals amt
-  | totalCents <= 0 = replicate (length bals) 0
+  | totalCents <= 0 = replicate n 0
   | otherwise = map (toEnum . fromInteger) $ zipWith (+) baseAdds extraCents
   where
+    n = length bals
     centList = max 0 . toInteger . fromEnum <$> bals
     totalCents = sum centList
     payCents = max 0 $ min totalCents (toInteger $ fromEnum amt)
     baseAdds = [ b * payCents `div` totalCents | b <- centList ]
     residual = payCents - sum baseAdds
     order = sortOn (negate . snd) $ zip [0..] [ b * payCents `mod` totalCents | b <- centList ]
-    extraIdx = fst <$> take (fromInteger residual) order
-    extraCents = [ if i `elem` extraIdx then 1 else 0 | i <- [0 .. length bals - 1] ]
+    extraIdx = IntSet.fromList $ fst <$> take (fromInteger residual) order
+    extraCents = [ if IntSet.member i extraIdx then 1 else 0 | i <- [0 .. n - 1] ]
 
 -- 
 
