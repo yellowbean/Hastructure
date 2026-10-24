@@ -72,11 +72,16 @@ nix-build release.nix -A hastructure    # build the engine -> result/bin/Hastruc
 
 #### From release executables
 
-Prebuilt executables for Linux/macOS/Windows are attached to [GitHub releases](https://github.com/absbox/Hastructure/releases) as `Hastructure-<version>-<OS>-ghc-<ghc-version>`. Download one, then:
+Prebuilt executables for Linux/macOS/Windows are attached to [GitHub releases](https://github.com/absbox/Hastructure/releases) as `Hastructure-<tag>-<target>`, where `<target>` is one of `linux-amd64`, `linux-arm64`, `macos-arm64` and `windows-amd64`. Every target is published twice:
+
+* `Hastructure-<tag>-<target>` — normal build, full symbol table (useful for debugging/profiling).
+* `Hastructure-<tag>-<target>-stripped` — same binary with the symbol table removed (and, on macOS, re-signed). Much smaller and functionally identical; use this one to run the engine.
+
+Download one, then:
 
 ```bash
-chmod +x Hastructure-<version>-Linux-ghc-9.10.2
-./Hastructure-<version>-Linux-ghc-9.10.2
+chmod +x Hastructure-v0.52.14-linux-amd64-stripped
+./Hastructure-v0.52.14-linux-amd64-stripped
 ```
 
 Run it from a directory containing `config.yml`: the engine reads the file at startup and refuses to start when it is missing, malformed or contains an invalid value.

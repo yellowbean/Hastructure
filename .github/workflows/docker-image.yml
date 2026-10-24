@@ -90,6 +90,87 @@ jobs:
           fi
           mv "dist/Hastructure-exe${EXT}" "dist/Hastructure-${GITHUB_REF_NAME}-${{ matrix.name }}${EXT}"
 
+      # Publish two variants of every target from the exact same build:
+      #   Hastructure-<tag>-<target><ext>           normal, full symbol table
+      #   Hastructure-<tag>-<target>-stripped<ext>  same code/data, no symbols
+      # Stripping here (instead of a second `cabal install`) guarantees the two
+      # binaries differ only in the symbol/debug metadata, and avoids doubling
+      # the build time.
+      - name: Create stripped variant
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXT=""
+          if [ "$RUNNER_OS" = "Windows" ]; then EXT=".exe"; fi
+          base="dist/Hastructure-${GITHUB_REF_NAME}-${{ matrix.name }}"
+          full="${base}${EXT}"
+          slim="${base}-stripped${EXT}"
+          cp "$full" "$slim"
+          chmod +x "$slim"
+
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            # Apple's strip does not know --strip-unneeded. Rewriting the Mach-O
+            # invalidates the linker's ad-hoc arm64 signature, so re-sign or the
+            # binary is killed at exec time.
+            /usr/bin/strip -x "$slim"
+            codesign --force --sign - "$slim"
+            codesign --verify --strict "$slim"
+          elif [ "$RUNNER_OS" = "Windows" ]; then
+            ghc_lib="$(ghc --print-libdir 2>/dev/null | sed 's|\\|/|g' || true)"
+            candidates=()
+            if [ -n "$ghc_lib" ]; then
+              candidates+=("$(dirname "$ghc_lib")/mingw/bin/strip.exe")
+            fi
+            candidates+=("C:/msys64/usr/bin/strip.exe" "C:/Strawberry/c/bin/strip.exe")
+            strip_bin=""
+            for c in "${candidates[@]}"; do
+              if [ -x "$c" ]; then strip_bin="$c"; break; fi
+            done
+            if [ -z "$strip_bin" ]; then strip_bin="$(command -v strip || true)"; fi
+            if [ -z "$strip_bin" ]; then
+              echo "No strip executable found (tried GHC mingw, MSYS2, Strawberry, PATH)" >&2
+              exit 1
+            fi
+            echo "Using $strip_bin"
+            "$strip_bin" --strip-unneeded "$slim"
+          else
+            strip --strip-unneeded "$slim"
+          fi
+
+          size_full=$(wc -c <"$full")
+          size_slim=$(wc -c <"$slim")
+          echo "unstripped: $size_full bytes, stripped: $size_slim bytes"
+          test "$size_slim" -lt "$size_full"
+
+      # The stripped asset is the one at risk (symbols removed, macOS re-signed),
+      # so start it and require a real HTTP answer before it is published.
+      # Runs in `smoke/`, not `dist/`, to keep config.yml/swagger.json out of the
+      # release assets.
+      - name: Smoke test stripped variant
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXT=""
+          if [ "$RUNNER_OS" = "Windows" ]; then EXT=".exe"; fi
+          bin="Hastructure-${GITHUB_REF_NAME}-${{ matrix.name }}-stripped${EXT}"
+          mkdir -p smoke
+          cp "dist/$bin" smoke/
+          cd smoke
+          printf 'port: 18080\n' > config.yml
+          "./$bin" > server.log 2>&1 &
+          pid=$!
+          ok=0
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18080/version 2>/dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          kill "$pid" 2>/dev/null || true
+          if [ "$ok" -ne 1 ]; then
+            echo "stripped binary failed to serve /version" >&2
+            cat server.log >&2
+            exit 1
+          fi
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
