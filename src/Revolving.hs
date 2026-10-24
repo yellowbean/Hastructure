@@ -13,7 +13,7 @@ module Revolving
 
 import GHC.Generics
 import Language.Haskell.TH
-import Data.Aeson hiding (json)
+import Data.Aeson
 import qualified Data.Text as T
 import qualified Cashflow as CF
 import Data.Aeson.TH

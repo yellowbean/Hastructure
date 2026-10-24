@@ -18,7 +18,7 @@ import Types
 import qualified Data.Map as Map
 import Data.List
 import Data.Maybe
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -27,13 +27,11 @@ import GHC.Generics
 import AssetClass.AssetBase
 import AssetClass.AssetCashflow
 
-import Debug.Trace
 import Assumptions (AssetDefaultAssumption(DefaultCDR))
 import qualified Asset as A
 import Control.Lens hiding (element)
 import Control.Lens.TH
 import qualified Data.DList as DL
-debug = flip trace
 
 
 -- instance Asset Loan where

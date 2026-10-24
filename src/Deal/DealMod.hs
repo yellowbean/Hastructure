@@ -47,7 +47,7 @@ import Data.List
 import Data.Fixed
 import Data.Maybe
 import Data.Ratio
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 -- import qualified Data.Aeson.Encode.Pretty as Pretty
 import Language.Haskell.TH
 import Data.Aeson.TH
@@ -61,9 +61,7 @@ import Text.Read (readMaybe)
 import qualified Pool as P
 import qualified Types as CF
 
-import Debug.Trace
 import qualified Control.Lens as P
-debug = flip trace
 
 
 data AdjStrategy = ScaleBySpread
@@ -97,8 +95,6 @@ modDeal (SlideBalances bn1 bn2) r d@DB.TestDeal {DB.bonds = bndMap}
                 DB.updateBondInMap bn2 (L.adjustBalance rightBal) bndMap -- `debug` ("leftBal: " ++ show leftBal ++ ", rightBal: " ++ show rightBal )
     in 
       d {DB.bonds = bndMap'}
-
-modDeal x _ _ = error $ "modify deal: not implemented"++ show x
 
 
 $(deriveJSON defaultOptions ''AdjStrategy)

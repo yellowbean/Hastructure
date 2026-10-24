@@ -73,17 +73,15 @@ import Control.Monad (foldM)
 
 import Data.Scientific (fromRationalRepetend,formatScientific, Scientific,FPFormat(Fixed))
 
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Data.Fixed hiding (Ratio)
+import Data.Fixed
 import Data.Decimal
 import Data.Ix
 import Data.List (intercalate, findIndex, find)
-import Debug.Trace
 import Data.Scientific (scientific)
 import Data.Text (unpack)
-debug = flip trace
 
 
 

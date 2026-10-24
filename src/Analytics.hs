@@ -50,36 +50,27 @@ toTimeYield refDate points
         [ (fromRational (yearCountFraction DC_ACT_365F refDate d), y) | (d, y) <- sorted]
 
 secantSlopes :: [TimeYield] -> [Double]
-secantSlopes points = zipWith 
-                        (\(t1, y1) (t2, y2) -> (y2 - y1) / (t2 - t1)) 
-                        points 
-                        (tail points)
-
--- Compute initial slopes (average of adjacent secant slopes for interior points)
-initialSlopes :: [TimeYield] -> [Double]
-initialSlopes [] = []
-initialSlopes [_] = [0]
-initialSlopes points@((t0, y0):rest) = 
-    let deltas = secantSlopes points
-        n = length points
-        slopes = [head deltas] ++ -- First slope: use first secant slope
-                  [ (d1 + d2) / 2 | (d1, d2) <- zip deltas (tail deltas) ] ++ -- Interior slopes
-                  [last deltas] -- Last slope: use last secant slope
-    in slopes
+secantSlopes ((t1, y1) : rest@((t2, y2) : _)) =
+    (y2 - y1) / (t2 - t1) : secantSlopes rest
+secantSlopes _ = []
 
 fritschCarlsonSlopes :: [TimeYield] -> [Double]
-fritschCarlsonSlopes points
-  | length points < 2 = replicate (length points) 0
-  | otherwise = adjustSlopes points initialSlopes
+fritschCarlsonSlopes [] = []
+fritschCarlsonSlopes [_] = [0]
+fritschCarlsonSlopes points = adjustSlopes points initialSlopes
   where
     -- Compute initial slopes
     initialSlopes :: [Double]
-    initialSlopes = let deltas = secantSlopes points
-                        n = length points
-                    in [head deltas] ++ -- First slope: use first secant slope
-                       [ if d1 * d2 > 0 then 2 / (1 / d1 + 1 / d2) else 0
-                         | (d1, d2) <- zip deltas (tail deltas) ] ++ -- Interior slopes: harmonic mean
-                       [last deltas] -- Last slope: use last secant slope
+    initialSlopes = case secantSlopes points of
+        [] -> []
+        (d0:ds) -> d0 : go d0 ds
+      where
+        go prev [] = [prev]
+        go prev (d:rest) = harmonicMean prev d : go d rest
+
+        harmonicMean d1 d2
+          | d1 * d2 > 0 = 2 / (1 / d1 + 1 / d2)
+          | otherwise = 0
 
     -- Adjust slopes for monotonicity
     adjustSlopes :: [TimeYield] -> [Double] -> [Double]

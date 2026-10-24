@@ -92,7 +92,6 @@ getDayCountFromInfo (RefBal ds info) = getDayCountFromInfo info
 getDayCountFromInfo (CapRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (FloorRate info _) = getDayCountFromInfo info
 getDayCountFromInfo (WithIoI info _) = getDayCountFromInfo info
-getDayCountFromInfo _ = Nothing
 
 type RateReset = DatePattern 
 
@@ -296,7 +295,6 @@ instance S.HasStmt Bond where
   hasEmptyTxn MultiIntBond{bndStmt = Nothing} = True
   hasEmptyTxn MultiIntBond{bndStmt = Just (S.Statement txn)} = txn == DL.empty
   hasEmptyTxn (BondGroup bMap _) = all S.hasEmptyTxn $ Map.elems bMap
-  hasEmptyTxn _ = False
 
 
 setBondOrigDate :: Date -> Bond -> Bond
@@ -321,6 +319,26 @@ patchBondFactor bnd
       in 
         newBnd
 
+-- | Update principal/balance/statement fields shared by 'Bond' and
+-- 'MultiIntBond'. Bond groups are rejected by the callers; the final clause
+-- is a defensive no-op.
+setBndPrinBalStmt :: Balance -> Balance -> Maybe S.Statement -> Bond -> Bond
+setBndPrinBalStmt newDue newBal newStmt b@Bond{} = b {bndDuePrin = newDue, bndBalance = newBal, bndStmt = newStmt}
+setBndPrinBalStmt newDue newBal newStmt b@MultiIntBond{} = b {bndDuePrin = newDue, bndBalance = newBal, bndStmt = newStmt}
+setBndPrinBalStmt _ _ _ b = b
+
+-- | Update balance/statement fields shared by 'Bond' and 'MultiIntBond'.
+setBndBalStmt :: Balance -> Maybe S.Statement -> Bond -> Bond
+setBndBalStmt newBal newStmt b@Bond{} = b {bndBalance = newBal, bndStmt = newStmt}
+setBndBalStmt newBal newStmt b@MultiIntBond{} = b {bndBalance = newBal, bndStmt = newStmt}
+setBndBalStmt _ _ b = b
+
+-- | Update the statement field shared by 'Bond' and 'MultiIntBond'.
+setBndStmtOnly :: Maybe S.Statement -> Bond -> Bond
+setBndStmtOnly newStmt b@Bond{} = b {bndStmt = newStmt}
+setBndStmtOnly newStmt b@MultiIntBond{} = b {bndStmt = newStmt}
+setBndStmtOnly _ b = b
+
 instance Payable Bond where
 
 
@@ -335,6 +353,7 @@ instance Payable Bond where
   pay d DuePrincipal 0 b = return b
   pay d DuePrincipal _ bnd@(Bond {bndBalance = 0}) = return bnd
   pay d DuePrincipal _ bnd@(MultiIntBond {bndBalance = 0}) = return bnd
+  pay _ DuePrincipal _ (BondGroup {}) = Left "Cannot pay principal on a bond group"
   pay d DuePrincipal amt bnd
     | amt > (bndBalance bnd) = Left $ "Payment amount is greater than bond balance "++ show (bndBalance bnd) ++ " bond name "++ show (bndName bnd)
     | otherwise
@@ -348,7 +367,8 @@ instance Payable Bond where
             r = getCurRate bnd
             newStmt = S.appendStmt (BondTxn d newBal 0 amt r amt dueInt dueIoI Nothing (S.PayPrin [bn] )) stmt 
           in 
-            return $ bnd {bndDuePrin = newDue, bndBalance = newBal , bndStmt = newStmt}
+            return $ setBndPrinBalStmt newDue newBal newStmt bnd
+  pay _ DueResidual _ (BondGroup {}) = Left "Cannot pay residual on a bond group"
   pay d DueResidual amt bnd
     = let 
         bal = bndBalance bnd
@@ -359,7 +379,7 @@ instance Payable Bond where
         stmt = bndStmt bnd
         newStmt = S.appendStmt (BondTxn d bal amt 0 r amt dueInt dueIoI Nothing (S.PayYield bn)) stmt 
       in 
-        return bnd { bndStmt = newStmt}
+        return $ setBndStmtOnly newStmt bnd
         
   pay d (DueInterest _) 0 b = return b
   pay d (DueInterest Nothing) amt bnd@(Bond bn bt oi iinfo _ bal r duePrin dueInt dueIoI dueIntDate lpayInt lpayPrin stmt)
@@ -497,6 +517,7 @@ instance Payable Bond where
 
 -- TODO: should increase the original balance of the bond?
 instance Drawable Bond where
+  draw _ _ _ bond@(BondGroup {}) = Left "Cannot draw on a bond group"
   draw d amt txn bond 
     | amt < 0 = Left $ "Cannot draw negative amount "++ show amt ++ " from bond "++ show (bndName bond)
     | amt == 0 = return bond
@@ -508,7 +529,7 @@ instance Drawable Bond where
                     newBal = bndBalance bond' + amt
                     newStmt = S.appendStmt (BondTxn d newBal 0 (negate amt) (getCurRate bond') 0 dueInt dueIoI Nothing txn) stmt 
                   in 
-                    return $ bond' {bndBalance = newBal, bndStmt=newStmt } 
+                    return $ setBndBalStmt newBal newStmt bond'
 
   availForDraw d bond = Unlimit
 

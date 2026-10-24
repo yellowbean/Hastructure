@@ -19,6 +19,7 @@ import qualified AssetClass.AssetBase as AB
 import Data.List
 import Data.Fixed
 import Data.Maybe
+import Data.Bifunctor (first)
 import Data.Text (replace, pack, unpack)
 import Numeric.Limits
 import Control.Monad.Loops
@@ -49,10 +50,8 @@ import Control.Lens.TH
 import Control.Applicative
 import Data.Map.Lens
 import Data.List.Lens
-import Debug.Trace
 import Lib
 import qualified Cashflow as P
-debug = flip trace
 
 -- | calcuate target balance for a reserve account, 0 for a non-reserve account
 calcTargetAmount :: P.Asset a => TestDeal a -> RunContext -> Date -> A.Account -> Either ErrorRep Balance
@@ -84,13 +83,13 @@ calcBondTargetBalance t rc d (L.BondGroup bMap mPt) =
                 vs <- traverse (calcBondTargetBalance t rc d) $ Map.elems bMap
                 return $ sum vs 
 
-    Just (L.PAC _target) -> return $ getValOnByDate _target d
+    Just (L.PAC _target) -> first ("Bond group PAC target: " ++) (tryGetValOnByDate _target d)
     Just (L.PacAnchor _target _bnds)
       | queryDealBool t rc (IsPaidOff _bnds) d == Right True -> 
           do
             subBondTargets <- traverse (calcBondTargetBalance t rc d) $ Map.elems bMap
             return $ sum subBondTargets
-      | queryDealBool t rc (IsPaidOff _bnds) d == Right False -> return $ getValOnByDate _target d
+      | queryDealBool t rc (IsPaidOff _bnds) d == Right False -> first ("Bond group PacAnchor target: " ++) (tryGetValOnByDate _target d)
       | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
     Just (L.AmtByPeriod pc) -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
                                 Just v -> return v
@@ -108,15 +107,14 @@ calcBondTargetBalance t rc d b =
       | otherwise -> return $ L.bndBalance b
     L.IO -> return 0
     L.Equity -> return 0
-    L.PAC _target -> Right $ getValOnByDate _target d
+    L.PAC _target -> first (("Bond " ++ L.bndName b ++ " PAC target: ") ++) (tryGetValOnByDate _target d)
     L.PacAnchor _target _bnds
       | queryDealBool t rc (IsPaidOff _bnds) d == Right True -> return 0
-      | queryDealBool t rc (IsPaidOff _bnds) d == Right False -> return $ getValOnByDate _target d
+      | queryDealBool t rc (IsPaidOff _bnds) d == Right False -> first (("Bond " ++ L.bndName b ++ " PacAnchor target: ") ++) (tryGetValOnByDate _target d)
       | otherwise -> Left $ "Calculate paid off bonds failed"++ show _bnds ++" in calc target balance"
     L.AmtByPeriod pc -> case getValFromPerCurve pc Past Inc (fromMaybe 0 (getDealStatInt t BondPaidPeriod)) of
                           Just v -> return v
                           Nothing -> Left "Failed to find value in calcTargetBalance"
-    _ -> Left $ "Bond "++ L.bndName b ++" is not a bond with target balance setting"
 
 
 patchDateToStats :: Date -> DealStats -> DealStats
@@ -799,7 +797,7 @@ queryCompound t@TestDeal{accounts=accMap, bonds=bndMap, ledgers=ledgersM, fees=f
           Just mCustom ->
               case Map.lookup s mCustom of 
                 Just (CustomConstant v) -> Right . toRational $ v 
-                Just (CustomCurve cv) -> Right . toRational $ getValOnByDate cv d
+                Just (CustomCurve cv) -> first (("Custom curve " ++ show s ++ ": ") ++) (toRational <$> tryGetValOnByDate cv d)
                 Just (CustomDS ds) -> queryCompound t rc d (patchDateToStats d ds )
                 _ -> Left $ "Date:"++show d++"Unsupported custom data found for key " ++ show s
 

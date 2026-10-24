@@ -20,7 +20,7 @@ import Data.List
 import Data.Ratio
 import Data.Maybe
 import GHC.Generics
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -32,10 +32,8 @@ import AssetClass.AssetCashflow
 
 import Cashflow (extendTxns,TsRow(..))
 
-import Debug.Trace
 import Control.Lens hiding (element,Index)
 import Control.Lens.TH
-debug = flip trace
 
 
 data IntCalcType = ByRate IRate
@@ -231,10 +229,7 @@ instance Ast.Asset ProjectedCashFlow where
       = do
           (fixedCashFlow, floatedCashFlow) <- seperateCashflows f (Just pAssump) mRates
           return (foldl CF.combine fixedCashFlow floatedCashFlow, Map.empty)
-    
 
-    projCashflow a b c d = Left $ "Failed to match when proj projected flow with assumption >>" ++ show a ++ show b ++ show c ++ show d
-    
     getBorrowerNum f = 0
 
     splitWith f rs = [f]

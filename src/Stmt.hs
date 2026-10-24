@@ -22,7 +22,7 @@ import Types
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Text.Regex.Base
 import Text.Regex.PCRE
 import Data.Fixed
@@ -39,8 +39,6 @@ import Control.Applicative (liftA2)
 import Control.Lens hiding (element,Empty)
 import Control.Lens.TH
 
-import Debug.Trace
-debug = flip trace
 
 
 aggByTxnComment :: [Txn] -> M.Map TxnComment [Txn] -> M.Map TxnComment Balance
@@ -263,7 +261,6 @@ getFlow comment =
             Inflow
           else
             Noneflow
-      _ -> error ("Missing in GetFlow >> "++ show comment)
 
 -- ^ filter transaction by apply a filter function on txn comment
 filterTxn :: (TxnComment -> Bool) -> [Txn] -> [Txn]

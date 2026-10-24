@@ -17,6 +17,7 @@ import Types
 import Interface
 import Deal.DealBase
 import qualified Cashflow as CF
+import Data.List (isInfixOf)
 
 import Debug.Trace
 debug = flip trace
@@ -61,7 +62,16 @@ expTests =  testGroup "Expense Tests"
     in
       testCase "test on Custom Fee Type" $
       assertEqual "calc Due Fee" (Right [f1_ , f2_ , f3_ , _f1WithDue]) feesCalc
-
+    ,
+    let
+      fBad = Fee "FeeNameBad" (FeeFlow (L.IRateCurve [L.TsPoint (L.toDate "20220101") 0.05])) (L.toDate "20210101") 0 Nothing 0 Nothing Nothing
+      ctx = defaultRunContext
+    in
+      testCase "FeeFlow with a non-balance curve returns Left" $
+        assertBool "error mentions BalanceCurve" $
+          case DA.calcDueFee DT.td2 ctx (L.toDate "20220321") fBad of
+            Left e -> "BalanceCurve" `isInfixOf` e
+            Right _ -> False
   ]
 
 expPayTest = 

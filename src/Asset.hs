@@ -9,8 +9,8 @@
 module Asset ( Asset(..),
       buildAssumptionPpyDefRecRate,buildAssumptionPpyDelinqDefRecRate
       ,calcRecoveriesFromDefault
-      ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates,getObligorFields
-      ,getObligorTags,getObligorId,getRecoveryLagAndRate,getDefaultDelinqAssump,getOriginInfo
+      ,priceAsset,applyHaircut,buildPrepayRates,buildDefaultRates
+      ,getRecoveryLagAndRate,getDefaultDelinqAssump
 ) where
 
 import qualified Data.Time as T
@@ -32,12 +32,12 @@ import Analytics
 import Data.List
 import Data.Maybe
 import Data.Ratio
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Language.Haskell.TH
 import GHC.Generics
 import Data.Aeson.TH
 import Data.Aeson.Types
-import Types hiding (Current)
+import Types
 import Text.Printf
 import Data.Fixed
 import qualified InterestRate as IR
@@ -46,7 +46,6 @@ import Util
 
 import AssetClass.AssetBase ( OriginalInfo(..), calcPmt, AssetUnion, Obligor(..) )
 
-import Debug.Trace
 import Assumptions (ExtraStress(ExtraStress))
 
 import Control.Lens hiding (element)
@@ -54,7 +53,6 @@ import Control.Lens.TH
 import DateUtil (yearCountFraction)
 
 
-debug = flip trace
 
 class (Show a,IR.UseRate a) => Asset a where
   -- | project contractual cashflow of an asset with interest assumptions
@@ -171,8 +169,6 @@ applyExtraStress (Just ExtraStress{A.defaultFactors= mDefFactor
 cpr2smm :: Rate -> Rate
 cpr2smm r = toRational $ 1 - (1 - fromRational r :: Double) ** (1/12)
 
-normalPerfVector :: [Rate] -> [Rate]
-normalPerfVector = floorWith 0.0 . capWith 1.0
 
 
 -- ^ Given a prerpayment assumption , convert it to <period> based prepayment rate

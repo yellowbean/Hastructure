@@ -21,7 +21,7 @@ import Types
 import qualified Data.Map as Map
 import Data.List
 import Data.Maybe
-import Data.Aeson hiding (json)
+import Data.Aeson ()
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -37,7 +37,6 @@ import AssetClass.AssetCashflow
 import AssetClass.FixedAsset
 import AssetClass.ProjectedCashFlow
 
-import Debug.Trace
 import Assumptions (AssetDefaultAssumption(DefaultCDR))
 import qualified Asset as Ast
 
@@ -205,7 +204,6 @@ calcAssetUnion (ACM.LS ast) d mRates = P.calcCashflow ast d mRates
 calcAssetUnion (ACM.FA ast) d mRates = P.calcCashflow ast d mRates
 calcAssetUnion (ACM.RE ast) d mRates = P.calcCashflow ast d mRates
 calcAssetUnion (ACM.PF ast) d mRates = P.calcCashflow ast d mRates
-calcAssetUnion x _ _ = Left ("Failed to match  proj AssetUnion"++ show x)
 
 projAssetUnion :: ACM.AssetUnion -> Date -> A.AssetPerf -> Maybe [RateAssumption] 
                -> Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)
@@ -216,7 +214,6 @@ projAssetUnion (ACM.LS ast) d assumps mRates = P.projCashflow ast d assumps mRat
 projAssetUnion (ACM.FA ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.RE ast) d assumps mRates = P.projCashflow ast d assumps mRates
 projAssetUnion (ACM.PF ast) d assumps mRates = P.projCashflow ast d assumps mRates
-projAssetUnion x _ _ _ = Left ("Failed to match  proj AssetUnion"++ show x)
 
 projAssetUnionList :: [ACM.AssetUnion] -> Date -> A.ApplyAssumptionType -> Maybe [RateAssumption] 
                    -> Either String (CF.CashFlowFrame, Map.Map CutoffFields Balance)

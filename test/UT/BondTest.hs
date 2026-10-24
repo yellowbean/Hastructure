@@ -1,4 +1,4 @@
-module UT.BondTest(pricingTests,bndConsolTest,writeOffTest,accrueTest,selectorTest,walSafetyTest)
+module UT.BondTest(pricingTests,bndConsolTest,writeOffTest,accrueTest,selectorTest,walSafetyTest,bondGroupSafetyTest)
 where
 
 import Test.Tasty
@@ -326,3 +326,16 @@ walSafetyTest = testGroup "Bond WAL safety"
   ]
 
 
+bondGroupSafetyTest =
+  let
+    d = L.toDate "20200101"
+    bg = B.BondGroup (Map.fromList [("A1",b1)]) Nothing
+  in
+    testGroup "bond group safety" [
+      testCase "pay principal on a bond group returns Left" $
+        assertBool "expected Left" (isLeft (pay d DuePrincipal 10 bg))
+    , testCase "pay residual on a bond group returns Left" $
+        assertBool "expected Left" (isLeft (pay d DueResidual 10 bg))
+    , testCase "draw on a bond group returns Left" $
+        assertBool "expected Left" (isLeft (draw d 10 S.Empty bg))
+    ]

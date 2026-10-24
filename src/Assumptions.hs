@@ -36,7 +36,7 @@ import DateUtil
 import qualified Data.Map as Map 
 import Data.List
 import qualified Data.Set as Set
-import Data.Aeson hiding (json)
+import Data.Aeson
 import Language.Haskell.TH
 import Data.Aeson.TH
 import Data.Aeson.Types
@@ -47,11 +47,9 @@ import Data.Ratio
 import Revolving
 import GHC.Generics
 import AssetClass.AssetBase
-import Debug.Trace
 import qualified InterestRate as IR
 import Control.Lens hiding (Index) 
 
-debug = flip trace
 
 type AssetPerf = (AssetPerfAssumption,AssetDelinqPerfAssumption,AssetDefaultedPerfAssumption)
 type StratPerfByIdx = ([Int],AssetPerf)
@@ -334,8 +332,7 @@ getRateAssumption :: [RateAssumption] -> Index -> Maybe RateAssumption
 getRateAssumption assumps idx
   = find (\case
            (RateCurve _idx _) -> idx == _idx 
-           (RateFlat _idx _) -> idx == _idx
-           _ -> False)
+           (RateFlat _idx _) -> idx == _idx)
          assumps
 
 -- | project rates used by rate type ,with interest rate assumptions and observation dates
@@ -363,8 +360,6 @@ projRates sr (IR.Floater _ idx spd r dp rfloor rcap mr) (Just assumps) ds
               (Just fv, Just cv) -> capWith cv $ floorWith fv $ fromRational <$> ratesUsedByDates 
               (Just fv, Nothing) -> floorWith fv $ fromRational <$> ratesUsedByDates 
               (Nothing, Just cv) -> capWith cv $ fromRational <$> ratesUsedByDates 
-
-projRates _ rt rassump ds = Left ("Invalid rate type: "++ show rt++" assump: "++ show rassump)
 
 -- ^ split call option assumption , 
 -- lefts are for waterfall payment days
